@@ -55,8 +55,8 @@ std::vector<int32_t> words(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	out.reserve(block.size() * 2);
 	for (const StereoSample s : block) {
-		out.push_back(s.l);
-		out.push_back(s.r);
+		out.push_back(s.l.raw());
+		out.push_back(s.r.raw());
 	}
 	return out;
 }

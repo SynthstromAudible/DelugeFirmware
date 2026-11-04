@@ -170,7 +170,7 @@ struct AnalogImpulseResponse {
 		}
 		push(left, x_left);
 		push(right, x_right);
-		return {.l = sum_left.raw(), .r = sum_right.raw()};
+		return {.l = reinterpret_bits<Q<31>>(sum_left), .r = reinterpret_bits<Q<31>>(sum_right)};
 	}
 
 private:

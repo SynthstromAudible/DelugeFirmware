@@ -42,6 +42,7 @@
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h" // CompressorKnobs, RmsFeedbackCompressor::View
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "raw_frame.h"
 #include "raw_shaping.h"
 #include "reference_filters.h"
 
@@ -57,8 +58,8 @@
 namespace compressor_reference {
 
 using deluge::dsp::q31;
-using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::CompressorKnobs;
+using deluge::dsp::test::RawFrame;
 using filters_reference::Digest;
 using filters_reference::ReferenceAntialiasedTanh;
 using filters_reference::ReferenceOnePole;
@@ -67,7 +68,7 @@ using filters_reference::ReferenceOnePole;
 using View = deluge::dsp::fixed::RmsFeedbackCompressor::View;
 
 /// @brief The scratch a compressor needs to blend: distinct from the block and at least as long.
-using CompressorScratch = std::span<StereoSample>;
+using CompressorScratch = std::span<RawFrame>;
 
 namespace detail {
 
@@ -141,7 +142,7 @@ public:
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r,
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void render(std::span<RawFrame> block, q31 volume_l, q31 volume_r,
 	                                               q31 final_volume, CompressorScratch scratch) {
 		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
@@ -180,7 +181,7 @@ public:
 		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())) << 8;
 
 		for (std::size_t i = 0; i < block.size(); i++) {
-			StereoSample& sample = block[i];
+			RawFrame& sample = block[i];
 			current_volume_l_ += increment_l;
 			current_volume_r_ += increment_r;
 
@@ -205,7 +206,7 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<RawFrame> block, q31 final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
@@ -293,11 +294,11 @@ private:
 		return desired + std::exp(release_rate_ * num_samples) * (current - desired);
 	}
 
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC float measureLevel(std::span<const StereoSample> block) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC float measureLevel(std::span<const RawFrame> block) {
 		q31 sum = 0;
 		const float last_mean = mean_;
 
-		for (const StereoSample sample : block) {
+		for (const RawFrame sample : block) {
 			const q31 l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
 			const q31 r = sample.r - detector_[1].lowPass(sample.r, detector_moveability_);
 			const q31 s = std::max(std::abs(l), std::abs(r));
@@ -408,8 +409,7 @@ public:
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
-	            CompressorScratch scratch) {
+	void render(std::span<RawFrame> block, q31 volume_l, q31 volume_r, q31 final_volume, CompressorScratch scratch) {
 		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
 		}
@@ -443,7 +443,7 @@ public:
 		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())));
 
 		for (std::size_t i = 0; i < block.size(); i++) {
-			StereoSample& sample = block[i];
+			RawFrame& sample = block[i];
 			current_volume_l_ = add_saturate(current_volume_l_, increment_l);
 			current_volume_r_ = add_saturate(current_volume_r_, increment_r);
 
@@ -468,7 +468,7 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<RawFrame> block, q31 final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
@@ -559,13 +559,13 @@ private:
 		return desired + std::exp(release_rate_ * num_samples) * (current - desired);
 	}
 
-	float measureLevel(std::span<const StereoSample> block) {
+	float measureLevel(std::span<const RawFrame> block) {
 		const float last_mean = mean_;
 		const OnePole::Coefficients detector{.m = deluge::dsp::Q<31>::from_raw(detector_moveability_),
 		                                     .mode = OnePole::Mode::LOW_PASS};
 
 		int64_t sum = 0;
-		for (const StereoSample sample : block) {
+		for (const RawFrame sample : block) {
 			const q31 l = deluge::dsp::wrapping_sub(
 			    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_,
 			                                                     deluge::dsp::Q<31>::from_raw(sample.l))

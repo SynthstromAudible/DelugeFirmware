@@ -55,14 +55,14 @@ struct SimdAdd : Mixer<SimdAdd, q31> {
 };
 /// A stereo gain, scalar and SIMD (the interleaved path).
 struct ScalarStereoDouble : Processor<ScalarStereoDouble, StereoSample> {
-	[[nodiscard]] StereoSample render(StereoSample f) { return {.l = f.l + f.l, .r = f.r + f.r}; }
+	[[nodiscard]] StereoSample render(StereoSample f) { return {.l = add_wrap(f.l, f.l), .r = add_wrap(f.r, f.r)}; }
 };
 struct SimdStereoDouble : Processor<SimdStereoDouble, StereoSample> {
 	[[nodiscard]] StereoVector render(StereoVector v) { return {.l = v.l + v.l, .r = v.r + v.r}; }
 };
 /// An asymmetric stereo processor (left doubled, right unchanged), so a channel swap shows; scalar and SIMD.
 struct ScalarLeftDouble : Processor<ScalarLeftDouble, StereoSample> {
-	[[nodiscard]] StereoSample render(StereoSample f) { return {.l = f.l + f.l, .r = f.r}; }
+	[[nodiscard]] StereoSample render(StereoSample f) { return {.l = add_wrap(f.l, f.l), .r = f.r}; }
 };
 struct SimdLeftDouble : Processor<SimdLeftDouble, StereoSample> {
 	[[nodiscard]] StereoVector render(StereoVector v) { return {.l = v.l + v.l, .r = v.r}; }
@@ -83,7 +83,7 @@ struct ScalarStereoCount : Generator<ScalarStereoCount, StereoSample> {
 	q31 next = 1;
 	[[nodiscard]] StereoSample render() {
 		q31 v = next++;
-		return {.l = v, .r = -v};
+		return {.l = Q<31>::from_raw(v), .r = Q<31>::from_raw(-v)};
 	}
 };
 struct SimdStereoCount : Generator<SimdStereoCount, StereoSample> {
@@ -138,7 +138,7 @@ std::vector<q31> ramp(std::size_t n) {
 std::vector<StereoSample> stereo_ramp(std::size_t frames) {
 	std::vector<StereoSample> v(frames);
 	for (std::size_t i = 0; i < frames; i++) {
-		v[i] = {.l = static_cast<q31>(i + 1), .r = -static_cast<q31>(i + 1)};
+		v[i] = {.l = Q<31>::from_raw(static_cast<q31>(i + 1)), .r = Q<31>::from_raw(-static_cast<q31>(i + 1))};
 	}
 	return v;
 }
@@ -250,16 +250,16 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t frames : {1u, 2u, 3u, 4u, 5u, 6u, 9u, 10u}) {
 			std::vector<StereoSample> in(frames);
 			for (std::size_t i = 0; i < frames; i++) {
-				in[i] = {.l = static_cast<q31>(i + 1), .r = -static_cast<q31>(i + 1)};
+				in[i] = {.l = Q<31>::from_raw(static_cast<q31>(i + 1)), .r = Q<31>::from_raw(-static_cast<q31>(i + 1))};
 			}
 			std::vector<StereoSample> scalar(frames), simd(frames);
 			ScalarStereoDouble{}.render_block(in, scalar);
 			SimdStereoDouble{}.render_block(in, simd);
 			for (std::size_t i = 0; i < frames; i++) {
-				expect(simd[i].l).to_equal(scalar[i].l);
-				expect(simd[i].r).to_equal(scalar[i].r);
+				expect(simd[i].l.raw()).to_equal(scalar[i].l.raw());
+				expect(simd[i].r.raw()).to_equal(scalar[i].r.raw());
 			}
-			expect(scalar.back().r).to_equal(-2 * static_cast<q31>(frames));
+			expect(scalar.back().r.raw()).to_equal(-2 * static_cast<q31>(frames));
 		}
 	});
 	it("mixes every sample on both paths, tails included", _ {
@@ -307,10 +307,10 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto scalar = stereo_ramp(frames);
 			ScalarStereoDouble{}.render_block(scalar, scalar);
 			for (std::size_t i = 0; i < frames; i++) {
-				expect(simd[i].l).to_equal(out[i].l);
-				expect(simd[i].r).to_equal(out[i].r);
-				expect(scalar[i].l).to_equal(out[i].l);
-				expect(scalar[i].r).to_equal(out[i].r);
+				expect(simd[i].l.raw()).to_equal(out[i].l.raw());
+				expect(simd[i].r.raw()).to_equal(out[i].r.raw());
+				expect(scalar[i].l.raw()).to_equal(out[i].l.raw());
+				expect(scalar[i].r.raw()).to_equal(out[i].r.raw());
 			}
 		}
 	});
@@ -335,13 +335,13 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			ScalarStereoAdd{}.render_block(a, a, scalar_mix);
 			SimdStereoAdd{}.render_block(a, a, simd_mix);
 			for (std::size_t i = 0; i < frames; i++) {
-				expect(simd[i].l).to_equal(scalar[i].l);
-				expect(simd[i].r).to_equal(scalar[i].r);
-				expect(simd_mix[i].l).to_equal(scalar_mix[i].l);
-				expect(simd_mix[i].r).to_equal(scalar_mix[i].r);
+				expect(simd[i].l.raw()).to_equal(scalar[i].l.raw());
+				expect(simd[i].r.raw()).to_equal(scalar[i].r.raw());
+				expect(simd_mix[i].l.raw()).to_equal(scalar_mix[i].l.raw());
+				expect(simd_mix[i].r.raw()).to_equal(scalar_mix[i].r.raw());
 			}
-			expect(scalar.back().r).to_equal(-static_cast<q31>(frames));
-			expect(scalar_mix.back().l).to_equal(2 * static_cast<q31>(frames));
+			expect(scalar.back().r.raw()).to_equal(-static_cast<q31>(frames));
+			expect(scalar_mix.back().l.raw()).to_equal(2 * static_cast<q31>(frames));
 		}
 	});
 	it("keeps each channel its own on the scalar and interleaved SIMD paths, in place and out", _ {
@@ -355,12 +355,12 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			for (std::size_t i = 0; i < frames; i++) {
 				const auto expected_l = 2 * static_cast<q31>(i + 1);
 				const auto expected_r = -static_cast<q31>(i + 1);
-				expect(scalar[i].l).to_equal(expected_l);
-				expect(scalar[i].r).to_equal(expected_r);
-				expect(simd[i].l).to_equal(expected_l);
-				expect(simd[i].r).to_equal(expected_r);
-				expect(inplace[i].l).to_equal(expected_l);
-				expect(inplace[i].r).to_equal(expected_r);
+				expect(scalar[i].l.raw()).to_equal(expected_l);
+				expect(scalar[i].r.raw()).to_equal(expected_r);
+				expect(simd[i].l.raw()).to_equal(expected_l);
+				expect(simd[i].r.raw()).to_equal(expected_r);
+				expect(inplace[i].l.raw()).to_equal(expected_l);
+				expect(inplace[i].r.raw()).to_equal(expected_r);
 			}
 		}
 	});
@@ -375,10 +375,10 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto scalar_a = stereo_ramp(frames);
 			ScalarStereoAdd{}.render_block(scalar_a, b, scalar_a);
 			for (std::size_t i = 0; i < frames; i++) {
-				expect(simd_a[i].l).to_equal(out[i].l);
-				expect(simd_a[i].r).to_equal(out[i].r);
-				expect(scalar_a[i].l).to_equal(out[i].l);
-				expect(scalar_a[i].r).to_equal(out[i].r);
+				expect(simd_a[i].l.raw()).to_equal(out[i].l.raw());
+				expect(simd_a[i].r.raw()).to_equal(out[i].r.raw());
+				expect(scalar_a[i].l.raw()).to_equal(out[i].l.raw());
+				expect(scalar_a[i].r.raw()).to_equal(out[i].r.raw());
 			}
 		}
 	});

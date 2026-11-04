@@ -22,9 +22,9 @@
 
 namespace {
 namespace rw = reverb_workloads;
-using deluge::dsp::StereoSample;
 using deluge::dsp::fp::Plate;
 using deluge::dsp::fp::PlateLfo;
+using deluge::dsp::test::RawFrame;
 
 /// @brief Mono<Plate> over a ring it owns, as effects::Reverb holds it: a model change zeroes the ring, resets the
 /// State and starts the LFO; the knobs carry across a model change.
@@ -55,10 +55,11 @@ struct PlateRunner {
 		settings.lpf = k.lpf;
 		mono.configure(settings);
 	}
-	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
+	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
 		mono.on<&Plate::set_send>(deluge::dsp::typed_view(send).data(), deluge::dsp::Q<31>::from_raw(l),
 		                          deluge::dsp::Q<31>::from_raw(r));
-		mono.render_block(out, out);
+		const std::span<deluge::dsp::StereoSample> frames = deluge::dsp::test::typed_frames(out);
+		mono.render_block(frames, frames);
 	}
 	void digest_state(rw::Digest& d) const { rw::digest_plate(d, deluge::dsp::test::plate_view(mono.state(), memory)); }
 };
@@ -79,12 +80,12 @@ struct PlateModel {
 		runner.set_model(model);
 		runner.set_knobs({.room_size = room_size, .damping = damping, .width = 0.5f, .hpf = 0.f, .lpf = 1.f});
 	}
-	void process(std::span<int32_t> input, std::span<StereoSample> output) {
+	void process(std::span<int32_t> input, std::span<RawFrame> output) {
 		runner.render(input, output, 1 << 30, 1 << 30);
 	}
 	/// @return A callable rendering one block through this model, for the shared impulse measurements.
 	[[nodiscard]] auto render() {
-		return [this](std::span<int32_t> input, std::span<StereoSample> output) { process(input, output); };
+		return [this](std::span<int32_t> input, std::span<RawFrame> output) { process(input, output); };
 	}
 };
 
@@ -96,7 +97,7 @@ std::unique_ptr<PlateModel> make_model(rw::Model model, float room_size, float d
 /// @return The settled tail's mean sample-to-sample change over its mean level: falls as damping darkens it.
 double tail_brightness(PlateModel& model, double seconds) {
 	std::vector<int32_t> input(kBlock, 0);
-	std::vector<StereoSample> output(kBlock);
+	std::vector<RawFrame> output(kBlock);
 	input[0] = 1 << 28;
 	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kBlock);
 	const std::size_t settled = blocks / 8; // the early reflections pass first
@@ -104,10 +105,10 @@ double tail_brightness(PlateModel& model, double seconds) {
 	double level = 0.0;
 	double previous = 0.0;
 	for (std::size_t block = 0; block < blocks; ++block) {
-		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
+		std::ranges::fill(output, RawFrame{.l = 0, .r = 0});
 		model.process(input, output);
 		std::ranges::fill(input, 0);
-		for (const StereoSample& sample : output) {
+		for (const RawFrame& sample : output) {
 			const auto current = static_cast<double>(sample.l);
 			if (block >= settled) {
 				difference += std::abs(current - previous);
@@ -123,7 +124,7 @@ double tail_brightness(PlateModel& model, double seconds) {
 std::vector<int32_t> render_at(rw::Model m, int input_shift, double seconds) {
 	auto model = make_model(m, 0.5f, 0.5f);
 	std::vector<int32_t> input(kBlock);
-	std::vector<StereoSample> output(kBlock);
+	std::vector<RawFrame> output(kBlock);
 	std::vector<int32_t> captured;
 	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kBlock);
 	for (std::size_t block = 0; block < blocks; ++block) {
@@ -131,10 +132,10 @@ std::vector<int32_t> render_at(rw::Model m, int input_shift, double seconds) {
 			const auto t = static_cast<double>((block * kBlock) + i);
 			input[i] = static_cast<int32_t>(std::ldexp(1.0, input_shift) * std::sin(0.05 * t));
 		}
-		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
+		std::ranges::fill(output, RawFrame{.l = 0, .r = 0});
 		model->process(input, output);
 		if (block >= blocks / 4) {
-			for (const StereoSample& sample : output) {
+			for (const RawFrame& sample : output) {
 				captured.push_back(sample.l);
 			}
 		}
@@ -329,7 +330,7 @@ describe plate_kernel("the plate kernel", ${
 		runner->set_model(rw::Model::MUTABLE);
 		runner->set_knobs(rw::kTurned);
 		std::vector<int32_t> send(128);
-		std::vector<StereoSample> out(128);
+		std::vector<RawFrame> out(128);
 		uint32_t seed = 1;
 		for (int32_t block = 0; block < 20; ++block) {
 			for (int32_t& v : send) {

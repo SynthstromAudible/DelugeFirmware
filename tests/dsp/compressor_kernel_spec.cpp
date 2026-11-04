@@ -52,6 +52,7 @@ using deluge::dsp::scale_shr_floor;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::Compressor;
 using deluge::dsp::fixed::CompressorKnobs;
+using deluge::dsp::test::RawFrame;
 
 static_assert(deluge::dsp::detail::plain_value<Compressor::Coefficients>);
 static_assert(deluge::dsp::detail::plain_value<Compressor::State>);
@@ -191,13 +192,12 @@ template <typename A, typename B>
 [[nodiscard]] std::optional<cw::Parting> first_kernel_parting(const cw::CompressorWorkload& workload) {
 	cw::CompressorRun<A> a{workload};
 	cw::CompressorRun<B> b{workload};
-	std::vector<StereoSample> out_a;
-	std::vector<StereoSample> out_b;
+	std::vector<RawFrame> out_a;
+	std::vector<RawFrame> out_b;
 	for (size_t block = 0; block < workload.blocks; ++block) {
 		const uint8_t ra = a.block(block, out_a);
 		const uint8_t rb = b.block(block, out_b);
-		if (!std::ranges::equal(out_a, out_b,
-		                        [](StereoSample x, StereoSample y) { return x.l == y.l && x.r == y.r; })) {
+		if (!std::ranges::equal(out_a, out_b, [](RawFrame x, RawFrame y) { return x.l == y.l && x.r == y.r; })) {
 			return cw::Parting{.block = block, .what = "output"};
 		}
 		if (ra != rb) {
@@ -281,7 +281,7 @@ describe compressor_kernel("the Compressor kernel", ${
 	it("switches between WET and BLEND between the blocks of BLEND_SWITCH", _ {
 		const cw::CompressorWorkload& workload = workload_of(cw::CompressorWorkloadId::BLEND_SWITCH);
 		cw::CompressorRun<InPlace> run{workload};
-		std::vector<StereoSample> block;
+		std::vector<RawFrame> block;
 		size_t wet = 0;
 		size_t blended = 0;
 		size_t switches = 0;
@@ -316,7 +316,8 @@ describe compressor_kernel("the Compressor kernel", ${
 		int64_t largest = 0;
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			const cw::CompressorStep step = workload.step(b);
-			std::vector<StereoSample> block = cw::compressor_input(workload, b);
+			std::vector<RawFrame> input = cw::compressor_input(workload, b);
+			const std::span<StereoSample> block = deluge::dsp::test::typed_frames(std::span{input});
 			mono.on<&Compressor::set_levels>(Compressor::Levels{
 			    .volume_l = Q<27>::from_raw(1 << 27), .volume_r = Q<27>::from_raw(1 << 27), .final_volume = Q<29>::from_raw(step.final_volume >> 3),
 			    .threshold = Q<31>::from_raw(step.threshold)});
@@ -369,7 +370,7 @@ describe compressor_kernel("the Compressor kernel", ${
 			s.loop.current_volume_l = Q<26>::from_raw(current);
 			s.loop.current_volume_r = Q<26>::from_raw(-current);
 			const Compressor::Block b = Compressor::prepare(c, s, 1);
-			std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, {.l = 0, .r = 0});
+			std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, StereoSample{});
 			return std::pair{b, s.loop};
 		};
 		// From a gain of 24 over one frame the step reaches the rail exactly.

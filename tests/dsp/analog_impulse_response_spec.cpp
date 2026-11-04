@@ -78,7 +78,7 @@ std::vector<StereoSample> noise(std::size_t n, uint32_t seed, int shift) {
 	SeededNoise right{seed ^ 0x5bd1e995u};
 	std::vector<StereoSample> v(n);
 	for (StereoSample& s : v) {
-		s = {.l = left.render() >> shift, .r = right.render() >> shift};
+		s = {.l = Q<31>::from_raw(left.render() >> shift), .r = Q<31>::from_raw(right.render() >> shift)};
 	}
 	return v;
 }
@@ -96,7 +96,7 @@ std::vector<StereoSample> full_scale(std::size_t n, int pattern) {
 		                  : pattern == 1 ? true
 		                  : pattern == 2 ? i % 2 == 1
 		                                 : AnalogImpulseResponse::kResponse[reversed] > 0;
-		v[i] = {.l = high ? kMax : kMin, .r = high ? kMin : kMax};
+		v[i] = {.l = Q<31>::from_raw(high ? kMax : kMin), .r = Q<31>::from_raw(high ? kMin : kMax)};
 	}
 	return v;
 }
@@ -105,8 +105,8 @@ std::vector<StereoSample> full_scale(std::size_t n, int pattern) {
 std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
 	std::vector<q31> v;
 	for (const StereoSample& f : frames) {
-		v.push_back(f.l);
-		v.push_back(f.r);
+		v.push_back(f.l.raw());
+		v.push_back(f.r.raw());
 	}
 	return v;
 }
@@ -163,7 +163,7 @@ public:
 		const auto s1250 = static_cast<int32_t>(b1_);
 		step(a1_, a2_, 1071632635);
 		step(b1_, b2_, 1056758439);
-		return {.l = s440 + s1250, .r = s440 - s1250};
+		return {.l = Q<31>::from_raw(s440 + s1250), .r = Q<31>::from_raw(s440 - s1250)};
 	}
 
 private:
@@ -186,7 +186,7 @@ std::vector<StereoSample> wrap_stream(std::size_t seeded, std::size_t zeros) {
 	std::vector<StereoSample> v = noise(seeded, 0x12345678, 0);
 	const std::vector<StereoSample> reversed = full_scale(AnalogImpulseResponse::kTaps * 8, 3);
 	v.insert(v.end(), reversed.begin(), reversed.end());
-	v.insert(v.end(), zeros, StereoSample{.l = 0, .r = 0});
+	v.insert(v.end(), zeros, StereoSample{});
 	return v;
 }
 
@@ -197,8 +197,8 @@ std::size_t wraps(const std::vector<StereoSample>& in) {
 		int64_t l = 0;
 		int64_t r = 0;
 		for (std::size_t i = 0; i < AnalogImpulseResponse::kTaps && i <= n; ++i) {
-			l += multiply_32x32_rshift32_rounded(in[n - i].l, AnalogImpulseResponse::kResponse[i]);
-			r += multiply_32x32_rshift32_rounded(in[n - i].r, AnalogImpulseResponse::kResponse[i]);
+			l += multiply_32x32_rshift32_rounded(in[n - i].l.raw(), AnalogImpulseResponse::kResponse[i]);
+			r += multiply_32x32_rshift32_rounded(in[n - i].r.raw(), AnalogImpulseResponse::kResponse[i]);
 		}
 		for (const int64_t sum : {l, r}) {
 			if (sum > kMax || sum < kMin) {
@@ -243,7 +243,7 @@ struct Run {
 template <typename Reference>
 Run run(const std::vector<StereoSample>& input, std::size_t block) {
 	std::vector<StereoSample> in = input;
-	in.resize(input.size() + kFlush, StereoSample{.l = 0, .r = 0});
+	in.resize(input.size() + kFlush, StereoSample{});
 
 	Stereo<AnalogImpulseResponse> kernel;
 	std::vector<StereoSample> out(in.size());
@@ -285,7 +285,7 @@ Run run_recorded(auto&& input, int count) {
 describe analog_impulse_response("AnalogImpulseResponse", ${
 	it("answers an impulse with its 26 taps in order, then silence, as recorded from the class", _ {
 		const Run r = run_recorded([](int i) {
-			return i == 0 ? StereoSample{.l = kMin, .r = kMax} : StereoSample{.l = 0, .r = 0};
+			return i == 0 ? StereoSample{.l = Q<31>::from_raw(kMin), .r = Q<31>::from_raw(kMax)} : StereoSample{};
 		}, 30);
 		expect(r.got).to_equal(kImpulse);
 		expect(r.want).to_equal(kImpulse);
@@ -299,7 +299,7 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 	});
 
 	it("starts silent: a fresh response outputs nothing for silence", _ {
-		const Run r = run_recorded([](int) { return StereoSample{.l = 0, .r = 0}; }, 26);
+		const Run r = run_recorded([](int) { return StereoSample{}; }, 26);
 		expect(r.got).to_equal(std::vector<q31>(52, 0));
 		expect(r.want).to_equal(std::vector<q31>(52, 0));
 	});
@@ -357,7 +357,7 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 
 	it("rings out the class's tail from a block of zeros after a long input: the history holds what its sums do", _ {
 		std::vector<StereoSample> in = noise(kLongRun, 0x5eed7a11, 0);
-		in.insert(in.end(), 32, StereoSample{.l = 0, .r = 0});
+		in.insert(in.end(), 32, StereoSample{});
 		const std::vector<q31> want = reference_of<WrappingReferenceImpulseResponse>(in);
 		const std::vector<q31> tail{want.end() - 64, want.end()};
 		expect(std::count(tail.begin(), tail.begin() + (2 * kFlush), 0)).to_be_less_than(std::ptrdiff_t{4});
@@ -369,8 +369,8 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 	it("steps two channels as one step each would, the histories at different positions, full scale included", _ {
 		std::vector<StereoSample> in = noise(kLongRun, 0x7a1c0de5, 0);
 		for (const q31 x : {std::numeric_limits<q31>::min(), std::numeric_limits<q31>::max()}) {
-			in.insert(in.end(), 40, StereoSample{.l = x, .r = x});
-			in.insert(in.end(), 40, StereoSample{.l = x, .r = -1 - x});
+			in.insert(in.end(), 40, StereoSample::from_mono(Q<31>::from_raw(x)));
+			in.insert(in.end(), 40, StereoSample{.l = Q<31>::from_raw(x), .r = Q<31>::from_raw(-1 - x)});
 		}
 		for (const std::size_t offset : {std::size_t{0}, std::size_t{1}, std::size_t{13}, std::size_t{24}}) {
 			AnalogImpulseResponse::State left{};
@@ -383,9 +383,9 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 				std::ignore = AnalogImpulseResponse::step({}, {}, one_right, deluge::dsp::Q<31>::from_raw(q31(i * 977)));
 			}
 			for (const StereoSample& x : in) {
-				const StereoSample paired = AnalogImpulseResponse::step_pair(left, right, deluge::dsp::Q<31>::from_raw(x.l), deluge::dsp::Q<31>::from_raw(x.r));
-				expect(paired.l).to_equal(AnalogImpulseResponse::step({}, {}, one_left, deluge::dsp::Q<31>::from_raw(x.l)).raw());
-				expect(paired.r).to_equal(AnalogImpulseResponse::step({}, {}, one_right, deluge::dsp::Q<31>::from_raw(x.r)).raw());
+				const StereoSample paired = AnalogImpulseResponse::step_pair(left, right, x.l, x.r);
+				expect(paired.l.raw()).to_equal(AnalogImpulseResponse::step({}, {}, one_left, x.l).raw());
+				expect(paired.r.raw()).to_equal(AnalogImpulseResponse::step({}, {}, one_right, x.r).raw());
 			}
 			expect(left.oldest).to_equal(one_left.oldest);
 			expect(right.oldest).to_equal(one_right.oldest);

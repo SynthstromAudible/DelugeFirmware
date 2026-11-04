@@ -87,18 +87,23 @@ void DelayFeedbackLegacyAnalogCase::block(std::size_t /*n*/) {
 		sample = response_.process(sample);
 	}
 	// Less headroom than digital: the analog saturation sounds fine driven.
+	// The legacy chain's raw arithmetic on the Q31 words.
 	for (StereoSample& sample : work_) {
-		sample.l = dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.l, feedback_)), drive_).raw()
-		           << 2;
-		sample.r = dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.r, feedback_)), drive_).raw()
-		           << 2;
+		sample.l = dsp::Q<31>::from_raw(
+		    dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.l.raw(), feedback_)), drive_).raw()
+		    << 2);
+		sample.r = dsp::Q<31>::from_raw(
+		    dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.r.raw(), feedback_)), drive_).raw()
+		    << 2);
 	}
 	for (StereoSample& sample : work_) {
-		high_pass_l_ += (sample.l - high_pass_l_) >> 11;
-		sample.l -= high_pass_l_;
-
-		high_pass_r_ += (sample.r - high_pass_r_) >> 11;
-		sample.r -= high_pass_r_;
+		int32_t l = sample.l.raw();
+		int32_t r = sample.r.raw();
+		high_pass_l_ += (l - high_pass_l_) >> 11;
+		l -= high_pass_l_;
+		high_pass_r_ += (r - high_pass_r_) >> 11;
+		r -= high_pass_r_;
+		sample = {.l = dsp::Q<31>::from_raw(l), .r = dsp::Q<31>::from_raw(r)};
 	}
 }
 

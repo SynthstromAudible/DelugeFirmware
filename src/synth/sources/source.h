@@ -45,22 +45,23 @@ namespace deluge::synth {
 
 /// @brief Adds @p frame_in into the interleaved stereo frame at @p frame, each channel wrapping.
 [[gnu::always_inline]] inline void add_frame(int32_t* frame, dsp::StereoSample frame_in) {
-	add_into(&frame[0], frame_in.l);
-	add_into(&frame[1], frame_in.r);
+	add_into(&frame[0], frame_in.l.raw());
+	add_into(&frame[1], frame_in.r.raw());
 }
 
 /// @brief Adds @p sample, panned by the Q30 amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,
 /// wrapping.
 [[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t sample, int32_t amplitude_l,
                                               int32_t amplitude_r) {
-	add_frame(frame, dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
+	add_frame(frame, dsp::panned_mono(dsp::Q<31>::from_raw(sample), dsp::Q<30>::from_raw(amplitude_l),
+	                                  dsp::Q<30>::from_raw(amplitude_r)));
 }
 
 /// @brief Adds the two channels, each by its Q30 amplitude, into the interleaved stereo frame at @p frame, wrapping.
 [[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t left, int32_t right, int32_t amplitude_l,
                                               int32_t amplitude_r) {
-	add_frame(frame,
-	          dsp::panned_stereo(left, right, dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
+	add_frame(frame, dsp::panned_stereo(dsp::Q<31>::from_raw(left), dsp::Q<31>::from_raw(right),
+	                                    dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
 }
 
 /// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.

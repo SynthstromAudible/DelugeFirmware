@@ -35,6 +35,7 @@
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 
+#include "raw_frame.h"
 #include "raw_shaping.h"
 #include <algorithm>
 #include <array>
@@ -51,6 +52,10 @@ using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using deluge::bench::reference::ReferenceImpulseResponse;
 using deluge::bench::reference::WrappingReferenceImpulseResponse;
+using deluge::dsp::test::raw_frame;
+using deluge::dsp::test::raw_frames;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frame;
 
 namespace {
 
@@ -97,14 +102,14 @@ template <typename IR>
 struct ReferenceShaper {
 	IR analog_ir_;
 
-	void shapeFeedback(std::span<StereoSample> work, const ReferenceBlock& settings) {
+	void shapeFeedback(std::span<RawFrame> work, const ReferenceBlock& settings) {
 		if (settings.analog) {
-			for (StereoSample& sample : work) {
-				sample = analog_ir_.process(sample);
+			for (RawFrame& sample : work) {
+				sample = raw_frame(analog_ir_.process(typed_frame(sample)));
 			}
 			// Less headroom than digital: the analog saturation sounds fine driven.
 			const auto drive = static_cast<uint32_t>(settings.analog_saturation);
-			for (StereoSample& sample : work) {
+			for (RawFrame& sample : work) {
 				sample.l = raw_shaping::tanh(multiply_32x32_rshift32(sample.l, settings.feedback), drive) << 2;
 				sample.r = raw_shaping::tanh(multiply_32x32_rshift32(sample.r, settings.feedback), drive) << 2;
 			}
@@ -112,7 +117,7 @@ struct ReferenceShaper {
 		}
 
 		// More headroom than analog: a pure digital clip sounds bad.
-		for (StereoSample& sample : work) {
+		for (RawFrame& sample : work) {
 			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, settings.feedback)) << 2;
 			sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, settings.feedback)) << 2;
 		}
@@ -125,7 +130,7 @@ std::vector<StereoSample> noise(std::size_t n, uint32_t seed, int shift) {
 	SeededNoise right{seed ^ 0x5bd1e995u};
 	std::vector<StereoSample> v(n);
 	for (StereoSample& s : v) {
-		s = {.l = left.render() >> shift, .r = right.render() >> shift};
+		s = {.l = Q<31>::from_raw(left.render() >> shift), .r = Q<31>::from_raw(right.render() >> shift)};
 	}
 	return v;
 }
@@ -143,7 +148,7 @@ std::vector<StereoSample> full_scale(std::size_t n, int pattern) {
 		                  : pattern == 1 ? true
 		                  : pattern == 2 ? i % 2 == 1
 		                                 : AnalogImpulseResponse::kResponse[reversed] > 0;
-		v[i] = {.l = high ? kMax : kMin, .r = high ? kMin : kMax};
+		v[i] = {.l = Q<31>::from_raw(high ? kMax : kMin), .r = Q<31>::from_raw(high ? kMin : kMax)};
 	}
 	return v;
 }
@@ -152,6 +157,16 @@ std::vector<StereoSample> full_scale(std::size_t n, int pattern) {
 std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 	std::vector<q31> v;
 	for (const StereoSample& f : frames) {
+		v.push_back(f.l.raw());
+		v.push_back(f.r.raw());
+	}
+	return v;
+}
+
+/// @p frames as interleaved samples, left first.
+std::vector<q31> interleaved(std::span<const RawFrame> frames) {
+	std::vector<q31> v;
+	for (const RawFrame& f : frames) {
 		v.push_back(f.l);
 		v.push_back(f.r);
 	}
@@ -178,7 +193,8 @@ struct Pair {
 		kernel.configure(settings_of(block));
 		std::vector<StereoSample> out(in.size());
 		kernel.render_block(in, out);
-		std::vector<StereoSample> work(in.begin(), in.end());
+		const std::span<const RawFrame> raw_in = raw_frames(in);
+		std::vector<RawFrame> work(raw_in.begin(), raw_in.end());
 		reference.shapeFeedback(work, block);
 		const std::vector<q31> k = interleaved(out);
 		const std::vector<q31> r = interleaved(work);

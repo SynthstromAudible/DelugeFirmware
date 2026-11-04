@@ -53,7 +53,7 @@ void ReverbCase::setup(std::size_t n) {
 	rig.work = spans.out;
 	std::ranges::copy(spans.in, rig.work.begin());
 	for (std::size_t i = 0; i < n; ++i) {
-		rig.send[i] = spans.in[i].l >> 1;
+		rig.send[i] = spans.in[i].l.raw() >> 1; // the raw send block
 	}
 	rig.send_block = std::span<const int32_t>{rig.send.data(), n};
 }

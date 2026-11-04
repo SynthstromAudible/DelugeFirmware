@@ -277,7 +277,7 @@ std::size_t stereo_mismatches(T typed_wrapper, R raw_wrapper, std::size_t n) {
 		const auto in = raw_input(2 * n, 0xc2b2'ae35u + static_cast<std::uint32_t>((n * 7) + block));
 		std::vector<StereoSample> frames(n), raw_out(n), typed_out(n);
 		for (std::size_t i = 0; i < n; ++i) {
-			frames[i] = {.l = in[2 * i], .r = in[(2 * i) + 1]};
+			frames[i] = {.l = Q<31>::from_raw(in[2 * i]), .r = Q<31>::from_raw(in[(2 * i) + 1])};
 		}
 		raw_wrapper.render_block(frames, raw_out);
 		typed_wrapper.render_block(frames, typed_out);

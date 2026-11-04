@@ -228,11 +228,10 @@ struct Granular {
 					delta = (delta * g.pitch) >> 10;
 				}
 				const int32_t pos = (g.start + delta + kRingFrames) & kRingMask;
-				const StereoSample tap =
-				    static_cast<uint32_t>(pos) < written ? ring[pos] : StereoSample{.l = 0, .r = 0};
+				const StereoSample tap = static_cast<uint32_t>(pos) < written ? ring[pos] : StereoSample{};
 				const auto window = Q<31>::from_raw(vol);
-				grains_l = mla_r(grains_l, mul(Q<31>::from_raw(tap.l), window), Q<30>::from_raw(g.pan_l));
-				grains_r = mla_r(grains_r, mul(Q<31>::from_raw(tap.r), window), Q<30>::from_raw(g.pan_r));
+				grains_l = mla_r(grains_l, mul(tap.l, window), Q<30>::from_raw(g.pan_l));
+				grains_r = mla_r(grains_r, mul(tap.r, window), Q<30>::from_raw(g.pan_r));
 				g.counter++;
 				if (g.counter >= g.length) {
 					g.length = 0;
@@ -246,10 +245,8 @@ struct Granular {
 		// product, so the ring takes half the grains at the feedback level.
 		StereoSample& slot = s.ring[write_index];
 		const auto feedback = Q<31>::from_raw(b.feedback);
-		slot.l =
-		    reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(Q<31>::from_raw(x.l)), wet_sum_l, feedback)).raw();
-		slot.r =
-		    reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(Q<31>::from_raw(x.r)), wet_sum_r, feedback)).raw();
+		slot.l = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(x.l), wet_sum_l, feedback));
+		slot.r = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(x.r), wet_sum_r, feedback));
 		s.write += 1;
 		s.written = std::max(s.write, written);
 
@@ -262,8 +259,7 @@ struct Granular {
 		*s.send = add_wrap(*s.send, mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), s.send_amount));
 		++s.send;
 		const auto dry = Q<31>::from_raw(b.dry);
-		return {.l = add_sat(mul_as_wrap<Q<31>>(Q<31>::from_raw(x.l), dry), wet_l).raw(),
-		        .r = add_sat(mul_as_wrap<Q<31>>(Q<31>::from_raw(x.r), dry), wet_r).raw()};
+		return {.l = add_sat(mul_as_wrap<Q<31>>(x.l, dry), wet_l), .r = add_sat(mul_as_wrap<Q<31>>(x.r, dry), wet_r)};
 	}
 
 	/// @brief Event: the owner's ring, kRingFrames frames, taken up afresh: none of it reads until written.

@@ -31,6 +31,7 @@
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "raw_frame.h"
 
 #include <algorithm>
 #include <array>
@@ -51,6 +52,7 @@ namespace delay_reference {
 
 using deluge::dsp::Chain;
 using deluge::dsp::Pinned;
+using deluge::dsp::Q;
 using deluge::dsp::Stereo;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
@@ -58,6 +60,11 @@ using deluge::dsp::fixed::DelayBlockResult;
 using deluge::dsp::fixed::DelayTape;
 using deluge::dsp::fixed::FeedbackShaper;
 using deluge::dsp::fixed::ShiftTracker;
+using deluge::dsp::test::raw_frame;
+using deluge::dsp::test::raw_frames;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frame;
+using deluge::dsp::test::typed_frames;
 
 /// @brief Which of the block's two tapes an access is to.
 enum class TapeRole : uint8_t {
@@ -126,10 +133,13 @@ protected:
 	}
 
 	/// @brief The feedback chain on @p work, in place, both channels.
-	void renderFeedback(std::span<StereoSample> work) { feedback_.render_block(work, work); }
+	void renderFeedback(std::span<RawFrame> work) {
+		const std::span<StereoSample> frames = typed_frames(work);
+		feedback_.render_block(frames, frames);
+	}
 
 	/// @return The working block, kMaxBlockFrames frames.
-	[[nodiscard]] std::span<StereoSample> scratch() { return scratch_; }
+	[[nodiscard]] std::span<RawFrame> scratch() { return scratch_; }
 
 	[[nodiscard]] static int32_t indexOf(const DelayTape& tape, const StereoSample* sample) {
 		return static_cast<int32_t>(sample - tape.begin());
@@ -153,7 +163,7 @@ protected:
 	/// @brief The probe a resampled write is reported by. Each product rounds toward minus infinity, so a positive
 	/// strength leaves the left channel at -1 or below and a negative one the right; 2^20 keeps every sum of
 	/// overlapping writes far inside q31.
-	static constexpr StereoSample kProbe{.l = -(1 << 20), .r = 1 << 20};
+	static constexpr StereoSample kProbe{.l = Q<31>::from_raw(-(1 << 20)), .r = Q<31>::from_raw(1 << 20)};
 
 	/// @brief Reports the samples @p tape's resampled write at @p strength1, @p strength2 touches, leaving the
 	/// storage as it was.
@@ -173,13 +183,13 @@ protected:
 			saved.resize(static_cast<size_t>(width));
 			for (int32_t k = 0; k < width; ++k) {
 				saved[static_cast<size_t>(k)] = *at(k);
-				*at(k) = {.l = 0, .r = 0};
+				*at(k) = StereoSample{};
 			}
 			tape.write_resampled(kProbe, strength1, strength2);
 			changed.clear();
 			for (int32_t k = 0; k < width; ++k) {
 				const StereoSample now = *at(k);
-				if (now.l != 0 || now.r != 0) {
+				if (now.l.raw() != 0 || now.r.raw() != 0) {
 					changed.push_back(k);
 				}
 				*at(k) = saved[static_cast<size_t>(k)];
@@ -196,22 +206,22 @@ protected:
 		}
 	}
 
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC bool read(DelayTape& primary, std::span<StereoSample> work,
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC bool read(DelayTape& primary, std::span<RawFrame> work,
 	                                             int32_t first_frame) const {
 		bool wrapped = false;
 		int32_t frame = first_frame;
 		if (primary.is_native()) {
-			for (StereoSample& sample : work) {
+			for (RawFrame& sample : work) {
 				note(TapeRole::PRIMARY, TapeAccessKind::CLEAR, frame, indexOf(primary, &primary.current()));
 				wrapped = primary.clear_and_move_on() || wrapped;
 				note(TapeRole::PRIMARY, TapeAccessKind::READ, frame, indexOf(primary, &primary.current()));
-				sample = primary.current();
+				sample = raw_frame(primary.current());
 				++frame;
 			}
 			return wrapped;
 		}
 
-		for (StereoSample& sample : work) {
+		for (RawFrame& sample : work) {
 			// 16.16 strengths of the sample under the head and the next.
 			const int32_t strength2 = primary.advance([&] {
 				note(TapeRole::PRIMARY, TapeAccessKind::CLEAR, frame, indexOf(primary, &primary.current()));
@@ -225,8 +235,8 @@ protected:
 			}
 			note(TapeRole::PRIMARY, TapeAccessKind::READ, frame, indexOf(primary, &primary.current()));
 			note(TapeRole::PRIMARY, TapeAccessKind::READ, frame, indexOf(primary, next));
-			const StereoSample from1 = primary.current();
-			const StereoSample from2 = *next;
+			const RawFrame from1 = raw_frame(primary.current());
+			const RawFrame from2 = raw_frame(*next);
 
 			sample.l =
 			    (multiply_32x32_rshift32(from1.l, strength1 << 14) + multiply_32x32_rshift32(from2.l, strength2 << 14))
@@ -239,10 +249,10 @@ protected:
 		return wrapped;
 	}
 
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC static void mix(std::span<StereoSample> work, std::span<StereoSample> block,
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC static void mix(std::span<RawFrame> work, std::span<RawFrame> block,
 	                                                   bool cross) {
 		for (auto [feedback, output] : std::views::zip(work, block)) {
-			const StereoSample delayed = feedback;
+			const RawFrame delayed = feedback;
 			if (cross) {
 				feedback.l = delayed.r;
 				feedback.r = ((output.l + output.r) >> 1) + delayed.l;
@@ -254,7 +264,7 @@ protected:
 		}
 	}
 
-	void writePrimary(DelayTape& primary, DelayTape::Head head, std::span<const StereoSample> work,
+	void writePrimary(DelayTape& primary, DelayTape::Head head, std::span<const RawFrame> work,
 	                  int32_t first_frame) const {
 		int32_t frame = first_frame;
 		if (primary.is_native()) {
@@ -263,26 +273,25 @@ protected:
 				index += static_cast<std::ptrdiff_t>(primary.size_including_extra());
 			}
 			StereoSample* write_pos = primary.begin() + index;
-			for (const StereoSample sample : work) {
+			for (const RawFrame sample : work) {
 				note(TapeRole::PRIMARY, TapeAccessKind::WRITE, frame, indexOf(primary, write_pos));
-				primary.write_native_and_move_on(sample, write_pos);
+				primary.write_native_and_move_on(typed_frame(sample), write_pos);
 				++frame;
 			}
 			return;
 		}
 
 		primary.set_head(head);
-		for (const StereoSample sample : work) {
+		for (const RawFrame sample : work) {
 			const int32_t strength2 = primary.advance([&] { primary.move_on(); });
 			const int32_t strength1 = 65536 - strength2;
 			probeResampledWrite(TapeRole::PRIMARY, frame, primary, strength1, strength2);
-			primary.write_resampled(sample, strength1, strength2);
+			primary.write_resampled(typed_frame(sample), strength1, strength2);
 			++frame;
 		}
 	}
 
-	DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const StereoSample> work,
-	                                int32_t first_frame) const {
+	DelayBlockResult writeSecondary(DelayTape& secondary, std::span<const RawFrame> work, int32_t first_frame) const {
 		DelayBlockResult result{.wrapped = false, .secondary_written = 0};
 		int32_t frame = first_frame;
 		auto step = [&] {
@@ -292,20 +301,20 @@ protected:
 		};
 
 		if (secondary.is_native()) {
-			for (const StereoSample sample : work) {
+			for (const RawFrame sample : work) {
 				step();
 				note(TapeRole::SECONDARY, TapeAccessKind::WRITE, frame, writeHeadIndex(secondary));
-				secondary.write_native(sample);
+				secondary.write_native(typed_frame(sample));
 				++frame;
 			}
 			return result;
 		}
 
-		for (const StereoSample sample : work) {
+		for (const RawFrame sample : work) {
 			const int32_t strength2 = secondary.advance(step);
 			const int32_t strength1 = 65536 - strength2;
 			probeResampledWrite(TapeRole::SECONDARY, frame, secondary, strength1, strength2);
-			secondary.write_resampled(sample, strength1, strength2);
+			secondary.write_resampled(typed_frame(sample), strength1, strength2);
 			++frame;
 		}
 		return result;
@@ -317,7 +326,7 @@ private:
 	Stereo<FeedbackChain> feedback_;
 	/// @brief The working block: the delayed signal read, shaped and mixed, then written back. A block is at most
 	/// kMaxBlockFrames frames.
-	std::array<StereoSample, kMaxBlockFrames> scratch_{};
+	std::array<RawFrame, kMaxBlockFrames> scratch_{};
 	/// @brief Reports each tape access; empty when nothing listens.
 	AddressLogger log_;
 	/// @brief The smallest probe window's half-width, in samples: wider than a write at up to 8x.
@@ -350,7 +359,7 @@ public:
 			secondary->setup_for_render(settings.rate);
 		}
 
-		const std::span<StereoSample> work = scratch().first(block.size());
+		const std::span<RawFrame> work = scratch().first(block.size());
 
 		DelayBlockResult result{.wrapped = false, .secondary_written = 0};
 		DelayTape::Head head{};
@@ -359,12 +368,12 @@ public:
 			result.wrapped = read(*primary, work, 0);
 		}
 		else {
-			std::ranges::fill(work, StereoSample{.l = 0, .r = 0});
+			std::ranges::fill(work, RawFrame{});
 		}
 
 		configure(settings);
 		renderFeedback(work);
-		mix(work, block, settings.ping_pong && settings.render_in_stereo);
+		mix(work, raw_frames(block), settings.ping_pong && settings.render_in_stereo);
 
 		if (reading) {
 			writePrimary(*primary, head, work, 0);
@@ -404,15 +413,15 @@ public:
 		DelayBlockResult grown{.wrapped = false, .secondary_written = 0};
 		for (size_t i = 0; i < block.size(); ++i) {
 			const auto frame = static_cast<int32_t>(i);
-			const std::span<StereoSample> work = scratch().subspan(i, 1);
-			const std::span<StereoSample> out = block.subspan(i, 1);
+			const std::span<RawFrame> work = scratch().subspan(i, 1);
+			const std::span<RawFrame> out = raw_frames(block.subspan(i, 1));
 			DelayTape::Head head{};
 			if (reading) {
 				head = primary->head();
 				primary_wrapped = read(*primary, work, frame) || primary_wrapped;
 			}
 			else {
-				work.front() = {.l = 0, .r = 0};
+				work.front() = RawFrame{};
 			}
 			renderFeedback(work);
 			mix(work, out, cross);

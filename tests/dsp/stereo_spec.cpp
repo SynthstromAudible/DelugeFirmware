@@ -183,7 +183,7 @@ std::vector<StereoSample> frames_of(std::size_t n, q31 seed) {
 	std::vector<StereoSample> v(n);
 	for (std::size_t i = 0; i < n; ++i) {
 		const auto k = static_cast<q31>(i + 1);
-		v[i] = {.l = seed * k - 0x01234567, .r = 0x00765432 - seed * k * 3};
+		v[i] = {.l = Q<31>::from_raw(seed * k - 0x01234567), .r = Q<31>::from_raw(0x00765432 - seed * k * 3)};
 	}
 	return v;
 }
@@ -199,7 +199,7 @@ q31 moded_biased_step(ModedBiased::Mode mode, const ModedBiased::Block& b, Moded
 std::vector<q31> channel(const std::vector<StereoSample>& frames, bool right) {
 	std::vector<q31> v(frames.size());
 	for (std::size_t i = 0; i < frames.size(); ++i) {
-		v[i] = right ? frames[i].r : frames[i].l;
+		v[i] = right ? frames[i].r.raw() : frames[i].l.raw();
 	}
 	return v;
 }
@@ -208,21 +208,35 @@ std::vector<q31> channel(const std::vector<StereoSample>& frames, bool right) {
 
 // clang-format off
 describe stereo("stereo frames and Stereo<K>", ${
+	it("adds frames per channel, wrapping as add_wrap", _ {
+		const StereoSample a{.l = q<31>(0.75), .r = q<31>(-0.75)};
+		const StereoSample b{.l = q<31>(0.5), .r = q<31>(-0.5)};
+		const StereoSample sum = a + b;
+		expect(sum.l.raw()).to_equal(add_wrap(a.l, b.l).raw());
+		expect(sum.r.raw()).to_equal(add_wrap(a.r, b.r).raw());
+		expect(sum.l.raw()).to_be_less_than(0); // 1.25 wraps negative
+		expect(sum.r.raw()).to_be_greater_than(0); // -1.25 wraps positive
+		StereoSample acc = a;
+		acc += b;
+		expect(acc.l.raw()).to_equal(sum.l.raw());
+		expect(acc.r.raw()).to_equal(sum.r.raw());
+	});
+
 	it("views an interleaved buffer as frames, left then right", _ {
 		std::array<q31, 6> raw{1, 2, 3, 4, 5, 6};
 		auto frames = as_frames(raw);
 		expect(frames.size()).to_equal(3u);
-		expect(frames[1].l).to_equal(3);
-		expect(frames[1].r).to_equal(4);
-		frames[2].r = 60;
+		expect(frames[1].l.raw()).to_equal(3);
+		expect(frames[1].r.raw()).to_equal(4);
+		frames[2].r = Q<31>::from_raw(60);
 		expect(raw[5]).to_equal(60);
 	});
 	it("views a const buffer as a read-only signal", _ {
 		std::array<q31, 4> raw{1, 2, 3, 4};
 		fixed::StereoSignal frames = as_frames(std::as_const(raw));
 		expect(frames.size()).to_equal(2u);
-		expect(frames[1].l).to_equal(3);
-		expect(frames[1].r).to_equal(4);
+		expect(frames[1].l.raw()).to_equal(3);
+		expect(frames[1].r.raw()).to_equal(4);
 	});
 	it("leaves an odd trailing sample outside the view", _ {
 		std::array<q31, 5> raw{1, 2, 3, 4, 5};
@@ -236,13 +250,13 @@ describe stereo("stereo frames and Stereo<K>", ${
 			std::vector<StereoSample> frames(n);
 			st.render_block(frames, frames);
 			for (const StereoSample& frame : frames) {
-				expect(frame.l).to_equal(expected.render());
-				expect(frame.r).to_equal(expected.render());
+				expect(frame.l.raw()).to_equal(expected.render());
+				expect(frame.r.raw()).to_equal(expected.render());
 			}
 		}
-		const StereoSample one = st.render({.l = 0, .r = 0});
-		expect(one.l).to_equal(expected.render());
-		expect(one.r).to_equal(expected.render());
+		const StereoSample one = st.render(StereoSample{});
+		expect(one.l.raw()).to_equal(expected.render());
+		expect(one.r.raw()).to_equal(expected.render());
 	});
 
 	it("prepares the left channel before the right on every block", _ {
@@ -254,8 +268,8 @@ describe stereo("stereo frames and Stereo<K>", ${
 			const q31 left = expected.render();
 			const q31 right = expected.render();
 			for (const StereoSample& frame : frames) {
-				expect(frame.l).to_equal(left);
-				expect(frame.r).to_equal(right);
+				expect(frame.l.raw()).to_equal(left);
+				expect(frame.r.raw()).to_equal(right);
 			}
 		}
 	});
@@ -281,7 +295,7 @@ describe stereo("stereo frames and Stereo<K>", ${
 		st.render_block(frames, frames);
 		expect(st.left().prepares).to_equal(3);
 		expect(st.right().prepares).to_equal(3);
-		std::ignore = st.render({.l = 1, .r = 2});
+		std::ignore = st.render({.l = Q<31>::from_raw(1), .r = Q<31>::from_raw(2)});
 		expect(st.left().prepares).to_equal(4);
 		expect(st.right().prepares).to_equal(4);
 	});
@@ -294,10 +308,10 @@ describe stereo("stereo frames and Stereo<K>", ${
 		q31 l = 0;
 		q31 r = 0;
 		for (std::size_t i = 0; i < in.size(); ++i) {
-			l += in[i].l;
-			r += in[i].r;
-			expect(out[i].l).to_equal(l);
-			expect(out[i].r).to_equal(r);
+			l += in[i].l.raw();
+			r += in[i].r.raw();
+			expect(out[i].l.raw()).to_equal(l);
+			expect(out[i].r.raw()).to_equal(r);
 		}
 		expect(st.left().acc).to_equal(l);
 		expect(st.right().acc).to_equal(r);
@@ -334,10 +348,10 @@ describe stereo("stereo frames and Stereo<K>", ${
 				const ModedBiased::Block hand_bl = ModedBiased::prepare(c, hand_l, n);
 				const ModedBiased::Block hand_br = ModedBiased::prepare(c, hand_r, n);
 				for (std::size_t i = 0; i < n; ++i) {
-					expect(out[i].l).to_equal(l_out[i]);
-					expect(out[i].r).to_equal(r_out[i]);
-					expect(out[i].l).to_equal(moded_biased_step(mode, hand_bl, hand_l, in[i].l));
-					expect(out[i].r).to_equal(moded_biased_step(mode, hand_br, hand_r, in[i].r));
+					expect(out[i].l.raw()).to_equal(l_out[i]);
+					expect(out[i].r.raw()).to_equal(r_out[i]);
+					expect(out[i].l.raw()).to_equal(moded_biased_step(mode, hand_bl, hand_l, in[i].l.raw()));
+					expect(out[i].r.raw()).to_equal(moded_biased_step(mode, hand_br, hand_r, in[i].r.raw()));
 				}
 			}
 			expect(st.left().acc).to_equal(left.state().acc);
@@ -357,8 +371,8 @@ describe stereo("stereo frames and Stereo<K>", ${
 				st_out.render_block(in, out);
 				st_in.render_block(in_place, in_place);
 				for (std::size_t i = 0; i < n; ++i) {
-					expect(in_place[i].l).to_equal(out[i].l);
-					expect(in_place[i].r).to_equal(out[i].r);
+					expect(in_place[i].l.raw()).to_equal(out[i].l.raw());
+					expect(in_place[i].r.raw()).to_equal(out[i].r.raw());
 				}
 				in_place = in;
 			}
@@ -370,16 +384,16 @@ describe stereo("stereo frames and Stereo<K>", ${
 		const Gain::Coefficients c = Gain::coefficients(settings);
 		for (std::size_t n = 1; n <= 9; ++n) {
 			const std::vector<StereoSample> in = frames_of(n + 1, 0x00321fed);
-			std::vector<StereoSample> out(n + 1, StereoSample{.l = 77, .r = -77});
+			std::vector<StereoSample> out(n + 1, StereoSample{.l = Q<31>::from_raw(77), .r = Q<31>::from_raw(-77)});
 			Stereo<Gain> st{settings};
 			st.render_block(std::span{in}.first(n), std::span{out}.first(n));
 			Gain::State s{};
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(out[i].l).to_equal(Gain::step(c, {}, s, in[i].l));
-				expect(out[i].r).to_equal(Gain::step(c, {}, s, in[i].r));
+				expect(out[i].l.raw()).to_equal(Gain::step(c, {}, s, in[i].l.raw()));
+				expect(out[i].r.raw()).to_equal(Gain::step(c, {}, s, in[i].r.raw()));
 			}
-			expect(out[n].l).to_equal(77);
-			expect(out[n].r).to_equal(-77);
+			expect(out[n].l.raw()).to_equal(77);
+			expect(out[n].r.raw()).to_equal(-77);
 		}
 	});
 

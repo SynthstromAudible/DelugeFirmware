@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "../dsp/raw_frame.h"
 #include "../dsp/raw_shaping.h"
 #include <cppspec.hpp>
 
@@ -575,7 +576,7 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std:
 	fill_delay_input();
 	reference::WrappingReferenceImpulseResponse response;
 	DelayFeedbackReference out;
-	std::vector<StereoSample> work(n);
+	std::vector<dsp::test::RawFrame> work(n);
 	for (std::size_t block = 0; block < blocks; ++block) {
 		if (block == 0 || placement == Placement::OUT_OF_PLACE) {
 			for (std::size_t i = 0; i < n; ++i) {
@@ -583,26 +584,26 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std:
 			}
 		}
 		if (analog) {
-			for (StereoSample& sample : work) {
-				sample = response.process(sample);
+			for (dsp::test::RawFrame& sample : work) {
+				sample = dsp::test::raw_frame(response.process(dsp::test::typed_frame(sample)));
 			}
-			for (StereoSample& sample : work) {
+			for (dsp::test::RawFrame& sample : work) {
 				sample.l = raw_shaping::tanh(multiply_32x32_rshift32(sample.l, kDelayFeedback), kDelayDrive) << 2;
 				sample.r = raw_shaping::tanh(multiply_32x32_rshift32(sample.r, kDelayFeedback), kDelayDrive) << 2;
 			}
 		}
 		else {
-			for (StereoSample& sample : work) {
+			for (dsp::test::RawFrame& sample : work) {
 				sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, kDelayFeedback)) << 2;
 				sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, kDelayFeedback)) << 2;
 			}
 		}
-		for (StereoSample& sample : work) {
+		for (dsp::test::RawFrame& sample : work) {
 			sample.l = delay_high_pass(sample.l, out.memory_l);
 			sample.r = delay_high_pass(sample.r, out.memory_r);
 		}
 	}
-	for (const StereoSample& sample : work) {
+	for (const dsp::test::RawFrame& sample : work) {
 		out.last_block.push_back(sample.l);
 		out.last_block.push_back(sample.r);
 	}
@@ -619,8 +620,8 @@ std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 	std::vector<q31> out;
 	out.reserve(2 * frames.size());
 	for (const StereoSample frame : frames) {
-		out.push_back(frame.l);
-		out.push_back(frame.r);
+		out.push_back(frame.l.raw());
+		out.push_back(frame.r.raw());
 	}
 	return out;
 }
@@ -682,7 +683,8 @@ CompressorReference compressor_reference(const CompressorCaseConfig& config, std
 	fill_compressor_input();
 	std::vector<StereoSample> work(n);
 	for (std::size_t i = 0; i < n; ++i) {
-		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0), .r = lane_sample(lanes_input(), 2, i, 1)};
+		work[i] = {.l = dsp::Q<31>::from_raw(lane_sample(lanes_input(), 2, i, 0)),
+		           .r = dsp::Q<31>::from_raw(lane_sample(lanes_input(), 2, i, 1))};
 	}
 	CompressorReference out;
 	out.compressor.configure(compressor_knobs(config));
@@ -743,7 +745,8 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 	fill_delay_input();
 	std::vector<StereoSample> work(n);
 	for (std::size_t i = 0; i < n; ++i) {
-		work[i] = {.l = lane_sample(lanes_input(), 2, i, 0) >> 1, .r = lane_sample(lanes_input(), 2, i, 1) >> 1};
+		work[i] = {.l = dsp::Q<31>::from_raw(lane_sample(lanes_input(), 2, i, 0) >> 1),
+		           .r = dsp::Q<31>::from_raw(lane_sample(lanes_input(), 2, i, 1) >> 1)};
 	}
 	DelayWholeReference out;
 	out.primary.resize(DelayTape::kNeutralSize + kLag);
@@ -752,7 +755,7 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 	DelayTape secondary;
 	if (config.growing) {
 		const auto size = static_cast<std::size_t>(DelayTape::ideal_size_for_rate(kDelayResHiRate).first);
-		out.secondary.assign(size + kLag, StereoSample{.l = 0, .r = 0});
+		out.secondary.assign(size + kLag, StereoSample{});
 		secondary = DelayTape{out.secondary, size, static_cast<uint32_t>(kDelayResHiRate)};
 		primary.make_native_rate_precise_relative_to(secondary);
 	}
@@ -1270,8 +1273,8 @@ describe bench_runner("The DSP benchmark runner", ${
 				const std::vector<StereoSample> before{stereo().begin(), stereo().end()};
 				render(set.stereo_gain, n, blocks);
 				for (std::size_t i = 0; i < n; ++i) {
-					const int64_t drift_l = int64_t{before[i].l} - int64_t{stereo()[i].l};
-					const int64_t drift_r = int64_t{before[i].r} - int64_t{stereo()[i].r};
+					const int64_t drift_l = int64_t{before[i].l.raw()} - int64_t{stereo()[i].l.raw()};
+					const int64_t drift_r = int64_t{before[i].r.raw()} - int64_t{stereo()[i].r.raw()};
 					expect(drift_l).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
 					expect(drift_r).to_be_between(int64_t{0}, int64_t{2 * blocks + 1});
 				}

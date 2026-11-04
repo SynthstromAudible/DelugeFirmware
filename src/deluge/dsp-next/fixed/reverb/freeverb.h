@@ -161,8 +161,8 @@ struct Freeverb {
 		out_l = cross_mix(out_l, out_r, c.wet2);
 		out_r = cross_mix(out_r, out_l, c.wet2);
 		// The return adds the Q30 product's bits to the Q31 frame: half the output at the return level.
-		return {.l = add_wrap(Q<31>::from_raw(x.l), reinterpret_bits<Q<31>>(mul_r(out_l, s.pan_l))).raw(),
-		        .r = add_wrap(Q<31>::from_raw(x.r), reinterpret_bits<Q<31>>(mul_r(out_r, s.pan_r))).raw()};
+		return {.l = add_wrap(x.l, reinterpret_bits<Q<31>>(mul_r(out_l, s.pan_l))),
+		        .r = add_wrap(x.r, reinterpret_bits<Q<31>>(mul_r(out_r, s.pan_r)))};
 	}
 
 	/// @brief Event: the owner's memory, kMemoryWords words, zeroed by the owner.

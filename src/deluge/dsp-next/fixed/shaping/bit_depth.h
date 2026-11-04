@@ -84,8 +84,9 @@ struct BitDepth {
 	/// @brief One frame, masked.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& /*s*/, StereoSample x) {
-		return {.l = static_cast<q31_t>(static_cast<uint32_t>(x.l) & c.mask),
-		        .r = static_cast<q31_t>(static_cast<uint32_t>(x.r) & c.mask)};
+		// The mask is a bit operation on each sample, so raw.
+		return {.l = Q<31>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(x.l.raw()) & c.mask)),
+		        .r = Q<31>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(x.r.raw()) & c.mask))};
 	}
 };
 

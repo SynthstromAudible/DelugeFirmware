@@ -82,8 +82,8 @@ void Compressor::reset(State& s) {
 }
 
 void Compressor::seed(State& s, StereoSample first) {
-	AntialiasedTanh::seed(kSaturator, s.loop.saturation_l, Q<31>::from_raw(first.l));
-	AntialiasedTanh::seed(kSaturator, s.loop.saturation_r, Q<31>::from_raw(first.r));
+	AntialiasedTanh::seed(kSaturator, s.loop.saturation_l, first.l);
+	AntialiasedTanh::seed(kSaturator, s.loop.saturation_r, first.r);
 	s.seeded = true;
 }
 

@@ -224,7 +224,7 @@ Ladder::Settings settings_for(const Setting& setting) {
 std::vector<StereoSample> input_frames() {
 	std::vector<StereoSample> frames(kInput.size() / 2);
 	for (std::size_t i = 0; i < frames.size(); ++i) {
-		frames[i] = {.l = kInput[2 * i], .r = kInput[(2 * i) + 1]};
+		frames[i] = {.l = Q<31>::from_raw(kInput[2 * i]), .r = Q<31>::from_raw(kInput[(2 * i) + 1])};
 	}
 	return frames;
 }
@@ -427,15 +427,15 @@ describe low_pass_ladder("LowPassLadder", ${
 			Mono<Ladder> right{settings};
 			std::vector<StereoSample> expected(input.size());
 			for (std::size_t i = 0; i < input.size(); ++i) {
-				expected[i].l = left.render(Q<31>::from_raw(input[i].l), mono_stream).raw();
-				expected[i].r = right.render(Q<31>::from_raw(input[i].r), mono_stream).raw();
+				expected[i].l = left.render(input[i].l, mono_stream);
+				expected[i].r = right.render(input[i].r, mono_stream);
 			}
 			expect(stereo_end).to_equal(mono_stream.state());
 			expect(draws_between(filter_workloads::kCongSeed, stereo_end, 4 * static_cast<uint32_t>(kInput.size())))
 			    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
 			for (std::size_t i = 0; i < input.size(); ++i) {
-				expect(out[i].l).to_equal(expected[i].l);
-				expect(out[i].r).to_equal(expected[i].r);
+				expect(out[i].l.raw()).to_equal(expected[i].l.raw());
+				expect(out[i].r.raw()).to_equal(expected[i].r.raw());
 			}
 			expect(words(stereo.left())).to_equal(words(left.state()));
 			expect(words(stereo.right())).to_equal(words(right.state()));

@@ -115,7 +115,7 @@ struct SendAndVolume {
 
 	/// @brief One frame's reverb send: (l + r) × @p send_gain, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> send_of(StereoSample x, Q<31> send_gain) {
-		return mul_as_wrap<Q<31>>(add_wrap(Q<31>::from_raw(x.l), Q<31>::from_raw(x.r)), send_gain);
+		return mul_as_wrap<Q<31>>(add_wrap(x.l, x.r), send_gain);
 	}
 
 	/// @brief The coefficients for @p s.
@@ -184,8 +184,7 @@ struct SendAndVolume {
 			l.gain_l = add_wrap(l.gain_l, b.step_l);
 			l.gain_r = add_wrap(l.gain_r, b.step_r);
 		}
-		return {.l = mul_as_wrap<Q<31>>(Q<31>::from_raw(x.l), l.gain_l).raw(),
-		        .r = mul_as_wrap<Q<31>>(Q<31>::from_raw(x.r), l.gain_r).raw()};
+		return {.l = mul_as_wrap<Q<31>>(x.l, l.gain_l), .r = mul_as_wrap<Q<31>>(x.r, l.gain_r)};
 	}
 
 	/// @brief Points the send cursor at the reverb input for the next block's first frame.

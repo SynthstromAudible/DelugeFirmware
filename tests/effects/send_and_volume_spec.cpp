@@ -11,7 +11,8 @@ using deluge::dsp::StereoSample;
 namespace {
 
 std::vector<StereoSample> constant(size_t frames, int32_t l, int32_t r) {
-	return std::vector<StereoSample>(frames, StereoSample{.l = l, .r = r});
+	return std::vector<StereoSample>(
+	    frames, StereoSample{.l = deluge::dsp::Q<31>::from_raw(l), .r = deluge::dsp::Q<31>::from_raw(r)});
 }
 
 bool same(const std::vector<StereoSample>& a, const std::vector<StereoSample>& b) {
@@ -57,7 +58,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<StereoSample> block = constant(16, 1 << 28, 1 << 28);
 		std::vector<int32_t> reverb(16, 0);
 		(void)s.process(block, reverb, {.post_fx_volume = kVolume, .post_reverb_volume = kVolume});
-		expect(block[0].l).to_equal(block[0].r);
+		expect(block[0].l.raw()).to_equal(block[0].r.raw());
 		SendAndVolume right;
 		std::vector<StereoSample> panned = constant(16, 1 << 28, 1 << 28);
 		(void)right.process(panned, reverb, {.post_fx_volume = kVolume, .post_reverb_volume = kVolume, .pan = 1 << 29});
@@ -68,8 +69,8 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<StereoSample> block = constant(4, 1 << 28, 1 << 28);
 		std::vector<int32_t> reverb(4, 0);
 		(void)s.process(block, reverb, {.post_fx_volume = kVolume, .post_reverb_volume = kVolume, .pan = 0x10000000});
-		expect(block[0].l).to_equal(201326592);
-		expect(block[0].r).to_equal(268435424);
+		expect(block[0].l.raw()).to_equal(201326592);
+		expect(block[0].r.raw()).to_equal(268435424);
 	});
 	it("ramps a panned stereo signal by exact steps", _ {
 		SendAndVolume s{100000000};
@@ -77,8 +78,8 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<int32_t> reverb(4, 0);
 		(void)s.process(block, reverb,
 		                {.post_fx_volume = kVolume, .post_reverb_volume = kVolume, .pan = 0x10000000, .ramp = true});
-		const std::vector<int32_t> left{block[0].l, block[1].l, block[2].l, block[3].l};
-		const std::vector<int32_t> right{block[0].r, block[1].r, block[2].r, block[3].r};
+		const std::vector<int32_t> left{block[0].l.raw(), block[1].l.raw(), block[2].l.raw(), block[3].l.raw()};
+		const std::vector<int32_t> right{block[0].r.raw(), block[1].r.raw(), block[2].r.raw(), block[3].r.raw()};
 		expect(left).to_equal(std::vector<int32_t>{214158240, 226989888, 239821536, 252653184});
 		expect(right).to_equal(std::vector<int32_t>{285544288, 302653152, 319762016, 336870848});
 	});
@@ -88,7 +89,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<StereoSample> block = constant(16, 1 << 28, 1 << 28);
 		std::vector<int32_t> reverb(16, 0);
 		(void)s.process(block, reverb, {.post_fx_volume = kVolume, .post_reverb_volume = kVolume, .ramp = true});
-		expect(block.front().l).to_equal(block.back().l);
+		expect(block.front().l.raw()).to_equal(block.back().l.raw());
 	});
 	it("ramps from the last block's volume", _ {
 		SendAndVolume s{-1};
@@ -104,7 +105,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<StereoSample> block = constant(16, 1 << 28, 1 << 28);
 		std::vector<int32_t> reverb(16, 0);
 		(void)s.process(block, reverb, {.post_fx_volume = kVolume, .post_reverb_volume = kVolume, .ramp = true});
-		expect(block.front().l).to_equal(block.back().l);
+		expect(block.front().l.raw()).to_equal(block.back().l.raw());
 	});
 });
 

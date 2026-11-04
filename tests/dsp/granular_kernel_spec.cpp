@@ -42,6 +42,7 @@
 
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using Granular = deluge::dsp::fixed::Granular<>;
 
 static_assert(deluge::dsp::processor_kernel<Granular>);
@@ -53,8 +54,8 @@ namespace gw = deluge::dsp::test::granular_workloads;
 using deluge::dsp::test::ReferenceGranular;
 
 /// @return The words of @p frames, left then right per frame.
-[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const StereoSample> frames) {
-	static_assert(sizeof(StereoSample) == 2 * sizeof(uint32_t));
+[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const RawFrame> frames) {
+	static_assert(sizeof(RawFrame) == 2 * sizeof(uint32_t));
 	std::vector<uint32_t> words(frames.size() * 2);
 	std::memcpy(words.data(), frames.data(), frames.size_bytes());
 	return words;
@@ -81,7 +82,7 @@ public:
 
 	/// @brief The reference's processGrainFX: renders @p frames in place while there is sound or the countdown runs,
 	/// adding the reverb feed into @p send and scaling @p volume (Q27).
-	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
+	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
 		if (sound || mono_.state().wraps_to_shutdown >= 0) {
 			if (mono_.state().ring == nullptr) {
@@ -94,7 +95,8 @@ public:
 			*volume = Granular::post_fx_volume(*volume);
 			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
 			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
-			mono_.render_block(frames, frames, deluge::synth_noise);
+			const std::span<StereoSample> block = deluge::dsp::test::typed_frames(frames);
+			mono_.render_block(block, block, deluge::synth_noise);
 			if (mono_.state().wraps_to_shutdown < 0) {
 				mono_.on<&Granular::restart>();
 			}
@@ -106,9 +108,9 @@ public:
 	[[nodiscard]] std::vector<uint32_t> ring_words() const {
 		std::vector<StereoSample> read(ring_.begin(), ring_.end());
 		for (std::size_t i = mono_.state().written; i < read.size(); ++i) {
-			read[i] = {0, 0};
+			read[i] = StereoSample{};
 		}
-		return frame_words(read);
+		return frame_words(deluge::dsp::test::raw_frames(std::span<const StereoSample>{read}));
 	}
 
 	/// @return The State the output depends on, as words (see @ref reference_state_words for the order).

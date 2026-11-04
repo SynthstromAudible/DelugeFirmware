@@ -104,9 +104,9 @@ struct FadeIn {
 	/// @return The blended frame, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample dry, StereoSample wet) {
-		const Q<31> l = blend_step(s, Q<31>::from_raw(dry.l), Q<31>::from_raw(wet.l));
-		const Q<31> r = blend_step(s, Q<31>::from_raw(dry.r), Q<31>::from_raw(wet.r));
-		return {.l = l.raw(), .r = r.raw()};
+		const Q<31> l = blend_step(s, dry.l, wet.l);
+		const Q<31> r = blend_step(s, dry.r, wet.r);
+		return {.l = l, .r = r};
 	}
 };
 

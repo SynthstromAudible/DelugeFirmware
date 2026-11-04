@@ -18,9 +18,9 @@ bool same(fp::StereoLevel a, float l, float r) {
 }
 
 /// A block of noise frames scaled down by @p shift, so loud and quiet blocks both occur.
-std::vector<StereoSample> block(uint32_t seed, std::size_t n, int shift) {
+std::vector<test::RawFrame> block(uint32_t seed, std::size_t n, int shift) {
 	fixed::SeededNoise noise{seed};
-	std::vector<StereoSample> out(n);
+	std::vector<test::RawFrame> out(n);
 	for (auto& f : out) {
 		const q31 l = noise.render() >> shift;
 		const q31 r = noise.render() >> shift;
@@ -38,7 +38,7 @@ describe level_detector("the level detector", ${
 		int32_t mismatches = 0;
 		for (int b = 0; b < 200; b++) {
 			const auto frames = block(static_cast<uint32_t>(b), (b % 3 == 0) ? 128 : 37, b % 12);
-			const fp::StereoLevel got = detector.measure(frames);
+			const fp::StereoLevel got = detector.measure(test::typed_frames(std::span{frames}));
 			auto copy = frames;
 			const auto want = reference.calcApproxRMS(copy);
 			mismatches += same(got, want.l, want.r) ? 0 : 1;
@@ -48,12 +48,13 @@ describe level_detector("the level detector", ${
 
 	it("starts from silence after a reset", _ {
 		fp::LevelDetector detector;
-		std::ignore = detector.measure(block(1, 128, 0));
+		const auto warm = block(1, 128, 0);
+		std::ignore = detector.measure(test::typed_frames(std::span{warm}));
 		detector.reset();
 		fp::LevelDetector fresh;
 		const auto frames = block(2, 128, 12);
-		const fp::StereoLevel a = detector.measure(frames);
-		const fp::StereoLevel b = fresh.measure(frames);
+		const fp::StereoLevel a = detector.measure(test::typed_frames(std::span{frames}));
+		const fp::StereoLevel b = fresh.measure(test::typed_frames(std::span{frames}));
 		expect(same(a, b.l, b.r)).to_be_true();
 	});
 });

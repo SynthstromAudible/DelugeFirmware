@@ -665,7 +665,7 @@ constexpr CompressorKnobs kSecondKnobs{.attack = Q<31>::from_raw(1 << 30),
 std::vector<StereoSample> frames(std::span<const int32_t> interleaved) {
 	std::vector<StereoSample> out(interleaved.size() / 2);
 	for (std::size_t i = 0; i < out.size(); i++) {
-		out[i] = {.l = interleaved[2 * i], .r = interleaved[(2 * i) + 1]};
+		out[i] = {.l = Q<31>::from_raw(interleaved[2 * i]), .r = Q<31>::from_raw(interleaved[(2 * i) + 1])};
 	}
 	return out;
 }
@@ -674,8 +674,8 @@ std::vector<StereoSample> frames(std::span<const int32_t> interleaved) {
 std::vector<int32_t> interleave(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	for (const StereoSample& frame : block) {
-		out.push_back(frame.l);
-		out.push_back(frame.r);
+		out.push_back(frame.l.raw());
+		out.push_back(frame.r.raw());
 	}
 	return out;
 }
@@ -830,9 +830,9 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 
 	it("seeds the first block's saturation from its first frame", _ {
 		std::vector<StereoSample> full = signalBlock(0);
-		full[0] = {.l = kOneQ31, .r = kOneQ31};
+		full[0] = StereoSample::from_mono(Q<31>::from_raw(kOneQ31));
 		std::vector<StereoSample> zero = signalBlock(0);
-		zero[0] = {.l = 0, .r = 0};
+		zero[0] = StereoSample{};
 		expect(Rig{}.render(full, kUnity, kUnity, kFinalDefault)).to_equal(kStartFull);
 		expect(Rig{}.render(zero, kUnity, kUnity, kFinalDefault)).to_equal(kStartZero);
 	});

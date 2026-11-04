@@ -1887,19 +1887,23 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 		// number of keep-alive samples — so sharing the stream let that count perturb every synth random draw, making
 		// the offline render depend on heap layout (and coupling musical randomness to output-sample count). See
 		// docs/dev/overread_hunt.md.
+		// Raw: the dithered 64-bit product of the Q31 words and the volumes.
 		int64_t lAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
+		    (int64_t)renderingBufferOutputPosNow->l.raw() * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
 		int64_t rAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->r * (int64_t)masterVolumeAdjustmentR + (int64_t)outputDither();
+		    (int64_t)renderingBufferOutputPosNow->r.raw() * (int64_t)masterVolumeAdjustmentR + (int64_t)outputDither();
 
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
 		if (monitorInput) {
-			const StereoSample monitored = deluge::dsp::fixed::output_monitor_fold(
-			    monitorFold, {.l = inputReadPos[0], .r = inputReadPos[1]}, AUDIO_OUTPUT_GAIN_DOUBLINGS);
-			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l);
-			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r);
+			const StereoSample monitored =
+			    deluge::dsp::fixed::output_monitor_fold(monitorFold,
+			                                            {.l = deluge::dsp::Q<31>::from_raw(inputReadPos[0]),
+			                                             .r = deluge::dsp::Q<31>::from_raw(inputReadPos[1])},
+			                                            AUDIO_OUTPUT_GAIN_DOUBLINGS);
+			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l.raw()); // the output words, raw
+			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r.raw());
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (inputReadPos >= inputBufferEnd) {
@@ -1909,16 +1913,17 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 
 		if (doSendToUSB) {
 			if (sendLineInToUSB) {
-				toUSB[numSamplesOutputted].l = lineInReadPos[0];
-				toUSB[numSamplesOutputted].r = lineInReadPos[lineInIsMono ? 0 : 1];
+				// The codec's raw Q31 input words.
+				toUSB[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(lineInReadPos[0]);
+				toUSB[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(lineInReadPos[lineInIsMono ? 0 : 1]);
 				lineInReadPos += NUM_MONO_INPUT_CHANNELS;
 				if (lineInReadPos >= lineInEnd) {
 					lineInReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 			}
 			else {
-				toUSB[numSamplesOutputted].l = output_gain(lAdjusted);
-				toUSB[numSamplesOutputted].r = output_gain(rAdjusted);
+				toUSB[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(output_gain(lAdjusted)); // raw output words
+				toUSB[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(output_gain(rAdjusted));
 			}
 		}
 
@@ -1931,11 +1936,14 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 			}
 		}
 
-		outputBufferForResampling[numSamplesOutputted].l = output_gain(lAdjusted);
-		outputBufferForResampling[numSamplesOutputted].r = output_gain(rAdjusted);
+		// The output words, raw.
+		outputBufferForResampling[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(output_gain(lAdjusted));
+		outputBufferForResampling[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(output_gain(rAdjusted));
 		if (outputRealAudio) {
-			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
-			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;
+			out[produced + numSamplesOutputted].l =
+			    outputBufferForResampling[numSamplesOutputted].l.raw(); // the codec frame is raw
+			out[produced + numSamplesOutputted].r =
+			    outputBufferForResampling[numSamplesOutputted].r.raw(); // the codec frame is raw
 		}
 		// otherwise output 0 or 1 for silence, the DAC doesn't like all zeroes
 		else {

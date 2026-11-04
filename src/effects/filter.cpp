@@ -71,7 +71,7 @@ void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScrat
 	static_assert(offsetof(dsp::StereoSample, l) == 0);
 	static_assert(offsetof(dsp::StereoSample, r) == sizeof(dsp::q31));
 	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(dsp::q31));
-	set_.render_stereo(dsp::typed_view(std::span<dsp::q31>{&block.data()->l, block.size() * 2}), scratch, noise);
+	set_.render_stereo(std::span<dsp::Q<31>>{&block.data()->l, block.size() * 2}, scratch, noise);
 }
 
 } // namespace deluge::effects

@@ -27,6 +27,8 @@
 
 #include "dsp-next/fixed/delay/delay_tape.h"
 
+#include "dsp-next/core/q31_ops.h"
+#include "raw_frame.h"
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -37,8 +39,12 @@
 #include <utility>
 #include <vector>
 
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayTape;
+using deluge::dsp::test::raw_frame;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frame;
 
 namespace {
 
@@ -51,7 +57,7 @@ inline int32_t pattern(size_t word) {
 inline StereoSample input(int32_t k) {
 	const uint32_t a = static_cast<uint32_t>(k + 1) * 2654435761u;
 	const uint32_t b = static_cast<uint32_t>(k + 7) * 2246822519u;
-	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a) >> 3), .r = Q<31>::from_raw(static_cast<int32_t>(b) >> 3)};
 }
 
 /// The k-th loud input sample: a full-scale square on each channel (periods 40 and 48), so where the resampled
@@ -59,7 +65,8 @@ inline StereoSample input(int32_t k) {
 inline StereoSample loud_input(int32_t k) {
 	constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 	constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
-	return {.l = (k / 20) % 2 == 0 ? kMax : kMin, .r = (k / 24) % 2 == 0 ? kMin : kMax};
+	return {.l = Q<31>::from_raw((k / 20) % 2 == 0 ? kMax : kMin),
+	        .r = Q<31>::from_raw((k / 24) % 2 == 0 ? kMin : kMax)};
 }
 
 /// A 64-bit FNV-1a over 32-bit words.
@@ -75,8 +82,8 @@ template <typename T>
 std::vector<int32_t> storage(const T& tape) {
 	std::vector<int32_t> words;
 	for (const StereoSample* s = tape.begin(); s != tape.end(); ++s) {
-		words.push_back(s->l);
-		words.push_back(s->r);
+		words.push_back(s->l.raw());
+		words.push_back(s->r.raw());
 	}
 	return words;
 }
@@ -94,7 +101,7 @@ inline StereoSample next_input(const Run& run) {
 	return run.loud ? loud_input(run.k) : input(run.k);
 }
 
-inline void push(Run& run, StereoSample s) {
+inline void push(Run& run, RawFrame s) {
 	run.out.push_back(s.l);
 	run.out.push_back(s.r);
 }
@@ -129,16 +136,16 @@ template <typename T>
 void primaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 	tape.setup_for_render(rate);
 	const auto head = tape.head();
-	std::vector<StereoSample> work(n);
+	std::vector<RawFrame> work(n);
 	bool wrapped = false;
 	if (tape.is_native()) {
-		for (StereoSample& sample : work) {
+		for (RawFrame& sample : work) {
 			wrapped = tape.clear_and_move_on() || wrapped;
-			sample = tape.current();
+			sample = raw_frame(tape.current());
 		}
 	}
 	else {
-		for (StereoSample& sample : work) {
+		for (RawFrame& sample : work) {
 			const int32_t strength2 = tape.advance([&] { wrapped = tape.clear_and_move_on() || wrapped; });
 			run.strengths.push_back(strength2);
 			const int32_t strength1 = 65536 - strength2;
@@ -146,17 +153,17 @@ void primaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 			if (next == tape.end()) {
 				next = tape.begin();
 			}
-			const StereoSample a = tape.current();
-			const StereoSample b = *next;
+			const RawFrame a = raw_frame(tape.current());
+			const RawFrame b = raw_frame(*next);
 			sample.l = (multiply_32x32_rshift32(a.l, strength1 << 14) + multiply_32x32_rshift32(b.l, strength2 << 14))
 			           << 2;
 			sample.r = (multiply_32x32_rshift32(a.r, strength1 << 14) + multiply_32x32_rshift32(b.r, strength2 << 14))
 			           << 2;
 		}
 	}
-	for (StereoSample& sample : work) {
+	for (RawFrame& sample : work) {
 		push(run, sample);
-		const StereoSample in = input(run.k++);
+		const RawFrame in = raw_frame(input(run.k++));
 		sample = {.l = in.l + (sample.l >> 1), .r = in.r + (sample.r >> 1)};
 	}
 	if (wrapped) {
@@ -167,15 +174,15 @@ void primaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 		if (write_pos < tape.begin()) {
 			write_pos += tape.size_including_extra();
 		}
-		for (StereoSample sample : work) {
-			tape.write_native_and_move_on(sample, write_pos);
+		for (const RawFrame sample : work) {
+			tape.write_native_and_move_on(typed_frame(sample), write_pos);
 		}
 	}
 	else {
 		tape.set_head(head);
-		for (StereoSample sample : work) {
+		for (const RawFrame sample : work) {
 			const int32_t strength2 = tape.advance([&] { tape.move_on(); });
-			tape.write_resampled(sample, 65536 - strength2, strength2);
+			tape.write_resampled(typed_frame(sample), 65536 - strength2, strength2);
 		}
 	}
 }
@@ -218,7 +225,7 @@ struct Stutter {
 			return;
 		}
 		for (int32_t i = 0; i < n; ++i) {
-			StereoSample sample{};
+			RawFrame sample{};
 			if (tape.is_native()) {
 				if (reverse) {
 					tape.move_back();
@@ -226,7 +233,7 @@ struct Stutter {
 				else {
 					tape.move_on();
 				}
-				sample = tape.current();
+				sample = raw_frame(tape.current());
 			}
 			else {
 				const int32_t strength2 =
@@ -246,8 +253,8 @@ struct Stutter {
 						other = tape.begin();
 					}
 				}
-				const StereoSample a = tape.current();
-				const StereoSample b = *other;
+				const RawFrame a = raw_frame(tape.current());
+				const RawFrame b = raw_frame(*other);
 				sample.l =
 				    (multiply_32x32_rshift32(a.l, strength1 << 14) + multiply_32x32_rshift32(b.l, strength2 << 14))
 				    << 2;
@@ -273,7 +280,7 @@ public:
 		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		storage_.resize(static_cast<size_t>(size) + DelayTape::kWriteLag);
 		for (size_t i = 0; i < storage_.size(); ++i) {
-			storage_[i] = {.l = pattern(2 * i), .r = pattern((2 * i) + 1)};
+			storage_[i] = {.l = Q<31>::from_raw(pattern(2 * i)), .r = Q<31>::from_raw(pattern((2 * i) + 1))};
 		}
 		tape = DelayTape{storage_, static_cast<size_t>(size), rate};
 		if (clamped) {
@@ -568,13 +575,13 @@ describe delay_tape("DelayTape", ${
 	it("clears a tape at the size a rate of 64 gets without writing past its storage", _ {
 		const size_t size = static_cast<size_t>(DelayTape::ideal_size_for_rate(64).first);
 		const size_t used = size + DelayTape::kWriteLag;
-		constexpr StereoSample kSentinel{.l = 0x13579BDF, .r = 0x2468ACE0};
+		constexpr StereoSample kSentinel{.l = Q<31>::from_raw(0x13579BDF), .r = Q<31>::from_raw(0x2468ACE0)};
 		std::vector<StereoSample> backing(used + 4, kSentinel);
 		DelayTape tape{std::span{backing}.first(used), size, 64};
 		tape.clear();
 		for (size_t i = used; i < backing.size(); ++i) {
-			expect(backing[i].l).to_equal(kSentinel.l);
-			expect(backing[i].r).to_equal(kSentinel.r);
+			expect(backing[i].l.raw()).to_equal(kSentinel.l.raw());
+			expect(backing[i].r.raw()).to_equal(kSentinel.r.raw());
 		}
 	});
 
@@ -649,10 +656,10 @@ describe delay_tape("DelayTape", ${
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{275});
 		expect(rig.tape.move_back()).to_be_false();
 		expect(&rig.tape.current() - rig.tape.begin()).to_equal(std::ptrdiff_t{274});
-		rig.tape.current() = {.l = 5, .r = 6};
+		rig.tape.current() = {.l = Q<31>::from_raw(5), .r = Q<31>::from_raw(6)};
 		expect(rig.tape.clear_and_move_on()).to_be_false();
-		expect(rig.tape.end()[-2].l).to_equal(0);
-		expect(rig.tape.end()[-2].r).to_equal(0);
+		expect(rig.tape.end()[-2].l.raw()).to_equal(0);
+		expect(rig.tape.end()[-2].r.raw()).to_equal(0);
 	});
 
 	it("round-trips natively as the delay's primary tape, the wrap reported where the read head passes the end", _ {

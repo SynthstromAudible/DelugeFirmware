@@ -340,31 +340,29 @@ private:
 		}();
 		StereoSample* const ring = s.ring;
 		Tap t = tap_at(s, tap_delay(c, lfo1));
-		const Q<30> tap_l =
-		    tap_value(t, Q<31>::from_raw(ring[t.pos & kRingMask].l), Q<31>::from_raw(ring[(t.pos - 1) & kRingMask].l));
+		const Q<30> tap_l = tap_value(t, ring[t.pos & kRingMask].l, ring[(t.pos - 1) & kRingMask].l);
 		if constexpr (kOwnRightTap) {
 			t = tap_at(s, tap_delay(c, lfo2));
 		}
-		const Q<30> tap_r =
-		    tap_value(t, Q<31>::from_raw(ring[t.pos & kRingMask].r), Q<31>::from_raw(ring[(t.pos - 1) & kRingMask].r));
+		const Q<30> tap_r = tap_value(t, ring[t.pos & kRingMask].r, ring[(t.pos - 1) & kRingMask].r);
 
 		const Q<31> feedback = c.feedback;
-		const auto x_l = Q<31>::from_raw(x.l);
-		const auto x_r = Q<31>::from_raw(x.r);
+		const auto x_l = x.l;
+		const auto x_r = x.r;
 		Q<31> out_l{};
 		Q<31> out_r{};
 		StereoSample& slot = ring[s.write];
 		if constexpr (M == Mode::FLANGER || M == Mode::FLANGER_MONO) {
 			// The tap times the feedback, Q29, lifted to Q31 and written back over the input.
 			out_l = mul_r_as_wrap<Q<31>>(tap_l, feedback);
-			slot.l = add_wrap(out_l, x_l).raw();
+			slot.l = add_wrap(out_l, x_l);
 			out_r = mul_r_as_wrap<Q<31>>(tap_r, feedback);
-			slot.r = add_wrap(out_r, x_r).raw();
+			slot.r = add_wrap(out_r, x_r);
 		}
 		else if constexpr (kWarble) {
 			// The Q29 product's bits are written back as Q31: a quarter of the flanger's feedback.
-			slot.l = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_l, feedback)), x_l).raw();
-			slot.r = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_r, feedback)), x_r).raw();
+			slot.l = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_l, feedback)), x_l);
+			slot.r = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_r, feedback)), x_r);
 			out_l = as_wrap<Q<31>>(tap_l);
 			out_r = as_wrap<Q<31>>(tap_r);
 		}
@@ -377,10 +375,10 @@ private:
 		s.write = (s.write + 1) & kRingMask;
 		if constexpr (M == Mode::DIMENSION || kWarble) {
 			// The wet signal alone, doubled, wrapping.
-			return {.l = scale_shl_wrap<1>(out_l).raw(), .r = scale_shl_wrap<1>(out_r).raw()};
+			return {.l = scale_shl_wrap<1>(out_l), .r = scale_shl_wrap<1>(out_r)};
 		}
 		else {
-			return {.l = add_wrap(x_l, out_l).raw(), .r = add_wrap(x_r, out_r).raw()};
+			return {.l = add_wrap(x_l, out_l), .r = add_wrap(x_r, out_r)};
 		}
 	}
 
@@ -395,20 +393,19 @@ private:
 		const Q<30> a1 = sub_wrap(Q<30>::one(), mul_r(lfo_unit, c.depth));
 		const Q<30> minus_a1 = neg_wrap(a1);
 		const Q<31> feedback = c.feedback;
-		Q<31> phaser_l = add_wrap(Q<31>::from_raw(x.l), mul_r_as_wrap<Q<31>>(Q<31>::from_raw(s.phaser.l), feedback));
-		Q<31> phaser_r = add_wrap(Q<31>::from_raw(x.r), mul_r_as_wrap<Q<31>>(Q<31>::from_raw(s.phaser.r), feedback));
+		Q<31> phaser_l = add_wrap(x.l, mul_r_as_wrap<Q<31>>(s.phaser.l, feedback));
+		Q<31> phaser_r = add_wrap(x.r, mul_r_as_wrap<Q<31>>(s.phaser.r, feedback));
 		// Each stage's products, Q31 × Q30, are Q29, lifted to Q31.
 		for (StereoSample& stage : s.allpass) {
 			const Q<31> in_l = phaser_l;
 			const Q<31> in_r = phaser_r;
-			phaser_l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, minus_a1), Q<31>::from_raw(stage.l));
-			stage.l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, a1), in_l).raw();
-			phaser_r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, minus_a1), Q<31>::from_raw(stage.r));
-			stage.r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, a1), in_r).raw();
+			phaser_l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, minus_a1), stage.l);
+			stage.l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, a1), in_l);
+			phaser_r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, minus_a1), stage.r);
+			stage.r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, a1), in_r);
 		}
-		s.phaser = {.l = phaser_l.raw(), .r = phaser_r.raw()};
-		return {.l = add_wrap(Q<31>::from_raw(x.l), phaser_l).raw(),
-		        .r = add_wrap(Q<31>::from_raw(x.r), phaser_r).raw()};
+		s.phaser = {.l = phaser_l, .r = phaser_r};
+		return {.l = add_wrap(x.l, phaser_l), .r = add_wrap(x.r, phaser_r)};
 	}
 };
 

@@ -1938,7 +1938,8 @@ doFinishCapturing:
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
 				for (StereoSample sample : input.first(numSamplesThisCycle)) {
-					q31_t rxBalanced = (sample.l / 2) - (sample.r / 2);
+					// Raw: the balanced difference of the halved words, toward zero, written as 24 bits.
+					q31_t rxBalanced = (sample.l.raw() / 2) - (sample.r.raw() / 2);
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
@@ -1947,7 +1948,10 @@ doFinishCapturing:
 
 			// Or, all other, non-balanced input types
 			else {
-				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
+				for (const StereoSample frame : input.first(numSamplesThisCycle)) {
+					// Raw: the gain, the stats and the 24-bit write all read the words.
+					q31_t rxL = frame.l.raw();
+					q31_t rxR = frame.r.raw();
 					if (applyGain) {
 						// The input gain: a run-time saturating shift, so raw
 						rxL = lshift_and_saturate_unknown(rxL, gainToApply);

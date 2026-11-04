@@ -336,8 +336,8 @@ void StereoGainCase::setup(std::size_t n) {
 	in_ = out_;
 	dsp::fixed::SeededNoise noise{kSeed};
 	for (StereoSample& frame : shared.stereo) {
-		frame.l = noise.render();
-		frame.r = noise.render();
+		frame.l = dsp::Q<31>::from_raw(noise.render()); // the noise's raw words
+		frame.r = dsp::Q<31>::from_raw(noise.render());
 	}
 	stereo_.configure({.gain = kGain});
 }
@@ -444,7 +444,7 @@ void SampleInterpolateCase::block(std::size_t n) {
 		position_ += kRate;
 		interpolator_.push_l(static_cast<int16_t>(spans_.a[i] >> 16));
 		interpolator_.push_r(static_cast<int16_t>(spans_.b[i] >> 16));
-		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l;
+		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l.raw();
 	}
 }
 

@@ -443,8 +443,8 @@ std::vector<std::vector<unsigned char>> part_states(const Sequential& parts) {
 std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
 	std::vector<q31> v;
 	for (const StereoSample& f : frames) {
-		v.push_back(f.l);
-		v.push_back(f.r);
+		v.push_back(f.l.raw());
+		v.push_back(f.r.raw());
 	}
 	return v;
 }
@@ -698,7 +698,7 @@ describe chain("Chain", ${
 		const std::vector<q31> l = noise(frames.size(), 1);
 		const std::vector<q31> r = noise(frames.size(), 2);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
-			frames[i] = {.l = l[i], .r = r[i]};
+			frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 		}
 		chain.render_block(frames, frames);
 		const Three::State left = chain.left();
@@ -767,7 +767,7 @@ describe chain("Chain", ${
 				const std::vector<q31> r = noise(n, 0x999 + block);
 				std::vector<StereoSample> frames(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i] = {.l = in[i], .r = r[i]};
+					frames[i] = {.l = Q<31>::from_raw(in[i]), .r = Q<31>::from_raw(r[i])};
 				}
 				std::vector<StereoSample> stereo_got(n);
 				stereo_out_of_place.render_block(frames, stereo_got);
@@ -958,7 +958,7 @@ describe chain("Chain", ${
 				const std::vector<q31> r = noise(n, 0x3e2 + static_cast<uint32_t>((block * 5) + n));
 				std::vector<StereoSample> frames(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i] = {.l = l[i], .r = r[i]};
+					frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 				}
 				std::vector<q31> want_l(n);
 				std::vector<q31> want_r(n);
@@ -966,7 +966,7 @@ describe chain("Chain", ${
 				right.render_block(typed_view(std::span{r}), typed_view(std::span{want_r}));
 				std::vector<StereoSample> want(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					want[i] = {.l = want_l[i], .r = want_r[i]};
+					want[i] = {.l = Q<31>::from_raw(want_l[i]), .r = Q<31>::from_raw(want_r[i])};
 				}
 				std::vector<StereoSample> got(n);
 				out_of_place.render_block(frames, got);
@@ -996,7 +996,7 @@ describe chain("Chain", ${
 		const std::vector<q31> l = noise(frames.size(), 3);
 		const std::vector<q31> r = noise(frames.size(), 4);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
-			frames[i] = {.l = l[i], .r = r[i]};
+			frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 		}
 		chain.render_block(frames, frames);
 		const Filtered::State left = chain.left();

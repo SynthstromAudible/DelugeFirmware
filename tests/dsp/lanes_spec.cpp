@@ -1266,15 +1266,15 @@ describe lanes_spec("Lanes<K, N>", ${
 		std::vector<StereoSample> frames(9);
 		SeededNoise noise{0x5151u};
 		for (StereoSample& frame : frames) {
-			frame.l = noise.render();
-			frame.r = noise.render();
+			frame.l = Q<31>::from_raw(noise.render());
+			frame.r = Q<31>::from_raw(noise.render());
 		}
 		std::vector<StereoSample> packed = frames;
 		op_major.render_block(packed, packed);
 		lane_by_lane.render_block(frames, frames);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
-			expect(packed[i].l).to_equal(frames[i].l);
-			expect(packed[i].r).to_equal(frames[i].r);
+			expect(packed[i].l.raw()).to_equal(frames[i].l.raw());
+			expect(packed[i].r.raw()).to_equal(frames[i].r.raw());
 		}
 		expect(op_major.left().z.raw()).to_equal(lane_by_lane.left().z.raw());
 		expect(op_major.right().z.raw()).to_equal(lane_by_lane.right().z.raw());

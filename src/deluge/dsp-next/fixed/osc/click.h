@@ -90,7 +90,7 @@ struct Click {
 	                                                              State& s, StereoSample x) {
 		const Q<31> value = s.phase <= kHighUntil ? c.level : neg_wrap(c.level);
 		s.phase += s.increment;
-		return {.l = add_wrap(Q<31>::from_raw(x.l), value).raw(), .r = add_wrap(Q<31>::from_raw(x.r), value).raw()};
+		return {.l = add_wrap(x.l, value), .r = add_wrap(x.r, value)};
 	}
 };
 

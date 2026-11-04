@@ -52,10 +52,10 @@ constexpr q31 kMin = std::numeric_limits<q31>::min();
 constexpr q31 kMax = std::numeric_limits<q31>::max();
 
 /// The frame round trip, at compile time.
-static_assert(to_frame(StereoSample{.l = 5, .r = -7})[0] == 5);
-static_assert(to_frame(StereoSample{.l = 5, .r = -7})[1] == -7);
-static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).l == kMin);
-static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).r == kMax);
+static_assert(to_frame(StereoSample{.l = Q<31>::from_raw(5), .r = Q<31>::from_raw(-7)})[0] == 5);
+static_assert(to_frame(StereoSample{.l = Q<31>::from_raw(5), .r = Q<31>::from_raw(-7)})[1] == -7);
+static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).l.raw() == kMin);
+static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).r.raw() == kMax);
 
 } // namespace
 
@@ -88,13 +88,13 @@ describe frame_spec("Frame", ${
 	it("takes a stereo frame's left to lane 0 and its right to lane 1, and back, at the extremes", _ {
 		for (const q31 l : {kMin, q31{-1}, q31{0}, q31{1}, kMax}) {
 			for (const q31 r : {kMin, q31{-1}, q31{0}, q31{1}, kMax}) {
-				const StereoSample s{.l = l, .r = r};
+				const StereoSample s{.l = Q<31>::from_raw(l), .r = Q<31>::from_raw(r)};
 				const Frame<q31, 2> f = to_frame(s);
 				expect(f[0]).to_equal(l);
 				expect(f[1]).to_equal(r);
 				const StereoSample back = to_stereo(f);
-				expect(back.l).to_equal(l);
-				expect(back.r).to_equal(r);
+				expect(back.l.raw()).to_equal(l);
+				expect(back.r.raw()).to_equal(r);
 			}
 		}
 	});

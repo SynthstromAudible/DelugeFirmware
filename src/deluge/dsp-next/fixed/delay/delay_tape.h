@@ -141,7 +141,7 @@ public:
 	/// @brief Clears the sample under the read head, then steps the head on.
 	/// @return Whether the read head wrapped.
 	bool clear_and_move_on() {
-		*current_ = {.l = 0, .r = 0};
+		*current_ = StereoSample{};
 		return move_on();
 	}
 
@@ -310,12 +310,8 @@ private:
 		auto add = [&](int32_t strength) {
 			const auto at = Q<28>::from_raw(strength);
 			// The half-strength write (see above): the Q30 product read as Q31.
-			pos->l = add_wrap(Q<31>::from_raw(pos->l),
-			                  reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(Q<31>::from_raw(sample.l), at)))
-			             .raw();
-			pos->r = add_wrap(Q<31>::from_raw(pos->r),
-			                  reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(Q<31>::from_raw(sample.r), at)))
-			             .raw();
+			pos->l = add_wrap(pos->l, reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(sample.l, at)));
+			pos->r = add_wrap(pos->r, reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(sample.r, at)));
 			pos = before(pos);
 		};
 
@@ -356,8 +352,8 @@ private:
 				// Raw: an integer product of the 16.14 strength and the 16.16 adjustment, the gain at Q30.
 				const auto gain = Q<30>::from_raw(
 				    static_cast<int32_t>(static_cast<uint32_t>(strength >> 2) * resample.write_size_adjustment));
-				pos->l = add_wrap(Q<31>::from_raw(pos->l), mul_as_wrap<Q<31>>(Q<31>::from_raw(sample.l), gain)).raw();
-				pos->r = add_wrap(Q<31>::from_raw(pos->r), mul_as_wrap<Q<31>>(Q<31>::from_raw(sample.r), gain)).raw();
+				pos->l = add_wrap(pos->l, mul_as_wrap<Q<31>>(sample.l, gain));
+				pos->r = add_wrap(pos->r, mul_as_wrap<Q<31>>(sample.r, gain));
 			}
 			if (i + 1 < kStrengths) {
 				pos = before(pos);

@@ -24,9 +24,11 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h" // q31_t
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/state.h"
+#include "raw_frame.h"
 
 #include <array>
 #include <climits>
@@ -41,6 +43,8 @@ namespace stutter_workloads {
 
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayTape;
+using deluge::dsp::test::raw_frames;
+using deluge::dsp::test::RawFrame;
 using deluge::effects::StutterState;
 
 /// @brief Every workload, in all_workloads() order.
@@ -88,9 +92,9 @@ struct Workload {
 /// @return @p n frames of block @p block's input: a full-range sequence per channel, different for each block; or,
 /// for a full-scale block, runs of 512 frames of INT32_MAX then INT32_MIN on both channels, so the resampled play's
 /// two taps sum to the edge of full scale.
-[[nodiscard]] inline std::vector<StereoSample> input(std::size_t n, std::size_t block, bool full_scale,
-                                                     std::size_t first_frame) {
-	std::vector<StereoSample> v(n);
+[[nodiscard]] inline std::vector<RawFrame> input(std::size_t n, std::size_t block, bool full_scale,
+                                                 std::size_t first_frame) {
+	std::vector<RawFrame> v(n);
 	if (full_scale) {
 		for (std::size_t i = 0; i < n; ++i) {
 			const q31_t extreme = ((first_frame + i) / 512) % 2 == 0 ? INT32_MAX : INT32_MIN;
@@ -100,7 +104,7 @@ struct Workload {
 	}
 	uint32_t l = 0x9e3779b9U * static_cast<uint32_t>(block + 1);
 	uint32_t r = 0x85ebca6bU * static_cast<uint32_t>(block + 1) + 1;
-	for (StereoSample& frame : v) {
+	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
 		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
@@ -168,8 +172,8 @@ struct Digest {
 
 	void add(uint32_t word) { value = (value ^ word) * 1099511628211ULL; }
 	void add(int32_t word) { add(static_cast<uint32_t>(word)); }
-	void add(std::span<const StereoSample> samples) {
-		for (const StereoSample s : samples) {
+	void add(std::span<const RawFrame> samples) {
+		for (const RawFrame s : samples) {
 			add(s.l);
 			add(s.r);
 		}
@@ -203,28 +207,28 @@ inline void add_head(Digest& digest, const DelayTape& tape) {
 /// @brief Plays @p workload through @p stutter, calling @p each with every block's index and output.
 /// @tparam Stutter A stutter with the reference's calls.
 template <typename Stutter, typename Each>
-void play(const Workload& workload, Stutter& stutter, Each&& each, StereoSample fill = {.l = 0, .r = 0}) {
+void play(const Workload& workload, Stutter& stutter, Each&& each, RawFrame fill = {}) {
 	stutter.begin(workload.begin_rate, workload.settings, fill);
 	std::size_t frame = 0;
 	for (std::size_t b = 0; b < workload.blocks; ++b) {
 		const Step step = workload.step(b);
-		std::vector<StereoSample> block = input(step.frames, b, step.full_scale, frame);
+		std::vector<RawFrame> block = input(step.frames, b, step.full_scale, frame);
 		frame += step.frames;
 		stutter.process(block, step.rate);
-		each(b, std::span<const StereoSample>{block});
+		each(b, std::span<const RawFrame>{block});
 	}
 }
 
 /// @return @p workload's record, rendered by a fresh @p Stutter whose storage starts as @p fill.
 template <typename Stutter>
-[[nodiscard]] WorkloadRecord record(const Workload& workload, StereoSample fill = {.l = 0, .r = 0}) {
+[[nodiscard]] WorkloadRecord record(const Workload& workload, RawFrame fill = {}) {
 	Stutter stutter;
 	WorkloadRecord out;
 	Digest outputs;
 	Digest lifecycle;
 	play(
 	    workload, stutter,
-	    [&](std::size_t, std::span<const StereoSample> block) {
+	    [&](std::size_t, std::span<const RawFrame> block) {
 		    outputs.add(block);
 		    lifecycle.add(static_cast<uint32_t>(stutter.playing()));
 		    lifecycle.add(static_cast<uint32_t>(stutter.reversed()));
@@ -235,7 +239,7 @@ template <typename Stutter>
 	out.outputs = outputs.value;
 	out.lifecycle = lifecycle.value;
 	Digest tape;
-	tape.add(std::span<const StereoSample>{stutter.tape().begin(), stutter.tape().end()});
+	tape.add(raw_frames(std::span<const StereoSample>{stutter.tape().begin(), stutter.tape().end()}));
 	out.tape = tape.value;
 	return out;
 }

@@ -41,6 +41,8 @@
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frames;
 
 namespace {
 
@@ -85,8 +87,8 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 			for (const int32_t srr : vs) {
 				reference::Bitcrush ref;
 				deluge::effects::Bitcrush k;
-				std::vector<StereoSample> a = frames(kFrames, 0xB17C0002);
-				std::vector<StereoSample> b = a;
+				std::vector<RawFrame> a = frames(kFrames, 0xB17C0002);
+				std::vector<RawFrame> b = a;
 				std::size_t at = 0;
 				for (std::size_t i = 0; at < a.size(); ++i) {
 					const std::size_t n = block_at(i, a.size() - at);
@@ -95,7 +97,7 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 					ref.process(std::span{a}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr},
 					            volume);
 					const int shift =
-					    k.process(std::span{b}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr})
+					    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = crush, .sample_rate_reduction = block_srr})
 					        .volume_shift;
 					expect(volume).to_equal((1 << 27) >> shift);
 					at += n;
@@ -109,8 +111,8 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 		for (const int32_t crush : {std::numeric_limits<int32_t>::min(), 0, std::numeric_limits<int32_t>::max()}) {
 			reference::Bitcrush ref;
 			deluge::effects::Bitcrush k;
-			std::vector<StereoSample> a = frames(kFrames * 2, 0xB17C0003);
-			std::vector<StereoSample> b = a;
+			std::vector<RawFrame> a = frames(kFrames * 2, 0xB17C0003);
+			std::vector<RawFrame> b = a;
 			std::size_t at = 0;
 			for (std::size_t i = 0; at < a.size(); ++i) {
 				const std::size_t n = block_at(i, a.size() - at);
@@ -120,7 +122,7 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 				int32_t volume = 1 << 27;
 				ref.process(std::span{a}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = srr}, volume);
 				const int shift =
-				    k.process(std::span{b}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = srr})
+				    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = crush, .sample_rate_reduction = srr})
 				        .volume_shift;
 				expect(volume).to_equal((1 << 27) >> shift);
 				at += n;

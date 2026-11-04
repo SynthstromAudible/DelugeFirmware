@@ -22,27 +22,28 @@ using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 
 // A sum that leaves Q31 wraps with defined behaviour, so it is a constant expression.
-static_assert((StereoSample{.l = INT32_MAX, .r = 0} + StereoSample{.l = 1, .r = 0}).l == INT32_MIN);
+static_assert((StereoSample{.l = Q<31>::from_raw(INT32_MAX)} + StereoSample{.l = Q<31>::from_raw(1)}).l.raw()
+              == INT32_MIN);
 static_assert([] {
-	StereoSample s{.l = 0, .r = INT32_MIN};
-	s += StereoSample{.l = 0, .r = -1};
-	return s.r;
+	StereoSample s{.r = Q<31>::from_raw(INT32_MIN)};
+	s += StereoSample{.r = Q<31>::from_raw(-1)};
+	return s.r.raw();
 }() == INT32_MAX);
 
 // clang-format off
 describe stereo_sample("deluge::dsp::StereoSample", ${
 	it("pans a mono sample by Q30 amplitudes, unity at 2^30", _ {
 		for (const int32_t mono : {0, 1, -1, 12345, -12345, 0x1234'5678, INT32_MIN, INT32_MAX}) {
-			const StereoSample s = deluge::dsp::panned_mono(mono, Q<30>::one(), Q<30>::one());
-			expect(s.l).to_equal(mono & ~3);
-			expect(s.r).to_equal(mono & ~3);
+			const StereoSample s = deluge::dsp::panned_mono(Q<31>::from_raw(mono), Q<30>::one(), Q<30>::one());
+			expect(s.l.raw()).to_equal(mono & ~3);
+			expect(s.r.raw()).to_equal(mono & ~3);
 		}
 	});
 	it("pans each channel by its own amplitude", _ {
-		const StereoSample s = deluge::dsp::panned_stereo(1 << 30, -(1 << 30), Q<30>::from_raw(1 << 29),
-		                                                  Q<30>::one());
-		expect(s.l).to_equal(1 << 29);
-		expect(s.r).to_equal(-(1 << 30));
+		const StereoSample s = deluge::dsp::panned_stereo(Q<31>::from_raw(1 << 30), Q<31>::from_raw(-(1 << 30)),
+		                                                  Q<30>::from_raw(1 << 29), Q<30>::one());
+		expect(s.l.raw()).to_equal(1 << 29);
+		expect(s.r.raw()).to_equal(-(1 << 30));
 	});
 });
 // clang-format on

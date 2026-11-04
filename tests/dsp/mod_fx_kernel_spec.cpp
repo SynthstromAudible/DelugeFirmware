@@ -44,6 +44,7 @@
 
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using ModFx = deluge::dsp::fixed::ModFx<>;
 
 static_assert(deluge::dsp::processor_kernel<ModFx> && deluge::dsp::moded_kernel<ModFx>);
@@ -54,11 +55,15 @@ namespace mw = deluge::dsp::test::mod_fx_workloads;
 using deluge::dsp::test::ReferenceModFx;
 
 /// @return The words of @p frames, left then right per frame.
-[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const StereoSample> frames) {
-	static_assert(sizeof(StereoSample) == 2 * sizeof(uint32_t));
+[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const RawFrame> frames) {
+	static_assert(sizeof(RawFrame) == 2 * sizeof(uint32_t));
 	std::vector<uint32_t> words(frames.size() * 2);
 	std::memcpy(words.data(), frames.data(), frames.size_bytes());
 	return words;
+}
+/// @return The words of @p frames, left then right per frame.
+[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const StereoSample> frames) {
+	return frame_words(deluge::dsp::test::raw_frames(frames));
 }
 
 /// @return The kernel's mode for @p type, rendering in stereo when @p stereo; @p type is a comb-filter type.
@@ -106,7 +111,7 @@ public:
 	}
 
 	/// @brief Renders @p frames in place for @p block, scaling @p volume (Q27) as the owner does.
-	void process(const mw::ModFxBlock& block, std::span<StereoSample> frames, int32_t& volume) {
+	void process(const mw::ModFxBlock& block, std::span<RawFrame> frames, int32_t& volume) {
 		if (!block.sound || block.type == ModFXType::NONE || block.type == ModFXType::GRAIN) {
 			return;
 		}
@@ -121,7 +126,8 @@ public:
 			return;
 		}
 		modes_.insert(mode);
-		mono_.render_block(frames, frames, deluge::synth_noise);
+		const std::span<StereoSample> typed = deluge::dsp::test::typed_frames(frames);
+		mono_.render_block(typed, typed, deluge::synth_noise);
 	}
 
 	/// @return The ring's words.
@@ -171,7 +177,7 @@ public:
 		}
 	}
 
-	void process(const mw::ModFxBlock& block, std::span<StereoSample> frames, int32_t& volume) {
+	void process(const mw::ModFxBlock& block, std::span<RawFrame> frames, int32_t& volume) {
 		fx_.processModFX(frames, block.type, block.rate, block.depth, &volume, block.offset, block.feedback,
 		                 block.stereo, block.sound);
 	}
@@ -214,7 +220,7 @@ template <typename Fx>
 	for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 		const mw::ModFxBlock& block = workload.blocks[b];
 		fx.event(block.event, block.rate);
-		std::vector<StereoSample> frames = mw::stereo_input(block.n, b);
+		std::vector<RawFrame> frames = mw::stereo_input(block.n, b);
 		if (block.extremes) {
 			for (std::size_t i = 0; i < frames.size(); ++i) {
 				const bool even = i % 2 == 0;

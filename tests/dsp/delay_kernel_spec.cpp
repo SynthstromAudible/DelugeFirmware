@@ -85,8 +85,8 @@ namespace {
 std::vector<int32_t> frameWords(std::span<const StereoSample> frames) {
 	std::vector<int32_t> out;
 	for (const StereoSample frame : frames) {
-		out.push_back(frame.l);
-		out.push_back(frame.r);
+		out.push_back(frame.l.raw());
+		out.push_back(frame.r.raw());
 	}
 	return out;
 }

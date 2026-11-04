@@ -39,6 +39,7 @@
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
+#include "raw_frame.h"
 #include "util/synth_noise.h"
 
 #include <array>
@@ -150,16 +151,16 @@ public:
 	static inline std::size_t wraps = 0;
 	static void reset_wraps() { wraps = 0; }
 
-	StereoSample phaserMemory{0, 0};
-	std::array<StereoSample, kNumAllpassFiltersPhaser> allpassMemory{};
-	std::array<StereoSample, kModFXBufferSize> ring{};
+	RawFrame phaserMemory{0, 0};
+	std::array<RawFrame, kNumAllpassFiltersPhaser> allpassMemory{};
+	std::array<RawFrame, kModFXBufferSize> ring{};
 	bool held{false};
 	uint16_t modFXBufferWriteIndex{0};
 	ReferenceLfo modFXLFO;
 	ReferenceLfo modFXLFOStereo;
 
 	/// NOT GRAIN! - this only does the comb filter based mod fx
-	void processModFX(std::span<StereoSample> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
+	void processModFX(std::span<RawFrame> buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                  int32_t* postFXVolume, int32_t modFXOffset, int32_t modFXFeedback, bool stereo,
 	                  bool anySoundComingIn) {
 		// if nothing rendered into the clip then we can just return
@@ -219,19 +220,19 @@ public:
 
 	void resetMemory() {
 		if (held) {
-			ring.fill(StereoSample{0, 0});
+			ring.fill(RawFrame{0, 0});
 		}
 
 		else {
-			allpassMemory.fill(StereoSample{0, 0});
-			phaserMemory = StereoSample{0, 0};
+			allpassMemory.fill(RawFrame{0, 0});
+			phaserMemory = RawFrame{0, 0};
 		}
 	}
 
 	void setupBuffer() {
 		if (!held) {
 			held = true;
-			ring.fill(StereoSample{0, 0});
+			ring.fill(RawFrame{0, 0});
 		}
 	}
 	void disableBuffer() { held = false; }
@@ -307,11 +308,11 @@ private:
 
 	// not grain!
 	template <ModFXType modFXType>
-	void processModFXBuffer(std::span<StereoSample> buffer, int32_t modFXRate, int32_t modFXDepth,
+	void processModFXBuffer(std::span<RawFrame> buffer, int32_t modFXRate, int32_t modFXDepth,
 	                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                        int32_t feedback, bool stereo) {
 		if constexpr (modFXType == ModFXType::PHASER) {
-			for (StereoSample& sample : buffer) {
+			for (RawFrame& sample : buffer) {
 				int32_t lfo = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 				sample = processOnePhaserSample(sample, modFXDepth, feedback, lfo);
 			}
@@ -324,7 +325,7 @@ private:
 			return;
 		}
 
-		for (StereoSample& sample : buffer) {
+		for (RawFrame& sample : buffer) {
 			auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
 			sample = stereo ? processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth,
 			                                                         feedback, lfo1, lfo2)
@@ -352,8 +353,8 @@ private:
 	}
 
 	template <ModFXType modFXType, bool stereo>
-	StereoSample processOneModFXSample(StereoSample sample, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                                   int32_t feedback, int32_t lfoOutput, int32_t lfo2Output) {
+	RawFrame processOneModFXSample(RawFrame sample, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                               int32_t feedback, int32_t lfoOutput, int32_t lfo2Output) {
 		int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
 		int32_t strength2 = (delayTime & 65535) << 15;
@@ -413,8 +414,8 @@ private:
 		return sample;
 	}
 
-	StereoSample processOnePhaserSample(StereoSample sample, int32_t modFXDepth, int32_t feedback,
-	                                    int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
+	RawFrame processOnePhaserSample(RawFrame sample, int32_t modFXDepth, int32_t feedback,
+	                                int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
 		int32_t _a1 = sub(
 		    1073741824, multiply_32x32_rshift32_rounded(
 		                    ((static_cast<uint32_t>(lfoOutput) + static_cast<uint32_t>(2147483648)) >> 1), modFXDepth));
@@ -424,7 +425,7 @@ private:
 
 		// Do the allpass filters
 		for (auto& sample : allpassMemory) {
-			StereoSample whatWasInput = phaserMemory;
+			RawFrame whatWasInput = phaserMemory;
 
 			phaserMemory.l = add(multiply_32x32_rshift32_rounded(phaserMemory.l, sub(0, _a1)) << 2, sample.l);
 			sample.l = add(multiply_32x32_rshift32_rounded(phaserMemory.l, _a1) << 2, whatWasInput.l);

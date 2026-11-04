@@ -39,6 +39,8 @@
 
 using namespace deluge::dsp;
 using namespace effects_workloads;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frames;
 using Kernel = deluge::dsp::fixed::SendAndVolume;
 using Adapter = deluge::effects::SendAndVolume;
 
@@ -58,8 +60,8 @@ constexpr std::array<int32_t, 5> kSends{0, 0x20000000, -0x30000000, std::numeric
 template <typename ParamsAt>
 bool compare(reference::SendAndVolume& ref, Adapter& live, std::size_t frames_n, uint32_t seed, ParamsAt params_at,
              bool forget_and_prime) {
-	std::vector<StereoSample> a = frames(frames_n, seed);
-	std::vector<StereoSample> b = a;
+	std::vector<RawFrame> a = frames(frames_n, seed);
+	std::vector<RawFrame> b = a;
 	std::vector<int32_t> ra(frames_n, 0x1234);
 	std::vector<int32_t> rb = ra;
 	bool sends_equal = true;
@@ -74,7 +76,7 @@ bool compare(reference::SendAndVolume& ref, Adapter& live, std::size_t frames_n,
 		ref.prime(p.post_reverb_volume >> 1);
 		live.prime(p.post_reverb_volume >> 1);
 		const bool sa = ref.process(std::span{a}.subspan(at, n), std::span{ra}.subspan(at, n), p);
-		const bool sb = live.process(std::span{b}.subspan(at, n), std::span{rb}.subspan(at, n),
+		const bool sb = live.process(typed_frames(std::span{b}.subspan(at, n)), std::span{rb}.subspan(at, n),
 		                             {.post_fx_volume = p.post_fx_volume,
 		                              .post_reverb_volume = p.post_reverb_volume,
 		                              .reverb_send = p.reverb_send,
@@ -131,12 +133,12 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		Adapter live{0x01000000};
 		ref.forget();
 		live.forget();
-		std::vector<StereoSample> a = frames(33, 0x5E4D0003);
-		std::vector<StereoSample> b = a;
+		std::vector<RawFrame> a = frames(33, 0x5E4D0003);
+		std::vector<RawFrame> b = a;
 		std::vector<int32_t> ra(33);
 		std::vector<int32_t> rb(33);
 		(void)ref.process(a, ra, {.post_fx_volume = 1 << 27, .post_reverb_volume = 0x04000000, .ramp = true});
-		(void)live.process(b, rb, {.post_fx_volume = 1 << 27, .post_reverb_volume = 0x04000000, .ramp = true});
+		(void)live.process(typed_frames(std::span{b}), rb, {.post_fx_volume = 1 << 27, .post_reverb_volume = 0x04000000, .ramp = true});
 		expect(same(a, b)).to_be_true();
 	});
 
@@ -158,13 +160,13 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		             .pan = deluge::dsp::Q<31>{},
 		             .ramp = true,
 		             .stereo = true});
-		std::vector<StereoSample> ones(4, StereoSample{.l = 1 << 30, .r = 1 << 30});
+		std::vector<StereoSample> ones(4, StereoSample::from_mono(deluge::dsp::Q<31>::from_raw(1 << 30)));
 		k.render_block(ones, ones);
 		// The gain at this block's volume, held: what a ramp ending on its target would give at its last frame.
 		using Volume = Kernel::Volume;
 		const Volume held_gain = mul_as_wrap<Volume>(Volume::from_raw(1 << 27), Volume::from_raw(1 << 27));
 		const q31 at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
-		expect(ones[0].l > at_target).to_be_true();
+		expect(ones[0].l.raw() > at_target).to_be_true();
 	});
 });
 // clang-format on

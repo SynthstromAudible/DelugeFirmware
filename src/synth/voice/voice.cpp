@@ -612,14 +612,16 @@ void Voice::write_stereo(const VoiceOutput& output) {
 			output_sample_r = output_saturation_.saturate(output_sample_r, 1, saturation);
 		}
 
-		// Write to the output buffer, panning or not
+		// Write to the output buffer, panning or not: the voice's samples are raw Q31.
+		const auto left = deluge::dsp::Q<31>::from_raw(output_sample_l);
+		const auto right = deluge::dsp::Q<31>::from_raw(output_sample_r);
 		if (output.pan.do_panning) {
-			*output_sample += deluge::dsp::panned_stereo(output_sample_l, output_sample_r,
-			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
-			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
+			*output_sample +=
+			    deluge::dsp::panned_stereo(left, right, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+			                               deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 		}
 		else {
-			*output_sample += StereoSample{.l = output_sample_l, .r = output_sample_r};
+			*output_sample += StereoSample{.l = left, .r = right};
 		}
 
 		output_sample++;
@@ -648,13 +650,14 @@ void Voice::write_mono(const VoiceOutput& output) {
 		}
 
 		if (output.sound_in_stereo) {
+			const auto typed = deluge::dsp::Q<31>::from_raw(sample); // the voice's samples are raw Q31
 			if (output.pan.do_panning) {
 				*(reinterpret_cast<StereoSample*>(output_sample)) +=
-				    deluge::dsp::panned_mono(sample, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+				    deluge::dsp::panned_mono(typed, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
 				                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 			}
 			else {
-				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(sample);
+				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(typed);
 			}
 			output_sample += 2;
 		}

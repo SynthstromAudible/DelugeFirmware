@@ -50,7 +50,7 @@ namespace cw = compressor_workloads;
 using compressor_reference::FixedReferenceRmsFeedbackCompressor;
 using compressor_reference::ReferenceRmsFeedbackCompressor;
 using deluge::dsp::q31;
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 /// @return @p parting named with @p workload's name and the block.
 [[nodiscard]] std::string named(std::string_view workload, const cw::Parting& parting) {
@@ -84,7 +84,7 @@ template <typename A, typename B, typename Keep>
 template <typename C>
 [[nodiscard]] size_t gain_wrapped_blocks(const cw::CompressorWorkload& workload) {
 	cw::CompressorRun<C> run{workload};
-	std::vector<StereoSample> block;
+	std::vector<RawFrame> block;
 	size_t wrapped = 0;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		std::ignore = run.block(b, block);
@@ -118,7 +118,7 @@ struct LevelProbe {
 [[nodiscard]] LevelProbe probe_levels(const cw::CompressorWorkload& workload) {
 	cw::CompressorRun<ReferenceRmsFeedbackCompressor> run{workload};
 	LevelProbe probe;
-	std::vector<StereoSample> block;
+	std::vector<RawFrame> block;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		auto detector = run.compressor().detector();
 		std::ignore = run.block(b, block);
@@ -128,7 +128,7 @@ struct LevelProbe {
 		++probe.rendered;
 		const q31 moveability = run.compressor().view().detector_moveability.raw();
 		uint64_t sum = 0;
-		for (const StereoSample frame : block) {
+		for (const RawFrame frame : block) {
 			const q31 l = deluge::dsp::wrapping_sub(frame.l, detector[0].lowPass(frame.l, moveability));
 			const q31 r = deluge::dsp::wrapping_sub(frame.r, detector[1].lowPass(frame.r, moveability));
 			probe.min_frames += static_cast<size_t>(l == INT32_MIN && r != INT32_MIN);
@@ -144,7 +144,7 @@ struct LevelProbe {
 /// @return How many blocks of @p workload leave the fixed reference's mean square negative or its level NaN.
 [[nodiscard]] size_t bad_levels(const cw::CompressorWorkload& workload) {
 	cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload};
-	std::vector<StereoSample> block;
+	std::vector<RawFrame> block;
 	size_t bad = 0;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		std::ignore = run.block(b, block);
@@ -236,7 +236,7 @@ describe fixed_compressor("the compressor's fixed reference", ${
 		const cw::CompressorWorkload& workload = workload_of(cw::CompressorWorkloadId::GAIN_PAST_32);
 		expect(gain_wrapped_blocks<FixedReferenceRmsFeedbackCompressor>(workload)).to_equal(size_t{0});
 		cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload};
-		std::vector<StereoSample> block;
+		std::vector<RawFrame> block;
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			std::ignore = run.block(b, block);
 		}
@@ -258,7 +258,7 @@ describe fixed_compressor("the compressor's fixed reference", ${
 		// detector whose high-pass is 0 and whose memory is 0: its sum of squares is (2^31)^2 >> 32 = 2^30.
 		const cw::CompressorWorkload& workload = workload_of(cw::CompressorWorkloadId::INT32_MIN_DETECTOR);
 		cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload};
-		std::vector<StereoSample> block;
+		std::vector<RawFrame> block;
 		std::ignore = run.block(0, block);
 		expect(block.size()).to_equal(size_t{1});
 		expect(block[0].l).to_equal(INT32_MIN);

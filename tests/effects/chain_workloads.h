@@ -202,7 +202,7 @@ inline void begin(fx::Stutter& stutter, const fx::EffectStates& s) {
 
 /// @return The block's input: a deterministic signal, or silence.
 inline std::vector<StereoSample> input(const Workload& w, int block, std::size_t frames) {
-	std::vector<StereoSample> out(frames, StereoSample{.l = 0, .r = 0});
+	std::vector<StereoSample> out(frames);
 	if (w.silent && block >= 4) {
 		return out;
 	}
@@ -210,8 +210,8 @@ inline std::vector<StereoSample> input(const Workload& w, int block, std::size_t
 	for (StereoSample& s : out) {
 		state = state * 1103515245u + 12345u;
 		const auto noise = static_cast<int32_t>(state >> 4) - (1 << 27);
-		s.l = noise;
-		s.r = (noise >> 1) + static_cast<int32_t>(block << 20);
+		s.l = deluge::dsp::Q<31>::from_raw(noise);
+		s.r = deluge::dsp::Q<31>::from_raw((noise >> 1) + static_cast<int32_t>(block << 20));
 	}
 	return out;
 }

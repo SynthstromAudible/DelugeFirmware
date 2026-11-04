@@ -45,6 +45,7 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
+#include "raw_frame.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -147,7 +148,7 @@ public:
 		return {lpf_state_l_, lpf_state_r_};
 	}
 	/// @return The ring.
-	[[nodiscard]] std::span<const StereoSample> ring_frames() const { return ring; }
+	[[nodiscard]] std::span<const RawFrame> ring_frames() const { return ring; }
 
 	/// allows the buffer to be stolen
 	void startSkippingRendering() {
@@ -156,7 +157,7 @@ public:
 	}
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	void processGrainFX(std::span<RawFrame> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
 	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, q31_t reverbAmount,
 	                    std::span<q31_t> send) {
 		if (anySoundComingIn || wrapsToShutdown >= 0) {
@@ -168,8 +169,8 @@ public:
 			}
 			setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume);
 			int i = 0;
-			for (StereoSample& sample : buffer) {
-				StereoSample grainWet = processOneGrainSample(sample);
+			for (RawFrame& sample : buffer) {
+				RawFrame grainWet = processOneGrainSample(sample);
 				auto wetl = q31_mult(grainWet.l, _grainVol);
 				auto wetr = q31_mult(grainWet.r, _grainVol);
 
@@ -315,7 +316,7 @@ private:
 		}
 	}
 
-	StereoSample processOneGrainSample(StereoSample currentSample) {
+	RawFrame processOneGrainSample(RawFrame currentSample) {
 		if (bufferWriteIndex >= kModFXGrainBufferSize) {
 			bufferWriteIndex = 0;
 			wrapsToShutdown -= 1;
@@ -360,7 +361,7 @@ private:
 		written_.set(static_cast<std::size_t>(writeIndex));
 
 		bufferWriteIndex++;
-		return StereoSample{grains_l, grains_r};
+		return RawFrame{grains_l, grains_r};
 	}
 
 	void setupGrainsIfNeeded(int32_t writeIndex) {
@@ -482,7 +483,7 @@ private:
 	void getBuffer() {
 		if (!held) {
 			// Every allocation reads zero on the host: the ring is zeroed whenever it is acquired afresh.
-			ring.fill(StereoSample{0, 0});
+			ring.fill(RawFrame{0, 0});
 			written_.reset();
 			held = true;
 			acquisitions_ += 1;
@@ -507,7 +508,7 @@ private:
 	Grain grains[8]{};
 
 	int32_t wrapsToShutdown;
-	std::array<StereoSample, kModFXGrainBufferSize> ring{};
+	std::array<RawFrame, kModFXGrainBufferSize> ring{};
 	bool held{false};
 	std::bitset<kModFXGrainBufferSize> written_{};
 	std::size_t acquisitions_ = 0;

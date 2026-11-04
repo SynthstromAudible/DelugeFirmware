@@ -544,7 +544,7 @@ struct StereoSwap {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
 	                                                StereoSample x) {
-		return {.l = x.r, .r = x.l + s.frames++};
+		return {.l = x.r, .r = Q<31>::from_raw(x.l.raw() + s.frames++)};
 	}
 };
 
@@ -779,7 +779,8 @@ std::vector<q31> input(std::size_t n, q31 seed) {
 std::vector<StereoSample> stereo_input(std::size_t n) {
 	std::vector<StereoSample> v(n);
 	for (std::size_t i = 0; i < n; ++i) {
-		v[i] = {.l = static_cast<q31>(i * 1000) + 7, .r = -static_cast<q31>(i * 3) - 11};
+		v[i] = {.l = Q<31>::from_raw(static_cast<q31>(i * 1000) + 7),
+		        .r = Q<31>::from_raw(-static_cast<q31>(i * 3) - 11)};
 	}
 	return v;
 }
@@ -868,7 +869,7 @@ std::pair<std::vector<q31>, std::vector<std::uint32_t>> run_vec_split(std::size_
 		std::vector<V> buf(n);
 		for (std::size_t i = 0; i < n; ++i) {
 			if constexpr (std::same_as<V, StereoSample>) {
-				buf[i] = {.l = a[i], .r = b[i]};
+				buf[i] = {.l = Q<31>::from_raw(a[i]), .r = Q<31>::from_raw(b[i])};
 			}
 			else {
 				buf[i] = a[i];
@@ -884,8 +885,8 @@ std::pair<std::vector<q31>, std::vector<std::uint32_t>> run_vec_split(std::size_
 		}
 		for (const V& v : buf) {
 			if constexpr (std::same_as<V, StereoSample>) {
-				out.push_back(v.l);
-				out.push_back(v.r);
+				out.push_back(v.l.raw());
+				out.push_back(v.r.raw());
 			}
 			else {
 				out.push_back(v);
@@ -915,8 +916,8 @@ StereoVector frames_at(const std::vector<StereoSample>& v, std::size_t offset) {
 	std::array<q31, 4> l{};
 	std::array<q31, 4> r{};
 	for (std::size_t i = 0; i < l.size() && offset + i < v.size(); ++i) {
-		l[i] = v[offset + i].l;
-		r[i] = v[offset + i].r;
+		l[i] = v[offset + i].l.raw();
+		r[i] = v[offset + i].r.raw();
 	}
 	return {.l = Argon<q31>::Load(l.data()), .r = Argon<q31>::Load(r.data())};
 }
@@ -966,15 +967,15 @@ describe mono("Mono", ${
 			Mono<StereoSwap> swap;
 			swap.render_block(frames, stereo_got);
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(stereo_got[i].l).to_equal(frames[i].r);
-				expect(stereo_got[i].r).to_equal(frames[i].l + static_cast<q31>(i));
+				expect(stereo_got[i].l.raw()).to_equal(frames[i].r.raw());
+				expect(stereo_got[i].r.raw()).to_equal(frames[i].l.raw() + static_cast<q31>(i));
 			}
 
 			Mono<StereoVecSwap> vec_swap;
 			vec_swap.render_block(frames, stereo_got);
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(stereo_got[i].l).to_equal(frames[i].r);
-				expect(stereo_got[i].r).to_equal(frames[i].l + 1);
+				expect(stereo_got[i].l.raw()).to_equal(frames[i].r.raw());
+				expect(stereo_got[i].r.raw()).to_equal(frames[i].l.raw() + 1);
 			}
 		}
 	});
@@ -1140,8 +1141,8 @@ describe mono("Mono", ${
 			stereo.render_block(frames);
 			stereo.render_block(frames);
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(frames[i].l).to_equal(static_cast<q31>(n + i));
-				expect(frames[i].r).to_equal(-static_cast<q31>(n + i));
+				expect(frames[i].l.raw()).to_equal(static_cast<q31>(n + i));
+				expect(frames[i].r.raw()).to_equal(-static_cast<q31>(n + i));
 			}
 			expect(ramp_value(stereo)).to_equal(static_cast<q31>(2 * n));
 		}
@@ -1177,8 +1178,8 @@ describe mono("Mono", ${
 			swap_out.render_block(frames, stereo_out);
 			swap_in.render_block(stereo_in, stereo_in);
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(stereo_in[i].l).to_equal(stereo_out[i].l);
-				expect(stereo_in[i].r).to_equal(stereo_out[i].r);
+				expect(stereo_in[i].l.raw()).to_equal(stereo_out[i].l.raw());
+				expect(stereo_in[i].r.raw()).to_equal(stereo_out[i].r.raw());
 			}
 
 			stereo_in = frames;
@@ -1186,8 +1187,8 @@ describe mono("Mono", ${
 			vec_swap.render_block(frames, stereo_out);
 			vec_swap.render_block(stereo_in, stereo_in);
 			for (std::size_t i = 0; i < n; ++i) {
-				expect(stereo_in[i].l).to_equal(stereo_out[i].l);
-				expect(stereo_in[i].r).to_equal(stereo_out[i].r);
+				expect(stereo_in[i].l.raw()).to_equal(stereo_out[i].l.raw());
+				expect(stereo_in[i].r.raw()).to_equal(stereo_out[i].r.raw());
 			}
 		}
 	});
@@ -1262,7 +1263,7 @@ describe mono("Mono", ${
 			const std::vector<StereoSample> a = stereo_input(n);
 			std::vector<StereoSample> b(n);
 			for (std::size_t i = 0; i < n; ++i) {
-				b[i] = {.l = a[i].r * 5 + 3, .r = a[i].l - 0x00100000};
+				b[i] = {.l = Q<31>::from_raw(a[i].r.raw() * 5 + 3), .r = Q<31>::from_raw(a[i].l.raw() - 0x00100000)};
 			}
 			std::vector<StereoSample> got(n);
 			Mono<StereoVecMix> mix;
@@ -1273,8 +1274,8 @@ describe mono("Mono", ${
 				const std::array<q31, 4> want_l = lanes_of(want.l);
 				const std::array<q31, 4> want_r = lanes_of(want.r);
 				for (std::size_t i = 0; i < lanes && offset + i < n; ++i) {
-					expect(got[offset + i].l).to_equal(want_l[i]);
-					expect(got[offset + i].r).to_equal(want_r[i]);
+					expect(got[offset + i].l.raw()).to_equal(want_l[i]);
+					expect(got[offset + i].r.raw()).to_equal(want_r[i]);
 				}
 			}
 		}
@@ -1357,7 +1358,7 @@ describe mono("Mono", ${
 			const std::vector<StereoSample> fa = stereo_input(n);
 			std::vector<StereoSample> fb(n);
 			for (std::size_t i = 0; i < n; ++i) {
-				fb[i] = {.l = fa[i].r * 5 + 3, .r = fa[i].l - 0x00100000};
+				fb[i] = {.l = Q<31>::from_raw(fa[i].r.raw() * 5 + 3), .r = Q<31>::from_raw(fa[i].l.raw() - 0x00100000)};
 			}
 			std::vector<StereoSample> frames_out(n);
 			std::vector<StereoSample> frames_in_place(n);
@@ -1372,8 +1373,8 @@ describe mono("Mono", ${
 					mix.render_block(fa, frames_in_place, frames_in_place);
 				}
 				for (std::size_t i = 0; i < n; ++i) {
-					expect(frames_in_place[i].l).to_equal(frames_out[i].l);
-					expect(frames_in_place[i].r).to_equal(frames_out[i].r);
+					expect(frames_in_place[i].l.raw()).to_equal(frames_out[i].l.raw());
+					expect(frames_in_place[i].r.raw()).to_equal(frames_out[i].r.raw());
 				}
 			}
 		}

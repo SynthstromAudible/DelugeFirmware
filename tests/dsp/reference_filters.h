@@ -46,6 +46,7 @@
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
+#include "raw_frame.h"
 #include "raw_shaping.h"
 #include "util/synth_noise.h"
 
@@ -76,6 +77,7 @@ using deluge::dsp::fixed::kLinearTableInterpolator;
 using deluge::dsp::fixed::LowPassLadderMode;
 using deluge::dsp::fixed::LowPassSlot;
 using deluge::dsp::fixed::SvfMode;
+using deluge::dsp::test::RawFrame;
 
 /// @brief One block's filter settings as raw words, as the references read them: the cutoff Q31, the resonance and
 /// morph Q29. @ref typed gives the kernels' FilterConfig.
@@ -125,6 +127,13 @@ struct Digest {
 	/// @brief Folds in each frame, left then right.
 	void add(std::span<const StereoSample> samples) {
 		for (const StereoSample s : samples) {
+			add(s.l.raw());
+			add(s.r.raw());
+		}
+	}
+	/// @brief Folds in each frame, left then right.
+	void add(std::span<const RawFrame> samples) {
+		for (const RawFrame s : samples) {
 			add(s.l);
 			add(s.r);
 		}

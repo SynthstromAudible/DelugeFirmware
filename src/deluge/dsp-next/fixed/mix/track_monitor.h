@@ -99,22 +99,22 @@ struct TrackMonitor {
 	                                                              StereoSample output, StereoSample input) {
 		const Q<30> amplitude = add_wrap(s.amplitude, blk.increment);
 		s.amplitude = amplitude;
-		const auto l = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.l), amplitude);
-		const auto r = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.r), amplitude);
-		StereoSample add{.l = l.raw(), .r = r.raw()};
+		const auto l = mul_as_wrap<Q<31>>(input.l, amplitude);
+		const auto r = mul_as_wrap<Q<31>>(input.r, amplitude);
+		StereoSample add{.l = l, .r = r};
 		if constexpr (M == Mode::LEFT) {
-			add = StereoSample::from_mono(l.raw());
+			add = StereoSample::from_mono(l);
 		}
 		else if constexpr (M == Mode::RIGHT) {
-			add = StereoSample::from_mono(r.raw());
+			add = StereoSample::from_mono(r);
 		}
 		else if constexpr (M == Mode::BALANCED) {
-			add = StereoSample::from_mono(sub_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
+			add = StereoSample::from_mono(sub_wrap(halve_toward_zero(l), halve_toward_zero(r)));
 		}
 		else if constexpr (M == Mode::COMBINE) {
-			add = StereoSample::from_mono(add_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
+			add = StereoSample::from_mono(add_wrap(halve_toward_zero(l), halve_toward_zero(r)));
 		}
-		return {.l = wrapping_add(output.l, add.l), .r = wrapping_add(output.r, add.r)};
+		return output + add;
 	}
 };
 

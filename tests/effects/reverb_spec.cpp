@@ -40,7 +40,7 @@
 
 namespace {
 namespace rw = reverb_workloads;
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using deluge::dsp::test::ReferenceRunner;
 using deluge::effects::Reverb;
 using deluge::effects::ReverbModel;
@@ -61,8 +61,8 @@ struct ComponentRunner {
 		reverb->commit();
 	}
 	void set_knobs(const rw::Knobs& k) { reverb->publish(settings_of(k)); }
-	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
-		reverb->render(out, send, l, r);
+	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
+		reverb->render(deluge::dsp::test::typed_frames(out), send, l, r);
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
@@ -79,21 +79,21 @@ static_assert(rw::ReverbRunner<ComponentRunner>);
 /// @brief One block of 128 frames of tone, numbered from 0: its send and the dry frames it is rendered over.
 struct Block {
 	std::vector<int32_t> send;
-	std::vector<StereoSample> out;
+	std::vector<RawFrame> out;
 	explicit Block(std::size_t b)
 	    : send(rw::send(128, rw::Send::TONE, b, b * 128)), out(rw::dry(128, rw::Send::TONE, b, b * 128)) {}
 };
 
 /// @return Whether two blocks hold the same frames.
-bool same(std::span<const StereoSample> a, std::span<const StereoSample> b) {
-	return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](StereoSample x, StereoSample y) {
+bool same(std::span<const RawFrame> a, std::span<const RawFrame> b) {
+	return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](RawFrame x, RawFrame y) {
 		       return x.l == y.l && x.r == y.r;
 	       });
 }
 
 /// @return Block @p b rendered by @p runner at centred levels.
 template <class R>
-std::vector<StereoSample> render_block(R& runner, std::size_t b) {
+std::vector<RawFrame> render_block(R& runner, std::size_t b) {
 	Block block(b);
 	runner.render(block.send, block.out, rw::kCentred, rw::kCentred);
 	return block.out;
@@ -124,7 +124,7 @@ describe reverb("the reverb component", ${
 
 			Block dry(1);
 			runner.reverb->begin_change();
-			std::vector<StereoSample> out = render_block(runner, 1);
+			std::vector<RawFrame> out = render_block(runner, 1);
 			expect(same(out, dry.out)).to_be_true();
 			runner.reverb->prepare(static_cast<ReverbModel>(m));
 			out = render_block(runner, 1);
@@ -177,7 +177,7 @@ describe reverb("the reverb component", ${
 
 			runner.set_knobs(rw::kMidpointB);
 			switched.set_knobs(rw::kMidpointB);
-			const std::vector<StereoSample> got = render_block(runner, kWarm);
+			const std::vector<RawFrame> got = render_block(runner, kWarm);
 			expect(same(got, render_block(switched, kWarm))).to_be_true();
 			expect(same(got, render_block(kept, kWarm))).to_be_false(); // B landed at this block, not later
 		}
@@ -195,7 +195,7 @@ describe reverb("the reverb component", ${
 		reverb->prepare(ReverbModel::MUTABLE);
 		reverb->commit();
 		Block mine(0);
-		reverb->render(mine.out, mine.send, rw::kCentred, rw::kCentred);
+		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), mine.send, rw::kCentred, rw::kCentred);
 
 		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceReverb>();
 		reference->setModel(deluge::dsp::test::reverb_ref::ReferenceReverb::Model::MUTABLE);
@@ -241,7 +241,7 @@ describe reverb("the reverb component", ${
 			ringing.set_model(m);
 			ringing.set_knobs(kOpen);
 			const double seconds = deluge::dsp::test::rt60(
-			    [&ringing](std::span<int32_t> in, std::span<StereoSample> out) { ringing.render(in, out, 1 << 30, 1 << 30); },
+			    [&ringing](std::span<int32_t> in, std::span<RawFrame> out) { ringing.render(in, out, 1 << 30, 1 << 30); },
 			    5.0);
 			expect(seconds).to_be_greater_than(0.05);
 		}

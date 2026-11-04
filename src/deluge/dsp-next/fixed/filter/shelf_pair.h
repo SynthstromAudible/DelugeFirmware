@@ -120,37 +120,37 @@ struct ShelfPair {
 	                                                              State& s, StereoSample x) {
 		constexpr bool kTreble = M != Mode::BASS;
 		constexpr bool kBass = M != Mode::TREBLE;
-		Q<31> l = Q<31>::from_raw(x.l);
-		Q<31> r = Q<31>::from_raw(x.r);
+		Q<31> l = x.l;
+		Q<31> r = x.r;
 		Q<31> treble_l{};
 		Q<31> treble_r{};
 		if constexpr (kTreble) {
-			const auto without_l = Q<31>::from_raw(s.without_treble.l);
-			const auto without_r = Q<31>::from_raw(s.without_treble.r);
+			const auto without_l = s.without_treble.l;
+			const auto without_r = s.without_treble.r;
 			const Q<31> next_l = add_wrap(without_l, mul_as_wrap<Q<31>>(sub_wrap(l, without_l), c.treble_m));
 			const Q<31> next_r = add_wrap(without_r, mul_as_wrap<Q<31>>(sub_wrap(r, without_r), c.treble_m));
-			s.without_treble = {.l = next_l.raw(), .r = next_r.raw()};
+			s.without_treble = {.l = next_l, .r = next_r};
 			treble_l = sub_wrap(l, next_l);
 			treble_r = sub_wrap(r, next_r);
 			l = next_l;
 			r = next_r;
 		}
 		if constexpr (kBass) {
-			const auto bass_l = Q<31>::from_raw(s.bass_only.l);
-			const auto bass_r = Q<31>::from_raw(s.bass_only.r);
+			const auto bass_l = s.bass_only.l;
+			const auto bass_r = s.bass_only.r;
 			// The Q30 product read as Q31: half the step.
-			s.bass_only.l = add_wrap(bass_l, reinterpret_bits<Q<31>>(mul(sub_wrap(l, bass_l), c.bass_m))).raw();
-			s.bass_only.r = add_wrap(bass_r, reinterpret_bits<Q<31>>(mul(sub_wrap(r, bass_r), c.bass_m))).raw();
+			s.bass_only.l = add_wrap(bass_l, reinterpret_bits<Q<31>>(mul(sub_wrap(l, bass_l), c.bass_m)));
+			s.bass_only.r = add_wrap(bass_r, reinterpret_bits<Q<31>>(mul(sub_wrap(r, bass_r), c.bass_m)));
 		}
 		if constexpr (kTreble) {
 			l = add_wrap(l, mul_as_wrap<Q<31>>(treble_l, c.treble_gain));
 			r = add_wrap(r, mul_as_wrap<Q<31>>(treble_r, c.treble_gain));
 		}
 		if constexpr (kBass) {
-			l = add_wrap(l, mul_as_wrap<Q<31>>(Q<31>::from_raw(s.bass_only.l), c.bass_gain));
-			r = add_wrap(r, mul_as_wrap<Q<31>>(Q<31>::from_raw(s.bass_only.r), c.bass_gain));
+			l = add_wrap(l, mul_as_wrap<Q<31>>(s.bass_only.l, c.bass_gain));
+			r = add_wrap(r, mul_as_wrap<Q<31>>(s.bass_only.r, c.bass_gain));
 		}
-		return {.l = l.raw(), .r = r.raw()};
+		return {.l = l, .r = r};
 	}
 };
 

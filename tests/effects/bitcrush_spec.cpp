@@ -21,7 +21,7 @@ std::vector<StereoSample> wave(size_t frames) {
 	std::vector<StereoSample> block;
 	for (size_t i = 0; i < frames; i++) {
 		const auto v = static_cast<int32_t>((i * 2654435761u) & 0x3FFFFFFFu) - (1 << 29);
-		block.push_back({.l = v, .r = -v});
+		block.push_back({.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)});
 	}
 	return block;
 }
@@ -50,7 +50,7 @@ describe bitcrush("bit depth and sample-rate reduction", ${
 		const std::vector<StereoSample> input = wave(32);
 		const uint32_t mask = 0xFFFFFFFFu << 25;
 		for (size_t i = 0; i < block.size(); i++) {
-			expect(block[i].l).to_equal(static_cast<int32_t>(static_cast<uint32_t>(input[i].l) & mask));
+			expect(block[i].l.raw()).to_equal(static_cast<int32_t>(static_cast<uint32_t>(input[i].l.raw()) & mask));
 		}
 		expect(volume).to_equal((1 << 27) >> 2);
 	});

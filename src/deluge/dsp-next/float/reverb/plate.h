@@ -334,8 +334,8 @@ private:
 		const Q<31> output_left = to_q31_saturating(left * kOutputGain);
 		const Q<31> output_right = to_q31_saturating(right * kOutputGain);
 		// The return adds the Q30 product's bits to the Q31 frame: half the output at the return level.
-		return {.l = add_wrap(Q<31>::from_raw(x.l), reinterpret_bits<Q<31>>(mul_r(output_left, s.pan_l))).raw(),
-		        .r = add_wrap(Q<31>::from_raw(x.r), reinterpret_bits<Q<31>>(mul_r(output_right, s.pan_r))).raw()};
+		return {.l = add_wrap(x.l, reinterpret_bits<Q<31>>(mul_r(output_left, s.pan_l))),
+		        .r = add_wrap(x.r, reinterpret_bits<Q<31>>(mul_r(output_right, s.pan_r)))};
 	}
 	/// @return The modulated allpass: the tail read at offset + amplitude × lfo, scaled into the head, written, then
 	/// the head scaled back plus the read out.

@@ -43,6 +43,7 @@
 #include <utility>
 #include <vector>
 
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayBlockResult;
@@ -66,11 +67,11 @@ inline int32_t pattern(size_t word) {
 /// The k-th input sample: two unrelated pseudo-random channels, 28 bits of magnitude, for the first 800 samples.
 inline StereoSample input(int32_t k) {
 	if (k >= 800) {
-		return {.l = 0, .r = 0};
+		return StereoSample{};
 	}
 	const uint32_t a = static_cast<uint32_t>(k + 1) * 2654435761u;
 	const uint32_t b = static_cast<uint32_t>(k + 7) * 2246822519u;
-	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a) >> 3), .r = Q<31>::from_raw(static_cast<int32_t>(b) >> 3)};
 }
 
 /// A 64-bit FNV-1a over 32-bit words.
@@ -279,7 +280,7 @@ struct Buffer {
 		const size_t samples = static_cast<size_t>(size) + static_cast<size_t>(DelayTape::kWriteLag);
 		storage.resize(samples);
 		for (size_t i = 0; i < samples; ++i) {
-			storage[i] = {.l = pattern(2 * i), .r = pattern((2 * i) + 1)};
+			storage[i] = {.l = Q<31>::from_raw(pattern(2 * i)), .r = Q<31>::from_raw(pattern((2 * i) + 1))};
 		}
 		tape = DelayTape{std::span{storage}, static_cast<size_t>(size), rate};
 		if (clamped) {
@@ -374,8 +375,8 @@ private:
 std::vector<int32_t> words(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	for (const StereoSample s : block) {
-		out.push_back(s.l);
-		out.push_back(s.r);
+		out.push_back(s.l.raw());
+		out.push_back(s.r.raw());
 	}
 	return out;
 }

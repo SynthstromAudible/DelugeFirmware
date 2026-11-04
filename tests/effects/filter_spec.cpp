@@ -180,7 +180,8 @@ constexpr FilterParams kLowOnlyParams{
 std::vector<StereoSample> frames(const std::vector<int32_t>& samples) {
 	std::vector<StereoSample> block;
 	for (std::size_t i = 0; i < samples.size(); i += 2) {
-		block.push_back({.l = samples[i], .r = samples[i + 1]});
+		block.push_back(
+		    {.l = deluge::dsp::Q<31>::from_raw(samples[i]), .r = deluge::dsp::Q<31>::from_raw(samples[i + 1])});
 	}
 	return block;
 }
@@ -189,8 +190,8 @@ std::vector<StereoSample> frames(const std::vector<int32_t>& samples) {
 std::vector<int32_t> samples(const std::vector<StereoSample>& block) {
 	std::vector<int32_t> out;
 	for (const StereoSample& frame : block) {
-		out.push_back(frame.l);
-		out.push_back(frame.r);
+		out.push_back(frame.l.raw());
+		out.push_back(frame.r.raw());
 	}
 	return out;
 }

@@ -1162,19 +1162,20 @@ skipFirstSmooth:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead.l = ((sampleRead.l / 2) + (sampleRead.r / 2));
+				// Raw: the reader halves each channel toward zero, as integers.
+				sampleRead.l = deluge::dsp::Q<31>::from_raw((sampleRead.l.raw() / 2) + (sampleRead.r.raw() / 2));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l.raw(), *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r.raw(), *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1204,19 +1205,20 @@ skipFirstLinear:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead.l = ((sampleRead.l >> 1) + (sampleRead.r >> 1));
+				// Raw: the reader halves each channel by an arithmetic shift, as integers.
+				sampleRead.l = deluge::dsp::Q<31>::from_raw((sampleRead.l.raw() >> 1) + (sampleRead.r.raw() >> 1));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l.raw(), *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r.raw(), *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);

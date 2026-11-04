@@ -242,7 +242,7 @@ struct Delay {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, State& s,
 	                                                              StereoSample dry) {
-		StereoSample delayed{.l = 0, .r = 0};
+		StereoSample delayed{};
 		bool wrapped = false;
 		// The native write's sample, and the resampled write's strengths (16.16): where this frame's read leaves them.
 		StereoSample* native_write = nullptr;
@@ -272,12 +272,8 @@ struct Delay {
 				// The 16.16 strengths at Q30, so each tap's product is Q29 and their sum is lifted to Q31.
 				const auto weight1 = as_wrap<Q<30>>(Q<16>::from_raw(strength1));
 				const auto weight2 = as_wrap<Q<30>>(Q<16>::from_raw(strength2));
-				delayed.l = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.l), weight1),
-				                                    mul(Q<31>::from_raw(from2.l), weight2)))
-				                .raw();
-				delayed.r = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.r), weight1),
-				                                    mul(Q<31>::from_raw(from2.r), weight2)))
-				                .raw();
+				delayed.l = as_wrap<Q<31>>(add_wrap(mul(from1.l, weight1), mul(from2.l, weight2)));
+				delayed.r = as_wrap<Q<31>>(add_wrap(mul(from1.r, weight1), mul(from2.r, weight2)));
 			}
 		}
 
@@ -285,32 +281,25 @@ struct Delay {
 		if constexpr (M.shaper == Shaper::ANALOG) {
 			// Both channels' impulse responses at once, sharing each tap's load; then each channel's shaping and
 			// high-pass, as the chain steps them.
-			const StereoSample response =
-			    AnalogImpulseResponse::step_pair(get<0>(s.left).response, get<0>(s.right).response,
-			                                     Q<31>::from_raw(delayed.l), Q<31>::from_raw(delayed.r));
+			const StereoSample response = AnalogImpulseResponse::step_pair(
+			    get<0>(s.left).response, get<0>(s.right).response, delayed.l, delayed.r);
 			const auto& shaper = get<0>(c.feedback);
-			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.l))).raw();
-			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.r))).raw();
+			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, response.l));
+			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, response.r));
 		}
 		else {
 			constexpr FeedbackChain::Mode kFeedback = feedback_mode(M.shaper);
 			constexpr kernel_block_t<FeedbackChain> kNoBlock{};
 			feedback = {
-			    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left,
-			                                                       Q<31>::from_raw(delayed.l))
-			             .raw(),
-			    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right,
-			                                                       Q<31>::from_raw(delayed.r))
-			             .raw(),
+			    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left, delayed.l),
+			    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right, delayed.r),
 			};
 		}
 
 		StereoSample to_tape = feedback;
 		if constexpr (M.mix == Mix::CROSS) {
 			to_tape.l = feedback.r;
-			to_tape.r = add_wrap(halve_floor(add_wrap(Q<31>::from_raw(dry.l), Q<31>::from_raw(dry.r))),
-			                     Q<31>::from_raw(feedback.l))
-			                .raw();
+			to_tape.r = add_wrap(halve_floor(add_wrap(dry.l, dry.r)), feedback.l);
 		}
 		else {
 			to_tape += dry;

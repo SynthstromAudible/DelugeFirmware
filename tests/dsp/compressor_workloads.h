@@ -26,10 +26,10 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h" // CompressorKnobs
 #include "filter_workloads.h"
+#include "raw_frame.h"
 #include "reference_compressor.h"
 
 #include <algorithm>
@@ -45,8 +45,8 @@
 namespace compressor_workloads {
 
 using deluge::dsp::q31;
-using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::CompressorKnobs;
+using deluge::dsp::test::RawFrame;
 using filter_workloads::Digest;
 using filter_workloads::kMaxFrames;
 using filter_workloads::Parting;
@@ -315,9 +315,9 @@ inline constexpr q31 kPartialWet = 1288490188;
 }
 
 /// @return Block @p b's input.
-[[nodiscard]] inline std::vector<StereoSample> compressor_input(const CompressorWorkload& workload, size_t b) {
+[[nodiscard]] inline std::vector<RawFrame> compressor_input(const CompressorWorkload& workload, size_t b) {
 	const CompressorStep s = workload.step(b);
-	std::vector<StereoSample> block(s.frames);
+	std::vector<RawFrame> block(s.frames);
 	for (size_t i = 0; i < block.size(); ++i) {
 		const auto k = static_cast<uint32_t>((b * 1024) + (2 * i));
 		block[i] = {.l = filter_workloads::detail::signal_sample(s.signal, k),
@@ -342,7 +342,7 @@ public:
 	/// @brief Renders block @p b into @p out (resized to the block); a block the owner does not render is left as
 	/// its input.
 	/// @return The gain reduction the compressor reports after the block.
-	uint8_t block(size_t b, std::vector<StereoSample>& out) {
+	uint8_t block(size_t b, std::vector<RawFrame>& out) {
 		const CompressorStep s = workload_.step(b);
 		out = compressor_input(workload_, b);
 		compressor_.configure(s.knobs);
@@ -358,9 +358,9 @@ public:
 			compressor_.reset();
 			return compressor_.gain_reduction();
 		}
-		const std::span<StereoSample> block{out};
+		const std::span<RawFrame> block{out};
 		if constexpr (kTakesScratch) {
-			const std::span<StereoSample> scratch{scratch_.data(), out.size()};
+			const std::span<RawFrame> scratch{scratch_.data(), out.size()};
 			if (workload_.owner == Owner::MASTER) {
 				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume, scratch);
 			}
@@ -371,12 +371,13 @@ public:
 		else if constexpr (kTyped) {
 			// The levels as the firmware's compressor takes them: the gains Q27, the final volume Q29
 			if (workload_.owner == Owner::MASTER) {
-				compressor_.render(block, deluge::dsp::Q<27>::from_raw(s.volume_l),
+				compressor_.render(deluge::dsp::test::typed_frames(block), deluge::dsp::Q<27>::from_raw(s.volume_l),
 				                   deluge::dsp::Q<27>::from_raw(s.volume_r),
 				                   deluge::dsp::Q<29>::from_raw(s.final_volume));
 			}
 			else {
-				compressor_.render_volume_neutral(block, deluge::dsp::Q<29>::from_raw(s.final_volume));
+				compressor_.render_volume_neutral(deluge::dsp::test::typed_frames(block),
+				                                  deluge::dsp::Q<29>::from_raw(s.final_volume));
 			}
 		}
 		else {
@@ -399,14 +400,14 @@ public:
 private:
 	/// Whether @p C blends from a caller's scratch, as the references do; the firmware's compressor blends in place.
 	static constexpr bool kTakesScratch =
-	    requires(C& c, std::span<StereoSample> b) { c.render(b, q31{}, q31{}, q31{}, b); };
+	    requires(C& c, std::span<RawFrame> b) { c.render(b, q31{}, q31{}, q31{}, b); };
 	/// Whether @p C takes its threshold and levels typed, as the firmware's compressor does; the references take raw
 	/// words.
 	static constexpr bool kTyped = requires(C& c) { c.set_threshold(deluge::dsp::Q<31>{}); };
 
 	const CompressorWorkload& workload_;
 	C compressor_{};
-	std::array<StereoSample, kMaxFrames> scratch_{};
+	std::array<RawFrame, kMaxFrames> scratch_{};
 };
 
 /// @return Where @p workload, played through compressor @p A and through compressor @p B, first parts.
@@ -414,13 +415,12 @@ template <typename A, typename B>
 [[nodiscard]] std::optional<Parting> first_parting(const CompressorWorkload& workload) {
 	CompressorRun<A> a{workload};
 	CompressorRun<B> b{workload};
-	std::vector<StereoSample> out_a;
-	std::vector<StereoSample> out_b;
+	std::vector<RawFrame> out_a;
+	std::vector<RawFrame> out_b;
 	for (size_t block = 0; block < workload.blocks; ++block) {
 		const uint8_t ra = a.block(block, out_a);
 		const uint8_t rb = b.block(block, out_b);
-		if (!std::ranges::equal(out_a, out_b,
-		                        [](StereoSample x, StereoSample y) { return x.l == y.l && x.r == y.r; })) {
+		if (!std::ranges::equal(out_a, out_b, [](RawFrame x, RawFrame y) { return x.l == y.l && x.r == y.r; })) {
 			return Parting{.block = block, .what = "output"};
 		}
 		if (ra != rb) {
@@ -439,11 +439,11 @@ template <typename C>
 [[nodiscard]] WorkloadRecord record(const CompressorWorkload& workload) {
 	CompressorRun<C> run{workload};
 	WorkloadRecord out;
-	std::vector<StereoSample> block;
+	std::vector<RawFrame> block;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		const uint8_t reduction = run.block(b, block);
 		Digest output;
-		output.add(std::span<const StereoSample>{block});
+		output.add(std::span<const RawFrame>{block});
 		output.add(reduction);
 		out.outputs.push_back(output.value);
 	}

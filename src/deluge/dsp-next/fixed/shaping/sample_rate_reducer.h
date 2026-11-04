@@ -71,13 +71,18 @@ struct SampleRateReducer {
 		Q<22> high_increment{};        ///< Per frame: the low increment's reciprocal ≪ 6.
 		uint32_t grab_mask = kAllBits; ///< The bits a grab keeps.
 	};
+	/// @brief A grabbed frame: each channel Q30.
+	struct Grab {
+		Q<30> l{}; ///< The left channel.
+		Q<30> r{}; ///< The right channel.
+	};
 	/// @brief The positions and the frames the interpolations read.
 	struct State {
-		uint32_t low_pos = 0;        ///< The down-conversion's position, 22-bit.
-		uint32_t high_pos = 0;       ///< The up-conversion's position, 22-bit.
-		StereoSample last_sample{};  ///< The last input frame.
-		StereoSample grabbed{};      ///< The latest grab, Q30.
-		StereoSample last_grabbed{}; ///< The grab before it, Q30.
+		uint32_t low_pos = 0;       ///< The down-conversion's position, 22-bit.
+		uint32_t high_pos = 0;      ///< The up-conversion's position, 22-bit.
+		StereoSample last_sample{}; ///< The last input frame.
+		Grab grabbed{};             ///< The latest grab.
+		Grab last_grabbed{};        ///< The grab before it.
 	};
 
 	/// @brief Whether @p sample_rate_reduction reduces the rate.
@@ -126,12 +131,8 @@ struct SampleRateReducer {
 		const auto toward_grabbed = Q<22>::from_raw(static_cast<int32_t>(std::min(s.high_pos, kBelowOne)));
 		const Q<22> toward_last_grabbed = sub_wrap(Q<22>::from_raw(kBelowOne), toward_grabbed);
 		const StereoSample out{
-		    .l = as_wrap<Q<31>>(between(Q<30>::from_raw(s.last_grabbed.l), Q<30>::from_raw(s.grabbed.l),
-		                                toward_last_grabbed, toward_grabbed))
-		             .raw(),
-		    .r = as_wrap<Q<31>>(between(Q<30>::from_raw(s.last_grabbed.r), Q<30>::from_raw(s.grabbed.r),
-		                                toward_last_grabbed, toward_grabbed))
-		             .raw(),
+		    .l = as_wrap<Q<31>>(between(s.last_grabbed.l, s.grabbed.l, toward_last_grabbed, toward_grabbed)),
+		    .r = as_wrap<Q<31>>(between(s.last_grabbed.r, s.grabbed.r, toward_last_grabbed, toward_grabbed)),
 		};
 		s.high_pos += static_cast<uint32_t>(c.high_increment.raw());
 		return out;
@@ -146,10 +147,11 @@ private:
 	}
 
 	/// @brief A grab: @ref between the last input and this one, Q30, masked by @p mask.
-	[[nodiscard]] [[gnu::always_inline]] static q31_t grab(q31_t last, q31_t now, Q<22> toward_last, Q<22> toward_now,
+	[[nodiscard]] [[gnu::always_inline]] static Q<30> grab(Q<31> last, Q<31> now, Q<22> toward_last, Q<22> toward_now,
 	                                                       uint32_t mask) {
-		const Q<30> grabbed = between(Q<31>::from_raw(last), Q<31>::from_raw(now), toward_last, toward_now);
-		return static_cast<q31_t>(static_cast<uint32_t>(grabbed.raw()) & mask);
+		const Q<30> grabbed = between(last, now, toward_last, toward_now);
+		// The mask is a bit operation on the grab, so raw.
+		return Q<30>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(grabbed.raw()) & mask));
 	}
 };
 

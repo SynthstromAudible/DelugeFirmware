@@ -235,7 +235,7 @@ struct Compressor {
 		s.loop.sum = 0;
 		s.n = static_cast<uint32_t>(n);
 		// Each detector's own memory as the frame before the first: it high-passes to 0 and leaves the memory as it is.
-		s.loop.pending = {.l = s.loop.detector_l.z.raw(), .r = s.loop.detector_r.z.raw()};
+		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
 
 		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
 		// ±2^24 (a target and a gain each within 2^23), so its conversion is defined. A step of 32 or more per frame
@@ -266,14 +266,10 @@ struct Compressor {
 		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
 		// input, so it takes x × gain / 4.
 		StereoSample y{
-		    .l = AntialiasedTanh::step(
-		             kSaturator, EmptyBlock{}, s.saturation_l,
-		             reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(Q<31>::from_raw(x.l), s.current_volume_l))))
-		             .raw(),
-		    .r = AntialiasedTanh::step(
-		             kSaturator, EmptyBlock{}, s.saturation_r,
-		             reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(Q<31>::from_raw(x.r), s.current_volume_r))))
-		             .raw(),
+		    .l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_l,
+		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(x.l, s.current_volume_l)))),
+		    .r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_r,
+		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(x.r, s.current_volume_r)))),
 		};
 
 		if constexpr (M == Mode::BLEND) {
@@ -281,8 +277,8 @@ struct Compressor {
 			// products, Q30, the sum lifted back to Q31.
 			const Q<31> wet = c.wet;
 			const Q<31> dry = c.dry;
-			y.l = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.l), wet), Q<31>::from_raw(x.l), dry)).raw();
-			y.r = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.r), wet), Q<31>::from_raw(x.r), dry)).raw();
+			y.l = as_wrap<Q<31>>(mla_r(mul(y.l, wet), x.l, dry));
+			y.r = as_wrap<Q<31>>(mla_r(mul(y.r, wet), x.r, dry));
 		}
 
 		measure(c, s, s.pending);
@@ -329,10 +325,10 @@ private:
 	[[gnu::always_inline]] static void measure(const Coefficients& c, Loop& s, StereoSample y) {
 		// The output less its one-pole low-pass, wrapping as the target's `sub` does.
 		const OnePole::Coefficients detector{.m = c.detector_moveability, .mode = OnePole::Mode::HIGH_PASS};
-		const uint32_t l = magnitude(
-		    OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, Q<31>::from_raw(y.l)).raw());
-		const uint32_t r = magnitude(
-		    OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, Q<31>::from_raw(y.r)).raw());
+		const uint32_t l =
+		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, y.l).raw());
+		const uint32_t r =
+		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, y.r).raw());
 		const uint64_t larger = l > r ? l : r;
 		s.sum += static_cast<int64_t>((larger * larger) >> 32);
 	}

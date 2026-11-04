@@ -2068,13 +2068,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		if (!voice_rendered_in_stereo) {
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
+				// The voices render raw Q31 samples.
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitudeL), dsp::Q<30>::from_raw(amplitudeR));
+					return dsp::panned_mono(dsp::Q<31>::from_raw(sample), dsp::Q<30>::from_raw(amplitudeL),
+					                        dsp::Q<30>::from_raw(amplitudeR));
 				});
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::from_mono);
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [](q31_t sample) {
+					return StereoSample::from_mono(dsp::Q<31>::from_raw(sample)); // the voices' raw Q31
+				});
 			}
 		}
 

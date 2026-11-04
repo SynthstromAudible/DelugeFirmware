@@ -35,6 +35,7 @@
 
 using namespace deluge::effects;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 namespace {
 
@@ -97,12 +98,12 @@ class Owner {
 public:
 	Owner() : fx_(kAllocator) {}
 
-	void begin(uint32_t rate, const StutterState& settings, StereoSample /*fill*/ = {}) {
+	void begin(uint32_t rate, const StutterState& settings, RawFrame /*fill*/ = {}) {
 		StutterChange change = fx_.prepare(rate);
 		std::ignore = fx_.commit(change, settings);
 		fx_.finish(change);
 	}
-	void process(std::span<StereoSample> audio, uint32_t rate) { fx_.render(audio, rate); }
+	void process(std::span<RawFrame> audio, uint32_t rate) { fx_.render(deluge::dsp::test::typed_frames(audio), rate); }
 	[[nodiscard]] bool playing() const { return fx_.state().playing; }
 	[[nodiscard]] bool reversed() const { return fx_.state().reverse; }
 	[[nodiscard]] int32_t frames_left() const { return fx_.state().frames_left; }
@@ -129,13 +130,17 @@ describe stutter("effects::Stutter", ${
 
 	it("passes the block through, untouched, while inactive", _ {
 		Stutter fx{kAllocator};
-		std::array<StereoSample, 4> block{{{1, 2}, {3, 4}, {5, 6}, {7, 8}}};
+		using deluge::dsp::Q;
+		std::array<StereoSample, 4> block{{{Q<31>::from_raw(1), Q<31>::from_raw(2)},
+		                                    {Q<31>::from_raw(3), Q<31>::from_raw(4)},
+		                                    {Q<31>::from_raw(5), Q<31>::from_raw(6)},
+		                                    {Q<31>::from_raw(7), Q<31>::from_raw(8)}}};
 		const std::array<StereoSample, 4> before = block;
 		fx.render(block, sw::kRate);
 		expect(fx.active()).to_be_false();
 		for (std::size_t i = 0; i < block.size(); ++i) {
-			expect(block[i].l).to_equal(before[i].l);
-			expect(block[i].r).to_equal(before[i].r);
+			expect(block[i].l.raw()).to_equal(before[i].l.raw());
+			expect(block[i].r.raw()).to_equal(before[i].r.raw());
 		}
 	});
 

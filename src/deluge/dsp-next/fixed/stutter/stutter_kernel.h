@@ -168,9 +168,8 @@ struct Stutter {
 					other = tape.begin();
 				}
 				const int32_t strength1 = 65536 - strength2;
-				out = {
-				    .l = mix(Q<31>::from_raw(tape.current().l), Q<31>::from_raw(other->l), strength1, strength2).raw(),
-				    .r = mix(Q<31>::from_raw(tape.current().r), Q<31>::from_raw(other->r), strength1, strength2).raw()};
+				out = {.l = mix(tape.current().l, other->l, strength1, strength2),
+				       .r = mix(tape.current().r, other->r, strength1, strength2)};
 			}
 			if (s.ping_pong
 			    && ((s.reverse && &tape.current() == tape.begin())

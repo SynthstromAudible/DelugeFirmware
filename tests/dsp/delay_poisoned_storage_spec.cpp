@@ -34,12 +34,13 @@ namespace {
 
 /// @return Sample @p i of storage nothing has written: zeros.
 StereoSample zeroed(size_t /*i*/) {
-	return StereoSample{.l = 0, .r = 0};
+	return StereoSample{};
 }
 
 /// @return Sample @p i of storage another tape left behind: large values of both signs.
 StereoSample poisoned(size_t i) {
-	return StereoSample{.l = 0x5A5A5A5A ^ static_cast<int32_t>(i), .r = -0x5A5A5A5B ^ static_cast<int32_t>(i)};
+	return StereoSample{.l = deluge::dsp::Q<31>::from_raw(0x5A5A5A5A ^ static_cast<int32_t>(i)),
+	                    .r = deluge::dsp::Q<31>::from_raw(-0x5A5A5A5B ^ static_cast<int32_t>(i))};
 }
 
 } // namespace
