@@ -1,0 +1,72 @@
+# MIDI learn onto the MIDI commands. From the song view, SHIFT + SELECT opens the settings menu: MIDI > COMMANDS. With
+# the cursor on PLAY in the list, LEARN held takes a note, a program change and a CC (the CC is D72: main's list drops
+# it), and SHIFT + LEARN forgets PLAY's command; then PLAY's own screen learns a note and a program change, FILL refuses
+# a program change, and BACK leaves the menu.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  snapshot song
+1300  button Shift down
+1400  button SelectEnc down
+1420  button SelectEnc up
+1500  button Shift up
+2200  snapshot settings
+2500  encoder Select +4
+2800  button SelectEnc down
+2820  button SelectEnc up
+3500  snapshot midi
+3800  encoder Select +6
+4100  button SelectEnc down
+4120  button SelectEnc up
+4800  snapshot commands
+5100  button Learn down
+5300  note 1 60 100
+5400  noteoff 1 60
+5500  snapshot list_note
+6200  button Learn up
+6500  button Learn down
+6700  pc 1 5
+6900  snapshot list_pc
+7600  button Learn up
+7900  button Learn down
+8100  cc 1 20 127
+8200  cc 1 20 0
+8400  snapshot list_cc
+9100  button Learn up
+9400  button Shift down
+9500  button Learn down
+9520  button Learn up
+9600  button Shift up
+9800  snapshot list_unlearn
+10500 button SelectEnc down
+10520 button SelectEnc up
+11200 snapshot play_open
+11500 button Learn down
+11700 note 1 62 100
+11800 noteoff 1 62
+12000 snapshot play_note
+12700 button Learn up
+13000 button Learn down
+13200 pc 1 6
+13400 snapshot play_pc
+14100 button Learn up
+14400 button Back down
+14420 button Back up
+14700 encoder Select +8
+15000 button SelectEnc down
+15020 button SelectEnc up
+15700 snapshot fill_open
+16000 button Learn down
+16200 pc 1 7
+16400 snapshot fill_pc
+17100 button Learn up
+17400 button Back down
+17420 button Back up
+17700 button Back down
+17720 button Back up
+18000 button Back down
+18020 button Back up
+18300 button Back down
+18320 button Back up
+19000 snapshot closed
+19300 quit

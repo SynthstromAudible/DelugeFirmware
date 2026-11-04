@@ -16,3 +16,7 @@ once every 800 ms, and a shorter window decides by phase alone whether it sees t
 
 `sm13-midi-selftest` checks the emulator's DIN MIDI input the same way: a note and then a CC learned to RECORD each
 toggle its LED, once per message, on both images.
+
+`sm14-learn-commands` and `sm15-learn-params` cover MIDI learn in the menus, ShellMenu on and off: the MIDI commands
+(from the list and on an item, FILL's refusal), a param's gold-knob, CC and pitch-bend learn and unlearn, and the MIDI
+follow channel.

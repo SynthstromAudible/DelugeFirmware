@@ -1,0 +1,75 @@
+# MIDI learn onto a param and onto the MIDI follow channel. From the synth clip, SHIFT + the OSC1 level shortcut opens
+# its page; LEARN held takes the upper gold knob, then a CC, then a pitch bend; BACK while learning does nothing; SHIFT +
+# LEARN forgets the MIDI knobs. Out of the menu the learned gold knob moves the param and the forgotten CC nothing. Then
+# from the song view, settings > MIDI > FOLLOW > CHANNEL: from the list, a note learns channel A; on A's own screen a CC
+# learns it again; SHIFT + LEARN forgets it.
+100   snapshot boot
+300   button Shift down
+400   pad 2 0 down
+420   pad 2 0 up
+500   button Shift up
+1200  snapshot osc_level
+1500  button Learn down
+1700  encoder GoldUpper +1
+1900  snapshot gold_learned
+2600  button Learn up
+2900  button Learn down
+3100  cc 1 21 64
+3300  snapshot cc_learned
+4000  button Learn up
+4300  button Learn down
+4500  bend 1 8192
+4700  snapshot bend_learned
+5400  button Back down
+5420  button Back up
+5600  snapshot back_while_learning
+6300  button Learn up
+6600  button Shift down
+6700  button Learn down
+6720  button Learn up
+6800  button Shift up
+7000  snapshot unlearned
+7700  button Back down
+7720  button Back up
+8000  button Back down
+8020  button Back up
+8700  snapshot closed
+9000  encoder GoldUpper +1
+9100  encoder GoldUpper +1
+9800  snapshot gold_knob
+10100 cc 1 21 100
+10800 snapshot cc_after
+11100 button Session down
+11120 button Session up
+11800 button Shift down
+11900 button SelectEnc down
+11920 button SelectEnc up
+12000 button Shift up
+12700 snapshot settings
+13000 encoder Select +4
+13300 button SelectEnc down
+13320 button SelectEnc up
+13600 encoder Select +1
+13900 button SelectEnc down
+13920 button SelectEnc up
+14200 button SelectEnc down
+14220 button SelectEnc up
+14900 snapshot follow_channels
+15200 button Learn down
+15400 note 1 60 100
+15500 noteoff 1 60
+15700 snapshot follow_note
+16400 button Learn up
+16700 button SelectEnc down
+16720 button SelectEnc up
+17400 snapshot follow_a
+17700 button Learn down
+17900 cc 2 20 64
+18100 snapshot follow_cc
+18800 button Learn up
+19100 button Shift down
+19200 button Learn down
+19220 button Learn up
+19300 button Shift up
+19500 snapshot follow_unlearn
+20200 quit
