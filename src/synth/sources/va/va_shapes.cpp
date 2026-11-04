@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/va/va_shapes.h"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"

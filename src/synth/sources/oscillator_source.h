@@ -18,8 +18,8 @@
 
 #include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // Source, SourceBlock, BlockControls
+#include <algorithm>              // std::fill_n
 #include <cstdint>
-#include <cstring>
 
 namespace deluge::synth {
 

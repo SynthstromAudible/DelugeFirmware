@@ -205,6 +205,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	    .stereo_unison = stereo_unison,
 	    .amplitude_l = amplitude_l,
 	    .amplitude_r = amplitude_r,
+	    // The engine's amplitudes are raw words: make_block_controls takes them raw
 	    .source_amplitude = dsp::Q<31>::from_raw(source_amplitude),
 	    .amplitude_increment = dsp::Q<31>::from_raw(amplitude_increment),
 	    .phase_increment = phase_increment,

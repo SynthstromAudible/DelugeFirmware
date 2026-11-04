@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/supersaw/supersaw_source.h"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/bandlimited/band_limited_table.h" // get_table_number
 #include "dsp-next/fixed/vca/amplitude.h"
 

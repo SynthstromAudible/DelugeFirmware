@@ -17,7 +17,6 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4

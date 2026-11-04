@@ -291,7 +291,7 @@ instructions.
   (`spareRenderingBuffer`, the osc-sync buffer) are `Q<31>`; the DX7 port returns `Q<24>`. The FM operators' buffers
   and the sample reader's mix hold their Q30 products as the words of the voice's Q31 samples (`buffer_sample`,
   `mixed_in`). The audio clip, the sample reader, the reverb send (`ReverbSend`, the engine's reverb memory) and the
-  bench's blocks are typed too. Their internal arithmetic, phases and the mod matrix still convert at each step.
+  bench's blocks are typed too. Their internal arithmetic, phases and the mod matrix convert at each step.
 
 ## Measuring
 

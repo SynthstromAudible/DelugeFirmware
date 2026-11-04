@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 

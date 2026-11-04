@@ -27,7 +27,6 @@
 
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/fixed_point.h"

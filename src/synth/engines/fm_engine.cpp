@@ -29,7 +29,6 @@
 #include "synth/voice/sound_snapshot.h"
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable
 #include <algorithm>
-#include <cstring>
 #include <utility>
 
 using namespace deluge;

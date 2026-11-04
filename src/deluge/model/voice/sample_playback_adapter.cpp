@@ -223,6 +223,7 @@ bool SamplePlaybackAdapter::render(deluge::dsp::Q<31>* buffer, int32_t numSample
                                    int32_t priorityRating) {
 	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
 	int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
+	// VoiceSample steps its amplitude as raw words
 	return voiceSample_->render(guide_, buffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 	                            timeStretchRatio, sourceAmplitude.raw(), amplitudeIncrement.raw(),
 	                            interpolationBufferSize, source_->sampleControls.interpolationMode, priorityRating);

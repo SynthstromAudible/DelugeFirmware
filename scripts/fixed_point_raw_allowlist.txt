@@ -15,7 +15,8 @@ src/deluge/bench/cases.h raw=0 boundary=49
 src/deluge/bench/chain_cases.cpp raw=0 boundary=4
 src/deluge/bench/delay_cases.cpp raw=0 boundary=2
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
-src/deluge/bench/reference_chains.h raw=4 boundary=7
+src/deluge/bench/granular_cases.cpp raw=0 boundary=1
+src/deluge/bench/reference_chains.h raw=4 boundary=8
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
 src/deluge/dsp-next/core/convert.h raw=0 boundary=7
@@ -127,11 +128,12 @@ src/deluge/util/functions.h raw=0 boundary=5
 src/deluge/util/param_functions.cpp raw=0 boundary=4
 src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
 src/effects/bitcrush.cpp raw=0 boundary=6
+src/effects/chain_core.cpp raw=0 boundary=1
 src/effects/chain_core.h raw=0 boundary=3
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 boundary=6
-src/effects/granular.cpp raw=0 boundary=5
+src/effects/granular.cpp raw=0 boundary=4
 src/effects/master_chain.cpp raw=0 boundary=10
 src/effects/mod_fx.cpp raw=0 boundary=6
 src/effects/param_fragment.h raw=0 boundary=8

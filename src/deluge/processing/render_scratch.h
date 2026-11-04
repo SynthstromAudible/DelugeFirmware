@@ -34,7 +34,7 @@
 
 namespace deluge::render {
 
-/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES int32s: the voices' working rows.
+/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES samples: the voices' working rows.
 inline constexpr std::size_t kSpareRenderingRows = 4;
 
 /// @brief The scratch every filter set shares (the voices' and the host chains'): room for a stereo block of

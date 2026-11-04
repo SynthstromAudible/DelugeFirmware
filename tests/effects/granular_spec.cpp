@@ -129,7 +129,7 @@ public:
 		            .mix = mix,
 		            .density = density,
 		            .randomness = randomness,
-		            .send_amount = reverb_amount,
+		            .send_amount = deluge::dsp::Q<31>::from_raw(reverb_amount),
 		            .sound = sound},
 		           *volume, deluge::dsp::typed_view(send), deluge::synth_noise);
 	}
@@ -595,7 +595,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 				           .mix = gw::kMixMid,
 				           .density = gw::kDensityMid,
 				           .randomness = gw::kRandomnessMid,
-				           .send_amount = gw::kSendAmount,
+				           .send_amount = deluge::dsp::Q<31>::from_raw(gw::kSendAmount),
 				           .sound = true},
 				          volume, deluge::dsp::typed_view(std::span{send}), deluge::synth_noise);
 				for (std::size_t i = 0; i < frames.size(); ++i) {

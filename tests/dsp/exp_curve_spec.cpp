@@ -31,8 +31,7 @@ using deluge::dsp::test::raw_curves::exp_curve;
 // clang-format off
 describe exp_curve_spec("exp_curve", ${
 	it("keeps the preset's format", _ {
-		expect(deluge::dsp::fixed::exp_curve(Q<24>::from_raw(4194304), Q<26>::from_raw(1 << 26)) == Q<24>::from_raw(8388608))
-		    .to_be_true();
+		expect(deluge::dsp::fixed::exp_curve(Q<24>::from_raw(4194304), Q<26>::from_raw(1 << 26)).raw()).to_equal(8388608);
 	});
 	it("scales by four at no adjustment", _ {
 		expect(exp_curve(4194304, 0)).to_equal(4194304);

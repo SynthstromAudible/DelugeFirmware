@@ -45,12 +45,12 @@ enum class EnterGrain : uint8_t {
 
 /// @brief What the owner hands render each block.
 struct GranularInputs {
-	int32_t rate;       ///< The rate knob, Q31 signed.
-	int32_t mix;        ///< The mix knob, Q31 signed.
-	int32_t density;    ///< The density knob, Q31 signed.
-	int32_t randomness; ///< The pitch-randomness knob, Q31 signed.
-	q31_t send_amount;  ///< The reverb send amount, Q31.
-	bool sound;         ///< Whether any sound came in this block.
+	int32_t rate;           ///< The rate knob, Q31 signed.
+	int32_t mix;            ///< The mix knob, Q31 signed.
+	int32_t density;        ///< The density knob, Q31 signed.
+	int32_t randomness;     ///< The pitch-randomness knob, Q31 signed.
+	dsp::Q<31> send_amount; ///< The reverb send amount.
+	bool sound;             ///< Whether any sound came in this block.
 };
 
 /// @brief An owner's granular effect: the dsp-next Granular kernel's State, which lives as long as the owner once it

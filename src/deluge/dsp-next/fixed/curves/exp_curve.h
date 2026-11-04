@@ -68,8 +68,7 @@ template <int F>
 	// The Q15 table times the Q15 blend weight: 2^fraction at Q30, from 1 to just under 2
 	const Q<30> power =
 	    Q<30>::from_raw(kLinearTableInterpolator.interpolate(adjustment.raw() & 67108863, 26, kExpTable.data()));
-	// The product's word, read in the preset's format, is a quarter of preset · 2^fraction: the octaves' + 2 restores
-	// it
+	// The product's word, read in the preset's format, is preset · 2^fraction / 4: the octaves' + 2 restores the × 4
 	const int32_t within_octave = mul(preset, power).raw();
 	if (octaves <= kExpSaturatingOctaves) {
 		// Raw: a run-time shift saturating to the multiples of 2^octaves has no typed form

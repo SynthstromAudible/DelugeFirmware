@@ -54,9 +54,7 @@ TrackChannel::~TrackChannel() {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
-	// maximum multiplication would be 4)
-	// The volume knob's square curve around unity, Q27
+	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already (the maximum is 4)
 	const dsp::Q<29> a =
 	    dsp::fixed::preset_combination(dsp::Q<31>::from_raw(unpatchedParams->getValue(params::UNPATCHED_VOLUME)));
 	int32_t volumeAdjustment = halve_floor(dsp::fixed::curve_square(dsp::Q<27>::one(), a)).raw();

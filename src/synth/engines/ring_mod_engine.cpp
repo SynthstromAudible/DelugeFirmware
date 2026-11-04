@@ -17,7 +17,7 @@
 
 #include "synth/engines/ring_mod_engine.h"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/types.h" // std::span<int32_t>
+#include "dsp-next/core/types.h" // std::span<dsp::Q<31>>
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
 #include "synth/engines/pitch.h"

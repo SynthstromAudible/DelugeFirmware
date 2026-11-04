@@ -123,7 +123,7 @@ void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& 
 		                .density = dsp::Q<31>::from_raw(in.density),
 		                .randomness = dsp::Q<31>::from_raw(in.randomness)});
 		post_fx_volume = Kernel::post_fx_volume(post_fx_volume);
-		mono.on<&Kernel::set_send>(reverb_send.data(), dsp::Q<31>::from_raw(in.send_amount));
+		mono.on<&Kernel::set_send>(reverb_send.data(), in.send_amount);
 		mono.render_block(block, block, noise);
 		if (mono.state().wraps_to_shutdown < 0) {
 			mono.on<&Kernel::restart>();
