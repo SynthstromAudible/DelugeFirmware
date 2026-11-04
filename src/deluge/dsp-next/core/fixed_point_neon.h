@@ -295,6 +295,21 @@ requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>> && (To::lane_t
 	return To::from_raw(vshrq_n_s32(x.raw(), F - To::lane_type::kFractionalBits));
 }
 
+/// @brief Same value per lane, more fractional bits, wrapping: QVec<F> → QVec<T> (`vshl.i32 #(T−F)`).
+template <class To, int F>
+requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>> && (To::lane_type::kFractionalBits > F)
+[[gnu::always_inline, nodiscard]] inline To as_wrap(QVec<F> x) noexcept {
+	return To::from_raw(vshlq_n_s32(x.raw(), To::lane_type::kFractionalBits - F));
+}
+
+/// @brief Each lane held to an N-bit signed word, [−2^(N−1), 2^(N−1)), in the same format (`vmax.s32`, `vmin.s32`).
+template <int N, int F>
+requires(N >= 1 && N <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<F> clamp_bits(QVec<F> x) noexcept {
+	return QVec<F>::from_raw(vminq_s32(vmaxq_s32(x.raw(), vdupq_n_s32(-(std::int32_t{1} << (N - 1)))),
+	                                   vdupq_n_s32((std::int32_t{1} << (N - 1)) - 1)));
+}
+
 /// @brief The same bits read as signed: UQVec<F> → QVec<T> (no instruction). A saw is its phase read as Q31.
 template <class To, int F>
 requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>

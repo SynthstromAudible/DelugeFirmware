@@ -31,38 +31,34 @@ namespace deluge::synth {
 
 /// @brief A source value as a cable of @p polarity from @p from reads it. Aftertouch is stored unipolar, every other
 /// source bipolar; Y carries both the unipolar mod wheel and bipolar MPE Y, so it is never converted.
-[[nodiscard]] [[gnu::always_inline]] inline int32_t to_polarity(PatchSource from, CablePolarity polarity,
-                                                                int32_t value) {
+[[nodiscard]] [[gnu::always_inline]] inline dsp::Q<31> to_polarity(PatchSource from, CablePolarity polarity,
+                                                                   dsp::Q<31> value) {
+	constexpr auto kHalf = dsp::Q<31>::from_raw(std::numeric_limits<int32_t>::max() / 2);
 	if (from == PatchSource::AFTERTOUCH) {
 		if (polarity == CablePolarity::UNIPOLAR) {
 			return value;
 		}
-		// the unipolar Q31 centred one LSB under a half and doubled, wrapping
-		return scale_shl_wrap<1>(
-		           sub_wrap(dsp::Q<31>::from_raw(value), dsp::Q<31>::from_raw(std::numeric_limits<int32_t>::max() / 2)))
-		    .raw();
+		// the unipolar value centred one LSB under a half and doubled, wrapping
+		return scale_shl_wrap<1>(sub_wrap(value, kHalf));
 	}
 	if (from == PatchSource::Y || polarity == CablePolarity::BIPOLAR) {
 		return value;
 	}
-	// half the bipolar Q31, rounded toward zero, centred one LSB under a half
-	return add_wrap(halve_toward_zero(dsp::Q<31>::from_raw(value)),
-	                dsp::Q<31>::from_raw(std::numeric_limits<int32_t>::max() / 2))
-	    .raw();
+	// half the bipolar value, rounded toward zero, centred one LSB under a half
+	return add_wrap(halve_toward_zero(value), kHalf);
 }
 
-/// @brief @p value scaled by a depth cable's range value @p range (Q29: 536870912 is 1), both Q29, and held to
-/// [−1, 1): the product is Q26, clamped to its 27 bits and moved back to Q29, so a ranged term never passes "1".
-[[nodiscard]] [[gnu::always_inline]] inline int32_t apply_range(int32_t value, int32_t range) {
-	const dsp::Q<26> product = mul(dsp::Q<29>::from_raw(value), dsp::Q<29>::from_raw(range));
-	return as_wrap<dsp::Q<29>>(clamp_bits<27>(product)).raw();
+/// @brief @p value scaled by a depth cable's range value @p range (2^29 is 1), and held to [−1, 1): the product is
+/// Q26, clamped to its 27 bits and moved back to Q29, so a ranged term never passes "1".
+[[nodiscard]] [[gnu::always_inline]] inline dsp::Q<29> apply_range(dsp::Q<29> value, dsp::Q<29> range) {
+	return as_wrap<dsp::Q<29>>(clamp_bits<27>(mul(value, range)));
 }
 
 /// @brief The depth a cable from @p from to param @p p applies: squared for the pitch adjusts and the delay rate, so
 /// small depths stay small, and for the master pitch scaled so velocity's steps are semitones (and other sources get
 /// three octaves rather than four).
-/// @param depth The cable's depth, [-2^30, 2^30].
-[[nodiscard]] inline int32_t modified_depth(int32_t depth, PatchSource from, int32_t p) {
+/// @param depth The cable's depth, [-1, 1].
+[[nodiscard]] inline dsp::Q<30> modified_depth(dsp::Q<30> depth, PatchSource from, int32_t p) {
 	namespace params = modulation::params;
 	switch (p) {
 	case params::LOCAL_PITCH_ADJUST:
@@ -71,16 +67,18 @@ namespace deluge::synth {
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 	case params::GLOBAL_DELAY_RATE: {
-		// The Q30 depth squared to Q29, its sign kept: raw, an integer product of the two truncated factors
-		int32_t output = (depth >> 15) * (depth >> 16);
-		if (depth < 0) {
+		// The depth squared to Q29, its sign kept: raw, an integer product of the two truncated factors
+		int32_t output = (depth.raw() >> 15) * (depth.raw() >> 16);
+		if (depth.raw() < 0) {
 			output = -output;
 		}
+		auto squared = dsp::Q<29>::from_raw(output);
 		if (p == params::LOCAL_PITCH_ADJUST) { // times 2/3 for velocity, 1/√2 for any other source
 			const auto scale = dsp::Q<31>::from_raw(from == PatchSource::VELOCITY ? 1431655765 : 1518500250);
-			output = mul_r_as_wrap<dsp::Q<29>>(dsp::Q<29>::from_raw(output), scale).raw();
+			squared = mul_r_as_wrap<dsp::Q<29>>(squared, scale);
 		}
-		return output;
+		// The square's word is the shaped depth: a full depth's square is 2^29, half the plain one's reach
+		return dsp::reinterpret_bits<dsp::Q<30>>(squared);
 	}
 	default:
 		return depth;

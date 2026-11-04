@@ -10,6 +10,7 @@
 #pragma once
 
 #include "patch_cases.h"
+#include "raw_matrix.h"
 
 #include "synth/matrix/compiler.h"
 #include "synth/matrix/evaluator.h"
@@ -32,8 +33,8 @@ inline ReferenceResult evaluator_results(const PatchCase& c, const CompiledCase&
 	}
 	MatrixBlock block{};
 	block.program = compile_program(compiled.build, {at, program_size(compiled.build)});
-	block.preset_values = c.presets;
-	block.depths = c.depths;
+	block.preset_values = raw_matrix::typed_words<dsp::Q<31>>(c.presets);
+	block.depths = raw_matrix::typed_words<dsp::Q<30>>(c.depths);
 
 	ReferenceResult out;
 	std::array<int32_t, kNumPatchSources> voice_sources = c.sources[0];

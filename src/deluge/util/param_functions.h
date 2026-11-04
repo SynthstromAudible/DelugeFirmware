@@ -17,12 +17,15 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 
 /// @brief An exponential-family param's final value: the release-rate table for envelope decays and releases, the
 /// inverted exponential for envelope attacks, the exponential for the rest.
-/// @param paramNeutralValue The param's neutral value.
-/// @param patchedValue The combination, Q29.
+/// @param neutral The param's neutral value, its word read as Q31 (the curves' arithmetic is the same for every
+/// format).
+/// @param combination The combination.
 /// @param p The patched param.
-/// @return The final value.
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p);
+/// @return The final value, as the param's word.
+int32_t getFinalParameterValueExpWithDumbEnvelopeHack(deluge::dsp::Q<31> neutral, deluge::dsp::Q<29> combination,
+                                                      int32_t p);

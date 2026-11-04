@@ -59,8 +59,8 @@ public:
 NoteSetup two_sources_and_noise() {
 	NoteSetup setup = note_setup(OscType::SAW);
 	setup.sources[1] = {.osc_type = OscType::SQUARE, .ever_active = true};
-	setup.initial_patching.preset_values[params::LOCAL_OSC_B_VOLUME] = 0x40000000;
-	setup.initial_patching.preset_values[params::LOCAL_NOISE_VOLUME] = 0x20000000;
+	setup.initial_patching.preset_values[params::LOCAL_OSC_B_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);
+	setup.initial_patching.preset_values[params::LOCAL_NOISE_VOLUME] = deluge::dsp::Q<31>::from_raw(0x20000000);
 	return setup;
 }
 
@@ -155,7 +155,7 @@ describe synth_engine_spec("synth engines", ${
 			auto plain = std::make_unique<Rig>();
 			const NoteSetup with_modulator = note_setup(OscType::SINE);
 			NoteSetup without = note_setup(OscType::SINE);
-			without.initial_patching.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = kMin;
+			without.initial_patching.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
 			without.modulator_audible = {false, false};
 			const VoiceConfig cfg = config(SynthMode::FM, OscType::SINE);
 			modulated->voice.note_on(with_modulator, snapshot(SynthMode::FM), note(60), modulated->clock(), 1, modulated->noise);

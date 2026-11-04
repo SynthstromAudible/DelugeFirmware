@@ -28,9 +28,10 @@ namespace {
 namespace params = modulation::params;
 
 /// One pass's working values: each polarity slot's source as its cables read it, and each depth destination's result.
+template <class B>
 struct Working {
-	std::array<int32_t, kMaxCables> slots;
-	std::array<int32_t, kMaxCables> depth_results;
+	std::array<typename B::Source, kMaxCables> slots;
+	std::array<typename B::Combination, kMaxCables> depth_results;
 };
 
 /// A scope's first param.
@@ -71,27 +72,29 @@ inline constexpr std::array<ScopeRuns, 2> kRuns = [] {
 }();
 
 template <class B>
-void convert_slots(const ScopeView& scope, const ScopePass& pass, Working& w) {
+void convert_slots(const ScopeView& scope, const ScopePass& pass, Working<B>& w) {
 	for (int32_t s = 0; s < scope.num_slots; ++s) {
-		w.slots[s] = B::convert(scope.slot_conversion[s], pass.sources[scope.slot_source[s]]);
+		// The source values are Q31 words
+		w.slots[s] = B::convert(scope.slot_conversion[s], B::Source::from_raw(pass.sources[scope.slot_source[s]]));
 	}
 }
 
 /// A depth destination's result: its cables multiplied, with no range step and no preset.
 template <class B>
-int32_t depth_result(const ScopeView& scope, const MatrixBlock& block, const Working& w, const Destination& d) {
-	int32_t total = B::kOne;
+B::Combination depth_result(const ScopeView& scope, const MatrixBlock& block, const Working<B>& w,
+                            const Destination& d) {
+	typename B::Combination total = B::kOne;
 	for (int32_t c = d.first_cable; c < d.first_cable + d.num_cables; ++c) {
 		total =
 		    B::multiply_step(total, B::depth_product(w.slots[scope.cable_slot[c]], block.depths[scope.cable_depth[c]]));
 	}
-	return B::depth_result(total - B::kOne);
+	return B::depth_result(sub_wrap(total, B::kOne));
 }
 
 /// Every depth destination's result, for this pass: computed on every pass, so a cable it scales always reads the
 /// current depth, and no pass reads another's.
 template <class B>
-void depth_results(const ScopeView& scope, const MatrixBlock& block, Working& w) {
+void depth_results(const ScopeView& scope, const MatrixBlock& block, Working<B>& w) {
 	for (int32_t k = 0; k < scope.num_depth_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
 		w.depth_results[d.param] = depth_result<B>(scope, block, w, d);
@@ -100,9 +103,9 @@ void depth_results(const ScopeView& scope, const MatrixBlock& block, Working& w)
 
 /// Cable @p c's term: its slot's value scaled by its depth (shaped on an add chain), then by its depth result.
 template <class B>
-[[gnu::always_inline]] inline int32_t term_of(const ScopeView& scope, const MatrixBlock& block, const Working& w,
-                                              int32_t c, bool add_chain) {
-	int32_t depth = block.depths[scope.cable_depth[c]];
+[[gnu::always_inline]] inline B::Combination term_of(const ScopeView& scope, const MatrixBlock& block,
+                                                     const Working<B>& w, int32_t c, bool add_chain) {
+	typename B::Depth depth = block.depths[scope.cable_depth[c]];
 	if (add_chain) {
 		depth = B::depth(scope.cable_mode[c], depth);
 	}
@@ -113,19 +116,19 @@ template <class B>
 /// A param destination's final value: a multiply chain takes the preset, then each cable's term; an add chain sums
 /// the terms, doubles them for a wavetable index, then adds the preset.
 template <class B>
-int32_t patched_value(const ScopeView& scope, const MatrixBlock& block, const Working& w, const Destination& d) {
+int32_t patched_value(const ScopeView& scope, const MatrixBlock& block, const Working<B>& w, const Destination& d) {
 	const int32_t p = d.param;
 	const int32_t end = d.first_cable + d.num_cables;
-	int32_t combination = 0;
+	typename B::Combination combination{};
 	if (d.chain == ChainKind::MULTIPLY) {
-		int32_t total = B::multiply_step(B::kOne, B::preset_term(block.preset_value(p), p));
+		typename B::Combination total = B::multiply_step(B::kOne, B::preset_term(block.preset_value(p), p));
 		for (int32_t c = d.first_cable; c < end; ++c) {
 			total = B::multiply_step(total, term_of<B>(scope, block, w, c, false));
 		}
-		combination = total - B::kOne;
+		combination = sub_wrap(total, B::kOne);
 	}
 	else {
-		int32_t total = 0;
+		typename B::Combination total{};
 		for (int32_t c = d.first_cable; c < end; ++c) {
 			total = B::add_step(total, term_of<B>(scope, block, w, c, true));
 		}
@@ -139,9 +142,10 @@ int32_t patched_value(const ScopeView& scope, const MatrixBlock& block, const Wo
 
 /// Param @p p's combination with no cables, the chains' scalar steps from its preset alone.
 template <class B>
-int32_t uncabled_combination(const MatrixBlock& block, int32_t p) {
-	const int32_t term = B::preset_term(block.preset_value(p), p);
-	return chain_of(p) == ChainKind::MULTIPLY ? B::multiply_step(B::kOne, term) - B::kOne : B::add_step(0, term);
+B::Combination uncabled_combination(const MatrixBlock& block, int32_t p) {
+	const typename B::Combination term = B::preset_term(block.preset_value(p), p);
+	return chain_of(p) == ChainKind::MULTIPLY ? sub_wrap(B::multiply_step(B::kOne, term), B::kOne)
+	                                          : B::add_step(typename B::Combination{}, term);
 }
 
 /// Every param in [@p from, @p to) as if uncabled, four at a time while four remain, through @p lanes; the rest
@@ -149,11 +153,12 @@ int32_t uncabled_combination(const MatrixBlock& block, int32_t p) {
 template <class B, class Lanes4>
 void uncabled_run(const ScopePass& pass, const MatrixBlock& block, int32_t first, int32_t from, int32_t to,
                   CurveKind kind, Lanes4 lanes) {
-	using L = B::Lanes;
 	int32_t p = from;
 	for (; p + 4 <= to; p += 4) {
-		const L terms = B::preset_terms(L::Load(&block.preset_values[p]), L::Load(&kParamRange[p]));
-		lanes(L::Load(&kParamNeutral[p]), terms).StoreTo(&pass.final_values[p - first]);
+		// The ranges are Q30 words
+		const auto terms = B::preset_terms(B::SourceLanes::load(&block.preset_values[p]),
+		                                   B::DepthLanes::from_raw(Argon<int32_t>::Load(&kParamRange[p])));
+		B::store_words(lanes(B::load_words(&kParamNeutral[p]), terms), &pass.final_values[p - first]);
 	}
 	for (; p < to; ++p) {
 		pass.final_values[p - first] = B::curve(kind, p, uncabled_combination<B>(block, p));
@@ -164,25 +169,26 @@ void uncabled_run(const ScopePass& pass, const MatrixBlock& block, int32_t first
 /// are overwritten after), the exponential and release-table ones one by one, skipping the cabled.
 template <class B>
 void uncabled_params(const ScopePass& pass, const MatrixBlock& block, uint64_t cabled) {
-	using L = B::Lanes;
+	using L = B::SourceLanes;
+	using C = B::CombinationLanes;
 	const int32_t first = first_param_of(pass.scope);
 	const ScopeRuns& runs = kRuns[pass.scope];
 	for (size_t k = 0; k < runs.count; ++k) {
 		const CurveRun& run = runs.runs[k];
 		const bool multiply = run.chain == ChainKind::MULTIPLY;
-		auto combination = [multiply](L terms) { return multiply ? B::uncabled_multiply(terms) : terms; };
+		auto combination = [multiply](C terms) { return multiply ? B::uncabled_multiply(terms) : terms; };
 		switch (run.curve) {
 		case CurveKind::SQUARE:
 			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
-			                [&](L neutral, L terms) { return B::curve_square(neutral, combination(terms)); });
+			                [&](L neutral, C terms) { return B::curve_square(neutral, combination(terms)); });
 			break;
 		case CurveKind::LINEAR:
 			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
-			                [&](L neutral, L terms) { return B::curve_linear(neutral, combination(terms)); });
+			                [&](L neutral, C terms) { return B::curve_linear(neutral, combination(terms)); });
 			break;
 		case CurveKind::BIPOLAR:
 			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
-			                [&](L neutral, L terms) { return B::curve_bipolar(neutral, combination(terms)); });
+			                [&](L neutral, C terms) { return B::curve_bipolar(neutral, combination(terms)); });
 			break;
 		default:
 			for (int32_t p = run.first; p < run.end; ++p) {
@@ -207,7 +213,7 @@ void Evaluator<B>::run(const ScopePass& pass, const MatrixBlock& block, uint32_t
 	if (sources_changed == 0u) {
 		return;
 	}
-	Working w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
+	Working<B> w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
 	convert_slots<B>(scope, pass, w);
 	// Depth destinations first: the cables they control read their results
 	depth_results<B>(scope, block, w);
@@ -227,7 +233,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 	if (scope == nullptr || scope->num_destinations == 0) {
 		return;
 	}
-	Working w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
+	Working<B> w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
 	convert_slots<B>(*scope, pass, w);
 	depth_results<B>(*scope, block, w);
 	const int32_t first = first_param_of(pass.scope);

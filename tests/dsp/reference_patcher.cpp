@@ -7,9 +7,9 @@
 
 #include "reference_patcher.h"
 #include "raw_curves.h"
+#include "raw_matrix.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "synth/modulation/cable_depth.h"
-#include "util/param_functions.h" // getFinalParameterValueExpWithDumbEnvelopeHack
 #include <algorithm>
 #include <array>
 #include <etl/vector.h>
@@ -46,7 +46,7 @@ void ReferencePatcher::recalculate_final_value_for_param_with_no_cables(int32_t 
 			    deluge::dsp::test::raw_curves::curve_bipolar(param_neutral_value, cable_combination); // Hybrid - add
 		}
 		else {
-			final_value = getFinalParameterValueExpWithDumbEnvelopeHack(param_neutral_value, cable_combination, p);
+			final_value = deluge::synth::test::raw_matrix::final_value_exp(param_neutral_value, cable_combination, p);
 		}
 	}
 
@@ -129,7 +129,7 @@ void ReferencePatcher::perform_patching(uint32_t sources_changed, const Referenc
 	// Exp params
 	for (; iterator < cable_combos.end() && iterator->first < config_.end_params; iterator++) {
 		auto [param, cable_combo] = *iterator;
-		param_final_values_[param - config_.first_param] = getFinalParameterValueExpWithDumbEnvelopeHack(
+		param_final_values_[param - config_.first_param] = deluge::synth::test::raw_matrix::final_value_exp(
 		    deluge::synth::matrix::kParamNeutral[param], cable_combo, param);
 	}
 }
@@ -147,7 +147,7 @@ int32_t ReferencePatcher::cable_to_linear_param_without_range_adjustment(int32_t
 int32_t ReferencePatcher::cable_to_linear_param(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
                                                 int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	scaled_source = deluge::synth::apply_range(scaled_source, range_of_(patch_cable));
+	scaled_source = deluge::synth::test::raw_matrix::apply_range(scaled_source, range_of_(patch_cable));
 
 	// 0 to 1073741824; 536870912 counts as "1" for next multiplication
 	int32_t made_positive = (scaled_source + 536870912);
@@ -165,7 +165,8 @@ int32_t ReferencePatcher::cable_to_exp_param_without_range_adjustment(int32_t ru
 int32_t ReferencePatcher::cable_to_exp_param(int32_t running_total, const deluge::synth::RoutedCable& patch_cable,
                                              int32_t source_value, int32_t cable_strength) {
 	int32_t scaled_source = multiply_32x32_rshift32(source_value, cable_strength);
-	return add_saturate(running_total, deluge::synth::apply_range(scaled_source, range_of_(patch_cable)));
+	return add_saturate(running_total,
+	                    deluge::synth::test::raw_matrix::apply_range(scaled_source, range_of_(patch_cable)));
 }
 
 [[gnu::always_inline]] inline int32_t
@@ -187,7 +188,7 @@ ReferencePatcher::combine_cables_linear_for_range_param(const deluge::synth::Rou
 			source_value = (source_value - 1073741824) << 1;
 		}
 		else {
-			source_value = deluge::synth::to_polarity(source, patch_cable.polarity, source_value);
+			source_value = deluge::synth::test::raw_matrix::to_polarity(source, patch_cable.polarity, source_value);
 		}
 
 		int32_t cable_strength = control_block.depths[cable];
@@ -218,7 +219,7 @@ ReferencePatcher::combine_cables_linear(const deluge::synth::RoutedDestination* 
 			const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[cable];
 			PatchSource source = patch_cable.source;
 			int32_t source_value = source_values_[std::to_underlying(source)];
-			source_value = deluge::synth::to_polarity(source, patch_cable.polarity, source_value);
+			source_value = deluge::synth::test::raw_matrix::to_polarity(source, patch_cable.polarity, source_value);
 			int32_t cable_strength = control_block.depths[cable];
 			running_total = cable_to_linear_param(running_total, patch_cable, source_value, cable_strength);
 		}
@@ -242,8 +243,10 @@ ReferencePatcher::combine_cables_exp(const deluge::synth::RoutedDestination* des
 		for (int32_t c = destination->first_cable; c < destination->end_cable; c++) {
 			const deluge::synth::RoutedCable& patch_cable = control_block.routing.cables[c];
 			int32_t source_value = source_values_[std::to_underlying(patch_cable.source)];
-			source_value = deluge::synth::to_polarity(patch_cable.source, patch_cable.polarity, source_value);
-			int32_t cable_strength = deluge::synth::modified_depth(control_block.depths[c], patch_cable.source, param);
+			source_value =
+			    deluge::synth::test::raw_matrix::to_polarity(patch_cable.source, patch_cable.polarity, source_value);
+			int32_t cable_strength =
+			    deluge::synth::test::raw_matrix::modified_depth(control_block.depths[c], patch_cable.source, param);
 			running_total = cable_to_exp_param(running_total, patch_cable, source_value, cable_strength);
 		}
 
@@ -326,7 +329,7 @@ void ReferencePatcher::perform_initial_patching(const ReferenceBlock& control_bl
 
 	// Exp params
 	for (int32_t param = config_.first_exp_param; param < config_.end_params; param++) {
-		param_final_values_[param - config_.first_param] = getFinalParameterValueExpWithDumbEnvelopeHack(
+		param_final_values_[param - config_.first_param] = deluge::synth::test::raw_matrix::final_value_exp(
 		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param], param);
 	}
 }

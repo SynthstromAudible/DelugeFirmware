@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "modulation/params/param.h" // params::kNumParams
 #include "synth/matrix/program.h"
 #include "synth/modulation/cable.h"
@@ -30,16 +31,16 @@ namespace deluge::synth::matrix {
 /// by the instrument as copies, never views into the live stores.
 struct MatrixBlock {
 	const MatrixProgram* program{}; ///< the instrument's compiled cables; null when it has none
-	/// Each param's preset, folded with automation and expression (the smoothed one for a param being smoothed), Q31 as
-	/// stored. Only the gathered entries are filled: the routed destinations' for a block, every param's otherwise.
-	/// Left uninitialised, as the depths are: a gather runs twice a block, and the patching reads back only what it
-	/// filled.
+	/// Each param's preset, folded with automation and expression (the smoothed one for a param being smoothed): the
+	/// stored knob position. Only the gathered entries are filled: the routed destinations' for a block, every param's
+	/// otherwise. Left uninitialised, as the depths are: a gather runs twice a block, and the patching reads back only
+	/// what it filled.
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-	std::array<int32_t, modulation::params::kNumParams> preset_values;
+	std::array<dsp::Q<31>, modulation::params::kNumParams> preset_values;
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-	std::array<int32_t, kMaxCables> depths; ///< each routed cable's depth, in routing order: [-2^30, 2^30]
+	std::array<dsp::Q<30>, kMaxCables> depths; ///< each routed cable's depth, in routing order: [-1, 1]
 
-	[[nodiscard]] int32_t preset_value(int32_t p) const { return preset_values[p]; }
+	[[nodiscard]] dsp::Q<31> preset_value(int32_t p) const { return preset_values[p]; }
 };
 
 } // namespace deluge::synth::matrix

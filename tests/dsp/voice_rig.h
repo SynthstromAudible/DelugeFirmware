@@ -63,18 +63,18 @@ struct Rig {
 /// and @p release.
 inline matrix::MatrixBlock presets(int32_t release) {
 	matrix::MatrixBlock block{};
-	block.preset_values.fill(0);
-	block.preset_values[params::LOCAL_OSC_A_VOLUME] = kMax;
-	block.preset_values[params::LOCAL_OSC_B_VOLUME] = kMin;
-	block.preset_values[params::LOCAL_NOISE_VOLUME] = kMin;
-	block.preset_values[params::LOCAL_VOLUME] = 0x4CCCCCA8;
-	block.preset_values[params::LOCAL_ENV_0_ATTACK] = kMin;
-	block.preset_values[params::LOCAL_ENV_0_SUSTAIN] = kMax;
-	block.preset_values[params::LOCAL_ENV_0_RELEASE] = release;
-	block.preset_values[params::LOCAL_LPF_FREQ] = kMax;
-	block.preset_values[params::LOCAL_HPF_FREQ] = kMin;
-	block.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = 0x40000000;
-	block.preset_values[params::LOCAL_MODULATOR_1_VOLUME] = kMin;
+	block.preset_values.fill(deluge::dsp::Q<31>{});
+	block.preset_values[params::LOCAL_OSC_A_VOLUME] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_OSC_B_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_NOISE_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_VOLUME] = deluge::dsp::Q<31>::from_raw(0x4CCCCCA8);
+	block.preset_values[params::LOCAL_ENV_0_ATTACK] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_ENV_0_SUSTAIN] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_ENV_0_RELEASE] = deluge::dsp::Q<31>::from_raw(release);
+	block.preset_values[params::LOCAL_LPF_FREQ] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_HPF_FREQ] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);
+	block.preset_values[params::LOCAL_MODULATOR_1_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
 	return block;
 }
 

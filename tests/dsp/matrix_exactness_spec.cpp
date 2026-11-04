@@ -28,7 +28,10 @@ namespace regions = deluge::synth::test::regions;
 
 namespace {
 
-using Lanes = MatrixFixed::Lanes;
+using Lanes = Argon<int32_t>;
+using deluge::dsp::Q;
+using deluge::dsp::QVec;
+using MF = MatrixFixed;
 constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
@@ -118,15 +121,15 @@ int32_t region_differing(int32_t from, int32_t to, CurveKind kind, Vector vector
 			for (int32_t l = 0; l < 4; ++l) {
 				preset[l] = round < static_cast<int32_t>(kCorners.size()) ? kCorners[round] : rng.next();
 			}
-			const Lanes terms = MatrixFixed::preset_terms(Lanes::Load(preset.data()),
-			                                              Lanes::Load(&deluge::synth::matrix::kParamRange[p]));
-			vector(Lanes::Load(&deluge::synth::matrix::kParamNeutral[p]), terms).StoreTo(out.data());
+			const MF::CombinationLanes terms =
+			    MF::preset_terms(MF::load_words(preset.data()),
+			                     MF::DepthLanes::from_raw(Lanes::Load(&deluge::synth::matrix::kParamRange[p])));
+			MF::store_words(vector(MF::load_words(&deluge::synth::matrix::kParamNeutral[p]), terms), out.data());
 			for (int32_t l = 0; l < 4; ++l) {
-				const int32_t term = MatrixFixed::preset_term(preset[l], p + l);
-				const int32_t combination =
-				    chain_of(p + l) == ChainKind::MULTIPLY
-				        ? MatrixFixed::multiply_step(MatrixFixed::kOne, term) - MatrixFixed::kOne
-				        : MatrixFixed::add_step(0, term);
+				const MF::Combination term = MF::preset_term(Q<31>::from_raw(preset[l]), p + l);
+				const MF::Combination combination = chain_of(p + l) == ChainKind::MULTIPLY
+				                                        ? sub_wrap(MF::multiply_step(MF::kOne, term), MF::kOne)
+				                                        : MF::add_step(MF::Combination{}, term);
 				bad += out[l] != MatrixFixed::curve(kind, p + l, combination) ? 1 : 0;
 			}
 		}
@@ -138,18 +141,25 @@ int32_t region_differing(int32_t from, int32_t to, CurveKind kind, Vector vector
 
 // clang-format off
 describe matrix_exactness_spec("the matrix core's four-lane forms", ${
+	it("saturates an add chain rather than wrapping it", _{
+		expect(MF::add_step(MF::Combination::max(), MF::kOne).raw()).to_equal(kMax);
+		expect(MF::add_step(MF::Combination::min(), MF::Combination::from_raw(-1)).raw()).to_equal(kMin);
+	});
+
 	it("multiply high by doubling as smmul does, for a first operand that is never INT32_MIN", _{
 		auto pairs = operand_pairs([](Random& r) { return r.next(); });
 		std::erase_if(pairs, [](const auto& p) { return p[0] == kMin; });
-		expect(lanes_differing(pairs, MatrixFixed::smmul_by_doubling, multiply_32x32_rshift32)).to_equal(0);
+		auto doubling = [](Lanes a, Lanes b) {
+			return MF::mul_by_doubling(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+		};
+		expect(lanes_differing(pairs, doubling, multiply_32x32_rshift32)).to_equal(0);
 	});
 
 	// The sound's linear and hybrid regions hold fewer than four params, so the evaluator runs them scalar
 	it("give uncabled volume, linear and hybrid params their scalar final values", _{
-		using MF = MatrixFixed;
-		auto volume = [](Lanes n, Lanes t) { return MF::curve_square(n, MF::uncabled_multiply(t)); };
-		auto linear = [](Lanes n, Lanes t) { return MF::curve_linear(n, MF::uncabled_multiply(t)); };
-		auto hybrid = [](Lanes n, Lanes t) { return MF::curve_bipolar(n, t); };
+		auto volume = [](MF::SourceLanes n, MF::CombinationLanes t) { return MF::curve_square(n, MF::uncabled_multiply(t)); };
+		auto linear = [](MF::SourceLanes n, MF::CombinationLanes t) { return MF::curve_linear(n, MF::uncabled_multiply(t)); };
+		auto hybrid = [](MF::SourceLanes n, MF::CombinationLanes t) { return MF::curve_bipolar(n, t); };
 		expect(region_differing(0, regions::kLocalLinear, CurveKind::SQUARE, volume)).to_equal(0);
 		expect(region_differing(regions::kLocalLinear, regions::kLocalBipolar, CurveKind::LINEAR, linear))
 		    .to_equal(0);

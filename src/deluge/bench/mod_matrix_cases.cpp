@@ -59,19 +59,19 @@ MatrixBlock control_block(MatrixRig& r, bool all_presets) {
 	block.program = r.cables.program();
 	if (all_presets) {
 		for (int32_t p = 0; p < params::kNumParams; p++) {
-			block.preset_values[p] = r.patched.getValue(p);
+			block.preset_values[p] = r.patched.getKnob(p);
 		}
 	}
 	else {
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
 			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
-				block.preset_values[p] = r.patched.getValue(p);
+				block.preset_values[p] = r.patched.getKnob(p);
 			}
 		}
 	}
 	for (int32_t c = 0; c < r.cables.numUsablePatchCables; c++) {
-		block.depths[c] = r.cables.patchCables[c].param.getCurrentValue();
+		block.depths[c] = r.cables.patchCables[c].depth();
 	}
 	return block;
 }

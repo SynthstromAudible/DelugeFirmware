@@ -443,7 +443,7 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
-			block.preset_values[p] = patched.getValue(p);
+			block.preset_values[p] = patched.getKnob(p);
 		}
 	}
 	else if (block.program != nullptr) {
@@ -451,15 +451,16 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
 			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
-				block.preset_values[p] = patched.getValue(p);
+				block.preset_values[p] = patched.getKnob(p);
 			}
 		}
 	}
 	if (paramLPF.p != PARAM_LPF_OFF) {
-		block.preset_values[paramLPF.p] = paramLPF.currentValue;
+		// The smoothed value is the knob's stored word
+		block.preset_values[paramLPF.p] = deluge::dsp::Q<31>::from_raw(paramLPF.currentValue);
 	}
 	for (int32_t c = 0; c < cables.numUsablePatchCables; c++) {
-		block.depths[c] = cables.patchCables[c].param.getCurrentValue();
+		block.depths[c] = cables.patchCables[c].depth();
 	}
 	return block;
 }
@@ -1643,8 +1644,9 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
 	    PatchSource::SIDECHAIN, deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND));
 	const int32_t depth =
 	    (whichCable != 255)
-	        ? deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
-	                                        PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND)
+	        ? deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].depth(), PatchSource::SIDECHAIN,
+	                                        params::GLOBAL_VOLUME_POST_REVERB_SEND)
+	              .raw()
 	        : 0;
 	return {
 	    .amount = reverbHere,
