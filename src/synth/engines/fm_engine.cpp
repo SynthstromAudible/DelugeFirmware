@@ -386,9 +386,9 @@ void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint
 			phase_now += phase_increment * 4;
 			int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
 
-			// The ramp's lanes truncate
-			const QVec<30> result =
-			    mul_doubling_sat(ramp_lanes(amplitude_now, amplitude_increment), QVec<31>::from_raw(sine_value_vector));
+			// Rounded, as a held level is
+			const QVec<30> result = mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment),
+			                                           QVec<31>::from_raw(sine_value_vector));
 			if (add) {
 				add_into(this_sample, result);
 			}
@@ -515,9 +515,9 @@ void FMEngine::render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t
 			int32x4_t sine_value_vector =
 			    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
 
-			// The ramp's lanes truncate
-			add_into(this_sample, mul_doubling_sat(ramp_lanes(amplitude_now, amplitude_increment),
-			                                       QVec<31>::from_raw(sine_value_vector)));
+			// Rounded, as a held level is
+			add_into(this_sample, mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment),
+			                                         QVec<31>::from_raw(sine_value_vector)));
 
 			if (this_sample >= buffer_pre_end) {
 				break;
