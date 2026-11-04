@@ -1948,6 +1948,7 @@ doFinishCapturing:
 			else {
 				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
 					if (applyGain) {
+						// The input gain: a run-time saturating shift, so raw
 						rxL = lshift_and_saturate_unknown(rxL, gainToApply);
 					}
 

@@ -164,8 +164,7 @@ char const* sourceToStringShort(PatchSource source);
 inline q31_t sampleTriangleDistribution() {
 	auto u1 = getNoise();
 	auto u2 = getNoise();
-	auto s = add_saturate(u1, u2);
-	return s;
+	return add_sat(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2)).raw();
 }
 
 void seedRandom();

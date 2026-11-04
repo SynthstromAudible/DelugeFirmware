@@ -16,6 +16,7 @@
  */
 
 #include "model/drum/drum.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
@@ -145,7 +146,9 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		int32_t combinedValue =
 		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
-		combined[i] = lshift_and_saturate<8>(combinedValue);
+		// The two Q7 inputs' sum lifted to Q15, held to 24 bits first
+		combined[i] = static_cast<int16_t>(
+		    as_wrap<deluge::dsp::Q<15>>(clamp_bits<24>(deluge::dsp::Q<7>::from_raw(combinedValue))).raw());
 	}
 }
 
@@ -159,7 +162,8 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	lastExpressionInputsReceived[level][expressionDimension] = newValue >> 8; // Store value
 	int32_t combinedValue =
 	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][expressionDimension] << 8);
-	combinedValue = lshift_and_saturate<16>(combinedValue);
+	// The Q15 sum lifted to Q31, held to 16 bits first
+	combinedValue = as_wrap<deluge::dsp::Q<31>>(clamp_bits<16>(deluge::dsp::Q<15>::from_raw(combinedValue))).raw();
 
 	expressionValueChangesMustBeDoneSmoothly = true;
 
