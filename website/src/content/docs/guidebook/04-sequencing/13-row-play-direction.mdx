@@ -14,6 +14,7 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,4 +24,7 @@ import { Badge } from "@astrojs/starlight/components"
 
 {/* TODO(kate): community_features: 4.5.6; CHANGELOG.mdx: L826 */}
 
-Not written yet. See [Configure Note Row Play Direction](/features/community_features#456---configure-note-row-play-direction).
+<Unwritten>
+  See [Configure Note Row Play
+  Direction](/features/community_features#456---configure-note-row-play-direction).
+</Unwritten>

@@ -14,6 +14,7 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,4 +24,6 @@ import { Badge } from "@astrojs/starlight/components"
 
 {/* TODO(kate): Features page: /features/automation_view_velocity_editor; community_features: 4.3.10; CHANGELOG.mdx: L587, L589, L590 */}
 
-Not written yet. See [Velocity View](/features/automation_view_velocity_editor).
+<Unwritten>
+  See [Velocity View](/features/automation_view_velocity_editor).
+</Unwritten>

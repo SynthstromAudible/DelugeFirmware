@@ -14,6 +14,7 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,22 +24,29 @@ import { Badge } from "@astrojs/starlight/components"
 
 {/* TODO(kate): community_features: 2.4; CHANGELOG.mdx: L247, L249 */}
 
-Not written yet. See [Favourites](/features/community_features#24---favourites).
+<Unwritten>
+  See [Favourites](/features/community_features#24---favourites).
+</Unwritten>
 
 ## Pinned keyboard <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 2.4; CHANGELOG.mdx: L247, L249 */}
 
-Not written yet. See [Favourites](/features/community_features#24---favourites).
+<Unwritten>
+  See [Favourites](/features/community_features#24---favourites).
+</Unwritten>
 
 ## Auto-load samples while browsing <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 4.3.13; CHANGELOG.mdx: L306 */}
 
-Not written yet. See [Auto Load sample when browsing](/features/community_features#4313---auto-load-sample-when-browsing).
+<Unwritten>
+  See [Auto Load sample when
+  browsing](/features/community_features#4313---auto-load-sample-when-browsing).
+</Unwritten>
 
 ## Preview volume <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): PRs: #4987; Not confirmed in the changelog: confirm before writing. */}
 
-Not written yet.
+<Unwritten />

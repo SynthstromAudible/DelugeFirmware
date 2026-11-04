@@ -18,6 +18,7 @@ guidebook:
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -129,10 +130,13 @@ System Settings (Continued)
 
 {/* TODO(kate): CHANGELOG.mdx: L139 */}
 
-Not written yet.
+<Unwritten />
 
 ## Battery display <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 3.37; CHANGELOG.mdx: L385 */}
 
-Not written yet. See [Battery Level Display in System Menu](/features/community_features#337---battery-level-display-in-system-menu).
+<Unwritten>
+  See [Battery Level Display in System
+  Menu](/features/community_features#337---battery-level-display-in-system-menu).
+</Unwritten>

@@ -14,6 +14,7 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,10 +24,10 @@ import { Badge } from "@astrojs/starlight/components"
 
 {/* TODO(kate): Features page: /features/midi_follow_mode; community_features: 3.3; CHANGELOG.mdx: L695, L779, L902, L904 */}
 
-Not written yet. See [MIDI Follow Mode](/features/midi_follow_mode).
+<Unwritten>See [MIDI Follow Mode](/features/midi_follow_mode).</Unwritten>
 
 ## Per-track control and mute/solo CCs <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): Features page: /features/midi_follow_mode; community_features: 3.3; CHANGELOG.mdx: L60, L62, L142, L278, L432, L436 */}
 
-Not written yet. See [MIDI Follow Mode](/features/midi_follow_mode).
+<Unwritten>See [MIDI Follow Mode](/features/midi_follow_mode).</Unwritten>

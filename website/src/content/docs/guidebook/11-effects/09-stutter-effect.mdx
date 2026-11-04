@@ -18,6 +18,7 @@ guidebook:
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -54,4 +55,7 @@ Stutter is a general system effect that is only available for control through th
 
 {/* TODO(kate): community_features: 4.2.8; CHANGELOG.mdx: L92, L127, L129, L130, L132, L133 */}
 
-Not written yet. See [Per-clip Stutter with options: Direction and Quantize](/features/community_features#428---per-clip-stutter-with-options-direction-and-quantize).
+<Unwritten>
+  See [Per-clip Stutter with options: Direction and
+  Quantize](/features/community_features#428---per-clip-stutter-with-options-direction-and-quantize).
+</Unwritten>
