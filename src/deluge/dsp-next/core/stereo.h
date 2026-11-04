@@ -47,17 +47,17 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 	                              std::ranges::size(interleaved) / 2};
 }
 
-/// @brief A mono q31 kernel run on both channels of a stereo frame: @ref Lanes over two lanes, left in lane 0, with
+/// @brief A mono Q31 kernel run on both channels of a stereo frame: @ref Lanes over two lanes, left in lane 0, with
 /// the channels named.
-/// @tparam K The kernel: a scalar q31 kernel. Stereo<K> is a @ref processor; K must be a processor kernel. That
-/// rejects a control kernel at the class too, with no clause of its own: a kernel has one form, so no control kernel
-/// is a processor kernel. `Control` wraps a control kernel.
+/// @tparam K The kernel: a scalar kernel over q31 or Q<31>. Stereo<K> is a @ref processor; K must be a processor
+/// kernel. That rejects a control kernel at the class too, with no clause of its own: a kernel has one form, so no
+/// control kernel is a processor kernel. `Control` wraps a control kernel.
 /// @details It behaves as @ref Lanes does: one Coefficients shared by both channels, one State per channel, `prepare`
 /// left then right on every block with a Block per channel, and every frame stepped left before right and read whole
 /// before it is written, so a kernel drawing from a stream both channels share (noise) draws for left before right,
 /// and the input and output blocks may be the same buffer.
 template <processor_kernel K>
-requires std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
+requires detail::q31_sample<typename K::value_type> && std::same_as<typename K::step_type, typename K::value_type>
 class Stereo : public Lanes<K, 2, StereoSample> {
 	using Base = Lanes<K, 2, StereoSample>; ///< The two-lane component Stereo names the channels of.
 

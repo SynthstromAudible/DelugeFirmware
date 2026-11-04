@@ -23,7 +23,9 @@
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <array>
+#include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 
 /// @file
@@ -44,6 +46,57 @@ inline constexpr bool is_partial_step_v<argon::vectorize::Step<T, false>> = true
 template <typename T, std::size_t Stride>
 inline constexpr bool is_partial_step_v<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
 
+/// @brief The vector V of the samples at @p p: Argon's load for raw q31, FixedVec's for Q<31>.
+template <typename V, typename T>
+[[nodiscard, gnu::always_inline]] inline V load_vector(const T* p) {
+	if constexpr (std::same_as<T, q31>) {
+		return V::Load(p);
+	}
+	else {
+		return V::load(p);
+	}
+}
+
+/// @brief Stores the vector @p v to the samples at @p p.
+template <typename V, typename T>
+[[gnu::always_inline]] inline void store_vector(T* p, const V& v) {
+	if constexpr (std::same_as<T, q31>) {
+		v.StoreTo(p);
+	}
+	else {
+		v.store(p);
+	}
+}
+
+/// @brief This loop step's samples at @p base, as the vector V: lanes past the end of a partial step are zero and not
+/// read. @p step counts Q31 samples; raw q31 loads through it, Q<31> through FixedVec at its index and count.
+template <typename V, typename Step, typename T>
+[[nodiscard, gnu::always_inline]] inline V load_step(const Step& step, const T* base) {
+	if constexpr (std::same_as<T, q31>) {
+		return step.Load(base);
+	}
+	else if constexpr (is_partial_step_v<Step>) {
+		return V::load(base + step.index(), step.count());
+	}
+	else {
+		return V::load(base + step.index());
+	}
+}
+
+/// @brief Stores @p v to this loop step's samples at @p base: lanes past the end of a partial step are not written.
+template <typename V, typename Step, typename T>
+[[gnu::always_inline]] inline void store_step(const Step& step, T* base, const V& v) {
+	if constexpr (std::same_as<T, q31>) {
+		step.Store(base, v);
+	}
+	else if constexpr (is_partial_step_v<Step>) {
+		v.store(base + step.index(), step.count());
+	}
+	else {
+		v.store(base + step.index());
+	}
+}
+
 } // namespace detail
 
 /// @brief A kernel as a mono component: one Coefficients, one State; the only loop.
@@ -59,7 +112,8 @@ inline constexpr bool is_partial_step_v<argon::vectorize::InterleavedStep<T, Str
 ///
 /// **The loop** is chosen from K's step type:
 /// - `step_type == value_type` (q31 or StereoSample): a raw-pointer index loop, one `step` per sample.
-/// - `Argon<q31>` over q31 blocks: `argon::vectorize::for_each<q31>`, one `step` per vector.
+/// - `Argon<q31>` over q31 blocks, or `QVec<31>` over Q<31> blocks: `argon::vectorize::for_each` counting the
+///   samples, one `step` per vector.
 /// - StereoVector over StereoSample blocks: `argon::vectorize::for_each_interleaved<q31, 2>` over the interleaved
 ///   frames, de-interleaved on load and re-interleaved on store, one `step` per vector of frames.
 ///
@@ -315,7 +369,7 @@ private:
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
 	                                        Buffer<value_type> out, In... in) {
 		static_assert(chains_of_v<K> == 1 || detail::vector_step_kernel<K>,
-		              "kChains is for q31 vector kernels: Mono runs chains only in its q31 vector loop");
+		              "kChains is for Q31 vector kernels: Mono runs chains only in its Q31 vector loop");
 		static_assert(chains_of_v<K> == 1 || !has_context<K>,
 		              "a chained step takes no context: step_chains would have to draw on it in chain order");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
@@ -339,15 +393,16 @@ private:
 		}
 	}
 
-	/// @brief One `step` per vector of q31 samples: @p n samples of @p src into @p dst, the partial last vector
+	/// @brief One `step` per vector of Q31 samples: @p n samples of @p src into @p dst, the partial last vector
 	/// included. A kernel declaring chains (@ref chains_of_v) steps every whole group of that many vectors through its
-	/// `step_chains` first.
+	/// `step_chains` first. The loop counts samples with `for_each<std::int32_t>`, whose steps load and store raw q31
+	/// themselves and Q<31> through FixedVec (@ref detail::load_step).
 	template <auto M, typename Ctx, typename... Src>
 	[[gnu::always_inline]] static void vector_loop(const Coefficients& c, const Block& block, LoopState& s,
-	                                               Ctx& context, q31* dst, std::ptrdiff_t n, const Src*... src) {
+	                                               Ctx& context, value_type* dst, std::ptrdiff_t n, const Src*... src) {
 		std::ptrdiff_t done = 0;
 		if constexpr (chains_of_v<K> > 1) {
-			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of_v<K>) * Argon<q31>::lanes;
+			constexpr std::ptrdiff_t kGroup = static_cast<std::ptrdiff_t>(chains_of_v<K>) * lanes_v<value_type>;
 			constexpr auto kChainIndex = std::make_index_sequence<chains_of_v<K>>{};
 			using Group = ChainVectors<step_type, chains_of_v<K>>;
 			static_assert(steps_chains_v<M, PerInput<Src, Group>...>,
@@ -358,23 +413,25 @@ private:
 				             chain_step_at<M>(c, block, s, load_chains(kChainIndex, src + done)...));
 			}
 		}
-		argon::vectorize::for_each<q31>(n - done, [&] [[gnu::always_inline]] (auto step) {
-			step.Store(dst + done, vector_step_at<M>(c, block, s, context, step, step.Load(src + done)...));
+		argon::vectorize::for_each<std::int32_t>(n - done, [&] [[gnu::always_inline]] (auto step) {
+			detail::store_step(
+			    step, dst + done,
+			    vector_step_at<M>(c, block, s, context, step, detail::load_step<step_type>(step, src + done)...));
 		});
 	}
 
 	/// @brief The chains_of_v<K> consecutive vectors at @p base.
 	template <std::size_t... V>
 	[[gnu::always_inline]] static ChainVectors<step_type, sizeof...(V)>
-	load_chains(std::index_sequence<V...> /*chains*/, const q31* base) {
-		return {{step_type::Load(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes))...}};
+	load_chains(std::index_sequence<V...> /*chains*/, const value_type* base) {
+		return {{detail::load_vector<step_type>(base + (static_cast<std::ptrdiff_t>(V) * lanes_v<value_type>))...}};
 	}
 
 	/// @brief Stores @p out's vectors at @p base, one after another.
 	template <std::size_t... V>
-	[[gnu::always_inline]] static void store_chains(std::index_sequence<V...> /*chains*/, q31* base,
+	[[gnu::always_inline]] static void store_chains(std::index_sequence<V...> /*chains*/, value_type* base,
 	                                                const ChainVectors<step_type, sizeof...(V)>& out) {
-		(out.v[V].StoreTo(base + (static_cast<std::ptrdiff_t>(V) * Argon<q31>::lanes)), ...);
+		(detail::store_vector(base + (static_cast<std::ptrdiff_t>(V) * lanes_v<value_type>), out.v[V]), ...);
 	}
 
 	/// @brief @p T once per input @p In: one group of vectors per input of the step.
