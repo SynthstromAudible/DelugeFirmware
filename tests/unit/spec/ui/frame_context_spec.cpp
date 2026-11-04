@@ -435,12 +435,11 @@ describe frame_context("ui::FrameContext", $ {
 		expect(ok.ctx.claims.turn).to_be_true();
 	});
 
-	it("no longer touches the turn at all, and still masks it out of the focused slot", _ {
-		// Re-derived (E-note-family task 2): `columns` used to spend the select encoder walking
-		// the column focus; it no longer moves focus on a turn at all, or claims the turn itself --
+	it("does not touch the turn at all, and still masks it out of the focused slot", _ {
+		// `columns` does not move focus on a turn at all, nor claim the turn itself --
 		// a scene reads and claims it *before* calling `columns`, to edit the focused column's
 		// value (`MenuScene::render_horizontal`, the port of `HorizontalMenu::selectEncoderAction`,
-		// `horizontal_menu.cpp:309-326`). The slot mask is still `none()` for every column but the
+		// `horizontal_menu.cpp`). The slot mask is still `none()` for every column but the
 		// focused one, and still `{.turn = false}` for that one -- now so the scene's own edit,
 		// already applied above `columns`, cannot also reach the slot's widget a second time
 		// (`ui/oled/columns.cpp`'s note on `render_slot`) -- while the column's own value widget
@@ -512,7 +511,7 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.ctx.claims.turn).to_be_true();
 	});
 
-	it("claims on read, idempotently per frame, and only trips double_claim between frames (I3)", _ {
+	it("claims on read, idempotently per frame, and only trips double_claim between frames", _ {
 		uitest::Rig64 r;
 		r.input.turn = 1;
 
@@ -545,7 +544,7 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r3.ctx.claims.double_claim).to_be_true();
 	});
 
-	it("root_frame/root_grid_frame take the shell's InputMask (I2): none() leaves a list inert but "
+	it("root_frame/root_grid_frame take the shell's InputMask: none() leaves a list inert but "
 	   "pads still report", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;

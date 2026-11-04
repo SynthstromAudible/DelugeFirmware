@@ -262,7 +262,7 @@ void count_window(OledFrame& f, std::string_view heading, std::string_view value
 /// @param den  Denominator; zero or less draws the empty outline.
 void progress(OledFrame& f, gfx::oled::Rect rect, int32_t num, int32_t den);
 
-/// @brief Ports legacy `OLED::displayNotification` (`hid/display/oled.cpp:744-794`): the one-line
+/// @brief Ports legacy `OLED::displayNotification` (`hid/display/oled.cpp`): the one-line
 ///        "title: value" strip pinned to the top of the panel -- the mod-encoder value popup and
 ///        every other plain text/value notification.
 ///

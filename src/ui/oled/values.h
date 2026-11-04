@@ -63,8 +63,8 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 /// Ports legacy `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`): `f.turn()` moves
 /// the value by `range.step` per detent, multiplied by 5 while `f.shift()` is held -- the select
 /// encoder's own acceleration, `SoundEditor::selectEncoderAction`'s `scaledOffset`
-/// (`gui/ui/sound_editor.cpp:1072`). The gold knobs are never read: legacy's `SoundEditor::
-/// modEncoderAction` (`:1638`) falls through to `View::modEncoderAction` (`gui/views/view.cpp:835`),
+/// (`gui/ui/sound_editor.cpp`). The gold knobs are never read: legacy's `SoundEditor::
+/// modEncoderAction` (`:1638`) falls through to `View::modEncoderAction` (`View::modEncoderAction`),
 /// which edits the mod-controllable's param instead of the menu item.
 ///
 /// The sum is clamped to `[range.min, range.max]`; the value is never snapped to a multiple of

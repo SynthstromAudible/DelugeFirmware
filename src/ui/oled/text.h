@@ -98,7 +98,7 @@ void title(OledFrame& f, std::string_view s, bool underline = true);
 /// followed by `invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, ..._PIXEL + 9, ..._PIXEL + 9)`.
 ///
 /// The `invertArea` is not a highlight: `OLED::lockIcon` is **nine** pixels tall and a byte holds
-/// eight, and legacy's own comment at `hid/display/oled_icons.cpp:118` says "remember to draw a
+/// eight, and legacy's own comment at `hid/display/oled_icons.cpp` (above `OLED::lockIcon`) says "remember to draw a
 /// rectangle under it so it looks correct". Inverting the (blank) row one below the icon is how it
 /// draws that rectangle, and doing it here means no caller has to remember.
 ///

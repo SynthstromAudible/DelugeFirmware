@@ -52,7 +52,7 @@ int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 }
 
 /// The select encoder's detents for a value edit, as `SoundEditor::selectEncoderAction`
-/// (`gui/ui/sound_editor.cpp:1072`) hands them to a non-submenu item: multiplied by 5 while SHIFT
+/// (`gui/ui/sound_editor.cpp`) hands them to a non-submenu item: multiplied by 5 while SHIFT
 /// is held. Read through the frame, so an unfocused frame contributes nothing.
 int64_t select_delta(const OledFrame& f) {
 	const int64_t detents = f.turn();
@@ -247,7 +247,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
 	// Centred across `rect.w` by default; right-anchored when the caller shares the panel
 	// (`DecimalLayout`), which is `image.drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - 3)`
-	// (`gui/menu_item/patch_cable_strength.cpp:177`).
+	// (`PatchCableStrength::renderOLED`).
 	int32_t string_start_x =
 	    layout != nullptr ? rect.right() - layout->right_pad - string_width : rect.x + ((rect.w - string_width) >> 1);
 	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;

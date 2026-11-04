@@ -58,7 +58,7 @@ constexpr int32_t kContinuousValueY = 15; // big-font value baseline (+ visible_
 /// height 15 has no font of its own.
 constexpr int32_t kContinuousValueY64 = 20; // huge-font value baseline (+ visible_top)
 /// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s
-/// `CustomItem`s, E2 task 2): `firmware::Version`/`battery::Level::drawPixelsForOled`
+/// `CustomItem`s): `firmware::Version`/`battery::Level::drawPixelsForOled`
 /// (`gui/menu_item/firmware/version.h:31`, `battery/level.h:40`) both call
 /// `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` -- a literal canvas y of 22, NOT
 /// `18 + OLED_MAIN_TOPMOST_PIXEL` the way `kValueY`'s own legacy call spells its baseline
@@ -75,7 +75,7 @@ constexpr int32_t kReadoutValueY = 17; // huge-font value baseline (+ visible_to
 ///
 /// A frame's origin already carries `visible_top`, so the local row is `20 - visible_top` -- and
 /// `visible_top` is a per-*board* number, not a constant: 5 on the shipped 48-row panel
-/// (`shell/profiles/deluge.cpp:109`) and 0 on a 64-row one. One value cannot serve both, which is
+/// (`kDisplays` in `shell/profiles/deluge.cpp`) and 0 on a 64-row one. One value cannot serve both, which is
 /// exactly why `kMenuBaseY48/64` and `kOutputTypeY48/64` above are pairs; this is the third.
 /// @{
 constexpr int32_t kMidiCommandRowY48 = 15; // 20 - 5

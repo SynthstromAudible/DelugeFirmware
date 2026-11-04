@@ -63,10 +63,10 @@ struct InputClaims {
 /// A parent grants a child exactly the inputs the child is allowed to own. `all()` is "everything
 /// I have" (the root, and the default `region()` argument), `none()` is "draw, do not consume" --
 /// but the interesting masks are in between, and they are what stops one detent doing two things.
-/// `columns` is the worked example: it owns the select encoder to walk the column focus, so it
-/// hands the focused column's slot `InputMask{.turn = false}` -- the value widget in that slot
-/// gets the gold knobs, the press and the back button, and cannot also consume the turn that
-/// moved the focus onto it.
+/// `columns` is the worked example: the scene above it reads and claims the select turn to edit
+/// the focused value, so `columns` hands the focused column's slot `InputMask{.turn = false}` --
+/// the value widget in that slot gets the gold knobs, the press and the back button, and cannot
+/// consume the same detent a second time.
 ///
 /// @note One bit for both gold knobs (`edit`), because they are one control: no widget owns the
 ///       coarse knob without the fine one. Never masks the clock, `shift` or the pads (see rules
@@ -187,8 +187,8 @@ struct InputMask {
 ///    `region(rect, false)` (mask `none()`) is how a composite widget draws a sub-widget for its
 ///    looks alone -- `enum_value` renders a `list` to get the legacy window and highlight while
 ///    keeping the cursor for itself. A partial mask is how a *container* keeps one input and hands
-///    the rest on: `columns` grants the focused column everything but the turn, so a detent walks
-///    the column focus and the enum in the column it lands on stays put. `focused()` is shorthand
+///    the rest on: `columns` grants the focused column everything but the turn, because the scene
+///    has already spent the detent editing that column's value. `focused()` is shorthand
 ///    for "my mask is `all()`".
 ///
 ///    **`now_ms()` and `shift()` are not masked.** The clock is not an input a control owns: it is

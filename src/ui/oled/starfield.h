@@ -20,10 +20,9 @@
 /// @file
 /// @brief The starfield screensaver animation, and the one call that paints it onto a frame.
 ///
-/// **Moved here from `hid/display/starfield.{h,cpp}` by E4 task 7, arithmetic untouched** -- see
-/// `ui/oled/rainfall.h`'s file doc for why the move was compulsory and what the move changed (the
-/// namespace, the include path, and camelCase -> snake_case; nothing else). The oracle this class
-/// is compared against frame by frame is `sim/scenes_spec/support/oracle_starfield.{h,cpp}`.
+/// The arithmetic is legacy's `hid/display/starfield` unchanged -- see `ui/oled/rainfall.h`'s file
+/// doc for why it lives here. The oracle this class is compared against frame by frame is
+/// `sim/scenes_spec/support/oracle_starfield.{h,cpp}`.
 
 #include <array>
 #include <cstddef>

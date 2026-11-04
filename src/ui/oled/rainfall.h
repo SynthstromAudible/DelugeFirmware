@@ -20,19 +20,17 @@
 /// @file
 /// @brief The Deluge-rain screensaver animation, and the one call that paints it onto a frame.
 ///
-/// **Moved here from `hid/display/rainfall.{h,cpp}` by E4 task 7, arithmetic untouched.** It had to
-/// move: `deluge::scenes::overlay::ScreensaverScene` draws it, and `src/scenes/**` may include
-/// neither `gui/` nor `hid/` (`scripts/check_layer_rules.py`'s `scenes-includes-gui` row). It moved
-/// to `src/ui/oled/` rather than anywhere else because it is exactly what that library is -- pixels
-/// over a frame, no model, no clock (this animation advances by frame count, never by a wall clock,
-/// so the `shell-no-clock` row over `src/ui/**` is satisfied by construction).
+/// It lives here because `deluge::scenes::overlay::ScreensaverScene` draws it, and `src/scenes/**`
+/// may include neither `gui/` nor `hid/` (`scripts/check_layer_rules.py`'s `scenes-includes-gui`
+/// row). `src/ui/oled/` is exactly what it is -- pixels over a frame, no model, no clock (this
+/// animation advances by frame count, never by a wall clock, so the `shell-no-clock` row over
+/// `src/ui/**` is satisfied by construction).
 ///
-/// Legacy's `hid::display::Screensaver` still renders it into its own canvas and now points at this
-/// symbol; the only edits the move made are the namespace, the include path and camelCase ->
-/// snake_case on every identifier (Global Constraint 2). Every constant, every expression and every
-/// statement is the pre-move text -- see `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`, a
-/// mechanical transcription of the pre-move source that
-/// `sim/scenes_spec/screensaver_scene_spec.cpp` runs against this class frame by frame.
+/// Legacy's `hid::display::Screensaver` renders it into its own canvas through this symbol. The
+/// arithmetic is legacy's, unchanged: every constant, every expression and every statement is
+/// legacy's -- see `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`, a mechanical transcription of
+/// the legacy source that `sim/scenes_spec/screensaver_scene_spec.cpp` runs against this class
+/// frame by frame.
 
 #include <array>
 #include <cstddef>
@@ -231,13 +229,13 @@ public:
 
 	/// @brief Replace the LCG state, so a caller can make the field reproducible.
 	///
-	/// @note **The one member this class did not arrive with** (E4 task 7). It exists because
-	///       `shell::Screensaver` already ships a `seed` and passes it to the pushed scene's
-	///       `SceneId::arg` (`shell/screensaver.h:44-46`), and something has to receive it.
+	/// @note **The one member legacy's animation does not have.** It exists because
+	///       `shell::Screensaver` ships a `seed` and passes it to the pushed scene's
+	///       `SceneId::arg` (see `shell::Screensaver`'s constructor), and something has to receive it.
 	///       Legacy has no seed of any kind: `hid::display::Screensaver` simply lets the LCG run
 	///       on across activations (`scatter()`'s own note). `ScreensaverScene` therefore calls
 	///       this only for a non-zero arg, so `ShellConfig::seed`'s shipped default of 0
-	///       (`shell/shell.h:46`) reproduces legacy's behaviour exactly and nothing new reaches a
+	///       (`ShellConfig::seed`) reproduces legacy's behaviour exactly and nothing new reaches a
 	///       user.
 	/// @param seed The new generator state.
 	void reseed(uint32_t seed) { rng_state_ = seed; }

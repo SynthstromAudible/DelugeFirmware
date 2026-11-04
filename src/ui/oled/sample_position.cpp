@@ -71,10 +71,10 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 				f.glyphs(std::string_view{buffer, length}, x, y, sx, sy);
 				x += static_cast<int32_t>(length) * sx;
 
-				// DIVERGENCE FROM LEGACY, deliberate: `sample_marker_editor.cpp:1158` passes
+				// DIVERGENCE FROM LEGACY, deliberate: `SampleMarkerEditor::renderOLED` passes
 				// `smallTextSpacingX` as the *x coordinate* of this glyph, not `xPixel` -- so on
 				// every position past an hour legacy draws the 'h' back at x = 6, on top of the
-				// hours digits, and the same at `:1167` for the 'm'. It is a transcription slip
+				// hours digits, and the same for the 'm'. It is a transcription slip
 				// (the argument that should be `xPixel` happens to have a plausible name), not a
 				// behaviour anything depends on, and reproducing it would mean shipping a
 				// knowingly-corrupt readout into a new UI. Positions under a minute -- which is

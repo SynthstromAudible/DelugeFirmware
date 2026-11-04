@@ -12,7 +12,7 @@ namespace deluge::ui::oled {
 
 namespace {
 
-/// @brief `sigmoidLikeCurve` (`util/functions.cpp:1170-1174`).
+/// @brief `sigmoidLikeCurve` (`util/functions.cpp`).
 float sigmoid_like_curve(float x, float x_max, float softening) {
 	const float raw = x / (x + softening);
 	const float max_val = x_max / (x_max + softening);
@@ -338,7 +338,7 @@ void detune(OledFrame& f, gfx::oled::Rect slot, float norm) {
 	image.draw_horizontal_line(bottom, x1 - 8, x1);
 }
 
-/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`): one cycle of the wave, its high part
+/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`): one cycle of the wave, its high part
 /// narrowing as the value grows.
 void pulse_width(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	ClipScope scope{f.canvas, f.clip};

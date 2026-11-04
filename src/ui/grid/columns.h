@@ -43,8 +43,8 @@ constexpr int32_t kColumnRows = 8;
 
 /// @brief Minimum dBFS each row of the VU meter stands for.
 ///
-/// Legacy's lookup table for "the min value of each pad's value range used to display vu meter on
-/// the grid" (gui/views/view.cpp), reproduced exactly.
+/// Legacy's lookup table of the minimum value of each pad's value range for the VU meter on the
+/// grid (gui/views/view.cpp), reproduced exactly.
 ///
 /// @note Deliberately `float`, not `double`: the comparison in vu_max_row() is `dBFS >=
 ///       kVuDbfsForRow[y]` with a `float` on both sides, and a `double` table would move the
@@ -241,8 +241,8 @@ enum class NoteSquare : uint8_t {
 
 /// @brief Minima of each row's velocity/automation display range.
 ///
-/// Legacy's "lookup tables for the min value of each pad's value range used to display automation
-/// on each row of the grid" (velocity.cpp, and the identical
+/// Legacy's lookup tables of the minimum value of each pad's value range for displaying automation
+/// on each row of the grid (velocity.cpp, and the identical
 /// `nonPatchCableMinPadDisplayValues` at mod_controllable.cpp), reproduced exactly. Shared by
 /// the velocity bar and the unipolar automation bar, which is exactly how legacy has it -- two
 /// copies of the same eight numbers.

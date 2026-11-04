@@ -8,7 +8,7 @@ namespace deluge::ui::oled {
 
 /// @brief A sample position spelled twice: as a duration, and as a raw sample count.
 ///
-/// The body of `SampleMarkerEditor::renderOLED` (`gui/ui/sample_marker_editor.cpp:1135-1222`) --
+/// The body of `SampleMarkerEditor::renderOLED` (`gui/ui/sample_marker_editor.cpp`) --
 /// everything below the screen title -- as a component, so the scene that owns the marker editor
 /// calls no `OledFrame` drawing primitive of its own (`check_layer_rules.py`,
 /// `scenes-no-frame-primitives`).
@@ -42,8 +42,8 @@ inline constexpr int32_t kSamplePositionLineGap = 11;
 ///
 /// @warning One thing here is **not** a port: legacy draws the `h` and `m` unit letters at a fixed
 ///          x of `kTextSpacingX` instead of at the running cursor
-///          (`sample_marker_editor.cpp:1158`, `:1167`), so any position past a minute has its unit
-///          letter drawn over its own digits. This draws them at the cursor. See the comment at the
+///          (`SampleMarkerEditor::renderOLED`'s `drawChar('h', ...)` and `drawChar('m', ...)`), so any position past a
+///          minute has its unit letter drawn over its own digits. This draws them at the cursor. See the comment at the
 ///          site; positions under a minute are pixel-identical to legacy.
 void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint32_t sample_rate);
 

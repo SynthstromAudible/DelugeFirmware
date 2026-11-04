@@ -31,7 +31,7 @@ struct DrawColumn {
 		Glide,
 		/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`) at @ref norm.
 		Detune,
-		/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`) at @ref raw, 0..50.
+		/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`) at @ref raw, 0..50.
 		PulseWidth,
 		/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`) at @ref raw: the bar clamped to 0..24, and
 		/// an inverted "!" above it.

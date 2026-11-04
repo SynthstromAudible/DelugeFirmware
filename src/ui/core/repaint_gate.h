@@ -24,6 +24,10 @@ public:
 	/// @param model_dirty Whether the underlying model changed independently of input.
 	/// @return True if a frame is due: the first call ever, an explicit request, input, a dirty
 	///         model, or an armed deadline that has passed.
+	///
+	/// @note Advisory only: the shell skips `render_oled`/`render_grid` when this is false, but
+	///       nothing stops a scene acting on stale state in `handle()` or `after_render()` on a tick
+	///       that did not render.
 	bool needs_frame(uint32_t now_ms, bool had_input, bool model_dirty); // consumes the request
 	/// @brief The currently armed repaint deadline, if any.
 	/// @return The deadline in milliseconds, or `std::nullopt` if none is armed.

@@ -32,7 +32,7 @@ inline constexpr int32_t kMaxMarkers = 4;
 
 /// @brief Tint rows `[y_start, y_end)` of column @p x toward @p colour.
 ///
-/// `SampleMarkerEditor::renderMarkerInCol` (`sample_marker_editor.cpp:1089-1095`) exactly: each
+/// `SampleMarkerEditor::renderMarkerInCol` (`sample_marker_editor.cpp`) exactly: each
 /// row keeps a quarter of *the pad's red channel* as its underlying-waveform contribution and takes
 /// three quarters of the marker colour.
 ///

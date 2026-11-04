@@ -21,14 +21,14 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(st.dir).to_equal(int8_t(1));
 		expect(r.gate.next_deadline().has_value()).to_be_false();
 	});
-	it("resets a stale mid-scroll offset/direction when the text now fits (review C1)", _ {
+	it("resets a stale mid-scroll offset/direction when the text now fits", _ {
 		uitest::Rig48 r; ScrollText st; st.offset = 20; st.dir = -1;
 		scroll_text(r.frame, Rect{6, 14, 122, 9}, "SHORT", FontId::Apple7, st);
 		expect(st.offset).to_equal(int16_t(0));
 		expect(st.dir).to_equal(int8_t(1));
 		expect(r.gate.next_deadline().has_value()).to_be_false();
 	});
-	it("arms the legacy kScrollTime pause before the first pixel step, then steps one pixel per interval and ping-pongs (review I1)", _ {
+	it("arms the legacy kScrollTime pause before the first pixel step, then steps one pixel per interval and ping-pongs", _ {
 		uitest::Rig48 r; ScrollText st;
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		r.input.now_ms = 0;            scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // arms the initial pause, matching legacy timing
@@ -42,7 +42,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(st.dir).to_equal(int8_t(-1));                       // reached the end and paused
 		expect(st.next_step_ms - r.input.now_ms).to_equal(uint32_t(kScrollTime));
 	});
-	it("re-arms the initial pause when the text or rect changes underneath it (review I2)", _ {
+	it("re-arms the initial pause when the text or rect changes underneath it", _ {
 		uitest::Rig48 r; ScrollText st;
 		const char* s1 = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		r.input.now_ms = 0;             scroll_text(r.frame, Rect{6, 14, 122, 9}, s1, FontId::Apple7, st);
@@ -70,7 +70,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(st.dir).to_equal(int8_t(1));
 		expect_golden(self, "../ui/widgets/scroll_text_start_48.pbm", r.pbm());
 	});
-	it("clips a scrolled string against a right edge interior to the canvas (review M3)", _ {
+	it("clips a scrolled string against a right edge interior to the canvas", _ {
 		uitest::Rig48 r; ScrollText st;
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
 		Rect rect{6, 14, 100, 9}; // right() = 106, strictly inside the 128px canvas
@@ -99,7 +99,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/scroll_text_mid_48.pbm", r.pbm());
 	});
-	it("widens only the cleared rect for an explicit clear_pad_x, per legacy's clear-only +4px (review I3, oled.cpp:984-992)", _ {
+	it("widens only the cleared rect for an explicit clear_pad_x, per legacy's clear-only +4px", _ {
 		uitest::Rig48 r; ScrollText st;
 		Rect rect{6, 14, 100, 9};
 		// Simulate stray ink left just past the rect, as if a submenu icon area still held a

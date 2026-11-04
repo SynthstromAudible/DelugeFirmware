@@ -21,13 +21,12 @@ namespace palette = deluge::gui::colours;
 // The marker overlay, ported from SampleMarkerEditor::renderMarkerInCol (sample_marker_editor.cpp:1058)
 // and ::renderColumn (:1268).
 //
-// **The legacy comparison is NOT here.** It used to be: this file held a transcription of those two
-// bodies and compared the port against it, which one misreading written once would have satisfied
-// on both sides (E3 final review, B2). It now lives in sim/scenes_spec/marker_scene_spec.cpp's
-// "against the real legacy editor" group, which calls the shipped renderers themselves through the
-// public SampleMarkerEditor::renderMainPads -- the sim spec driver links deluge_app and this host
-// target cannot. Five layouts are compared there: markers apart, three sharing a column, four
-// sharing a column, and every blink phase.
+// **The legacy comparison is NOT here.** A transcription of those two bodies compared against the
+// port would be satisfied on both sides by one misreading written once. The comparison lives in
+// sim/scenes_spec/marker_scene_spec.cpp's "against the real legacy editor" group, which calls the shipped renderers
+// themselves through the public SampleMarkerEditor::renderMainPads -- the sim spec driver links deluge_app and this
+// host target cannot. Five layouts are compared there: markers apart, three sharing a column, four sharing a column,
+// and every blink phase.
 //
 // What is left here is the widget's own contract at unit scale, on values derived by hand from
 // legacy's arithmetic rather than by running the port. Keep it that way: a comparison against a

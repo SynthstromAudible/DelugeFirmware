@@ -58,7 +58,7 @@ struct TextEditState {
 ///       substitution every other edge in this widget (and `gfx::oled::kEdge`/`kCentre`) makes.
 ///
 /// @note **Render-only; owns no input.** Cursor motion is the caller's --
-///       `horizontalEncoderAction` (`qwerty_ui.cpp:420-447`) becomes the scene's own
+///       `horizontalEncoderAction` (`QwertyUI::horizontalEncoderAction`) becomes the scene's own
 ///       `f.horizontal()` handling (see `RenameScene::handle`), exactly as the grid half's
 ///       `text_keyboard` leaves typing and backspace to its caller. `text_edit` never reads a
 ///       frame's input at all, so it is safe to call from an unfocused region purely for its

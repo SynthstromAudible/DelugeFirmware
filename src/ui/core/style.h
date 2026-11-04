@@ -11,12 +11,12 @@ namespace deluge::ui {
 ///
 /// - `FullInversion` inverts (rounded, per `Style::rounded`) the focused area.
 /// - `PartialInversion` draws a 1px rule instead, and is legacy's default
-///   (`storage/flash_storage.cpp:365`, inside `resetSettings()`).
+///   (`FlashStorage::resetSettings`).
 /// - `NoInversion` also draws the rule for every reader except `columns`: legacy's own switch
 ///   (`gui/menu_item/horizontal_menu.cpp:280-283`) falls `PARTIAL_INVERSION` and `NO_INVERSION`
 ///   through to the same line-draw arm, so `columns` need not (and does not) special-case it.
 ///   Everywhere else, legacy reads this setting as `!= NO_INVERSION`
-///   (`hid/display/oled.cpp:771`, restated), so those readers keep that same test.
+///   (`OLED::scrollingAndBlinkingTimerEvent`'s `doInversion`, restated), so those readers keep that same test.
 enum class Highlighting : uint8_t { FullInversion, PartialInversion, NoInversion };
 
 /// @brief Per-frame OLED style parameters for a board profile, passed by const& into every frame.

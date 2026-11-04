@@ -386,9 +386,9 @@ describe option_window_w("ui::oled::option_window", $ {
 		// really do overlap here. Both sides are the same two `draw_string`s over the same pixels.
 		//
 		// **This does not pin the draw order, and does not claim to.** The glyph blit is `|=`
-		// (`gfx/oled/canvas.cpp:626`), so the union is the same whichever runs first: moving the
-		// footer draw before the rows and re-running this example passes -- checked, in review round
-		// 1. The widget draws it last anyway because legacy does (see popup.h). What this example
+		// (`gfx/oled/canvas.cpp`'s glyph blit), so the union is the same whichever runs first: moving
+		// the footer draw before the rows and re-running this example passes. The widget draws it last
+		// anyway because legacy does (see popup.h). What this example
 		// *does* pin is that the overlapping case renders identically to legacy at all.
 		uitest::Rig48 r;
 		ScrollText sc;

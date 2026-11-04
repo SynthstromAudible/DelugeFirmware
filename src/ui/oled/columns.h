@@ -114,7 +114,7 @@ int32_t column_under_button(std::span<const Column> cols, int32_t focused, int32
 
 /// @brief Where focus lands after switching the visible page by \p direction.
 ///
-/// @note Ports legacy `HorizontalMenu::switchVisiblePage` (`horizontal_menu.cpp:345-366`) plus the
+/// @note Ports legacy `HorizontalMenu::switchVisiblePage` (`horizontal_menu.cpp`) plus the
 ///       `selectMenuItem` call it makes (`:444-476`): the *target* page wraps
 ///       (`(page + direction) mod total_pages`), and the column selected on it is the one
 ///       `selectMenuItem` keeps updating to the last *relevant* column seen while walking that
