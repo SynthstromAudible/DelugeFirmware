@@ -84,6 +84,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_fixed.h"
+#include "synth/matrix/param_format.h"
 #include "synth/modulation/envelope.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
@@ -1856,7 +1857,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t reverbSendAmount =
 	    mul_r_as_wrap<dsp::Q<31>>(
 	        dsp::Q<27>::from_raw(reverbAmountAdjust),
-	        dsp::Q<31>::from_raw(params.param_final_values[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL]))
+	        deluge::synth::matrix::global_param_value<params::GLOBAL_REVERB_AMOUNT>(params.param_final_values))
 	        .raw();
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();

@@ -54,7 +54,8 @@
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
-#include "util/functions.h"           // stringToInt (id-first drum peek)
+#include "synth/matrix/param_format.h"
+#include "util/functions.h" // stringToInt (id-first drum peek)
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
@@ -856,11 +857,10 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 
 	if (arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		// The arp rate's neutral read at Q31 (its units are the rate's)
+		// The arp rate around its neutral, the base rate
 		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
 		    deluge::dsp::fixed::curve_exponential(
-		        deluge::dsp::Q<31>::from_raw(
-		            deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE]),
+		        deluge::synth::matrix::param_neutral<deluge::modulation::params::GLOBAL_ARP_RATE>(),
 		        deluge::dsp::fixed::preset_combination(
 		            deluge::dsp::Q<31>::from_raw(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))))
 		        .raw());
@@ -953,11 +953,10 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
-			// The arp rate's neutral read at Q31 (its units are the rate's)
+			// The arp rate around its neutral, the base rate
 			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
 			    deluge::dsp::fixed::curve_exponential(
-			        deluge::dsp::Q<31>::from_raw(
-			            deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE]),
+			        deluge::synth::matrix::param_neutral<deluge::modulation::params::GLOBAL_ARP_RATE>(),
 			        deluge::dsp::fixed::preset_combination(
 			            deluge::dsp::Q<31>::from_raw(nonAudioDrum->arpSettings.rate)))
 			        .raw());
