@@ -63,7 +63,7 @@ const checks = {
     const page = await ctx.newPage()
     const overlaps = []
     for (const path of [
-      "09-kits/04-sampling-recording-audio-within-kits",
+      "09-kits/05-sampling-recording-audio-within-kits",
       "04-sequencing/01-sequencing-workflow",
     ]) {
       await page.goto(url(path), { waitUntil: "load" })
@@ -118,19 +118,19 @@ const checks = {
     const ctx = await browser.newContext()
     const { page } = await open(
       ctx,
-      "04-sequencing/07-navigating-the-grid",
-      "fig-4.7-1",
+      "04-sequencing/10-navigating-the-grid",
+      "fig-4.10-1",
     )
-    const replay = page.locator(`${sel("fig-4.7-1")} .gb-replay`)
+    const replay = page.locator(`${sel("fig-4.10-1")} .gb-replay`)
     const lightsUp = await waitFor(
-      async () => (await lit(page, "fig-4.7-1")).length > 0,
+      async () => (await lit(page, "fig-4.10-1")).length > 0,
       1000,
     )
     check("playhead: pads light up on 3.8", lightsUp)
     let notesCovered = 0
     for (let t = 0; t < 10; t++) {
       notesCovered += await page
-        .locator(`${sel("fig-4.7-1")} .gb-cell-on[data-note]`)
+        .locator(`${sel("fig-4.10-1")} .gb-cell-on[data-note]`)
         .count()
       await page.waitForTimeout(60)
     }
@@ -140,7 +140,7 @@ const checks = {
       `${notesCovered}`,
     )
     const done = await waitFor(() => replay.isVisible(), 5000)
-    const left = await page.locator(`${sel("fig-4.7-1")} .gb-cell-on`).count()
+    const left = await page.locator(`${sel("fig-4.10-1")} .gb-cell-on`).count()
     check(
       "playhead: replay appears after one pass, nothing left lit",
       done && left === 0,
@@ -188,7 +188,7 @@ const checks = {
   async reducedMotion(browser) {
     const ctx = await browser.newContext({ reducedMotion: "reduce" })
     for (const [path, id] of [
-      ["04-sequencing/07-navigating-the-grid", "fig-4.7-1"],
+      ["04-sequencing/10-navigating-the-grid", "fig-4.10-1"],
       ["04-sequencing/01-sequencing-workflow", "fig-4.1-1"],
     ]) {
       const { page } = await open(ctx, path, id)
@@ -423,11 +423,11 @@ const checks = {
 
     // 3.14-1 sits under an "Example" sub-heading after its Steps: still bound, 6 steps.
     const p1 = await browser.newPage()
-    await p1.goto(url("04-sequencing/10-euclidean-sequencing"), {
+    await p1.goto(url("04-sequencing/14-euclidean-sequencing"), {
       waitUntil: "load",
     })
     const bound = await p1.evaluate(
-      () => document.getElementById("fig-4.10-1")?.dataset.steps ?? "unbound",
+      () => document.getElementById("fig-4.14-1")?.dataset.steps ?? "unbound",
     )
     check("panel: 3.14-1 is bound to its 6 steps", bound === "6", bound)
     await p1.close()
@@ -521,12 +521,12 @@ const checks = {
       viewport: { width: 390, height: 900 },
     })
     const p4 = await narrow.newPage()
-    await p4.goto(url("03-clips/10-clip-view-parameter-affect-group-changes"), {
+    await p4.goto(url("03-clips/11-clip-view-parameter-affect-group-changes"), {
       waitUntil: "load",
     })
     const callouts = await p4.evaluate(() =>
       [
-        ...document.querySelectorAll('[id="fig-3.10-1"] .gb-panel-callouts li'),
+        ...document.querySelectorAll('[id="fig-3.11-1"] .gb-panel-callouts li'),
       ].map((li) => getComputedStyle(li).position),
     )
     check(
@@ -540,11 +540,11 @@ const checks = {
       viewport: { width: 1400, height: 1000 },
     })
     const p5 = await wide.newPage()
-    await p5.goto(url("03-clips/10-clip-view-parameter-affect-group-changes"), {
+    await p5.goto(url("03-clips/11-clip-view-parameter-affect-group-changes"), {
       waitUntil: "load",
     })
     const layout = await p5.evaluate(() => {
-      const fig = document.getElementById("fig-3.10-1")
+      const fig = document.getElementById("fig-3.11-1")
       const boxes = [...fig.querySelectorAll(".gb-panel-callouts li")].map(
         (li) => {
           const r = li.getBoundingClientRect()
@@ -569,7 +569,7 @@ const checks = {
 
   async stepFocus(browser) {
     const page = await browser.newPage()
-    await page.goto(url("09-kits/03-kit-presets-samples"), {
+    await page.goto(url("09-kits/04-kit-presets-samples"), {
       waitUntil: "load",
     })
     const steps = page.locator("ol.sl-steps").first().locator(":scope > li")

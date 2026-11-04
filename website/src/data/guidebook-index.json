@@ -1,6 +1,18 @@
 {
   "headwords": [
     {
+      "head": "Accessibility",
+      "match": ["accessibility"]
+    },
+    {
+      "head": "Accidentals",
+      "match": ["sharps", "flats"]
+    },
+    {
+      "head": "Affect entire",
+      "match": ["affect-entire", "affect entire"]
+    },
+    {
       "head": "Affect group",
       "match": [
         "affect group",
@@ -30,6 +42,10 @@
       "head": "Audio clip",
       "match": ["audio clip", "audio clips", "audio loop", "audio overdub"],
       "also": ["Recording", "Sample"]
+    },
+    {
+      "head": "Audio export",
+      "match": ["audio export"]
     },
     {
       "head": "Audio input",
@@ -97,8 +113,12 @@
       "match": ["colour", "colours", "color"]
     },
     {
+      "head": "Community Features",
+      "match": ["community features"]
+    },
+    {
       "head": "Compressor",
-      "match": ["compressor", "sidechain"]
+      "match": ["compressor", "compressors", "sidechain"]
     },
     {
       "head": "Controls",
@@ -108,6 +128,10 @@
         "custom parameter",
         "affect controls"
       ]
+    },
+    {
+      "head": "Copy and paste",
+      "match": ["copying rows", "paste gently", "copying and pasting"]
     },
     {
       "head": "Count-in",
@@ -123,7 +147,7 @@
     },
     {
       "head": "CV",
-      "match": ["cv", "gate", "trigger clock"]
+      "match": ["cv", "cv2", "gate", "trigger clock"]
     },
     {
       "head": "Decimation",
@@ -149,6 +173,10 @@
       "match": ["drum pad", "grid pad view"]
     },
     {
+      "head": "DX7",
+      "match": ["dx7", "algorithm display"]
+    },
+    {
       "head": "Effects",
       "match": ["effects", "mod-fx", "fx"],
       "also": ["Delay", "Distortion", "EQ", "Reverb", "Stutter"]
@@ -168,6 +196,10 @@
     {
       "head": "Factory reset",
       "match": ["factory reset"]
+    },
+    {
+      "head": "Favourites",
+      "match": ["favourites"]
     },
     {
       "head": "Files",
@@ -229,6 +261,10 @@
       ]
     },
     {
+      "head": "Hold press",
+      "match": ["hold press", "hold presses"]
+    },
+    {
       "head": "Iteration",
       "match": ["iteration"]
     },
@@ -266,6 +302,14 @@
       "not": ["loop markers"]
     },
     {
+      "head": "Lumi",
+      "match": ["lumi"]
+    },
+    {
+      "head": "Macros",
+      "match": ["macro pads", "song macros"]
+    },
+    {
       "head": "Metronome",
       "match": ["metronome"]
     },
@@ -280,6 +324,10 @@
         "external keyboard",
         "external controller"
       ]
+    },
+    {
+      "head": "MIDI CCs",
+      "match": ["ccs"]
     },
     {
       "head": "Mod-FX",
@@ -330,6 +378,10 @@
       "match": ["nudge", "nudging"]
     },
     {
+      "head": "OLED",
+      "match": ["oled", "7seg", "fonts", "rounded corners"]
+    },
+    {
       "head": "Oscillator",
       "match": [
         "oscillator",
@@ -349,6 +401,14 @@
       "head": "Parameter",
       "match": ["parameter", "parameters"],
       "also": ["Automation", "Sound editor"]
+    },
+    {
+      "head": "Patch cables",
+      "match": ["patch cables", "cables"]
+    },
+    {
+      "head": "Performance view",
+      "match": ["performance view"]
     },
     {
       "head": "Pitch",
@@ -373,7 +433,11 @@
     },
     {
       "head": "Probability",
-      "match": ["probability"]
+      "match": ["probabilities", "probability"]
+    },
+    {
+      "head": "Program change",
+      "match": ["program change", "program numbers"]
     },
     {
       "head": "Quantize",
@@ -400,7 +464,7 @@
     },
     {
       "head": "Rename",
-      "match": ["renaming", "rename"]
+      "match": ["edit name", "rename", "renaming"]
     },
     {
       "head": "Repeat",
@@ -482,8 +546,12 @@
       ]
     },
     {
+      "head": "Shift",
+      "match": ["shift & hold"]
+    },
+    {
       "head": "Slicing",
-      "match": ["slicing", "lazy chop", "chop"]
+      "match": ["chop", "lazy chop", "slice", "slicing"]
     },
     {
       "head": "Solo",
@@ -530,6 +598,10 @@
       ]
     },
     {
+      "head": "SysEx",
+      "match": ["sysex"]
+    },
+    {
       "head": "Tempo",
       "match": ["tempo", "tap tempo", "magnitude"]
     },
@@ -541,6 +613,10 @@
         "pitch / speed",
         "grabbing tempo"
       ]
+    },
+    {
+      "head": "Trimming",
+      "match": ["trimming"]
     },
     {
       "head": "Triplets",
@@ -583,6 +659,10 @@
     {
       "head": "Volume",
       "match": ["volume", "level"]
+    },
+    {
+      "head": "VU meter",
+      "match": ["vu meter"]
     },
     {
       "head": "Wavefold",

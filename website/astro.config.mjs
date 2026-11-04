@@ -221,6 +221,13 @@ const config = defineConfig({
                     autogenerate: { directory: "guidebook/12-session-view" },
                   },
                   {
+                    label: "13 Performance View",
+                    collapsed: true,
+                    autogenerate: {
+                      directory: "guidebook/13-performance-view",
+                    },
+                  },
+                  {
                     label: "14 Arranger View",
                     collapsed: true,
                     autogenerate: { directory: "guidebook/14-arranger-view" },

@@ -39,7 +39,7 @@
     },
     {
       "term": "waveform view",
-      "href": "/guidebook/16-audio/10-waveform-view-detailed-audio-editing"
+      "href": "/guidebook/16-audio/11-waveform-view-detailed-audio-editing"
     },
     {
       "term": "drum pad grid",
@@ -49,20 +49,20 @@
     {
       "term": "cross-screen editing",
       "aliases": ["cross-screen edit mode", "cross screen editing"],
-      "href": "/guidebook/04-sequencing/08-cross-screen-editing"
+      "href": "/guidebook/04-sequencing/11-cross-screen-editing"
     },
     {
       "term": "euclidean",
       "aliases": ["euclidean sequencing", "euclidean patterns"],
-      "href": "/guidebook/04-sequencing/10-euclidean-sequencing"
+      "href": "/guidebook/04-sequencing/14-euclidean-sequencing"
     },
     {
       "term": "probability",
-      "href": "/guidebook/04-sequencing/09-note-creativity-probability-iteration-dependance"
+      "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance"
     },
     {
       "term": "iteration",
-      "href": "/guidebook/04-sequencing/09-note-creativity-probability-iteration-dependance"
+      "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance"
     },
     {
       "term": "swing",
@@ -71,7 +71,7 @@
     {
       "term": "note scales",
       "aliases": ["scale mode"],
-      "href": "/guidebook/04-sequencing/06-note-scales"
+      "href": "/guidebook/04-sequencing/08-note-scales"
     },
     {
       "term": "chords",
@@ -80,7 +80,7 @@
     },
     {
       "term": "clip length",
-      "href": "/guidebook/03-clips/07-clip-length-position"
+      "href": "/guidebook/03-clips/08-clip-length-position"
     },
     {
       "term": "factory library",
@@ -89,11 +89,11 @@
     {
       "term": "alphanumeric keyboard",
       "aliases": ["QWERTY"],
-      "href": "/guidebook/02-basics/04-alphanumeric-keyboard-grid-layout"
+      "href": "/guidebook/02-basics/07-alphanumeric-keyboard-grid-layout"
     },
     {
       "term": "affect entire",
-      "href": "/guidebook/03-clips/10-clip-view-parameter-affect-group-changes"
+      "href": "/guidebook/03-clips/11-clip-view-parameter-affect-group-changes"
     },
     {
       "term": "subtractive",
@@ -126,7 +126,7 @@
     },
     {
       "term": "voices",
-      "href": "/guidebook/07-synthesizers/08-deluge-voices"
+      "href": "/guidebook/07-synthesizers/09-deluge-voices"
     },
     {
       "term": "arpeggiator",
@@ -136,7 +136,7 @@
     {
       "term": "single-cycle waveforms",
       "aliases": ["single-cycle", "single cycle"],
-      "href": "/guidebook/07-synthesizers/09-single-cycle-waveforms"
+      "href": "/guidebook/07-synthesizers/10-single-cycle-waveforms"
     },
     {
       "term": "mod matrix",
@@ -173,7 +173,7 @@
     {
       "term": "resampling",
       "aliases": ["resample"],
-      "href": "/guidebook/16-audio/09-resampling-deluge-output"
+      "href": "/guidebook/16-audio/10-resampling-deluge-output"
     },
     {
       "term": "audio clips",
@@ -183,7 +183,7 @@
     {
       "term": "time-stretching",
       "aliases": ["time stretching", "time-stretch", "pitch shifting"],
-      "href": "/guidebook/16-audio/13-time-stretching-pitch-shifting"
+      "href": "/guidebook/16-audio/14-time-stretching-pitch-shifting"
     },
     {
       "term": "looper",
@@ -246,17 +246,17 @@
     },
     {
       "term": "tempo magnitude matching",
-      "href": "/guidebook/18-midi/05-tempo-magnitude-matching"
+      "href": "/guidebook/18-midi/06-tempo-magnitude-matching"
     },
     {
       "term": "sync-scaling",
       "aliases": ["sync scaling"],
-      "href": "/guidebook/18-midi/06-sync-scaling"
+      "href": "/guidebook/18-midi/07-sync-scaling"
     },
     {
       "term": "MPE",
       "aliases": ["polyphonic aftertouch"],
-      "href": "/guidebook/18-midi/10-overview-of-midi-mpe-and-polyphonic-aftertouch"
+      "href": "/guidebook/18-midi/11-overview-of-midi-mpe-and-polyphonic-aftertouch"
     },
     {
       "term": "gate outputs",
@@ -270,17 +270,17 @@
     {
       "term": "firmware update",
       "aliases": ["updating firmware"],
-      "href": "/guidebook/21-settings-and-system/02-updating-deluge-firmware"
+      "href": "/guidebook/21-settings-and-system/03-updating-deluge-firmware"
     },
     {
       "term": "pad colours",
       "aliases": ["pad colors"],
-      "href": "/guidebook/21-settings-and-system/03-deluge-pad-colours"
+      "href": "/guidebook/21-settings-and-system/04-deluge-pad-colours"
     },
     {
       "term": "CPU load",
       "aliases": ["CPU performance"],
-      "href": "/guidebook/21-settings-and-system/04-deluge-cpu-performance"
+      "href": "/guidebook/21-settings-and-system/05-deluge-cpu-performance"
     },
     {
       "term": "USB host",
