@@ -126,6 +126,26 @@ namespace {
 }
 } // namespace
 
+int32_t RingModEngine::level(bool has_filters, int32_t filter_gain, OscType source0, OscType source1) {
+	using dsp::Q;
+	// 2^27, times the gain rounded to Q27 and back at Q31. Each step saturates: two wavetables or supersaws reach full
+	// scale unfiltered, and the resonant ladders' compensation passes it.
+	Q<31> amplitude = Q<31>::from_raw(1 << 27);
+	if (has_filters) {
+		amplitude = as_sat<Q<31>>(mul_r(amplitude, dsp::Q<28>::from_raw(filter_gain)));
+	}
+	// Sine and triangle waves come out bigger in fixed-amplitude rendering, so the others are compensated
+	for (const OscType type : {source0, source1}) {
+		if (type == OscType::SAW || type == OscType::ANALOG_SAW_2) {
+			amplitude = scale_shl_sat<1>(amplitude);
+		}
+		else if (type == OscType::WAVETABLE || type == OscType::SUPERSAW) {
+			amplitude = scale_shl_sat<2>(amplitude);
+		}
+	}
+	return amplitude.raw();
+}
+
 void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
                                        uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness,
                                        int32_t filter_gain, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
@@ -133,13 +153,7 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
                                        int32_t* scratch1, std::span<int32_t> sync_scratch) {
 
 	using dsp::Q;
-	// The product's level: 2^27, times the filters' Q28 gain (2^28 unity) when there are filters, rounded to Q27 and
-	// back at Q31
-	Q<31> amplitude_for_ring_mod = Q<31>::from_raw(1 << 27);
-
-	if (has_filters) {
-		amplitude_for_ring_mod = as_wrap<Q<31>>(mul_r(amplitude_for_ring_mod, dsp::Q<28>::from_raw(filter_gain)));
-	}
+	const Q<31> amplitude_for_ring_mod = Q<31>::from_raw(level(has_filters, filter_gain, src0.osc_type, src1.osc_type));
 
 	const std::array<const RingSource*, kNumSources> sources{&src0, &src1};
 	const std::array<int32_t*, kNumSources> scratch{scratch0, scratch1};
@@ -179,15 +193,6 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 			    }
 		    },
 		    source.part->oscillator());
-
-		// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we
-		// need to compensate
-		if (source.osc_type == OscType::SAW || source.osc_type == OscType::ANALOG_SAW_2) {
-			amplitude_for_ring_mod = scale_shl_wrap<1>(amplitude_for_ring_mod);
-		}
-		else if (source.osc_type == OscType::WAVETABLE || source.osc_type == OscType::SUPERSAW) {
-			amplitude_for_ring_mod = scale_shl_wrap<2>(amplitude_for_ring_mod);
-		}
 	}
 
 	int32_t* __restrict__ output = osc_buffer;
