@@ -559,7 +559,7 @@ Result RenameScene::enter_key_press() {
 	// spells a popup (`shell/scene.h`) and a plain `bool (*)(...)` cannot return one; all three
 	// targets raise the same string, so nothing is lost by hoisting it.
 	//
-	// (The brief called for a `notify::Severity::Warn` notice instead. There is no such path: the
+	// (A `notify::Severity::Warn` notice is not an option. There is no such path: the
 	// raise-side helpers in `notify/notice_queue.h` take no severity at all, and the shell's own
 	// popup action is the direct port of `displayPopup`.)
 	(void)r.actions.push_back(Action{.kind = Action::Kind::Popup,

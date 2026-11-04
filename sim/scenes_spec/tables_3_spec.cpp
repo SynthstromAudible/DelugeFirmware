@@ -17,7 +17,7 @@
 ///   * each `Kind::Enum`'s names are the legacy `Selection::getOptions(FULL)` strings;
 ///   * each node's `relevant` predicate agrees with the legacy `isRelevant()` override;
 ///   * `bindings::write` leaves the model where the legacy `writeCurrentValue()` leaves it, for
-///     **every** node with a `set` hook (task-7 ruling);
+///     **every** node with a `set` hook;
 ///
 /// plus what only a complete tree can be asked: `MenuScene::roots()` resolves all ten,
 /// `validate_tree` over every root under every context, and the cap on `Kind::Custom` nodes
@@ -476,7 +476,7 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 /// @brief Legacy items whose `getName()`/`getTitle()` is built at render time rather than being the
 ///        l10n id the constructor was given -- so one static `Node::name` cannot match it.
 ///
-/// Keyed on the node (review round 1, M7's rule), and every entry names its mechanism. A
+/// Keyed on the node, and every entry names its mechanism. A
 /// `FormattedTitle` is not one of them: it is compared as shown, its `title_arg` filled in.
 ///
 ///   * the community-feature items take their name from the runtime settings table
@@ -1551,8 +1551,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("uses every declared Kind at least three times", _ {
-		// Spec E §4's rule, applied with the whole tree in hand (this is the task-8 check `node.h`'s
-		// `Kind` comment records the outcome of). A kind below three nodes is speculation, and the
+		// `node.h`'s `Kind` rule, applied with the whole tree in hand. A kind below three nodes is speculation, and the
 		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
 		// table declares either, were removed from the enum rather than left in.
 		// Sized from the enum's own last enumerator and swept in full: a
@@ -1575,20 +1574,20 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 });
 
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
-	it("defaults the shell-menu toggle to Off, straight from the settings loader (task-3 ruling)", _ {
+	it("defaults the shell-menu toggle to Off, straight from the settings loader", _ {
 		// Not asserted on the enum literal: call the real loader (`RuntimeFeatureSettings::init()`,
 		// `runtime_feature_settings.cpp`'s `SetupOnOffSetting` table) and read the result back
 		// through `RuntimeFeatureSettings::get`. A check against the enum's own declaration would
 		// pass just as easily if the default were flipped to On by mistake in the loader alone --
-		// and that is exactly the mistake that would open this plan's guest to every user on first
-		// boot, the one thing Global Constraint 2 forbids.
+		// and that is exactly the mistake that would open the ported UI to every user on first
+		// boot, which it must never do.
 		runtimeFeatureSettings.init();
 		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu))
 		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
 	});
 
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
-		// The task-7 ruling, applied to batch 3: every `set` hook is driven for three values
+		// Every `set` hook is driven for three values
 		// spanning its range, each write path run **from its own copy of a common starting state**
 		// (`probe_write`), with both readers observed after each.
 		//
@@ -1637,10 +1636,9 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		// the ratchet, and it holds node identities rather than a count: a fifteenth exclusion with
 		// no arm here fails this example, and so does a second `insert` of a node already driven.
 		//
-		// The six `hid/`-side settings nodes are the ones review round 1's I3 wrongly claimed were
-		// already covered ("the spec asserts the persisted half"); they were on no list but this
-		// one. They are covered now, in the only half `src/scenes` owns: the `FlashStorage` /
-		// `runtimeFeatureSettings` write. Their `hid/` halves stay E2's, as `settings.h` records.
+		// The six `hid/`-side settings nodes are covered here in the only half `src/scenes` owns:
+		// the `FlashStorage` / `runtimeFeatureSettings` write. Their `hid/` halves are legacy's, as
+		// `settings.h` records.
 		std::set<const Node*> covered;
 
 		// --- What this example perturbs, and puts back ------------------------------------------
@@ -2003,7 +2001,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 	});
 
 	it("numbers the three chain-only settings pages, which no children span reaches", _ {
-		// The reachability ruling, on the settings half: `assign_node_ids` follows `chain_targets`,
+		// The reachability rule, on the settings half: `assign_node_ids` follows `chain_targets`,
 		// so `SceneId::arg` can name one of these pages and `MenuScene::on_enter` can restore it.
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		for (const Node* n : {&nodes::cv_submenu, &nodes::cv_volts, &nodes::cv_transpose, &nodes::gate_mode,
@@ -2310,9 +2308,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn` /
 	// `unlearnAction()` become (`gui/ui/sound_editor.cpp:516`, `:1567-1587`).
 	//
-	// **What these examples do NOT cover.** Nothing routes MIDI into the scene stack yet -- that
-	// wiring is a later plan's -- so every example below calls the entry points directly, exactly as
-	// the wiring will. The gate legacy puts in front of them (`currentUIMode == UI_MODE_MIDI_LEARN`
+	// **What these examples do NOT cover.** Every example below calls the entry points directly,
+	// as the MIDI routing does. The gate legacy puts in front of them (`currentUIMode == UI_MODE_MIDI_LEARN`
 	// and `!Buttons::isShiftButtonPressed()`, `sound_editor.cpp:1605`, `:1579`) is not ported and is
 	// not tested here: it reads UI-mode state a scene may not touch.
 
@@ -3107,8 +3104,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		expect(nodes::kCvSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kGateSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kMidiDevicesItem.is_placeholder()).to_be_false();
-		// No `dynamic_children` anywhere in the tree -- the finding this task recorded, and the
-		// reason `deluge_menu_dump`'s fail-closed arm still has no case to be designed against.
+		// No `dynamic_children` anywhere in the tree -- the reason `deluge_menu_dump`'s fail-closed arm still has no case to be designed against.
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 		size_t dynamic = 0;
 		for (uint16_t id = 1; id <= assigned; id++) {
@@ -3393,9 +3389,9 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 	});
 
 	it("round-trips all six pad colours through writeSettings and readSettings", _ {
-		// Fix round 1, Important 3. Nothing anywhere exercised `FlashStorage::readSettings` /
-		// `writeSettings`, so the byte-166 bug this task fixed (`flash_storage.cpp`, the ONCE colour
-		// read back into FILL) could be reintroduced in silence. It is exactly the kind of bug a
+		// The only exercise of `FlashStorage::readSettings` / `writeSettings`: without it a
+		// byte-166 bug (`flash_storage.cpp`, the ONCE colour read back into FILL) could return in
+		// silence. It is exactly the kind of bug a
 		// value comparison cannot see: both the port and legacy read `padColours` correctly, and the
 		// loader between flash and that array was the broken part.
 		//

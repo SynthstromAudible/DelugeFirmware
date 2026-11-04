@@ -3,7 +3,7 @@
 /// @file
 /// @brief The host suite's stand-in for `src/scenes/menu/shortcuts.cpp`.
 ///
-/// The real implementation (Task 9) is a transcription of the seven legacy tables as `Node`
+/// The real implementation is a transcription of the seven legacy tables as `Node`
 /// pointers, so it odr-uses every node in `scenes/menu/nodes/*.h` and therefore drags in the whole
 /// model-aware closure those nodes' `get`/`set`/`relevant` hooks live in. This host suite
 /// deliberately never builds that closure (`tests/spec/CMakeLists.txt`), yet it *does* compile

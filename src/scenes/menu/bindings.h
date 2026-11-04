@@ -169,6 +169,8 @@ void write_song(const MenuContext& ctx, std::string_view path, int32_t value);
 /// path* rather than a filtered one when it is false -- `sample::PitchSpeed` and
 /// `sample::Interpolation` write `getCurrentSampleControls()` (which is the audio clip's, on an
 /// audio clip) instead of a source's (`sample/pitch_speed.h:44-63`, `sample/interpolation.h:37-59`).
+/// @param ctx The menu's context.
+/// @return Whether a write names the whole kit.
 bool writes_whole_kit(const MenuContext& ctx);
 
 /// @name Value scaling for `get`/`set` items that hold a full-range integer of their own
@@ -193,9 +195,13 @@ int32_t pan_to_menu(int32_t stored);
 int32_t menu_to_pan(int32_t menu_value);
 /// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..UINT32_MAX ->
 ///        0..50.
+/// @param stored The stored value, 0..UINT32_MAX.
+/// @return The menu value, 0..50.
 int32_t unsigned_to_menu(uint32_t stored);
 /// @brief `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..50 ->
 ///        0..UINT32_MAX. Note it has no `kMaxMenuValue` special case, unlike its signed sibling.
+/// @param menu_value The menu value, 0..50.
+/// @return The stored value, 0..UINT32_MAX.
 uint32_t menu_to_unsigned(int32_t menu_value);
 /// @}
 

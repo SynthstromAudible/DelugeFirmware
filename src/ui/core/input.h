@@ -6,7 +6,7 @@ namespace deluge::ui {
 
 /// @brief The hardware's encoder-role enumeration.
 ///
-/// @note Named by nothing on this branch: `InputSnapshot` below lowers each encoder into its own
+/// @note Unused: `InputSnapshot` below lowers each encoder into its own
 ///       already-named field (`turn`, `edit[]`, `horizontal`, `vertical`), so no widget has to
 ///       index by role. Kept as the name the shell will use when it maps hardware encoders onto
 ///       those fields; delete it if it stays unused.

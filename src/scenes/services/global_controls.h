@@ -102,7 +102,7 @@
 /// What survives it is the half that was never about timing: `take_action()` is a **one-slot**
 /// mailbox with a silent overwrite (`menu/menu_scene.h`), a second outbox would need its own
 /// polling contract and its own dispatcher arm, and nothing in this service's SAVE/LOAD arms is
-/// waiting on one -- the load/save browser family has no port at all (migration §10.4, phase 6),
+/// waiting on one -- the load/save browser family has no port at all,
 /// so there would be nothing for a request to ask for. Whoever ports that family decides this
 /// again, on those terms rather than on the mailbox's.
 ///
@@ -334,7 +334,7 @@ public:
 	/// @name The clip-arm flash -- `View::flashPlay*`
 	/// @{
 
-	/// @brief Arm the flash -- `View::flashPlayEnable` (`View::flashPlayEnable`).
+	/// @brief Arm the flash -- `View::flashPlayEnable`.
 	///
 	/// Legacy sets `TimerName::PLAY_ENABLE_FLASH` to `kFastFlashTime`; here that is a deadline
 	/// `tick()` fires and `next_timer()` reports.
@@ -367,7 +367,7 @@ public:
 	/// @brief Declare Play, Record, Tap-tempo, Sync-scaling, Save, Load and the sync-scaling
 	///        alert.
 	///
-	/// `PlaybackHandler::setLedStates` (`PlaybackHandler::setLedStates`) and
+	/// `PlaybackHandler::setLedStates` and
 	/// `View::setTimeBaseScaleLedState`, which is all `View::setLedStates`
 	/// is. Legacy calls these from wherever something changed; here they are
 	/// recomputed from the model every tick, which is what an `LedFrame` is.

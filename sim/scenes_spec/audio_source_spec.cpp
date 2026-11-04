@@ -285,7 +285,7 @@ describe audio_source_table("scenes::context_menu the audio-source descriptor", 
 		expect(std::string(deluge_profile().text_or_digits(d.title, scratch)))
 		    .to_equal(std::string(deluge::gui::context_menu::audioInputSelector.getTitle()));
 
-		// The three the task-6 note said this descriptor would need. Asserted present here and
+		// The three this descriptor needs. Asserted present here and
 		// asserted *absent* on all five resets in `context_menu_scene_spec.cpp`, so "the extension
 		// changed nothing for the existing table" is a fact rather than a claim.
 		expect(d.initial_option != nullptr).to_be_true();

@@ -234,7 +234,7 @@ namespace {
 /// @par The one ordering divergence, named rather than absorbed
 ///
 /// Legacy closes and *then* exports. Here the removal is filed first but the guest is popped by
-/// `timerCallback` (`ShellHostUI::timerCallback`), after this function has returned, so on a
+/// `ShellHostUI::timerCallback`, after this function has returned, so on a
 /// BSP where `deluge::storage::Owner::run` is inline the export body runs *between* the two
 /// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). On the shipping Embassy BSP
 /// `startStemExportProcess` only queues (`processing/stem_export/stem_export.cpp:87-96`,
@@ -315,7 +315,7 @@ void dispatchShellActions() {
 
 	switch (req.action) {
 	case MenuAction::None:
-		// Unreachable: `engaged()` IS `action != None` (`MenuActionRequest::engaged`), so the guard
+		// Unreachable: `MenuActionRequest::engaged()` IS `action != None`, so the guard
 		// above has already returned. Spelled out anyway because the alternative is a `default:`,
 		// and a `default:` here would silently absorb any enumerator added later -- see the
 		// header's note on `-Werror=switch`.

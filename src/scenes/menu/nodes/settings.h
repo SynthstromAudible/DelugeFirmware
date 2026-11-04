@@ -65,7 +65,8 @@
 ///       `cv_selection` / `gate_selection`'s `Node::chain_targets` instead, which is what the
 ///       reachability walk follows to number and validate them without inventing a parent the
 ///       legacy tree does not have. Every chaining override in `gui/menu_item/` was
-///       swept for this; these two selectors are the only ones that need it.
+///       swept for this; these two selectors and `midi_devices` (below) are the only ones that
+///       need it.
 ///
 /// @note **Both halves of those two chains are closed.** (1) Legacy's selectors
 ///       *write* `soundEditor.currentSourceIndex` before navigating, and `MenuContext::source_index`

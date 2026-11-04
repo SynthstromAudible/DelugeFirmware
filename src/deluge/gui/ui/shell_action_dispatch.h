@@ -99,7 +99,7 @@ namespace deluge::gui::ui {
 /// (`:50`) -- there is no false. `MidiLearnMode::setupAndCheckAvailability`
 /// (`gui/context_menu/midi_learn_mode.cpp:50-53`) returns `currentUIMode == UI_MODE_MIDI_LEARN`
 /// (`:52`) *after* calling `sessionView.enterMidiLearnMode()` (`:51`), and that call reaches
-/// `View::startMIDILearn` (`View::startMIDILearn`), which assigns the mode **only
+/// `View::startMIDILearn`, which assigns the mode **only
 /// under** `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`. So the
 /// false answer means exactly one thing: some other UI mode was latched when the press landed, and
 /// MIDI learn did not arm.

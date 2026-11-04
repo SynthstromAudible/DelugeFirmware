@@ -155,9 +155,22 @@ enum class SourcePress : uint8_t {
 	Open,
 };
 
+/// @brief A node's read hook. Every `get_*` hook in `nodes/` has this signature.
+/// @param ctx The menu's context.
+/// @return The item's value, in the item's own menu units.
 using GetFn = int32_t (*)(const MenuContext&);
+/// @brief A node's write hook. Every `set_*` hook in `nodes/` has this signature.
+/// @param ctx   The menu's context.
+/// @param value The new value, in the item's own menu units.
 using SetFn = void (*)(const MenuContext&, int32_t);
+/// @brief A node's value range, when it depends on the context.
+/// @param ctx The menu's context.
+/// @return The inclusive range.
 using RangeFn = IntRange (*)(const MenuContext&);
+/// @brief A node's relevance predicate -- legacy's `isRelevant`. Every predicate in `relevance.h`
+///        and the `nodes/` tables has this signature.
+/// @param ctx The menu's context.
+/// @return Whether the item is shown and may be entered.
 using RelevantFn = bool (*)(const MenuContext&);
 using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view> out);
 
@@ -176,7 +189,7 @@ using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view
 ///               `adjustNoteFillWithOffset`.
 using AdjustFn = void (*)(const MenuContext&, int32_t offset);
 
-/// @brief Which of `Binding::value_text`'s three callers is asking (spec §5.3).
+/// @brief Which of `Binding::value_text`'s three callers is asking.
 ///
 /// Legacy's column and its notification are not always the same string -- probability's column
 /// reads `35%`/`35L` (`renderInHorizontalMenu`) where its notification reads `35%`/`35% ltch`
@@ -202,7 +215,7 @@ struct ValueText {
 /// @brief The `ValueText` a hook returns for a use it does not answer.
 inline constexpr ValueText kValueTextFallback{.fallback = true};
 
-/// @brief Legacy's bespoke value strings -- `Binding::value_text` (spec §5.3).
+/// @brief Legacy's bespoke value strings -- `Binding::value_text`.
 ///
 /// The port of `getNotificationValue`/`renderInHorizontalMenu`'s own text arm, for the handful of
 /// items whose column and notification are not a plain formatted number: `35%`/`35% ltch` for
@@ -259,7 +272,7 @@ struct HorizontalStep {
 	bool restart_from_negative = false;
 };
 
-/// @brief Refuse an edit with legacy's own popup -- `Binding::permitted` (spec §5.3).
+/// @brief Refuse an edit with legacy's own popup -- `Binding::permitted`.
 ///
 /// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
 /// (`gui/menu_item/note/selected_note.h:29-39`), which pops "Select Note" and refuses when no note
@@ -395,8 +408,8 @@ struct Binding {
 	/// about where the value lives.
 	AdjustFn adjust = nullptr;
 
-	/// @brief Legacy's bespoke value text for this node's column and notification (spec §5.3,
-	///        `ValueTextFn`'s own doc). Null for every ordinary node, which keeps
+	/// @brief Legacy's bespoke value text for this node's column and notification (see
+	///        `ValueTextFn`). Null for every ordinary node, which keeps
 	///        `format_int`/`format_decimal`.
 	ValueTextFn value_text = nullptr;
 
@@ -434,7 +447,7 @@ struct Binding {
 	///        (`MenuItem::wrapAround` answering true on a horizontal page).
 	bool wrap_in_horizontal = false;
 
-	/// @brief Refuse an edit with legacy's own popup (spec §5.3, `PermittedFn`'s own doc). Null for
+	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
 	///        every ordinary node, which is always permitted.
 	PermittedFn permitted = nullptr;
 };
@@ -456,6 +469,11 @@ struct MenuState;
 /// `PolyphonyMode::POLY` (`voice/polyphony.h:139-143`). The hook reads the *committed* value
 /// through `bindings::read`, not `MenuState`'s in-flight edit copy, because legacy's own overrides
 /// call `getValue()` after `writeCurrentValue()` has already run.
+///
+/// Every `*_chain` hook in `nodes/` has this signature.
+/// @param ctx   The menu's context.
+/// @param state The interpreter's state.
+/// @return The node to open, or null to go up one level.
 using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
 
 /// @brief What a list or option widget claims while drawn focused: the select turn and press.
@@ -629,7 +647,7 @@ struct CustomItem {
 	/// @note The line is **"does it act without a press"**, not "does it do anything". The items
 	///       that open a scene -- `EditNameItem`, `ContextMenuItem`, the nine in `nodes/sample.h` --
 	///       keep this false on purpose: their legacy classes do their work in `beginSession` and
-	///       legacy re-fires them on a re-entry too, which is the shipped ruling
+	///       legacy re-fires them on a re-entry too, which is the behaviour
 	///       `MenuScene::restore_state` argues at its own site and `rename_scene_spec.cpp` pins.
 	///       Opening a scene the user can back out of is not the same as writing the model or
 	///       firing a one-shot verb.
@@ -1120,7 +1138,7 @@ constexpr Node with_decimal_places(Node n, uint8_t places) {
 }
 
 /// @brief `n` with `bind.value_text` set -- a post-hoc modifier for the same reason
-///        `with_range_dependent` is one: only the note family's bespoke-text leaves (spec §5.3)
+///        `with_range_dependent` is one: only the note family's bespoke-text leaves
 ///        set this.
 constexpr Node with_value_text(Node n, ValueTextFn fn) {
 	n.bind.value_text = fn;

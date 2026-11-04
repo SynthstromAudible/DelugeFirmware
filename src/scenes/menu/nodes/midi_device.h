@@ -46,7 +46,7 @@
 /// legacy does; the velocity one additionally re-patches the song
 /// (`Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`,
 /// `default_velocity_to_level.h:34`), through `MenuContext::song` rather than the `currentSong`
-/// global (task-3 ruling 3).
+/// global.
 ///
 /// ## The MPE arm
 ///

@@ -269,7 +269,7 @@ public:
 	/// @return The wired boundary, or null. See `SliceOps`.
 	SliceOps* ops() const { return ops_; }
 
-	/// @brief `Slicer::padAction`'s "do slice" arithmetic (`Slicer::padAction`), with the
+	/// @brief `Slicer::padAction`'s "do slice" arithmetic, with the
 	///        play position handed in rather than walked for.
 	///
 	/// Public because the walk that produces @p sample_pos lives behind `SliceOps::play_position`

@@ -47,6 +47,9 @@ constexpr Node with_hint(Node n, Hint hint) {
 
 /// @brief @p n occupying @p slots of a horizontal page's four -- `MenuItem::getOccupiedSlots()`
 ///        (`gui/menu_item/menu_item.h`).
+/// @param n     The node.
+/// @param slots How many of the page's four slots it occupies.
+/// @return @p n with its slot count set.
 constexpr Node with_slots(Node n, uint8_t slots) {
 	n.slots = slots;
 	return n;
@@ -75,6 +78,9 @@ constexpr Node with_range(Node n, IntRange r) {
 ///       `MpeZoneChannelsItem` (which draws its own), `nodes::record_count_in`, `nodes::saturation` and
 ///       `nodes::voice_count`. `ValueStyle` is the leaf's drawing only: `voice::VoiceCount`'s infinity at 0 in the
 ///       horizontal menu (`gui/menu_item/voice/polyphony.h:98-104`) is its `Binding::column_art`.
+/// @param n     The node.
+/// @param style How the leaf draws its value.
+/// @return @p n with its value style set.
 constexpr Node with_value_style(Node n, deluge::ui::oled::ValueStyle style) {
 	n.bind.style = style;
 	return n;

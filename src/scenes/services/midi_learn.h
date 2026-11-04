@@ -100,8 +100,7 @@
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives
 ///          (`shell-no-clock`), so the flash is a countdown against `dt_ms` rather than a deadline
-///          computed from a `now`. `begin()` therefore takes no time argument, exactly as the
-///          plan's interface spells it.
+///          computed from a `now`. `begin()` therefore takes no time argument.
 ///
 /// @par What is deliberately NOT ported, and why
 ///
@@ -372,8 +371,7 @@ public:
 	///          `getCurrentUI() == &soundEditor` test at `playback_handler.cpp:3164` followed by a
 	///          bare `view.ccReceivedForMIDILearn` at `playback_handler.cpp:3169`. Giving this a
 	///          producer means adding a `UI` virtual and rewriting that dispatch, which is a
-	///          legacy-behaviour change F1 does not make. Recorded at `playback_handler.cpp:3164`
-	///          and in migration §10.2 item 8.
+	///          legacy-behaviour change the port does not make.
 	void cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
 	/// @}
 
@@ -425,7 +423,7 @@ private:
 
 	/// `currentUIMode == UI_MODE_MIDI_LEARN`.
 	bool active_ = false;
-	/// The injected half of `startMIDILearn`'s guard (`View::startMIDILearn`).
+	/// The injected half of `View::startMIDILearn`'s guard.
 	bool other_mode_active_ = false;
 	/// `thingPressedForMidiLearn` + `learnedThing` + the two stashed model pointers.
 	LearnTarget pressed_{};

@@ -189,7 +189,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	});
 
 	it("topmost_greyout answers the topmost non-empty mask and skips empty ones", _ {
-		// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`): the first UI from the top
+		// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp`): the first UI from the top
 		// that answers true decides, and an all-zero mask is the port's "false".
 		Rig r;
 		r.a.greyout = {0xFFFFFFFEu, 0};

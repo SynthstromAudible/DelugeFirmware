@@ -278,7 +278,7 @@ enum class RequestOutcome : uint8_t {
 /// 2. **Legacy claims through the same call.** `Browser::beginListing`
 ///    guards with its own static `listingInProgress_`
 ///    (`browser.h:170`), which only ever guarded `Browser` against `Browser`. For as long as the
-///    legacy UI and the scenes stack coexist -- the whole point of this branch stack -- a legacy
+///    legacy UI and the scenes stack coexist, a legacy
 ///    browser listing and a scenes listing were mutually invisible over one shared `fileItems`.
 ///    Both now claim the catalogue itself, so the invariant is structural rather than a convention
 ///    two files have to keep agreeing on.

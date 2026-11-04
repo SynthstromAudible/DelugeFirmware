@@ -68,6 +68,9 @@ bool page_lists(const Node& page, const Node& column);
 ///
 /// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2112-2114`) is the
 /// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
+/// @param node The subtree to search.
+/// @param item The node the page must list.
+/// @return The horizontal submenu, or null.
 const Node* horizontal_page_listing(const Node& node, const Node& item);
 
 /// @brief The pages of @p root's horizontal-menu chain in order, each group spelled as its member pages --

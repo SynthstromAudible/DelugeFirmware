@@ -839,7 +839,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		// `TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION`'s callback (`ui_timer_manager.cpp:173-176`):
 		// only while playback is active, and only when feedback automation is not disabled. The
 		// LOW/MEDIUM/HIGH send-rate re-arm below those lines is `ui_timer_manager`'s own and is not
-		// ported here -- it is not part of any `View` function this task cites.
+		// ported here -- it is not part of any `View` function this service ports.
 		if (playbackHandler.isEitherClockActive()
 		    && midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
 			send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);

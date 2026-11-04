@@ -506,7 +506,7 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 } // namespace
 
 // clang-format off
-describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
+describe scene_scripts("scenes level-2 acceptance scripts", $ {
 
 	// ---- AudioClipScene ------------------------------------------------------------------------
 

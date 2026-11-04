@@ -2,8 +2,8 @@
 /// @brief `MenuScene` -- the menu interpreter -- driven through a real `Shell` over
 ///        `uitest::FakeSurfaceSet`, with the model-backed `MenuContext` the song fixture resolves.
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/tables/`: Tasks
-/// 6-8 own the real tables, and this task's subject is the interpreter, not the data. It is
+/// The tree under test is declared here rather than taken from the real tables: this file's
+/// subject is the interpreter, not the data. It is
 /// deliberately shaped like the settings root -- a vertical submenu holding one horizontal
 /// submenu, an `Int`, a `Decimal`, an `Enum`, a `Toggle` and one `range_dependent` param -- so
 /// every per-kind leaf helper and both layouts are exercised by one root.
@@ -305,7 +305,7 @@ constexpr uint8_t kHpfFreqX = 9, kHpfFreqY = 7; ///< `&hpfFreqMenu`
 // ---------------------------------------------------------------------------------------------
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped
-///        panel geometry. Ruling: the 48/64 split comes from `BoardProfile::style_by_index`, not
+///        panel geometry. The 48/64 split comes from `BoardProfile::style_by_index`, not
 ///        from a switch inside the scene.
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
@@ -1245,7 +1245,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("going up from a leaf at the root closes the menu", _ {
-		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()` (`SoundEditor::goUpOneLevel`): a leaf a
+		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()`: a leaf a
 		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2647,7 +2647,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 	it("draws a SyncLevel leaf's note-length string centred, on both shipped panel geometries", _ {
 		select_language();
 		deluge::notify::dirty().drain();
-		g_sync = 7; // a real note length, not the zero/OFF arm -- the text this task exists to draw
+		g_sync = 7; // a real note length, not the zero/OFF arm -- the text this example draws
 		{
 			Rig r;
 			(void)r.open(settings_root);

@@ -130,7 +130,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of
 		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
-		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s SELECT arm -- and the
+		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s auditioning LOAD/KIT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
 		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the

@@ -209,7 +209,7 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 	//          -- the four-button guard, the mode test, the shift test, the hold clock, the
 	//          overdub refusal -- is the arm's decision and it is ported and specced; this is the
 	//          one statement that is missing. Counted rather than mailed: see `unported_opens()`
-	//          and the class doc's ruling on why a second outbox is not the answer.
+	//          and the class doc on why a second outbox is not the answer.
 	count_unported(UnportedOpen::SaveSong);
 }
 
@@ -511,7 +511,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		if (on) {
 			// `:176` `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `:178`
 			// `recordButtonPressUsedUp = false` are both already done by
-			// `InputLowering::on_button` (`InputLowering::on_button`), which stamps the press
+			// `InputLowering::on_button`, which stamps the press
 			// clock and clears the used-up bit for every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
@@ -647,7 +647,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff); // `:510`
 	}
 
-	// `View::buttonAction`'s own two LEDs: SAVE on while held (`View::buttonAction`), off otherwise
+	// `View::buttonAction`'s own two LEDs: SAVE on while held, off otherwise
 	// (`:265`, `:269`); LOAD the same (`:299`, `:323`, `:327`).
 	(void)frame.set(led(ButtonId::Save), holding_save_ ? kOn : kOff);
 	(void)frame.set(led(ButtonId::Load), holding_load_ ? kOn : kOff);

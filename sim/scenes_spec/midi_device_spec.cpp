@@ -345,7 +345,7 @@ std::string text_of(uint16_t id) {
 } // namespace
 
 // clang-format off
-describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's shape and chain", $ {
+describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and chain", $ {
 
 	it("declares midiDeviceMenu's six children, in the literal's own order and with its names", _ {
 		// `midi::Device midiDeviceMenu{EMPTY_STRING, {...}}` (`gui/ui/menus.cpp:1444-1453`), read off
@@ -464,7 +464,7 @@ describe midi_device_shape("scenes::menu E3 task 8: the per-device MIDI page's s
 	});
 });
 
-describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding family", $ {
+describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 	// Each example: baseline both cables, drive the PORT hook, capture both cables; baseline again,
 	// drive the LEGACY item from its own value, capture again; compare the two strings. The capture
 	// is every field on both cables, so "wrote the right field on the right cable" and "left
@@ -657,7 +657,7 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 	});
 });
 
-describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and member-channel pages", $ {
+describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-channel pages", $ {
 
 	it("resets the direction and the zone on a forward entry, and keeps them on the way back", _ {
 		// `DirectionSelector::beginSession` / `ZoneSelector::beginSession` assign their member only
@@ -827,8 +827,8 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 	});
 });
 
-describe midi_device_pixels("scenes::menu E3 task 8: the per-device page's pixels", $ {
-	// Both panel geometries for every screen this task adds, because a row or a value-band constant
+describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
+	// Both panel geometries for every screen on the page, because a row or a value-band constant
 	// that is right on one panel and wrong on the other is exactly what a single golden cannot see
 	// (`tables_3_spec.cpp`'s own note on the same point). Nothing here hand-computes a rect: the two
 	// selectors lay out through `ui::oled::menu_rect(f)` and the member-channel editor through

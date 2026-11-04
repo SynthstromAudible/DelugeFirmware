@@ -15,7 +15,7 @@
 #error "DELUGE_REPO_ROOT must be defined by CMake"
 #endif
 
-// Exercises scripts/ui_snapshot_diff.py and scripts/pbm2png.py (spec G §3, §7) end to end via
+// Exercises scripts/ui_snapshot_diff.py and scripts/pbm2png.py end to end via
 // `std::system`, against fixture directories this spec writes into a temp dir it owns. These are
 // Python tools with no C++ surface of their own; running them as subprocesses is the only way to
 // spec their actual behaviour (exit codes, stdout, files written) rather than re-implementing

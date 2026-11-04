@@ -134,7 +134,7 @@ std::string write_state_c() {
 } // namespace
 
 // clang-format off
-describe identity("snapshot writer identity: C++ vs C (final review I-3)", $ {
+describe identity("snapshot writer identity: C++ vs C", $ {
 	it("writes a byte-identical .pbm from the same framebuffer", _ {
 		const std::vector<uint8_t> fb = make_framebuffer();
 		expect(write_pbm_c(fb)).to_equal(write_pbm_cpp(fb));

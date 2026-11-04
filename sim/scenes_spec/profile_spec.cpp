@@ -15,7 +15,7 @@ using namespace deluge;
 
 namespace {
 
-/// @brief Do two spans view the same storage? Compared by `.data()` and `.size()` (ruling Q3) --
+/// @brief Do two spans view the same storage? Compared by `.data()` and `.size()` --
 ///        `std::span` has no `operator==`, and the shell's spans are supposed to be the SAME
 ///        static storage the shell's own profile views, not merely equal-valued copies.
 template <typename T>

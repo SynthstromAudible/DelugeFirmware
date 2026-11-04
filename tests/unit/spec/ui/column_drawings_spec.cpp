@@ -100,7 +100,7 @@ void legacy_detune(Canvas& image, float norm) {
 	}
 }
 
-/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`).
+/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`).
 void legacy_pulse_width(Canvas& image, int32_t value) {
 	const float norm = value / 50.0f;
 	constexpr int32_t x_padding = 4;

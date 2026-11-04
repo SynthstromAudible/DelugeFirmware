@@ -13,10 +13,10 @@
 /// beat (`:1044-1051`). The popup lifecycle -- when it draws, and when it stops -- is
 /// `notify_drain.cpp`'s own edge-detected block, reproduced here in `tick()`.
 ///
-/// @par The brief's "four facts" -- two of which are not facts on this codebase
+/// @par Four apparent facts of the count-in popup -- two of which are not facts on this codebase
 ///
-/// The task brief asks for four things read out of `notify_drain.cpp:92-113`: the digit is
-/// right-aligned, blink speed is 2, the popup cancels at zero, and the mode clear is masked.
+/// `notify_drain.cpp`'s count-in block appears to say four things: the digit is right-aligned,
+/// blink speed is 2, the popup cancels at zero, and the mode clear is masked.
 /// Reading the call site alone, that looks right --
 /// `display->displayPopup(buffer, 0, true, 255, 2)` does pass `alignRight = true` and
 /// `blinkSpeed = 2`. But those two arguments are **dead** on this codebase, and shipping either

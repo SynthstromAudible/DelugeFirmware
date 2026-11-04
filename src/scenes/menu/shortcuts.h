@@ -161,6 +161,7 @@ ShortcutsVersion shortcuts_version();
 ///       `paramShortcutsForSounds[0][6]` / `[1][6]`, interpolation in V3 and the sample end point in
 ///       V1. `modSourceShortcuts` (`:134-135`) is not in this layer at all -- it is the patching
 ///       source column, which is not table data here (`shortcut_blink.h`).
+/// @param version The layout to use.
 void set_shortcuts_version(ShortcutsVersion version);
 
 } // namespace deluge::scenes::menu

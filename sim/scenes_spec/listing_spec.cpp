@@ -383,7 +383,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:293-300`) is gated on FOLDER_DOESNT_EXIST, and a
-		// missing directory returns FILE_NOT_FOUND today, so legacy never takes it (Kate, 2026-10-25: match main).
+		// missing directory returns FILE_NOT_FOUND on `main`, so `main` never takes it, and nor does this.
 		ListingRequest req = open_request("NO_SUCH_FOLDER");
 		req.default_dir = "SETTINGS";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);

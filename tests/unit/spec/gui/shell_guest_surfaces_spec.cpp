@@ -31,7 +31,7 @@ constexpr uint32_t kLegacyColUpdate = 49;
 constexpr uint32_t kLegacyMainPadRedraw = kLegacyColUpdate * 8;
 constexpr uint32_t kLegacySidebarRedraw = kLegacyColUpdate;
 /// The threshold `doAnyPendingUIRendering` compares against before it lets the OLED go out
-/// (`src/deluge/gui/ui/ui.cpp:389`): strictly greater passes, anything else is held.
+/// (`src/deluge/gui/ui/ui.cpp`): strictly greater passes, anything else is held.
 constexpr uint32_t kLegacyOledGate = (kLegacyMainPadRedraw + kLegacySidebarRedraw) * 2;
 
 /// The panel's real size, spelled from legacy's macros rather than from the port's geometry.
@@ -543,7 +543,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	it("answers oled_busy with legacy's own OLED gate, panel index and all", _ {
 		Rig r;
 		// `doAnyPendingUIRendering` renders and sends the OLED only while space is STRICTLY greater
-		// than (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2 (`gui/ui/ui.cpp:389`).
+		// than (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2 (`gui/ui/ui.cpp`).
 		fakelegacy::pad_output_space = kLegacyOledGate + 1;
 		expect(r.set.oled_busy(0)).to_be_false();
 		fakelegacy::pad_output_space = kLegacyOledGate;

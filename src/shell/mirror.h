@@ -23,7 +23,7 @@ using MirrorSink = void (*)(std::span<const uint8_t> bytes, uint16_t w, uint16_t
 /// has room (`sendBufferSpace() >= 512`), and backs off to retry in 100 ms
 /// (`uiTimerManager.setTimer(TimerName::SYSEX_DISPLAY, 100)`, `:75`) only when that buffer is
 /// congested -- there is no unconditional cap in legacy. This shell has no MIDI cable to ask, so
-/// the brief mandates an unconditional 100 ms floor between sends instead; that is a policy this
+/// this port uses an unconditional 100 ms floor between sends instead; that is a policy this
 /// port chooses, not a fact reproduced from legacy.
 ///
 /// What legacy's backoff *does* guarantee, and what this must too: a frame that arrives inside the
@@ -36,7 +36,7 @@ using MirrorSink = void (*)(std::span<const uint8_t> bytes, uint16_t w, uint16_t
 struct Mirror {
 	/// The sink to mirror through; `nullptr` means "not wired".
 	MirrorSink sink = nullptr;
-	/// The throttle floor between sends; the brief's port of legacy's 100 ms retry interval
+	/// The throttle floor between sends: legacy's 100 ms retry interval
 	/// (`HIDSysex::sendDisplayIfChanged`, `hid_sysex.cpp:75`) as an unconditional cap -- see the
 	/// class note on why this is a policy choice rather than a literal read of legacy's condition.
 	uint32_t min_interval_ms = 100;

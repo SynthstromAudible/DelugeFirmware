@@ -228,8 +228,8 @@ Error Listing::run_action(ListingResult& out) {
 	case ListingAction::ByPath: {
 		// `setFileByFullPathImpl`.
 		// TODO(conflation-batch-4): legacy treats an unknown `fileExists` as absent here and carries
-		// the same marker; the load/browse/favourites batch gives that site its ruling, and this
-		// port inherits whatever it decides.
+		// the same marker; whatever legacy's load/browse/favourites site decides, this port
+		// inherits.
 		if (!StorageManager::fileExists(request_.path.c_str()).value_or(false)) {
 			return Error::FILE_NOT_FOUND;
 		}

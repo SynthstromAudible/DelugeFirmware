@@ -41,7 +41,7 @@ namespace deluge::scenes::rename {
 /// reachable from the ported menu tree (`nodes::edit_clip_name`, `nodes::edit_track_name`,
 /// `nodes::drum_name_edit`, all three `EditName` items in `gui/ui/menus.cpp:1125-1129`).
 /// `renameMidiCCUI` is **not**: its only opener is `AutomationView::…` (`gui/views/automation_view.cpp:1664`),
-/// a view no part of this plan ports, and no `Node` in `nodes::kAllRoots` reaches it. Adding a
+/// a view the port does not have, and no `Node` in `nodes::kAllRoots` reaches it. Adding a
 /// fourth entry now would be an untested, unreachable code path, so it is deliberately absent --
 /// whoever ports the automation view adds `MidiCc` here, with `read`/`write` transcribed from
 /// `rename_midi_cc_ui.cpp` and a `can` from its `canRename()` (the only real `canRename` override

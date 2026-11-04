@@ -23,7 +23,7 @@
 /// `gui/context_menu/`. `src/scenes` may not include any of them (`scenes-includes-outside`,
 /// `scripts/check_layer_rules.py`), and that is not an accident of the checker -- it is the whole
 /// reason this seam exists. Two of the five (`song_midi_learn`, `configure_song_macros`) open
-/// legacy `ContextMenu` subclasses that this plan has not ported, so even `pending_scene` could not
+/// legacy `ContextMenu` subclasses the port does not have, so even `pending_scene` could not
 /// spell them.
 ///
 /// ## The sixth item, which is a different shape

@@ -24,7 +24,7 @@ using deluge::storage::FileCatalogue;
 /// @brief Leaves the catalogue empty, its window counters zeroed and the name comparator's flags
 ///        back at their defaults, on both sides of an example.
 ///
-/// The catalogue is process-global static state (that is exactly the shape this plan is moving),
+/// The catalogue is process-global static state,
 /// and one spec binary runs many examples in one process, so an example that left entries behind
 /// would decide the next one's result by link order.
 ///

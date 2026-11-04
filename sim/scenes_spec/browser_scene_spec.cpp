@@ -814,7 +814,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 	it("covers exactly the two browsers the ported menu tree reaches", _ {
 		// Legacy has nine `Browser` subclasses. Only `SampleBrowser` and
 		// `LoadMidiDeviceDefinitionUI` are opened from a menu item; the load/save family is opened
-		// from root UIs and is a later plan's. See `BrowserId`.
+		// from root UIs and is not ported. See `BrowserId`.
 		expect(static_cast<int>(BrowserId::Count)).to_equal(2);
 	});
 
@@ -1489,7 +1489,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 });
 
 describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
-	it("parks the chosen sample for the wiring plan and closes", _ {
+	it("parks the chosen sample for the application's dispatcher and closes", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -1567,8 +1567,8 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		browser::descriptor(BrowserId::MidiDeviceDefinition).start_at(context_of(f), dir, name);
 		expect(dir).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 		// Legacy appends ".XML" to a name that already carries it (`load_midi_device_definition_ui.cpp:122-124`),
-		// so the search never matches and the browser opens on the folder's first entry (Kate, 2026-10-25: match
-		// main). This folder holds one file, so that entry is the same one.
+		// so the search never matches and the browser opens on the folder's first entry, as on `main`. This folder
+		// holds one file, so that entry is the same one.
 		expect(name).to_equal(std::string{"DEVICE1.XML.XML"});
 
 		Rig r;

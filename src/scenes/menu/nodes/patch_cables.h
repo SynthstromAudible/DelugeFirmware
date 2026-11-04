@@ -350,6 +350,8 @@ cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t 
 /// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
 /// `tables_2_spec` pins both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper
 /// fails there rather than silently losing its select press.
+/// @param n The patched-param node.
+/// @return @p n with the patch-cable select chain attached.
 constexpr Node with_patch_chain(Node n) {
 	return with_select_chain(n, &patched_param_chain, kPatchedParamChain);
 }

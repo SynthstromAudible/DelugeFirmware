@@ -512,10 +512,10 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
 	// the same two reasons.**
 	//
-	// `BrowserScene::take_choice()` (`BrowserScene::take_choice`) is the menu outbox's twin:
+	// `BrowserScene::take_choice()` is the menu outbox's twin:
 	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
 	// tick**, because the choice is filed while `Shell::tick` routes the press
-	// (`BrowserScene::enter`, reached from step 3's `pump_input` or step 7's
+	// (`BrowserScene::enter_key_press`, reached from step 3's `pump_input` or step 7's
 	// `after_render`). **Above the close check**, so
 	// no path through this function can skip it. **Unconditional**, because asking is what takes it.
 	//
@@ -754,7 +754,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 	case deluge::ui::shell::GridPadClaim::None:
 		return false;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
-		// `SoundEditor::potentialShortcutPadAction`'s gate (`SoundEditor::potentialShortcutPadAction`),
+		// `SoundEditor::potentialShortcutPadAction`'s gate,
 		// minus two halves that stay on legacy's side. One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene`
 		// already drops with the reason recorded (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`). The other is the
 		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
@@ -1134,7 +1134,7 @@ void ShellHostUI::closeGuest() {
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);
 
-	// No arm on the close path: `close()` is `closeUI(this)` (`UI::close`), which unsets
+	// No arm on the close path: `UI::close()` is `closeUI(this)`, which unsets
 	// `TimerName::UI_SPECIFIC` itself before handing focus to the UI beneath. Arming here would either be undone one
 	// line later or, worse, deliver this guest's `timerCallback` to that UI -- `UITimerManager::routine` dispatches to
 	// `getCurrentUI()`.
@@ -1155,7 +1155,7 @@ void ShellHostUI::closeGuest() {
 // board. The seam is a symbol, and the fake is one line each.
 
 bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
-	// `SoundEditor::pcReceivedForMidiLearn` (`SoundEditor::pcReceivedForMidiLearn`), whole. There is
+	// `SoundEditor::pcReceivedForMidiLearn`, whole. There is
 	// no service half and that is not an omission: `View::pcReceivedForMIDILearn` has an **empty
 	// body** (`gui/views/view.h`), so the `view` fallback `PlaybackHandler::programChangeReceived`
 	// runs does nothing, there is nothing for `services::MidiLearn` to port, and no

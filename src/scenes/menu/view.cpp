@@ -98,8 +98,8 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 		break;
 	default: {
 		// Every `Kind` `node.h` declares has an arm above. Nothing in the current tree reaches this
-		// arm; it stays only so a `Kind` a later plan adds still draws its title rather than
-		// nothing at all until that plan writes its own interpreter.
+		// arm; it stays only so a newly added `Kind` still draws its title rather than nothing at
+		// all until its own interpreter exists.
 		NodeText scratch;
 		deluge::ui::oled::title(f, display_text(*node, ValueTextUse::Title, ctx, scratch));
 		break;

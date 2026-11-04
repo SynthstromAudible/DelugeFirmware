@@ -320,7 +320,7 @@ struct MenuState {
 	// --- typed per-kind edit storage: the widgets do not share one int32 ---
 	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
 	int32_t edit_int = 0;
-	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`oled::toggle`).
+	/// `Kind::Toggle`: `oled::toggle()` takes a `bool&`.
 	bool edit_bool = false;
 	/// `Kind::Enum`: `enum_value()` takes an `int32_t& index` ...
 	int32_t enum_index = 0;

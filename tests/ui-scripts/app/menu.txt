@@ -158,7 +158,7 @@
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
 # performs the verb. Under the toggle that press is `MenuScene`'s `ActionItem` filing
-# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h:127`) and
+# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h`) and
 # `dispatchShellActions` calling `audioClipView.setClipLengthEqualToSampleLength()`; with it off it
 # is legacy's `selectButtonPress` calling the same method.
 6000   encoder Select +1
@@ -237,7 +237,7 @@
 # Site 8, in two presses. `auditioning` is the held audition pad; `file-selector` is the panel this
 # acceptance test exists to compare -- legacy's `SampleBrowser` (title "Audio files",
 # `sample_browser.cpp:89`) against the ported `browser::BrowserScene` on the `Sample` descriptor
-# (the same title, `scenes/browser/browser_scene.cpp:294`), both listing the fixture's one file.
+# (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one file.
 #
 # **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
 # are byte-identical; the *pads* are not. Legacy `SampleBrowser` opens with the keyboard hidden and

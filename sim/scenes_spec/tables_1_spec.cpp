@@ -504,10 +504,10 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(nodes::multi_range.range_dependent).to_be_false();
 	});
 
-	it("getOrCreateFirstRange is run for a zero-range source, which is E1's carried debt", _ {
-		// `checkPermissionToBeginSessionForRangeSpecificParam:1938` creates the source's first range
-		// before answering anything; `permission_for` is a pure predicate and does not
-		// (`context.cpp`'s "Owed to E2"). `menu::ensure_first_range` is where that landed, and
+	it("getOrCreateFirstRange is run for a zero-range source", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam` creates the source's first range
+		// before answering anything; `permission_for` is a pure predicate and does not.
+		// `menu::ensure_first_range` does it, and
 		// `MenuScene::enter_child` is what calls it.
 		RangeFixture f{0};
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));

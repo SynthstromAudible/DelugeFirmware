@@ -542,7 +542,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 	it("transport tail: reports SHIFT handled without re-porting commandToggleShift", _ {
 		// `hid/buttons.cpp:169-171`. `Buttons::commandToggleShift` is already
-		// `InputLowering::toggle_shift` (`InputLowering::toggle_shift`), called from
+		// `InputLowering::toggle_shift`, called from
 		// `on_button` before the event is emitted -- so by the time `handle` sees it, shift is
 		// already down. Re-porting it here would toggle it twice.
 		GcRig rig;

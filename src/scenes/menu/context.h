@@ -11,7 +11,7 @@
 /// `checkPermissionToBeginSession`; two of them, `menu_item.cpp`/`.h`, are the base rather than
 /// overrides.)
 ///
-/// @note **No UI reads** (task-3 ruling 2). `setup()` consults `getCurrentUI()`, `currentUIMode`,
+/// @note **No UI reads.** `setup()` consults `getCurrentUI()`, `currentUIMode`,
 ///       `rootUIIsClipMinderScreen()`, `Buttons::isShiftButtonPressed()` and its own
 ///       `setupKitGlobalFXMenu` member. None of that is reachable from `src/scenes` -- the caller
 ///       reduces it to `context_for`'s `performance_view` / `session_or_arranger_root` /
@@ -97,7 +97,7 @@ struct MenuContext {
 	///        (`UnpatchedParam::writeCurrentValue` and the 20-odd items that spell the same test).
 	///
 	/// A UI fact, so -- like `midi_cable` -- `context_for()` never assigns it: the caller sets it,
-	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments (task-3 ruling 2).
+	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments.
 	/// `bindings::write()` is its only reader; with it set on a kit row, a param write goes to every
 	/// `SoundDrum` in the kit instead of just the selected one.
 	///
@@ -186,7 +186,7 @@ struct MenuContext {
 ///        (`sound_editor.cpp:1686-1826` and `:1828-1859`), with no UI reads.
 ///
 /// @param song                    the song that owns @p clip; used instead of the `currentSong`
-///                                global wherever `setup()` reached for it (task-3 ruling 3).
+///                                global wherever `setup()` reached for it.
 /// @param view                    what the menu opens over, as the view shows it: the clip (none for a song-level
 ///                                or settings menu), its track and what plays it, the kit row selected, the clip's
 ///                                affect-entire.
@@ -216,7 +216,7 @@ struct MenuContext {
 MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
-/// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
+/// @brief May a session begin on @p node in @p ctx? One rule in place of the
 ///        per-item `checkPermissionToBeginSession` overrides.
 enum class Permission : uint8_t {
 	/// @brief The node does not apply here -- `MenuPermission::NO`.
@@ -237,6 +237,9 @@ enum class Permission : uint8_t {
 /// (`MenuItem::isRangeDependent`) -- **not** on "has a `bind.param`". An ordinary patched param
 /// on a multisampled sound takes the base rule and opens (`Yes`); only a range-dependent item on a
 /// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
+/// @param node The node a session would begin on.
+/// @param ctx  The menu's context.
+/// @return `Yes`, `No`, or `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
 
 /// @brief How many ranges the addressed source records.
@@ -283,6 +286,8 @@ bool ensure_first_range(MenuContext& ctx);
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
 /// unchecked, and every caller here has already clamped against `range_count`.
+/// @param ctx   The menu's context, whose source's range is selected.
+/// @param index The range to select.
 void select_range(MenuContext& ctx, int32_t index);
 
 /// @brief Point @p ctx at oscillator source @p index -- `SoundEditor::setCurrentSource`

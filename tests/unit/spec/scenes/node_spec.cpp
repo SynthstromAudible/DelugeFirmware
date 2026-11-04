@@ -36,7 +36,7 @@ static_assert(node_spec_s.children[0] == &node_spec_a);
 // `IntRange` is an alias of `ui::oled::Range`, not a new type.
 static_assert(std::is_same_v<IntRange, deluge::ui::oled::Range>);
 
-// `Binding::scaling` (task-4 fix round 1, Important 2): `Scaling::Standard` unless the call site
+// `Binding::scaling`: `Scaling::Standard` unless the call site
 // names one of the two legacy exceptions. Only `param()` takes it -- a `get`/`set` binding owns its
 // own units, so nothing scales it.
 static_assert(node_spec_a.bind.scaling == Scaling::Standard);
@@ -82,7 +82,7 @@ struct NodeSpecNullItem : CustomItem {
 };
 const NodeSpecNullItem node_spec_null_item;
 
-// Review round 1: every builder proven `constexpr`-usable, not just labelled so -- one field
+// Every builder proven `constexpr`-usable, not just labelled so -- one field
 // check each, closing the gap against the runtime-only `it`s below (which still exercise the
 // full field set at runtime; these additionally prove compile-time usability).
 constexpr Node node_spec_toggle = toggle_item(20, node_spec_get, node_spec_set);
@@ -104,7 +104,7 @@ constexpr Node node_spec_dyn_submenu = dynamic_submenu(25, node_spec_children_fn
 static_assert(node_spec_dyn_submenu.dynamic_children == node_spec_children_fn);
 
 // `with_range_dependent()` -- the post-hoc modifier that marks the handful of items whose value
-// lives in a MultiRange rather than on the Sound (fix round 1, Important 1). It changes exactly one
+// lives in a MultiRange rather than on the Sound. It changes exactly one
 // field and leaves the builder's own output otherwise untouched.
 constexpr Node node_spec_range_dep = with_range_dependent(param(26, ParamRef{params::Kind::PATCHED, 4}, Hint::Knob));
 static_assert(node_spec_range_dep.range_dependent);
@@ -137,8 +137,8 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		expect(e.bind.names.empty()).to_be_true();
 	});
 	it("custom fills the custom pointer", _ {
-		// (`action()` and `Kind::Action` were removed in task 8: no table declares one. See
-		// `node.h`'s `Kind`.)
+		// (There is no `action()` builder or `Kind::Action`: no table declares one. See `node.h`'s
+		// `Kind`.)
 		Node c = custom(10, &node_spec_null_item);
 		expect(c.kind == Kind::Custom).to_be_true();
 		expect(c.custom == &node_spec_null_item).to_be_true();

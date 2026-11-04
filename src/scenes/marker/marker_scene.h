@@ -38,9 +38,9 @@
 /// @par The waveform is on the pads only
 ///
 /// `SampleMarkerEditor::renderOLED` draws **no waveform at all** -- a title, an optional lock badge,
-/// a duration and a sample count. So there is no `src/ui/oled/` waveform component in this task and
-/// none was invented: `ui::oled::sample_position` is the OLED half, and `ui::grid::waveform_full`
-/// (which predates this task) plus `ui::grid::markers` are the pad half.
+/// a duration and a sample count. So there is no `src/ui/oled/` waveform component:
+/// `ui::oled::sample_position` is the OLED half, and `ui::grid::waveform_full`
+/// plus `ui::grid::markers` are the pad half.
 ///
 /// @par What is deliberately not ported
 ///

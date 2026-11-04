@@ -248,7 +248,7 @@ inline BoardProfile test_profile_input() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
 	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48};
 	// `LedId` values equal `ButtonId` values for the LEDs under buttons (`shell/leds.h`,
-	// `Shell::flush`'s ruling), so this table is indexed by `ButtonId`; -1 = no board LED under
+	// `Shell::flush` rely on it), so this table is indexed by `ButtonId`; -1 = no board LED under
 	// that button. Only `Play` and `Record` are wired -- the two ids the shell specs that exercise
 	// `Shell::flush`'s LED diff need -- everything else stays -1 until a real board profile lands.
 	static constexpr int8_t kLedByButton[] = {

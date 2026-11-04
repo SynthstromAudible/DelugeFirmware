@@ -27,7 +27,7 @@ namespace deluge::ui::shell {
 ///       reports `std::nullopt` (so `Shell::next_wake()` is not pinned to now), no further push is
 ///       attempted, and `push_refused()` counts the refusal for diagnostics.
 ///
-///       **The shipped application never hits this.** `scenes::registry` registers
+///       **The shipped application never hits this.** `scenes::scene_registry()` registers
 ///       `overlay::screensaver_scene()` at that kind, so the push succeeds and the latch never
 ///       fires -- `sim/scenes_spec/screensaver_scene_spec.cpp` asserts `push_refused() == 0` end to
 ///       end through a real `Shell`. The latch is still the correct answer for a **profile or spec

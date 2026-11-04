@@ -105,7 +105,7 @@ extern bool sd_routine_active;
 ///
 /// `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm reads `Buttons::isShiftButtonPressed()`
 /// directly, exactly as `SoundEditor::potentialShortcutPadAction` does
-/// (`gui/ui/sound_editor.cpp:1169`) -- not `ctx.shift`, which is the shell's own latch and a
+/// (`gui/ui/sound_editor.cpp`) -- not `ctx.shift`, which is the shell's own latch and a
 /// different fact. `hid/buttons.cpp`, where the real function reads a matrix-scan flag, is not in
 /// this suite's link closure (only `hid/button.cpp`, singular, is), so it is defined here over one
 /// settable bool, the same pattern as the scheduler's two answers above.

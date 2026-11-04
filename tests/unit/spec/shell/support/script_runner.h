@@ -301,7 +301,7 @@ inline std::optional<deluge::notify::Notice::Kind> notice_kind_by_name(std::stri
 
 /// @brief The name of the LED a `LedFrame` entry declares.
 ///
-/// `LedId` values equal `ButtonId` values for every LED under a button (`shell/leds.h`'s ruling,
+/// `LedId` values equal `ButtonId` values for every LED under a button (the rule `shell/leds.h` states,
 /// which `Shell::derive_leds` relies on to index the board's LED arrays by the id itself), so the
 /// declaration keys straight into `button_name()` -- no board-profile table to reverse.
 /// @param id The declared LED.
@@ -446,7 +446,7 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, Boar
 /// @brief The first file that differs (or is missing on one side) between two snapshot trees, in
 ///        sorted order over the union of both directories' names.
 ///
-/// Spec G §6's migration acceptance: "the same script produces the same snapshots" is checked by
+/// The migration double-run: "the same script produces the same snapshots" is checked by
 /// running it twice and diffing the two `got/` trees against each other, not against a golden --
 /// there is nothing to record ahead of time when the whole point is that two *sources* must agree
 /// with each other. Sorted union, not a plain zip, so a file present on only one side is caught

@@ -26,7 +26,7 @@
 ///       own read/write over `Sound::transpose` AND a `PatchedParam` reporting
 ///       `LOCAL_PITCH_ADJUST` (`master_transpose.h:69-70`), exactly the pattern
 ///       `detail.h::with_learn_param` exists for. Its `Hint` is `None`:
-///       `getRenderingStyle()` returns `NUMBER` (`Decimal::getRenderingStyle`).
+///       `Decimal::getRenderingStyle()` returns `NUMBER`.
 ///
 /// @note **`SynthModeSelection::writeCurrentValue` ends with `view.setKnobIndicatorLevels()`**
 ///       (`synth_mode.h:57`) -- `gui/views/` is behind the `scenes-includes-outside` wall, and the

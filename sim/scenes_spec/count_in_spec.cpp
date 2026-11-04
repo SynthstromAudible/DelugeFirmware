@@ -256,8 +256,8 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 		expect(std::string{count_in_scene().shown_text()}).to_equal(std::string{"4"});
 
 		// Quiet ticks -- the sentinel unchanged, no input at all -- must not change anything: there
-		// is no blink or lifetime deadline here (see the class doc's finding that the brief's
-		// "blink speed 2" is a dead legacy parameter), so the popup simply holds steady.
+		// is no blink or lifetime deadline here (see the class doc: legacy's "blink speed 2" is a
+		// dead parameter), so the popup simply holds steady.
 		for (int i = 0; i < 4; i++) {
 			now += kCountInPollMs;
 			r.tick(now);

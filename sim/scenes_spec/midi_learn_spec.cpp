@@ -1308,7 +1308,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		// `:2963`'s gate, which `startMIDILearn` is what sets (`View::startMIDILearn`). Asserted rather
+		// `:2963`'s gate, which `View::startMIDILearn` is what sets. Asserted rather
 		// than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings`
 		// and this example would compare two untouched slots.
 		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true();

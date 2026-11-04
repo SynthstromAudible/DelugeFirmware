@@ -290,7 +290,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("scales the select turn by 5 while shift is held", _ {
-		// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`) multiplies a
+		// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp`) multiplies a
 		// non-submenu item's offset by 5 while SHIFT is held.
 		uitest::Rig48 r;
 		int32_t value = 10;
@@ -303,7 +303,7 @@ describe values_w("ui::oled::values", $ {
 
 	it("ignores the gold knobs", _ {
 		// Legacy's gold knobs never reach a menu item: `SoundEditor::modEncoderAction` falls through
-		// to `View::modEncoderAction` (`gui/views/view.cpp:835`), which edits a param.
+		// to `View::modEncoderAction` (`gui/views/view.cpp`), which edits a param.
 		uitest::Rig48 r;
 		int32_t value = 10;
 		r.input.edit[0] = 4;
@@ -627,7 +627,7 @@ describe values_w("ui::oled::values", $ {
 		expect(tail.pbm()).to_equal(tail.reference_pbm());
 	});
 
-	it("lays out relative to the rect spec B section 6 gives it", _ {
+	it("lays out relative to the rect it is given", _ {
 		// Every golden above uses the rect that reproduces legacy -- f.bounds() for the two
 		// number widgets (legacy centred over the panel and measured its 18 from the panel top)
 		// and menu_rect(f) for the two list widgets (legacy's base-y). A different rect moves the

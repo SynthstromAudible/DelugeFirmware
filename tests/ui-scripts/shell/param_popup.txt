@@ -5,7 +5,7 @@
 # `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
 # encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp:247-251`), and
 # `ModKnobs::mod_encoder_action` then writes the param and calls `show_popup`, which ends by running
-# `stack_.push(SceneId{kParamPopupSceneKind})` (`services/mod_knobs.cpp:417`). **This script
+# `stack_.push(SceneId{kParamPopupSceneKind})` (`ModKnobs::show_popup`). **This script
 # cannot exist with `Services{}`**: with a null mod-knob service the turn is dropped and no popup
 # frame is ever produced. It is the one script here whose whole subject is a service.
 #
@@ -18,7 +18,7 @@
 # (legacy's `View::pretendModKnobsUntouchedForAWhile`,
 # `view.cpp:1968-1972`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
 # gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
-# of a possible wiggle (`input_lowering.cpp:206-231`). Every gold gesture on the device therefore
+# of a possible wiggle. Every gold gesture on the device therefore
 # costs a detent to arm, and the fixture sets the mod target before the run exactly as
 # `View::setActiveModControllableTimelineCounter` does on the device. A script that
 # turns only once records a `popup_shown` golden byte-identical to `idle`.
@@ -49,13 +49,13 @@
 400   snapshot popup_moved       # twenty-five more detents on the SAME param: the strip's value
                                  # moves and the knob's indicator ring with it. Nothing is pushed a
                                  # second time (`show_popup`'s already-stacked guard,
-                                 # `mod_knobs.cpp:412-416`), so `.state` still has exactly two
+                                 # `ModKnobs::show_popup`), so `.state` still has exactly two
                                  # `scene` lines -- what changed is the text and the ring
 # +2100 ms of quiet ticks, no input at all. `kPopupLifetimeMs` is 2000 ms from the last commit
-# (`param_popup_scene.cpp:37`), so the deadline falls at ~2300.
+# (`param_popup_scene.cpp`), so the deadline falls at ~2300.
 2500  snapshot popup_expired     # the popup ran its own timer down and removed ITSELF --
                                  # `after_render`'s `Action::Kind::Remove`, never `Pop`
-                                 # (`param_popup_scene.cpp:368`). The clip view owns the panel again
+                                 # (`ParamPopupScene::after_render`). The clip view owns the panel again
                                  # and `.state` is back to one `scene` line, with the indicator
                                  # ring left where the 300 ms turn put it
 2600  quit

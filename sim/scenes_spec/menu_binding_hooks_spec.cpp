@@ -77,7 +77,7 @@ constexpr uint16_t sid(String s) {
 // ---------------------------------------------------------------------------------------------
 // One single-column horizontal root per hook, so each example needs no column-focus setup.
 
-// --- `Binding::adjust` (spec §5.2): a select turn accumulates and commits through the hook, and
+// --- `Binding::adjust`: a select turn accumulates and commits through the hook, and
 //     never through `set`. ---
 int32_t g_adjust_get_value = 64;
 int32_t g_adjust_calls = 0;
@@ -100,7 +100,7 @@ constexpr const menu::Node* kAdjustKids[] = {&adjust_col};
 constexpr menu::Node adjust_page =
     menu::submenu(sid(String::STRING_FOR_VELOCITY), kAdjustKids, menu::Layout::Horizontal);
 
-// --- `Binding::permitted` (spec §5.3): a select turn changes nothing, and calls neither `adjust`
+// --- `Binding::permitted`: a select turn changes nothing, and calls neither `adjust`
 //     nor `set`, while the hook answers false. ---
 bool g_permit = false;
 int32_t g_permit_get_value = 5;
@@ -120,7 +120,7 @@ constexpr menu::Node permit_col = menu::with_permitted(
 constexpr const menu::Node* kPermitKids[] = {&permit_col};
 constexpr menu::Node permit_page = menu::submenu(sid(String::STRING_FOR_PAN), kPermitKids, menu::Layout::Horizontal);
 
-// --- `Binding::value_text` (spec §5.3): the notification prints the hook's own
+// --- `Binding::value_text`: the notification prints the hook's own
 //     `ValueTextUse::Notification` text in place of `format_int`. ---
 int32_t g_text_get_value = 35;
 int32_t g_text_set_calls = 0;

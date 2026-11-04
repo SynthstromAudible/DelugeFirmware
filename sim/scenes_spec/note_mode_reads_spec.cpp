@@ -784,7 +784,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 });
 
-describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submenu -- the two entries Task 7a added", $ {
+describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submenu -- the two entries the note modes use", $ {
 	it("go_up_one_level answers false at depth 0, steps up otherwise, and answers false when the step lands on a "
 	   "refused root -- goUpOneLevel's two exitCompletely passes", _ {
 		// `gui/ui/sound_editor.cpp:714-722`: `exitCompletely` on the loop's first pass at depth 0, and again

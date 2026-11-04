@@ -23,7 +23,7 @@
 ///        claim is forwarded to.
 ///
 /// The producing half is `ShellHostUI::padAction`: it calls `forwardGridPad` below for a pad
-/// `MenuScene::grid_pad_claim()` (`Scene::grid_pad_claim`) did not claim. This file is the whole
+/// `MenuScene::grid_pad_claim()` did not claim. This file is the whole
 /// of the consuming half, ported from `SoundEditor::padAction`'s root switch
 /// (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`) -- the part of that function
 /// that runs only once `potentialShortcutPadAction` (`:1468`) has already said no.

@@ -16,7 +16,7 @@
 /// `load_pattern_ui`, and all of `gui/ui/save/`) is deliberately **out of scope**: those are opened
 /// from root UIs rather than from menu items, and they carry a second axis this scene has none of
 /// (`SlotBrowser`'s brand-new-name machinery, `mayDefaultToBrandNewNameOnEntry`,
-/// `getUnusedSlot`). A later plan gives them their own descriptors or their own scene.
+/// `getUnusedSlot`). They are not ported; they need their own descriptors or their own scene.
 ///
 /// **Ports.** `Browser::renderOLED`, `Browser::clampFileSelectionAndScroll`,
 /// `Browser::setEnteredTextFromCurrentFilename`, `Browser::backButtonAction`,
@@ -96,7 +96,7 @@ namespace deluge::scenes::browser {
 /// **Two, not legacy's nine.** These are every legacy `Browser` subclass a node in the ported menu
 /// tree opens. Every other one -- `LoadSongUI`, `LoadInstrumentPresetUI`, `LoadPatternUI`,
 /// `SaveSongUI`, `SaveInstrumentPresetUI`, `SaveKitRowUI`, `DxSyxBrowser` -- is opened from a root
-/// UI or a view this plan does not port, so adding an entry for one now would be an untested,
+/// UI or a view the port does not have, so adding an entry for one now would be an untested,
 /// unreachable code path.
 enum class BrowserId : uint16_t {
 	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:83`), the audio-file browser the sample
@@ -134,7 +134,7 @@ enum class AcceptOutcome : uint8_t {
 struct Descriptor {
 	/// @brief The screen title, as legacy's constructor spells it -- a literal, not an l10n id.
 	///
-	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` (`SampleBrowser::SampleBrowser`) and
+	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` sets
 	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp:87`). Neither is in
 	/// `gui/l10n/strings.h` at all, so there is no id to carry: a `uint16_t` here would have meant
@@ -566,7 +566,7 @@ private:
 	int32_t reload_offset_ = 0;
 	/// @}
 	/// True while a listing was dispatched to widen the search window: `search_for_entered_text`
-	/// runs again when it lands. Legacy's `Browser::doneNewRead`, one tick later.
+	/// runs again when it lands. Legacy's `Browser::PredictionTarget::doneNewRead`, one tick later.
 	bool searching_ = false;
 	/// Where the cursor goes if that second search also finds nothing -- legacy's
 	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`qwerty_ui.cpp:357-359`), which

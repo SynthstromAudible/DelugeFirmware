@@ -710,7 +710,7 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("switches page with wrap, keeping the position on the page", _ {
-		// `switchVisiblePage` (`horizontal_menu.cpp:345-366`) wraps; `selectMenuItem` keeps
+		// `switchVisiblePage` (`horizontal_menu.cpp`) wraps; `selectMenuItem` keeps
 		// `selectedItemPositionOnPage`, falling back to the closest relevant item.
 		std::vector<legacy::Item> eight;
 		for (int i = 0; i < 8; i++) {

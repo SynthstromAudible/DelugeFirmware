@@ -86,7 +86,7 @@ public:
 };
 
 /// @brief A registry, stack, the three overlay scenes, a neutral stand-in scene and a `Notices`
-///        wired over them -- the `Shell`-less assembly the brief asks for. A real
+///        wired over them, with no `Shell`. A real
 ///        `notify::NoticeQueue`, constructed directly rather than via the process-global
 ///        `notices()`, is a separate member each spec pushes into and hands to `drain()`.
 struct Rig {
@@ -251,7 +251,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("a Warn text notice is persistent; a later notice replaces it and re-arms the timeout", _ {
 		// notify_drain.cpp:137 (`flashes = (severity == Warn) ? 0 : 3`) feeds
-		// OLED::displayPopup's `persistent = !numFlashes` (oled.h:156), so a Warn text notice
+		// OLED::displayPopup's `persistent = !numFlashes` (`oled.h`), so a Warn text notice
 		// never sets TimerName::DISPLAY (oled.cpp:642) and so never auto-expires.
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
@@ -524,8 +524,8 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("the banner lives legacy's 2000 ms DISPLAY timer, then tick() removes it", _ {
-		// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp:794`); its expiry runs
-		// `OLED::timerRoutine` -> `removePopup()` (`gui/ui_timer_manager.cpp:91-93`, `oled.cpp:936`).
+		// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp`); its expiry runs
+		// `OLED::timerRoutine` -> `removePopup()` (`gui/ui_timer_manager.cpp`, `oled.cpp`).
 		Rig r;
 		(void)r.queue.push(make_notification("Probability", "100%"));
 		r.notices.drain(r.queue, 100);
@@ -540,7 +540,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("a banner raised while the working animation runs outlives its 2000 ms until ClearWorking "
 	   "takes it down", _ {
-		// `OLED::timerRoutine` (`oled.cpp:929-937`): while a working animation runs, the `DISPLAY`
+		// `OLED::timerRoutine` (`oled.cpp`): while a working animation runs, the `DISPLAY`
 		// timer's expiry animates instead of calling `removePopup()`, and the banner stays until
 		// `removeWorkingAnimation` takes a `NOTIFICATION` popup down (`:735-736`).
 		Rig r;
@@ -560,7 +560,7 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a popup raised while the working animation runs outlives its timeout until the animation ends", _ {
-		// `OLED::timerRoutine` (`oled.cpp:929-937`): while a working animation runs, the `DISPLAY` timer animates
+		// `OLED::timerRoutine` (`oled.cpp`): while a working animation runs, the `DISPLAY` timer animates
 		// instead of calling `removePopup()`.
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));

@@ -252,7 +252,7 @@ void closeUI(UI* uiToClose) {
 	fakelegacyui::ui_calls.push_back(fakelegacyui::UiCall::Close);
 }
 
-// `getCurrentUI` (`gui/ui/ui.cpp:136-140`) reads `uiNavigationHierarchy`, which this suite does
+// `getCurrentUI` (`gui/ui/ui.cpp`) reads `uiNavigationHierarchy`, which this suite does
 // not build. `ShellHostUI::rearmTimer` asks it anyway -- it refuses to arm `TimerName::UI_SPECIFIC`
 // for a UI that is no longer current -- so the fake answers whatever the rig declared. See
 // `fakelegacyui::current_ui` for why that declaration is the honest model rather than a shim.

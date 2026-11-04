@@ -99,6 +99,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/scroll_text_mid_48.pbm", r.pbm());
 	});
+	// Legacy widens only the clear, by 4 px (`endX += 4` in `OLED::scrollingAndBlinkingTimerEvent`).
 	it("widens only the cleared rect for an explicit clear_pad_x, per legacy's clear-only +4px", _ {
 		uitest::Rig48 r; ScrollText st;
 		Rect rect{6, 14, 100, 9};

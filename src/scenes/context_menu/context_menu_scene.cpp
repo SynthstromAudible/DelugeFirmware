@@ -567,7 +567,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// `getAcceptButton()` is `SELECT_ENC` for the base class, and the `b == SELECT_ENC` arm
 			// runs before it, so on every shipped descriptor the two are the same button and the
 			// third arm of that if/else is dead. `ContextMenuForSaving`/`ContextMenuForLoading`
-			// answer `SAVE`/`LOAD` instead; both are file-browser menus this plan does not port,
+			// answer `SAVE`/`LOAD` instead; both are file-browser menus the port does not have,
 			// so `Descriptor` carries no `accept_button` field yet. Adding one means one extra
 			// comparison here, nothing more.
 			return accept_current_option();

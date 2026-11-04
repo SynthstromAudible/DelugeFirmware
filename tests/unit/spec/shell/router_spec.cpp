@@ -173,7 +173,7 @@ describe shell_router("shell::Router", $ {
 	// The two examples below prove the chain consults the top scene BEFORE `mod_knobs`. Legacy is
 	// unambiguous about the order.
 	// `interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
-	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s
+	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
 	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`);
 	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the BASE-class
 	// implementations, whose whole body is a forward to `view`. So the current UI gets first
@@ -181,7 +181,7 @@ describe shell_router("shell::Router", $ {
 	// override the first (`gui/ui/sound_editor.h:80`, `gui/views/arranger_view.h:49`,
 	// `gui/views/automation_view.h:116`, `gui/views/performance_view.h:96`,
 	// `gui/views/session_view.h:100`, `gui/views/instrument_clip_view.h:215`) and two override the
-	// second (`gui/views/session_view.h:81`, `gui/views/performance_view.h:98`).
+	// second (`gui/views/session_view.h`, `gui/views/performance_view.h`).
 	//
 	// It has to be proved BOTH ways round, because either half alone passes on a broken chain: a
 	// service-first router still lets a declining service fall through to the scene, and a router
@@ -258,7 +258,7 @@ describe shell_router("shell::Router", $ {
 		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:140-487`),
 		//      so their relative order is unobservable given that `GlobalControls` abstains from
 		//      exactly those four (`ViewArm::LearnOwns`) and suppresses its own tail for them.
-		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp:821-832`)
+		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp`)
 		//      overwrites the PLAY/RECORD/TAP_TEMPO LEDs `PlaybackHandler::setLedStates` had just
 		//      set, and `LedCompose::compose` runs services in `Shell`'s own order, last writer
 		//      winning.

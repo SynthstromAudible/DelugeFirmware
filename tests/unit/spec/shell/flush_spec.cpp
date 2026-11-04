@@ -19,7 +19,7 @@ namespace {
 /// The kind the one test scene registers under.
 constexpr SceneKind kBase = SceneKind::FirstApp;
 
-/// `LedId`'s values equal `ButtonId`'s for the LEDs under buttons (`shell/leds.h`'s ruling), and
+/// `LedId`'s values equal `ButtonId`'s for the LEDs under buttons (the rule `shell/leds.h` states), and
 /// the extended `uitest::test_profile_input`'s `led_by_button` (`fake_surfaces.h`) wires `Play` to
 /// board LED 9 -- exactly the id/board-index pair this file's LED-diff spec needs.
 constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Play));

@@ -134,7 +134,7 @@ void wireShellGuestServices() {
 	// `View::buttonAction` group, which `GlobalControls::handle` gates on
 	// `stack_.input_top().is_root()` (`GlobalControls::handle`) -- and the guest's only
 	// tenant, `MenuScene`, is not a root scene. So no arm that reads `ui_mode` is reachable under
-	// this plan. Uncovered, and named as uncovered.
+	// the guest. Uncovered, and named as uncovered.
 	services.controls.set_view_state(controlView);
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:

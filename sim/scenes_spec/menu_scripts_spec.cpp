@@ -43,7 +43,7 @@
 /// for its own fixture on the process-wide singleton -- before handing `expect_script_goldens` a
 /// `RunOptions::initial_scene` that re-targets the path a second time via the id. `assign_node_ids`
 /// is called fresh in every block, over exactly the roots that block's own target is reachable from
-/// (ruling: idempotent over one root set, but a later call over a DIFFERENT set is what makes ids
+/// (it is idempotent over one root set, but a later call over a DIFFERENT set is what makes ids
 /// valid for that set -- see `node_id.h`), so blocks never depend on execution order.
 ///
 /// **The range-permission script is the one target with no real host.** Every `range_dependent` node
@@ -1391,7 +1391,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<int>(marker::marker_scene().blink_phase())).to_equal(0);
 		// BACK closed the editor, and going up from the item the jump landed on at depth 0 closed the menu:
 		// `after_back.state` names no menu scene.
-		// The held-marker gesture did not survive `on_exit` (`MarkerScene::on_exit`).
+		// The held-marker gesture did not survive `MarkerScene::on_exit`.
 		expect(marker::marker_scene().holding_marker()).to_be_false();
 	});
 

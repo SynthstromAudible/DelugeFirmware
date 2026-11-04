@@ -106,7 +106,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 
 	// --- text_keyboard_char_at ----------------------------------------------------------------
 
-	it("matches the brief's three named cases", _ {
+	it("maps a digit, a QWERTY letter and an AZERTY letter from their pads", _ {
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow + 2, kHomeRow, false)).to_equal('1');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow + 1, kHomeRow, false)).to_equal('Q');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Azerty, 3, kHomeRow + 1, kHomeRow, false)).to_equal('A');

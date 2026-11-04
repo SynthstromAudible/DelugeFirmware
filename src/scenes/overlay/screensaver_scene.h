@@ -117,7 +117,9 @@ public:
 	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
-	/// pass (`Shell::render_oled`).
+	/// pass.
+	/// @param role  The OLED surface being drawn.
+	/// @param frame The frame to draw into.
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
 
 	/// @brief The screensaver routes nothing: legacy's is a canvas override, never a `UI`.
@@ -172,6 +174,8 @@ private:
 	///
 	/// `hid/display/screensaver.cpp`'s `isAnimated`, which is the same test its frame
 	/// interval and its advance switch make.
+	/// @param mode The screensaver mode.
+	/// @return Whether it animates.
 	static bool animated(::ScreensaverMode mode);
 
 	deluge::ui::oled::Rainfall rainfall_;

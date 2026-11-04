@@ -220,7 +220,7 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 	(void)error;
 	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`,
 	// which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
-	// `instrumentClipView`. The scene parks the path instead, and the wiring plan's dispatcher runs
+	// `instrumentClipView`. The scene parks the path instead, and the application's dispatcher runs
 	// the load against the legacy object -- the noun half of `scenes/menu/action.h`'s seam.
 	return AcceptOutcome::Defer;
 }
@@ -433,7 +433,7 @@ ListingRequest BrowserScene::make_request(ListingAction action) const {
 	ListingRequest req;
 	req.action = action;
 	req.allowed_extensions = d.extensions;
-	req.allow_folders = true; // `arrivedInNewFolder` passes `allowFolders = true` (`Browser::arrivedInNewFolder`)
+	req.allow_folders = true; // `Browser::arrivedInNewFolder` passes `allowFolders = true`
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
 	req.default_dir = d.default_dir;
@@ -1056,7 +1056,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	//       `SampleBrowser::renderMainPads`), and swaps between the two as the selection moves. That
 	//       half is the sample *preview*, which needs `AudioEngine::previewSample`, `PadLEDs`'
 	//       horizontal scroll transition and the marker editor -- none of it reachable from here,
-	//       and the marker editor is its own task in this plan. The keyboard is therefore always
+	//       and the marker editor is its own scene. The keyboard is therefore always
 	//       drawn, which is `LoadMidiDeviceDefinitionUI`'s own behaviour
 	//       (`load_midi_device_definition_ui.cpp:129-134 onBrowserOpened`) and the base `Browser`'s
 	//       (`qwertyAlwaysVisible = true`, `browser.cpp:89`).

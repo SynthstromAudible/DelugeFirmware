@@ -103,9 +103,9 @@
 ///          which `src/scenes/**` may never include) and is loaded by
 ///          `FlashStorage::readSettings` (`storage/flash_storage.cpp:440`) straight into it, so
 ///          there is nothing in `model/` or `storage/` to read it from. `set_flash_cursor()` below
-///          is the port's copy; **nothing sets it at boot**, exactly as
-///          `menu::set_shortcuts_version()` and `ShellConfig::screensaver_idle_ms` are unset (see
-///          the boot-wiring note in `scenes/registry.h`). Its default is
+///          is the port's copy; **nothing sets it at boot**, unlike
+///          `menu::set_shortcuts_version()` and the screensaver's idle time (see the boot-wiring
+///          note in `scenes/registry.h`). Its default is
 ///          `FlashCursor::Slow`, which is the factory default (`resetSettings` in `flash_storage.cpp`) and the
 ///          only mode that reaches a pixel at all -- `ui/grid/columns.h`'s own `tick_colour`
 ///          warning already records why the `FLASH_CURSOR_FAST` branch cannot.
@@ -186,7 +186,7 @@
 /// behavioural difference, not a placement detail: legacy's clear is the
 /// first statement of `ClipNavigationTimelineView::horizontalEncoderAction`
 /// (`clip_navigation_timeline_view.cpp:30-34`), which is reached only through the **third** arm of
-/// `ClipView::horizontalEncoderAction` (`ClipView::horizontalEncoderAction`'s `currentlyScrollableAndZoomable` arm) --
+/// `ClipView::horizontalEncoderAction` (its `currentlyScrollableAndZoomable` arm) --
 /// and that arm sits below three earlier decisions that legacy makes *without* clearing:
 ///
 ///   1. `AudioClipView::horizontalEncoderAction`'s own shift+`X_ENC` arm (`:789-791`), which goes
@@ -558,8 +558,8 @@ private:
 	/// **This is where `TimelineState::stop_following()` is called, as the first statement**, which
 	/// is exactly where legacy's `xScrollBeforeFollowingAutoExtendingLinearRecording = -1` sits
 	/// (`clip_navigation_timeline_view.cpp:32`) -- above every gate below it, and below every
-	/// decision above it. See the class docstring's `@par` for why the brief's "first statement of
-	/// the horizontal-encoder arm" was one function too high.
+	/// decision above it. See the class docstring's `@par` for why the clear is not the first
+	/// statement of `AudioClipView::horizontalEncoderAction`, one function higher.
 	/// @param offset Signed detents.
 	/// @param ctx    The world around the turn -- `now_ms` for the zoom delay, `shift` for the
 	///               scroll arm's own gate (`TimelineView::horizontalEncoderAction`).

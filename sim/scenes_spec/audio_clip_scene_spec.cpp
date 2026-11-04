@@ -1617,8 +1617,8 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "KEEPS the restore point on a shift length edit, which is one arm above the clear", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // The other half of the placement, and the reason the brief's "first statement of the
-		        // horizontal-encoder arm" was one function too high: legacy's clear lives in
+		        // The other half of the placement, and the reason the clear is not the first statement
+		        // of `AudioClipView::horizontalEncoderAction`: legacy's clear lives in
 		        // `ClipNavigationTimelineView`, reached only through `ClipView`'s THIRD arm
 		        // (`gui/views/clip_view.cpp:253-262`). A shift length edit takes the FIRST
 		        // (`clip_view.cpp:149-181`) and never reaches it.

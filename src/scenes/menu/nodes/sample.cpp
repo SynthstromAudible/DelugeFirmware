@@ -87,7 +87,7 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// the shortcut-pad flash, which `MenuScene` owns rather than an item.
 	//
 	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
-	// but in `SoundEditor::maybeGetParentMenu` (`SoundEditor::maybeGetParentMenu`),
+	// but in `SoundEditor::maybeGetParentMenu`,
 	// whose file-selector arm is `:2089-2095`.
 	// It is a *return* affordance: the sample claim (`SampleClaim`) reads the pair back
 	// (`gui/ui/browser/sample_browser.cpp:1111-1122`) and re-roots the navigation record onto the
@@ -125,7 +125,7 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// recorder screen and `RecorderScene::on_enter` ignores it.
 	//
 	// Legacy's `parentMenuHeadingTo` / `menuItemHeadingTo` arm (`:40-48`) has no port. The pair is
-	// written by `SoundEditor::maybeGetParentMenu` (`SoundEditor::maybeGetParentMenu`),
+	// written by `SoundEditor::maybeGetParentMenu`,
 	// whose recorder arm (`:2097-2103`) points a recorder at the matching file
 	// selector; this arm then re-roots `menuItemNavigationRecord` onto the source page with that
 	// selector focused and clears `shouldGoUpOneLevelOnBegin`, so a finished recording lands on the

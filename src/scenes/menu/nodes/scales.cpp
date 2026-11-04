@@ -103,7 +103,7 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool value) const {
 	// `ActiveScaleMenu::setDisabled` (`active_scales.cpp:126-133`), whose `else if (currentSong)`
 	// makes a null song a silent no-op. `ctx.song` stands in for `currentSong` -- the substitution
-	// `context.h` makes everywhere (task-3 ruling 3).
+	// `context.h` makes everywhere.
 	if (index >= kScaleRows) {
 		return;
 	}

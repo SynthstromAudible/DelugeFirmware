@@ -407,7 +407,7 @@ describe shell_scripts("shell script harness (level 2)", $ {
 	});
 
 	it("migration hook: the same registry run twice produces identical trees", _ {
-		// Spec G §6's migration acceptance, the "nothing changed" side: two independent
+		// The migration double-run's "nothing changed" side: two independent
 		// DemoRegistry instances (so the second run is not literally the same objects), same
 		// script, same scene table shape -- the double-run diff must find no disagreement.
 		DemoRegistry r1;

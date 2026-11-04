@@ -88,7 +88,7 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		// `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
 		//
 		// Scoped by the item rather than applied to every `Kind::Custom`, because a blanket skip
-		// would regress a shipped, specced ruling: `EditNameItem` and the nine `nodes/sample.h`
+		// would break shipped behaviour: `EditNameItem` and the nine `nodes/sample.h`
 		// items *must* re-open their scene on a restore -- see `restore_state` below, which argues
 		// it with legacy agreeing (`EditName::beginSession` opens `RenameUI` unconditionally).
 		if (node.custom != nullptr && (cause == FocusCause::RowPress || !node.custom->on_focus_is_press())) {

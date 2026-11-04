@@ -165,16 +165,14 @@ public:
 	/// are each built from a `SceneStack&` -- and the first two also from an `InputLowering&` --
 	/// and the only instances of either in an application are the ones this shell **owns**
 	/// (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three really
-	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack
-	/// (`ModKnobs::show_popup`), and `ModKnobs::popup_suppressed` (`:351`) and
-	/// `ModKnobs::mod_encoder_button_action` (`:568`) both read `stack_.input_top()`;
-	/// `GlobalControls::handle` gates its `View::buttonAction` group on
-	/// `stack_.input_top().is_root()` (`GlobalControls::handle`);
-	/// `MidiLearn::handle` reads the same. So a real
-	/// service cannot be constructed before the shell it serves, and before this existed it could
-	/// not be installed after it either -- an application could only ever pass `Services{}`, and
-	/// no gold-knob turn, transport button or MIDI-learn press reached anything outside the scene
-	/// stack. 	///
+	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack, and
+	/// `ModKnobs::popup_suppressed` and `ModKnobs::mod_encoder_button_action` both read
+	/// `stack_.input_top()`; `GlobalControls::handle` gates its `View::buttonAction` group on
+	/// `stack_.input_top().is_root()`; `MidiLearn::handle` reads the same. So a real service cannot
+	/// be constructed before the shell it serves, and this is how it is installed after it --
+	/// without it an application could only pass `Services{}`, and no gold-knob turn, transport
+	/// button or MIDI-learn press would reach anything outside the scene stack.
+	///
 	/// Build the shell with `Services{}`, construct the services over `stack()`/`lowering()`, then
 	/// call this. Three things move together and this call is what keeps them in step: `services_`
 	/// (the slots), `Router`'s own by-value copy (what routing reads), and `service_list_` (the

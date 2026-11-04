@@ -32,7 +32,7 @@ constexpr RGB kBaseColour{100, 80, 60};
 /// The colour the overlay scene paints its one pad.
 constexpr RGB kOverlayColour{255, 0, 0};
 /// Legacy's full greyout strength (`setGreyoutAmount(1)` -> `greyProportion = 1 * 6500000`,
-/// `hid/led/pad_leds.cpp:753,786-788`), repeated here so the spec pins the *value* `render_grid`
+/// `hid/led/pad_leds.cpp`), repeated here so the spec pins the *value* `render_grid`
 /// is bound to rather than reusing whatever constant the implementation happens to define.
 constexpr int32_t kGreyoutAmountFull = 6500000;
 
@@ -456,7 +456,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.base.colour = RGB{100, 100, 100};
 		// Two overlays that paint nothing, so the greyout is the only thing on the grid:
 		// a menu's mask under a keyboard's, which legacy's top-down `getUIGreyoutColsAndRows`
-		// (`gui/ui/ui.cpp:73-83`) resolves to the keyboard's alone.
+		// (`gui/ui/ui.cpp`) resolves to the keyboard's alone.
 		r.overlay.paints = false;
 		r.overlay.mask = deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
 		r.upper.paints = false;

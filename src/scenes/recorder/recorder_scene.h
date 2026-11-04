@@ -16,9 +16,9 @@
 ///     audioRecorder.process();
 /// ```
 ///
-/// `openUI` runs `AudioRecorder::opened()` (`AudioRecorder::opened`), which allocates the
-/// `SampleRecorder`; `process()` (`:193`) is then an **infinite loop inside the menu item's own
-/// stack frame** that pumps the audio engine, the UI timers, the display and the button/pad scan by
+/// `openUI` runs `AudioRecorder::opened()`, which allocates the
+/// `SampleRecorder`; `AudioRecorder::process()` (`gui/ui/audio_recorder.cpp`) is then an **infinite loop inside the
+/// menu item's own stack frame** that pumps the audio engine, the UI timers, the display and the button/pad scan by
 /// hand, polls `recorder->status` every pass, and only returns after it has called `close()`. The
 /// whole recorder UI is therefore a blocking call: no other UI runs, `SoundEditor` is suspended
 /// mid-`beginSession`, and the "screen" is two `OLED::sendMainImage()` calls made from inside the
@@ -27,7 +27,7 @@
 /// **The port keeps the state machine and throws the loop away.** Its five statements map like
 /// this:
 ///
-/// - `process()`'s loop body (`:194-241`), and where each part goes here:
+/// - `process()`'s loop body, and where each part goes here:
 ///   - `AudioEngine::routineWithClusterLoading()`, `uiTimerManager.routine()`, `deluge_display_service()`,
 ///     `deluge_control_flush()`, `readButtonsAndPads()`, `AudioEngine::slowRoutine()` -- the shell's own tick;
 ///     none of it is this scene's.

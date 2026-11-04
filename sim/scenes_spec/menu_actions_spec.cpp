@@ -370,7 +370,7 @@ MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
 }
 
 /// @brief The port's transcription of `EditingMode::readCurrentValue` (`editing_mode.h:35-46`),
-///        which is the mapping the wiring plan owes a call to `set_performance_editing_mode` for.
+///        the mapping each `set_performance_editing_mode` call site must apply.
 ///
 /// Written here rather than in the library on purpose: the library holds a *mirror*, and this is the
 /// rule that must keep it in step. The example below runs it against the real legacy item on the
@@ -844,7 +844,7 @@ void enter_perform_view(bool default_mode, bool editing_param, PerformanceEditin
 /// Both, deliberately, and each example compares the pair against a LITERAL mode.
 /// `performance_editing_mode() == mode_from_view()` on its own says the two agree but not on what,
 /// and stays green with `VALUE` and `PARAM` swapped on both sides -- the literal is what pins the
-/// mapping the brief warns about. A free function rather than two `expect` calls in a helper,
+/// mapping (they are easy to swap). A free function rather than two `expect` calls in a helper,
 /// because `expect` is `ItBase::expect` and only exists inside an example.
 std::array<int, 2> mirror_and_view() {
 	return {static_cast<int>(menu::performance_editing_mode()), static_cast<int>(mode_from_view())};

@@ -76,11 +76,9 @@ describe menu_context("scenes::menu::context_for", $ {
 		f.clip->affectEntire = true;
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 
-		// NOTE: the task-3 brief's step-1 list says `Root::Sound` for this case. That is a slip in
-		// the brief: `setup()` sends a kit with affectEntire to `soundEditorRootMenuKitGlobalFX`
-		// (`sound_editor.cpp:1790-1792`), which is what `Root::KitGlobalFx` -- an enumerator the
-		// brief's own struct declares, and which nothing else could ever produce -- exists for.
-		// The port follows the legacy source; see the task-3 report.
+		// Not `Root::Sound`: `setup()` sends a kit with affectEntire to
+		// `soundEditorRootMenuKitGlobalFX` (`sound_editor.cpp:1790-1792`), which is what
+		// `Root::KitGlobalFx` -- which nothing else produces -- exists for.
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::KitGlobalFx));
 		expect(ctx.is_kit).to_be_true();
 		expect(ctx.affect_entire).to_be_true();

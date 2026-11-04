@@ -587,7 +587,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::consume_oled_frame()).to_be_true();
 
 		// Now legacy's own render pass: `doAnyPendingOLEDRendering` clears the image
-		// (`gui/ui/ui.cpp:358`) and then asks each open UI to draw into it (`:362`). Without this
+		// (`gui/ui/ui.cpp`) and then asks each open UI to draw into it. Without this
 		// hook the shell would have nothing armed to re-blit and the frame would go out blank.
 		OLED::main.clear();
 		expect(any_ink(OLED::main.bytes())).to_be_false();
@@ -728,7 +728,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		blank_legacy_pads();
 
 		// `UI`'s contract: quizzable without any rendering (`gui/ui/ui.h:140-142`). Legacy asks it
-		// this way in `uiNeedsRendering` (`gui/ui/ui.cpp:292`, `:295`) and in `closeUI`
+		// this way in `uiNeedsRendering` (`gui/ui/ui.cpp`) and in `closeUI`
 		// (`:186-187`).
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_true();
@@ -1078,7 +1078,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.guest.canSeeViewUnderneath()).to_be_false();
 
 		// It is emphatically not `oled_transparent(Main)`, which this scene never changes: legacy
-		// keeps OLED transparency in the `oledShowsUIUnderneath` member instead (`gui/ui/ui.h:158`),
+		// keeps OLED transparency in the `oledShowsUIUnderneath` member instead (`gui/ui/ui.h`),
 		// and `Slicer` holds the two at opposite values on one object (`gui/ui/slicer.h:33-38`).
 		expect(r.guest.oledShowsUIUnderneath).to_be_false();
 	});
@@ -1142,7 +1142,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("answers the topmost non-empty greyout, not the OR: 0b11 over a menu's 0xFFFFFFFE", _ {
-		// `RenameUI::getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp:63-66`) over
+		// `RenameUI::getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp`) over
 		// `SoundEditor`'s clip-minder arm.
 		Rig r;
 		r.base.overlay = true;
@@ -1233,7 +1233,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.exits).to_equal(1);
 		// `closeUI(this)`, the same thing `RenameUI::exitUI` and `SampleMarkerEditor::exitUI` do
 		// (`gui/ui/rename/rename_ui.cpp:88-91`, `gui/ui/sample_marker_editor.cpp:680-683`) and the
-		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp:761`. Without
+		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp`. Without
 		// it the user is trapped: neither reader of the return value closes anything.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
@@ -1241,7 +1241,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:152-153`), a UI
 		// did, and every legacy self-closing implementation answers this value -- including the
 		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
-		// (`gui/ui/sound_editor.h:130`, returning at `gui/ui/sound_editor.cpp:771`).
+		// (`gui/ui/sound_editor.h`, returning at `gui/ui/sound_editor.cpp`).
 		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 	});
 
@@ -1289,7 +1289,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
 		// (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
-		// (`gui/ui_timer_manager.cpp:143`).
+		// (`gui/ui_timer_manager.cpp`).
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
 	});
 
@@ -1332,7 +1332,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// Offered to the menu, with the dispatcher's own three arguments and no fourth: legacy's
 		// `SoundEditor::noteOnReceivedForMidiLearn` drops the velocity too
-		// (`gui/ui/sound_editor.cpp:1613`).
+		// (`gui/ui/sound_editor.cpp`).
 		expect(fakelegacyui::menu_learn_note_ons).to_equal(1);
 		expect(fakelegacyui::last_menu_learn.cable == &fake_cable()).to_be_true();
 		expect(fakelegacyui::last_menu_learn.channel).to_equal(int32_t(9));
@@ -1374,7 +1374,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("the program-change hook forwards to the menu and returns its answer, and never routes", _ {
-		// Legacy's `View::pcReceivedForMIDILearn` is an EMPTY BODY (`gui/views/view.h:63`), so there
+		// Legacy's `View::pcReceivedForMIDILearn` is an EMPTY BODY (`gui/views/view.h`), so there
 		// is nothing for `services::MidiLearn` to port, no `UiEvent` kind for program change and
 		// nothing for this hook to route -- unlike its note-on neighbour, which has both halves.
 		Rig r;
@@ -1641,7 +1641,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	it("still arms the tick after a forward", _ {
 		// Load-bearing, not housekeeping: the `Exit` arm empties the guest's shell stack, and
-		// `ShellHostUI::timerCallback` is what then closes the guest (`ShellHostUI::timerCallback`).
+		// `ShellHostUI::timerCallback` is what then closes the guest.
 		// With no tick armed, the guest would sit open over an empty stack.
 		Rig r;
 		expect(r.open()).to_be_true();
@@ -1655,10 +1655,10 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	it("does NOT arm the tick after a forward that left some other UI current", _ {
 		// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
-		// (`gui/views/performance_view.cpp:1038`, `gui/ui/keyboard/keyboard_screen.cpp:106`), which
+		// (`gui/views/performance_view.cpp`, `gui/ui/keyboard/keyboard_screen.cpp`), which
 		// leaves `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming
 		// `TimerName::UI_SPECIFIC` there would hand this guest's tick to whatever just opened
-		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp:143`) -- the same hazard
+		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp`) -- the same hazard
 		// `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see
 		// `fake_legacy_ui.h`), so the test stands in for "the forward opened another UI" the same
 		// way the `rearmTimer` example above does: by setting `current_ui` directly rather than
@@ -1794,7 +1794,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("arms the tick after a forward only while the guest is still current, on all three hooks", _ {
 		// The legacy handlers are called from inside the guest's hooks and can open or close UIs
 		// (re-entrancy), and `TimerName::UI_SPECIFIC` is delivered to whoever is current
-		// (`gui/ui_timer_manager.cpp:143`) -- `padAction`'s guard, for the same reason, is stood in
+		// (`gui/ui_timer_manager.cpp`) -- `padAction`'s guard, for the same reason, is stood in
 		// for the same way.
 		Rig r;
 		expect(r.open()).to_be_true();
@@ -1866,7 +1866,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.seen[1].ev.button == ButtonId::Save).to_be_true();
 
 		// **`NOT_DEALT_WITH`, and it is what keeps `Buttons::buttonAction`'s tail running** --
-		// `commandToggleShift` (`hid/buttons.cpp:169-171`), the transport, and the mod-encoder
+		// `commandToggleShift` (`hid/buttons.cpp`), the transport, and the mod-encoder
 		// button dispatch at `:226-231`. `DEALT_WITH` would `goto dealtWith` at `:139-141`.
 		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
 	});
@@ -1945,7 +1945,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	it("re-reads hold_time_ms from FlashStorage::holdTime on every event, out of audio samples", _ {
 		// The other half of the sticky-shift divergence: the threshold a tap is measured against is `FlashStorage::holdTime` in legacy
-		// (`hid/buttons.cpp:264`) and a fixed 100 ms in the shell. `holdTime` is in **samples**, so
+		// (`hid/buttons.cpp`) and a fixed 100 ms in the shell. `holdTime` is in **samples**, so
 		// this is a unit conversion as well as a copy -- a seed that forwarded the number unchanged
 		// would give 4410 ms for legacy's default.
 		//
@@ -2417,7 +2417,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
 		// hierarchy back to the previous UI (`gui/ui/ui.cpp:237-242`) -- an arm left standing here
 		// would deliver this guest's `timerCallback` to *that* UI, since the manager dispatches to
-		// `getCurrentUI()` (`gui/ui_timer_manager.cpp:143`).
+		// `getCurrentUI()` (`gui/ui_timer_manager.cpp`).
 		Rig refused;
 		expect(refused.guest.opened()).to_be_false();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
@@ -2464,7 +2464,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {
-		// **The guard at `ShellHostUI::rearmTimer`'s top** (`ShellHostUI::rearmTimer`).
+		// **The guard at `ShellHostUI::rearmTimer`'s top**.
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
 		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands

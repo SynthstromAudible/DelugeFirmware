@@ -82,7 +82,7 @@ struct Hold {
 	/// the pad is down, which is exactly what a one-shot timer does not do.
 	bool hold_reported = false;
 };
-/// Generic deadline. **Used by no widget on this branch**: every widget with motion asks
+/// Generic deadline. **Used by no widget**: every widget with motion asks
 /// `RepaintGate::request_repaint_after` instead, which expresses the same deadline to the one
 /// object that already collects them. Kept as a placeholder for a scene that needs a deadline of
 /// its own; delete it if none appears.
@@ -90,7 +90,7 @@ struct Timer {
 	uint32_t due_ms = 0;
 	bool armed = false;
 };
-/// State for the OLED `waveform` widget, **not implemented on this branch** -- its data shape
+/// State for the OLED `waveform` widget, **not implemented** -- its data shape
 /// depends on `WaveformRenderData`, which is model-side, so it is deferred to a later sample-view
 /// scene. Retained for it; the *grid* waveform components (`ui/grid/waveform.h`) are unrelated and
 /// keep no state.

@@ -233,8 +233,7 @@ Rigged& fixture() {
 ///
 /// Needed for two things the synth clip cannot show: the kit-only relevance predicates (review
 /// round 1, M6 -- against one synth context ~25 of the 30 new predicates agreed vacuously), and
-/// every affect-entire sweep, which by definition needs more than one drum to be observable
-/// (review round 1, I5).
+/// every affect-entire sweep, which by definition needs more than one drum to be observable.
 struct KitRig {
 	spec::SongFixture song;
 	SoundDrum* drum_a = nullptr;
@@ -292,7 +291,7 @@ std::string shown(uint16_t id, const Node& node, const MenuContext& ctx) {
 
 /// @brief Legacy items whose `getName()` is not the l10n string the constructor was given.
 ///
-/// Keyed on the **node**, not on its name id (review round 1, M7): `STRING_FOR_FEEDBACK` also names
+/// Keyed on the **node**, not on its name id: `STRING_FOR_FEEDBACK` also names
 /// batch 1's two FM-modulator feedback params, whose legacy items have perfectly static names, and
 /// exempting by id would have skipped those two silently. A `Node` is a distinct object per menu
 /// item, so this set says exactly which items build a name at render time -- something a
@@ -726,10 +725,8 @@ bool raises_reverb(const Node& node) {
 describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	it("declares the sound-editor root with the legacy child count and order", _ {
 		(void)fixture();
-		// `menus.cpp`'s `soundEditorRootMenu` literal (at `ce4a79de0`, `:1521-1551`; at HEAD,
-		// `:1774-1804`) lists **27** children, not the 28 the task brief's prose says -- the
-		// brief's own enumeration of the names is 27 long, so the count was a miscount and the
-		// literal is the authority. Asserted against the live object, not a copy of the list.
+		// `menus.cpp`'s `soundEditorRootMenu` literal lists **27** children; the literal is the
+		// authority. Asserted against the live object, not a copy of the list.
 		const auto& kids = SubmenuPeek::items_of(soundEditorRootMenu);
 		expect(kids.size()).to_equal(size_t(27));
 		expect(nodes::sound_root.children.size()).to_equal(size_t(27));
@@ -877,7 +874,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 
 	it("agrees with the legacy isRelevant under a synth clip and a kit row", _ {
-		// Three contexts, not one (review round 1, M6): against a synth clip alone every
+		// Three contexts, not one: against a synth clip alone every
 		// kit/MIDI/gate-drum predicate is false on both sides, so ~25 of the 30 new predicates
 		// agreed vacuously -- which is exactly how I1 got through. A kit row turns on
 		// `is_kit`/`is_kit_row`/`kit_row_not_gate`/`per_finger_bend`/`randomizer_non_kit`, and a
@@ -938,8 +935,8 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 
 	it("gives every node the legacy item's own title", _ {
-		// Review round 1, M8: ~40 `with_title(...)` transcriptions and every "title == name"
-		// decision rested on reading alone.
+		// ~40 `with_title(...)` transcriptions and every "title == name" decision would otherwise
+		// rest on reading alone.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t compared = 0;
@@ -1079,7 +1076,7 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 
 	it("opens the drum twin of the octave-mode page when a kit row is being edited", _ {
-		// The other half of `PresetMode::selectButtonPress` (`PresetMode::selectButtonPress`):
+		// The other half of `PresetMode::selectButtonPress`:
 		// `soundEditor.editingKitRow()` picks `arpOctaveModeToNoteModeMenuForDrums`. The synth
 		// fixture above can never show it, so it needs the kit fixture.
 		KitRig& k = kit_fixture();
@@ -1137,7 +1134,7 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 
 	it("numbers every chain target, including the four pages no children span reaches", _ {
-		// The reachability ruling: `assign_node_ids` follows `chain_targets` as well as `children`,
+		// The reachability rule: `assign_node_ids` follows `chain_targets` as well as `children`,
 		// or `SceneId::arg` could not name a chained page and `MenuScene::on_enter` could not
 		// restore one. Asserted over the WHOLE tree, since that is the walk the app performs.
 		(void)menu::assign_node_ids(nodes::kAllRoots);
@@ -1688,7 +1685,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 });
 describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
-		// Review round 1, I5. Every batch-2 `set` hook is driven here: for three values spanning the
+		// Every batch-2 `set` hook is driven here: for three values spanning the
 		// node's range, each write path is run **from its own copy of a common starting state**
 		// (`probe_write`) and the two results are compared through *both* readers (the port's
 		// `bindings::read` and the legacy `readCurrentValue()`). Disagreement on either observation
@@ -1746,7 +1743,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 	it("round-trips every param node, and raises the reverb flag on exactly the one that should", _ {
 		// The param half of the coverage above, port-only for the reason that example explains,
-		// plus review round 1's I2: `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`
+		// plus one more: `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`
 		// (`sidechain/shape.h:6`), so its write must also set
 		// `AudioEngine::mustUpdateReverbParamsBeforeNextRender` (`updating_reverb_params.h:26-29`).
 		Rigged& f = fixture();
@@ -1798,7 +1795,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {
-		// Review round 1, I5's second half. With AFFECT-ENTIRE held on a kit row, legacy's ~20
+		// With AFFECT-ENTIRE held on a kit row, legacy's ~20
 		// hand-written sweeps write every drum in the kit; the port's the generic fan-out and the
 		// arp items' kit sweep (`SetKitLaneSetting` in `shell_bind_host.cpp`, every lane's arp) must write the same set. Observing "the same set" generically is
 		// what the two-drum fixture buys: select each drum in turn and read the node back.
@@ -1878,7 +1875,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("asks each drum its own allowNoteTails when sweeping the kit-arp toggle", _ {
-		// Review round 1, I3. Legacy's sweep (`include_in_kit_arp.h:33-45`) builds a model stack per
+		// Legacy's sweep (`include_in_kit_arp.h:33-45`) builds a model stack per
 		// `SoundDrum` and skips the ones that cannot hold a note tail; the port must too, or the two
 		// end up with different `includeInKitArp` across the kit. Made observable by giving drum A
 		// an arpeggiator -- `Sound::allowNoteTails` returns true outright when the arp is on
@@ -1920,7 +1917,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
-		// Review round 1, I4 / ruling 4. `sequence::Direction::writeCurrentValue`
+		// `sequence::Direction::writeCurrentValue`
 		// (`sequence/direction.h:78-90`) writes the *resolved* note row when there is one and the
 		// clip when there is not; `bindings::individual_note_row` resolves the kit row's.
 		Rigged& f = fixture();

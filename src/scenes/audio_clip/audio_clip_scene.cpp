@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief `AudioClipScene` -- the port of `AudioClipView`'s render and navigation half. See
-///        `audio_clip_scene.h` for the predicates, the playhead ruling and the sidebar finding.
+///        `audio_clip_scene.h` for the predicates, the playhead rule and the sidebar.
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
@@ -419,8 +419,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		// `ClipMinder::transitionToArrangerOrSession()`. **NOT PORTED**, and it is the whole point
 		// of the short press: that function (`model/clip/clip_minder.cpp:28-39`) names
 		// `arrangerView` and `sessionView`, two `scenes-no-root-ui` globals, and neither view is
-		// ported (E5's). The latch above is ported because three of this scene's own arms branch
-		// on it; the exit it guards is not this plan's.
+		// ported. The latch above is ported because three of this scene's own arms branch
+		// on it; the exit it guards is not ported.
 		return r;
 	}
 
@@ -492,7 +492,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		// `soundEditor.setup(getCurrentClip())` + `openUI(&soundEditor)` (`audio_clip_view.cpp:423-426`).
 		// `soundEditor` is a `scenes-no-root-ui` global; its port is `menu::MenuScene`, but nothing
 		// in this library pushes that scene -- resolving a `MenuContext` for a clip and filing a
-		// `Push` is the wiring plan's, exactly as `MarkerScene` records for its own shortcut jump
+		// `Push` is the application's wiring, exactly as `MarkerScene` records for its own shortcut jump
 		// (`scenes/marker/marker_scene.h`). **Not ported**, and therefore not claimed: the event
 		// falls through, where `services::GlobalControls` gates its own `SELECT_ENC` arm on shift
 		// and does nothing with it either. The divergence is legacy's `goto
@@ -978,10 +978,9 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 // Model notifications
 
 void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
-	// `clipNeedsReRendering`, `sampleNeedsReRendering` (`:738-742`)
-	// and `playbackEnded` (`:703-705`). Two of the three are pure `uiNeedsRendering` calls, which
-	// `Shell::apply_dirty` already does for these facts; what is left is
-	// the scroll-back-left legacy hides inside `clipNeedsReRendering`.
+	// `AudioClipView::clipNeedsReRendering`, `sampleNeedsReRendering` and `playbackEnded`. Two of the three are pure
+	// `uiNeedsRendering` calls, which `Shell::apply_dirty` already does for these facts; what is left is the
+	// scroll-back-left legacy hides inside `clipNeedsReRendering`.
 	if (!dirty.has(deluge::notify::Dirty::ClipContent) || !clip_) {
 		return;
 	}

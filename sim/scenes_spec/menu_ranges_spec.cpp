@@ -3,9 +3,8 @@
 ///        against the real legacy `IntegerRange`/`KeyRange` objects they port.
 ///
 /// Both sides are reachable and both sides are **driven** in every comparison below. That is not a
-/// formality: this plan has shipped three comparisons that read stale state and would have passed
-/// with the port wrong, and a range item is exactly the shape that invites it -- legacy's
-/// `IntegerRange::lower`/`upper` and the port's hooks now name the *same* storage
+/// formality: a comparison that reads stale state passes with the port wrong, and a range item is exactly the shape
+/// that invites it -- legacy's `IntegerRange::lower`/`upper` and the port's hooks now name the *same* storage
 /// (`FlashStorage::defaultRanges`, `storage/flash_storage.h`), so a comparison that forgets to reset
 /// between the two halves is comparing a value with itself. Every value example here therefore:
 ///
@@ -175,7 +174,7 @@ struct Rig {
 };
 
 /// @brief A 128x64 single-panel board, so the same scene is recorded at the other shipped panel
-///        geometry too -- `menu_scene_spec.cpp`'s `board_64` helpers, and the same ruling: the 48/64
+///        geometry too -- `menu_scene_spec.cpp`'s `board_64` helpers, and the same rule: the 48/64
 ///        split comes from `BoardProfile::style_by_index`, not from a switch inside the scene.
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 

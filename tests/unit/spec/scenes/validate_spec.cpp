@@ -1,5 +1,5 @@
 /// @file
-/// @brief `validate_tree` over hand-built fake trees and fake contexts (spec E §4.4).
+/// @brief `validate_tree` over hand-built fake trees and fake contexts.
 ///
 /// Pure: no model, no `Song`, no `gui/`. The real tables live behind `deluge_scenes`, which this
 /// host suite deliberately never builds (`tests/spec/CMakeLists.txt`); `validate_tree` over the
@@ -331,7 +331,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 	it("flags Binding::adjust on a node with no get -- it would read through param and write "
 	   "through the hook", _ {
-		// `Flag::AdjustWithoutGet` (spec E-note-family §5.2). A `param()` node has `bind.param` but
+		// `Flag::AdjustWithoutGet`. A `param()` node has `bind.param` but
 		// no `bind.get`, so pairing it with `adjust` leaves `bindings::read` resolving through the
 		// param while `bindings::adjust` writes through the hook -- the two disagreeing about where
 		// the value lives.
@@ -352,7 +352,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 	});
 
 	it("does not flag Binding::adjust on a node that also has get", _ {
-		// The shipped shape (spec §5.2): `read` stays `get` even for an offset-writing node, so a
+		// The shipped shape: `read` stays `get` even for an offset-writing node, so a
 		// `get`/`set` node with `adjust` added is well-formed and must stay silent.
 		set_shortcut_table_for_test({}, 0, 0);
 		static constexpr Node with_get = with_adjust(

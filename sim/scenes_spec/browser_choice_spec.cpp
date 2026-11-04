@@ -172,7 +172,7 @@ private:
 /// @brief The claim seam, swapped for a recorder -- what lets these examples press a real file.
 ///
 /// `deluge::gui::ui::setSampleClaimDispatch` exists for this and nothing else; its own note argues
-/// why. **This is not `BrowserScene::set_dispatch`** (`BrowserScene::set_dispatch`),
+/// why. **This is not `BrowserScene::set_dispatch`**,
 /// which swaps the dispatcher on the scene's `Listing` -- the directory read, one layer down. There
 /// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
 /// settable dispatcher is the dispatcher's own.
@@ -435,7 +435,7 @@ struct GuestRig {
 	void guest_step() { (void)ui.timerCallback(); }
 
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
-	///        `padAction` only queues (`ShellHostUI::padAction`), and a tick is what routes.
+	///        `ShellHostUI::padAction` only queues, and a tick is what routes.
 	void press_enter(void (GuestRig::*tick)()) {
 		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
 		(void)ui.padAction(p.x, p.y, 64);

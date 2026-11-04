@@ -337,7 +337,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 
 Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
-	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. Spec E §4's `relevant`
+	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. The `relevant`
 	// hook is the port of the 112 `isRelevant` overrides the survey counts.
 	if (!bindings::relevant(node, ctx)) {
 		return Permission::No;

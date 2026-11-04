@@ -22,7 +22,7 @@
 ///        `gui/ui/shell_action_dispatch.h` is the verb half of.
 ///
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::Defer`, `BrowserScene::enter` parks the chosen path and closes the scene in one
+/// `AcceptOutcome::Defer`, `BrowserScene::enter_key_press` parks the chosen path and closes the scene in one
 /// statement, and `BrowserScene::take_choice()` hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
@@ -57,7 +57,7 @@ namespace deluge::gui::ui {
 /// @brief A chosen file split into a directory and a filename.
 ///
 /// This is `SampleBrowser::getCurrentFilePath()` run backwards: `currentDir`, a separator when
-/// `currentDir` is non-empty, then the filename with its extension. `BrowserScene::enter` builds the
+/// `currentDir` is non-empty, then the filename with its extension. `BrowserScene::enter_key_press` builds the
 /// parked path the same way, so the two spellings agree. The claim takes the whole path; the split
 /// gives the filename the claim's entered text is made from, and rejects a path that names no file.
 ///
@@ -182,7 +182,7 @@ void adoptShellMenuContext();
 ///
 /// Both drains run after `Shell::tick`, actions first. **Yes, both can be pending on the same
 /// tick**, and the path is real rather than theoretical: the browser's `Remove` is applied at
-/// `Shell::tick`'s step 3 (`Shell::tick`), so the menu underneath is frontmost again by
+/// `Shell::tick`'s step 3, so the menu underneath is frontmost again by
 /// steps 5-6 and gets its own `after_render()` at step 7 (`:402-410`) -- on the very tick the choice
 /// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
 /// in the browser's.

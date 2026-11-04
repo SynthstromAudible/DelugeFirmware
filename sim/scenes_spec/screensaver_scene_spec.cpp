@@ -107,7 +107,7 @@ const BoardProfile& profile_64() {
 }
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's own registry -- which now fills
-///        `SceneKind::Screensaver`, the whole point of this task.
+///        `SceneKind::Screensaver`.
 struct Rig {
 	const BoardProfile& profile;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();

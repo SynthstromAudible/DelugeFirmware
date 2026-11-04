@@ -148,7 +148,7 @@ namespace deluge::gui::ui {
 ///          `TimerName::GRAPHICS_ROUTINE`, re-armed at **15 ms** (`gui/ui_timer_manager.cpp:213-218`;
 ///          `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside the class
 ///          hierarchy). So a scene answering 0 gets ~1000 ticks/s here where legacy's equivalent runs
-///          at ~66. 1 ms is nonetheless the right floor **for this plan's tenant**: the first one is
+///          at ~66. 1 ms is nonetheless the right floor **for the scenes that run here**: the first is
 ///          `MenuScene`, which has no zero-timer arm at all, while a floor of 15 ms would put 15 ms
 ///          of latency on the repaint after *every* button press -- and legacy has none there, since
 ///          `doAnyPendingUIRendering` runs from the main loop rather than from a timer
@@ -526,9 +526,13 @@ private:
 	/// @brief Does the scene that would receive this pad claim it? The grid-claim predicate.
 	///
 	/// `input_top()`, not `top()`: a passive overlay (popup, console, working animation) is
-	/// `input_transparent()` (`Scene::input_transparent`) and is not the scene whose grid this is. Asking
+	/// `Scene::input_transparent()` and is not the scene whose grid this is. Asking
 	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
 	/// have forwarded.
+	/// @param x        The pad's column.
+	/// @param y        The pad's row.
+	/// @param velocity The press velocity; 0 is a release.
+	/// @return Whether the guest's scenes claim the pad.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.

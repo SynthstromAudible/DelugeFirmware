@@ -218,11 +218,24 @@ public:
 	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items, the MIDI-follow
 	///          items -- every one of which blinks *false*.
 	/// @{
-	/// @brief Offer a note-on to the focused item. @return Whether it was used.
+	/// @brief Offer a note-on to the focused item.
+	/// @param cable   The cable it arrived on.
+	/// @param channel Its MIDI channel.
+	/// @param note    Its note number.
+	/// @return Whether it was used.
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
-	/// @brief Offer a CC to the focused item. @return Whether it was used.
+	/// @brief Offer a CC to the focused item.
+	/// @param cable   The cable it arrived on.
+	/// @param channel Its MIDI channel.
+	/// @param cc      The controller number.
+	/// @param value   The controller value.
+	/// @return Whether it was used.
 	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
-	/// @brief Offer a program change to the focused item. @return Whether it was used.
+	/// @brief Offer a program change to the focused item.
+	/// @param cable   The cable it arrived on.
+	/// @param channel Its MIDI channel.
+	/// @param program The program number.
+	/// @return Whether it was used.
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
 	/// @brief Ask the focused item to forget what it learned.
 	void unlearn();
@@ -540,6 +553,7 @@ public:
 	///       first. The port keeps focus per depth for a
 	///       session, not per menu object for the process, and meets it by a descend rather than a
 	///       re-open.
+	/// @param node The submenu to enter.
 	void enter_submenu(const Node& node);
 	/// @}
 };

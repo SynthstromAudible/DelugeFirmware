@@ -250,7 +250,7 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 		}
 		return SampleClaimTarget{.dir = {}, .name = path};
 	}
-	// A trailing separator names a directory, not a file. `BrowserScene::enter` cannot build one --
+	// A trailing separator names a directory, not a file. `BrowserScene::enter_key_press` cannot build one --
 	// it appends `item->filename`, which a `FileItem` never has empty -- so this is defence in depth against a caller
 	// that is not the scene, in the same spirit as `openPerformanceView`'s `DISABLED` arm
 	// (`gui/ui/shell_action_dispatch.cpp`) and unreachable for the same kind of reason.
@@ -314,7 +314,7 @@ void dispatchShellChoices() {
 
 	case BrowserId::Count:
 		// Not a browser -- it is the table's size (`BrowserId::Count`). Unreachable:
-		// `BrowserScene::enter` files `id_`, and `BrowserScene::on_enter`
+		// `BrowserScene::enter_key_press` files `id_`, and `BrowserScene::on_enter`
 		// refuses the scene outright before assigning it (`:357-361`, the guard at `:358-360`) rather
 		// than letting an out-of-range arg through. Spelled out because `-Werror=switch` counts it, and the
 		// alternative is the `default:` the header rules out.

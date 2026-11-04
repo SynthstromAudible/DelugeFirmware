@@ -51,6 +51,8 @@ deluge::ui::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuSta
 
 /// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
 ///        `HorizontalMenuGroup::getTitle`.
+/// @param ctx     The menu's context.
+/// @param st      The menu's state; its path names the focused page.
 /// @param scratch Storage the returned view may point into.
 /// @return The title text.
 std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeText& scratch);
@@ -86,6 +88,8 @@ public:
 	///        consults `initializeItem`'s return for anything but `MUST_SELECT_RANGE` -- a button
 	///        focus proceeds regardless of `Yes`/`No`, which is why this helper answers only the
 	///        range question and leaves `No` to whichever caller cares.
+	/// @param core                The menu's context and state.
+	/// @param session             The value session the picker or the child would open.
 	/// @param child               The node a session is about to begin on.
 	/// @param suppress_when_allowed When true, and `child.allow_session_from_horizontal` is set,
 	///         skip the `MUST_SELECT_RANGE` check entirely and answer false -- the port of
@@ -104,7 +108,9 @@ public:
 	///        focused. Runs the range check unconditionally (unlike the button-focus arm) and then
 	///        always enters -- `handleItemAction` never reads `Permission::No` at all, unlike
 	///        `enter_child`'s general descend.
-	/// @param child The already-focused column being pressed again.
+	/// @param core    The menu's context and state.
+	/// @param session The value session the child's edit opens.
+	/// @param child   The already-focused column being pressed again.
 	void enter_horizontal_item(MenuCore core, ValueSession& session, const Node& child);
 	/// @brief SHIFT + CROSS_SCREEN/SCALE at depth 0: replace the page with the next (or previous) menu of the root's
 	///        chain that has columns, landing on its first page -- mod FX's second -- as `switchHorizontalMenu` does.
