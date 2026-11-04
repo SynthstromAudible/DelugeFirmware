@@ -162,7 +162,25 @@ struct RawVecOffset {
 	}
 };
 
-static_assert(processor<Mono<TypedAccumulate>> && processor<Mono<TypedVecOffset>>);
+/// A Q24 vector processor: the input plus an offset growing by its lanes' sum, as TypedVecOffset at another format.
+struct TypedVecOffset24 {
+	using value_type = Q<24>;
+	using step_type = QVec<24>;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {
+		QVec<24> offset; ///< The next vector's offset, in every lane.
+	};
+	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[gnu::always_inline]] static QVec<24> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                            QVec<24> x) {
+		const QVec<24> y = add_wrap(x, s.offset);
+		s.offset = add_wrap(s.offset, QVec<24>::splat(sum_wrap(x)));
+		return y;
+	}
+};
+
+static_assert(processor<Mono<TypedAccumulate>> && processor<Mono<TypedVecOffset>> && processor<Mono<TypedVecOffset24>>);
 static_assert(lane_packable<TypedAccumulate> && !lane_packable<TypedAccumulateByLane>);
 static_assert(processor<Lanes<TypedAccumulate, 2>> && processor<Stereo<TypedAccumulate>>);
 static_assert(std::same_as<Mono<TypedVecOffset>::value_type, Q<31>>);
@@ -281,6 +299,39 @@ describe typed_kernel("kernels written over Q<31>", ${
 			expect(mono_mismatches(Mono<TypedVecOffset>{{.gain = kGain, .by = kBy}},
 			                       Mono<RawVecOffset>{{.gain = kGain.raw(), .by = kBy.raw()}}, n))
 			    .to_equal(std::size_t{0});
+		}
+	});
+	it("step a Q24 vector kernel as its arithmetic on the raw words, partial last vectors included", _ {
+		for (std::size_t n : kLengths) {
+			Mono<TypedVecOffset24> mono;
+			std::vector<q31> offset(4, 0);
+			std::size_t bad = 0;
+			for (std::size_t block = 0; block < kBlocks; ++block) {
+				const auto in = raw_input(n, 0x1b87'3593u + static_cast<std::uint32_t>((n * 7) + block));
+				std::vector<Q<24>> typed_in(n);
+				for (std::size_t i = 0; i < n; ++i) {
+					typed_in[i] = Q<24>::from_raw(in[i]);
+				}
+				std::vector<Q<24>> out(n);
+				mono.render_block(typed_in, out);
+				// By hand: four lanes a step, the last partial step's missing lanes zero.
+				for (std::size_t at = 0; at < n; at += 4) {
+					std::uint32_t sum = 0;
+					for (std::size_t lane = 0; lane < 4; ++lane) {
+						const q31 x = at + lane < n ? in[at + lane] : 0;
+						if (at + lane < n) {
+							bad += static_cast<std::size_t>(
+							    out[at + lane].raw()
+							    != static_cast<q31>(static_cast<std::uint32_t>(x) + static_cast<std::uint32_t>(offset[lane])));
+						}
+						sum += static_cast<std::uint32_t>(x);
+					}
+					for (q31& o : offset) {
+						o = static_cast<q31>(static_cast<std::uint32_t>(o) + sum);
+					}
+				}
+			}
+			expect(bad).to_equal(std::size_t{0});
 		}
 	});
 	it("step whole groups through both chains, as the raw kernel does", _ {

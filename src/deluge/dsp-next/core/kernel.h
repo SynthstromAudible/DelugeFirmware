@@ -384,14 +384,18 @@ concept declares_kernel_types = std::is_class_v<K> && !std::is_final_v<K> && req
 template <typename K>
 concept scalar_step_kernel = std::same_as<typename K::step_type, typename K::value_type>;
 
-/// @brief Whether @p T is a Q31 sample a kernel steps: raw q31 or Q<31>.
+/// @brief Whether @p T is a Q31 sample: raw q31 or Q<31>.
 template <typename T>
 concept q31_sample = std::same_as<T, q31> || std::same_as<T, Q<31>>;
 
-/// @brief K steps a vector of consecutive Q31 samples: `Argon<q31>` over q31, `QVec<31>` over Q<31>.
+/// @brief Whether @p T is a 32-bit fixed-point sample a kernel steps: raw q31, or Q<F> of any format.
+template <typename T>
+concept q_sample = std::same_as<T, q31> || std::same_as<T, Q<T::kFractionalBits>>;
+
+/// @brief K steps a vector of consecutive 32-bit samples: `Argon<q31>` over q31, `QVec<F>` over Q<F>.
 template <typename K>
 concept vector_step_kernel =
-    q31_sample<typename K::value_type> && std::same_as<typename K::step_type, vector_t<typename K::value_type>>;
+    q_sample<typename K::value_type> && std::same_as<typename K::step_type, vector_t<typename K::value_type>>;
 
 /// @brief K steps a vector of consecutive stereo frames, de-interleaved one vector per channel.
 template <typename K>
@@ -399,7 +403,7 @@ concept stereo_vector_step_kernel =
     std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
 
 /// @brief Whether a wrapper has a loop for K's step type over its value type: the step type is the value type,
-/// `Argon<q31>` over q31, `QVec<31>` over Q<31>, or StereoVector over StereoSample.
+/// `Argon<q31>` over q31, `QVec<F>` over Q<F>, or StereoVector over StereoSample.
 template <typename K>
 concept supported_step_pair = scalar_step_kernel<K> || vector_step_kernel<K> || stereo_vector_step_kernel<K>;
 
@@ -481,13 +485,13 @@ struct ChainVectors {
 };
 
 /// @brief How many chains K's chained step runs at once: K::kChains, or 1 when K declares none.
-/// @details A Q31 vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
+/// @details A 32-bit vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
 /// kChains = N` (N > 1) and `step_chains` (a template on the mode for a moded kernel), taking each input as
 /// `ChainVectors<step_type, N>` of consecutive vectors and returning the N outputs the same way. It must compute
 /// exactly what N calls of `step` in a row compute, state included; it exists to write the N chains' instructions
 /// interleaved, stage by stage, which the A9 needs to overlap them and which an unrolled loop of `step` does not give.
 /// `Mono` runs every whole group of N vectors through it, then the rest of the block, the partial vector included,
-/// through `step`. Only `Mono`'s Q31 vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
+/// through `step`. Only `Mono`'s vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
 template <typename K>
 inline constexpr std::size_t chains_of_v = 1;
 
@@ -670,7 +674,7 @@ concept steps_packed =
 template <typename K>
 concept lane_packable =
     (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
-    && detail::q31_sample<typename K::value_type> && std::same_as<typename K::step_type, typename K::value_type>
+    && detail::q_sample<typename K::value_type> && std::same_as<typename K::step_type, typename K::value_type>
     && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
     && !detail::declares_loop_state<K> && !detail::state_in_place_v<K> && !detail::declares_context<K>
     && detail::state_written_over_value<K, detail::ProbePack<K>> && detail::steps_packed<K, detail::ProbePack<K>>;

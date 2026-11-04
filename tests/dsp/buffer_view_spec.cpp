@@ -28,6 +28,8 @@ static_assert(std::is_same_v<decltype(typed_view(std::span<std::int32_t>{})), st
 static_assert(std::is_same_v<decltype(typed_view(std::span<const std::int32_t>{})), std::span<const Q<31>>>);
 static_assert(std::is_same_v<decltype(raw_view(std::span<Q<31>>{})), std::span<std::int32_t>>);
 static_assert(std::is_same_v<decltype(raw_view(std::span<const Q<31>>{})), std::span<const std::int32_t>>);
+static_assert(std::is_same_v<decltype(typed_view<Q<24>>(std::span<std::int32_t>{})), std::span<Q<24>>>);
+static_assert(std::is_same_v<decltype(raw_view(std::span<Q<24>>{})), std::span<std::int32_t>>);
 } // namespace
 
 // clang-format off
@@ -45,6 +47,13 @@ describe buffer_view("the raw seam view", ${
 		std::array<std::int32_t, 2> raw{};
 		typed_view(std::span{raw})[1] = Q<31>::from_raw(42);
 		expect(raw[1]).to_equal(42);
+	});
+	it("reads raw samples in another named format", _ {
+		std::array<std::int32_t, 2> raw{1 << 24, -(1 << 23)};
+		const auto typed = typed_view<Q<24>>(std::span{raw});
+		expect(typed[0] == Q<24>::one()).to_be_true();
+		expect(typed[1].raw()).to_equal(-(1 << 23));
+		expect(raw_view(typed).data() == raw.data()).to_be_true();
 	});
 	it("views the same storage both ways", _ {
 		std::array<std::int32_t, 3> raw{1, 2, 3};

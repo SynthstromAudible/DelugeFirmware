@@ -303,7 +303,7 @@ private:
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
 	                                        Buffer<value_type> out, In... in) {
 		static_assert(chains_of_v<K> == 1 || detail::vector_step_kernel<K>,
-		              "kChains is for Q31 vector kernels: Mono runs chains only in its Q31 vector loop");
+		              "kChains is for vector kernels: Mono runs chains only in its vector loop");
 		static_assert(chains_of_v<K> == 1 || !has_context<K>,
 		              "a chained step takes no context: step_chains would have to draw on it in chain order");
 		const auto n = static_cast<std::ptrdiff_t>(out.size());
@@ -327,7 +327,7 @@ private:
 		}
 	}
 
-	/// @brief One `step` per vector of Q31 samples: @p n samples of @p src into @p dst, the partial last vector
+	/// @brief One `step` per vector of 32-bit samples: @p n samples of @p src into @p dst, the partial last vector
 	/// included. A kernel declaring chains (@ref chains_of_v) steps every whole group of that many vectors through its
 	/// `step_chains` first. The loop counts samples with `for_each<std::int32_t>`, whose steps load and store raw q31
 	/// themselves and Q<31> through FixedVec (@ref detail::load_step).
