@@ -1109,7 +1109,7 @@ struct DelayWholeConfig {
 	                     : config.tape == DelayTapeForm::RES_HI ? kDelayResHiRate
 	                                                            : kDelayNeutralRate;
 	return {.rate = rate,
-	        .feedback = kDelayFeedback,
+	        .feedback = dsp::Q<31>::from_raw(kDelayFeedback),
 	        .analog = config.analog,
 	        .analog_saturation = static_cast<int32_t>(kDelayDrive),
 	        .ping_pong = config.cross,

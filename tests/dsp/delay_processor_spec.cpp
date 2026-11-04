@@ -327,7 +327,7 @@ public:
 		DelayTape* const growing = secondary.is_active() ? &secondary : nullptr;
 		const DelayBlockResult result = processor_.process(buffer, &primary, growing,
 		                                                   {.rate = s.rate,
-		                                                    .feedback = s.feedback,
+		                                                    .feedback = deluge::dsp::Q<31>::from_raw(s.feedback),
 		                                                    .analog = s.analog,
 		                                                    .analog_saturation = s.saturation,
 		                                                    .ping_pong = s.ping_pong,
@@ -431,7 +431,7 @@ std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
 		}
 		std::ignore = processor.process(block, &primary.tape, nullptr,
 		                                {.rate = kNativeRate,
-		                                 .feedback = 0x38000000,
+		                                 .feedback = deluge::dsp::Q<31>::from_raw(0x38000000),
 		                                 .analog = step.analog,
 		                                 .analog_saturation = step.saturation,
 		                                 .ping_pong = false,
@@ -479,7 +479,7 @@ describe delay_processor("DelayProcessor", ${
 		}
 		const std::vector<int32_t> before = words(block);
 		const DelayBlockResult result = processor.process(block, nullptr, nullptr, {.rate = kNativeRate,
-		    .feedback = 0x30000000, .analog = false, .analog_saturation = 8, .ping_pong = false,
+		    .feedback = deluge::dsp::Q<31>::from_raw(0x30000000), .analog = false, .analog_saturation = 8, .ping_pong = false,
 		    .render_in_stereo = true});
 		expect(result.wrapped).to_be_false();
 		expect(result.secondary_written).to_equal(0);
@@ -490,7 +490,7 @@ describe delay_processor("DelayProcessor", ${
 		Buffer secondary;
 		std::ignore = secondary.init(kNativeRate);
 		DelayProcessor processor;
-		const DelayBlock settings{.rate = kNativeRate, .feedback = 0x30000000, .analog = false,
+		const DelayBlock settings{.rate = kNativeRate, .feedback = deluge::dsp::Q<31>::from_raw(0x30000000), .analog = false,
 		    .analog_saturation = 8, .ping_pong = false, .render_in_stereo = true};
 		std::vector<int32_t> written;
 		std::vector<int32_t> wrapped;

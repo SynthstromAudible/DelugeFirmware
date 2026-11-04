@@ -16,6 +16,7 @@
  */
 
 #include "effects/reverb.h"
+#include "dsp-next/core/buffer_view.h"
 
 namespace deluge::effects {
 
@@ -54,7 +55,7 @@ void Reverb::prepare(ReverbModel model) {
 void Reverb::zero_freeverb() {
 	// Assigning each element through the member starts its lifetime as the union's active member.
 	for (std::size_t i = 0; i < Freeverb::kMemoryWords; ++i) {
-		memory_.freeverb[i] = 0;
+		memory_.freeverb[i] = dsp::Q<31>{};
 	}
 }
 
@@ -99,12 +100,14 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const int32_t>
 	}
 	switch (model_) {
 	case ReverbModel::FREEVERB:
-		freeverb_.on<&Freeverb::set_send>(send.data(), pan_l, pan_r);
+		freeverb_.on<&Freeverb::set_send>(dsp::typed_view(send).data(), dsp::Q<31>::from_raw(pan_l),
+		                                  dsp::Q<31>::from_raw(pan_r));
 		freeverb_.render_block(block, block);
 		break;
 	case ReverbModel::MUTABLE:
 	case ReverbModel::DIGITAL:
-		plate_.on<&Plate::set_send>(send.data(), pan_l, pan_r);
+		plate_.on<&Plate::set_send>(dsp::typed_view(send).data(), dsp::Q<31>::from_raw(pan_l),
+		                            dsp::Q<31>::from_raw(pan_r));
 		plate_.render_block(block, block);
 		break;
 	}

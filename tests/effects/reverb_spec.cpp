@@ -17,6 +17,7 @@
 
 // The reverb component (effects/reverb.h) against the reverb reference: every workload, the model hand-over,
 // settings publication, and which model renders.
+#include "dsp-next/core/buffer_view.h"
 #include "effects/reverb.h"
 
 #include "dsp-next/core/stereo_sample.h"
@@ -65,8 +66,8 @@ struct ComponentRunner {
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
-			rw::digest_freeverb(d,
-			                    deluge::dsp::test::freeverb_view(reverb->freeverb_state(), reverb->freeverb_memory()));
+			rw::digest_freeverb(d, deluge::dsp::test::freeverb_view(reverb->freeverb_state(),
+			                                                        deluge::dsp::raw_view(reverb->freeverb_memory())));
 		}
 		else {
 			rw::digest_plate(d, deluge::dsp::test::plate_view(reverb->plate_state(), reverb->plate_memory()));

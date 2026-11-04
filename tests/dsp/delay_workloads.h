@@ -167,7 +167,7 @@ struct Mode {
 	return {.frames = frames,
 	        .rate = rate,
 	        .settings = {.rate = static_cast<int32_t>(rate),
-	                     .feedback = mode.feedback,
+	                     .feedback = deluge::dsp::Q<31>::from_raw(mode.feedback),
 	                     .analog = mode.analog,
 	                     .analog_saturation = mode.saturation,
 	                     .ping_pong = mode.ping_pong,

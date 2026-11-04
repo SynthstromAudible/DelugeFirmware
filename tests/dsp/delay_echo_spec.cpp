@@ -71,7 +71,7 @@ EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, siz
 	Processor processor;
 	processor.reset_high_pass();
 	const DelayBlock settings{.rate = static_cast<int32_t>(rate),
-	                          .feedback = delay_workloads::kFeedback099,
+	                          .feedback = deluge::dsp::Q<31>::from_raw(delay_workloads::kFeedback099),
 	                          .analog = false,
 	                          .analog_saturation = 8,
 	                          .ping_pong = false,

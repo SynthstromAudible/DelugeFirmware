@@ -112,7 +112,7 @@ struct FeedbackShaper {
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                       Q<31> x) {
 		if constexpr (M == Mode::ANALOG) {
-			return analog(c, Q<31>::from_raw(AnalogImpulseResponse::step({}, {}, s.response, x.raw())));
+			return analog(c, AnalogImpulseResponse::step({}, {}, s.response, x));
 		}
 		else {
 			const Q<30> product = mul(x, c.feedback);

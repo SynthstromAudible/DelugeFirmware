@@ -168,8 +168,9 @@ struct Stutter {
 					other = tape.begin();
 				}
 				const int32_t strength1 = 65536 - strength2;
-				out = {.l = mix(tape.current().l, other->l, strength1, strength2),
-				       .r = mix(tape.current().r, other->r, strength1, strength2)};
+				out = {
+				    .l = mix(Q<31>::from_raw(tape.current().l), Q<31>::from_raw(other->l), strength1, strength2).raw(),
+				    .r = mix(Q<31>::from_raw(tape.current().r), Q<31>::from_raw(other->r), strength1, strength2).raw()};
 			}
 			if (s.ping_pong
 			    && ((s.reverse && &tape.current() == tape.begin())
@@ -197,10 +198,10 @@ private:
 	/// @return The taps @p a and @p b weighed by @p strength1 and @p strength2 (Q16, summing to 65536), Q31. Each
 	/// weight is reformatted to Q30, so each product is Q29; the sum and its reformat to Q31 wrap, as the hardware's
 	/// add and shift do.
-	[[nodiscard]] [[gnu::always_inline]] static q31 mix(q31 a, q31 b, int32_t strength1, int32_t strength2) {
-		const Q<29> sum = add_wrap(mul(Q<31>::from_raw(a), as_wrap<Q<30>>(Q<16>::from_raw(strength1))),
-		                           mul(Q<31>::from_raw(b), as_wrap<Q<30>>(Q<16>::from_raw(strength2))));
-		return as_wrap<Q<31>>(sum).raw();
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> mix(Q<31> a, Q<31> b, int32_t strength1, int32_t strength2) {
+		const Q<29> sum = add_wrap(mul(a, as_wrap<Q<30>>(Q<16>::from_raw(strength1))),
+		                           mul(b, as_wrap<Q<30>>(Q<16>::from_raw(strength2))));
+		return as_wrap<Q<31>>(sum);
 	}
 };
 

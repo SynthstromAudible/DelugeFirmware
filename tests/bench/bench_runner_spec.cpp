@@ -724,7 +724,9 @@ std::vector<std::int64_t> delay_feedback_words(const dsp::fixed::DelayProcessor&
 	std::vector<std::int64_t> out;
 	for (const auto& state : {processor.state().left, processor.state().right}) {
 		const auto& response = dsp::get<0>(state).response;
-		out.insert(out.end(), std::begin(response.history), std::end(response.history));
+		for (const dsp::Q<31> word : response.history) {
+			out.push_back(word.raw());
+		}
 		out.push_back(response.oldest);
 		out.push_back(dsp::get<1>(state).y.raw());
 	}
@@ -1530,7 +1532,7 @@ describe bench_runner("The DSP benchmark runner", ${
 						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
 						// A digital block holds the response still: its history stays silent, its index at the start.
 						const auto& response = dsp::get<0>(chain.left()).response;
-						expect(std::ranges::count(response.history, 0))
+						expect(std::ranges::count(response.history, dsp::Q<31>{}))
 						    .to_equal(static_cast<std::ptrdiff_t>(std::size(response.history)));
 						expect(response.oldest).to_equal(uint32_t{0});
 					}

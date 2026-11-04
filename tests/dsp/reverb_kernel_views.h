@@ -46,8 +46,8 @@ namespace deluge::dsp::test {
 		v.lines[Freeverb::kCombs + i] = line(Freeverb::kLayout.comb[1][i]);
 		v.index[i] = s.left.comb_index[i];
 		v.index[Freeverb::kCombs + i] = s.right.comb_index[i];
-		v.store[i] = s.left.comb_store[i];
-		v.store[Freeverb::kCombs + i] = s.right.comb_store[i];
+		v.store[i] = s.left.comb_store[i].raw();
+		v.store[Freeverb::kCombs + i] = s.right.comb_store[i].raw();
 	}
 	for (std::size_t i = 0; i < Freeverb::kAllpasses; ++i) {
 		v.lines[(2 * Freeverb::kCombs) + i] = line(Freeverb::kLayout.allpass[0][i]);

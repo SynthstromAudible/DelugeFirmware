@@ -125,7 +125,10 @@ private:
 /// @return One channel's feedback memories: its impulse response history and oldest index, then its high-pass memory.
 std::vector<int64_t> words(const Delay::FeedbackChain::State& s) {
 	const auto& response = deluge::dsp::get<0>(s).response;
-	std::vector<int64_t> out(std::begin(response.history), std::end(response.history));
+	std::vector<int64_t> out;
+	for (const deluge::dsp::Q<31> word : response.history) {
+		out.push_back(word.raw());
+	}
 	out.push_back(response.oldest);
 	out.push_back(deluge::dsp::get<1>(s).y.raw());
 	return out;
@@ -186,7 +189,7 @@ delay_workloads::Workload modeSwitches() {
 		        return delay_workloads::BlockStep{.frames = delay_workloads::kMaxFrames,
 		                                          .rate = rate,
 		                                          .settings = {.rate = static_cast<int32_t>(rate),
-		                                                       .feedback = 0x38000000,
+		                                                       .feedback = deluge::dsp::Q<31>::from_raw(0x38000000),
 		                                                       .analog = b % 2 == 1,
 		                                                       .analog_saturation = 5,
 		                                                       .ping_pong = (b / 2) % 2 == 1,
@@ -207,7 +210,7 @@ delay_workloads::Workload pingPong(bool ping_pong, bool stereo) {
 		        return delay_workloads::BlockStep{.frames = delay_workloads::kMaxFrames,
 		                                          .rate = kRate,
 		                                          .settings = {.rate = static_cast<int32_t>(kRate),
-		                                                       .feedback = 0x38000000,
+		                                                       .feedback = deluge::dsp::Q<31>::from_raw(0x38000000),
 		                                                       .analog = true,
 		                                                       .analog_saturation = 8,
 		                                                       .ping_pong = ping_pong,
@@ -224,7 +227,7 @@ std::vector<uint64_t> outputs(const delay_workloads::Workload& workload) {
 /// The delay's settings, without tapes.
 Delay::Settings settings(bool analog, bool ping_pong, bool stereo) {
 	return {.rate = kRate2048,
-	        .feedback = 0x38000000,
+	        .feedback = deluge::dsp::Q<31>::from_raw(0x38000000),
 	        .analog = analog,
 	        .analog_saturation = 8,
 	        .ping_pong = ping_pong,

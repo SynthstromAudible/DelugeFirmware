@@ -58,8 +58,8 @@ namespace deluge::dsp::fixed {
 /// **Channels.** The response never mixes channels: `Stereo<AnalogImpulseResponse>` steps each channel through its own
 /// State, exactly as a stereo response stepping both channels side by side.
 struct AnalogImpulseResponse {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief The response's length, in taps.
 	static constexpr std::size_t kTaps = 26;
@@ -76,14 +76,14 @@ struct AnalogImpulseResponse {
 	/// @brief Taps 25 down to 1, Q31, in the history's order: history sample j, oldest first, is x[n − 25 + j] and
 	/// meets tap `taps[j]`, tap 25 − j.
 	struct HistoryTaps {
-		std::array<int32_t, kHistory> taps; ///< Tap 25 − j at j, Q31.
+		std::array<Q<31>, kHistory> taps; ///< Tap 25 − j at j.
 	};
 
 	/// @brief Taps 25 down to 1, in the history's order.
 	static constexpr HistoryTaps kHistoryTaps = [] {
 		HistoryTaps h{};
 		for (std::size_t j = 0; j < kHistory; ++j) {
-			h.taps[j] = kResponse[kHistory - j];
+			h.taps[j] = Q<31>::from_raw(kResponse[kHistory - j]);
 		}
 		return h;
 	}();
@@ -97,7 +97,7 @@ struct AnalogImpulseResponse {
 	struct State {
 		/// The last 25 inputs, Q31: entries i and i + 25 hold the same input, so the 25 from `oldest` on run oldest
 		/// first.
-		std::array<q31, 2 * kHistory> history{};
+		std::array<Q<31>, 2 * kHistory> history{};
 		/// Where the oldest input lies, in [0, 25).
 		uint32_t oldest = 0;
 	};
@@ -113,34 +113,35 @@ struct AnalogImpulseResponse {
 	/// @param s The history, moved on by one sample.
 	/// @param x The input, Q31.
 	/// @return The response's output: the Q30 sum's bits, read as Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
-		const q31* const h = s.history.data() + s.oldest;
-		const int32_t* const t = kHistoryTaps.taps.data();
-		auto even = mul_r(Q<31>::from_raw(x), Q<31>::from_raw(kResponse[0]));
-		auto odd = Q<30>::from_raw(0);
-		q31 h0 = h[0];
-		q31 h1 = h[1];
-		int32_t t0 = t[0];
-		int32_t t1 = t[1];
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x) {
+		const Q<31>* const h = s.history.data() + s.oldest;
+		const Q<31>* const t = kHistoryTaps.taps.data();
+		auto even = mul_r(x, kFirstTap);
+		Q<30> odd{};
+		Q<31> h0 = h[0];
+		Q<31> h1 = h[1];
+		Q<31> t0 = t[0];
+		Q<31> t1 = t[1];
 		for (std::size_t j = 2; j < kHistory - 1; j += 2) {
-			const q31 next_h0 = h[j];
-			const q31 next_h1 = h[j + 1];
-			const int32_t next_t0 = t[j];
-			const int32_t next_t1 = t[j + 1];
-			even = mla_r(even, Q<31>::from_raw(h0), Q<31>::from_raw(t0));
-			odd = mla_r(odd, Q<31>::from_raw(h1), Q<31>::from_raw(t1));
+			const Q<31> next_h0 = h[j];
+			const Q<31> next_h1 = h[j + 1];
+			const Q<31> next_t0 = t[j];
+			const Q<31> next_t1 = t[j + 1];
+			even = mla_r(even, h0, t0);
+			odd = mla_r(odd, h1, t1);
 			h0 = next_h0;
 			h1 = next_h1;
 			t0 = next_t0;
 			t1 = next_t1;
 		}
-		even = mla_r(even, Q<31>::from_raw(h0), Q<31>::from_raw(t0));
-		odd = mla_r(odd, Q<31>::from_raw(h1), Q<31>::from_raw(t1));
-		even = mla_r(even, Q<31>::from_raw(h[kHistory - 1]), Q<31>::from_raw(t[kHistory - 1]));
+		even = mla_r(even, h0, t0);
+		odd = mla_r(odd, h1, t1);
+		even = mla_r(even, h[kHistory - 1], t[kHistory - 1]);
 
 		push(s, x);
-		return add_wrap(even, odd).raw();
+		// The Q30 sum's bits are the sample the feedback shapes
+		return reinterpret_bits<Q<31>>(add_wrap(even, odd));
 	}
 
 	/// @brief One sample of two channels at once, each through its own history: what @ref step gives each, the
@@ -153,19 +154,19 @@ struct AnalogImpulseResponse {
 	/// @param x_left The left input, Q31.
 	/// @param x_right The right input, Q31.
 	/// @return Each channel's response: the Q30 sums' bits, read as Q31.
-	[[nodiscard]] [[gnu::always_inline]] static StereoSample step_pair(State& left, State& right, q31 x_left,
-	                                                                   q31 x_right) {
-		const q31* const h_left = left.history.data() + left.oldest;
-		const q31* const h_right = right.history.data() + right.oldest;
-		const int32_t* const t = kHistoryTaps.taps.data();
-		auto sum_left = mul_r(Q<31>::from_raw(x_left), Q<31>::from_raw(kResponse[0]));
-		auto sum_right = mul_r(Q<31>::from_raw(x_right), Q<31>::from_raw(kResponse[0]));
+	[[nodiscard]] [[gnu::always_inline]] static StereoSample step_pair(State& left, State& right, Q<31> x_left,
+	                                                                   Q<31> x_right) {
+		const Q<31>* const h_left = left.history.data() + left.oldest;
+		const Q<31>* const h_right = right.history.data() + right.oldest;
+		const Q<31>* const t = kHistoryTaps.taps.data();
+		auto sum_left = mul_r(x_left, kFirstTap);
+		auto sum_right = mul_r(x_right, kFirstTap);
 		// Unrolled by 5 (of 25): measured on the rig against the plain loop and a full unroll, which spills.
 #pragma GCC unroll 5
 		for (std::size_t j = 0; j < kHistory; ++j) {
-			const auto tap = Q<31>::from_raw(t[j]);
-			sum_left = mla_r(sum_left, Q<31>::from_raw(h_left[j]), tap);
-			sum_right = mla_r(sum_right, Q<31>::from_raw(h_right[j]), tap);
+			const Q<31> tap = t[j];
+			sum_left = mla_r(sum_left, h_left[j], tap);
+			sum_right = mla_r(sum_right, h_right[j], tap);
 		}
 		push(left, x_left);
 		push(right, x_right);
@@ -174,7 +175,10 @@ struct AnalogImpulseResponse {
 
 private:
 	/// @brief @p x into @p s's history over the oldest input, both copies.
-	[[gnu::always_inline]] static void push(State& s, q31 x) {
+	/// @brief The newest sample's tap.
+	static constexpr Q<31> kFirstTap = Q<31>::from_raw(kResponse[0]);
+
+	[[gnu::always_inline]] static void push(State& s, Q<31> x) {
 		const uint32_t at = s.oldest;
 		s.history[at] = x;
 		s.history[at + kHistory] = x;

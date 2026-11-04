@@ -131,7 +131,7 @@ public:
 	/// @brief The models' states and memories, for specs: only the held model's memory may be read.
 	[[nodiscard]] const dsp::fixed::Freeverb::State& freeverb_state() const { return freeverb_.state(); }
 	[[nodiscard]] const dsp::fp::Plate::State& plate_state() const { return plate_.state(); }
-	[[nodiscard]] std::span<const int32_t> freeverb_memory() const { return memory_.freeverb; }
+	[[nodiscard]] std::span<const dsp::Q<31>> freeverb_memory() const { return memory_.freeverb; }
 	[[nodiscard]] std::span<const float> plate_memory() const { return memory_.plate; }
 
 private:
@@ -140,7 +140,7 @@ private:
 	/// @brief One buffer for whichever model is held: Freeverb's 25,450 words or the plate's 32,768-float ring.
 	union Memory {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): the kernels index it per frame
-		int32_t freeverb[Freeverb::kMemoryWords];
+		dsp::Q<31> freeverb[Freeverb::kMemoryWords];
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): as freeverb
 		float plate[Plate::kMemoryFloats];
 	};

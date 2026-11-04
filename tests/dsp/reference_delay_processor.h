@@ -118,7 +118,7 @@ protected:
 	/// @brief The feedback chain's settings from @p settings.
 	void configure(const DelayBlock& settings) {
 		feedback_.configure(FeedbackChain::Settings{
-		    FeedbackShaper::Settings{.feedback = deluge::dsp::Q<31>::from_raw(settings.feedback),
+		    FeedbackShaper::Settings{.feedback = settings.feedback,
 		                             .analog = settings.analog,
 		                             .drive = static_cast<uint32_t>(settings.analog_saturation)},
 		    ShiftTracker<11>::Settings{},

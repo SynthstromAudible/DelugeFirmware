@@ -379,13 +379,13 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 			AnalogImpulseResponse::State one_right{};
 			// The right history starts `offset` samples on from the left's, the same inputs fed to both forms.
 			for (std::size_t i = 0; i < offset; ++i) {
-				std::ignore = AnalogImpulseResponse::step({}, {}, right, q31(i * 977));
-				std::ignore = AnalogImpulseResponse::step({}, {}, one_right, q31(i * 977));
+				std::ignore = AnalogImpulseResponse::step({}, {}, right, deluge::dsp::Q<31>::from_raw(q31(i * 977)));
+				std::ignore = AnalogImpulseResponse::step({}, {}, one_right, deluge::dsp::Q<31>::from_raw(q31(i * 977)));
 			}
 			for (const StereoSample& x : in) {
-				const StereoSample paired = AnalogImpulseResponse::step_pair(left, right, x.l, x.r);
-				expect(paired.l).to_equal(AnalogImpulseResponse::step({}, {}, one_left, x.l));
-				expect(paired.r).to_equal(AnalogImpulseResponse::step({}, {}, one_right, x.r));
+				const StereoSample paired = AnalogImpulseResponse::step_pair(left, right, deluge::dsp::Q<31>::from_raw(x.l), deluge::dsp::Q<31>::from_raw(x.r));
+				expect(paired.l).to_equal(AnalogImpulseResponse::step({}, {}, one_left, deluge::dsp::Q<31>::from_raw(x.l)).raw());
+				expect(paired.r).to_equal(AnalogImpulseResponse::step({}, {}, one_right, deluge::dsp::Q<31>::from_raw(x.r)).raw());
 			}
 			expect(left.oldest).to_equal(one_left.oldest);
 			expect(right.oldest).to_equal(one_right.oldest);

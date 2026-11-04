@@ -198,7 +198,10 @@ struct Pair {
 std::vector<q31> history_of(const FeedbackShaper::State& s) {
 	static_assert(sizeof(FeedbackShaper::State) == sizeof(s.response.history) + sizeof(s.response.oldest),
 	              "the history and its index are the whole State");
-	std::vector<q31> v{std::begin(s.response.history), std::end(s.response.history)};
+	std::vector<q31> v;
+	for (const deluge::dsp::Q<31> word : s.response.history) {
+		v.push_back(word.raw());
+	}
 	v.push_back(static_cast<q31>(s.response.oldest));
 	return v;
 }

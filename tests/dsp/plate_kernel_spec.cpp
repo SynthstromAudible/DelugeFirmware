@@ -1,5 +1,6 @@
 // The plate kernel (dsp-next/float/reverb/plate.h) against the reverb reference over every Mutable and Digital
 // workload, and each loop's behaviour.
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/float/reverb/plate.h"
 #include "reference_reverb.h"
@@ -55,7 +56,8 @@ struct PlateRunner {
 		mono.configure(settings);
 	}
 	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
-		mono.on<&Plate::set_send>(send.data(), l, r);
+		mono.on<&Plate::set_send>(deluge::dsp::typed_view(send).data(), deluge::dsp::Q<31>::from_raw(l),
+		                          deluge::dsp::Q<31>::from_raw(r));
 		mono.render_block(out, out);
 	}
 	void digest_state(rw::Digest& d) const { rw::digest_plate(d, deluge::dsp::test::plate_view(mono.state(), memory)); }

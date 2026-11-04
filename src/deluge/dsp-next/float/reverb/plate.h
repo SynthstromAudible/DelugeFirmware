@@ -21,6 +21,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/q31_ops.h"
@@ -205,11 +206,11 @@ struct Plate {
 	/// @brief The ring, this block's send cursor and return levels, the write index, the LFO, and the loop and output
 	/// filter memories. Both modes share it.
 	struct State {
-		float* memory = nullptr;   ///< kMemoryFloats floats.
-		const q31* send = nullptr; ///< The next send sample; set by set_send, advanced per frame.
-		q31 pan_l = 0;             ///< The left return level, Q31.
-		q31 pan_r = 0;             ///< The right return level, Q31.
-		int32_t write = 0;         ///< The ring index the lines are read from; steps down one each frame.
+		float* memory = nullptr;     ///< kMemoryFloats floats.
+		const Q<31>* send = nullptr; ///< The next send sample; set by set_send, advanced per frame.
+		Q<31> pan_l{};               ///< The left return level.
+		Q<31> pan_r{};               ///< The right return level.
+		int32_t write = 0;           ///< The ring index the lines are read from; steps down one each frame.
 		PlateLfo::State lfo{};
 		float lp_decay_1 = 0.f; ///< Branch one's damping memory.
 		float lp_decay_2 = 0.f; ///< Branch two's damping memory.
@@ -245,7 +246,7 @@ struct Plate {
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
 		step_write(c, s);
-		const float input = static_cast<float>(*s.send) / kQ31Max;
+		const float input = static_cast<float>(s.send->raw()) / kQ31Max;
 		++s.send;
 		if constexpr (M == Mode::MUTABLE) {
 			return mutable_frame(c, s, x, input);
@@ -256,7 +257,7 @@ struct Plate {
 	}
 
 	static void set_memory(State& s, float* memory) { s.memory = memory; }
-	static void set_send(State& s, const q31* send, q31 pan_l, q31 pan_r) {
+	static void set_send(State& s, const Q<31>* send, Q<31> pan_l, Q<31> pan_r) {
 		s.send = send;
 		s.pan_l = pan_l;
 		s.pan_r = pan_r;
@@ -321,19 +322,20 @@ private:
 		return y;
 	}
 	/// @return @p scaled clamped into q31 (the top at the largest float below 2³¹) and converted.
-	[[nodiscard]] [[gnu::always_inline]] static q31 to_q31_saturating(float scaled) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> to_q31_saturating(float scaled) {
 		constexpr float kMax = 2147483520.f; // 0x7FFFFF80
 		constexpr float kMin = -2147483648.f;
-		return static_cast<q31>(std::clamp(scaled, kMin, kMax));
+		return Q<31>::from_raw(static_cast<int32_t>(std::clamp(scaled, kMin, kMax)));
 	}
 	/// @return @p x with the two outputs added at the return levels: the output stage, q31 saturating then the
 	/// rounded multiply-accumulate.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample mix(const State& s, StereoSample x, float left,
 	                                                             float right) {
-		const q31 output_left = to_q31_saturating(left * kOutputGain);
-		const q31 output_right = to_q31_saturating(right * kOutputGain);
-		return {.l = wrapping_add(x.l, multiply_32x32_rshift32_rounded(output_left, s.pan_l)),
-		        .r = wrapping_add(x.r, multiply_32x32_rshift32_rounded(output_right, s.pan_r))};
+		const Q<31> output_left = to_q31_saturating(left * kOutputGain);
+		const Q<31> output_right = to_q31_saturating(right * kOutputGain);
+		// The return adds the Q30 product's bits to the Q31 frame: half the output at the return level.
+		return {.l = add_wrap(Q<31>::from_raw(x.l), reinterpret_bits<Q<31>>(mul_r(output_left, s.pan_l))).raw(),
+		        .r = add_wrap(Q<31>::from_raw(x.r), reinterpret_bits<Q<31>>(mul_r(output_right, s.pan_r))).raw()};
 	}
 	/// @return The modulated allpass: the tail read at offset + amplitude × lfo, scaled into the head, written, then
 	/// the head scaled back plus the read out.

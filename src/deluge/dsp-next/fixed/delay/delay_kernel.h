@@ -132,7 +132,7 @@ struct Delay {
 		/// The tape speed, 8.24 on the delay's rate scale: 16777216 (1.0) plays the neutral 16384-sample tape at its
 		/// native rate. Unsigned, as the tape sizes for it; the tape's setup takes its int32_t image.
 		uint32_t rate = 0;
-		q31 feedback = 0;               ///< The feedback amount, Q31.
+		Q<31> feedback{};               ///< The feedback amount.
 		bool analog = false;            ///< The impulse response then a tanh; else a digital clip.
 		int32_t analog_saturation = 8;  ///< The tanh drive, as a power of two: 8 on a sound, 5 on a host chain.
 		bool ping_pong = false;         ///< The feedback crosses between the channels when rendering in stereo.
@@ -188,9 +188,8 @@ struct Delay {
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
-		        FeedbackShaper::Settings{.feedback = Q<31>::from_raw(s.feedback),
-		                                 .analog = s.analog,
-		                                 .drive = static_cast<uint32_t>(s.analog_saturation)},
+		        FeedbackShaper::Settings{
+		            .feedback = s.feedback, .analog = s.analog, .drive = static_cast<uint32_t>(s.analog_saturation)},
 		        {ShiftTracker<11>::Settings{}},
 		    }),
 		    .primary = s.primary,
@@ -286,8 +285,9 @@ struct Delay {
 		if constexpr (M.shaper == Shaper::ANALOG) {
 			// Both channels' impulse responses at once, sharing each tap's load; then each channel's shaping and
 			// high-pass, as the chain steps them.
-			const StereoSample response = AnalogImpulseResponse::step_pair(
-			    get<0>(s.left).response, get<0>(s.right).response, delayed.l, delayed.r);
+			const StereoSample response =
+			    AnalogImpulseResponse::step_pair(get<0>(s.left).response, get<0>(s.right).response,
+			                                     Q<31>::from_raw(delayed.l), Q<31>::from_raw(delayed.r));
 			const auto& shaper = get<0>(c.feedback);
 			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.l))).raw();
 			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.r))).raw();

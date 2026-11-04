@@ -294,7 +294,7 @@ void Delay::process(std::span<dsp::StereoSample> buffer, const State& delayWorki
 	const dsp::fixed::DelayBlockResult result =
 	    processor_.process(buffer, &primary_, growing,
 	                       {.rate = delayWorkingState.userDelayRate,
-	                        .feedback = delayWorkingState.delayFeedbackAmount,
+	                        .feedback = dsp::Q<31>::from_raw(delayWorkingState.delayFeedbackAmount),
 	                        .analog = delayWorkingState.analog,
 	                        .analog_saturation = delayWorkingState.analog_saturation,
 	                        .ping_pong = delayWorkingState.ping_pong,

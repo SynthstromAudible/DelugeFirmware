@@ -31,7 +31,7 @@ namespace deluge::dsp::fixed {
 /// @brief One block's delay settings as the owner resolved them.
 struct DelayBlock {
 	int32_t rate;              ///< the tape speed this block (the owner's resolved user rate; 16777216 is neutral)
-	int32_t feedback;          ///< the feedback amount, Q31
+	Q<31> feedback;            ///< the feedback amount
 	bool analog;               ///< analog: the impulse response then tanh at analog_saturation; else digital clipping
 	int32_t analog_saturation; ///< the tanh drive, as a power of two: 8 on a sound, 5 on a host chain
 	bool ping_pong;            ///< the feedback crosses between the channels
