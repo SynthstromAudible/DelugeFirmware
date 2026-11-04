@@ -91,7 +91,7 @@ src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/wavetable/wavetable_sync_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/float/dynamics/level_detector.cpp raw=0 boundary=2
 src/deluge/dsp-next/float/reverb/plate.h raw=0 boundary=4
-src/deluge/dsp/timestretch/time_stretcher.cpp raw=0 boundary=15
+src/deluge/dsp/timestretch/time_stretcher.cpp raw=0 boundary=11
 src/deluge/gui/menu_item/audio_compressor/compressor_values.h raw=0 boundary=5
 src/deluge/model/drum/drum.cpp raw=0 boundary=2
 src/deluge/model/drum/expression_combine.h raw=0 boundary=2
@@ -108,16 +108,16 @@ src/deluge/model/sample/clip_increment.h raw=0 boundary=3
 src/deluge/model/sample/pitch_scan.cpp raw=0 boundary=3
 src/deluge/model/sample/sample.cpp raw=0 boundary=4
 src/deluge/model/sample/sample.h raw=0 boundary=1
-src/deluge/model/sample/sample_low_level_reader.cpp raw=0 boundary=10
-src/deluge/model/sample/sample_low_level_reader.h raw=0 boundary=4
+src/deluge/model/sample/sample_low_level_reader.cpp raw=0 boundary=13
+src/deluge/model/sample/sample_low_level_reader.h raw=0 boundary=2
 src/deluge/model/sample/sample_recorder.cpp raw=2 boundary=8
 src/deluge/model/song/song.cpp raw=0 boundary=2
-src/deluge/model/voice/sample_playback_adapter.cpp raw=0 view=1 boundary=2
-src/deluge/model/voice/voice_sample.cpp raw=0 view=1 boundary=11
+src/deluge/model/voice/sample_playback_adapter.cpp raw=0 boundary=2
+src/deluge/model/voice/voice_sample.cpp raw=0 boundary=20
 src/deluge/modulation/arpeggiator.cpp raw=0 boundary=7
 src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
-src/deluge/processing/audio_output.cpp raw=0 view=1 boundary=17
+src/deluge/processing/audio_output.cpp raw=0 boundary=17
 src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=33
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3

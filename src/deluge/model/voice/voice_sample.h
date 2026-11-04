@@ -55,10 +55,10 @@ public:
 	LateStartAttemptStatus attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
 	                                              int64_t rawSamplesLate, int32_t numSamples = 0);
 	void endTimeStretching();
-	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
-	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
-	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,
-	            int32_t priorityRating);
+	bool render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* oscBuffer, int32_t numSamples, Sample* sample,
+	            int32_t numChannels, LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio,
+	            int32_t amplitude, int32_t amplitudeIncrement, int32_t bufferSize,
+	            InterpolationMode desiredInterpolationMode, int32_t priorityRating);
 	void beenUnassigned(bool wontBeUsedAgain);
 
 	// AudioClips don't obey markers because they "fudge" instead.
@@ -67,12 +67,6 @@ public:
 	[[nodiscard]] bool shouldObeyMarkers() const override {
 		return (cache == nullptr && timeStretcher == nullptr && !forAudioClip);
 	}
-
-	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
-	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,
-	                                         int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
-	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement,
-	                                         int32_t bufferSize, int32_t reduceMagnitudeBy = 1);
 
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);

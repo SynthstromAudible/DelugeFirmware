@@ -16,7 +16,6 @@
  */
 
 #include "model/voice/sample_playback_adapter.h"
-#include "dsp-next/core/buffer_view.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/voice_sample.h"
@@ -224,10 +223,7 @@ bool SamplePlaybackAdapter::render(deluge::dsp::Q<31>* buffer, int32_t numSample
                                    int32_t priorityRating) {
 	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
 	int32_t numChannels = (sample->numChannels == 2) ? 2 : 1;
-	// The voice's sample playback renders raw words
-	const std::span<int32_t> words =
-	    deluge::dsp::raw_view(std::span<deluge::dsp::Q<31>>{buffer, static_cast<size_t>(numSamples * numChannels)});
-	return voiceSample_->render(guide_, words.data(), numSamples, sample, numChannels, loopingType, phaseIncrement,
+	return voiceSample_->render(guide_, buffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 	                            timeStretchRatio, sourceAmplitude.raw(), amplitudeIncrement.raw(),
 	                            interpolationBufferSize, source_->sampleControls.interpolationMode, priorityRating);
 }

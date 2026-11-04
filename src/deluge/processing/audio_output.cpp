@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -282,7 +281,7 @@ renderEnvelope:
 				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
 				                         / static_cast<double>(render.size()));
 
-				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
+				std::span render_mono{reinterpret_cast<deluge::dsp::Q<31>*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
 				                       pitchAdjust);
 				rendered = true;
@@ -291,16 +290,14 @@ renderEnvelope:
 				// If we need to duplicate mono to stereo...
 				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 					// If can write directly into Song buffer...
-					// The clip renders raw Q31 samples.
-					const auto typed_mono = deluge::dsp::typed_view(render_mono);
 					if (bufferToTransferTo != nullptr) {
-						std::ranges::transform(typed_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
+						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
 						                       StereoSample::from_mono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
-						std::ranges::transform(typed_mono.rbegin(), typed_mono.rend(), render.rbegin(),
+						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
 						                       StereoSample::from_mono);
 					}
 				}

@@ -609,8 +609,8 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	return loopTime - AudioEngine::audioSampleTimer;
 }
 
-void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_t> outputBuffer, int32_t amplitude,
-                       int32_t amplitudeIncrement, int32_t pitchAdjust) {
+void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<deluge::dsp::Q<31>> outputBuffer,
+                       int32_t amplitude, int32_t amplitudeIncrement, int32_t pitchAdjust) {
 
 	if (!voiceSample) {
 		return;

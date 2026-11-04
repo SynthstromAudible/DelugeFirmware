@@ -60,7 +60,7 @@ public:
 	int32_t getSamplePos(int32_t playDirection);
 	bool allocateBuffer(int32_t numChannels);
 
-	void readFromBuffer(int32_t* oscBufferPos, int32_t numSamples, int32_t numChannels,
+	void readFromBuffer(deluge::dsp::Q<31>* oscBufferPos, int32_t numSamples, int32_t numChannels,
 	                    int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow, int32_t amplitudeIncrementNow,
 	                    int32_t* bufferReadPos);
 
