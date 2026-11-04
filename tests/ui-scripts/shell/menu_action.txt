@@ -1,4 +1,4 @@
-# Level-2 acceptance (E2 task 12): the action seam (E2 task 11b, `scenes/menu/action.h`) -- a
+# Level-2 acceptance: the action seam (`scenes/menu/action.h`) -- a
 # `nodes::ActionItem` whose whole body is "file one `MenuAction` and get out of the way".
 #
 # Legacy's four (`stem_export/start.h:51`, `audio_clip/set_clip_length_equal_to_sample_length.h:31`,
@@ -10,7 +10,7 @@
 #
 # So the press deliberately has NO snapshot. There is nothing for one to show: the frame after the
 # press is the parent list, identical to `idle`, and a golden whose entire content repeats the frame
-# before it is worse than no golden (E2 task 9, fix round 1). What the press did is asserted where it
+# before it is worse than no golden. What the press did is asserted where it
 # is actually visible -- `MenuScene::take_action()` in the spec. What the snapshot after it proves is
 # that the list is still LIVE, not a frozen repaint: the select turn moves its cursor.
 0     snapshot idle                  # EXPORT AUDIO: START EXPORT (row 0), CONFIGURE EXPORT STEMS

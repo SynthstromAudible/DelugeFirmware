@@ -1,4 +1,4 @@
-# Level-2 acceptance (E4 task 13), 128x64 panel: `slicing::SlicerScene`.
+# Level-2 acceptance, 128x64 panel: `slicing::SlicerScene`.
 #
 # Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`), never from a
 # `board` step -- see `audio_clip_64.txt`'s header for why the two have to move together.

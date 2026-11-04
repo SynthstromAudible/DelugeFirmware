@@ -1,4 +1,4 @@
-# Level-2 acceptance (E3 task 11): the per-device MIDI page (E3 task 8, `menu/nodes/midi_device.h`)
+# Level-2 acceptance: the per-device MIDI page (`menu/nodes/midi_device.h`)
 # and the MPE arm hanging off it, walked end to end through the real `Shell`.
 #
 # The whole point of this script is that four *selections* made on four different pages have to
@@ -34,13 +34,10 @@
 700   button SelectEnc down
 720   button SelectEnc up
 740   snapshot after_channels_press  # the member-channel count for out/upper: 15-15 = 0, drawn OFF
-# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit; it now
-# reads the select turn instead (`ui/oled/values.cpp`'s `select_delta`). This used to be two
-# `GoldUpper` steps because a gold knob is `EncoderKind::Accelerating` and swallows its first turn
-# after `LoweringConfig::short_press_ms` (500 ms) of stillness -- the wiggle debounce,
-# `InputLowering::action_gold_turn` -- so the first of the two used to do nothing and only the
-# second edited. The select encoder is not `Accelerating` and has no such debounce, so both turns
-# below act: this is now two genuine edits of `+2` each, not one swallowed step and one real one.
+# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`). A gold knob is
+# `EncoderKind::Accelerating` and swallows its first turn after `LoweringConfig::short_press_ms`
+# (500 ms) of stillness -- the wiggle debounce, `InputLowering::action_gold_turn`; the select encoder
+# is not `Accelerating` and has no such debounce, so both turns below act: two edits of `+2` each.
 800   encoder Select +2              # 0 -> 2: the select encoder has no wiggle debounce to swallow it
 820   encoder Select +2              # 2 -> 4
 840   snapshot after_select_edit     # `int_value` owns the select encoder: 0 -> 4, both turns count

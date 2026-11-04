@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Level 3 of the UI test harness (spec G §4.2): inject a UI script into the real headless app on
+/// Level 3 of the UI test harness: inject a UI script into the real headless app on
 /// the host's clock and snapshot the panels/pads/LEDs it produced.
 ///
 /// Env:
-///   UI_SCRIPT        the script to run (spec G §2). Enables everything here.
+///   UI_SCRIPT        the script to run. Enables everything here.
 ///   UI_SNAPSHOT_DIR  where `<name>.oled<N>.pbm` / `<name>.state` go (default `./snapshots`).
 ///
 /// The host provides the clock (`host_script_now_ms`), the exit (`host_script_exit`) and the BSP
@@ -34,8 +34,7 @@
 /// into that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format
 /// itself.
 ///
-/// LEVEL-3 DEVIATIONS from the level-2 `.state` (all forced by what the BSP can see, and all
-/// checked against the controller's rulings for this task):
+/// LEVEL-3 DEVIATIONS from the level-2 `.state` (all forced by what the BSP can see):
 ///   - no `scene` lines: the legacy UI has no scene names.
 ///   - LEDs are only ever `led <Name> on`, never `blink`: legacy blinking is the *app* toggling
 ///     `deluge_control_set_led` on a timer, so the BSP sees a resolved boolean and cannot tell a
@@ -50,8 +49,8 @@
 
 #include "host_script.h"
 
-#include "harness/ui_script.h" // the parser's extern "C" façade (Task 1)
-#include "host_snapshot.h"     // the .pbm/.state writers (final review I-3)
+#include "harness/ui_script.h" // the parser's extern "C" façade
+#include "host_snapshot.h"     // the .pbm/.state writers
 
 #include <dirent.h>
 #include <stdio.h>
@@ -415,7 +414,7 @@ static void validate_script(void) {
 		case UI_SCRIPT_MODEL:
 		case UI_SCRIPT_NOTICE:
 			// `model` raises a `notify::Dirty` and `notice` pushes a `notify::Notice`; both are
-			// shell-level channels the legacy app does not have (spec G §4, levels 2 vs 3).
+			// shell-level channels the legacy app does not have.
 			script_fail("shell-level command in an app script");
 		case UI_SCRIPT_BOARD:
 			if (step.at_ms != 0) {

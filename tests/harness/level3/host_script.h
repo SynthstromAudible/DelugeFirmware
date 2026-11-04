@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Level 3 of the UI test harness (spec G §4.2): drive the real headless app from a UI script and
+/// Level 3 of the UI test harness: drive the real headless app from a UI script and
 /// snapshot what it put on the panels, pads, LEDs and knob indicators.
 ///
 /// Everything here is C and depends on nothing in `src/deluge` — only on `<libdeluge/...>` and on

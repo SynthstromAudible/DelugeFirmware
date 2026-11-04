@@ -45,7 +45,7 @@ bool starts_with_word(std::string_view s, std::string_view word) {
 	return s.size() > word.size() && s.compare(0, word.size(), word) == 0 && s[word.size()] == ' ';
 }
 
-/// @brief `.state` category order (controller ruling on spec G §3): a fixed category order,
+/// @brief `.state` category order: a fixed category order,
 /// `scene` first, then `led`, `pad`, `indicator`, `lock`, `notice`; anything with an
 /// unrecognized first word sorts last. `scene` keeps insertion order within its category;
 /// every other category (including `kOther`) is ASCII-sorted within itself.

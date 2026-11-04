@@ -1,11 +1,11 @@
-# Level-2 acceptance (E4 task 13): `overlay::CountInScene` (E4 task 6), over a real base scene.
+# Level-2 acceptance: `overlay::CountInScene`, over a real base scene.
 #
 # **How the scene gets on the stack -- and the honest answer is "the spec pushes it".** Nothing in
 # `src/` pushes `kCountInSceneKind`: `grep -rn kCountInSceneKind src/` finds the registry entry and
 # the scene's own `Action::Kind::Remove`, and nothing else. The scene's own header says so plainly
-# ("whatever pushes it can push-and-forget"), and the pusher is spec F's wiring. So this script boots
-# onto `AudioClipScene` and `sim/scenes_spec/scene_scripts_spec.cpp` pushes the overlay over it on
-# the first tick, which is what the missing wiring will do. It is written down here rather than
+# ("whatever pushes it can push-and-forget"), and the application does not push it yet. So this
+# script boots onto `AudioClipScene` and `sim/scenes_spec/scene_scripts_spec.cpp` pushes the overlay
+# over it on the first tick, as that wiring will. It is written down here rather than
 # dressed up as a gesture, because no user gesture reaches this scene today.
 #
 # **The digit's schedule is the spec's too, and for a second, separate reason.** This scene is a

@@ -1,4 +1,4 @@
-# Level-2 acceptance (E4 task 13): `slicing::SlicerScene` (E4 tasks 9-10), both of its modes.
+# Level-2 acceptance: `slicing::SlicerScene`, both of its modes.
 #
 # **How the scene gets on the stack:** `RunOptions::initial_scene`, after the fixture calls
 # `slicer_scene().open(sample)`. That is the order legacy has too -- `SampleBrowser` sets
@@ -7,7 +7,7 @@
 # one. The scene is `is_root() == false`, so nothing else on the stack is implied by it.
 #
 # The fixture seeds three manual slices before the run (`SlicerScene::add_slice_at`, the port of
-# `slicer.cpp:535-551`), because the gesture that *adds* one is behind legacy's voice walk, which a
+# `slicer.cpp`), because the gesture that *adds* one is behind legacy's voice walk, which a
 # spec process has no `AudioEngine` to run -- `slicer_scene_spec.cpp`'s file docstring records that
 # as uncovered and seeds the table the same way, through the port's own front door.
 0     snapshot region_idle       # REGION mode: "NUM SLICES: 16" on the OLED, the full-height

@@ -1,4 +1,4 @@
-# Level-2 acceptance (E3 task 11): `browser::BrowserScene` (E3 tasks 2-3), reached the way a user
+# Level-2 acceptance: `browser::BrowserScene`, reached the way a user
 # actually reaches it -- a real shift+pad shortcut jump onto `nodes::file0_selector`, whose
 # `nodes::FileBrowserItem::on_focus` files `MenuState::pending_scene` and `MenuScene::after_render`
 # turns into a `Push`.
@@ -7,7 +7,7 @@
 # `nodes::source0`, a `Layout::Horizontal` page, and a horizontal page's `columns` widget claims
 # `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select press anywhere
 # in the committed tree descends into it. The shortcut table does: `kSoundCells` puts it at (0,5)
-# (`menu/shortcuts.cpp:100`), which is legacy's own `paramShortcutsForSounds` cell.
+# (`menu/shortcuts.cpp`), which is legacy's own `paramShortcutsForSounds` cell.
 #
 # Every listing is asynchronous even on the host, because the collect happens in a LATER tick's
 # `after_render` (`browser_scene.h`, "the listing is asynchronous"). So each of the three listings

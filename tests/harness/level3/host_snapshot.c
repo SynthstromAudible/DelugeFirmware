@@ -86,7 +86,7 @@ static int starts_with_word(const char* s, const char* word) {
 	return strncmp(s, word, n) == 0 && s[n] == ' ';
 }
 
-/// `.state` category order, per the controller's ruling on spec G §3 and `snapshot.cpp:47`:
+/// `.state` category order, as `snapshot.cpp`'s `Category` enum has it:
 /// `scene` first, then `led`, `pad`, `indicator`, `lock`, `notice`, then anything unrecognised.
 /// Level 3 never emits `scene`, `lock` or `notice`, but the order is kept whole so the two
 /// levels' files sort identically.

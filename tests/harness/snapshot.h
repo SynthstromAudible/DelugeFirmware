@@ -42,7 +42,7 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 inline constexpr size_t kStateLineBytes = 96;
 static_assert(kStateLineBytes == UI_SCRIPT_STATE_LINE_BYTES);
 
-/// @brief The lines of a `.state` snapshot (spec G §3), formatted and sorted on demand.
+/// @brief The lines of a `.state` snapshot, formatted and sorted on demand.
 struct StateLines {
 	FixedVector<std::array<char, kStateLineBytes>, 256> lines;
 

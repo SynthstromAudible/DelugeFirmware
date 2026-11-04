@@ -1,26 +1,19 @@
 # **This script runs with the three REAL services installed, UNSEEDED** -- `svc.song` set,
-# `svc.mod_target` left null (F1 task 11 fix round 2). It used to run with `Services{}`, three
-# `NullService`s, and so did every other menu script here; twelve of them moved, and the twelve that
-# drive no gold turn did not. What the install cost these goldens is exactly two lines per frame,
+# `svc.mod_target` left null. The services add exactly two lines per frame to these goldens,
 # `indicator lower 0 0 0 0` and `indicator upper 0 0 0 0` -- `ModKnobs::leds` declaring both rings
-# dark because there is no target. No pixel moved and no assertion changed.
+# dark because there is no target.
 #
-# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit, under
-# a comment that (wrongly) called that a port of `Integer::selectEncoderAction`; it now reads the
-# select turn instead (`ui/oled/values.cpp`'s `select_delta`), which is what legacy's own
-# `Integer::selectEncoderAction` actually is the port of. This script's two turns below are both
-# `Select` now -- the first used to be a claimed-and-ignored no-op, the second used to be a
-# `GoldUpper` turn -- and both now genuinely move `nodes::saturation`.
+# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), the port of
+# legacy's `Integer::selectEncoderAction`, never the gold pair. Both turns below are `Select`, and
+# both move `nodes::saturation`.
 #
-# This file used to carry a long, dense essay on the gold-knob wiggle debounce here, keyed to a
-# `GoldUpper` step this leaf no longer reads at all: `int_value` claims no gold input any more, so
-# there is no debounce question left to ask about a turn it never sees. That story now belongs
-# entirely to `menu_gold_turn.txt`, which drives this exact node (`nodes::saturation`) with a SEEDED
-# `ModKnobs` and shows what a gold turn does now that it reaches the service instead of the widget:
+# `int_value` claims no gold input, so there is no gold-knob debounce question here.
+# `menu_gold_turn.txt` drives this exact node (`nodes::saturation`) with a SEEDED `ModKnobs` and
+# shows what a gold turn does when it reaches the service instead of the widget:
 # it moves a real, unrelated param and pushes a popup, because `nodes::saturation` -- built with
 # `int_item()` -- has no `bind.param` of its own for `ModKnobs::popup_suppressed` to match against.
 #
-# Level-2 acceptance (task-11 brief): an Int leaf (nodes::saturation), opened directly at depth 0.
+# Level-2 acceptance: an Int leaf (nodes::saturation), opened directly at depth 0.
 # The generic recipe every menu_* script drives; the C++ spec pins the node and the model asserts.
 0     snapshot idle
 100   encoder Select +1

@@ -1,5 +1,5 @@
-# Level-2 acceptance (E2 task 12): a global-MIDI-command learn item (nodes::midi_command_play,
-# E2 task 8), entered from the MIDI COMMANDS list with its slot already learned.
+# Level-2 acceptance: a global-MIDI-command learn item (nodes::midi_command_play),
+# entered from the MIDI COMMANDS list with its slot already learned.
 #
 # `midi::Command` (`gui/menu_item/midi/command.cpp:33-87` drawPixelsForOled) has exactly two shapes,
 # and the interesting transition between them is the select encoder: `Command::selectEncoderAction`

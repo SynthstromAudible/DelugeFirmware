@@ -1,9 +1,9 @@
-# Level-2 acceptance (E2 task 12): `context_menu::ContextMenuScene` itself -- its window, its
+# Level-2 acceptance: `context_menu::ContextMenuScene` itself -- its window, its
 # option cursor and its footer -- reached the way a user reaches it, through the audio-clip root's
-# AUDIO SOURCE item (`nodes::audio_source_selector`, E2 task 11b).
+# AUDIO SOURCE item (`nodes::audio_source_selector`).
 #
-# This is the sixth `DescriptorId` and the only one that uses all three hooks task 6's `Descriptor`
-# lacked (`initial`, `on_move`, `footer`), so it is the one worth driving: `initial_audio_source`
+# This is the sixth `DescriptorId` and the only one that uses all three optional `Descriptor`
+# hooks (`initial`, `on_move`, `footer`), so it is the one worth driving: `initial_audio_source`
 # picks the row from `AudioOutput::inputChannel` (`gui/context_menu/audio_input_selector.cpp:87-127`
 # setupAndCheckAvailability), and `on_move_audio_source` (`:140-195` selectEncoderAction) runs on
 # every turn.

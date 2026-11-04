@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// Level 3's C port of `tests/harness/snapshot.{h,cpp}`'s `.pbm`/`.state` writers (spec G §3),
+/// Level 3's C port of `tests/harness/snapshot.{h,cpp}`'s `.pbm`/`.state` writers,
 /// split into their own dependency-free translation unit so BOTH the runner (`deluge_ui_level3`)
 /// and the unit specs (`deluge_spec`, for `harness/identity_spec.cpp`'s
 /// cross-check) can compile it -- exactly the split `host_script_tables.c` already does for the
@@ -53,7 +53,7 @@ typedef struct HostSnapshotLines {
 	char lines[HOST_SNAPSHOT_MAX_LINES][UI_SCRIPT_STATE_LINE_BYTES];
 	size_t count;
 	/// True once a line was dropped entirely because `lines` was already at
-	/// `HOST_SNAPSHOT_MAX_LINES` capacity -- mirrors `StateLines::overflowed` (final review I-1).
+	/// `HOST_SNAPSHOT_MAX_LINES` capacity -- mirrors `StateLines::overflowed`.
 	/// A caller that sees this set must fail the run rather than write a truncated `.state`.
 	int overflowed;
 } HostSnapshotLines;
@@ -86,7 +86,7 @@ void host_snapshot_add_indicator(HostSnapshotLines* s, int upper, const uint8_t 
 /// @return 1 on success (`ferror(f) == 0`), 0 otherwise.
 int host_snapshot_write_pbm(FILE* f, const uint8_t* page_major, uint16_t w, uint16_t h);
 
-/// @brief Sort \p s's lines into spec G §3's fixed category order (`scene`, `led`, `pad`,
+/// @brief Sort \p s's lines into the `.state` format's fixed category order (`scene`, `led`, `pad`,
 /// `indicator`, `lock`, `notice`, then anything unrecognised; ASCII-sorted within each category)
 /// and write them to \p f, one per line. Byte-for-byte `StateLines::sorted_text`.
 /// @return 1 on success (`ferror(f) == 0`), 0 otherwise.

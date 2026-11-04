@@ -3,7 +3,7 @@
 # **How the scene gets on the stack: nothing in this script pushes it.** A gold-knob turn is offered
 # to the top scene first (`shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
 # `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
-# encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp:247-251`), and
+# encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp`), and
 # `ModKnobs::mod_encoder_action` then writes the param and calls `show_popup`, which ends by running
 # `stack_.push(SceneId{kParamPopupSceneKind})` (`ModKnobs::show_popup`). **This script
 # cannot exist with `Services{}`**: with a null mod-knob service the turn is dropped and no popup
@@ -37,7 +37,7 @@
 # `{.oled = true}`, so a FAST turn repainted itself and only a slow one did not.
 # `ParamPopupScene::show` now reports whether it committed and `ModKnobs::show_popup` passes that up
 # to `mod_encoder_action`, which files `Action::Kind::Repaint` on `SurfaceRole::Main` --
-# legacy's `display->displayNotification(...)` at `view.cpp:1262` being a write AND a blit. Deleting
+# legacy's `display->displayNotification(...)` at `view.cpp` being a write AND a blit. Deleting
 # that action turns this frame back into a copy of `popup_shown`.
 0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line
 100   encoder GoldUpper +1       # armed, not acted on: see above

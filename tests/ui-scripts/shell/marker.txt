@@ -1,8 +1,8 @@
-# Level-2 acceptance (E3 task 11): `marker::MarkerScene` (E3 task 8), reached by a real shift+pad
+# Level-2 acceptance: `marker::MarkerScene`, reached by a real shift+pad
 # shortcut jump onto `nodes::sample0_start` -- `nodes::MarkerItem::on_focus` files
 # `MenuState::pending_scene` carrying `MarkerType::START` in `SceneId::arg`.
 #
-# (0,7) of `kSoundCells` (`menu/shortcuts.cpp:100`) is legacy's own `paramShortcutsForSounds` cell
+# (0,7) of `kSoundCells` (`menu/shortcuts.cpp`) is legacy's own `paramShortcutsForSounds` cell
 # for `sampleStartMenu`, and it is the only door: `sample0_start` sits on `nodes::source0`, a
 # `Layout::Horizontal` page, whose `columns` widget claims `entered` only for a `Kind::Submenu`
 # column (`ui/oled/columns.cpp`).
@@ -14,13 +14,13 @@
 # the class docstring says which of the two legacy disagreements this port follows). The OLED draws
 # no waveform at all, so the two blink frames below are byte-identical `.pbm`s that differ only in
 # their `.state` pad lines -- which is exactly why both halves of a snapshot are compared.
-# E3 task 10's step-8b fold is what makes them happen: `next_timer()` now arms the surfaces
+# `Shell::tick`'s step 8b is what makes them happen: `next_timer()` arms the surfaces
 # `timer_repaints()` names, and this scene names both, so a tick with no input still repaints.
 #
 # The counter starts when the first `render_grid` sees a marker on screen, which is the tick the
 # push lands on (~150 ms), so phase 3 covers roughly [750, 950) and phase 0 [950, 1150). The frames
 # after the blink pair are all in phase 0: `select_encoder` and `pad_action` both reset the counter
-# (`sample_marker_editor.cpp:1400-1403`), so with the blink held still the only thing that can move
+# (`sample_marker_editor.cpp`), so with the blink held still the only thing that can move
 # between them is the marker itself.
 #
 # **`after_select_turn` is the frame that found a bug.** `MarkerScene::handle` files

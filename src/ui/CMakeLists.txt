@@ -1,4 +1,4 @@
-# deluge_ui_core / deluge_ui_oled / deluge_ui_grid — the immediate-mode toolkit (spec B).
+# deluge_ui_core / deluge_ui_oled / deluge_ui_grid — the immediate-mode toolkit.
 # Include only ui/**, gfx/** and the standard library; oled and grid never include each other.
 add_library(deluge_ui_core STATIC
   core/repaint_gate.cpp

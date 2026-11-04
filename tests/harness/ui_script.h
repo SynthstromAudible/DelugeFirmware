@@ -4,7 +4,7 @@
 /// @brief Bytes per `.state` line, NUL included -- shared by `deluge::harness::kStateLineBytes`
 /// (`tests/harness/snapshot.h`) and the C snapshot writer (`tests/harness/level3/host_snapshot.h`), so the
 /// two widen together rather than as two separately-chosen numbers that could silently drift
-/// (final review I-3). Outside the `__cplusplus` guard below so a plain C17 TU sees it too.
+///. Outside the `__cplusplus` guard below so a plain C17 TU sees it too.
 #define UI_SCRIPT_STATE_LINE_BYTES 96
 
 #ifdef __cplusplus
@@ -18,7 +18,7 @@ namespace deluge::harness {
 /// @brief Which field of `Step` a parsed line filled in.
 enum class StepKind : uint8_t { Board, Snapshot, Button, Encoder, Pad, Released, Model, Notice, Quit };
 
-/// @brief One parsed line of a UI test script (spec G §2).
+/// @brief One parsed line of a UI test script.
 ///
 /// `name`/`text` are silently truncated (not rejected) if a script's token doesn't fit --
 /// scripts are hand-written fixtures the author controls, so a truncation is a copy/paste
@@ -46,7 +46,7 @@ struct ScriptResult {
 	std::optional<ParseError> error;
 };
 
-/// @brief Parse a UI test script (spec G §2: `<at_ms> <command> <args...>`, `#` comments, one
+/// @brief Parse a UI test script (`<at_ms> <command> <args...>`, `#` comments, one
 /// step per line) into its steps.
 ///
 /// Unknown commands are errors, not warnings. Times must be non-decreasing. Stops at the first
@@ -58,7 +58,7 @@ ScriptResult parse_script(std::string_view text);
 } // namespace deluge::harness
 #endif // __cplusplus
 
-/// @brief C mirror of `deluge::harness::StepKind`, for the host BSP (spec G §4.2), which is C.
+/// @brief C mirror of `deluge::harness::StepKind`, for the host BSP, which is C.
 ///
 /// The `static_assert`s below pin it to the C++ enum, so the two cannot drift apart silently --
 /// a drift would otherwise misroute every step in the BSP's dispatch switch with no diagnostic.
@@ -86,7 +86,7 @@ static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Notice) == UI_SCRI
 static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Quit) == UI_SCRIPT_QUIT);
 #endif
 
-/// @brief C mirror of `deluge::harness::Step`, for the host BSP (spec G §4.2), which is C.
+/// @brief C mirror of `deluge::harness::Step`, for the host BSP, which is C.
 typedef struct UiScriptStep {
 	uint32_t at_ms;
 	uint8_t kind; ///< a `StepKind` value

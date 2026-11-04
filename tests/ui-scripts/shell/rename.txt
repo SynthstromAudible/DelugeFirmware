@@ -1,18 +1,18 @@
-# Level-2 acceptance (E2 task 12): `rename::RenameScene` (E2 tasks 4-5), reached the way a user
+# Level-2 acceptance: `rename::RenameScene`, reached the way a user
 # reaches it -- a select press on nodes::edit_clip_name, whose `nodes::EditNameItem::on_focus` files
 # `MenuState::pending_scene` and `MenuScene::after_render` turns into a `Push`.
 #
-# Pad coordinates are the QWERTY layout's own (`ui/grid/keyboard.cpp:12-20` kKeyboardChars, home row
+# Pad coordinates are the QWERTY layout's own (`ui/grid/keyboard.cpp` kKeyboardChars, home row
 # 3, table row = 5 - y, table column = x - 3): 'A' is (3,3), 'B' is (7,2), backspace is (14,5) and
 # enter is (14,3) (`text_keyboard_char_at`, `:51-57`).
 #
 # Two things here need QUIET TICKS, and a single frame per event could not see either:
 #   * the end-of-string cursor bar blinks on a `kFlashTime` (110 ms) half-period
-#     (`rename_scene.cpp:280-292`, legacy's `QwertyUI` blink) -- `idle` and `idle_blinked` are the
+#     (`rename_scene.cpp`, legacy's `QwertyUI` blink) -- `idle` and `idle_blinked` are the
 #     same screen 120 ms apart with NO input in between, so a cursor that computed the right phase
 #     and never repainted would show up as two identical frames;
 #   * a held backspace auto-repeats after 500 ms and then every 80 ms
-#     (`rename_scene.h` kBackspaceRepeatDelayMs/kBackspaceRepeatMs, `gui/ui/qwerty_ui.cpp:220,452`).
+#     (`rename_scene.h` kBackspaceRepeatDelayMs/kBackspaceRepeatMs, `gui/ui/qwerty_ui.cpp`).
 0     snapshot menu_idle             # EDIT NAME list, cursor on row 0 (EDIT TRACK NAME)
 100   encoder Select +1
 120   snapshot menu_clip_row         # cursor on EDIT CLIP NAME
@@ -33,7 +33,7 @@
 820   pad 5 3 up
 840   snapshot typed_abad            # "ABAD" -- four characters, so a hold can eat three of them
 900   pad 14 5 down 64
-920   snapshot backspace_press       # the press itself deletes one: "ABA" (qwerty_ui.cpp:219)
+920   snapshot backspace_press       # the press itself deletes one: "ABA" (`qwerty_ui.cpp`)
 # No snapshot during the arming delay: with the repeat correctly NOT firing that frame is
 # byte-identical to `backspace_press`. The delay is pinned by the two frames below instead.
 1440  snapshot backspace_repeat_1    # 500 ms after the press the first repeat fired -> "AB"

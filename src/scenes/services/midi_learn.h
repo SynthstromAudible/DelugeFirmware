@@ -71,8 +71,8 @@
 ///
 /// @par What the scenes supply, and what this holds
 ///
-/// Spec D's service table says *scenes report `learnable_at(pad) -> LearnTarget`*, and that is the
-/// inversion this file is built on. Legacy asks the same question five times, once per model type
+/// Scenes report `learnable_at(pad) -> LearnTarget`, and that is the inversion this file is built on. Legacy asks the
+/// same question five times, once per model type
 /// (`View::sectionMidiLearnPadPressed` and friends); the port asks it once, because the *scene*
 /// already knows what is under the pad and the service only ever needed the `LearnedMIDI*` plus
 /// the two model pointers two of the arms use afterwards. See `LearnTarget`.

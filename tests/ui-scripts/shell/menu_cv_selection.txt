@@ -1,4 +1,4 @@
-# Level-2 acceptance (E2 task 12): a runtime-list page (nodes::cv_selection, E2 task 10) and the
+# Level-2 acceptance: a runtime-list page (nodes::cv_selection) and the
 # chain that carries the picked row into the page it opens.
 #
 # `cv::Selection` (`gui/menu_item/cv/selection.h:41-46` selectButtonPress) does two things at once:

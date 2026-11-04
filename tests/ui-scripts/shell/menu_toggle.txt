@@ -1,9 +1,9 @@
-# Level-2 acceptance (task-11 brief): a Toggle leaf (nodes::osc_sync), opened directly.
+# Level-2 acceptance: a Toggle leaf (nodes::osc_sync), opened directly.
 0     snapshot idle
 100   encoder Select +1
 120   snapshot after_select_turn
 300   encoder GoldUpper +2
-# E3 task 10: `render_leaf_toggle` does not claim the gold knobs (`menu_scene.cpp`), so this turn is
+# `render_leaf_toggle` does not claim the gold knobs (`menu_scene.cpp`), so this turn is
 # unclaimed input that moves nothing here -- byte-identical to `after_select_turn` too, for a
 # different reason than the press above.
 400   button Back down

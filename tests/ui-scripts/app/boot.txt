@@ -1,4 +1,4 @@
-# Level 3 (spec G §4.2): the whole legacy app, headless, on the deterministic frame clock.
+# Level 3: the whole legacy app, headless, on the deterministic frame clock.
 # Times are milliseconds of rendered audio: ms = host_rendered_frames * 1000 / 44100.
 #
 # Not 0 ms: the legacy app blits its first OLED frame from inside the main loop, *after* its first

@@ -1,4 +1,4 @@
-# Level-2 acceptance (E2 task 12): `nodes::PerformEditorItem` -- the one action item that is a value
+# Level-2 acceptance: `nodes::PerformEditorItem` -- the one action item that is a value
 # AND a verb, and the only one of the five with a screen of its own.
 #
 # `performance_session_view::EditingMode` (`gui/menu_item/performance_session_view/editing_mode.h:99-107`

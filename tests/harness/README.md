@@ -1,6 +1,6 @@
 # UI test harness
 
-Level 0 of the UI test harness (spec G):
+Level 0 of the UI test harness:
 one script format, one snapshot format, dependency-free so they can be shared by levels 1-3
 and compiled directly into the host BSP. **This directory must not include anything from
 `src/shell`** -- it is compiled into the host BSP, which the shell is not.
@@ -14,14 +14,12 @@ and compiled directly into the host BSP. **This directory must not include anyth
 
 ## Script format
 
-(Copied from spec G §2.)
-
 deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; `#` comments.
 
 ```
 0       board 128x48+5,128x64+0   # host-app level only: select the panel set
 0       snapshot boot
-500     button Clip down          # ButtonId names (spec D §2)
+500     button Clip down          # ButtonId names
 520     button Clip up
 600     encoder Select +1         # EncoderRole names; signed detents
 700     pad 3 5 down 100          # grid coords; velocity optional (default 255)
@@ -48,11 +46,9 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 
 ## Snapshot format
 
-(Copied from spec G §3.)
-
 Per `snapshot <name>`, written into the output directory:
 
-- `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h:20-22`'s
+- `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h`'s
   dependency-free re-implementation of `tests/spec/gfx/support/pbm.h`'s `page_major_to_pbm` --
   `tests/harness` may not include `tests/spec/` headers, since it is also compiled into the host
   BSP). A deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
@@ -102,7 +98,7 @@ audit.
 | 3 -- whole app | the real headless `deluge_host`, injected on its deterministic frame clock | `tests/ui-scripts/app/*.txt`, goldens `tests/golden/ui/app/`, ctest `ui_app_scripts_<name>` / `_diff` |
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
-on top of level 0. A migrated scene's script (spec F) is meant to run, unmodified, at level 2
+on top of level 0. A migrated scene's script is meant to run, unmodified, at level 2
 against both the legacy adapter and the new scene -- see "Migration hook" below.
 
 ## Adding a script
@@ -186,7 +182,7 @@ scene's script should still pass at level 2 against both the legacy adapter and 
 (the migration hook below); level 3 exists to prove the *legacy* boundary continues to work
 exactly as scripted while that migration is in flight.
 
-## Migration hook (spec G §6)
+## Migration hook
 
 `RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
 table. When set, the same script is run twice -- once against the call's own `registry`
@@ -194,7 +190,7 @@ argument, once against `*second_registry` -- into sibling `got/<name>/` and
 `got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
 a recorded golden (there is nothing to record ahead of time when the whole point is that two
 independent sources must agree). A failure names the first file, in sorted order, that
-differs or is missing on either side. This is spec F's acceptance test for a migrated scene:
+differs or is missing on either side. This is the acceptance test for a migrated scene:
 the same script against `LegacySceneAdapter` and the new scene must produce identical
 snapshots.
 

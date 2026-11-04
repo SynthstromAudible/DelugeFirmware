@@ -1,12 +1,11 @@
-# Level-2 acceptance (task-11 brief; rewritten for note-family task 2's fix): a horizontal Submenu
+# Level-2 acceptance: a horizontal Submenu
 # (nodes::lpf), opened directly.
 #
-# **Rewritten.** Legacy's select turn edits the focused column and never moves focus
+# Legacy's select turn edits the focused column and never moves focus
 # (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`); focus moves only by
 # instrument button (`buttonAction`'s `select_map`, `:97`), and the gold knobs never touch a
 # horizontal page at all -- they fall through to `services::ModKnobs`, exactly as they do over any
-# other view. All three replace what this script used to pin: a select turn walking the focus from
-# MODE to FREQ, a select press that stayed and raised a notification, and a gold turn editing FREQ.
+# other view.
 0     snapshot idle                  # MODE focused (column 0), an Enum
 100   encoder Select +1
 120   snapshot after_select_turn     # the select turn edits MODE in place -- the option text steps

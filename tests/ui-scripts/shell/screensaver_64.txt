@@ -1,4 +1,4 @@
-# Level-2 acceptance (E4 task 13), 128x64 panel: `overlay::ScreensaverScene`.
+# Level-2 acceptance, 128x64 panel: `overlay::ScreensaverScene`.
 #
 # Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`) -- see
 # `audio_clip_64.txt`'s header.
@@ -9,7 +9,7 @@
 # `Rainfall`'s own `kWidth`/`kTopmost`/`kHeight` (128 x 48, band from row 5) rather than to the
 # frame it is handed, "so a frame on a taller panel shows the animation in the same 128x43 band
 # legacy draws it in ... rather than silently letting the rows legacy clips away appear"
-# (`ui/oled/rainfall.h:344-351`). Legacy has no 64-row mode to port, and inventing one would be new
+# (`ui/oled/rainfall.h`). Legacy has no 64-row mode to port, and inventing one would be new
 # UX (Global Constraint 1).
 #
 # So what these two frames assert at this geometry is exactly (a) that the band stays where legacy

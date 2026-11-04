@@ -7,7 +7,7 @@
 #
 # There is no env var and no new script verb for the toggle, and that is deliberate.
 # `shellMenuEnabled()` reads `runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)`
-# (`gui/ui/shell_menu_entry.cpp:105-107`); the setting is registered with xmlName "shellMenu" and
+# (`gui/ui/shell_menu_entry.cpp`); the setting is registered with xmlName "shellMenu" and
 # default Off (`model/settings/runtime_feature_settings.cpp:175-178`) and read from
 # `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`,
 # `:194-222`). So the toggle-on leg is a genuine boot-from-settings on the mechanism the device
@@ -36,7 +36,7 @@
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
 # (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
 # the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
-# tree. Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:898`)
+# tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
 # that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
 # where address 0 is mapped. This script stays on a clip-carrying
@@ -130,7 +130,7 @@
 2900   snapshot song-view
 
 # Hold the clip's pad and press the select encoder: `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW`
-# (`session_view.cpp:840`) plus SELECT is legacy's convert-to-audio-clip gesture (`:525-540`).
+# (`session_view.cpp`) plus SELECT is legacy's convert-to-audio-clip gesture.
 # Both legs run the same legacy code here -- the toggle only reaches menus.
 3100   pad 0 7 down
 3300   button SelectEnc down
@@ -200,7 +200,7 @@
 # `scripts/make_fixture_sample.py` and byte-identical in both SD roots -- because a browser over a
 # real `DELUGE_SD_ROOT` with nothing to list would compare two empty lists. Both roots also carry
 # `SETTINGS/FAVOURITES/SAMPLES_Bank0.xml`, the file `SampleBrowser::opened`'s
-# `favouritesManager.setCategory("SAMPLES")` (`gui/ui/browser/sample_browser.cpp:105`) would
+# `favouritesManager.setCategory("SAMPLES")` (`gui/ui/browser/sample_browser.cpp`) would
 # otherwise write into the fixture on the OFF leg alone.
 #
 # **Two port defects this script caught, both fixed:**
@@ -236,7 +236,7 @@
 
 # Site 8, in two presses. `auditioning` is the held audition pad; `file-selector` is the panel this
 # acceptance test exists to compare -- legacy's `SampleBrowser` (title "Audio files",
-# `sample_browser.cpp:89`) against the ported `browser::BrowserScene` on the `Sample` descriptor
+# `sample_browser.cpp`) against the ported `browser::BrowserScene` on the `Sample` descriptor
 # (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one file.
 #
 # **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
@@ -245,7 +245,7 @@
 # `SampleBrowser::renderMainPads` at `:2129`), swapping between the two as the selection moves; the
 # ported scene always draws the text keyboard, because the swap needs `AudioEngine::previewSample`,
 # `PadLEDs`' scroll transition and the marker editor. That is `BrowserScene::render_grid`'s own
-# note (`scenes/browser/browser_scene.cpp:1031-1039`), seen here for the first time at level 3. The
+# note (`scenes/browser/browser_scene.cpp`), seen here for the first time at level 3. The
 # LED lines differ too, in the direction every menu golden above already differs.
 9900   pad 17 4 down
 10200  snapshot auditioning
@@ -313,7 +313,7 @@
 18200  snapshot pad-audition-released
 
 # A main-grid pad with no shift: no arm matches, so `:1520-1545` closes the menu. This is the
-# behaviour Kate ruled on (spec §2.1): legacy is correct, we close on pad press.
+# behaviour the port keeps: legacy closes on a pad press, and so does this.
 18500  pad 3 3 down
 18700  pad 3 3 up
 19000  snapshot pad-menu-closed
@@ -328,7 +328,7 @@
 #
 # 1. Hold an empty main-grid pad -- the press creates the note -- and press SELECT with it still
 # held. `InstrumentClipView::buttonAction`'s SELECT_ENC arm, under `UI_MODE_NOTES_PRESSED`
-# (`gui/views/instrument_clip_view.cpp:852`): `if (enterNoteEditor())` (`:853`). Legacy opens
+# (`gui/views/instrument_clip_view.cpp`): `if (enterNoteEditor())`. Legacy opens
 # `noteEditorRootMenu` (`gui/ui/menus.cpp:1880-1886`: velocity, probability, iterance, fill).
 19500  pad 2 4 down
 19800  button SelectEnc down
@@ -344,11 +344,11 @@
 20800  snapshot note-editor-kit
 
 # 3. One select detent DOWN on the focused column. `SoundEditor::selectEncoderAction` runs under
-# `UI_MODE_NOTES_PRESSED` (`gui/ui/sound_editor.cpp:1069`, `:1089`) and hands the turn to the menu
+# `UI_MODE_NOTES_PRESSED` (`gui/ui/sound_editor.cpp`) and hands the turn to the menu
 # (`:1122`); the probability leaf edits the held note (`gui/menu_item/note/probability.h:52-55`),
 # and the notification spells legacy's string (`:81-89`). **Down, not up:** the note is created at
 # 100%, which is `kNumProbabilityValues`, the ceiling `adjustNoteProbabilityWithOffset` passes
-# (`gui/views/instrument_clip_view.cpp:3003`). Measured: `+1` left the column and the banner at 100%
+# (`gui/views/instrument_clip_view.cpp`). Measured: `+1` left the column and the banner at 100%
 # on both legs, so the snapshot showed no edit. `-1` takes the decrement arm (`:3171-3187`).
 21200  encoder Select -1
 21500  snapshot note-editor-probability

@@ -1,9 +1,9 @@
-# Level-2 acceptance (task-11 brief): an Enum leaf (nodes::lpf_mode), opened directly.
+# Level-2 acceptance: an Enum leaf (nodes::lpf_mode), opened directly.
 0     snapshot idle
 100   encoder Select +1
 120   snapshot after_select_turn
 300   encoder GoldUpper +2
-# E3 task 10: `enum_value` does not claim the gold knobs at all (`render_leaf_enum`,
+# `enum_value` does not claim the gold knobs at all (`render_leaf_enum`,
 # `menu_scene.cpp`), so this turn is unclaimed input that moves nothing on this screen -- this
 # snapshot was byte-identical to `after_select_turn` too, for a different reason than the one above.
 400   button Back down
