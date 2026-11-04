@@ -18,9 +18,9 @@ namespace deluge::bench {
 namespace {
 
 /// @brief The dry copy a filter fades against: a block's samples, two per frame in stereo.
-alignas(16) std::array<q31_t, 2 * kMaxBlock> fade_scratch{};
+alignas(16) std::array<dsp::Q<31>, 2 * kMaxBlock> fade_scratch{};
 /// @brief The parallel route's copy of the block.
-alignas(16) std::array<q31_t, 2 * kMaxBlock> parallel_scratch{};
+alignas(16) std::array<dsp::Q<31>, 2 * kMaxBlock> parallel_scratch{};
 
 /// @brief The rig every filter case renders with, in on-chip SRAM.
 FilterRig rig{};
@@ -48,13 +48,12 @@ void FilterCase<Stereo>::block(std::size_t /*n*/) {
 	}
 	rig.gain = rig.set.configure(kFilterGain, config_.low_config, config_.low, config_.high_config, config_.high,
 	                             config_.route);
-	const dsp::fixed::FilterScratch scratch{.fade = dsp::typed_view(std::span{fade_scratch}),
-	                                        .parallel = dsp::typed_view(std::span{parallel_scratch})};
+	const dsp::fixed::FilterScratch scratch{.fade = fade_scratch, .parallel = parallel_scratch};
 	if constexpr (Stereo) {
-		rig.set.render_stereo(dsp::typed_view(rig.work), scratch, deluge::synth_noise);
+		rig.set.render_stereo(rig.work, scratch, deluge::synth_noise);
 	}
 	else {
-		rig.set.render_mono(dsp::typed_view(rig.work), scratch, deluge::synth_noise);
+		rig.set.render_mono(rig.work, scratch, deluge::synth_noise);
 	}
 }
 

@@ -103,17 +103,17 @@ inline constexpr uint32_t kA3Increment = 21'426'141;
 /// @brief A1, 55 Hz: inside the crude saw and square region (band index below 6, increments up to 7,040,929).
 inline constexpr uint32_t kA1Increment = 5'356'535;
 
-/// @brief The q31 input block every case's first input reads.
+/// @brief The input block every case's first input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31_t, kMaxBlock> input_a();
+[[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock> input_a();
 
-/// @brief The q31 input block a mixer's second input reads.
+/// @brief The input block a mixer's second input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31_t, kMaxBlock> input_b();
+[[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock> input_b();
 
-/// @brief The q31 block every mono case writes.
+/// @brief The block every mono case writes.
 /// @return kMaxBlock samples.
-[[nodiscard]] std::span<const q31_t, kMaxBlock> output();
+[[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock> output();
 
 /// @brief The stereo block the stereo case processes in place.
 /// @return kMaxBlock frames, filled by the case's setup.
@@ -122,13 +122,13 @@ inline constexpr uint32_t kA1Increment = 5'356'535;
 /// @brief The most lanes a lanes case renders.
 inline constexpr std::size_t kMaxLanes = 8;
 
-/// @brief The block every lanes case reads: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
+/// @brief The block every lanes case reads: kMaxBlock frames of kMaxLanes lanes, interleaved.
 /// @return kMaxBlock · kMaxLanes samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_input();
+[[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_input();
 
-/// @brief The block every lanes case writes: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
+/// @brief The block every lanes case writes: kMaxBlock frames of kMaxLanes lanes, interleaved.
 /// @return kMaxBlock · kMaxLanes samples.
-[[nodiscard]] std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_output();
+[[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_output();
 
 /// @brief The lanes blocks' first n frames of N lanes: the spans a lanes case's component renders between.
 /// @details Built at setup, as BlockSpans are. The blocks are q31 storage viewed as frames, whose layout is N q31 in
@@ -139,14 +139,14 @@ struct FrameSpans {
 	dsp::Buffer<F> out; ///< lanes_output's first n frames.
 };
 
-/// @brief The shared q31 blocks' first n samples: the spans a mono case's component renders between.
+/// @brief The shared blocks' first n samples: the spans a mono case's component renders between.
 /// @details A case builds these at setup, for the block size it is set up for, so that its timed `block` passes them
 /// by copy and makes no call besides its component's own: whether building a span inlines is the app inliner's choice,
 /// and a call there is one the calibration would not cancel.
 struct BlockSpans {
-	std::span<const int32_t> a; ///< input_a's first n samples.
-	std::span<const int32_t> b; ///< input_b's first n samples.
-	std::span<int32_t> out;     ///< The output block's first n samples.
+	std::span<const dsp::Q<31>> a; ///< input_a's first n samples.
+	std::span<const dsp::Q<31>> b; ///< input_b's first n samples.
+	std::span<dsp::Q<31>> out;     ///< The output block's first n samples.
 };
 
 /// @brief A Q31 gain: the reference processor kernel, as in the Mono and Stereo unit specs.
@@ -1050,7 +1050,7 @@ private:
 	dsp::Mono<Chain3LowPass> low_pass_;
 	dsp::Mono<DelayHighPass> high_pass_;
 	BlockSpans spans_{};
-	std::span<const int32_t> written_{}; ///< The output's first n samples, read by the later passes.
+	std::span<const dsp::Q<31>> written_{}; ///< The output's first n samples, read by the later passes.
 };
 
 /// @brief `Mono<Chain3>`: the three stages in one pass from input_a into the output.
@@ -1330,14 +1330,14 @@ void fill_filter_input();
 /// @brief Fills the lanes input (fill_filter_input()) and copies its first @p samples samples into the lanes output.
 /// @param samples How many samples to copy.
 /// @return Those output samples: the block a filter case renders first, in place.
-[[nodiscard]] std::span<q31_t> in_place_filter_block(std::size_t samples);
+[[nodiscard]] std::span<dsp::Q<31>> in_place_filter_block(std::size_t samples);
 
 /// @brief What every filter case renders with: one filter set, as a voice holds it. The cases run one after another,
 /// so they share it; each case's setup resets it.
 struct FilterRig {
-	dsp::fixed::FilterSet set; ///< The set, as a Voice's filterSet.
-	q31_t gain{};              ///< The last configure's gain.
-	std::span<q31_t> work{};   ///< The lanes output's first n samples (2n in stereo), filtered in place.
+	dsp::fixed::FilterSet set;    ///< The set, as a Voice's filterSet.
+	q31_t gain{};                 ///< The last configure's gain.
+	std::span<dsp::Q<31>> work{}; ///< The lanes output's first n samples (2n in stereo), filtered in place.
 };
 
 /// @return The rig the filter cases render with.
