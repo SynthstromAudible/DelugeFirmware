@@ -17,6 +17,7 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
@@ -48,12 +49,16 @@ constexpr int32_t kQ31Min = std::numeric_limits<int32_t>::min();
 /// The bits of a priority rating that rank voices in one envelope stage by when they entered it.
 constexpr uint32_t kTimeEnteredMask = 0x00FFFFFF;
 
+using deluge::dsp::Q;
+
 } // namespace
 
 int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const {
 	int32_t voice_level_value = this->local_expression_source_values_before_smoothing_[expression_dimension];
-	int32_t combined_value = (synth_level_value >> 1) + (voice_level_value >> 1);
-	return lshift_and_saturate<1>(combined_value);
+	// The two Q31 values' mean, doubled back held to the 31-bit range: their sum, saturating at 2^31 − 2
+	const Q<31> mean =
+	    add_wrap(halve_floor(Q<31>::from_raw(synth_level_value)), halve_floor(Q<31>::from_raw(voice_level_value)));
+	return scale_shl_wrap<1>(clamp_bits<31>(mean)).raw();
 }
 
 Voice::Voice() = default;
@@ -317,11 +322,15 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is
-	// unaffected. Important that we use lshift_and_saturate here - otherwise, number can overflow if combining high
+	// unaffected. Important that the quadrupling saturates - otherwise, number can overflow if combining high
 	// velocity patching with big LFO
-	int32_t overall_osc_amplitude = lshift_and_saturate<2>(multiply_32x32_rshift32(
-	    params_.param_final_values[params::LOCAL_VOLUME],
-	    (params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
+	// The volume times envelope 0 made unipolar (halved, plus a half): the high word, held to 30 bits and quadrupled
+	// in the volume's units, so twice the volume at the envelope's top
+	const Q<31> envelope =
+	    add_wrap(halve_floor(Q<31>::from_raw(params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0)])),
+	             dsp::q<31>(0.5));
+	const Q<30> product = mul(Q<31>::from_raw(params_.param_final_values[params::LOCAL_VOLUME]), envelope);
+	int32_t overall_osc_amplitude = scale_shl_wrap<2>(clamp_bits<30>(product)).raw();
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
 	int32_t filter_gain = 0;
@@ -352,8 +361,10 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	if (synth_mode == SynthMode::FM) {
 		// FM works the overall amplitude, compensated for unison, into each carrier's, saving a multiplication per
 		// sample at the end
-		overall_osc_amplitude =
-		    multiply_32x32_rshift32_rounded(overall_osc_amplitude, cfg.volume_neutral_value_for_unison) << 3;
+		// The amplitude times the unison's neutral (2^27 for one part): the rounded high word, ×8 in its units
+		overall_osc_amplitude = scale_shl_wrap<3>(mul_r(Q<31>::from_raw(overall_osc_amplitude),
+		                                                Q<31>::from_raw(cfg.volume_neutral_value_for_unison)))
+		                            .raw();
 	}
 	else {
 		if (first_render && params_.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
@@ -520,16 +531,22 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 	return envelope_ended;
 }
 
+namespace {
+/// @brief Two Q24 pitch multipliers' product, Q24: the rounded Q16 high word held under 2^23 (128×), so its move back
+/// to Q24 cannot wrap.
+int32_t pitch_product(int32_t a, int32_t b) {
+	const Q<16> product = mul_r(Q<24>::from_raw(a), Q<24>::from_raw(b));
+	return as_wrap<Q<24>>(Q<16>::from_raw(std::min(product.raw(), 8388607))).raw();
+}
+} // namespace
+
 int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t external_pitch_adjust) {
 	// Sort out pitch
 	int32_t overall_pitch_adjust = params_.param_final_values[params::LOCAL_PITCH_ADJUST];
 
 	// Pitch adjust from "external" - e.g. the Kit
 	if (external_pitch_adjust != kMaxSampleValue) {
-		// Limited to keep the shift below in range
-		const int32_t output =
-		    std::min(multiply_32x32_rshift32_rounded(overall_pitch_adjust, external_pitch_adjust), 8388607);
-		overall_pitch_adjust = output << 8;
+		overall_pitch_adjust = pitch_product(overall_pitch_adjust, external_pitch_adjust);
 	}
 
 	// Pitch adjust via MIDI pitch bend and MPE
@@ -542,13 +559,11 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
 		int32_t env_value = get_decay4(porta_envelope_pos_, 23);
-		int32_t pitch_adjustment_here =
-		    kMaxSampleValue + (multiply_32x32_rshift32_rounded(env_value, porta_envelope_max_amplitude_) << 1);
-
-		// Limited to keep the shift below from overflowing
-		const int32_t a =
-		    std::min(multiply_32x32_rshift32_rounded(overall_pitch_adjust, pitch_adjustment_here), 8388607);
-		overall_pitch_adjust = a << 8;
+		// One plus the Q31 decay times the Q24 porta depth, Q24
+		const auto porta =
+		    mul_r_as_wrap<Q<24>>(Q<31>::from_raw(env_value), Q<24>::from_raw(porta_envelope_max_amplitude_));
+		const int32_t pitch_adjustment_here = add_wrap(Q<24>::from_raw(kMaxSampleValue), porta).raw();
+		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
 		int32_t envelope_speed =
@@ -583,8 +598,9 @@ void Voice::write_stereo(const VoiceOutput& output) {
 
 		overall_osc_amplitude_now += output.amplitude_increment;
 		if (!output.fm) {
-			output_sample_l = multiply_32x32_rshift32_rounded(output_sample_l, overall_osc_amplitude_now) << 1;
-			output_sample_r = multiply_32x32_rshift32_rounded(output_sample_r, overall_osc_amplitude_now) << 1;
+			const Q<31> amplitude = Q<31>::from_raw(overall_osc_amplitude_now);
+			output_sample_l = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(output_sample_l), amplitude).raw();
+			output_sample_r = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(output_sample_r), amplitude).raw();
 		}
 
 		if constexpr (kClipping) {
@@ -620,7 +636,7 @@ void Voice::write_mono(const VoiceOutput& output) {
 
 		if (!output.fm) {
 			overall_osc_amplitude_now += output.amplitude_increment;
-			sample = multiply_32x32_rshift32_rounded(sample, overall_osc_amplitude_now) << 1;
+			sample = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(sample), Q<31>::from_raw(overall_osc_amplitude_now)).raw();
 		}
 
 		if constexpr (kClipping) {

@@ -98,7 +98,7 @@ src/deluge/storage/audio/stream/convert.cpp raw=1 boundary=0
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=1 boundary=0
 src/deluge/util/functions.h raw=1 boundary=0
 src/deluge/util/param_functions.cpp raw=1 boundary=0
-src/deluge/util/phase_increment_fine_tuner.cpp raw=1 boundary=0
+src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
 src/effects/chain_core.h raw=0 boundary=3
 src/effects/delay.cpp raw=0 boundary=3
 src/effects/master_chain.cpp raw=0 boundary=12
@@ -107,9 +107,9 @@ src/effects/sidechain.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
 src/synth/engines/fm_engine.cpp raw=24 boundary=0
-src/synth/engines/pitch.h raw=1 boundary=0
+src/synth/engines/pitch.h raw=0 boundary=6
 src/synth/engines/ring_mod_engine.cpp raw=8 boundary=0
-src/synth/engines/slot_engine.cpp raw=1 boundary=0
+src/synth/engines/slot_engine.cpp raw=0 boundary=3
 src/synth/engines/subtractive_engine.cpp raw=1 boundary=0
 src/synth/matrix/matrix_fixed.h raw=0 boundary=41
 src/synth/modulation/cable_depth.h raw=0 boundary=12
@@ -128,4 +128,4 @@ src/synth/sources/va/va_shapes.cpp raw=2 boundary=28
 src/synth/sources/va/va_shapes.h raw=0 boundary=24
 src/synth/sources/wavetable/wavetable_source.cpp raw=2 boundary=4
 src/synth/sources/wavetable/wavetable_source.h raw=0 boundary=3
-src/synth/voice/voice.cpp raw=10 boundary=4
+src/synth/voice/voice.cpp raw=0 boundary=30
