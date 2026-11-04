@@ -21,6 +21,7 @@
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/arp_ratchet.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -591,18 +592,9 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SYNC_LEVEL_256TH);
 	if (isRatcheting) {
-		ratchetNotesMultiplier = getRandomWeighted2BitsAmount(settings->ratchetAmount);
+		ratchetNotesMultiplier =
+		    ratchet_doublings(settings->syncLevel, getRandomWeighted2BitsAmount(settings->ratchetAmount));
 		ratchetNotesCount = 1 << ratchetNotesMultiplier;
-		if (settings->syncLevel == SYNC_LEVEL_128TH) {
-			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
-			ratchetNotesMultiplier = 1;
-			ratchetNotesCount = 2;
-		}
-		else if (settings->syncLevel == SYNC_LEVEL_64TH) {
-			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
-			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
-			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
-		}
 		if (ratchetNotesMultiplier == 0) {
 			// Ratchet probability evaluated to "no ratchet", so we update the status as if ratchet didn't happen
 			isRatcheting = false;
