@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "model/sample/clip_increment.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
 // `model/sample/` (E3 task 4): `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
@@ -643,8 +644,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 	int32_t phaseIncrement = sampleHolder.neutralPhaseIncrement;
 
 	if (pitchAdjust != kMaxSampleValue) {
-		uint64_t newPhaseIncrement = ((uint64_t)phaseIncrement * (uint64_t)pitchAdjust) >> 24;
-		phaseIncrement = (newPhaseIncrement > 2147483647) ? 2147483647 : newPhaseIncrement;
+		phaseIncrement = scaled_increment(phaseIncrement, pitchAdjust);
 	}
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
@@ -711,8 +711,7 @@ justDontTimeStretch:
 		// If no prior pitch adjustment, we play back 100% natively, with no pitch shifting / time stretching. Just with
 		// pitch / speed changed like speeding/slowing a record
 		if (!sampleHolder.transpose && !sampleHolder.cents) {
-			uint64_t phaseIncrementNew = ((uint64_t)(uint32_t)phaseIncrement * requiredSpeedAdjustment) >> 24;
-			phaseIncrement = (phaseIncrementNew >= 2147483648) ? 2147483647 : (uint32_t)phaseIncrementNew;
+			phaseIncrement = scaled_increment(phaseIncrement, requiredSpeedAdjustment);
 
 			if (playbackHandler.isEitherClockActive() && !doingLateStart) {
 				phaseIncrement = guide.adjustPitchToCorrectDriftFromSync(voiceSample, phaseIncrement);
@@ -722,7 +721,7 @@ justDontTimeStretch:
 		// Or if yes prior pitch adjustment, then we'll be pitch shifting / time stretching
 		else {
 			timeStretchRatio = ((uint64_t)1 << 48) / (uint32_t)phaseIncrement;
-			phaseIncrement = ((uint64_t)phaseIncrement * requiredSpeedAdjustment) >> 24;
+			phaseIncrement = scaled_increment(phaseIncrement, requiredSpeedAdjustment);
 		}
 	}
 
