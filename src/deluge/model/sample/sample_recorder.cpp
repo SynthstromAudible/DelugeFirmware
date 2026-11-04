@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
@@ -1964,8 +1965,9 @@ doFinishCapturing:
 					if (rxL < recordPeakL) {
 						recordPeakL = rxL;
 					}
-					else if (-rxL < recordPeakL) {
-						recordPeakL = -rxL;
+					else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxL)).raw();
+					         negated < recordPeakL) {
+						recordPeakL = negated; // saturating: a full-scale negative input's negation is INT32_MAX
 					}
 					if (rxL == std::numeric_limits<q31_t>::max() || rxL == std::numeric_limits<q31_t>::min()) {
 						recordingClippedRecently = true;
@@ -1994,8 +1996,9 @@ doFinishCapturing:
 						if (rxR < recordPeakR) {
 							recordPeakR = rxR;
 						}
-						else if (-rxR < recordPeakR) {
-							recordPeakR = -rxR;
+						else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxR)).raw();
+						         negated < recordPeakR) {
+							recordPeakR = negated;
 						}
 						if (rxR == std::numeric_limits<q31_t>::max() || rxR == std::numeric_limits<q31_t>::min()) {
 							recordingClippedRecently = true;
