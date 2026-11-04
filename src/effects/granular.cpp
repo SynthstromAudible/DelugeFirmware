@@ -118,7 +118,11 @@ void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& 
 		if (in.sound) {
 			mono.on<&Kernel::arm_shutdown>();
 		}
-		mono.configure({.rate = in.rate, .mix = in.mix, .density = in.density, .randomness = in.randomness});
+		// The knobs arrive as the app's raw Q31 words.
+		mono.configure({.rate = dsp::Q<31>::from_raw(in.rate),
+		                .mix = dsp::Q<31>::from_raw(in.mix),
+		                .density = dsp::Q<31>::from_raw(in.density),
+		                .randomness = dsp::Q<31>::from_raw(in.randomness)});
 		post_fx_volume = Kernel::post_fx_volume(post_fx_volume);
 		mono.on<&Kernel::set_send>(dsp::typed_view(reverb_send).data(), dsp::Q<31>::from_raw(in.send_amount));
 		mono.render_block(block, block, noise);

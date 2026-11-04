@@ -51,8 +51,7 @@ struct frame_lanes<Frame<T, N>, T> {
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<T, N> from_lanes(Frame<T, N> f) { return f; }
 };
 
-/// @brief A @ref StereoSample is two Q<31> lanes, left in lane 0, converted by bit cast (the layouts agree, as
-/// @ref to_frame asserts).
+/// @brief A @ref StereoSample is two Q<31> lanes, left in lane 0, converted by @ref to_frame and @ref to_stereo.
 template <class Lane>
 requires std::same_as<Lane, Q<31>>
 struct frame_lanes<StereoSample, Lane> {
@@ -61,11 +60,11 @@ struct frame_lanes<StereoSample, Lane> {
 
 	/// @brief @p s as two lanes: left in lane 0, right in lane 1.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<Lane, 2> to_lanes(StereoSample s) {
-		return __builtin_bit_cast(Frame<Lane, 2>, s);
+		return to_frame(s);
 	}
 	/// @brief Two lanes as a stereo frame: lane 0 to left, lane 1 to right.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr StereoSample from_lanes(Frame<Lane, 2> f) {
-		return __builtin_bit_cast(StereoSample, f);
+		return to_stereo(f);
 	}
 };
 
@@ -82,7 +81,7 @@ struct packed_state<K, N> {
 	/// Every lane's State, member by member.
 	using type = K::template StateT<LanePack<typename K::value_type, N>>;
 	static_assert(sizeof(type) == N * sizeof(typename K::State) && std::is_trivially_copyable_v<type>,
-	              "a packed state is N States, member by member, each member N Q31 lanes");
+	              "a packed state is N States, member by member, each member N 32-bit lanes");
 };
 
 } // namespace detail

@@ -9,16 +9,17 @@ Counts three things per C/C++ file under src/, comments excluded:
 - raw sites: calls to q31_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
   asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
   vmlal_s16, vshrq_n_s32, ...) and Argon's fixed-point methods (MultiplyFixedQMax, ShiftRightAccumulate, ...);
-- seam views: calls to buffer_view.h's typed_view() and raw_view(), where a raw int32_t buffer is viewed as Q<31>
-  samples or back;
+- seam views: calls to buffer_view.h's typed_view() and raw_view(), where a raw int32_t buffer is viewed as a Q<F>
+  format or back;
 - boundary crossings: from_raw(), .raw() / ->raw() and reinterpret_bits<>, where typed and raw code meet.
 fixed_point.h, fixed_point_neon.h, buffer_view.h and q31_ops.h, which define them, are exempt.
 
 The raw and view counts are pinned in scripts/fixed_point_raw_allowlist.txt and may only SHRINK: a raw site or a view
 in a file not on the list, a count above its entry, and an entry with headroom left (a count below it) all fail;
-rewrite the list with --write after moving code onto the typed operations or typing a caller's buffers. Boundary crossings are recorded but not gated: while interfaces
-still take raw q31, moving a helper call onto the typed operations adds them. Bare int32_t audio arithmetic (`+`, `<<`
-on samples) cannot be told apart from other integer code lexically, so reviews cover it, not this check.
+rewrite the list with --write after moving code onto the typed operations or typing a caller's buffers. Boundary
+crossings are recorded but not gated: while the app's interfaces still take raw q31_t words, moving a helper call onto
+the typed operations adds them. Bare int32_t audio arithmetic (`+`, `<<` on samples) cannot be told apart from other
+integer code lexically, so reviews cover it, not this check.
 
 Usage:
     scripts/check_fixed_point_raw.py            # check, exit 1 on growth or a stale entry
@@ -284,9 +285,9 @@ def main() -> int:
         print(error, file=sys.stderr)
     if len(errors) > len(stale):
         print(
-            "Raw fixed-point arithmetic or the seam views grew. Write it with dsp-next/core/fixed_point.h's typed "
-            "operations and typed buffers, or, if a raw site or a view is unavoidable, justify it in review and rewrite "
-            "the list with --write --allow-growth.",
+            "Raw fixed-point arithmetic or the seam views grew. Write it with dsp-next/core/fixed_point.h's "
+            "typed operations and typed buffers, or, if a raw site or a view is unavoidable, justify it in review "
+            "and rewrite the list with --write --allow-growth.",
             file=sys.stderr,
         )
     return 1 if errors else 0

@@ -92,10 +92,10 @@ public:
 
 	/// @brief What a block takes from outside the patch.
 	struct BlockInputs {
-		int32_t base_pitch = 0; ///< The note's pitch, Q24 octaves, relative to the oscillators' base.
-		int32_t lfo_value = 0;  ///< The patch's LFO, Q24.
-		int32_t eg_mod = 127;   ///< The envelope's amplitude-modulation floor, 0 to 127.
-		int32_t amp_mod = 0;    ///< Q24 doublings added to each op's level per unit of its AMS depth >> 16 (0 to 256).
+		Q<24> base_pitch{};   ///< The note's pitch in octaves, relative to the oscillators' base.
+		Q<24> lfo_value{};    ///< The patch's LFO, 0 to 1.
+		int32_t eg_mod = 127; ///< The envelope's amplitude-modulation floor, 0 to 127.
+		int32_t amp_mod = 0;  ///< Q24 doublings added to each op's level per unit of its AMS depth >> 16 (0 to 256).
 		int32_t vel_mod = 0;  ///< Q24 doublings added to each op's level per step of its velocity sensitivity (0 to 7).
 		int32_t rate_mod = 0; ///< qRate units added to each envelope stage's rate as a block enters it.
 	};
@@ -234,7 +234,6 @@ bool Voice<Noise>::render_block(const Settings& s, dsp::Buffer<Q<24>> out, const
 	const PatchBytes& p = *s.patch;
 	const std::size_t n = out.size();
 	const Q<24> lfo_delay = lfo_delay_.advance(n);
-	int32_t lfo_val = in.lfo_value;
 
 	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope. The depths are a
 	// byte (0 to 99) scaled to 0 to 255, Q8.
@@ -242,17 +241,17 @@ bool Voice<Noise>::render_block(const Settings& s, dsp::Buffer<Q<24>> out, const
 	const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
 	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay.raw()); // Q8 × Q24: Q32
 	// The LFO about its middle, times the sensitivity's table value (0 to 255): an integer product, Q24.
-	const int32_t senslfo = pitch_sens * sub_wrap(Q<24>::from_raw(lfo_val), Lfo::kMiddle).raw();
+	const int32_t senslfo = pitch_sens * sub_wrap(in.lfo_value, Lfo::kMiddle).raw();
 	// The Q32 depth times the Q24 swing, scaled to the pitch's Q24 octaves by the sensitivity's table: a 64-bit
 	// integer scaling. |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets
 	// INT32_MIN.
 	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
 	// Q24 octaves, each well inside the word: the envelope's ±4, the LFO's under 1 and the note's.
-	const Q<24> pitch_mod = add_wrap(add_wrap(pitch_env_.advance(n), Q<24>::from_raw(pmod * (senslfo < 0 ? -1 : 1))),
-	                                 Q<24>::from_raw(in.base_pitch));
+	const Q<24> pitch_mod =
+	    add_wrap(add_wrap(pitch_env_.advance(n), Q<24>::from_raw(pmod * (senslfo < 0 ? -1 : 1))), in.base_pitch);
 
 	// amplitude: the LFO's depth after its delay, inverted, no shallower than the envelope's floor
-	const Q<24> lfo_inverted = sub_wrap(Q<24>::one(), Q<24>::from_raw(lfo_val));
+	const Q<24> lfo_inverted = sub_wrap(Q<24>::one(), in.lfo_value);
 	const int32_t amp_depth = (p[kAmpModDepth] * 165) >> 6;
 	const auto amp_delayed = narrow_floor_wrap<Q<24>>(mul_wide(Q<8>::from_raw(amp_depth), lfo_delay));
 	auto amd_mod = narrow_floor_wrap<Q<24>>(mul_wide(amp_delayed, lfo_inverted));

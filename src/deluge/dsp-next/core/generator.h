@@ -40,9 +40,9 @@ struct BlockGenerator {
 
 namespace detail {
 
-/// @brief @p D renders a vector of @p T per call: `Argon<T>` for an arithmetic T, `QVec<31>` for Q<31>.
+/// @brief @p D renders a vector of @p T per call: `Argon<T>` for a float T, `QVec<31>` for Q<31>.
 template <typename D, typename T>
-concept simd_generator_render = (std::is_arithmetic_v<T> || std::same_as<T, Q<31>>) && requires(D d) {
+concept simd_generator_render = (std::floating_point<T> || std::same_as<T, Q<31>>) && requires(D d) {
 	{ d.render() } -> std::same_as<vector_t<T>>;
 };
 
@@ -62,7 +62,7 @@ concept scalar_generator_render = requires(D d) {
 
 /// @brief CRTP mixin: builds a generator's `render_block` from its `render()`.
 /// @tparam Derived the component, which defines `render()`.
-/// @tparam T the sample type of the block (`q31`, `Q<31>`, `f32` or @ref StereoSample).
+/// @tparam T the sample type of the block (`Q<31>`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
 /// `Derived::render()`:
 /// - SIMD, when it returns `Argon<T>` (or `QVec<31>` over Q<31>): one `render()` per vector, through

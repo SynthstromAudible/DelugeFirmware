@@ -250,8 +250,8 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] static QVec<24> invert_where(QVec<24> y, Argon<int32_t> sign) {
 		return QVec<24>::from_raw(y.raw() ^ sign);
 	}
-	/// @brief Each lane's position in its half cycle, in [-1, 1): the phase's low 23 bits, [0, 2) read as Q22, less
 
+	/// @brief Each lane's position in its half cycle, in [-1, 1): the phase's low 23 bits, [0, 2) read as Q22, less
 	/// one. The mask is a bit operation on the phase, so it stays raw.
 	[[nodiscard]] [[gnu::always_inline]] static QVec<22> position(Phases at) {
 		const QVec<22> in_half = QVec<22>::from_raw(Argon<int32_t>{at.raw()} & Argon<int32_t>{0x7fffff});

@@ -278,10 +278,12 @@ instructions.
   0..128 knob is Q7 lifted to Q31 (`knob_level`); the arp's spreads are Q7 and its random amounts a true triangle
   (`triangle_of`). What stays integer: the 64-bit tick and increment arithmetic, run-time shifts (the recorder's input
   gain among them), MIDI and menu scalings, and the UI's display mappings.
-- **dsp-next's interfaces** are typed: `q31` is `Q<31>`, `fixed::Buffer` and `Signal` are spans of it, and every
-  kernel's value and step types are a `Q<F>` or `QVec<F>` (the DX7 engine's `Q<24>`). The component framework has no
-  raw-integer path. The app and the legacy synth still hold raw `q31_t` buffers and view them typed at each call
-  (see the seam view below); S6b types those interfaces and removes the views.
+- **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A
+  fixed-point kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a
+  `StereoSample` stepped as itself or as `StereoVector`; the float kernels step `f32` as `Argon<float>`. The component
+  framework has no raw-integer path. `fixed::SeededNoise` gives raw noise words, the specs' and benches' inputs. The
+  app and the legacy synth hold raw `q31_t` buffers and view them typed at each call (see the seam view below), until
+  their own interfaces are typed.
 
 ## Measuring
 
@@ -308,8 +310,8 @@ any source change, so an empty result is not the gate. Each changed function is 
   32-bit format and `raw_view(span<Q<F>>)` views them back, over the same storage (a `Q<F>` is standard layout with
   its `int32_t` as its only member). It is for raw callers meeting a typed kernel: the app, the legacy synth, the
   bench and the specs. Inside dsp-next only raw machine code takes it: the DX7 graph's call into the device's NEON
-  kernel and the supersaw's hand-written NEON passes. S6b removes the app's and the legacy synth's views as their
-  interfaces are typed.
+  kernel and the supersaw's hand-written NEON passes. The app's and the legacy synth's views go as their interfaces
+  are typed.
 - **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `q31_ops.h`:
   - raw sites, meaning raw helper calls and DSP-instruction asm;
   - seam views, meaning `typed_view` and `raw_view` calls;

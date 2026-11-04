@@ -41,6 +41,7 @@
 #include <vector>
 
 using deluge::dsp::Mono;
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::test::RawFrame;
 using Granular = deluge::dsp::fixed::Granular<>;
@@ -91,7 +92,10 @@ public:
 			if (sound) {
 				mono_.on<&Granular::arm_shutdown>();
 			}
-			mono_.configure({.rate = rate, .mix = mix, .density = density, .randomness = randomness});
+			mono_.configure({.rate = Q<31>::from_raw(rate),
+			                 .mix = Q<31>::from_raw(mix),
+			                 .density = Q<31>::from_raw(density),
+			                 .randomness = Q<31>::from_raw(randomness)});
 			*volume = Granular::post_fx_volume(*volume);
 			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
 			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
@@ -119,11 +123,12 @@ public:
 		std::vector<uint32_t> words{s.write, static_cast<uint32_t>(s.full), static_cast<uint32_t>(s.initialized),
 		                            static_cast<uint32_t>(s.wraps_to_shutdown)};
 		for (const Granular::Grain& g : s.grains) {
-			push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse, g.pan_l,
-			           g.pan_r);
+			push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse,
+			           g.pan_l.raw(), g.pan_r.raw());
 		}
-		for (const int32_t w : {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet,
-		                        s.levels.dry, s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
+		for (const int32_t w :
+		     {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet.raw(), s.levels.dry.raw(),
+		      s.levels.feedback.raw(), s.knobs.rate.raw(), s.knobs.mix.raw(), s.knobs.density.raw()}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 		return words;

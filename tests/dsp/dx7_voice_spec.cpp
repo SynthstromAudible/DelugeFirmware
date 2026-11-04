@@ -106,11 +106,12 @@ Run run_voice(const dw::Workload& w) {
 		}
 		const std::size_t n = w.blocks[b];
 		lfo.configure({patch[137], patch[142], &tables()});
-		const int32_t lfo_value = lfo.advance(n).raw(); // the adapter passes it raw
+		const deluge::dsp::Q<24> lfo_value = lfo.advance(n);
 
 		// dx_voice_adapter.cpp's render
 		alignas(16) std::array<int32_t, dx7::kMaxBlock> buf{};
-		const Voice::BlockInputs in{.base_pitch = dx7_reference::adapter_pitch(w.phase_increment),
+		const Voice::BlockInputs in{.base_pitch =
+		                                deluge::dsp::Q<24>::from_raw(dx7_reference::adapter_pitch(w.phase_increment)),
 		                            .lfo_value = lfo_value,
 		                            .eg_mod = 127,
 		                            .amp_mod = w.amp_mod_param >> 13};

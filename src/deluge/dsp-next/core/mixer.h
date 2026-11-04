@@ -42,10 +42,10 @@ struct BlockMixer {
 
 namespace detail {
 
-/// @brief @p D combines two vectors of @p T per call: `Argon<T>` for an arithmetic T, `QVec<31>` for Q<31>.
+/// @brief @p D combines two vectors of @p T per call: `Argon<T>` for a float T, `QVec<31>` for Q<31>.
 template <typename D, typename T>
 concept simd_mixer_render =
-    (std::is_arithmetic_v<T> || std::same_as<T, Q<31>>) && requires(D d, vector_t<T> a, vector_t<T> b) {
+    (std::floating_point<T> || std::same_as<T, Q<31>>) && requires(D d, vector_t<T> a, vector_t<T> b) {
 	    { d.render(a, b) } -> std::same_as<vector_t<T>>;
     };
 

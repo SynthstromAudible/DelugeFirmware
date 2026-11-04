@@ -42,7 +42,7 @@ src/deluge/dsp-next/fixed/dx7/mki_feedback_stack.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/dx7/modern_vector_operator.h raw=0 boundary=10
 src/deluge/dsp-next/fixed/dx7/operator.h raw=0 boundary=11
 src/deluge/dsp-next/fixed/dx7/pitch_envelope.h raw=0 boundary=2
-src/deluge/dsp-next/fixed/dx7/voice.h raw=0 boundary=18
+src/deluge/dsp-next/fixed/dx7/voice.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp raw=0 boundary=5
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp raw=0 boundary=4
@@ -59,7 +59,7 @@ src/deluge/dsp-next/fixed/filter/high_pass_ladder.h raw=1 boundary=20
 src/deluge/dsp-next/fixed/filter/low_pass_ladder.h raw=0 boundary=30
 src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/filter/svf.h raw=0 boundary=6
-src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=29
+src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=24
 src/deluge/dsp-next/fixed/interpolation/interpolator.cpp raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/sinc_interpolation.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=0 boundary=4
@@ -114,7 +114,7 @@ src/deluge/modulation/arpeggiator.cpp raw=0 boundary=7
 src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
 src/deluge/processing/audio_output.cpp raw=0 view=1 boundary=14
-src/deluge/processing/dx7/dx_patch.cpp raw=0 boundary=1
+src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=31
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
 src/deluge/processing/sound/sound.cpp raw=0 boundary=13
@@ -129,7 +129,7 @@ src/effects/chain_core.h raw=0 boundary=3
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 boundary=6
-src/effects/granular.cpp raw=0 view=1 boundary=1
+src/effects/granular.cpp raw=0 view=1 boundary=5
 src/effects/master_chain.cpp raw=0 boundary=10
 src/effects/mod_fx.cpp raw=0 boundary=6
 src/effects/param_fragment.h raw=0 boundary=3

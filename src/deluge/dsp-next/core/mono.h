@@ -46,11 +46,9 @@ namespace deluge::dsp {
 ///
 /// **The loop** is chosen from K's step type:
 /// - `step_type == value_type` (a Q<F> or StereoSample): a raw-pointer index loop, one `step` per sample.
-/// - `QVec<F>` over Q<F> blocks: `argon::vectorize::for_each` counting the
-///   samples, one `step` per vector.
+/// - `QVec<F>` over Q<F> blocks: `argon::vectorize::for_each` counting the samples, one `step` per vector.
 /// - StereoVector over StereoSample blocks: `argon::vectorize::for_each_interleaved<std::int32_t, 2>` over the
-/// interleaved
-///   frames, de-interleaved on load and re-interleaved on store, one `step` per vector of frames.
+///   interleaved frames' words, de-interleaved on load and re-interleaved on store, one `step` per vector of frames.
 ///
 /// **The partial last vector.** On the vector loops a block that is not a lane multiple ends with one partial step,
 /// whose lanes past the end load as zero and are never stored; Argon gives that step its own type, which is how it is

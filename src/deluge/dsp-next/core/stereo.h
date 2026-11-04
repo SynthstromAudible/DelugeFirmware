@@ -49,7 +49,7 @@ requires std::same_as<std::remove_cvref_t<std::ranges::range_reference_t<R>>, q3
 
 /// @brief A mono Q31 kernel run on both channels of a stereo frame: @ref Lanes over two lanes, left in lane 0, with
 /// the channels named.
-/// @tparam K The kernel: a scalar kernel over q31 or Q<31>. Stereo<K> is a @ref processor; K must be a processor
+/// @tparam K The kernel: a scalar kernel over Q<31>. Stereo<K> is a @ref processor; K must be a processor
 /// kernel. That rejects a control kernel at the class too, with no clause of its own: a kernel has one form, so no
 /// control kernel is a processor kernel. `Control` wraps a control kernel.
 /// @details It behaves as @ref Lanes does: one Coefficients shared by both channels, one State per channel, `prepare`

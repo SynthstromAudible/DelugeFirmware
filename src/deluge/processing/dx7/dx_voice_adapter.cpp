@@ -96,8 +96,11 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 		patch_->refreshVoiceParams();
 	}
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
-	const PoolVoice::BlockInputs in{
-	    .base_pitch = adjpitch, .lfo_value = patch_->lfo_value, .eg_mod = patch_->eg_mod, .amp_mod = ampModParam >> 13};
+	// The pitch is the float log2 read as Q24 octaves.
+	const PoolVoice::BlockInputs in{.base_pitch = Q<24>::from_raw(adjpitch),
+	                                .lfo_value = patch_->lfo_value,
+	                                .eg_mod = patch_->eg_mod,
+	                                .amp_mod = ampModParam >> 13};
 	if (patchChanged) {
 		voice_->retune(s);
 	}
