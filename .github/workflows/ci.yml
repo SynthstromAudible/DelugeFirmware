@@ -89,6 +89,14 @@ jobs:
       - name: The UI layers keep their rules
         run: python3 scripts/check_layer_rules.py
 
+      - name: The UI trees' docs carry no history and their citations resolve
+        run: |
+          python3 scripts/check_doc_hygiene.py --strict
+          (cd scripts && python3 -m unittest test_check_doc_hygiene)
+          python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec \
+            tests/unit/spec/shell tests/unit/spec/ui tests/unit/spec/gui \
+            src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+
   lint-rust:
     name: lint (Rust)
     needs: changes

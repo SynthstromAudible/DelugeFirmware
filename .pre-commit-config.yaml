@@ -141,14 +141,26 @@ repos:
       - id: check-citations
         name: legacy citations resolve (warning only here; CI is strict)
         description: warn when a `foo.h:NN` citation points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
-        # Warning-only HERE, on purpose, and not because the predicate is weak: CI runs the same
-        # script with `--strict` (`.github/workflows/tests.yml`) and that is the gate. A commit is
-        # routinely made mid-edit with a citation still being written, and a hook that refused it
-        # would be disabled rather than obeyed. `--strict` is also the spelling for a local sweep.
+        # Warning-only over the whole tree: legacy's own comments carry citations this hook only
+        # reports. The UI trees are held strictly by `check-citations-ui` below and by CI's lint job.
         entry: python3 scripts/check_citations.py
         language: system
         pass_filenames: false
         files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/spec/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
+      - id: check-citations-ui
+        name: the UI trees' legacy citations resolve
+        description: a `foo.cpp:NN` citation in the ported UI must point at the code it names; cite the symbol instead
+        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/spec/shell tests/unit/spec/ui tests/unit/spec/gui src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+        language: system
+        pass_filenames: false
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
+      - id: check-doc-hygiene
+        name: the UI trees' docs carry no history and no line citations into our own code
+        description: comments say what the code is and why; task, review and spec breadcrumbs and `our_file.cpp:NN` citations are refused
+        entry: python3 scripts/check_doc_hygiene.py --strict
+        language: system
+        pass_filenames: false
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
 # - repo: local
 
 #   hooks:
