@@ -129,13 +129,13 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 		phase_increment = static_cast<uint32_t>(snapshot.fine_tuner.detune(static_cast<int32_t>(phase_increment)));
 
 		if (snapshot.num_unison == 1) {
-			note.parts[0].slots[s].phase_increment_stored_value = phase_increment;
+			note.parts[0].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(phase_increment);
 		}
 		else {
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
 				const std::optional<uint32_t> part = detuned_increment(phase_increment, snapshot.unison_detuners[u]);
 				if (part.has_value()) {
-					note.parts[u].slots[s].phase_increment_stored_value = *part;
+					note.parts[u].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(*part);
 				}
 				else {
 					note.parts[u].slots[s].active = false;

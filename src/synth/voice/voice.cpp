@@ -236,7 +236,7 @@ void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong
 	noise_ = &noise;
 	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			unison_parts[u].slots[s].osc_pos = next_noise();
+			unison_parts[u].slots[s].osc_pos = dsp::UQ<32>::from_raw(next_noise());
 			// TODO: we should do sample play pos, too
 		}
 		engines_.for_mode(snapshot.synth_mode).randomize_part(u, *noise_);
@@ -769,7 +769,7 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 
 		// The actual read rate: the last unison part's native rate, with the overall and this source's pitch adjust.
 		// If the pitch goes crazy-high, this source does not hold the auto-release back
-		uint32_t actual_sample_read_rate = slot->phase_increment_stored_value;
+		dsp::UQ<32> actual_sample_read_rate = slot->phase_increment_stored_value;
 		if (!adjust_pitch(actual_sample_read_rate, overall_pitch_adjust)) {
 			continue;
 		}
@@ -779,9 +779,10 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		// The read rate leaves time stretching out, which songs made since V3.0 rely on.
 
 		// Scale that according to our resampling rate
-		if (actual_sample_read_rate != kMaxSampleValue) {
+		// Raw: the read rate's word is the resampling ratio at 2^24, an integer product with the length
+		if (actual_sample_read_rate.raw() != kMaxSampleValue) {
 			release_stage_length_bytes = static_cast<int32_t>(
-			    (static_cast<int64_t>(release_stage_length_bytes) * actual_sample_read_rate) >> 24);
+			    (static_cast<int64_t>(release_stage_length_bytes) * actual_sample_read_rate.raw()) >> 24);
 		}
 
 		// Not yet, while this sample has more left than the release takes
@@ -793,8 +794,9 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		int32_t samples_left = bytes_left / bytes_per_sample;
 
 		// Scale that according to our resampling rate
-		if (actual_sample_read_rate != kMaxSampleValue) {
-			samples_left = static_cast<int32_t>((static_cast<int64_t>(samples_left) << 24) / actual_sample_read_rate);
+		if (actual_sample_read_rate.raw() != kMaxSampleValue) {
+			samples_left =
+			    static_cast<int32_t>((static_cast<int64_t>(samples_left) << 24) / actual_sample_read_rate.raw());
 		}
 
 		highest_num_samples_left = std::max(highest_num_samples_left, samples_left);

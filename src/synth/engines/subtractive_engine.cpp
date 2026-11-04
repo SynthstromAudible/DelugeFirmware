@@ -117,7 +117,7 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 
 bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo) {
 	const bool doing_osc_sync = block.cfg->doing_osc_sync;
-	std::span<uint32_t> master_increments;
+	std::span<dsp::UQ<32>> master_increments;
 	if (s == 0 && doing_osc_sync) {
 		master_increments = pass.sync_increments;
 	}

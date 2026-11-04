@@ -142,7 +142,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		std::array<int32_t, kN> out1{};
 		std::array<int32_t, kN> scratch1{};
 		persistent.render_block(standalone(7), deluge::dsp::typed_view(std::span<int32_t>{out1}), deluge::dsp::typed_view(std::span<int32_t>{scratch1}));
-		expect(persistent.phase()).to_equal(kPhase + kInc * kN); // original-domain self-advance
+		expect(persistent.phase().raw()).to_equal(kPhase + kInc * kN); // original-domain self-advance
 
 		std::array<int32_t, kN> out2{};
 		std::array<int32_t, kN> scratch2{};
@@ -156,12 +156,12 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 
 	it("set_increment sets the per-block pitch (and the self-advance follows it)", _ {
 		VirtualAnalogSource engine{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(0)}};
-		engine.set_increment(kInc);
-		expect(engine.increment()).to_equal(kInc);
+		engine.set_increment(UQ<32>::from_raw(kInc));
+		expect(engine.increment().raw()).to_equal(kInc);
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
 		engine.render_block(standalone(7), deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
-		expect(engine.phase()).to_equal(kPhase + kInc * kN);
+		expect(engine.phase().raw()).to_equal(kPhase + kInc * kN);
 	});
 
 	it("hard-synced crude SAW matches the synced kernel and reports its phase", _ {
@@ -182,7 +182,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(out[i]).to_equal(raw[i] >> 1);
 		}
-		expect(engine.phase()).to_equal(ref.phase().raw());
+		expect(engine.phase().raw()).to_equal(ref.phase().raw());
 	});
 
 	// adjust_pitch (synth/engines/pitch.h) reports success with a zero increment when its pitch multiply rounds down to nothing. A

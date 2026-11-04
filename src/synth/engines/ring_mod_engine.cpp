@@ -45,7 +45,7 @@ EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 	const bool stereo_unison = c.stereo_unison;
 
 	const std::array<int32_t, kNumSources> wave_index_increments = DualSourceEngine::wave_index_increments(block);
-	std::array<uint32_t, kMaxNumVoicesUnison> sync_pos{};
+	std::array<dsp::UQ<32>, kMaxNumVoicesUnison> sync_pos{};
 	if (cfg.doing_osc_sync) {
 		sync_pos = capture_sync(block);
 	}
@@ -59,7 +59,7 @@ EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 	return EngineRenderResult{.did_stereo_buffer = stereo_unison};
 }
 
-void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
+void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp::UQ<32>, kMaxNumVoicesUnison>& sync_pos,
                                  const std::array<int32_t, kNumSources>& wave_index_increments) {
 	const VoiceConfig& cfg = *block.cfg;
 	const DualSourceControls& c = block.dual;
@@ -74,7 +74,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 
 		// The two sources' phase increments. One too high abandons every remaining unison part: the parts ascend in
 		// frequency, so the rest are too high as well.
-		std::array<uint32_t, kNumSources> phase_increments{};
+		std::array<dsp::UQ<32>, kNumSources> phase_increments{};
 		for (int32_t s = 0; s < kNumSources; s++) {
 			phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
 		}
@@ -148,7 +148,7 @@ int32_t RingModEngine::level(bool has_filters, int32_t filter_gain, OscType sour
 }
 
 void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
-                                       uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness,
+                                       dsp::UQ<32> osc_sync_pos, bool has_filters, int32_t cpu_direness,
                                        int32_t filter_gain, dsp::Q<30> unison_amplitude_l,
                                        dsp::Q<30> unison_amplitude_r, bool stereo_unison, dsp::Q<31>* osc_buffer,
                                        int32_t num_samples, dsp::Q<31>* scratch0, dsp::Q<31>* scratch1,

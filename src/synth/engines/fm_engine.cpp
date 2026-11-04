@@ -40,11 +40,10 @@ using dsp::Q;
 using dsp::QVec;
 using dsp::UQ;
 
-/// @brief @p phase moved on by a block's step, an integer product, wrapping.
-[[gnu::always_inline]] inline void advance(uint32_t* phase, uint32_t phase_increment, int32_t num_samples) {
-	*phase =
-	    dsp::advanced(UQ<32>::from_raw(*phase), UQ<32>::from_raw(phase_increment), static_cast<uint32_t>(num_samples))
-	        .raw();
+/// @brief @p phase moved on by a block's step, an integer product, wrapping. The operators' loops step the increment's
+/// word.
+[[gnu::always_inline]] inline void advance(UQ<32>* phase, uint32_t phase_increment, int32_t num_samples) {
+	*phase = dsp::advanced(*phase, UQ<32>::from_raw(phase_increment), static_cast<uint32_t>(num_samples));
 }
 
 /// @brief The feedback's phase modulation: the last output's Q31 word times the amount, Q30, held to 22 bits. Hard
@@ -103,7 +102,8 @@ bool FMEngine::note_on(const EngineNote& note) {
 	for (int32_t u = 0; u < num_unison; u++) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 			if (retrigger_phase[m] != kNoRetrigger) {
-				modulator_phase_[u][m] = initial_phase + retrigger_phase[m];
+				// The retrigger phase's word is the phase it adds
+				modulator_phase_[u][m] = UQ<32>::from_raw(initial_phase + retrigger_phase[m]);
 			}
 			if (reset) {
 				modulator_feedback_[u][m] = 0;
@@ -115,7 +115,7 @@ bool FMEngine::note_on(const EngineNote& note) {
 
 void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		modulator_phase_[u][m] = noise.next();
+		modulator_phase_[u][m] = UQ<32>::from_raw(noise.next());
 	}
 }
 
@@ -149,11 +149,12 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 		phase_increment = snapshot.fine_tuner.detune(phase_increment);
 
 		if (snapshot.num_unison == 1) {
-			modulator_phase_increment_[0][m] = phase_increment;
+			modulator_phase_increment_[0][m] = UQ<32>::from_raw(phase_increment);
 		}
 		else {
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				modulator_phase_increment_[u][m] = snapshot.unison_detuners[u].detune(phase_increment);
+				modulator_phase_increment_[u][m] =
+				    UQ<32>::from_raw(snapshot.unison_detuners[u].detune(phase_increment));
 			}
 		}
 	}
@@ -176,7 +177,7 @@ EngineRenderResult FMEngine::render(const EngineBlock& block) {
 	// The unison parts ascend in frequency, so a carrier too high in one is too high in the rest: its amplitude is
 	// knocked to 0 for them all
 	for (int32_t u = 0; u < cfg.num_unison; u++) {
-		const std::array<uint32_t, kNumSources> phase_increments = carrier_increments(block, u, pass);
+		const std::array<UQ<32>, kNumSources> phase_increments = carrier_increments(block, u, pass);
 		render_unison_part(block, u, phase_increments, pass);
 	}
 
@@ -227,9 +228,9 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 	return pass;
 }
 
-std::array<uint32_t, kNumSources> FMEngine::carrier_increments(const EngineBlock& block, int32_t u, Pass& pass) {
+std::array<UQ<32>, kNumSources> FMEngine::carrier_increments(const EngineBlock& block, int32_t u, Pass& pass) {
 	const FmControls& c = block.fm;
-	std::array<uint32_t, kNumSources> phase_increments{};
+	std::array<UQ<32>, kNumSources> phase_increments{};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
 		const bool too_high =
@@ -246,10 +247,10 @@ std::array<uint32_t, kNumSources> FMEngine::carrier_increments(const EngineBlock
 	return phase_increments;
 }
 
-std::array<uint32_t, kNumModulators> FMEngine::modulator_increments(const EngineBlock& block, int32_t u,
-                                                                    Pass& pass) const {
+std::array<UQ<32>, kNumModulators> FMEngine::modulator_increments(const EngineBlock& block, int32_t u,
+                                                                  Pass& pass) const {
 	const FmControls& c = block.fm;
-	std::array<uint32_t, kNumModulators> increments{};
+	std::array<UQ<32>, kNumModulators> increments{};
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		increments[m] = modulator_phase_increment_[u][m];
 		if (increments[m] == kInactive) {
@@ -272,7 +273,7 @@ std::array<uint32_t, kNumModulators> FMEngine::modulator_increments(const Engine
 }
 
 bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
-                                 std::span<const uint32_t, kNumModulators> increments, const Pass& pass) {
+                                 std::span<const UQ<32>, kNumModulators> increments, const Pass& pass) {
 	const VoiceConfig& cfg = *block.cfg;
 	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
@@ -283,25 +284,26 @@ bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
 	const bool into_silent_modulator = cfg.modulator1_to_modulator0 && !active[0];
 	if (active[1] && !into_silent_modulator) {
 		render_sine_wave_with_feedback(modulator_scratch, num_samples, &modulator_phase_[u][1],
-		                               modulator_amplitude_last_time_[1], increments[1], c.modulator_feedback[1],
+		                               modulator_amplitude_last_time_[1], increments[1].raw(), c.modulator_feedback[1],
 		                               &modulator_feedback_[u][1], false, pass.modulator_amplitude_increments[1]);
 		if (cfg.modulator1_to_modulator0) {
 			// Modulator 0, frequency-modulated by modulator 1
 			render_fm_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-			                        modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
+			                        modulator_amplitude_last_time_[0], increments[0].raw(), c.modulator_feedback[0],
 			                        modulator_feedback_[u].data(), pass.modulator_amplitude_increments[0]);
 		}
 		else if (active[0]) {
 			// Modulator 0 beside it, added
 			render_sine_wave_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-			                               modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
-			                               modulator_feedback_[u].data(), true, pass.modulator_amplitude_increments[0]);
+			                               modulator_amplitude_last_time_[0], increments[0].raw(),
+			                               c.modulator_feedback[0], modulator_feedback_[u].data(), true,
+			                               pass.modulator_amplitude_increments[0]);
 		}
 		return true;
 	}
 	if (!active[1] && active[0]) {
 		render_sine_wave_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-		                               modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
+		                               modulator_amplitude_last_time_[0], increments[0].raw(), c.modulator_feedback[0],
 		                               modulator_feedback_[u].data(), false, pass.modulator_amplitude_increments[0]);
 		return true;
 	}
@@ -309,14 +311,14 @@ bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
 }
 
 void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
-                                  std::span<const uint32_t, kNumSources> phase_increments, Pass& pass) {
+                                  std::span<const UQ<32>, kNumSources> phase_increments, Pass& pass) {
 	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
 	Q<31>* const osc_buffer = block.osc_buffer;
 
 	// The modulators' increments, with the overall and their own pitch adjust; one too high stops sounding, which
 	// holds for the higher parts after this one
-	const std::array<uint32_t, kNumModulators> increments = modulator_increments(block, u, pass);
+	const std::array<UQ<32>, kNumModulators> increments = modulator_increments(block, u, pass);
 
 	Q<31>* fm_osc_buffer = osc_buffer;
 	if (c.stereo_unison) {
@@ -337,13 +339,13 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 			// The carriers render into their own buffer, modulated by the modulators'
 			// NOLINTNEXTLINE(readability-suspicious-call-argument)
 			render_fm_with_feedback_add(fm_osc_buffer, num_samples, block.spare_buffers[2], &carrier.osc_pos,
-			                            pass.source_amplitudes_now[s], phase_increments[s], c.carrier_feedback[s],
+			                            pass.source_amplitudes_now[s], phase_increments[s].raw(), c.carrier_feedback[s],
 			                            &carrier.carrier_feedback, pass.source_amplitude_increments[s]);
 		}
 		else {
 			render_sine_wave_with_feedback(fm_osc_buffer, num_samples, &carrier.osc_pos, pass.source_amplitudes_now[s],
-			                               phase_increments[s], c.carrier_feedback[s], &carrier.carrier_feedback, true,
-			                               pass.source_amplitude_increments[s]);
+			                               phase_increments[s].raw(), c.carrier_feedback[s], &carrier.carrier_feedback,
+			                               true, pass.source_amplitude_increments[s]);
 		}
 	}
 
@@ -357,11 +359,11 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 	}
 }
 
-void FMEngine::render_sine_wave_with_feedback(Q<31>* buffer_start, int32_t num_samples, uint32_t* phase,
+void FMEngine::render_sine_wave_with_feedback(Q<31>* buffer_start, int32_t num_samples, UQ<32>* phase,
                                               int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
                                               int32_t* last_feedback_value, bool add, int32_t amplitude_increment) {
 
-	uint32_t phase_now = *phase;
+	uint32_t phase_now = phase->raw();
 	advance(phase, phase_increment, num_samples);
 
 	if (feedback_amount != 0) {
@@ -432,11 +434,11 @@ void FMEngine::render_sine_wave(Q<31>* buffer_start, int32_t num_samples, uint32
 	}
 }
 
-void FMEngine::render_fm_with_feedback(Q<31>* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
+void FMEngine::render_fm_with_feedback(Q<31>* buffer_start, int32_t num_samples, UQ<32>* phase, int32_t amplitude,
                                        uint32_t phase_increment, int32_t feedback_amount, int32_t* last_feedback_value,
                                        int32_t amplitude_increment) {
 
-	uint32_t phase_now = *phase;
+	uint32_t phase_now = phase->raw();
 	advance(phase, phase_increment, num_samples);
 
 	if (feedback_amount != 0) {
@@ -473,11 +475,11 @@ void FMEngine::render_fm_with_feedback(Q<31>* buffer_start, int32_t num_samples,
 }
 
 void FMEngine::render_fm_with_feedback_add(Q<31>* buffer_start, int32_t num_samples, const Q<31>* fm_buffer,
-                                           uint32_t* phase, int32_t amplitude, uint32_t phase_increment,
+                                           UQ<32>* phase, int32_t amplitude, uint32_t phase_increment,
                                            int32_t feedback_amount, int32_t* last_feedback_value,
                                            int32_t amplitude_increment) {
 
-	uint32_t phase_now = *phase;
+	uint32_t phase_now = phase->raw();
 	advance(phase, phase_increment, num_samples);
 
 	if (feedback_amount != 0) {

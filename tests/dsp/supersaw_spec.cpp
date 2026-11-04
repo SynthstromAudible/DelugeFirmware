@@ -36,6 +36,7 @@
 namespace {
 using deluge::dsp::Q;
 using deluge::dsp::Ramp;
+using deluge::dsp::UQ;
 using deluge::dsp::fixed::Supersaw;
 using deluge::synth::BlockControls;
 using deluge::synth::SupersawSource;
@@ -247,26 +248,26 @@ describe supersaw("the dsp-next supersaw", ${
 	context("SupersawSource", _ {
 		it("renders the raw kernel standalone, keeping its phases across blocks", _ {
 			const uint32_t inc = incrementFor(440);
-			SupersawSource source{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
+			SupersawSource source{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
 			std::vector<int32_t> got(1024);
 			std::vector<int32_t> scratch(128);
 			for (int32_t pos = 0; pos < 1024; pos += 128) {
-				source.render_into(controls(false), inc, 0, 0, deluge::dsp::typed_view(std::span<int32_t>{got.data() + pos, 128}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+				source.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{got.data() + pos, 128}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 			}
 			expect(got == render(inc, 0, 7, 1024, {128})).to_be_true();
-			expect(source.phase()).to_equal(kStartPhase + inc * 1024);
+			expect(source.phase().raw()).to_equal(kStartPhase + inc * 1024);
 		});
 
 		it("mixes in through the VCA at four times the amplitude, as a quarter-level wave", _ {
 			const uint32_t inc = incrementFor(440);
 			const Ramp amplitude{Q<31>::from_raw(1 << 26), Q<31>::from_raw(0)};
-			SupersawSource raw{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
-			SupersawSource mixed{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
+			SupersawSource raw{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
+			SupersawSource mixed{UQ<32>::from_raw(kStartPhase), Supersaw::side_phases_from(kStartPhase)};
 			std::vector<int32_t> wave(128);
 			std::vector<int32_t> out(128, 1000);
 			std::vector<int32_t> scratch(128);
-			raw.render_into(controls(false), inc, 0, 0, deluge::dsp::typed_view(std::span<int32_t>{wave}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
-			mixed.render_into(controls(true, amplitude), inc, 0, 0, deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			raw.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{wave}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			mixed.render_into(controls(true, amplitude), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 			for (size_t i = 0; i < out.size(); i++) {
 				// vqdmulh by the halved, quadrupled amplitude, plus what was already in the buffer
 				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value().raw() << 2) >> 1)) >> 31) + 1000;
@@ -279,10 +280,10 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> first(128);
 			std::vector<int32_t> second(128);
 			std::vector<int32_t> scratch(128);
-			SupersawSource a{0, Supersaw::side_phases_from(0)};
-			SupersawSource b{0, Supersaw::side_phases_from(0)};
-			a.render_into(controls(false), inc, 0, 0, deluge::dsp::typed_view(std::span<int32_t>{first}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
-			b.render_into(controls(false), inc, 0, 0, deluge::dsp::typed_view(std::span<int32_t>{second}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			SupersawSource a{UQ<32>::from_raw(0), Supersaw::side_phases_from(0)};
+			SupersawSource b{UQ<32>::from_raw(0), Supersaw::side_phases_from(0)};
+			a.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{first}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
+			b.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{second}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 			expect(first == second).to_be_true();
 		});
 	});

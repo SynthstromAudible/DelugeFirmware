@@ -140,10 +140,10 @@ struct Dx7Block {
 
 /// @brief A sample source's block inputs.
 struct SampleBlock {
-	uint32_t porta_envelope_pos{kNoPorta};   ///< The voice's portamento position; kNoPorta when not gliding
-	int32_t priority_rating{};               ///< The voice's cull rating (the cache and the reader rank by it)
-	uint32_t phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
-	bool pitch_mod_disallows_cache{};        ///< A source that can change during the note modulates its pitch
+	uint32_t porta_envelope_pos{kNoPorta};      ///< The voice's portamento position; kNoPorta when not gliding
+	int32_t priority_rating{};                  ///< The voice's cull rating (the cache and the reader rank by it)
+	dsp::UQ<32> phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
+	bool pitch_mod_disallows_cache{};           ///< A source that can change during the note modulates its pitch
 };
 
 /// @brief A live-input source's block inputs.

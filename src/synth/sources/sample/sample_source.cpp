@@ -32,8 +32,9 @@ SourceRenderResult SampleSource::render(const SourceBlock& block) {
 	const int32_t num_samples = block.num_samples;
 	const dsp::Q<31> source_amplitude = block.source_amplitude;
 	const dsp::Q<31> amplitude_increment = block.amplitude_increment;
-	uint32_t phase_increment = block.phase_increment; // mutated below by getPitchAndSpeedParams (taken by address)
-	const uint32_t phase_increment_stored_value = block.sample.phase_increment_stored_value;
+	// Raw: the playback's speed and time-stretch maths are integer products of the increments' words
+	uint32_t phase_increment = block.phase_increment.raw(); // mutated below by getPitchAndSpeedParams (by address)
+	const uint32_t phase_increment_stored_value = block.sample.phase_increment_stored_value.raw();
 	const bool stereo_unison = block.stereo_unison;
 	const dsp::Q<30> amplitude_l = block.amplitude_l;
 	const dsp::Q<30> amplitude_r = block.amplitude_r;

@@ -20,18 +20,20 @@
 
 namespace deluge::synth {
 
-void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
+void SupersawSource::render_into(const BlockControls& controls, dsp::UQ<32> phase_increment, int32_t wave_index_last,
                                  int32_t wave_index_increment, std::span<dsp::Q<31>> output,
                                  std::span<dsp::Q<31>> scratch) {
 	using deluge::dsp::fixed::Supersaw;
 	const size_t num_samples = output.size();
 
 	// The plain saw's dire-CPU fallback: skip the band limiting for lower notes
-	const bool band_limit = deluge::dsp::fixed::get_table_number(phase_increment).first >= controls.cpu_direness + 6;
+	// The band ladder and the kernel step the increment as a raw word
+	const bool band_limit =
+	    deluge::dsp::fixed::get_table_number(phase_increment.raw()).first >= controls.cpu_direness + 6;
 	const int32_t spread = wave_index_last + wave_index_increment * static_cast<int32_t>(num_samples);
 
 	dsp::Q<31>* dst = controls.apply_amplitude ? scratch.data() : output.data();
-	Supersaw::render(std::span<dsp::Q<31>>{dst, num_samples}, phase_increment, spread,
+	Supersaw::render(std::span<dsp::Q<31>>{dst, num_samples}, phase_increment.raw(), spread,
 	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_,
 	                 band_limit);
 

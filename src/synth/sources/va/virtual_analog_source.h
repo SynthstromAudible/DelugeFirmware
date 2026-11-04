@@ -45,28 +45,28 @@ public:
 	/// @param seed the engine's phase state, seeded with the block's render phase + increment (UQ0.32).
 	VirtualAnalogSource(va_shape::Wave wave, deluge::dsp::Phasor seed);
 
-	/// The engine's current oscillator phase (UQ0.32). Persists across blocks — Voice reads it to seed osc-sync
-	/// from the master and to advance a skipped source.
-	[[nodiscard]] uint32_t phase() const {
+	/// The engine's current oscillator phase. Persists across blocks — Voice reads it to seed osc-sync from the
+	/// master and to advance a skipped source.
+	[[nodiscard]] dsp::UQ<32> phase() const {
 		return std::visit([](const auto& shape) { return shape.phase(); }, shape_);
 	}
 
-	/// The current phase increment (UQ0.32). The *original* note pitch — pulse waves rewrite a local render rate
-	/// per block but never touch this.
-	[[nodiscard]] uint32_t increment() const {
+	/// The current phase increment. The *original* note pitch — pulse waves rewrite a local render rate per block
+	/// but never touch this.
+	[[nodiscard]] dsp::UQ<32> increment() const {
 		return std::visit([](const auto& shape) { return shape.increment(); }, shape_);
 	}
 
-	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block (pitch modulation).
-	void set_increment(uint32_t increment) {
+	/// Set the per-block pitch. Voice calls this each block before @ref render_block (pitch modulation).
+	void set_increment(dsp::UQ<32> increment) {
 		std::visit([&](auto& shape) { shape.set_increment(increment); }, shape_);
 	}
 
-	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
-	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
+	[[nodiscard]] std::optional<dsp::UQ<32>> current_phase() const override { return phase(); }
+	void advance_phase(dsp::UQ<32> delta) override { seek(add_wrap(phase(), delta)); }
 
 	/// Jump the phase (e.g. a skipped source still advances, or an external reseed). Leaves the increment.
-	void seek(uint32_t phase) {
+	void seek(dsp::UQ<32> phase) {
 		std::visit([&](auto& shape) { shape.seek(phase); }, shape_);
 	}
 
@@ -74,18 +74,18 @@ public:
 		// The engine owns its phase across blocks. The shape advances/seeks its phasor only meaningfully on a real
 		// hard-sync block (where it lands on the synced phase); otherwise we advance the original-domain phase by
 		// the block length here — exactly the legacy "phase += increment * numSamples, real-sync overrides" rule.
-		const uint32_t start = phase();
-		const uint32_t inc = increment();
+		const dsp::UQ<32> start = phase();
+		const dsp::UQ<32> inc = increment();
 		std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, shape_);
 		if (!controls.sync) {
-			seek(start + inc * static_cast<uint32_t>(output.size()));
+			seek(dsp::advanced(start, inc, static_cast<uint32_t>(output.size())));
 		}
 	}
 
 	/// Render one block into @p output (sets the per-block pitch first), VCA per @p controls. The public
 	/// block-render API used by @ref RingModEngine (raw render) and by @ref renderOscBlock. The engine owns its
 	/// phase across blocks.
-	void render_into(const BlockControls& controls, uint32_t phase_increment, std::span<dsp::Q<31>> output,
+	void render_into(const BlockControls& controls, dsp::UQ<32> phase_increment, std::span<dsp::Q<31>> output,
 	                 std::span<dsp::Q<31>> scratch) {
 		set_increment(phase_increment);
 		render_block(controls, output, scratch);

@@ -31,7 +31,7 @@ class OscillatorSource : public Source {
 public:
 	SourceRenderResult render(const SourceBlock& block) final {
 		// Osc sync with the master too high to render: skip this unison part without unassigning.
-		if (block.sync.has_value() && block.sync->increment == 0u) {
+		if (block.sync.has_value() && block.sync->increment == dsp::UQ<32>{}) {
 			return SourceRenderResult::SKIP;
 		}
 

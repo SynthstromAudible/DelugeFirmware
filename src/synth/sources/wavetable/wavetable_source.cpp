@@ -22,6 +22,7 @@ namespace deluge::synth {
 
 void WavetableSource::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
                                    std::span<dsp::Q<31>> scratch) {
+	// Raw: the pulse rewrite and the oscillators step the phases' words
 	const uint32_t orig_phase = phasor_.phase().raw();
 	const uint32_t orig_inc = phasor_.increment().raw();
 
@@ -80,10 +81,10 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance
 	// (the rewritten render phase is discarded), otherwise the rendered (possibly hard-synced) phase persists.
 	if (do_pulse_wave) {
-		seek(orig_phase + orig_inc * static_cast<uint32_t>(output.size()));
+		seek(dsp::advanced(phasor_.phase(), phasor_.increment(), static_cast<uint32_t>(output.size())));
 	}
 	else {
-		seek(rendered_phase);
+		seek(dsp::UQ<32>::from_raw(rendered_phase));
 	}
 }
 

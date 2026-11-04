@@ -31,9 +31,9 @@ class RingModEngine : public DualSourceEngine {
 public:
 	/// One source of one unison part, ready to render raw.
 	struct RingSource {
-		SourceSlot* part{};         ///< holds the oscillator (VA, wavetable or supersaw) the note built
-		uint32_t phase_increment{}; ///< already pitch-adjusted (UQ0.32)
-		int32_t pulse_width{};      ///< the source's pulse width, pre-shifted (no-op unless square)
+		SourceSlot* part{};            ///< holds the oscillator (VA, wavetable or supersaw) the note built
+		dsp::UQ<32> phase_increment{}; ///< already pitch-adjusted
+		int32_t pulse_width{};         ///< the source's pulse width, pre-shifted (no-op unless square)
 		deluge::dsp::fixed::WaveTableData
 		    wave_table;                 ///< the loaded table's bands (wavetable component only), else empty
 		int32_t wave_index_last{};      ///< the wavetable morph index at block start
@@ -55,16 +55,16 @@ public:
 
 private:
 	/// Renders each unison part; stops at the first too high to render.
-	static void render_parts(const EngineBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
+	static void render_parts(const EngineBlock& block, const std::array<dsp::UQ<32>, kMaxNumVoicesUnison>& sync_pos,
 	                         const std::array<int32_t, kNumSources>& wave_index_increments);
 	/// Render one unison part of the ring-mod, *adding* into @p osc_buffer. Source 0 is the hard-sync master (its
 	/// phase @p osc_sync_pos, its increment @p src0's); sync is applied to source 1 only when @p do_osc_sync.
 	/// @p scratch0, @p scratch1 and @p sync_scratch are the voice's (each ≥ @p num_samples).
 	static void render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
-	                               uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness, int32_t filter_gain,
-	                               dsp::Q<30> unison_amplitude_l, dsp::Q<30> unison_amplitude_r, bool stereo_unison,
-	                               dsp::Q<31>* osc_buffer, int32_t num_samples, dsp::Q<31>* scratch0,
-	                               dsp::Q<31>* scratch1, std::span<dsp::Q<31>> sync_scratch);
+	                               dsp::UQ<32> osc_sync_pos, bool has_filters, int32_t cpu_direness,
+	                               int32_t filter_gain, dsp::Q<30> unison_amplitude_l, dsp::Q<30> unison_amplitude_r,
+	                               bool stereo_unison, dsp::Q<31>* osc_buffer, int32_t num_samples,
+	                               dsp::Q<31>* scratch0, dsp::Q<31>* scratch1, std::span<dsp::Q<31>> sync_scratch);
 };
 
 } // namespace deluge::synth

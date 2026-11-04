@@ -23,16 +23,15 @@
 namespace deluge::synth {
 
 synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_increment, uint32_t pulse_width,
-                                         bool apply_amplitude, bool do_osc_sync, uint32_t resetter_phase,
-                                         uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+                                         bool apply_amplitude, bool do_osc_sync, dsp::UQ<32> resetter_phase,
+                                         dsp::UQ<32> resetter_phase_increment, uint32_t retrigger_phase,
                                          int32_t cpu_direness) {
 	return synth::BlockControls{
 	    .amplitude = dsp::Ramp{dsp::Q<31>::from_raw(amplitude), dsp::Q<31>::from_raw(amplitude_increment)},
 	    .apply_amplitude = apply_amplitude,
 	    .pulse_width = pulse_width,
 	    .retrigger_phase = retrigger_phase,
-	    .sync = do_osc_sync ? std::optional<dsp::Phasor>{dsp::Phasor{dsp::UQ<32>::from_raw(resetter_phase),
-	                                                                 dsp::UQ<32>::from_raw(resetter_phase_increment)}}
+	    .sync = do_osc_sync ? std::optional<dsp::Phasor>{dsp::Phasor{resetter_phase, resetter_phase_increment}}
 	                        : std::nullopt,
 	    .cpu_direness = cpu_direness,
 	};

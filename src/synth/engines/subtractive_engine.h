@@ -36,10 +36,10 @@ private:
 		std::array<int32_t, kNumSources> amplitudes{};            ///< Each source's amplitude at block start
 		std::array<int32_t, kNumSources> amplitude_increments{};  ///< Its per-sample increment
 		std::array<int32_t, kNumSources> wave_index_increments{}; ///< Each wavetable index's per-sample slope
-		std::array<uint32_t, kMaxNumVoicesUnison> sync_pos{};     ///< The osc-sync master's phase in each part
+		std::array<dsp::UQ<32>, kMaxNumVoicesUnison> sync_pos{};  ///< The osc-sync master's phase in each part
 		/// The master's increment in each part, which source 1 syncs to; 0 (too high: the slave skips) where the
 		/// master did not render the part.
-		std::array<uint32_t, kMaxNumVoicesUnison> sync_increments{};
+		std::array<dsp::UQ<32>, kMaxNumVoicesUnison> sync_increments{};
 	};
 
 	/// The block's levels (held, or ramping from the last block's), wavetable slopes and osc-sync master phases, from
