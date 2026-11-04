@@ -17,6 +17,7 @@
 
 #include "model/drum/drum.h"
 #include "dsp-next/core/fixed_point.h"
+#include "model/drum/expression_combine.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
@@ -144,11 +145,7 @@ extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void Drum::getCombinedExpressionInputs(int16_t* combined) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-		int32_t combinedValue =
-		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
-		// The two Q7 inputs' sum lifted to Q15, held to 24 bits first
-		combined[i] = static_cast<int16_t>(
-		    as_wrap<deluge::dsp::Q<15>>(clamp_bits<24>(deluge::dsp::Q<7>::from_raw(combinedValue))).raw());
+		combined[i] = combined_expression(lastExpressionInputsReceived[0][i], lastExpressionInputsReceived[1][i]);
 	}
 }
 
