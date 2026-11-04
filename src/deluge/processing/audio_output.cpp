@@ -240,7 +240,12 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = deluge::dsp::fixed::exp_curve(attackNeutralValue, -(activeAudioClip.attack() / 4));
+			// The attack's neutral read at Q31 (its units are the envelope's rate); the negated knob, a quarter, is
+			// its octaves at Q26
+			int32_t attack =
+			    deluge::dsp::fixed::exp_curve(deluge::dsp::Q<31>::from_raw(attackNeutralValue),
+			                                  deluge::dsp::Q<26>::from_raw(-(activeAudioClip.attack() / 4)))
+			        .raw();
 
 renderEnvelope:
 			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,

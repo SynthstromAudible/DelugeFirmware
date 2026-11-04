@@ -27,6 +27,7 @@
 
 namespace curves = deluge::dsp::fixed;
 namespace ref = param_curve_reference;
+using deluge::dsp::Q;
 
 namespace {
 /// Words a sweep can't miss: both ends, around zero and the half, and a deterministic spread between.
@@ -61,33 +62,52 @@ describe param_curve_spec("the param curves", ${
 		int32_t bad = 0;
 		for (int32_t n : neutrals()) {
 			each_word([&](int32_t c) {
+				const auto neutral = Q<31>::from_raw(n);
+				const auto combination = Q<29>::from_raw(c);
 				// The square and linear curves add "1" (2^29) first: combinations reach 3 at most, never past
 				if (c <= kMaxProductCombination) {
-					bad += curves::curve_square(n, c) != ref::getFinalParameterValueVolume(n, c);
-					bad += curves::curve_linear(n, c) != ref::getFinalParameterValueLinear(n, c);
+					bad += curves::curve_square(neutral, combination).raw() != ref::getFinalParameterValueVolume(n, c);
+					bad += curves::curve_linear(neutral, combination).raw() != ref::getFinalParameterValueLinear(n, c);
 				}
-				bad += curves::curve_bipolar(n, c) != ref::getFinalParameterValueHybrid(n, c);
-				bad += curves::curve_exponential(n, c) != ref::getFinalParameterValueExp(n, c);
+				bad += curves::curve_bipolar(neutral, combination).raw() != ref::getFinalParameterValueHybrid(n, c);
+				bad += curves::curve_exponential(neutral, combination).raw() != ref::getFinalParameterValueExp(n, c);
+			});
+		}
+		expect(bad).to_equal(0);
+	});
+	it("does the same arithmetic on the words whatever the neutral's format", _ {
+		int32_t bad = 0;
+		for (int32_t n : neutrals()) {
+			each_word([&](int32_t c) {
+				const auto combination = Q<29>::from_raw(c);
+				if (c <= kMaxProductCombination) {
+					bad += curves::curve_square(Q<27>::from_raw(n), combination).raw()
+					       != ref::getFinalParameterValueVolume(n, c);
+					bad += curves::curve_linear(Q<29>::from_raw(n), combination).raw()
+					       != ref::getFinalParameterValueLinear(n, c);
+				}
+				bad += curves::curve_exponential(Q<24>::from_raw(n), combination).raw()
+				       != ref::getFinalParameterValueExp(n, c);
 			});
 		}
 		expect(bad).to_equal(0);
 	});
 	it("reads the release-rate table as the reference does", _ {
 		int32_t bad = 0;
-		each_word([&](int32_t v) { bad += curves::release_rate(v) != ref::lookupReleaseRate(v); });
+		each_word([&](int32_t v) { bad += curves::release_rate(Q<29>::from_raw(v)).raw() != ref::lookupReleaseRate(v); });
 		for (int32_t step = -40; step <= 40; ++step) {
-			bad += curves::release_rate(step << 24) != ref::lookupReleaseRate(step << 24);
+			bad += curves::release_rate(Q<29>::from_raw(step << 24)).raw() != ref::lookupReleaseRate(step << 24);
 		}
 		expect(bad).to_equal(0);
 	});
 	it("saturates the bipolar curve at ±2^30 in steps of 4", _ {
-		expect(curves::curve_bipolar(INT32_MAX, INT32_MAX)).to_equal((1 << 30) - 4);
-		expect(curves::curve_bipolar(INT32_MIN, INT32_MIN)).to_equal(-(1 << 30));
+		expect(curves::curve_bipolar(Q<31>::max(), Q<29>::max()).raw()).to_equal((1 << 30) - 4);
+		expect(curves::curve_bipolar(Q<31>::min(), Q<29>::min()).raw()).to_equal(-(1 << 30));
 	});
 	it("takes a preset word as a quarter-scale combination", _ {
-		expect(curves::preset_combination(INT32_MIN)).to_equal(INT32_MIN >> 2);
-		expect(curves::preset_combination(-1)).to_equal(-1);
-		expect(curves::preset_combination(INT32_MAX)).to_equal(INT32_MAX >> 2);
+		expect(curves::preset_combination(Q<31>::min()).raw()).to_equal(INT32_MIN >> 2);
+		expect(curves::preset_combination(Q<31>::from_raw(-1)).raw()).to_equal(-1);
+		expect(curves::preset_combination(Q<31>::max()).raw()).to_equal(INT32_MAX >> 2);
 	});
 });
 // clang-format on

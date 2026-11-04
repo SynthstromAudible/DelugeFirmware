@@ -1317,10 +1317,13 @@ int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
 		return 1 << 27; // unity, Q27: playback triggers the click only with a song, so this is defensive
 	}
-	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
-	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                                                           deluge::modulation::params::UNPATCHED_VOLUME)))
-	       >> 1;
+	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
+	return halve_floor(
+	           deluge::dsp::fixed::curve_square(deluge::dsp::Q<27>::one(),
+	                                            deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
+	                                                currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	                                                    deluge::modulation::params::UNPATCHED_VOLUME)))))
+	    .raw();
 }
 
 } // namespace

@@ -48,22 +48,24 @@ struct EffectParam {
 	if (!param.curve) {
 		return word;
 	}
-	const int32_t combination = dsp::fixed::preset_combination(word);
+	// The neutral read at Q31: its units are the param's, and the curves' arithmetic is the same for every format
+	const auto typed_neutral = dsp::Q<31>::from_raw(neutral);
+	const dsp::Q<29> combination = dsp::fixed::preset_combination(dsp::Q<31>::from_raw(word));
 	switch (*param.curve) {
 	case dsp::fixed::ParamCurve::SQUARE:
-		return dsp::fixed::curve_square(neutral, combination);
+		return dsp::fixed::curve_square(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::LINEAR:
-		return dsp::fixed::curve_linear(neutral, combination);
+		return dsp::fixed::curve_linear(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::BIPOLAR:
-		return dsp::fixed::curve_bipolar(neutral, combination);
+		return dsp::fixed::curve_bipolar(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::EXPONENTIAL:
-		return dsp::fixed::curve_exponential(neutral, combination);
+		return dsp::fixed::curve_exponential(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::EXPONENTIAL_INVERTED:
-		return dsp::fixed::curve_exponential(neutral, -combination);
+		// A stored word's combination is a quarter of the word, so its negation can't wrap
+		return dsp::fixed::curve_exponential(typed_neutral, neg_wrap(combination)).raw();
 	case dsp::fixed::ParamCurve::RELEASE_TABLE:
-		// The neutral, read at Q31 to take the high word, times the Q31 rate: the result is in the neutral's units,
-		// times rate / 2.
-		return mul(dsp::Q<31>::from_raw(neutral), dsp::Q<31>::from_raw(dsp::fixed::release_rate(combination))).raw();
+		// The neutral times the rate, taking the high word: the result is in the neutral's units, times rate / 2.
+		return mul(typed_neutral, dsp::fixed::release_rate(combination)).raw();
 	}
 	return word;
 }

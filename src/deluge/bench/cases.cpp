@@ -422,7 +422,8 @@ void ReleaseRateCase::setup(std::size_t n) {
 
 void ReleaseRateCase::block(std::size_t n) {
 	for (std::size_t i = 0; i < n; ++i) {
-		spans_.out[i] = dsp::fixed::release_rate(spans_.a[i] >> 2);
+		spans_.out[i] =
+		    dsp::fixed::release_rate(dsp::fixed::preset_combination(dsp::Q<31>::from_raw(spans_.a[i]))).raw();
 	}
 }
 

@@ -56,16 +56,21 @@ TrackChannel::~TrackChannel() {
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
-	int32_t a = dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = dsp::fixed::curve_square(134217728, a) >> 1;
+	// The volume knob's square curve around unity, Q27
+	const dsp::Q<29> a =
+	    dsp::fixed::preset_combination(dsp::Q<31>::from_raw(unpatchedParams->getValue(params::UNPATCHED_VOLUME)));
+	int32_t volumeAdjustment = halve_floor(dsp::fixed::curve_square(dsp::Q<27>::one(), a)).raw();
 
 	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
 	int32_t reverbAmountAdjustForDrums = mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust),
 	                                                               dsp::Q<27>::from_raw(volumeAdjustment))
 	                                         .raw();
 
+	// The pitch adjust around unison, Q24; the knob's word ≫ 3 is its octaves at Q26 (±4)
 	int32_t pitchAdjust =
-	    dsp::fixed::curve_exponential(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	    dsp::fixed::exp_curve(dsp::Q<24>::from_raw(kMaxSampleValue),
+	                          dsp::Q<26>::from_raw(unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3))
+	        .raw();
 
 	// The delay starts or stops on whether the content rendered last block.
 	effects::Delay::State delay = delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,

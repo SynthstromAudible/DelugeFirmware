@@ -557,7 +557,10 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 	    (cfg.monophonic_expression_values[0] / 192) * cfg.bend_ranges[BEND_RANGE_MAIN]
 	    + (local_expression_source_values_before_smoothing_[0] / 192) * cfg.bend_ranges[BEND_RANGE_FINGER_LEVEL];
 
-	overall_pitch_adjust = deluge::dsp::fixed::exp_curve(overall_pitch_adjust, total_bend_amount >> 1);
+	// The pitch adjust is Q24 (2^24 is unison); the halved bend is its octaves at Q26
+	overall_pitch_adjust =
+	    deluge::dsp::fixed::exp_curve(Q<24>::from_raw(overall_pitch_adjust), Q<26>::from_raw(total_bend_amount >> 1))
+	        .raw();
 
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
@@ -569,8 +572,11 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
+		// Raw: the rate's word, shifted, is the envelope position's step
 		int32_t envelope_speed =
-		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(cfg.portamento)) >> 13;
+		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(Q<31>::from_raw(cfg.portamento)))
+		        .raw()
+		    >> 13;
 		porta_envelope_pos_ += envelope_speed * num_samples;
 	}
 	return overall_pitch_adjust;

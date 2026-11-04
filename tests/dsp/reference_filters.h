@@ -39,13 +39,13 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
-#include "dsp-next/fixed/curves/instant_tan.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
+#include "raw_curves.h"
 #include "raw_frame.h"
 #include "raw_shaping.h"
 #include "util/synth_noise.h"
@@ -152,7 +152,7 @@ struct CurvedFrequency {
 	constexpr int32_t kOneQ27 = 134217728;
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const q31_t tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
+	const q31_t tanned = deluge::dsp::test::raw_curves::instant_tan(lshift_and_saturate<5>(frequency));
 	// Saturated before the cast, as the legacy firmware's VCVT saturates it on the A9: at cutoff 0 the quotient is
 	// 2^31, whose plain cast is undefined (INT32_MIN on x86).
 	const auto divide_by_one_plus_tanned =

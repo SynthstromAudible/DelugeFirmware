@@ -42,15 +42,16 @@ alignas(16) inline constexpr std::array<int32_t, 65> kTanTable = {
 /// @ref kTanTable and the 25 bits below interpolate (at Q31) toward the next.
 /// @param input The angle, non-negative: 2^31 spans the table's 1.44 radians (2^25 per entry). A negative angle
 /// indexes before the table.
-/// @return The tangent, Q28 like the table.
-[[nodiscard]] inline int32_t instant_tan(int32_t input) {
-	const int32_t which = input >> 25;
-	const Q<31> toward_next = Q<31>::from_raw((input << 6) & 2147483647);
+/// @return The tangent, at the table's format.
+[[nodiscard]] inline Q<28> instant_tan(Q<31> input) {
+	// Raw: the entry and the fraction toward the next are the angle's bit fields
+	const int32_t which = input.raw() >> 25;
+	const Q<31> toward_next = Q<31>::from_raw((input.raw() << 6) & 2147483647);
 	const Q<28> lower = Q<28>::from_raw(kTanTable[which]);
 	const Q<28> upper = Q<28>::from_raw(kTanTable[which + 1]);
 	// A convex blend of two Q28 entries, Q27 after the Q31 weights: the sum can't wrap
 	const Q<27> blend = add_wrap(mul(upper, toward_next), mul(lower, sub_wrap(Q<31>::max(), toward_next)));
-	return as_wrap<Q<28>>(blend).raw();
+	return as_wrap<Q<28>>(blend);
 }
 
 } // namespace deluge::dsp::fixed

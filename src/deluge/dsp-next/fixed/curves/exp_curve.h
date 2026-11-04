@@ -58,21 +58,27 @@ inline constexpr int32_t kExpSaturatingOctaves = 20;
 /// The low 26 bits of @p adjustment are the fraction of an octave, looked up in @ref kExpTable. Up to 20 octaves the
 /// saturation is @ref increase_magnitude_and_saturate's (to the multiples of 2^octaves); past that, which an add chain
 /// saturated by several cables reaches (up to 33), the scaled value saturates to the whole q31 range.
-[[nodiscard]] inline int32_t exp_curve(int32_t preset, int32_t adjustment) {
-	const int32_t octaves = (adjustment >> 26) + 2;
+/// @param preset The value at a zero adjustment, before the curve's × 4.
+/// @param adjustment Octaves, the integer part above the fraction.
+/// @return The scaled value, in the preset's format.
+template <int F>
+[[nodiscard]] inline Q<F> exp_curve(Q<F> preset, Q<26> adjustment) {
+	// Raw: the octaves and the table's fraction are the adjustment's bit fields
+	const int32_t octaves = (adjustment.raw() >> 26) + 2;
 	// The Q15 table times the Q15 blend weight: 2^fraction at Q30, from 1 to just under 2
 	const Q<30> power =
-	    Q<30>::from_raw(kLinearTableInterpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
-	// The preset read as Q31: the product is a quarter of preset · 2^fraction in the preset's units
-	const int32_t within_octave = mul(Q<31>::from_raw(preset), power).raw();
+	    Q<30>::from_raw(kLinearTableInterpolator.interpolate(adjustment.raw() & 67108863, 26, kExpTable.data()));
+	// The product's word, read in the preset's format, is a quarter of preset · 2^fraction: the octaves' + 2 restores
+	// it
+	const int32_t within_octave = mul(preset, power).raw();
 	if (octaves <= kExpSaturatingOctaves) {
 		// Raw: a run-time shift saturating to the multiples of 2^octaves has no typed form
-		return increase_magnitude_and_saturate(within_octave, octaves);
+		return Q<F>::from_raw(increase_magnitude_and_saturate(within_octave, octaves));
 	}
 	// 2^31 times 2^32 still fits in 64 bits; a nonzero value saturates long before
 	const int64_t scaled = static_cast<int64_t>(within_octave) << std::min(octaves, 32);
-	return static_cast<int32_t>(
-	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()));
+	return Q<F>::from_raw(static_cast<int32_t>(
+	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max())));
 }
 
 } // namespace deluge::dsp::fixed

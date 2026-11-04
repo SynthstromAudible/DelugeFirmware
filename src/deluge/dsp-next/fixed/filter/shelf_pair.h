@@ -57,9 +57,9 @@ struct ShelfPair {
 	using Modes = ModeList<Mode::BOTH, Mode::BASS, Mode::TREBLE>; ///< Each holds the other bands' memory still.
 
 	/// @brief The exp_curve preset the bass's moveability starts from.
-	static constexpr int32_t kBassPreset = 120000000;
+	static constexpr Q<31> kBassPreset = Q<31>::from_raw(120000000);
 	/// @brief The exp_curve preset the treble's moveability starts from.
-	static constexpr int32_t kTreblePreset = 700000000;
+	static constexpr Q<31> kTreblePreset = Q<31>::from_raw(700000000);
 	/// @brief A frequency knob's shift and scale into exp_curve's adjustment.
 	static constexpr int kFrequencyShift = 5;
 	static constexpr int32_t kFrequencyScale = 6;
@@ -97,12 +97,13 @@ struct ShelfPair {
 		// 1 + the knob, Q30: in [0, 2).
 		const Q<30> bass_knob = add_wrap(as_floor<Q<30>>(s.bass), Q<30>::one());
 		const Q<30> treble_knob = add_wrap(as_floor<Q<30>>(s.treble), Q<30>::one());
-		// Raw: exp_curve's adjustment is an integer scale of the frequency knob.
+		// Raw: exp_curve's octaves are an integer scale of the frequency knob's word.
+		const auto octaves = [](Q<31> knob) {
+			return Q<26>::from_raw((knob.raw() >> kFrequencyShift) * kFrequencyScale);
+		};
 		return {
-		    .bass_m = Q<31>::from_raw(
-		        bass ? exp_curve(kBassPreset, (s.bass_frequency.raw() >> kFrequencyShift) * kFrequencyScale) : 0),
-		    .treble_m = Q<31>::from_raw(
-		        treble ? exp_curve(kTreblePreset, (s.treble_frequency.raw() >> kFrequencyShift) * kFrequencyScale) : 0),
+		    .bass_m = bass ? exp_curve(kBassPreset, octaves(s.bass_frequency)) : Q<31>{},
+		    .treble_m = treble ? exp_curve(kTreblePreset, octaves(s.treble_frequency)) : Q<31>{},
 		    .bass_gain = sub_wrap(mul_r_as_wrap<Q<29>>(bass_knob, bass_knob), Q<29>::one()),
 		    .treble_gain = mul_r_as_wrap<Q<29>>(treble_knob, treble_knob),
 		    .mode = bass && treble ? Mode::BOTH : (bass ? Mode::BASS : Mode::TREBLE),

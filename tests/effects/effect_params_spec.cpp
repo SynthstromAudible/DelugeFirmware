@@ -28,15 +28,15 @@
 #include "effects/reverb.h"
 #include "effects/stutter.h"
 
-#include "dsp-next/fixed/curves/param_curve.h"
+#include "raw_curves.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
 
 using namespace deluge::effects;
-using deluge::dsp::fixed::curve_exponential;
-using deluge::dsp::fixed::curve_linear;
-using deluge::dsp::fixed::curve_square;
+using deluge::dsp::test::raw_curves::curve_exponential;
+using deluge::dsp::test::raw_curves::curve_linear;
+using deluge::dsp::test::raw_curves::curve_square;
 
 namespace {
 namespace reference {
@@ -165,11 +165,11 @@ describe effect_params("an effect's params from its words", ${
 			using deluge::dsp::fixed::ParamCurve;
 			bad += with(ParamCurve::SQUARE) != curve_square(neutral, c);
 			bad += with(ParamCurve::LINEAR) != curve_linear(neutral, c);
-			bad += with(ParamCurve::BIPOLAR) != deluge::dsp::fixed::curve_bipolar(neutral, c);
+			bad += with(ParamCurve::BIPOLAR) != deluge::dsp::test::raw_curves::curve_bipolar(neutral, c);
 			bad += with(ParamCurve::EXPONENTIAL) != curve_exponential(neutral, c);
 			bad += with(ParamCurve::EXPONENTIAL_INVERTED) != curve_exponential(neutral, -c);
 			bad += with(ParamCurve::RELEASE_TABLE)
-			       != multiply_32x32_rshift32(neutral, deluge::dsp::fixed::release_rate(c));
+			       != multiply_32x32_rshift32(neutral, deluge::dsp::test::raw_curves::release_rate(c));
 		});
 		expect(bad).to_equal(0);
 	});
