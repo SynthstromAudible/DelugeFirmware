@@ -107,6 +107,8 @@ set(matrix_rules_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/re
     ${CMAKE_CURRENT_LIST_DIR}/matrix_rules_model.cpp)
 # The engines played on the host, through the voice and on their own: the same closure as the voice spec.
 set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
+# An envelope attack's final value: the param math alone.
+set(attack_param_spec_DEPS ${_repo_root}/src/deluge/util/param_functions.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().

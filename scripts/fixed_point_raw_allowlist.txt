@@ -97,7 +97,7 @@ src/deluge/processing/sound/sound.cpp raw=5 boundary=0
 src/deluge/storage/audio/stream/convert.cpp raw=1 boundary=0
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=1 boundary=0
 src/deluge/util/functions.h raw=1 boundary=0
-src/deluge/util/param_functions.cpp raw=1 boundary=0
+src/deluge/util/param_functions.cpp raw=0 boundary=5
 src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
 src/effects/chain_core.h raw=0 boundary=3
 src/effects/delay.cpp raw=0 boundary=3
@@ -115,13 +115,13 @@ src/synth/engines/subtractive_engine.cpp raw=0 boundary=3
 src/synth/matrix/matrix_fixed.h raw=0 boundary=41
 src/synth/modulation/cable_depth.h raw=0 boundary=12
 src/synth/modulation/envelope.cpp raw=0 boundary=20
-src/synth/modulation/lfo.h raw=0 boundary=12
+src/synth/modulation/lfo.h raw=0 boundary=15
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=15
 src/synth/sources/input/input_source.cpp raw=0 boundary=9
-src/synth/sources/input/live/live_input_buffer.cpp raw=0 boundary=2
+src/synth/sources/input/live/live_input_buffer.cpp raw=0 boundary=3
 src/synth/sources/input/live/live_pitch_shifter.cpp raw=0 boundary=17
 src/synth/sources/input/live/live_pitch_shifter_play_head.cpp raw=0 boundary=4
-src/synth/sources/source.h raw=0 boundary=6
+src/synth/sources/source.h raw=0 boundary=12
 src/synth/sources/source_slot.cpp raw=0 boundary=8
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=34
 src/synth/sources/va/va_shapes.h raw=0 boundary=24
