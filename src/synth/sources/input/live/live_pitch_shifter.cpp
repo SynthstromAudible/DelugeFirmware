@@ -80,7 +80,7 @@ LivePitchShifter::~LivePitchShifter() {
 #endif
 }
 
-int32_t LivePitchShifter::render(int32_t* __restrict__ output_buffer, int32_t num_samples_this_function_call,
+int32_t LivePitchShifter::render(dsp::Q<31>* __restrict__ output_buffer, int32_t num_samples_this_function_call,
                                  int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
                                  int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise) {
 

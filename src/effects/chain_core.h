@@ -35,8 +35,8 @@
 
 namespace deluge::effects {
 
-/// @brief The reverb send a chain adds into: one value per frame of the block, Q31; the engine's reverb reads it.
-using ReverbSend = std::span<int32_t>;
+/// @brief The reverb send a chain adds into: one sample per frame of the block; the engine's reverb reads it.
+using ReverbSend = std::span<dsp::Q<31>>;
 
 /// @brief What every home's mod FX, EQ and delay read for one block, as the owner resolved them from its params.
 struct FxInputs {

@@ -187,8 +187,8 @@ private:
 
 	// The shared render scratch the render arguments carry, set at the top of render() for the render helpers. Each
 	// entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
-	std::array<int32_t*, 4> spare_buffers_{};
-	std::span<int32_t> sync_scratch_; ///< Set with the spare buffers at the top of render()
+	std::array<dsp::Q<31>*, 4> spare_buffers_{};
+	std::span<dsp::Q<31>> sync_scratch_; ///< Set with the spare buffers at the top of render()
 	/// The noise stream of the call in progress (render, note-on, phase randomizing), set at its top: the synth's one
 	/// stream, which each call is handed.
 	dsp::fixed::Cong* noise_{};
@@ -206,14 +206,14 @@ private:
 	/// The voice-level pan: whether to pan, and the gains (none when the sound pans, or renders the engine in mono).
 	struct VoicePan {
 		bool do_panning{};
-		int32_t amplitude_l{};
-		int32_t amplitude_r{};
+		dsp::Q<30> amplitude_l{};
+		dsp::Q<30> amplitude_r{};
 	};
 	/// What the output stage writes from: the voice's filtered buffer, into the sound's.
 	struct VoiceOutput {
-		const int32_t* buffer{}; ///< The voice's buffer, stereo pairs when the engine rendered stereo
+		const dsp::Q<31>* buffer{}; ///< The voice's buffer, stereo pairs when the engine rendered stereo
 		int32_t num_samples{};
-		int32_t* sound_buffer{};       ///< The sound's buffer, stereo pairs when @ref sound_in_stereo
+		dsp::Q<31>* sound_buffer{};    ///< The sound's buffer, stereo pairs when @ref sound_in_stereo
 		int32_t amplitude_start{};     ///< The overall amplitude at block start (q31)
 		int32_t amplitude_increment{}; ///< Its per-sample increment
 		bool fm{};                     ///< FM worked the overall amplitude into its carriers already

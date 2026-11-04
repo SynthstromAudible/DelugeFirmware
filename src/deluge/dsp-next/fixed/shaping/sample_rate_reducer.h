@@ -93,8 +93,10 @@ struct SampleRateReducer {
 	/// @brief The rates for @p s; the param must be on.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		const uint32_t preset = static_cast<uint32_t>(s.sample_rate_reduction.raw()) + kParamOffset;
-		// exp_curve scales one frame, so the rate keeps its Q22
-		const int32_t low = exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> kPresetToAdjustShift));
+		// exp_curve scales one frame, so the rate keeps its Q22; the shifted preset's word is the octaves
+		const int32_t low = exp_curve(Q<22>::from_raw(static_cast<int32_t>(kOne)),
+		                              Q<26>::from_raw(static_cast<int32_t>(preset >> kPresetToAdjustShift)))
+		                        .raw();
 		const auto high =
 		    static_cast<int32_t>((kAllBits / static_cast<uint32_t>(low >> kReciprocalShift)) << kReciprocalShift);
 		return {

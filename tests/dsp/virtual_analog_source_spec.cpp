@@ -69,7 +69,8 @@ std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increme
 	VirtualAnalogSource engine{wave, Phasor{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}};
 	std::array<int32_t, kN> out{};
 	std::array<int32_t, kN> scratch{};
-	engine.render_block(controls, std::span<int32_t>{out}, std::span<int32_t>{scratch});
+	engine.render_block(controls, deluge::dsp::typed_view(std::span<int32_t>{out}),
+	                    deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 	return out;
 }
 } // namespace
@@ -140,12 +141,12 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		VirtualAnalogSource persistent{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}};
 		std::array<int32_t, kN> out1{};
 		std::array<int32_t, kN> scratch1{};
-		persistent.render_block(standalone(7), std::span<int32_t>{out1}, std::span<int32_t>{scratch1});
+		persistent.render_block(standalone(7), deluge::dsp::typed_view(std::span<int32_t>{out1}), deluge::dsp::typed_view(std::span<int32_t>{scratch1}));
 		expect(persistent.phase()).to_equal(kPhase + kInc * kN); // original-domain self-advance
 
 		std::array<int32_t, kN> out2{};
 		std::array<int32_t, kN> scratch2{};
-		persistent.render_block(standalone(7), std::span<int32_t>{out2}, std::span<int32_t>{scratch2});
+		persistent.render_block(standalone(7), deluge::dsp::typed_view(std::span<int32_t>{out2}), deluge::dsp::typed_view(std::span<int32_t>{scratch2}));
 
 		auto fresh = renderEngine(Wave::SAW, kPhase + kInc * kN, kInc, standalone(7));
 		for (std::size_t i = 0; i < kN; ++i) {
@@ -159,7 +160,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		expect(engine.increment()).to_equal(kInc);
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
-		engine.render_block(standalone(7), std::span<int32_t>{out}, std::span<int32_t>{scratch});
+		engine.render_block(standalone(7), deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 		expect(engine.phase()).to_equal(kPhase + kInc * kN);
 	});
 
@@ -171,7 +172,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		VirtualAnalogSource engine{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
-		engine.render_block(controls, std::span<int32_t>{out}, std::span<int32_t>{scratch});
+		engine.render_block(controls, deluge::dsp::typed_view(std::span<int32_t>{out}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 
 		// The Saw shape applies the +2^31 retrigger tweak internally, so the synced kernel must use it too.
 		deluge::dsp::fixed::CrudeSaw ref{deluge::dsp::fixed::SyncedPhasor{

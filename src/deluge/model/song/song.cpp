@@ -2599,14 +2599,17 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
-                                                     int32_t sideChainHitPending) {
+deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
+                                                     deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	int32_t volumePostFX = deluge::dsp::fixed::curve_square(
-	                           134217728, deluge::dsp::fixed::preset_combination(
-	                                          paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	                       >> 1;
+	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
+	int32_t volumePostFX =
+	    halve_floor(deluge::dsp::fixed::curve_square(
+	                    deluge::dsp::Q<27>::one(),
+	                    deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
+	                        paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))))
+	        .raw();
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening

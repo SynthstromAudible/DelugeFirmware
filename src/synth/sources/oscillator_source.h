@@ -16,10 +16,10 @@
  */
 #pragma once
 
-#include "dsp-next/core/types.h"  // std::span<int32_t>
+#include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // Source, SourceBlock, BlockControls
+#include <algorithm>              // std::fill_n
 #include <cstdint>
-#include <cstring>
 
 namespace deluge::synth {
 
@@ -36,14 +36,14 @@ public:
 		}
 
 		// Stereo voices render mono into a scratch buffer, then pan-fold; mono renders straight into oscBuffer.
-		int32_t* render_buffer = block.osc_buffer;
+		dsp::Q<31>* render_buffer = block.osc_buffer;
 		if (block.stereo_buffer) {
 			render_buffer = block.stereo_scratch;
-			memset(render_buffer, 0, block.stereo_scratch_clear_samples * sizeof(int32_t));
+			std::fill_n(render_buffer, block.stereo_scratch_clear_samples, dsp::Q<31>{});
 		}
 
 		render_osc_block(block.controls, block,
-		                 std::span<int32_t>{render_buffer, static_cast<size_t>(block.num_samples)});
+		                 std::span<dsp::Q<31>>{render_buffer, static_cast<size_t>(block.num_samples)});
 
 		if (block.stereo_buffer) {
 			for (int32_t i = 0; i < block.num_samples; i++) {
@@ -56,7 +56,8 @@ public:
 protected:
 	/// Set the engine's per-block inputs (pitch — and, for the wavetable, its table + morph index) and render the
 	/// mono block into @p out. The oscillator hard-sync work buffer is @c block.sync_scratch.
-	virtual void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<int32_t> out) = 0;
+	virtual void render_osc_block(const BlockControls& controls, const SourceBlock& block,
+	                              std::span<dsp::Q<31>> out) = 0;
 };
 
 } // namespace deluge::synth

@@ -40,8 +40,8 @@
 
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
+#include "raw_curves.h"
 #include "raw_frame.h"
 
 #include <algorithm>
@@ -116,7 +116,7 @@ public:
 
 		const uint32_t preset = static_cast<uint32_t>(params.sample_rate_reduction) + 2147483648u;
 		const int32_t low_rate_increment =
-		    deluge::dsp::fixed::exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> 3));
+		    deluge::dsp::test::raw_curves::exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> 3));
 		const auto high_rate_increment =
 		    static_cast<int32_t>((0xFFFFFFFFu / static_cast<uint32_t>(low_rate_increment >> 6)) << 6);
 
@@ -189,10 +189,11 @@ public:
 		const int32_t treble_gain = multiply_32x32_rshift32_rounded(positive, positive) << 1;
 
 		if (do_bass) {
-			bass_coefficient_ = deluge::dsp::fixed::exp_curve(120000000, (params.bass_frequency >> 5) * 6);
+			bass_coefficient_ = deluge::dsp::test::raw_curves::exp_curve(120000000, (params.bass_frequency >> 5) * 6);
 		}
 		if (do_treble) {
-			treble_coefficient_ = deluge::dsp::fixed::exp_curve(700000000, (params.treble_frequency >> 5) * 6);
+			treble_coefficient_ =
+			    deluge::dsp::test::raw_curves::exp_curve(700000000, (params.treble_frequency >> 5) * 6);
 		}
 
 		for (RawFrame& sample : block) {

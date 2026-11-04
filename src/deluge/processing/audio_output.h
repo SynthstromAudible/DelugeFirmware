@@ -42,7 +42,7 @@ public:
 	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
 
-	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
@@ -192,7 +192,7 @@ private:
 	/// @param amplitudeAtEnd The clip's amplitude scale at the block's end, Q27 (134217728 is unity).
 	/// @return Whether the clip rendered.
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
-	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
 	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
 	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 	/// The audio track's channel strip: the chain its clip renders into, its settings and view.

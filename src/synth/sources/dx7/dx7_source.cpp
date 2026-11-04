@@ -24,8 +24,8 @@ namespace deluge::synth {
 SourceRenderResult DX7Source::render(const SourceBlock& block) {
 	// The port renders the FM block (a pooled dx7::Voice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
-	std::span<const int32_t> fm = dx_->render(block.num_samples, block.phase_increment, block.dx7.amp_mod_param,
-	                                          block.dx7.patch_changed, block.dx7.note_code);
+	std::span<const dsp::Q<24>> fm = dx_->render(block.num_samples, block.phase_increment, block.dx7.amp_mod_param,
+	                                             block.dx7.patch_changed, block.dx7.note_code);
 	if (fm.empty()) {
 		return SourceRenderResult::UNASSIGN;
 	}
@@ -33,25 +33,23 @@ SourceRenderResult DX7Source::render(const SourceBlock& block) {
 	using dsp::Q;
 	// The DX7's sample is Q24, full scale 2^24, and mixes in at a quarter of the buffer's Q31 full scale: its word is
 	// read as Q26. The source amplitude is a Q31 gain, stepped before each sample; the buffer's sums wrap.
-	Q<31> amplitude = Q<31>::from_raw(block.source_amplitude);
-	const Q<31> step = Q<31>::from_raw(block.amplitude_increment);
+	Q<31> amplitude = block.source_amplitude;
+	const Q<31> step = block.amplitude_increment;
 	if (block.stereo_unison) {
-		const Q<30> amplitude_l = Q<30>::from_raw(block.amplitude_l);
-		const Q<30> amplitude_r = Q<30>::from_raw(block.amplitude_r);
+		// Held here: the buffer's stores could otherwise alias the block's pans
+		const Q<30> amplitude_l = block.amplitude_l;
+		const Q<30> amplitude_r = block.amplitude_r;
 		for (int i = 0; i < block.num_samples; i++) {
 			amplitude = add_wrap(amplitude, step);
-			const auto amplified = mul_as_wrap<Q<31>>(Q<26>::from_raw(fm[i]), amplitude);
-			const dsp::StereoSample panned = dsp::panned_mono(amplified, amplitude_l, amplitude_r);
-			auto* frame = &block.osc_buffer[i << 1];
-			frame[0] = add_wrap(Q<31>::from_raw(frame[0]), panned.l).raw();
-			frame[1] = add_wrap(Q<31>::from_raw(frame[1]), panned.r).raw();
+			const auto amplified = mul_as_wrap<Q<31>>(dsp::reinterpret_bits<Q<26>>(fm[i]), amplitude);
+			add_panned(&block.osc_buffer[i << 1], amplified, amplitude_l, amplitude_r);
 		}
 	}
 	else {
 		for (int i = 0; i < block.num_samples; i++) {
 			amplitude = add_wrap(amplitude, step);
-			const auto amplified = mul_as_wrap<Q<31>>(Q<26>::from_raw(fm[i]), amplitude);
-			block.osc_buffer[i] = add_wrap(Q<31>::from_raw(block.osc_buffer[i]), amplified).raw();
+			const auto amplified = mul_as_wrap<Q<31>>(dsp::reinterpret_bits<Q<26>>(fm[i]), amplitude);
+			add_into(&block.osc_buffer[i], amplified);
 		}
 	}
 	return SourceRenderResult::ACTIVE;

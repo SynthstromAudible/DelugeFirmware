@@ -19,6 +19,7 @@
 
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include <array>
 
@@ -34,7 +35,7 @@ enum class PlayHeadMode {
 };
 
 struct LivePitchShifterPlayHead {
-	void render(int32_t* output_buffer, int32_t num_samples, int32_t num_channels, int32_t phase_increment,
+	void render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t num_channels, int32_t phase_increment,
 	            int32_t amplitude, int32_t amplitude_increment, int32_t* repitched_buffer, int32_t* raw_buffer,
 	            int32_t which_kernel, int32_t interpolation_buffer_size);
 	int32_t get_estimated_playtime_remaining(uint32_t repitched_buffer_write_pos, LiveInputBuffer* live_input_buffer,

@@ -34,10 +34,11 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include <algorithm>
 
 extern "C" {}
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 	unassignAllReasons(wontBeUsedAgain);
@@ -483,7 +484,7 @@ static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,
               "problems with crossfading out of cache into new timeStretcher");
 
 // Returning false means instant unassign
-bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int32_t numSamples,
+bool VoiceSample::render(SamplePlaybackGuide* guide, deluge::dsp::Q<31>* __restrict__ outputBuffer, int32_t numSamples,
                          Sample* sample, int32_t sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement,
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
                          int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
@@ -678,7 +679,7 @@ timeStretchingConsidered:
 
 	int32_t bytesPerSample = sampleSourceNumChannels * sample->byteDepth;
 	int32_t jumpAmount = sample->byteDepth * sampleSourceNumChannels * playDirection;
-	int32_t* __restrict__ outputBufferWritePos = outputBuffer;
+	deluge::dsp::Q<31>* __restrict__ outputBufferWritePos = outputBuffer;
 	int32_t numChannelsInOutputBuffer = (sampleSourceNumChannels == 2 && AudioEngine::renderInStereo) ? 2 : 1;
 	int32_t whichKernel;
 	uint64_t combinedIncrement;
@@ -838,12 +839,12 @@ readCachedWindow:
 		// Ok, now we know how many samples we can read from the cache right now. Do it.
 		// Note: I tried putting this loop in another function, but it just wasn't quite as fast, even with it set to
 		// inline.
-		int32_t const* const oscBufferEndNow =
+		deluge::dsp::Q<31> const* const oscBufferEndNow =
 		    outputBufferWritePos + numSamplesThisCacheRead * numChannelsInOutputBuffer;
 
 		while (true) {
 
-			int32_t existingValueL = *outputBufferWritePos;
+			const deluge::dsp::Q<31> existingValueL = *outputBufferWritePos;
 
 			readPos = (int32_t*)((char*)readPos + kCacheByteDepth);
 
@@ -859,16 +860,18 @@ readCachedWindow:
 
 			amplitude += amplitudeIncrement;
 
-			// Mono / left channel (or stereo condensed to mono)
-			*outputBufferWritePos = deluge::audio::mixed_in(existingValueL, sampleRead[0],
-			                                                amplitude); // Yup, accumulate is faster
+			// Mono / left channel (or stereo condensed to mono): the cache's words are Q31 samples
+			const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
+			*outputBufferWritePos =
+			    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
 			outputBufferWritePos++;
 
 			// Right channel. Surprisingly, putting this as an "else" inside the above "numChannels == 2" was slightly
 			// slower
 			if (numChannelsInOutputBuffer == 2) {
-				int32_t existingValueR = *outputBufferWritePos;
-				*outputBufferWritePos = deluge::audio::mixed_in(existingValueR, sampleRead[1], amplitude);
+				const deluge::dsp::Q<31> existingValueR = *outputBufferWritePos;
+				*outputBufferWritePos =
+				    deluge::audio::mixed_in(existingValueR, deluge::dsp::Q<31>::from_raw(sampleRead[1]), level);
 				outputBufferWritePos++;
 			}
 
@@ -1194,8 +1197,8 @@ readNonTimestretched:
 			// No pitch adjustment - in which case we know we're not writing to cache either
 			if (phaseIncrement == kMaxSampleValue) {
 
-				readSamplesNative((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
-				                  jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
+				readSamplesNative((deluge::dsp::Q<31>**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead,
+				                  sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
 				                  amplitudeIncrement);
 			}
 
@@ -1214,10 +1217,10 @@ readNonTimestretched:
 
 				// This stuff is in its own function rather than here in VoiceSample because for some reason it's faster
 				// (re-check that?)
-				readSamplesResampled((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
-				                     jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
-				                     &amplitude, amplitudeIncrement, interpolationBufferSize, (cache != nullptr),
-				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
+				readSamplesResampled((deluge::dsp::Q<31>**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead,
+				                     sample, jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer,
+				                     phaseIncrement, &amplitude, amplitudeIncrement, interpolationBufferSize,
+				                     (cache != nullptr), &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
 			}
 
 			if (cache) {
@@ -1236,10 +1239,10 @@ readNonTimestretched:
 
 			// AudioEngine::logAction("yes timestretching");
 
-			int32_t* timeStretchResultWritePos;
+			deluge::dsp::Q<31>* timeStretchResultWritePos;
 			int32_t numChannelsInTimeStretchResult;
 
-			int32_t* const tempBuffer = spareRenderingBuffer[1];
+			deluge::dsp::Q<31>* const tempBuffer = spareRenderingBuffer[1];
 
 			if (cache) { // If writing cache...
 
@@ -1259,7 +1262,8 @@ readNonTimestretched:
 				timeStretchResultWritePos = tempBuffer;
 
 				// Have to clear the cache
-				memset(timeStretchResultWritePos, 0, numSamplesThisUncachedRead * 4 * sampleSourceNumChannels);
+				std::fill_n(timeStretchResultWritePos, numSamplesThisUncachedRead * sampleSourceNumChannels,
+				            deluge::dsp::Q<31>{});
 
 				numChannelsInTimeStretchResult = sampleSourceNumChannels;
 			}
@@ -1579,14 +1583,14 @@ headsFinishedReading:
 			// If we were writing to a temp buffer instead of the output buffer because we need to cache,
 			// now we copy from the temp buffer to both the cache and the output buffer
 			if (cache) {
-				int32_t* __restrict__ tempBufferReadPos = tempBuffer;
+				deluge::dsp::Q<31> const* __restrict__ tempBufferReadPos = tempBuffer;
 
-				// Pre-fetch some memory
+				// Pre-fetch some memory. Raw: the cache stores each sample's bytes
 				int32_t sampleRead[2];
-				sampleRead[0] = *tempBufferReadPos;
-				int32_t existingValueL = *outputBufferWritePos;
+				sampleRead[0] = tempBufferReadPos->raw();
+				deluge::dsp::Q<31> existingValueL = *outputBufferWritePos;
 
-				int32_t const* const outputBufferEndNow =
+				deluge::dsp::Q<31> const* const outputBufferEndNow =
 				    outputBufferWritePos + numSamplesThisUncachedReadUntouched * numChannelsInOutputBuffer;
 
 				// We'll do an ugly hack here - fudging is where a TimeStretcher is added just at the end of a
@@ -1621,7 +1625,7 @@ headsFinishedReading:
 					cacheWritePosNow++;
 
 					if (sampleSourceNumChannels == 2) {
-						sampleRead[1] = *tempBufferReadPos;
+						sampleRead[1] = tempBufferReadPos->raw();
 						tempBufferReadPos++;
 
 						// If condensing to mono, do that now
@@ -1640,14 +1644,16 @@ headsFinishedReading:
 					}
 
 					// Mono / left channel (or stereo condensed to mono)
-					*outputBufferWritePos = deluge::audio::mixed_in(existingValueL, sampleRead[0],
-					                                                amplitude); // amplitude is modified above
+					const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
+					*outputBufferWritePos =
+					    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
 					outputBufferWritePos++;
 
 					// Right channel
 					if (numChannelsInOutputBuffer == 2) {
-						int32_t existingValueR = *outputBufferWritePos;
-						*outputBufferWritePos = deluge::audio::mixed_in(existingValueR, sampleRead[1], amplitude);
+						const deluge::dsp::Q<31> existingValueR = *outputBufferWritePos;
+						*outputBufferWritePos =
+						    deluge::audio::mixed_in(existingValueR, deluge::dsp::Q<31>::from_raw(sampleRead[1]), level);
 						outputBufferWritePos++;
 					}
 
@@ -1655,7 +1661,7 @@ headsFinishedReading:
 						break;
 					}
 
-					sampleRead[0] = *tempBufferReadPos;
+					sampleRead[0] = tempBufferReadPos->raw();
 					existingValueL = *outputBufferWritePos;
 				}
 

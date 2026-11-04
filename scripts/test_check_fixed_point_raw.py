@@ -91,6 +91,10 @@ class CountTest(unittest.TestCase):
         )
         self.assertEqual(count("// typed_view(x)\n").view, 0)
 
+    def test_counts_a_view_with_template_arguments(self):
+        code = "auto a = typed_view<Q<24>>(std::span<int32_t>{p, n});\nauto b = deluge::dsp::raw_view<24>(t);\n"
+        self.assertEqual(count(code).view, 2)
+
     def test_ignores_comments_but_not_strings(self):
         self.assertEqual(count("// multiply_32x32_rshift32(a, b)\n").raw, 0)
         self.assertEqual(

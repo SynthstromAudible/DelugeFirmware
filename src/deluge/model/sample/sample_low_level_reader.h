@@ -63,11 +63,13 @@ constexpr RegionOutcome regionOutcomeFrom(DelugeRegionState state) {
 }
 
 namespace deluge::audio {
-/// @brief @p mix plus @p sample times @p amplitude, the rounded high word: the half-scale (Q30) mix a voice's sources
-/// add into, summed wrapping.
-[[gnu::always_inline]] inline int32_t mixed_in(int32_t mix, int32_t sample, int32_t amplitude) {
+/// @brief @p mix plus @p sample times @p amplitude, the rounded high word, summed wrapping. A sample voice's buffer
+/// holds its mix at half scale: the Q30 products are the words of the voice's Q31 samples.
+[[gnu::always_inline]] inline deluge::dsp::Q<31> mixed_in(deluge::dsp::Q<31> mix, deluge::dsp::Q<31> sample,
+                                                          deluge::dsp::Q<31> amplitude) {
 	using deluge::dsp::Q;
-	return mla_r(Q<30>::from_raw(mix), Q<31>::from_raw(sample), Q<31>::from_raw(amplitude)).raw();
+	using deluge::dsp::reinterpret_bits;
+	return reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(mix), sample, amplitude));
 }
 } // namespace deluge::audio
 
@@ -140,19 +142,19 @@ public:
 		}
 	}
 
-	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
+	void readSamplesNative(deluge::dsp::Q<31>** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
 	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
 	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = nullptr,
 	                       bool bufferingToTimeStretcher = false);
 
-	void readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
+	void readSamplesResampled(deluge::dsp::Q<31>** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
 	                          int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
 	                          int32_t phaseIncrement, int32_t* amplitude, int32_t amplitudeIncrement,
 	                          int32_t bufferSize, bool writingCache, char** __restrict__ cacheWritePos,
 	                          bool* doneAnySamplesYet, TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
 	                          int32_t whichKernel);
 
-	bool readSamplesForTimeStretching(int32_t* oscBufferPos, SamplePlaybackGuide* guide, Sample* sample,
+	bool readSamplesForTimeStretching(deluge::dsp::Q<31>* oscBufferPos, SamplePlaybackGuide* guide, Sample* sample,
 	                                  int32_t numSamples, int32_t numChannels, int32_t numChannelsAfterCondensing,
 	                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
 	                                  bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,

@@ -94,7 +94,7 @@ struct CurvedFrequency {
 [[nodiscard]] inline CurvedFrequency curve_frequency(Q<31> frequency) {
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const auto tanned = Q<28>::from_raw(instant_tan(scale_shl_clamp_then_shift<5>(frequency).raw()));
+	const Q<28> tanned = instant_tan(scale_shl_clamp_then_shift<5>(frequency));
 	const Q<27> one_plus_tanned = add_wrap(Q<27>::one(), as_floor<Q<27>>(tanned));
 	// Raw: a double reciprocal. At cutoff 0 it is 2^31, one past q31's top, so it saturates to one at Q31 first, as the
 	// A9's VCVT would: the cast of 2^31 itself is undefined.

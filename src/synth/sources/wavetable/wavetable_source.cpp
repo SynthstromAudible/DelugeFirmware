@@ -15,14 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {
 
-void WavetableSource::render_block(const BlockControls& controls, std::span<int32_t> output,
-                                   std::span<int32_t> scratch) {
+void WavetableSource::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
+                                   std::span<dsp::Q<31>> scratch) {
 	const uint32_t orig_phase = phasor_.phase().raw();
 	const uint32_t orig_inc = phasor_.increment().raw();
 
@@ -48,7 +47,7 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<int3
 	}
 
 	const int32_t wave_index = wave_index_last_ + 1073741824;
-	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
+	dsp::Q<31>* dst = controls.apply_amplitude ? scratch.data() : output.data();
 
 	// Render through the dsp-next view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
 	// now driven directly over our band-data view (no storage reach).
@@ -56,7 +55,7 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<int3
 	if (!do_osc_sync) {
 		deluge::dsp::fixed::WavetableOscillator osc{table_, render_phase, render_inc, wave_index,
 		                                            wave_index_increment_};
-		osc.render_block(deluge::dsp::typed_view(std::span<int32_t>{dst, output.size()}));
+		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
 		rendered_phase = osc.phase();
 	}
 	else {
@@ -68,15 +67,14 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<int3
 		    controls.retrigger_phase,
 		    wave_index,
 		    wave_index_increment_};
-		osc.render_block(deluge::dsp::typed_view(std::span<int32_t>{dst, output.size()}));
+		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
 		rendered_phase = osc.phase();
 	}
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
-		vca.render_block(deluge::dsp::typed_view(std::span<const int32_t>{scratch}),
-		                 deluge::dsp::typed_view(std::span<const int32_t>{output}), deluge::dsp::typed_view(output));
+		vca.render_block(scratch, output, output);
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance

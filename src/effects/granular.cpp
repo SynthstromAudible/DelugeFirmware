@@ -16,7 +16,6 @@
  */
 
 #include "effects/granular.h"
-#include "dsp-next/core/buffer_view.h"
 
 #include <cassert>
 #include <memory>
@@ -107,7 +106,7 @@ void Granular::finish(GranularBlockChange& change) {
 }
 
 void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
-                      std::span<q31_t> reverb_send, dsp::fixed::Cong& noise) {
+                      std::span<dsp::Q<31>> reverb_send, dsp::fixed::Cong& noise) {
 	// Checked in debug builds only: release builds define NDEBUG, so the @pre is the caller's to keep there.
 	assert(reverb_send.size() >= block.size());
 	if (mono_ == nullptr || ring_ == nullptr) {
@@ -124,7 +123,7 @@ void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& 
 		                .density = dsp::Q<31>::from_raw(in.density),
 		                .randomness = dsp::Q<31>::from_raw(in.randomness)});
 		post_fx_volume = Kernel::post_fx_volume(post_fx_volume);
-		mono.on<&Kernel::set_send>(dsp::typed_view(reverb_send).data(), dsp::Q<31>::from_raw(in.send_amount));
+		mono.on<&Kernel::set_send>(reverb_send.data(), in.send_amount);
 		mono.render_block(block, block, noise);
 		if (mono.state().wraps_to_shutdown < 0) {
 			mono.on<&Kernel::restart>();

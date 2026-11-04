@@ -62,9 +62,9 @@ private:
 	/// @p scratch0, @p scratch1 and @p sync_scratch are the voice's (each ≥ @p num_samples).
 	static void render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
 	                               uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness, int32_t filter_gain,
-	                               int32_t unison_amplitude_l, int32_t unison_amplitude_r, bool stereo_unison,
-	                               int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0, int32_t* scratch1,
-	                               std::span<int32_t> sync_scratch);
+	                               dsp::Q<30> unison_amplitude_l, dsp::Q<30> unison_amplitude_r, bool stereo_unison,
+	                               dsp::Q<31>* osc_buffer, int32_t num_samples, dsp::Q<31>* scratch0,
+	                               dsp::Q<31>* scratch1, std::span<dsp::Q<31>> sync_scratch);
 };
 
 } // namespace deluge::synth

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "dsp-next/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
 #include "effects/mod_fx.h"
@@ -445,7 +446,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 		}
 		int32_t volume = kOneQ31 >> 1;
 		master.core().soft_off_grain(fx);
-		master.core().render_fx(block, fx, volume, true, send);
+		master.core().render_fx(block, fx, volume, true, deluge::dsp::typed_view(std::span{send}));
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));
 	}
 	return made;

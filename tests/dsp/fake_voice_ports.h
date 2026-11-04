@@ -64,17 +64,21 @@ public:
 		return true;
 	}
 	/// A square at a quarter of the frame rate, scaled by the amplitude; false once the last frame has been read.
-	bool render(int32_t* buffer, int32_t num_samples, LoopType /*looping_type*/, int32_t phase_increment,
-	            int32_t /*time_stretch_ratio*/, int32_t source_amplitude, int32_t amplitude_increment,
-	            int32_t /*interpolation_buffer_size*/, int32_t /*priority_rating*/) override {
+	bool render(deluge::dsp::Q<31>* buffer, int32_t num_samples, LoopType /*looping_type*/, int32_t phase_increment,
+	            int32_t /*time_stretch_ratio*/, deluge::dsp::Q<31> source_amplitude,
+	            deluge::dsp::Q<31> amplitude_increment, int32_t /*interpolation_buffer_size*/,
+	            int32_t /*priority_rating*/) override {
 		rendered_ = true;
 		for (int32_t i = 0; i < num_samples; i++) {
 			if ((position_ >> 24) >= frames_) {
 				return false;
 			}
 			const int32_t level = ((position_ >> 25) & 1) != 0 ? 1 << 28 : -(1 << 28);
-			buffer[i] += static_cast<int32_t>((static_cast<int64_t>(level) * source_amplitude) >> 31);
-			source_amplitude += amplitude_increment;
+			// Raw: the square's level times the amplitude, the 64-bit product shifted by 31
+			const auto levelled = deluge::dsp::Q<31>::from_raw(
+			    static_cast<int32_t>((static_cast<int64_t>(level) * source_amplitude.raw()) >> 31));
+			buffer[i] = add_wrap(buffer[i], levelled);
+			source_amplitude = add_wrap(source_amplitude, amplitude_increment);
 			position_ += static_cast<uint32_t>(phase_increment);
 		}
 		return true;
@@ -93,8 +97,9 @@ public:
 	bool note_on(void* /*patch*/, int /*midinote*/, int /*velocity*/) override { return true; }
 	void keyup() override {}
 	void unassign() override {}
-	std::span<const int32_t> render(int32_t /*num_samples*/, uint32_t /*phase_increment*/, int32_t /*amp_mod_param*/,
-	                                bool /*patch_changed*/, int /*midinote*/) override {
+	std::span<const deluge::dsp::Q<24>> render(int32_t /*num_samples*/, uint32_t /*phase_increment*/,
+	                                           int32_t /*amp_mod_param*/, bool /*patch_changed*/,
+	                                           int /*midinote*/) override {
 		return {};
 	}
 };

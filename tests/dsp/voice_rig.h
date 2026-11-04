@@ -14,7 +14,7 @@
 #include "fake_voice_ports.h"
 #include "synth/voice/voice.h"
 
-#include "dsp-next/core/buffer_view.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "modulation/params/param.h"
 
@@ -42,11 +42,11 @@ struct Rig {
 	deluge::dsp::fixed::Cong noise{1};
 	uint32_t clock_next{1};
 	Voice voice;
-	std::array<std::array<int32_t, kBlock * 2>, 4> spare{};
-	std::array<int32_t, kBlock * 2> fade{};
-	std::array<int32_t, kBlock * 2> parallel{};
-	std::array<int32_t, kBlock + 4> sync{};
-	std::array<int32_t, kBlock * 2> out{};
+	std::array<std::array<deluge::dsp::Q<31>, kBlock * 2>, 4> spare{};
+	std::array<deluge::dsp::Q<31>, kBlock * 2> fade{};
+	std::array<deluge::dsp::Q<31>, kBlock * 2> parallel{};
+	std::array<deluge::dsp::Q<31>, kBlock + 4> sync{};
+	std::array<deluge::dsp::Q<31>, kBlock * 2> out{};
 
 	Rig() {
 		for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
@@ -136,7 +136,7 @@ inline ReleaseInfo release(const VoiceConfig& cfg) {
 /// Renders one block. @return whether the voice still sounds; @p peak takes the block's loudest sample.
 inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cfg, int64_t* peak = nullptr,
                          bool sample_can_auto_release = false) {
-	rig.out.fill(0);
+	rig.out.fill(deluge::dsp::Q<31>{});
 	VoiceBlock block{.num_active_voices = 1, .clock = rig.clock()};
 	block.sample_can_auto_release[0] = sample_can_auto_release;
 	const bool alive = rig.voice.render(
@@ -146,15 +146,14 @@ inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cf
 	        .num_samples = kBlock,
 	        .pitch_adjust = kMaxSampleValue,
 	        .spare_buffers = {rig.spare[0].data(), rig.spare[1].data(), rig.spare[2].data(), rig.spare[3].data()},
-	        .filter_scratch = {.fade = deluge::dsp::typed_view(std::span{rig.fade}),
-	                           .parallel = deluge::dsp::typed_view(std::span{rig.parallel})},
+	        .filter_scratch = {.fade = rig.fade, .parallel = rig.parallel},
 	        .sync_scratch = rig.sync,
 	        .noise = &rig.noise,
 	    });
 	if (peak != nullptr) {
 		*peak = 0;
 		for (int32_t i = 0; i < kBlock; i++) {
-			*peak = std::max<int64_t>(*peak, std::abs(static_cast<int64_t>(rig.out[i])));
+			*peak = std::max<int64_t>(*peak, std::abs(static_cast<int64_t>(rig.out[i].raw())));
 		}
 	}
 	return alive;

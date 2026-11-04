@@ -60,7 +60,7 @@ public:
 
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void cutAllSound() override;
-	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
@@ -186,7 +186,7 @@ private:
 	/// @param amplitudeAtEnd Unused by a kit.
 	/// @return Whether any drum rendered.
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
-	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
 	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
 	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 	/// The kit's channel strip: the chain its drums render into, its settings and view.

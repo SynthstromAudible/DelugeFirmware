@@ -62,7 +62,7 @@ struct ComponentRunner {
 	}
 	void set_knobs(const rw::Knobs& k) { reverb->publish(settings_of(k)); }
 	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
-		reverb->render(deluge::dsp::test::typed_frames(out), send, l, r);
+		reverb->render(deluge::dsp::test::typed_frames(out), deluge::dsp::typed_view(send), l, r);
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
@@ -195,7 +195,7 @@ describe reverb("the reverb component", ${
 		reverb->prepare(ReverbModel::MUTABLE);
 		reverb->commit();
 		Block mine(0);
-		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), mine.send, rw::kCentred, rw::kCentred);
+		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), deluge::dsp::typed_view(std::span{mine.send}), rw::kCentred, rw::kCentred);
 
 		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceReverb>();
 		reference->setModel(deluge::dsp::test::reverb_ref::ReferenceReverb::Model::MUTABLE);

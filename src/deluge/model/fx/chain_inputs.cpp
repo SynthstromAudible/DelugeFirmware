@@ -207,9 +207,12 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .do_pan = doPanning,
 	    .pan_l = amplitudeL,
 	    .pan_r = amplitudeR,
-	    .song_volume = deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
-	                                                                   unpatched->getValue(params::UNPATCHED_VOLUME)))
-	                   >> 1,
+	    // The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
+	    .song_volume = halve_floor(deluge::dsp::fixed::curve_square(
+	                                   deluge::dsp::Q<27>::one(),
+	                                   deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
+	                                       unpatched->getValue(params::UNPATCHED_VOLUME)))))
+	                       .raw(),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

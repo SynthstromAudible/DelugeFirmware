@@ -63,8 +63,8 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .density = in.mod_fx_offset,
 		    .randomness = in.mod_fx_feedback,
 		    // The volume times the send, shifted up by 5 in 64 bits and held at full scale.
-		    .send_amount = static_cast<q31_t>(std::min<int64_t>(
-		        int64_t{multiply_32x32_rshift32(*postFXVolume, verbAmount)} << 5, int64_t{INT32_MAX})),
+		    .send_amount = deluge::dsp::Q<31>::from_raw(static_cast<q31_t>(std::min<int64_t>(
+		        int64_t{multiply_32x32_rshift32(*postFXVolume, verbAmount)} << 5, int64_t{INT32_MAX}))),
 		    .sound = anySoundComingIn,
 		};
 		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);

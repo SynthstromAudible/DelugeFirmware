@@ -1098,11 +1098,23 @@ bool TimeStretcher::allocateBuffer(int32_t numChannels) {
 	return (buffer != nullptr);
 }
 
-void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t numSamples, int32_t numChannels,
-                                   int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
+namespace {
+/// @brief @p mix plus @p sample times @p amplitude, the high word, summed wrapping: @ref deluge::audio::mixed_in
+/// without its rounding.
+[[gnu::always_inline]] inline deluge::dsp::Q<31> mixed_in_floor(deluge::dsp::Q<31> mix, int32_t sample,
+                                                                int32_t amplitude) {
+	using deluge::dsp::Q;
+	using deluge::dsp::reinterpret_bits;
+	return reinterpret_bits<Q<31>>(
+	    mla(reinterpret_bits<Q<30>>(mix), Q<31>::from_raw(sample), Q<31>::from_raw(amplitude)));
+}
+} // namespace
+
+void TimeStretcher::readFromBuffer(deluge::dsp::Q<31>* __restrict__ oscBufferPos, int32_t numSamples,
+                                   int32_t numChannels, int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
                                    int32_t amplitudeIncrementNow, int32_t* __restrict__ bufferReadPos) {
 
-	int32_t* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
+	deluge::dsp::Q<31>* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
 
 	do {
 		int32_t sampleRead[2];
@@ -1125,18 +1137,13 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t n
 		sourceAmplitudeNow += amplitudeIncrementNow;
 
 		// Mono / left channel (or stereo condensed to mono)
-		// The sample times the amplitude, the high word, added into the half-scale mix
-		*oscBufferPos = mla(deluge::dsp::Q<30>::from_raw(*oscBufferPos), deluge::dsp::Q<31>::from_raw(sampleRead[0]),
-		                    deluge::dsp::Q<31>::from_raw(sourceAmplitudeNow))
-		                    .raw();
+		// The sample times the amplitude, the high word, added into the half-scale mix (@ref deluge::audio::mixed_in)
+		*oscBufferPos = mixed_in_floor(*oscBufferPos, sampleRead[0], sourceAmplitudeNow);
 		oscBufferPos++;
 
 		// Right channel
 		if (numChannelsAfterCondensing == 2) {
-			*oscBufferPos =
-			    mla(deluge::dsp::Q<30>::from_raw(*oscBufferPos), deluge::dsp::Q<31>::from_raw(sampleRead[1]),
-			        deluge::dsp::Q<31>::from_raw(sourceAmplitudeNow))
-			        .raw();
+			*oscBufferPos = mixed_in_floor(*oscBufferPos, sampleRead[1], sourceAmplitudeNow);
 			oscBufferPos++;
 		}
 	} while (oscBufferPos != oscBufferEndNow);

@@ -17,7 +17,6 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
@@ -300,7 +299,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	spare_buffers_ = args.spare_buffers; // the render helpers read these
 	sync_scratch_ = args.sync_scratch;
 	noise_ = args.noise;
-	int32_t* sound_buffer = args.buffer;
+	dsp::Q<31>* sound_buffer = args.buffer;
 	const int32_t num_samples = args.num_samples;
 	const bool sound_rendering_in_stereo = args.sound_in_stereo;
 	const bool applying_pan_at_voice_level = args.pan_at_voice_level;
@@ -383,7 +382,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	const VoicePan pan = voice_pan(cfg, applying_pan_at_voice_level);
 
 	// two first indicies are reserved in case we need stereo for unison spread
-	int32_t* osc_buffer = spare_buffers_[0];
+	dsp::Q<31>* osc_buffer = spare_buffers_[0];
 
 	EngineBlock engine_block{
 	    .osc_buffer = osc_buffer,
@@ -425,12 +424,12 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	    .clipping_amount = cfg.clipping_amount,
 	};
 	if (did_stereo_temp_buffer) {
-		const std::span<q31_t> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
+		const std::span<dsp::Q<31>> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
-			    dsp::typed_view(stereo), dsp::typed_view(stereo));
+			    stereo, stereo);
 		}
-		filter_set_.render_stereo(dsp::typed_view(stereo), args.filter_scratch, *noise_);
+		filter_set_.render_stereo(stereo, args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_stereo<false>(output);
 		}
@@ -439,13 +438,13 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 	else {
-		const std::span<q31_t> mono{osc_buffer, osc_buffer + num_samples};
+		const std::span<dsp::Q<31>> mono{osc_buffer, osc_buffer + num_samples};
 		// wavefolding pre filter
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
-			    dsp::typed_view(mono), dsp::typed_view(mono));
+			    mono, mono);
 		}
-		filter_set_.render_mono(dsp::typed_view(mono), args.filter_scratch, *noise_);
+		filter_set_.render_mono(mono, args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_mono<false>(output);
 		}
@@ -557,7 +556,10 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 	    (cfg.monophonic_expression_values[0] / 192) * cfg.bend_ranges[BEND_RANGE_MAIN]
 	    + (local_expression_source_values_before_smoothing_[0] / 192) * cfg.bend_ranges[BEND_RANGE_FINGER_LEVEL];
 
-	overall_pitch_adjust = deluge::dsp::fixed::exp_curve(overall_pitch_adjust, total_bend_amount >> 1);
+	// The pitch adjust is Q24 (2^24 is unison); the halved bend is its octaves at Q26
+	overall_pitch_adjust =
+	    deluge::dsp::fixed::exp_curve(Q<24>::from_raw(overall_pitch_adjust), Q<26>::from_raw(total_bend_amount >> 1))
+	        .raw();
 
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
@@ -569,8 +571,11 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
+		// Raw: the rate's word, shifted, is the envelope position's step
 		int32_t envelope_speed =
-		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(cfg.portamento)) >> 13;
+		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(Q<31>::from_raw(cfg.portamento)))
+		        .raw()
+		    >> 13;
 		porta_envelope_pos_ += envelope_speed * num_samples;
 	}
 	return overall_pitch_adjust;
@@ -584,41 +589,38 @@ Voice::VoicePan Voice::voice_pan(const VoiceConfig& cfg, bool applying_pan_at_vo
 	const int32_t pan = params_.param_final_values[params::LOCAL_PAN];
 	const deluge::dsp::fixed::PanAmplitudes amplitudes =
 	    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
-	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left.raw(), .amplitude_r = amplitudes.right.raw()};
+	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left, .amplitude_r = amplitudes.right};
 }
 
 template <bool kClipping>
 void Voice::write_stereo(const VoiceOutput& output) {
 	[[maybe_unused]] const deluge::effects::SaturationParams saturation{
 	    .clipping_amount = output.clipping_amount, .variant = deluge::effects::SaturationVariant::VOICE};
-	int32_t const* __restrict__ osc_buffer_pos = output.buffer;
-	int32_t const* const osc_buffer_end = output.buffer + (output.num_samples << 1);
+	dsp::Q<31> const* __restrict__ osc_buffer_pos = output.buffer;
+	dsp::Q<31> const* const osc_buffer_end = output.buffer + (output.num_samples << 1);
 	auto* __restrict__ output_sample = reinterpret_cast<StereoSample*>(output.sound_buffer);
 	int32_t overall_osc_amplitude_now = output.amplitude_start;
 
 	do {
-		int32_t output_sample_l = *(osc_buffer_pos++);
-		int32_t output_sample_r = *(osc_buffer_pos++);
+		Q<31> left = *(osc_buffer_pos++);
+		Q<31> right = *(osc_buffer_pos++);
 
 		overall_osc_amplitude_now += output.amplitude_increment;
 		if (!output.fm) {
 			const Q<31> amplitude = Q<31>::from_raw(overall_osc_amplitude_now);
-			output_sample_l = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(output_sample_l), amplitude).raw();
-			output_sample_r = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(output_sample_r), amplitude).raw();
+			left = mul_r_as_wrap<Q<31>>(left, amplitude);
+			right = mul_r_as_wrap<Q<31>>(right, amplitude);
 		}
 
 		if constexpr (kClipping) {
-			output_sample_l = output_saturation_.saturate(output_sample_l, 0, saturation);
-			output_sample_r = output_saturation_.saturate(output_sample_r, 1, saturation);
+			// The saturation works on raw words
+			left = Q<31>::from_raw(output_saturation_.saturate(left.raw(), 0, saturation));
+			right = Q<31>::from_raw(output_saturation_.saturate(right.raw(), 1, saturation));
 		}
 
-		// Write to the output buffer, panning or not: the voice's samples are raw Q31.
-		const auto left = deluge::dsp::Q<31>::from_raw(output_sample_l);
-		const auto right = deluge::dsp::Q<31>::from_raw(output_sample_r);
+		// Write to the output buffer, panning or not
 		if (output.pan.do_panning) {
-			*output_sample +=
-			    deluge::dsp::panned_stereo(left, right, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
-			                               deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
+			*output_sample += deluge::dsp::panned_stereo(left, right, output.pan.amplitude_l, output.pan.amplitude_r);
 		}
 		else {
 			*output_sample += StereoSample{.l = left, .r = right};
@@ -632,37 +634,36 @@ template <bool kClipping>
 void Voice::write_mono(const VoiceOutput& output) {
 	[[maybe_unused]] const deluge::effects::SaturationParams saturation{
 	    .clipping_amount = output.clipping_amount, .variant = deluge::effects::SaturationVariant::VOICE};
-	int32_t const* __restrict__ osc_buffer_pos = output.buffer;
-	int32_t const* const osc_buffer_end = output.buffer + output.num_samples;
-	int32_t* __restrict__ output_sample = output.sound_buffer;
+	dsp::Q<31> const* __restrict__ osc_buffer_pos = output.buffer;
+	dsp::Q<31> const* const osc_buffer_end = output.buffer + output.num_samples;
+	dsp::Q<31>* __restrict__ output_sample = output.sound_buffer;
 	int32_t overall_osc_amplitude_now = output.amplitude_start;
 
 	do {
-		int32_t sample = *osc_buffer_pos;
+		Q<31> sample = *osc_buffer_pos;
 
 		if (!output.fm) {
 			overall_osc_amplitude_now += output.amplitude_increment;
-			sample = mul_r_as_wrap<Q<31>>(Q<31>::from_raw(sample), Q<31>::from_raw(overall_osc_amplitude_now)).raw();
+			sample = mul_r_as_wrap<Q<31>>(sample, Q<31>::from_raw(overall_osc_amplitude_now));
 		}
 
 		if constexpr (kClipping) {
-			sample = output_saturation_.saturate(sample, 0, saturation);
+			// The saturation works on raw words
+			sample = Q<31>::from_raw(output_saturation_.saturate(sample.raw(), 0, saturation));
 		}
 
 		if (output.sound_in_stereo) {
-			const auto typed = deluge::dsp::Q<31>::from_raw(sample); // the voice's samples are raw Q31
 			if (output.pan.do_panning) {
 				*(reinterpret_cast<StereoSample*>(output_sample)) +=
-				    deluge::dsp::panned_mono(typed, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
-				                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
+				    deluge::dsp::panned_mono(sample, output.pan.amplitude_l, output.pan.amplitude_r);
 			}
 			else {
-				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(typed);
+				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(sample);
 			}
 			output_sample += 2;
 		}
 		else {
-			*output_sample += sample;
+			*output_sample = add_wrap(*output_sample, sample);
 			output_sample++;
 		}
 	} while (++osc_buffer_pos != osc_buffer_end);

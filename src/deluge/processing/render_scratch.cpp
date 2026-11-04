@@ -35,14 +35,15 @@ std::array<dsp::Q<31>, kFilterScratchSamples> filter_fade{};
 std::array<dsp::Q<31>, kFilterScratchSamples> filter_parallel{};
 
 /// In internal SRAM: the sources read it every sample of a synced block.
-PLACE_INTERNAL_FRUNK int32_t osc_sync[SSI_TX_BUFFER_NUM_SAMPLES + 4] __attribute__((aligned(CACHE_LINE_SIZE)));
+PLACE_INTERNAL_FRUNK dsp::Q<31> osc_sync[SSI_TX_BUFFER_NUM_SAMPLES + 4] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 } // namespace
 
 } // namespace deluge::render
 
 /// The engine's shared render scratch: voices render their stereo, ring-mod and osc-sync work in it. In internal SRAM.
-PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES]
+PLACE_INTERNAL_FRUNK deluge::dsp::Q<31> spareRenderingBuffer[deluge::render::kSpareRenderingRows]
+                                                            [SSI_TX_BUFFER_NUM_SAMPLES]
     __attribute__((aligned(CACHE_LINE_SIZE)));
 
 namespace deluge::render {
@@ -51,7 +52,7 @@ dsp::fixed::FilterScratch filter_scratch() {
 	return {.fade = filter_fade, .parallel = filter_parallel};
 }
 
-std::span<int32_t> osc_sync_scratch() {
+std::span<dsp::Q<31>> osc_sync_scratch() {
 	return osc_sync;
 }
 

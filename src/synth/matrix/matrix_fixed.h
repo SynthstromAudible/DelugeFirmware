@@ -113,19 +113,23 @@ struct MatrixFixed {
 
 	/// A depth destination's result from its chain's combination.
 	[[gnu::always_inline]] static int32_t depth_result(int32_t combination) {
-		return deluge::dsp::fixed::curve_linear(kOne, combination);
+		return deluge::dsp::fixed::curve_linear(Q<29>::from_raw(kOne), Q<29>::from_raw(combination)).raw();
 	}
 
 	/// Param @p p's final value from its chain's combination.
 	[[gnu::always_inline]] static int32_t curve(CurveKind kind, int32_t p, int32_t combination) {
 		const int32_t neutral = kParamNeutral[p];
+		// The neutral read at Q31 (its units are the param's: the curves' arithmetic is the same for every format);
+		// the combination is Q29
+		const auto typed_neutral = Q<31>::from_raw(neutral);
+		const auto typed_combination = Q<29>::from_raw(combination);
 		switch (kind) {
 		case CurveKind::SQUARE:
-			return deluge::dsp::fixed::curve_square(neutral, combination);
+			return deluge::dsp::fixed::curve_square(typed_neutral, typed_combination).raw();
 		case CurveKind::LINEAR:
-			return deluge::dsp::fixed::curve_linear(neutral, combination);
+			return deluge::dsp::fixed::curve_linear(typed_neutral, typed_combination).raw();
 		case CurveKind::BIPOLAR:
-			return deluge::dsp::fixed::curve_bipolar(neutral, combination);
+			return deluge::dsp::fixed::curve_bipolar(typed_neutral, typed_combination).raw();
 		case CurveKind::EXPONENTIAL:
 		case CurveKind::EXPONENTIAL_INVERTED:
 		case CurveKind::RELEASE_TABLE:

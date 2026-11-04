@@ -48,19 +48,23 @@ void NonAudioInstrument::setChannel(int newChannel) {
 	}
 }
 
-void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                                      int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                      bool shouldLimitDelayFeedback, bool isClipActive) {
+void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output,
+                                      deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
+                                      int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 	// MIDI / CV arpeggiator
 	if (activeClip) {
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement =
-			    activeInstrumentClip->arpSettings.getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
-			        deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
-			        deluge::dsp::fixed::preset_combination(activeInstrumentClip->arpSettings.rate)));
+			// The arp rate's neutral read at Q31 (its units are the rate's)
+			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
+			    deluge::dsp::fixed::curve_exponential(
+			        deluge::dsp::Q<31>::from_raw(
+			            deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE]),
+			        deluge::dsp::fixed::preset_combination(
+			            deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.rate)))
+			        .raw());
 
 			ArpReturnInstruction instruction;
 

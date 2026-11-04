@@ -41,8 +41,8 @@ struct FxChainRig {
 	std::optional<effects::TrackChain> clip;
 	std::optional<effects::MasterChain> master;
 	effects::EffectStates settings{};
-	dsp::Buffer<StereoSample> work{};                      ///< The lanes output's first n frames, in place.
-	std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> send{}; ///< The reverb send, cleared each block.
+	dsp::Buffer<StereoSample> work{};                         ///< The lanes output's first n frames, in place.
+	std::array<dsp::Q<31>, SSI_TX_BUFFER_NUM_SAMPLES> send{}; ///< The reverb send, cleared each block.
 };
 
 FxChainRig rig{};
@@ -254,7 +254,7 @@ void FxChainCase::setup(std::size_t n) {
 }
 
 void FxChainCase::block(std::size_t /*n*/) {
-	std::ranges::fill(rig.send, 0);
+	std::ranges::fill(rig.send, dsp::Q<31>{});
 	switch (config_.home) {
 	case FxChainHome::SOUND:
 		sound_block(config_.reference);

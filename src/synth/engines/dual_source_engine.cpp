@@ -23,14 +23,13 @@
 #include "synth/sources/interpolation_buffer_size.h"
 #include <algorithm>
 #include <cassert>
-#include <cstring>
 #include <optional>
 #include <utility>
 
 namespace deluge::synth {
 
 bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) {
-	int32_t* const osc_buffer = block.osc_buffer;
+	dsp::Q<31>* const osc_buffer = block.osc_buffer;
 	const DualSourceControls& c = block.dual;
 	// Rendered once for every unison part rather than for each: more unison parts turn the oscillators down
 	if (c.noise_volume != 0) [[unlikely]] {
@@ -49,15 +48,17 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 		// The same limit as the oscillators'
 		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, Q<31>::from_raw(268435455)));
 
-		int32_t const* const noise_end = osc_buffer + (block.num_samples * channels);
-		int32_t* __restrict__ this_sample = osc_buffer;
+		dsp::Q<31> const* const noise_end = osc_buffer + (block.num_samples * channels);
+		dsp::Q<31>* __restrict__ this_sample = osc_buffer;
 		do {
-			*this_sample = mul(Q<31>::from_raw(static_cast<int32_t>(block.noise->next())), noise_amplitude).raw();
+			// The noise word times the amplitude, the high word: its word is the sample
+			*this_sample = dsp::reinterpret_bits<Q<31>>(
+			    mul(Q<31>::from_raw(static_cast<int32_t>(block.noise->next())), noise_amplitude));
 			this_sample++;
 		} while (this_sample != noise_end);
 		return true;
 	}
-	memset(osc_buffer, 0, channels * block.num_samples * sizeof(int32_t));
+	std::fill_n(osc_buffer, channels * block.num_samples, dsp::Q<31>{});
 	return false;
 }
 
@@ -169,8 +170,8 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 
 		const SourceRenderResult result =
 		    render_part(block, u, s, stereo_buffer, source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
-		                sync_pos, sync_increments, wave_index_increment, stereo_unison,
-		                unison_pan_amplitudes.left.raw(), unison_pan_amplitudes.right.raw());
+		                sync_pos, sync_increments, wave_index_increment, stereo_unison, unison_pan_amplitudes.left,
+		                unison_pan_amplitudes.right);
 		if (result == SourceRenderResult::UNASSIGN) {
 			unison_part_became_inactive = true;
 			slot.unassign(false);
@@ -183,7 +184,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
                                                  int32_t source_amplitude, int32_t amplitude_increment,
                                                  uint32_t phase_increment, bool do_osc_sync, const uint32_t* sync_pos,
                                                  const uint32_t* sync_increments, int32_t wave_index_increment,
-                                                 bool stereo_unison, int32_t amplitude_l, int32_t amplitude_r) {
+                                                 bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
 	const VoiceConfig& cfg = *block.cfg;
 	const DualSourceControls& c = block.dual;
 	SourceSlot& slot = block.parts[u].slots[s];
@@ -204,8 +205,9 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	    .stereo_unison = stereo_unison,
 	    .amplitude_l = amplitude_l,
 	    .amplitude_r = amplitude_r,
-	    .source_amplitude = source_amplitude,
-	    .amplitude_increment = amplitude_increment,
+	    // The engine's amplitudes are raw words: make_block_controls takes them raw
+	    .source_amplitude = dsp::Q<31>::from_raw(source_amplitude),
+	    .amplitude_increment = dsp::Q<31>::from_raw(amplitude_increment),
 	    .phase_increment = phase_increment,
 	    .sync = sync,
 	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*apply_amplitude=*/true,

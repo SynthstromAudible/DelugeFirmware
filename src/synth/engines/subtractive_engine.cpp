@@ -17,8 +17,8 @@
 #include "synth/engines/subtractive_engine.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
+#include <algorithm>
 #include <array>
-#include <cstring>
 #include <span>
 
 namespace deluge::synth {
@@ -27,7 +27,7 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 	const VoiceConfig& cfg = *block.cfg;
 	const DualSourceControls& c = block.dual;
 	const int32_t num_samples = block.num_samples;
-	int32_t* const osc_buffer = block.osc_buffer;
+	dsp::Q<31>* const osc_buffer = block.osc_buffer;
 
 	// Each source's amplitude, with the filters' gain folded in when there are filters; the voice's overall amplitude
 	// is applied after the filters.
@@ -71,7 +71,7 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 			}
 		}
 		else {
-			memset(&osc_buffer[num_samples], 0, num_samples * sizeof(int32_t));
+			std::fill_n(&osc_buffer[num_samples], num_samples, dsp::Q<31>{});
 		}
 
 		// Osc sync still applies: with stereo unison spread, both sources come here (see VoiceBlock::source_in_stereo)

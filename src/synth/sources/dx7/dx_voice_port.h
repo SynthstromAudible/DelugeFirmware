@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 #include <span>
 
@@ -41,11 +42,11 @@ public:
 	/// Return the pooled voice (no-op if none held).
 	virtual void unassign() = 0;
 
-	/// Render @p numSamples of FM. @return the rendered samples (size @p numSamples), or an **empty span** if the
+	/// Render @p numSamples of FM. @return the rendered samples (Q24, size @p numSamples), or an **empty span** if the
 	/// voice has ended (⇒ the source should unassign). Derives log-pitch from @p phaseIncrement and the
 	/// amplitude-mod control from @p ampModParam, re-deriving the cached patch first when @p patchChanged.
-	virtual std::span<const int32_t> render(int32_t num_samples, uint32_t phase_increment, int32_t amp_mod_param,
-	                                        bool patch_changed, int midinote) = 0;
+	virtual std::span<const dsp::Q<24>> render(int32_t num_samples, uint32_t phase_increment, int32_t amp_mod_param,
+	                                           bool patch_changed, int midinote) = 0;
 };
 
 } // namespace deluge::synth

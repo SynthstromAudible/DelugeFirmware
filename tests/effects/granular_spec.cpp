@@ -27,6 +27,7 @@
 #include "reference_granular.h"
 #include "util/synth_noise.h"
 
+#include "dsp-next/core/buffer_view.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
@@ -128,9 +129,9 @@ public:
 		            .mix = mix,
 		            .density = density,
 		            .randomness = randomness,
-		            .send_amount = reverb_amount,
+		            .send_amount = deluge::dsp::Q<31>::from_raw(reverb_amount),
 		            .sound = sound},
-		           *volume, send, deluge::synth_noise);
+		           *volume, deluge::dsp::typed_view(send), deluge::synth_noise);
 	}
 
 	void change(ModFXType type) {
@@ -594,9 +595,9 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 				           .mix = gw::kMixMid,
 				           .density = gw::kDensityMid,
 				           .randomness = gw::kRandomnessMid,
-				           .send_amount = gw::kSendAmount,
+				           .send_amount = deluge::dsp::Q<31>::from_raw(gw::kSendAmount),
 				           .sound = true},
-				          volume, send, deluge::synth_noise);
+				          volume, deluge::dsp::typed_view(std::span{send}), deluge::synth_noise);
 				for (std::size_t i = 0; i < frames.size(); ++i) {
 					expect(frames[i].l).to_equal(input[i].l);
 					expect(frames[i].r).to_equal(input[i].r);

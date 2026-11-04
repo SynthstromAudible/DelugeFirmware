@@ -20,7 +20,7 @@
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/core/types.h" // std::span<int32_t>
+#include "dsp-next/core/types.h" // std::span<dsp::Q<31>>
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"
@@ -38,30 +38,28 @@ namespace deluge::synth {
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
 
-/// @brief Adds @p value into the buffer word at @p word, wrapping.
-[[gnu::always_inline]] inline void add_into(int32_t* word, int32_t value) {
-	*word = add_wrap(dsp::Q<31>::from_raw(*word), dsp::Q<31>::from_raw(value)).raw();
+/// @brief Adds @p value into the buffer sample at @p sample, wrapping.
+[[gnu::always_inline]] inline void add_into(dsp::Q<31>* sample, dsp::Q<31> value) {
+	*sample = add_wrap(*sample, value);
 }
 
 /// @brief Adds @p frame_in into the interleaved stereo frame at @p frame, each channel wrapping.
-[[gnu::always_inline]] inline void add_frame(int32_t* frame, dsp::StereoSample frame_in) {
-	add_into(&frame[0], frame_in.l.raw());
-	add_into(&frame[1], frame_in.r.raw());
+[[gnu::always_inline]] inline void add_frame(dsp::Q<31>* frame, dsp::StereoSample frame_in) {
+	add_into(&frame[0], frame_in.l);
+	add_into(&frame[1], frame_in.r);
 }
 
-/// @brief Adds @p sample, panned by the Q30 amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,
+/// @brief Adds @p sample, panned by the amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,
 /// wrapping.
-[[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t sample, int32_t amplitude_l,
-                                              int32_t amplitude_r) {
-	add_frame(frame, dsp::panned_mono(dsp::Q<31>::from_raw(sample), dsp::Q<30>::from_raw(amplitude_l),
-	                                  dsp::Q<30>::from_raw(amplitude_r)));
+[[gnu::always_inline]] inline void add_panned(dsp::Q<31>* frame, dsp::Q<31> sample, dsp::Q<30> amplitude_l,
+                                              dsp::Q<30> amplitude_r) {
+	add_frame(frame, dsp::panned_mono(sample, amplitude_l, amplitude_r));
 }
 
-/// @brief Adds the two channels, each by its Q30 amplitude, into the interleaved stereo frame at @p frame, wrapping.
-[[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t left, int32_t right, int32_t amplitude_l,
-                                              int32_t amplitude_r) {
-	add_frame(frame, dsp::panned_stereo(dsp::Q<31>::from_raw(left), dsp::Q<31>::from_raw(right),
-	                                    dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
+/// @brief Adds the two channels, each by its amplitude, into the interleaved stereo frame at @p frame, wrapping.
+[[gnu::always_inline]] inline void add_panned(dsp::Q<31>* frame, dsp::Q<31> left, dsp::Q<31> right,
+                                              dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
+	add_frame(frame, dsp::panned_stereo(left, right, amplitude_l, amplitude_r));
 }
 
 /// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.
@@ -161,10 +159,10 @@ struct BasicSourceBlock {
 	int32_t num_samples{};                  ///< Samples to render
 	bool stereo_buffer{};                   ///< @ref osc_buffer is interleaved stereo: render mono, then pan
 	bool stereo_unison{};                   ///< This unison part is panned
-	B::Control amplitude_l{};               ///< The unison part's left pan gain
-	B::Control amplitude_r{};               ///< The unison part's right pan gain
-	B::Control source_amplitude{};          ///< The VCA amplitude at block start
-	B::Control amplitude_increment{};       ///< The VCA amplitude's per-sample increment
+	B::Pan amplitude_l{};                   ///< The unison part's left pan gain
+	B::Pan amplitude_r{};                   ///< The unison part's right pan gain
+	B::Level source_amplitude{};            ///< The VCA amplitude at block start
+	B::Level amplitude_increment{};         ///< The VCA amplitude's per-sample increment
 	B::Phase phase_increment{};             ///< The source's pitch
 	std::optional<BasicSyncMaster<B>> sync; ///< Present: hard-sync to this master this block (oscillators only)
 	B::OscillatorControls controls{};       ///< The oscillator controls (amplitude, pulse width, sync, cpu direness)
