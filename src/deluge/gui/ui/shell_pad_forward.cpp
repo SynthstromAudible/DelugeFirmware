@@ -39,7 +39,7 @@
 namespace deluge::gui::ui {
 namespace {
 
-/// @brief `SoundEditor::isEditingAutomationViewParam` (`gui/ui/sound_editor.cpp:1564-1590`), asked
+/// @brief `SoundEditor::isEditingAutomationViewParam`, asked
 ///        of the ported menu instead of of `SoundEditor`.
 ///
 /// **Not a call into legacy's copy, and this is the whole reason this function exists.** That copy
@@ -48,11 +48,11 @@ namespace {
 /// (`gui/ui/sound_editor.h:111`) written only by `SoundEditor::setup`/`navigate`, neither of which
 /// runs under the guest. `adoptResolvedContext` deliberately does not write it and says so
 /// (`sound_editor.h:216`). So legacy's copy dereferences null here on any boot that never opened a
-/// legacy menu. F3 task 4 met the same shape from the other side and supplied the state; the state
-/// cannot be supplied here, because under the toggle the open menu genuinely is `MenuScene`.
+/// legacy menu, and the state cannot be supplied here, because under the toggle the open menu
+/// genuinely is `MenuScene`.
 ///
 /// The `clip != nullptr` guard is legacy's missing one (`:1582-1586`). Writing it in this copy is
-/// not the fix migration §10.5 banked -- that fix edits `sound_editor.cpp`, and this does not.
+/// not a fix to `sound_editor.cpp`; legacy's copy is untouched.
 bool menuShowsAutomationParam() {
 	const auto* focused = deluge::scenes::menu_scene().focused();
 	if (focused == nullptr) {
@@ -60,9 +60,9 @@ bool menuShowsAutomationParam() {
 	}
 	// `:1576`'s test, in this layer's representation. Legacy tests two things -- `kind != NONE`
 	// and `paramID != kNoParamID` -- but `kNoParamID` is `0xFFFFFFFF`
-	// (`modulation/params/param.h:304`) and `ParamRef::index` is a `uint8_t` whose unset value is
-	// 255 (`scenes/menu/node.h:132`), so that second comparison cannot be transcribed: it would be
-	// false for every possible index. `ParamRef::valid()` (`:133`) is the whole of the test here --
+	// (`modulation/params/param.h`) and `ParamRef::index` is a `uint8_t` whose unset value is
+	// 255, so that second comparison cannot be transcribed: it would be
+	// false for every possible index. `ParamRef::valid()` is the whole of the test here --
 	// an unbound `Binding` carries `Kind::NONE`.
 	const deluge::scenes::menu::ParamRef& param = focused->bind.param;
 	if (!param.valid()) {
@@ -80,7 +80,7 @@ bool menuShowsAutomationParam() {
 	       && paramID == clip->lastSelectedParamID; // `:1585-1586`
 }
 
-/// @brief The "stays open" half of the firmware-version diagnostic gap (I2), asked of the ported
+/// @brief The "stays open" half of the firmware-version diagnostic gap, asked of the ported
 ///        menu instead of of `SoundEditor`.
 ///
 /// Legacy's tail (`gui/ui/sound_editor.cpp:1521-1543`) tests `getCurrentMenuItem() ==
@@ -101,7 +101,7 @@ bool onFirmwareVersionMenu() {
 void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t velocity) {
 	switch (target) {
 	case PadForwardTarget::Keyboard:
-		keyboardScreen.padAction(x, y, velocity); // `sound_editor.cpp:1475`
+		keyboardScreen.padAction(x, y, velocity); // `SoundEditor::padAction`'s keyboard arm
 		break;
 	case PadForwardTarget::AuditionColumn:
 		instrumentClipView.padAction(x, y, velocity); // `:1501`
@@ -121,7 +121,7 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 	case PadForwardTarget::NoteRowEditor:
 		// The handler may have changed what is open by the time it answers; `closePortedMenu()` is
 		// safe whatever it did, because it only asks this guest's stack to remove the menu, which
-		// touches nothing when the menu is not there (`shell/scene_stack.h:99-100`). The arm is
+		// touches nothing when the menu is not there (`SceneStack::remove`). The arm is
 		// `sound_editor.cpp:1493-1496`: `bool handled = ...; if (!handled) { exitCompletely(); }`.
 		if (!noteModeLegacyCalls().noteRowEditorPad(x, y, velocity)) {
 			closePortedMenu();
@@ -179,9 +179,9 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	         && !(y == 7 && (x == 13 || x == 14 || x == 15) && onFirmwareVersionMenu())) {
 		// `:1520-1545`, minus the firmware-version diagnostics -- `shell_pad_forward.h`'s own note
 		// names that gap and why. The popups are the missing half of that gap; the "menu stays
-		// open" half is not (I2) -- legacy's tail `return`s `DEALT_WITH` without `exitCompletely()`
-		// for exactly the three pads the added clause above names, and before this fix the guest
-		// closed the menu there instead, a divergence this branch would otherwise have introduced.
+		// open" half is not -- legacy's tail `return`s `DEALT_WITH` without `exitCompletely()`
+		// for exactly the three pads the added clause above names, so closing the menu there would
+		// diverge from legacy.
 		// Leaving `target` at `None` reproduces "swallowed, menu open" without porting the popups.
 		target = PadForwardTarget::Exit;
 	}

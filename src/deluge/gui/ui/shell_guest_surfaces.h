@@ -33,28 +33,27 @@ namespace deluge::gui::ui {
 ///        app: every sink forwards to legacy's own display and pad drivers instead of to libdeluge.
 ///
 /// `deluge::ui::shell::BoardSurfaceSet` is the same seam bound straight to libdeluge, for when the
-/// shell is the host (spec F §2.2). This class is the phase-4 twin: legacy still owns the panel and
+/// shell is the host. This class is its twin for the guest case: legacy still owns the panel and
 /// the pad bus, so the guest hands its rendered frames to `OLED::main` / `PadLEDs::image` and lets
 /// legacy's existing send paths push them.
 ///
-/// **Copy, not alias -- and why (F1 task 4, 2026-09-07).** Spec F §3 said the framebuffer formats
-/// were byte-identical "so aliasing is free and copy-less": the guest's `Main` surface would *be*
-/// `OLED::main`'s storage and the grid surface's rows would alias `PadLEDs::image` through
-/// `PadGrid::row(y)`. Neither half of that is true of the code:
+/// **Copy, not alias -- and why.** The framebuffer formats are byte-identical, but aliasing is not
+/// free: the guest's `Main` surface cannot simply *be* `OLED::main`'s storage, and the grid
+/// surface's rows cannot alias `PadLEDs::image` through `PadGrid::row(y)`. Neither half works:
 ///
-///  - The **grid cannot alias at all.** `PadGrid` (`gfx/grid/pad_grid.h:42-141`) stores
+///  - The **grid cannot alias at all.** `PadGrid` (`gfx/grid/pad_grid.h`) stores
 ///    `cells_[kMaxGridRows][kMaxGridCols]` inline -- a 32-column row stride -- while
 ///    `PadLEDs::image` (`hid/led/pad_leds.h:33`) is `[kDisplayHeight][kDisplayWidth +
 ///    kSideBarWidth]`, an 18-column stride. The strides differ, the storage is a member rather than
-///    a span, and `pad_grid.h:40-41` says so in as many words: `row(y)` is the seam for *copying* a
+///    a span, and `PadGrid`'s doc says so in as many words: `row(y)` is the seam for *copying* a
 ///    single row to or from that legacy buffer, never for reinterpreting the whole array.
 ///  - The **OLED could alias but must not.** `OLED::main` is an `OwnedCanvas`
-///    (`gfx/oled/canvas.h:378-386`) over its own 768-byte store, and `OLED::clearMainImage`
+///    (`gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
 ///    (`hid/display/oled.cpp:68-78`) zeroes it -- from seventeen legacy call sites (grep
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
-///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`), which clears it immediately before
+///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`), which clears it immediately before
 ///    asking each open UI to re-render. The shell is retained-mode: `Shell::flush`
-///    (`shell/shell.cpp:923-1052`) blits only a surface whose `blit_pending` a repaint raised. An
+///    blits only a surface whose `blit_pending` a repaint raised. An
 ///    aliased buffer that legacy zeroed between two shell renders would go blank with nothing to
 ///    tell the shell to paint it again.
 ///
@@ -68,13 +67,13 @@ public:
 	///
 	/// **This is a per-tick cost, not a per-second one, and deliberately stated that way.** The OLED
 	/// path has no diff -- `Shell::flush` blits a surface unconditionally once it has rendered, which
-	/// `shell/shell.cpp:456-463` records as the reason the OLED half may not over-arm the way the
+	/// `Shell::flush` records as the reason the OLED half may not over-arm the way the
 	/// grid half may. So the cost is 768 B on every tick in which the panel re-rendered, and the
 	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
-	/// (`src/scenes/recorder/recorder_scene.h:180`), which takes `Scene::timer_repaints()`'s
-	/// `{.oled = true, .grid = true}` default (`shell/scene.h:662`) because it does not override it
+	/// (`src/scenes/recorder/recorder_scene.h`), which takes `Scene::timer_repaints()`'s
+	/// `{.oled = true, .grid = true}` default because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
 	/// For scale, legacy already memcpys up to this whole image per frame in
@@ -92,13 +91,12 @@ public:
 	/// Nine pairs on the Deluge (16 main + 2 sidebar columns), so exactly `sizeof(PadLEDs::image)`
 	/// -- asserted against it in the .cpp.
 	///
-	/// **The bound here is the diff, not a cadence** (corrected in the F1 task 4 review; the first
-	/// version of this note quoted a 20 ms ceiling that two shipped scenes already exceed).
-	/// `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
-	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.oled = false, .grid = true}`
-	/// (`audio_clip_scene.h:477`), so the grid gate arms on **every tick** and there is no
+	/// **The bound here is the diff, not a cadence** -- a shipped scene already exceeds any fixed
+	/// ceiling. `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
+	/// (`src/scenes/audio_clip/audio_clip_scene.cpp`) with `{.oled = false, .grid = true}`
+	/// (`AudioClipScene::timer_repaints`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
-	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:980-996`): a tick
+	/// against `last_sent` before calling `send_columns` at all (`Shell::flush`): a tick
 	/// in which no pad changed colour costs zero bytes however fast the ticks come, and the 432 B
 	/// above is the cost of a *full repaint*, not of a tick. The real figure is 48 B x (pairs whose
 	/// colours actually changed).
@@ -148,9 +146,9 @@ public:
 	///
 	/// The question asked is the panel's **shape**, and it is asked through the same predicate
 	/// `blit()` enforces (`fits_legacy_panel`, in the .cpp), so this cannot promise more than the
-	/// guard delivers. It was a byte-count comparison until the F1 task 4 review: a 64x96 panel is
-	/// also 768 bytes, so a size check said yes and every frame was then dropped silently -- exactly
-	/// the blank screen this accessor exists to let the caller refuse.
+	/// guard delivers. A byte-count comparison would not do: a 64x96 panel is also 768 bytes, so a size
+	/// check would say yes and every frame would then be dropped silently -- exactly the blank
+	/// screen this accessor exists to let the caller refuse.
 	/// @return True if `blit()` will actually reach the panel.
 	bool canReachMainPanel() const { return mainIndex_ >= 0; }
 

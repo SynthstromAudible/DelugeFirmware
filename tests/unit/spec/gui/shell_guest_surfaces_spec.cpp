@@ -39,7 +39,7 @@ constexpr size_t kLegacyPanelBytes = OLED_MAIN_WIDTH_PIXELS * OLED_MAIN_HEIGHT_P
 
 /// `indicator_leds::LED::PLAY` is `fromCartesian(playButtonCoord)` = (8, 3) -> 8 + 3 * 9 = 35
 /// (`src/deluge/hid/led/indicator_leds.h:54`), which is also what the Deluge profile's
-/// `led_by_button` carries for `ButtonId::Play` (`src/shell/profiles/deluge.cpp:43`).
+/// `led_by_button` carries for `ButtonId::Play`.
 constexpr uint8_t kPlayBoardLed = 35;
 
 /// @brief A `GuestSurfaceSet` over the real Deluge board and profile, with the legacy fakes reset.
@@ -168,7 +168,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("keeps its own OLED storage rather than aliasing OLED::main, and says so in bytes", _ {
 		Rig r;
-		// Same format, same size -- the half of spec F §3 that is true.
+		// Same format, same size -- the half of the claim that is true.
 		expect(size_t(GuestSurfaceSet::kOledCopyBytesPerBlit)).to_equal(kLegacyPanelBytes);
 		expect(OLED::main.bytes().size()).to_equal(kLegacyPanelBytes);
 		expect(r.set.oled()[0].canvas.bytes().size()).to_equal(kLegacyPanelBytes);
@@ -215,7 +215,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	it("refuses to claim the panel for a board whose Main surface legacy's canvas cannot hold", _ {
 		fakelegacy::reset();
 		// A 64-row panel needs 1024 bytes; `OLED::main` has 768 and no way to grow. The guest says
-		// so at construction rather than blitting a torn frame -- `ShellHostUI` (task 5) is meant to
+		// so at construction rather than blitting a torn frame -- `ShellHostUI` is meant to
 		// refuse to open on this rather than discover it as a blank screen.
 		static constexpr DelugeDisplayDesc kTall[] = {{128, 64, 0}};
 		DelugeBoard tallBoard = kDelugeBoard;
@@ -237,8 +237,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	it("refuses a Main surface that is the right SIZE but the wrong SHAPE", _ {
 		// 64 x 96 at 1bpp is 768 bytes -- exactly `OLED::main`'s size, and a completely different
 		// panel. A byte-count check said yes here and then let `blit`'s geometry guard drop every
-		// frame in silence; the F1 task 4 review caught it, and the constructor now compares shape
-		// through the same predicate `blit` enforces.
+		// frame in silence; the constructor compares shape through the same predicate `blit` enforces.
 		fakelegacy::reset();
 		static constexpr DelugeDisplayDesc kSquare[] = {{64, 96, 0}};
 		DelugeBoard squareBoard = kDelugeBoard;
@@ -337,8 +336,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 			expect(PadLEDs::image[y][0] == RGB{static_cast<uint8_t>(y + 1), 0, 0}).to_be_true();
 			expect(PadLEDs::image[y][1] == RGB{static_cast<uint8_t>(y + 5), 0, 0}).to_be_true();
 		}
-		// KNOWN GAP, stated here rather than implied by an assertion that cannot see it (F1 task 4
-		// review, Minor 2). `send_columns` writes rows 0..rows-1, but `sortLedsForCol` reads
+		// KNOWN GAP, stated here rather than implied by an assertion that cannot see it.
+		// `send_columns` writes rows 0..rows-1, but `sortLedsForCol` reads
 		// `image[y][x]` for every `y < kDisplayHeight` (`hid/led/pad_leds.cpp:267-272`), so on a
 		// board shorter than legacy's 8 rows the remaining rows go out as whatever `image` last
 		// held. This example cannot cover that: `fakelegacy::reset()` zeroed the whole image, so

@@ -45,7 +45,7 @@ namespace {
 /// @brief The three services, in the one order their constructors allow.
 ///
 /// `learn` first because `GlobalControls` takes a `LearnMode&` and a real application passes the
-/// same `MidiLearn` it also puts in `Services::midi_learn` (`services/global_controls.h:297-300`);
+/// same `MidiLearn` it also puts in `Services::midi_learn` (`GlobalControls`'s constructor);
 /// member order is what makes that reference valid rather than a promise. Same shape as
 /// `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices`, which is the level-2 demonstration of
 /// this wiring.
@@ -92,7 +92,7 @@ void wireShellGuestServices() {
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
 	// `scenes-currentSong` row) and which all three services resolve against
-	// (`services/mod_knobs.h:240-249`, `global_controls.h:313-321`, `scenes/services/midi_learn.h:279`).
+	// (`ModKnobs::set_song`, `GlobalControls::set_song`, `MidiLearn::set_song`).
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
@@ -115,12 +115,11 @@ void wireShellGuestServices() {
 	services.knobs.set_view_state(knobView);
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
-	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp:152-155`) rather than the bare
+	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
 	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:521`: it is
 	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
 	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:136-141`), which is the
-	// state during a song swap and the state a spec that opens no UI is in. Found by this call
-	// segfaulting `sim/scenes_spec/boot_wiring_spec.cpp`.
+	// state during a song swap and the state a spec that opens no UI is in.
 	controlView.current_ui_is_clip_minder = currentUIIsClipMinderScreen();
 	controlView.root_is_performance = getRootUI() == &performanceView;
 	controlView.root_greyout = deluge::gui::menuRootGreyout();
@@ -131,14 +130,14 @@ void wireShellGuestServices() {
 	// there is no total mapping from legacy's 47-value `currentUIMode` bitfield onto the port's
 	// enum, and `GlobalControls`'s own doc says `MidiLearn` is deliberately not settable through
 	// this struct because `effective_ui_mode()` takes that from `LearnMode::active()` instead
-	// (`services/global_controls.h:274-277`). Every arm that reads it is inside the
+	// (`GlobalControls::ViewState`'s doc). Every arm that reads it is inside the
 	// `View::buttonAction` group, which `GlobalControls::handle` gates on
-	// `stack_.input_top().is_root()` (`services/global_controls.cpp:580`) -- and the guest's only
+	// `stack_.input_top().is_root()` (`GlobalControls::handle`) -- and the guest's only
 	// tenant, `MenuScene`, is not a root scene. So no arm that reads `ui_mode` is reachable under
 	// this plan. Uncovered, and named as uncovered.
 	services.controls.set_view_state(controlView);
 
-	// F1 task 2's setter, and the call migration §10.2 item 7 was opened for. Safe over a live set:
+	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a
 	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
@@ -172,14 +171,14 @@ bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note
 }
 
 bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program) {
-	// `sound_editor.cpp:1606`'s gate, both conjuncts.
+	// `SoundEditor::pcReceivedForMidiLearn`'s gate, both conjuncts.
 	if (currentUIMode != UI_MODE_MIDI_LEARN || Buttons::isShiftButtonPressed()) {
 		return false;
 	}
 	if (!menuIsFrontmost()) {
 		return false;
 	}
-	// `:1590-1591`: the item's answer is DISCARDED and the hook reports true regardless, which is
+	// The item's answer is DISCARDED and the hook reports true regardless, which is
 	// what stops the dispatcher's `else` handing the same message to `view`. Legacy's asymmetry
 	// with `noteOnReceivedForMidiLearn` one function below it, kept rather than smoothed.
 	(void)scenes::menu_scene().learn_program_change(cable, channel, program);

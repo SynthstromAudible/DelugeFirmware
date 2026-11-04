@@ -26,10 +26,10 @@ class MIDICable;
 ///
 /// @par Why this is its own translation unit and not three members of `ShellHostUI`
 ///
-/// Plan F1's file table says the guest "owns the `Shell`, the `GuestSurfaceSet`, and the three
-/// services", and three members would be the obvious shape. It does not build: the host spec suite
+/// The guest owns the `Shell`, the `GuestSurfaceSet` and the three services, and three members
+/// would be the obvious shape. It does not build: the host spec suite
 /// compiles `gui/ui/shell_host_ui.cpp` **directly** and never builds the `deluge_scenes` closure
-/// (`tests/spec/CMakeLists.txt:30-34`, which fakes `deluge::scenes::scene_registry()` for exactly
+/// (`tests/spec/CMakeLists.txt`, which fakes `deluge::scenes::scene_registry()` for exactly
 /// that reason), and `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn` are
 /// concrete classes over `model/` that cannot be faked the way a free function can. Naming their
 /// types in `shell_host_ui.cpp` would take `shell_host_ui_spec`'s 52 examples off the board.
@@ -41,11 +41,10 @@ class MIDICable;
 ///
 /// @par What this closes
 ///
-/// Migration §10.2 item 7's boot half, recorded at `scenes/registry.h`'s boot-wiring note: each of
-/// the three is constructed from the `Shell`'s own `SceneStack&` (two also from its
-/// `InputLowering&`), so a real service cannot exist before the shell it serves, and until F1 task
-/// 2's `Shell::set_services` it could not be installed after it either. This is the application
-/// finally making that call.
+/// Each of the three services is constructed from the `Shell`'s own `SceneStack&` (two also from its
+/// `InputLowering&`), so a real service cannot exist before the shell it serves; `Shell::set_services`
+/// installs it afterwards. This is the application making that call (see `scenes/registry.h`'s
+/// boot-wiring note).
 
 namespace deluge::gui::ui {
 
@@ -70,8 +69,7 @@ void wireShellGuestServices();
 /// @param now_ms The guest's clock at the close, which the popup's lifetime is read against.
 void handOffGuestOverlays(uint32_t now_ms);
 
-/// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1612-1614`),
-///        for the ported menu.
+/// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body, for the ported menu.
 ///
 /// Legacy's is one line -- `return getCurrentMenuItem()->learnNoteOn(cable, channel, note);` -- with
 /// no mode guard and the item's own answer as the result. The one thing it does implicitly is what
@@ -83,12 +81,12 @@ void handOffGuestOverlays(uint32_t now_ms);
 ///
 /// @param cable   The cable the note arrived on.
 /// @param channel The channel or MPE zone, as `PlaybackHandler::noteMessageReceived` computed it
-///                (`playback/playback_handler.cpp:2966`).
+///                (`PlaybackHandler::noteMessageReceived`).
 /// @param note    The note number.
 /// @return The focused item's own answer, or false when the menu is not the frontmost scene.
 bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note);
 
-/// @brief `SoundEditor::pcReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1605-1611`), for
+/// @brief `SoundEditor::pcReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp`), for
 ///        the ported menu.
 ///
 /// The same shape with legacy's two extra conditions kept: it acts only under

@@ -71,7 +71,7 @@ struct TimerArm {
 
 /// @name The `uiTimerManager` recorder
 ///
-/// F1 task 7 makes `ShellHostUI` a *client* of legacy's timer manager: `timerCallback` is the
+/// `ShellHostUI` is a *client* of legacy's timer manager: `timerCallback` is the
 /// shell's tick and `TimerName::UI_SPECIFIC` is what schedules it. The real manager
 /// (`gui/ui_timer_manager.cpp`) converts milliseconds to audio samples against
 /// `AudioEngine::audioSampleTimer` and dispatches through `getCurrentUI()`, neither of which this
@@ -173,17 +173,17 @@ extern std::function<void()> on_action_dispatch;
 
 /// @brief How many times the fake `dispatchShellChoices()` has been called since `reset()`.
 ///
-/// F3 task 1's sibling of `action_dispatches`, on identical terms: the real
+/// The sibling of `action_dispatches`, on identical terms: the real
 /// `gui/ui/shell_choice_dispatch.cpp` names `deluge::scenes::browser::browser_scene()` and so
 /// belongs to the `deluge_scenes` closure this suite never builds. What the drain then does with a
 /// real outbox is `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter exists so the guest
-/// still links here, and so a later task can ask the one question that IS on this side -- whether
+/// still links here, and so a spec can ask the one question that IS on this side -- whether
 /// the second poll happens on the same paths the first does.
 extern int choice_dispatches;
 
 /// @brief How many times `deluge::gui::ui::forwardGridPad()` was called.
 ///
-/// F4's sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real
+/// The sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real
 /// `gui/ui/shell_pad_forward.cpp` names `keyboardScreen`, `instrumentClipView`, `performanceView`,
 /// `automationView` and `deluge::scenes::menu_scene()`, none of which this suite builds. What that
 /// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
@@ -280,7 +280,7 @@ extern bool note_exit_saw_knob_clear;
 /// There is no `uiNavigationHierarchy` in this suite, which the timer-manager note above already
 /// records as the reason `routine()` cannot dispatch. `ShellHostUI::rearmTimer` nevertheless has to
 /// ask, because it refuses to arm `UI_SPECIFIC` for a UI that is no longer current
-/// (`gui/ui/shell_host_ui.cpp:630`) -- the guard that stops an arm whose `openUI(...)` has just put
+/// (`ShellHostUI::rearmTimer`) -- the guard that stops an arm whose `openUI(...)` has just put
 /// something else on top from handing this guest's tick to that something else.
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition

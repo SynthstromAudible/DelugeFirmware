@@ -50,7 +50,7 @@ constexpr SceneKind kBase = SceneKind::FirstApp;
 ///
 /// Nothing here is a stand-in for `MenuScene`. It is a stand-in for *a scene inside `Shell::tick`*:
 /// step 3 routes input to `handle()`, the render steps call `render_oled`, and step 7 calls
-/// `after_render()` for every scene that rendered (`shell/shell.cpp:402-410`). A request is filed
+/// `after_render()` for every scene that rendered. A request is filed
 /// from that last hook, which is why "did `after_render` already run when the poll happened" is the
 /// question worth asking rather than "was a request waiting".
 class ProbeScene final : public Scene {
@@ -188,7 +188,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 
 	it("polls AFTER Shell::tick, so a request this tick's after_render filed is taken this tick", _ {
 		// The ordering, and the reason for it: a request is filed by `MenuScene::after_render`,
-		// which `Shell::tick` runs as its step 7 (`shell/shell.cpp:402-410`). A poll above
+		// which `Shell::tick` runs as its step 7. A poll above
 		// `shell_.tick` reads the outbox before step 7 can have filled it and is therefore always
 		// one tick late -- delivered, per `MenuScene::take_action`'s warning, "against whatever state exists
 		// then".
@@ -207,7 +207,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		};
 
 		// Fed, not actioned: the guest's input hooks only queue, and `Shell::pump_input` -- which
-		// only `Shell::tick` calls -- is what routes (`shell/shell.cpp:332`). So at this point the
+		// only `Shell::tick` calls -- is what routes. So at this point the
 		// scene has seen nothing.
 		(void)r.guest.buttonAction(deluge::hid::button::BACK, true);
 		expect(r.base.events).to_equal(0);
@@ -254,8 +254,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 	});
 
 	it("polls from the tick and from nowhere else -- no input hook polls", _ {
-		// The complement of the ordering example. Routing happens in `Shell::tick` and nowhere else
-		// (`shell/shell.cpp:582-592`), so a poll from an input hook would run *before* the press it
+		// The complement of the ordering example. Routing happens in `Shell::tick` and nowhere else, so a poll from an input hook would run *before* the press it
 		// arrived with had been routed -- the same one-tick-late error as polling above the tick,
 		// wearing a different hat. Five hooks, which is all of them
 		// (`gui/ui/shell_host_ui.h`'s input section).

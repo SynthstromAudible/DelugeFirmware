@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief Installs `deluge::scenes::menu::NoteBridge` (spec §5.4) -- `instrumentClipView`'s note
+/// @brief Installs `deluge::scenes::menu::NoteBridge` -- `instrumentClipView`'s note
 ///        and note-row state, reached from `src/scenes` without an include.
 ///
 /// This header names no `scenes/` type, only the one no-arguments function that installs the
@@ -38,7 +38,7 @@ namespace deluge::gui::ui {
 /// `readCurrentValue`/`selectEncoderAction` overrides do. So it has no ordering constraint of its
 /// own: it may run before or after `wireShellGuestServices()`, before `setupBlankSong()`, before
 /// any UI opens -- calling it only wires the function pointers, and nothing dereferences them until
-/// Task 5's leaves are reached, which cannot happen before a song and a clip exist.
+/// the scenes' note leaves are reached, which cannot happen before a song and a clip exist.
 void wireShellNoteBridge();
 
 } // namespace deluge::gui::ui

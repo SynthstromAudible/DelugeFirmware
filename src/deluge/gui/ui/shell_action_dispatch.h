@@ -18,18 +18,18 @@
 #pragma once
 
 /// @file
-/// @brief The consumer half of the menu's action seam -- the poll `MenuScene::take_action()` has
-///        been documented as owing since it was written, and nothing performed.
+/// @brief The consumer half of the menu's action seam -- the poll of `MenuScene::take_action()` and
+///        the legacy behaviour each request performs.
 ///
 /// The producing half is `src/scenes`': a ported menu item asks for a piece of legacy behaviour it
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
 /// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
 ///
 /// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
-/// `MenuWalkState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
+/// `MenuWalkState::pending_action` directly, and they are tabulated in `scenes/menu/action.h`.
 /// The other two are settings writes filed through `MenuScene::request_action` by a `Binding::set`
-/// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` (F2 task 6) and
-/// `ScreensaverSettingsChanged` (F2 task 7), argued at `action.h:29-65`. The difference matters to
+/// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` and
+/// `ScreensaverSettingsChanged`, argued in `scenes/menu/action.h`. The difference matters to
 /// this file only in what each arm calls; the drain and the poll are identical for all seven.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
@@ -71,17 +71,16 @@ namespace deluge::gui::ui {
 /// So the one call site (`ShellHostUI::timerCallback`) makes the poll unconditional, and sits
 /// **after** `Shell::tick` and **above** the close check that can return early. After the tick,
 /// because a request is filed by `MenuScene::after_render`, which the tick runs as its step 7
-/// (`shell/shell.cpp:402-410`) -- polling first would always be one tick late. Above the close
+/// (`Shell::tick`) -- polling first would always be one tick late. Above the close
 /// check, because that arm returns without re-arming the timer (`ShellHostUI::timerCallback`), so a
 /// poll below it would be skipped on the very tick the guest closes, and the request stranded for
 /// however long it is until something opens the guest again.
 ///
-/// @par What it does today
+/// @par What it does
 ///
-/// It drains, and it performs **all seven** verbs: `OpenPerformanceView` as of F2 task 2,
-/// `StartStemExport` as of F2 task 3, `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and
-/// `OpenSongMacros` as of F2 task 4, `SetShortcutsVersion` as of F2 task 6, and
-/// `ScreensaverSettingsChanged` as of F2 task 7. The last two are a different shape from the five --
+/// It drains, and it performs **all seven** verbs: `OpenPerformanceView`, `StartStemExport`,
+/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`, `SetShortcutsVersion` and
+/// `ScreensaverSettingsChanged`. The last two are a different shape from the five --
 /// a **write** rather than a select press, filed from a `Binding::set` hook through
 /// `MenuScene::request_action` -- which `scenes/menu/action.h` argues at each enumerator. The
 /// `switch` has an arm for every `MenuAction` and no `default:` -- see below.
@@ -100,8 +99,8 @@ namespace deluge::gui::ui {
 /// (`:50`) -- there is no false. `MidiLearnMode::setupAndCheckAvailability`
 /// (`gui/context_menu/midi_learn_mode.cpp:50-53`) returns `currentUIMode == UI_MODE_MIDI_LEARN`
 /// (`:52`) *after* calling `sessionView.enterMidiLearnMode()` (`:51`), and that call reaches
-/// `View::startMIDILearn` (`gui/views/view.cpp:489-497`), which assigns the mode (`:493`) **only
-/// under** `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN` (`:490`). So the
+/// `View::startMIDILearn` (`View::startMIDILearn`), which assigns the mode **only
+/// under** `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`. So the
 /// false answer means exactly one thing: some other UI mode was latched when the press landed, and
 /// MIDI learn did not arm.
 ///
@@ -109,7 +108,7 @@ namespace deluge::gui::ui {
 /// was assumed. `grep -rn "setupAndCheckAvailability" src/deluge` returns 41 lines; 14 are
 /// declarations or definitions and one is a doc comment in `shell_host_ui.h`, leaving **26 call
 /// sites, of which 11 discard the result and 15 bind it to a `bool available` and branch**
-/// (`gui/context_menu/save_song_or_instrument.cpp:62` is one of the 15;
+/// (`gui/context_menu/save_song_or_instrument.cpp` is one of the 15;
 /// `gui/menu_item/reset_settings/reset.h:31` and `gui/views/session_view.cpp:522` are two of the 11).
 /// It is a split convention, and these two sites are on the discarding side of it. Reproduced, not
 /// improved.
@@ -129,7 +128,7 @@ namespace deluge::gui::ui {
 /// @par The `switch` has no `default:`, deliberately
 ///
 /// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly"
-/// (`scenes/menu/action.h:106-108`). `-Werror=switch` is on for every target
+/// (`MenuAction`'s doc in `scenes/menu/action.h`). `-Werror=switch` is on for every target
 /// (`cmake/deluge_common_options.cmake:32`), so an enumerator added without an arm here fails the
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
@@ -146,8 +145,8 @@ void dispatchShellActions();
 ///
 /// It has two callers ported from two different legacy statements that both happen to be
 /// `exitCompletely()`: `stem_export::Start::selectButtonPress`'s first statement, dispatched from
-/// this same translation unit's `startStemExport`, and `SoundEditor::padAction`'s tail
-/// (`gui/ui/sound_editor.cpp:1545`), ported by the pad-forwarding seam
+/// this same translation unit's `startStemExport`, and `SoundEditor::padAction`'s tail,
+/// ported by the pad-forwarding seam
 /// (`gui/ui/shell_pad_forward.cpp`) in a different translation unit. Internal linkage inside
 /// `namespace {}` serves only the first caller; this declaration is what the second one needs.
 void closePortedMenu();
@@ -171,7 +170,7 @@ void pushShellHighlighting();
 /// `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) is two
 /// statements welded together: a fan-out over `getRootUI()` that picks one of four
 /// `StemExportType`s (`:33-47`), and a `stemExport.startStemExportProcess(...)` that acts on the
-/// pick. `scenes/menu/action.h:133-134` says why the seam could not split them into four enumerators
+/// pick. `MenuAction::StartStemExport`'s doc says why the seam could not split them into four enumerators
 /// -- "the choice is made from the root UI, which this layer cannot read" -- so the whole fan-out
 /// lands on this side of the wall, and it is by some distance the most substantial thing any of the
 /// seven verbs does.

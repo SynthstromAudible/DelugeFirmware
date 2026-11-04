@@ -1,5 +1,4 @@
-# Level-2 acceptance (E4 task 13): `overlay::ParamPopupScene` (E4 task 1), pushed by
-# `services::ModKnobs` (E4 task 2).
+# Level-2 acceptance: `overlay::ParamPopupScene`, pushed by `services::ModKnobs`.
 #
 # **How the scene gets on the stack: nothing in this script pushes it.** A gold-knob turn is offered
 # to the top scene first (`shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
@@ -21,18 +20,16 @@
 # gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
 # of a possible wiggle (`input_lowering.cpp:206-231`). Every gold gesture on the device therefore
 # costs a detent to arm, and the fixture sets the mod target before the run exactly as
-# `View::setActiveModControllableTimelineCounter` does on the device. Found by recording the frame
-# and looking at it: the first version of this script turned once and recorded a `popup_shown`
-# golden byte-identical to `idle`.
+# `View::setActiveModControllableTimelineCounter` does on the device. A script that
+# turns only once records a `popup_shown` golden byte-identical to `idle`.
 #
-# `src/scenes/README.md`'s divergence table already logs the *other* face of this debounce -- the
+# `src/scenes/README.md`'s "Divergences from legacy" already logs the *other* face of this debounce -- the
 # first turn after boot is swallowed too, because `last_turn_ms_` starts at 0 and on device `now_ms`
 # is uptime -- and records that whether the whole mechanism is a defect needs a device to settle. So
 # "the port working" is the narrow claim: the port reproduces legacy here. Whether legacy is right
 # is the open question that row already carries.
 #
-# **`popup_moved` is the frame that found, and now guards, a real defect.** E4 task 13 first recorded
-# this script with no such frame, because there was nothing to record: a second detent on an
+# **`popup_moved` guards a real defect:** a second detent on an
 # already-open popup moved the scene's text and **nothing repainted the panel**, so the pixels kept
 # the first value until the popup expired. The narrow cause was the arbitration's *immediate-commit*
 # arm alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms

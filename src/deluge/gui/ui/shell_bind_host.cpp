@@ -544,7 +544,7 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 	if (currentSong == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `computeFinalValuesForTranspose` (`gui/menu_item/value_scaling.cpp:68-73`).
+	// `computeFinalValuesForTranspose` (`gui/menu_item/value_scaling.cpp`).
 	const int32_t current = menu_value + 25600;
 	const int32_t semitones = (current + 50) / 100;
 	const int32_t cents = current - semitones * 100;

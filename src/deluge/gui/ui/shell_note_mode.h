@@ -22,7 +22,7 @@
 ///        does with a button, an encoder turn and its own exit while `inNoteEditor()` or
 ///        `inNoteRowEditor()` holds, ported onto `ShellHostUI`.
 ///
-/// `SoundEditor` asks "am I in a note mode?" at five sites of its own (design spec §4's table): the
+/// `SoundEditor` asks "am I in a note mode?" at five sites of its own: the
 /// button chain (`gui/ui/sound_editor.cpp:617-623`), the exit (`:749-755`), the horizontal encoder
 /// (`:1047-1052`), the pad switch (`:1481-1498`) and the vertical encoder (`:1593-1598`). The pad
 /// switch's port is `gui/ui/shell_pad_forward.cpp`'s; the other four are the functions below, one
@@ -52,9 +52,9 @@ namespace deluge::gui::ui {
 enum class NoteModeKind : uint8_t {
 	/// Neither: every hook below answers "not mine".
 	None,
-	/// `SoundEditor::inNoteEditor()` (`gui/ui/sound_editor.cpp:1916-1918`).
+	/// `SoundEditor::inNoteEditor()` (`gui/ui/sound_editor.cpp`).
 	NoteEditor,
-	/// `SoundEditor::inNoteRowEditor()` (`:1920-1922`).
+	/// `SoundEditor::inNoteRowEditor()` (`gui/ui/sound_editor.cpp`).
 	NoteRowEditor,
 };
 
@@ -90,10 +90,10 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset);
 /// today, which a future `is_root()` override on a scene the guest hosts would break.
 void exitNoteModeBeforeClose();
 
-/// @name The note-mode handlers' own menu calls, ported (note-family Task 7a)
+/// @name The note-mode handlers' own menu calls, ported
 ///
 /// Several `InstrumentClipView` functions the note mode forwards into talk to `soundEditor`'s
-/// navigation record directly (design spec §4, correction 7). Under the guest that record is never
+/// navigation record directly. Under the guest that record is never
 /// written, so each such statement is a gated pair at its call site -- `activeNoteMode() !=
 /// NoteModeKind::None` takes the port, the `else` keeps legacy's statement -- and these are the ports.
 /// The `.cpp` names the ported menu, which is why they are here rather than in `gui/views/`.
@@ -133,7 +133,7 @@ void noteModeToggleNoteEditorParamMenu(int32_t on);
 ///
 /// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these
 /// calls are what a spec pins through them. The handlers themselves no longer need standing in for:
-/// Task 7a gave each of their navigation-record calls a gated pair whose port arm is one of the
+/// each of their navigation-record calls is a gated pair whose port arm is one of the
 /// `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
 struct NoteModeLegacyCalls {
 	/// `InstrumentClipView::handleNoteEditorButtonAction`.

@@ -22,10 +22,8 @@
 ///        `gui/ui/shell_action_dispatch.h` is the verb half of.
 ///
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:210-219`, the `return` at `:218`),
-/// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
-/// (`:896-898`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`,
-/// defined `browser_scene.cpp:417-421`) hands it out exactly once.
+/// `AcceptOutcome::Defer`, `BrowserScene::enter` parks the chosen path and closes the scene in one
+/// statement, and `BrowserScene::take_choice()` hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
 /// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach `soundEditor`,
@@ -161,7 +159,7 @@ void adoptShellMenuContext();
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
-/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:896-898`), so no `Action` says a
+/// returns an ordinary `Result`, so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
 /// (`scenes/menu/menu_scene.h`, the warning on `take_action`) in the same shape, and it lands as the same requirement
 /// on this function's *caller*: poll after every tick, or a choice is delivered whenever something next asks, against
@@ -174,8 +172,8 @@ void adoptShellMenuContext();
 /// @par The scene is already gone by the time this runs, and that is the point
 ///
 /// `Defer` **parks and closes in the same statement**: `choice_ = BrowserChoice{...}` then
-/// `return close()` (`scenes/browser/browser_scene.cpp:897-898`), and `close()` is
-/// `Action::Kind::Remove` naming the browser's own kind (`:918-927`). The router applies that inside
+/// `return close()`, and `close()` is
+/// `Action::Kind::Remove` naming the browser's own kind. The router applies that inside
 /// the same `Shell::tick` that routed the press, so by the time this drain runs the browser is off
 /// the stack and the ported menu underneath is frontmost again. Nothing here may assume otherwise --
 /// there is no state in which a choice is pending *and* the browser is still up.
@@ -184,17 +182,17 @@ void adoptShellMenuContext();
 ///
 /// Both drains run after `Shell::tick`, actions first. **Yes, both can be pending on the same
 /// tick**, and the path is real rather than theoretical: the browser's `Remove` is applied at
-/// `Shell::tick`'s step 3 (`shell/shell.cpp:332`), so the menu underneath is frontmost again by
+/// `Shell::tick`'s step 3 (`Shell::tick`), so the menu underneath is frontmost again by
 /// steps 5-6 and gets its own `after_render()` at step 7 (`:402-410`) -- on the very tick the choice
 /// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
 /// in the browser's.
 ///
 /// Neither drain reads the other's mailbox and neither is gated on the other, so the order changes
 /// nothing observable. It is fixed as **actions, then choices** for the one interaction that is
-/// now real rather than coming: `MenuAction::StartStemExport`'s arm removes the ported menu from
-/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:189-191`), and the
+/// real: `MenuAction::StartStemExport`'s arm removes the ported menu from
+/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp`), and the
 /// re-rooting the claim performs writes that same menu's navigation state
-/// (`scenes/browser/browser_scene.h:211-233`, applied through
+/// (`BrowserScene`'s note on the `Defer` dispatcher, applied through
 /// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be
 /// applied to a menu the same tick's verb was about to take off the stack.
 ///

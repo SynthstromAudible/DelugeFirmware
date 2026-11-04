@@ -251,10 +251,9 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 		return SampleClaimTarget{.dir = {}, .name = path};
 	}
 	// A trailing separator names a directory, not a file. `BrowserScene::enter` cannot build one --
-	// it appends `item->filename`, which a `FileItem` never has empty
-	// (`scenes/browser/browser_scene.cpp:880-884`) -- so this is defence in depth against a caller
+	// it appends `item->filename`, which a `FileItem` never has empty -- so this is defence in depth against a caller
 	// that is not the scene, in the same spirit as `openPerformanceView`'s `DISABLED` arm
-	// (`gui/ui/shell_action_dispatch.cpp:86-88`) and unreachable for the same kind of reason.
+	// (`gui/ui/shell_action_dispatch.cpp`) and unreachable for the same kind of reason.
 	const std::string_view name = path.substr(slash + 1);
 	if (name.empty()) {
 		return std::nullopt;
@@ -268,7 +267,7 @@ void adoptShellMenuContext() {
 
 void dispatchShellChoices() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_choice()` moves the
-	// choice out and resets the member in the same call (`scenes/browser/browser_scene.cpp:417-421`).
+	// choice out and resets the member in the same call (`BrowserScene::take_choice`).
 	// So an early return above this line would not be "nothing to do", it would be "the choice stays
 	// in the outbox until something else asks", which is the stale delivery the header describes.
 	const std::optional<BrowserChoice> choice = browser_scene().take_choice();
@@ -314,8 +313,8 @@ void dispatchShellChoices() {
 		break;
 
 	case BrowserId::Count:
-		// Not a browser -- it is the table's size (`scenes/browser/browser_scene.h:118`). Unreachable:
-		// `BrowserScene::enter` files `id_` (`browser_scene.cpp:897`), and `BrowserScene::on_enter`
+		// Not a browser -- it is the table's size (`BrowserId::Count`). Unreachable:
+		// `BrowserScene::enter` files `id_`, and `BrowserScene::on_enter`
 		// refuses the scene outright before assigning it (`:357-361`, the guard at `:358-360`) rather
 		// than letting an out-of-range arg through. Spelled out because `-Werror=switch` counts it, and the
 		// alternative is the `default:` the header rules out.

@@ -36,10 +36,10 @@ using deluge::ui::shell::kColumnPairLeds;
 using deluge::ui::shell::PadRegions;
 using deluge::ui::shell::SurfaceRole;
 
-// The two framebuffer formats really are byte-identical, which is the half of spec F §3 that
-// survives: the shell's Deluge geometry and legacy's OLED macros describe the same 1-bpp
-// page-major 128x48 frame, and legacy's pad image is exactly the nine column pairs the shell
-// sends. These are what make the copies below whole-buffer copies rather than conversions.
+// The two framebuffer formats really are byte-identical, which is what the copies below rest on: the shell's Deluge
+// geometry and legacy's OLED macros describe the same 1-bpp page-major 128x48 frame, and legacy's pad image is exactly
+// the nine column pairs the shell sends. These are what make the copies below whole-buffer copies rather than
+// conversions.
 static_assert(deluge::gfx::oled::kDelugeOled.width == OLED_MAIN_WIDTH_PIXELS);
 static_assert(deluge::gfx::oled::kDelugeOled.height == OLED_MAIN_HEIGHT_PIXELS);
 static_assert(deluge::gfx::oled::kDelugeOled.visible_top == OLED_MAIN_TOPMOST_PIXEL);
@@ -55,7 +55,7 @@ namespace {
 /// Shape, not byte count. Both are 768 bytes on the Deluge, but they are not the same question and
 /// the difference is a blank screen: a 64x96 panel is *also* 768 bytes, would satisfy a size check,
 /// and would then be dropped frame by frame by `blit`'s geometry guard with nothing saying why
-/// (F1 task 4 review, Important 4). `visible_top` is deliberately not compared -- it is a faceplate
+/// `visible_top` is deliberately not compared -- it is a faceplate
 /// fact about what the user can see, not about what fits in the buffer, and `blit` does not carry
 /// it either.
 ///
@@ -79,21 +79,18 @@ GuestSurfaceSet::GuestSurfaceSet(const DelugeBoard& board, const deluge::ui::she
 bool GuestSurfaceSet::oled_busy(uint8_t index) {
 	// `index` is deliberately ignored. Legacy's back-pressure on the display is not per-panel and
 	// is not a transfer-in-flight flag at all: it is one gate on the shared pad-output bus, checked
-	// once for the grid and the OLED together in `doAnyPendingUIRendering` (`gui/ui/ui.cpp:375-396`).
-	// Read the braces there rather than the shape: the OLED push (`doAnyPendingOLEDRendering()`,
-	// `:392`) sits inside *two* enclosing guards -- the `pendingUIRenderingLock` re-entrancy guard
-	// opened at `:376-380`, and the pad-output-space `if` at `:389`, whose body is `:390-393` and
-	// covers the grid render as well. This forwards to the second of those, negated, and to nothing
-	// else.
+	// once for the grid and the OLED together in `doAnyPendingUIRendering` (`gui/ui/ui.cpp`).
+	// Read the braces there rather than the shape: the OLED push (`doAnyPendingOLEDRendering()`)
+	// sits inside *two* enclosing guards -- the `pendingUIRenderingLock` re-entrancy guard, and the
+	// pad-output-space `if`, whose body covers the grid render as well. This forwards to the second
+	// of those, negated, and to nothing else.
 	//
-	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`shell/board_surfaces.cpp:27-29`):
+	// Not `deluge_display_busy_n()`, which is what `BoardSurfaceSet` uses (`shell/board_surfaces.cpp`):
 	// no file under `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all
 	// (grepped repo-wide; the only callers are the BSPs that define them and `board_surfaces.cpp`).
-	// A guest that consulted it would be inventing a policy legacy does not have. `Shell::flush`'s
-	// own comment used to describe "the `deluge_display_busy` skip around `OLED::sendMainImage`";
-	// there is no such skip in `OLED::sendMainImage` (`hid/display/oled.cpp:335-385`), which gates
-	// only on its own `needsSending` flag. Corrected at `shell/shell.cpp:926` and recorded as shell
-	// spec §15.10.
+	// A guest that consulted it would be inventing a policy legacy does not have. There is no
+	// `deluge_display_busy` skip around `OLED::sendMainImage` (`hid/display/oled.cpp`), which gates
+	// only on its own `needsSending` flag.
 	(void)index;
 	return deluge_control_pad_output_space()
 	       <= static_cast<uint32_t>((kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2);
@@ -154,13 +151,13 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	//          so the rows above the board's go out as whatever `image` last held. Deliberately not
 	//          zeroed: those rows are not the shell's to own, and blanking them would be the guest
 	//          inventing a policy about legacy's buffer. Hypothetical-board only -- every board in
-	//          the tree is 8 rows -- and stated at the spec site as uncovered (F1 task 4 review).
+	//          the tree is 8 rows -- and uncovered by the specs.
 	const uint8_t x0 = static_cast<uint8_t>(pair_index * 2);
 	const uint8_t x1 = static_cast<uint8_t>(x0 + 1);
 	if (x1 >= kDisplayWidth + kSideBarWidth) {
 		return; // A pair past legacy's 18 columns has no cells in `image` to write.
 	}
-	// Unpacked exactly the way `read_column_pair` packed it (`shell/shell.cpp:61-74`): `rows`
+	// Unpacked exactly the way `read_column_pair` packed it (`read_column_pair` in `shell/shell.cpp`): `rows`
 	// colours from column x0, then `rows` from x1, where `rows` is the grid's row count clamped to
 	// half a pair. Mirroring that expression rather than hardcoding 8 is what stops a board with
 	// fewer rows silently reading the second column from the wrong offset.
@@ -232,7 +229,7 @@ void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
 	//
 	// `board_led` passes straight through: the board profile's `led_by_button` values ARE
 	// `indicator_leds::LED`'s underlying values, `x + y * NUM_LED_COLS`
-	// (`shell/profiles/deluge.cpp:24-60`, each entry citing its own line of `indicator_leds.h`).
+	// (`shell/profiles/deluge.cpp`, each entry citing its own line of `indicator_leds.h`).
 	if (board_led < kLegacyLeds && !held_[board_led]) {
 		held_[board_led] = true;
 		legacyState_[board_led] = indicator_leds::ledStates[board_led];
@@ -263,22 +260,21 @@ void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicato
 	// Replaces `actuallySetKnobIndicatorLevel` (`hid/led/indicator_leds.cpp:182-245`), whose whole
 	// body is the conversion from one scalar level to four per-segment brightnesses followed by the
 	// boundary call at `:241`. The shell has already done that conversion -- `KnobIndicator` IS the
-	// four segment levels (`ui/core/led_frame.h:30-32`) -- so there is no scalar to hand the legacy
+	// four segment levels (`KnobIndicator` in `ui/core/led_frame.h`) -- so there is no scalar to hand the legacy
 	// function, and forwarding to it would mean inventing a level to convert back from.
 	//
-	// `which` passes straight through, as it does in `BoardSurfaceSet::set_indicator`
-	// (`shell/board_surfaces.cpp:47-52`): `IndicatorId` is numbered `{Lower = 0, Upper = 1}` to
-	// match legacy's `whichKnob` mod-encoder number.
+	// `which` passes straight through, as it does in `BoardSurfaceSet::set_indicator`: `IndicatorId` is numbered
+	// `{Lower = 0, Upper = 1}` to match legacy's `whichKnob` mod-encoder number.
 	deluge_control_set_indicator(which, indicator.levels, static_cast<uint8_t>(std::size(indicator.levels)));
 }
 
 void GuestSurfaceSet::flush() {
 	// The `deluge_control_flush()` that legacy calls once after a run of `sortLedsForCol`s
-	// (`sendOutMainPadColours`, `hid/led/pad_leds.cpp:1032`; `sendOutSidebarColours`, `:1053`) --
+	// (`sendOutMainPadColours` and `sendOutSidebarColours` in `hid/led/pad_leds.cpp`) --
 	// which is also what `sortLedsForCol`'s own comment at `:259` asks its callers to do, under
 	// that call's older name.
 	// `Shell::flush` calls this at most once per tick, and only when something was actually sent
-	// (`shell/shell.cpp:1049-1051`).
+	// (`Shell::flush`).
 	deluge_control_flush();
 }
 

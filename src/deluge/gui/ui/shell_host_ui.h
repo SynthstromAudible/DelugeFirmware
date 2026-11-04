@@ -28,8 +28,7 @@
 
 namespace deluge::gui::ui {
 
-/// @brief The legacy `UI` that owns a whole `Shell` and renders it -- spec F §2.1's *shell as
-///        guest*.
+/// @brief The legacy `UI` that owns a whole `Shell` and renders it -- the *shell as guest*.
 ///
 /// `ShellHostUI` is registered and pushed like any other legacy UI (`openUI(&shellHostUI)`), and
 /// inside it a `Shell` runs its own scene stack over a `GuestSurfaceSet`. Legacy's render hooks are
@@ -41,13 +40,13 @@ namespace deluge::gui::ui {
 ///
 /// **Nothing the input hooks do is synchronous.** `Shell::on_board_event` and
 /// `Shell::on_encoder_edges` push into `InputLowering`'s queues; routing to a scene happens in
-/// `Shell::pump_input`, which only `Shell::tick` calls (`shell/shell.cpp:582-592`). So a hook can
+/// `Shell::pump_input`, which only `Shell::tick` calls. So a hook can
 /// never report what a scene did with a press, and every return value below is decided statically
 /// from what legacy does with it -- see each hook's note. The tick that drains the queue is
 /// `timerCallback`, and every one of those hooks arms it through `armTickSoon` -- see
 /// `@par The tick`.
 ///
-/// **camelCase, deliberately** (plan F1's global constraint 3): everything here is a legacy `UI`
+/// **camelCase, deliberately**: everything here is a legacy `UI`
 /// override or something a legacy call site names, and a façade over legacy spells things the way
 /// legacy does. The `Shell` it drives is `snake_case` on the other side of that seam.
 ///
@@ -67,10 +66,10 @@ namespace deluge::gui::ui {
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:47-51`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
-/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **Recorded as an uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
-/// | `getUI` | `ui.h:162` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
-/// | `getUIContextType` | `ui.h:167` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
-/// | `getUIModControllableContext` | `ui.h:170` | `NONE`, as `SoundEditor` leaves it. |
+/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **An uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
+/// | `getUI` | `ui.h` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
+/// | `getUIContextType` | `ui.h` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
+/// | `getUIModControllableContext` | `ui.h` | `NONE`, as `SoundEditor` leaves it. |
 /// | `canDisplayFavourites` | `ui.h:171` | False, as `SoundEditor` leaves it. |
 /// | `isFavouritesVisible` | `ui.h:172` | False, as `SoundEditor` leaves it. |
 /// | `isBanksVisible` | `ui.h:173` | False, as `SoundEditor` leaves it. |
@@ -80,53 +79,50 @@ namespace deluge::gui::ui {
 /// above, and `displayOrLanguageChanged`, which **is** overridden below but only to ask the shell
 /// for a repaint -- see its own note for what that does and does not buy.
 ///
-/// @warning `ui.h:94-160`, the range plan F1's task 5 brief cites for "every `UI` virtual", stops
-///          thirteen lines short of the class's last one. Seven virtuals live at `:162-173`, and
-///          one of them, `getUIType()` (`:164`), is **pure** -- a guest written to that range alone
-///          would not compile. The real span is `:94-173`.
+/// @warning The `UI` virtuals span `ui.h:94-173`, not just the first block of them: seven live at
+///          `:162-173`, and one of them, `getUIType()` (`:164`), is **pure** -- a guest written to
+///          the shorter range alone would not compile.
 ///
 /// @par The tick: `timerCallback` is the only thing that runs the shell
 ///
 /// **Nothing inside the guest routes, renders, or lights an LED except `Shell::tick`.** The input
 /// hooks below only push into `InputLowering`'s queues; routing happens in `Shell::pump_input`,
-/// which only `tick()` calls (`shell/shell.cpp:582-592`), and the LEDs are composed and sent by
-/// `Shell::derive_leds`/`Shell::flush` at step 9 of that same function (`shell/shell.cpp:533-535`).
+/// which only `tick()` calls, and the LEDs are composed and sent by
+/// `Shell::derive_leds`/`Shell::flush` at the last step of that same function.
 /// So a guest whose timer is not armed is a guest that is frozen, however much legacy is feeding
 /// it -- which is why the arm is re-established in every place legacy can leave it unarmed, not
 /// only in `opened()`.
 ///
 /// `TimerName::UI_SPECIFIC` is the timer, dispatched to `getCurrentUI()` by
 /// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:142-148`). Legacy clears it out from under
-/// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:112-114`,
-/// the only conditional one: it clears only while `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`),
-/// `closeUI` (`:197`) and `openUI` (`:233`) -- all of them *before* the `opened()`/`focusRegained()`
-/// that follows, so arming from those two hooks is safe and is the only thing that makes the guest
-/// survive a UI opening and closing over it. The guest arms unconditionally, so the one conditional
-/// clear costs it nothing; it is named because a reader counting clears would otherwise miscount.
+/// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp`), `changeRootUI` (the only conditional one: it clears
+/// only while `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`), `closeUI` and `openUI` -- all of them *before* the
+/// `opened()`/`focusRegained()` that follows, so arming from those two hooks is safe and is the only thing that makes
+/// the guest survive a UI opening and closing over it. The guest arms unconditionally, so the one conditional clear
+/// costs it nothing; it is named because a reader counting clears would otherwise miscount.
 ///
 /// @par The unit mismatch: an absolute deadline against a duration
 ///
-/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:379`), recomputed at
-/// the bottom of every tick (`shell/shell.cpp:536`). `UITimerManager::setTimer` takes a **duration**
+/// `Shell::next_wake()` is an **absolute** millisecond deadline, recomputed at the bottom of every
+/// tick. `UITimerManager::setTimer` takes a **duration**
 /// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
-/// `Shell::compute_next_wake` and `RepaintGate` both use (`shell/shell.cpp:1056-1064`,
-/// `ui/core/repaint_gate.cpp:7`) -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the wrong
-/// one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
+/// `Shell::compute_next_wake` and `RepaintGate` both use -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the
+/// wrong one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
 ///
 ///  - **A deadline already past** (`in <= 0`) arms `kMinRearmMs`, not zero. It is not an error: the
-///    shell asks for `now_ms` routinely (a router repaint armed at a zero-millisecond deadline,
-///    `shell/shell.cpp:420-434`), and there is nothing to catch up on -- the tick that just ran was
+///    shell asks for `now_ms` routinely (a router repaint armed at a zero-millisecond deadline),
+///    and there is nothing to catch up on -- the tick that just ran was
 ///    the one it was waiting for.
 ///  - **Arming earlier than asked is always safe; arming later is not.** The next tick recomputes
 ///    `next_wake()` from scratch, so an early wake costs one tick and corrects itself. That is why
 ///    the clamp is one-sided in its consequences and why `kMaxRearmMs` may exist at all.
 ///
-/// @par Why the floor is 1 ms and not 0 -- the busy loop this shell has shipped before
+/// @par Why the floor is 1 ms and not 0 -- a 0 floor is a busy loop
 ///
 /// `Scene::next_timer()` may legally return **0**, meaning "next tick"
-/// (`shell/scene.h:543-595`), and `AudioClipScene::next_timer()` returns it for the whole of
-/// playback (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `Shell::next_wake()`'s own
+/// (`Scene::next_timer`), and `AudioClipScene::next_timer()` returns it for the whole of
+/// playback. `Shell::next_wake()`'s own
 /// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
 ///
@@ -143,10 +139,9 @@ namespace deluge::gui::ui {
 ///
 /// @note Precisely at the instant of arming, `timeNextEvent - audioSampleTimer` is **0**, and
 ///       `routine`'s guard is `>= 0`, so the early return *is* taken and the timer does not fire
-///       that instant -- it becomes due one audio sample (~22.7 us) later. An earlier draft of this
-///       paragraph said a zero arm "defeats the early return"; it does not, and the distinction is
-///       recorded because the conclusion rests on the sample timer advancing between two calls of
-///       `routine`, not on the guard being wrong.
+///       that instant -- it becomes due one audio sample (~22.7 us) later. A zero arm does not
+///       "defeat the early return"; the conclusion rests on the sample timer advancing between two
+///       calls of `routine`, not on the guard being wrong.
 ///
 /// @warning **1 ms is not legacy's animation cadence, and a future tenant will want the difference.**
 ///          Legacy's per-frame hook is `graphicsRoutine`, whose one external driver is
@@ -164,17 +159,15 @@ namespace deluge::gui::ui {
 ///
 /// @par The LEDs: the ownership rule, in both directions
 ///
-/// **There is no `LedSink`, and this class implements no LED sink.** Spec F §2.1 says "the guest's
-/// `derive_leds` writes through an `indicator_leds` `LedSink`"; `grep -rn LedSink src/` has no hits,
-/// `derive_leds` is a private member of `Shell` (`shell/shell.h:508`) rather than of the guest, and
-/// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:1005-1031`). The seam
-/// that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by F1
-/// task 4 (`gui/ui/shell_guest_surfaces.cpp:175`, `:189`). What this task adds is the *tick* that
-/// makes any of it run.
+/// **There is no `LedSink`, and this class implements no LED sink.** The guest's `derive_leds` does
+/// not write through an `indicator_leds` `LedSink`: `derive_leds` is a private member of `Shell`
+/// rather than of the guest, and the writing is done by `Shell::flush`, not by `derive_leds`. The
+/// seam that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by
+/// `GuestSurfaceSet`. What this class adds is the *tick* that makes any of it run.
 ///
 ///  - **An LED a scene declares is the guest's.** `Shell::flush`'s diff loop only ever calls
-///    `set_led` for an id with `desired_declared` set (`shell/leds.cpp:75-80`), which
-///    `Shell::derive_leds` sets only from the composed `LedFrame` (`shell/shell.cpp:877-896`). The
+///    `set_led` for an id with `desired_declared` set (`led_send_needed`), which
+///    `Shell::derive_leds` sets only from the composed `LedFrame`. The
 ///    guest then takes the LED away from legacy's blinker for as long as it holds it:
 ///    `GuestSurfaceSet::set_led` calls `indicator_leds::setLedState` with the default
 ///    `allowContinuedBlinking = false`, whose first act is `stopLedBlinking(led)`
@@ -192,13 +185,11 @@ namespace deluge::gui::ui {
 ///    the four segment levels and there is no scalar to hand `actuallySetKnobIndicatorLevel` -- so
 ///    `knobIndicatorLevels[]` goes stale, and that function's early-out then suppresses a later
 ///    legacy write of the level the shadow still holds (`hid/led/indicator_leds.cpp:187-191`).
-///    **This went live with F1 task 8, which is what task 7 said would make it live.** The one
-///    declarer is `services::ModKnobs` (`grep -rn "frame.indicator(" src/scenes` --
-///    `scenes/services/mod_knobs.cpp:691`, `:700`, `:707`), `Shell::flush` calls `set_indicator`
-///    only for an indicator declared this tick (`shell/shell.cpp:1035-1047`), and the guest now has a
-///    `ModKnobs` in its `Services`. The fix task 7 named is in: `closeGuest()`, the body BOTH of
-///    the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one, F1
-///    task 11), calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`)
+///    **This is live.** The one declarer is `services::ModKnobs` (`grep -rn "frame.indicator("
+///    src/scenes`), `Shell::flush` calls `set_indicator` only for an indicator declared this tick,
+///    and the guest has a `ModKnobs` in its `Services`. The fix is in: `closeGuest()`, the body BOTH
+///    of the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one),
+///    calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`)
 ///    *before* `close()`, which puts shadow and hardware back in step at level 0 in time for the
 ///    `focusRegained` that `closeUI` runs on the same call -- every root view's reaches
 ///    `view.setActiveModControllableTimelineCounter(...)` and so `setKnobIndicatorLevels()`. See
@@ -236,24 +227,23 @@ namespace deluge::gui::ui {
 ///
 /// @par MIDI learn: two of the four messages are forwarded, and NONE of them is reachable yet
 ///
-/// F1 task 10. `SoundEditor` learns a menu item from four MIDI message types and the guest reaches
+/// `SoundEditor` learns a menu item from four MIDI message types and the guest reaches
 /// them by four different mechanisms, only two of which exist:
 ///
 // clang-format off
 /// | message | `SoundEditor` | how legacy dispatches | the guest |
 /// |---|---|---|---|
-/// | program change | `pcReceivedForMidiLearn` (`sound_editor.cpp:1605-1611`) | `getCurrentUI()->pcReceivedForMidiLearn`, `view` as the `else` (`playback/playback_handler.cpp:2897-2901`) | **overridden below**, forwarding to `MenuScene::learn_program_change` through `shellGuestMenuLearnProgramChange` |
-/// | note on | `noteOnReceivedForMidiLearn` (`:1595-1597`) | the same shape (`playback_handler.cpp:2968-2971`) | **overridden below**, forwarding to `MenuScene::learn_note_on`, then feeding the shell's own chain |
-/// | CC | `midiCCReceived` (`:1600-1608`) | **no `UI` virtual.** A hardcoded `getCurrentUI() == &soundEditor` at `playback_handler.cpp:3164` | **lost.** See below |
-/// | pitch bend | `pitchBendReceived` (`:1611-1619`) | the same hardcoded test at `playback_handler.cpp:3091` | **lost**, and doubly: `MenuItem::learnKnob` has no port either -- see the mod-knob `@par` above |
+/// | program change | `SoundEditor::pcReceivedForMidiLearn` | `getCurrentUI()->pcReceivedForMidiLearn`, `view` as the `else` (`PlaybackHandler`'s program-change arm in `playback/playback_handler.cpp`) | **overridden below**, forwarding to `MenuScene::learn_program_change` through `shellGuestMenuLearnProgramChange` |
+/// | note on | `SoundEditor::noteOnReceivedForMidiLearn` | the same shape (`PlaybackHandler`'s note-on arm) | **overridden below**, forwarding to `MenuScene::learn_note_on`, then feeding the shell's own chain |
+/// | CC | `SoundEditor::midiCCReceived` | **no `UI` virtual.** A hardcoded `getCurrentUI() == &soundEditor` at `playback_handler.cpp:3164` | **lost.** See below |
+/// | pitch bend | `SoundEditor::pitchBendReceived` | the same hardcoded test at `playback_handler.cpp:3091` | **lost**, and doubly: `MenuItem::learnKnob` has no port either -- see the mod-knob `@par` above |
 // clang-format on
 ///
 /// The first two are closable because `UI` declares a virtual for each (`ui.h:130`, `:132`) and a
 /// guest can override it. The last two are not: `gui/ui/ui.h` declares **exactly two**
 /// `*ForMidiLearn` hooks, and closing CC or pitch bend means adding a third and fourth and
-/// rewriting two legacy dispatch sites -- a legacy-behaviour change plan F1 does not make. Recorded
-/// at `playback_handler.cpp:3164` and `:3091`, at `MidiLearn::cc_received`, and in migration §10.2
-/// item 8.
+/// rewriting two legacy dispatch sites -- a legacy-behaviour change the guest does not make. The
+/// gap is also noted at `playback_handler.cpp:3164` and `:3091` and at `MidiLearn::cc_received`.
 ///
 /// @warning **All four are unreachable under the guest today, for a reason none of the above
 ///          names, and it is worth knowing before anyone counts this as working.** Every one of
@@ -262,18 +252,17 @@ namespace deluge::gui::ui {
 ///          and **exactly two lines in the tree assign it -- but there are THREE ways in, and the
 ///          count of assignments is not the count of entries**:
 ///          `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns
-///          `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s
-///          `LEARN` arm (`gui/ui/sound_editor.cpp:520`), and nothing else. The first of those has
-///          two callers, not one: `View::buttonAction`'s own `LEARN` arm (`view.cpp:192`) and
-///          `SessionView::enterMidiLearnMode` (`gui/views/session_view.cpp:3072-3076`), which the
+///          `View::startMIDILearn` and `SoundEditor::buttonAction`'s
+///          `LEARN` arm, and nothing else. The first of those has
+///          two callers, not one: `View::buttonAction`'s own `LEARN` arm and
+///          `SessionView::enterMidiLearnMode`, which the
 ///          song context menu's MIDI-learn entry reaches
 ///          (`MidiLearnMode::setupAndCheckAvailability`, `gui/context_menu/midi_learn_mode.cpp:51`).
-///          **The conclusion still holds, but as of F2 task 4 one of the three reasons has changed
-///          and it is now the interesting one.** `View::buttonAction` is the *root view's* fallback
-///          and the guest is the current UI; `SoundEditor` is not open at all. The third,
+///          **The conclusion holds, but the reasons are not all the same.** `View::buttonAction` is
+///          the *root view's* fallback and the guest is the current UI; `SoundEditor` is not open at all. The third,
 ///          `SessionView::enterMidiLearnMode` reached from the song menu's MIDI-learn entry, **does
-///          now run under the guest**: its ported form is `MenuScene::take_action`'s
-///          `song_midi_learn` (`scenes/menu/action.h:18`), and `dispatchShellActions`' arm for it
+///          run under the guest**: its ported form is `MenuScene::take_action`'s
+///          `song_midi_learn` (`scenes/menu/action.h`), and `dispatchShellActions`' arm for it
 ///          calls `midiLearnMode.setupAndCheckAvailability()` exactly as
 ///          `song::MidiLearn::selectButtonPress` does (`gui/ui/shell_action_dispatch.cpp`, the
 ///          `MenuAction::OpenSongMidiLearn` arm). So `currentUIMode == UI_MODE_MIDI_LEARN` **is**
@@ -282,14 +271,13 @@ namespace deluge::gui::ui {
 ///          It still does not reach these two overrides, for the reason the same arm's second
 ///          statement supplies: it ends in `openUI(&midiLearnMode)`, so while the mode is set the
 ///          **context menu** is `getCurrentUI()`, not the guest -- and every one of these dispatch
-///          arms asks `getCurrentUI()` (`playback_handler.cpp:2898`, `:2968`). `MidiLearnMode`
+///          arms asks `getCurrentUI()` (`PlaybackHandler`). `MidiLearnMode`
 ///          overrides neither hook (`gui/context_menu/midi_learn_mode.h:23-38`), so `UI`'s own
 ///          `return false` (`gui/ui/ui.h:130`, `:132-134`) runs and `view` takes the `else`. Closing
 ///          the context menu clears the mode again (`MidiLearnMode::acceptCurrentOption` and its
-///          `BACK` arm both call `sessionView.exitMidiLearnMode()`,
-///          `gui/context_menu/midi_learn_mode.cpp:56`, `:68`; `View::endMIDILearn` clears it at
-///          `gui/views/view.cpp:511-513`). **So the reachability of these two overrides is unchanged;
-///          what changed is that "nothing under the guest sets the mode" is no longer the reason.**
+///          `BACK` arm both call `sessionView.exitMidiLearnMode()`;
+///          `View::endMIDILearn` clears it). **So "nothing under the guest sets the mode" is not the
+///          reason these two overrides stay unreachable.**
 ///          Meanwhile the port's own learn mode (`services::MidiLearn::begin`, reached from its
 ///          `LEARN` arm) sets a **different bit** -- `MidiLearn::active_`, which `PlaybackHandler`
 ///          cannot see -- and is itself gated on `SceneStack::input_top().is_root()`, which
@@ -307,24 +295,23 @@ namespace deluge::gui::ui {
 ///
 /// @par Shift: two state machines, and what actually keeps them in step
 ///
-/// §2.1's rule is that legacy `Buttons::` state is *read* into `UiContext`, not duplicated.
+/// The rule is that legacy `Buttons::` state is *read* into `UiContext`, not duplicated.
 /// **There is no seam to read it through.** `UiContext` is built by `Shell::make_context`, which is
-/// private and fills `.shift`/`.sticky` from the lowering's own fields
-/// (`shell/shell.cpp:570-580`), and `InputLowering` has no shift setter -- only
-/// `clear_shift_sticky()` (`shell/input_lowering.h:214`) and `set_shift_is_sticky()` (`:221`). So the
+/// private and fills `.shift`/`.sticky` from the lowering's own fields, and `InputLowering` has no
+/// shift setter -- only `clear_shift_sticky()` and `set_shift_is_sticky()`. So the
 /// guest's only lever is *which events it feeds*, and the two machines stay in step only because
 /// `buttonAction` below feeds every button legacy hands it, `padAction` feeds every pad, and
 /// `InputLowering::toggle_shift` is a line-for-line port of `Buttons::commandToggleShift`
-/// (`shell/input_lowering.cpp:306-326` against `hid/buttons.cpp:237-278`).
+/// (against `hid/buttons.cpp:237-278`).
 ///
-/// Each divergence this once had is closed:
+/// The cases that could diverge are closed:
 ///
 ///  - **The sticky-shift feature flag.** `opened()` seeds `LoweringConfig::shift_is_sticky` from
 ///    `RuntimeFeatureSettingType::ShiftIsSticky` through `InputLowering::set_shift_is_sticky`, and
 ///    `ShiftIsSticky::writeCurrentValue` mirrors a live change.
 ///  - **`hold_time_ms`.** `feed()` seats `FlashStorage::holdTime` (audio samples) through
 ///    `InputLowering::set_hold_time_ms` on every pad and button, which is where legacy's own live read
-///    happens (`hid/buttons.cpp:264`): `nodes::set_default_hold_time` writes the flash global from
+///    happens (`Buttons::commandToggleShift`): `nodes::set_default_hold_time` writes the flash global from
 ///    inside the guest, so a per-open seed would lag it by a whole session.
 ///  - **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on every button press including
 ///    the eight mod buttons (`hid/buttons.cpp:88-95`); `modButtonAction` feeds them as matrix buttons,
@@ -333,7 +320,7 @@ class ShellHostUI final : public ::UI {
 public:
 	/// @brief Build the guest over \p board and \p registry.
 	/// @param registry The application's scene table. `Shell` copies the pointers out of it into its
-	///                 own table (`shell/shell.cpp:176-178`), so a temporary is fine.
+	///                 own table, so a temporary is fine.
 	/// @param board    Board capability descriptor; the real Deluge unless a spec says otherwise.
 	/// @param profile  The matching board profile. The pair is a parameter rather than a constant
 	///                 for one reason: `canOpen()`'s refusal has to be drivable, and the only board
@@ -347,10 +334,9 @@ public:
 	/// @{
 	/// @brief Set what `opened()` pushes.
 	///
-	/// Task 9's fourteen entry points each know which node the caller wanted; this is how they say
-	/// so. Defaults to a `SceneId` whose kind is `SceneKind::Null`, which no registry can resolve --
-	/// so a caller that forgets to set one gets a refused `opened()` (see below) rather than an
-	/// empty guest.
+	/// Each menu entry point knows which node the caller wanted; this is how it says so. Defaults to a `SceneId` whose
+	/// kind is `SceneKind::Null`, which no registry can resolve -- so a caller that forgets to set one gets a refused
+	/// `opened()` (see below) rather than an empty guest.
 	/// @param initial The scene to push.
 	void setInitialScene(deluge::ui::shell::SceneId initial) { initial_ = initial; }
 	/// @brief What `opened()` will push.
@@ -366,8 +352,8 @@ public:
 	/// @brief The hook installed; none when none is.
 	static CloseHook closeHook() { return closeHook_; }
 
-	/// @brief The shell this guest runs. Tasks 6-8 reach the input lowering, the services and the
-	///        tick through here.
+	/// @brief The shell this guest runs; the input lowering, the services and the tick are reached
+	///        through here.
 	deluge::ui::shell::Shell& shell() { return shell_; }
 	/// @brief The surfaces the shell renders through.
 	GuestSurfaceSet& surfaces() { return surfaces_; }
@@ -437,8 +423,7 @@ private:
 	/// The one body behind `renderMainPads` and `renderSidebar`, which differ only in their column
 	/// span and in which of legacy's two send paths picks the result up.
 	/// @param whichRows Bit `y` selects row `y`; legacy's own convention
-	///                  (`gfx/grid/pad_grid.h:36`, "matches what the existing renderMainPads(whichRows)
-	///                  already consumes").
+	///                  (`PadGrid`'s row mask, matching what `renderMainPads(whichRows)` consumes).
 	/// @param image     Legacy's pad image, or null for the opacity-query form.
 	/// @param x0        First grid/image column to copy.
 	/// @param x1        One past the last.
@@ -456,14 +441,12 @@ private:
 	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
 	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
 	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
-	/// need a lossy `/ 44` on every call. Plan F1 forbids a wall
-	/// clock inside `src/shell/**` and `src/ui/**` (`shell-no-clock`); supplying one is exactly
-	/// what a host is for.
+	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
+	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
 	///
 	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
 	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
-	/// @note Not `static`, so F1 task 7's tick can be given a different clock in one place if it
-	///       needs one.
+	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
 	uint32_t nowMs() const;
 
 	/// @brief Feed one already-detented encoder turn to the shell as A-pin edges.
@@ -471,13 +454,13 @@ private:
 	/// Legacy's four function encoders reach a `UI` in **detents** -- `interpretEncoders` calls
 	/// `DetentedEncoder::take()` and hands the result over (`hid/encoder_input.cpp:112`,
 	/// `hid/encoders.cpp:28-38`) -- while the shell's entry point takes **edges** and divides by
-	/// `LoweringConfig::edges_per_detent` itself (`shell/input_lowering.cpp:178-186`). So this
+	/// `LoweringConfig::edges_per_detent` itself. So this
 	/// multiplies back up. Feeding the detent count straight through would halve every turn.
 	///
 	/// @warning **The `int8_t` ceiling, and why this saturates instead of wrapping.**
-	///          `Shell::on_encoder_edges` takes an `int8_t` (`shell/shell.h:295`), so the product
-	///          must fit in -128..127; the lowering's own warning records what happens when it does
-	///          not (`shell/input_lowering.h:407-430`). **The guest can exceed it.** Legacy's
+	///          `Shell::on_encoder_edges` takes an `int8_t`, so the product
+	///          must fit in -128..127; the warning on `InputLowering::apply_encoder_edges` records what
+	///          happens when it does not. **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
 	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` skips the
 	///          `take()` entirely while the SD routine is yielding (`hid/encoder_input.cpp:96-106`,
@@ -495,7 +478,7 @@ private:
 	/// @param role    Which encoder the turn belongs to. Resolved to a board index through
 	///                `BoardProfile::encoder_by_index` rather than hard-coded, because that table
 	///                is what the lowering resolves back through
-	///                (`shell/input_lowering.cpp:166-170`) and a profile may order it differently.
+	///                (`InputLowering::apply_encoder_edges`) and a profile may order it differently.
 	///                A role no index carries is dropped.
 	/// @param detents The signed detent count legacy handed over.
 	void feedDetents(deluge::ui::EncoderRole role, int32_t detents);
@@ -507,7 +490,7 @@ private:
 	/// @brief Re-arm `TimerName::UI_SPECIFIC` from the shell's own deadline.
 	///
 	/// Called from `timerCallback` and nowhere else, because `Shell::next_wake()` is only
-	/// authoritative immediately after a `tick()` recomputed it (`shell/shell.cpp:536`).
+	/// authoritative immediately after a `tick()` recomputed it.
 	/// See `@par The unit mismatch` on the class for the conversion and both clamps.
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
@@ -515,7 +498,7 @@ private:
 	/// before calling, `gui/ui_timer_manager.cpp:66`). **With one exception**: while the lowering
 	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
 	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
-	/// input-driven -- F1 task 6 recorded the divergence and named this function as its home.
+	/// input-driven.
 	/// @param nowMs The clock the tick just ran on.
 	void rearmTimer(uint32_t nowMs);
 
@@ -540,10 +523,10 @@ private:
 	/// (`gui/ui/ui.cpp:197`). Callers must not re-arm after it.
 	void closeGuest();
 
-	/// @brief Does the scene that would receive this pad claim it? Spec §3.1's predicate.
+	/// @brief Does the scene that would receive this pad claim it? The grid-claim predicate.
 	///
 	/// `input_top()`, not `top()`: a passive overlay (popup, console, working animation) is
-	/// `input_transparent()` and is not the scene whose grid this is (`shell/scene.h:445`). Asking
+	/// `input_transparent()` (`Scene::input_transparent`) and is not the scene whose grid this is. Asking
 	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
@@ -585,10 +568,9 @@ private:
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
 	///        `edges_per_detent` back.
 	///
-	/// `InputLowering` exposes `profile()` (`shell/input_lowering.h:278`) and `shift_is_sticky()`
-	/// (`:223`) but not the edge ratio, and a literal `2` here would silently go stale the day
-	/// F1 task 8 seats a real config. Declared before `shell_` so it is alive when the constructor
-	/// hands it over.
+	/// `InputLowering` exposes `profile()` and `shift_is_sticky()` but not the edge ratio, and a
+	/// literal `2` here would silently go stale the day a real config is seated. Declared before `shell_` so it is
+	/// alive when the constructor hands it over.
 	///
 	/// `greys_in_send_path` is set because legacy's `prepareColour` greys every pad the guest sends.
 	deluge::ui::shell::ShellConfig config_{.greys_in_send_path = true};
@@ -605,6 +587,6 @@ private:
 
 /// @brief The one guest, named the way legacy names its UIs (`extern SoundEditor soundEditor;`).
 ///
-/// Constructed over `deluge::scenes::scene_registry()`. Task 9's entry points push it with
+/// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
 /// `openUI(&shellHostUI)` when `RuntimeFeatureSettingType::ShellMenu` is on.
 extern deluge::gui::ui::ShellHostUI shellHostUI;

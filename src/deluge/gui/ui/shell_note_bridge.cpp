@@ -21,9 +21,9 @@
 ///
 /// One static function per `NoteBridge` entry, each a transcription of the legacy statement cited
 /// on it -- `gui/menu_item/note/*.h` and `gui/menu_item/note_row/*.h`, which `src/scenes` may not
-/// include (spec §5.4). Every read that legacy leaves unanswered when nothing is selected (no
-/// pressed note, no note row) returns 0 here; the popup and the edit guard belong to Task 5's
-/// `Binding::permitted` hook.
+/// include. Every read that legacy leaves unanswered when nothing is selected (no pressed note, no
+/// note row) returns 0 here; the popup and the edit guard belong to the leaves' `Binding::permitted`
+/// hook.
 
 #include "gui/ui/shell_note_bridge.h"
 #include "deluge-project/sequence_direction.h"
@@ -108,7 +108,7 @@ void adjust_note_probability(int32_t offset) {
 }
 
 /// @brief Leftmost pressed note's `getIterance().toInt()` (`gui/menu_item/note/iterance_preset.h:44-52`
-///        reads the same note's iterance, as a raw int rather than a preset index -- Task 5's leaf
+///        reads the same note's iterance, as a raw int rather than a preset index -- the scenes' leaf
 ///        converts with `Iterance::toPresetIndex()` itself, since `model/iterance/` is includable
 ///        from `src/scenes`); a null leftmost note returns 0.
 int32_t note_iterance() {
@@ -201,7 +201,7 @@ void adjust_row_probability(int32_t offset) {
 
 /// @brief `IterancePreset::readCurrentValue`'s read, `noteRow->iteranceValue.toInt()`, as a raw int
 ///        rather than a preset index (`gui/menu_item/note_row/iterance_preset.h:48-60`, whose
-///        `toPresetIndex()` conversion Task 5's leaf performs itself); no row answers 0.
+///        `toPresetIndex()` conversion the scenes' leaf performs itself); no row answers 0.
 int32_t row_iterance() {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -259,12 +259,11 @@ void adjust_row_fill(int32_t offset) {
 ///            happens to be displayed at `lastAuditionedYDisplay`, which is not what legacy's kit
 ///            arm (`:44-49`, keyed on `kit->selectedDrum`) or its final fallback (`:62`) do. Both of
 ///            those are `bindings.h`'s `read_sequence_direction`/`write_sequence_direction`'s
-///            concern, not this bridge's -- a kit clip here answers "no row" (`fix round 1,
-///            important 3`: the first cut of this function omitted `:50`'s test entirely).
+///            concern, not this bridge's -- a kit clip here answers "no row".
 ///          * `:51`'s outer gate, `soundEditor.selectedNoteRow`, is NOT transcribed: it is latched
 ///            from `isUIModeActive(UI_MODE_AUDITIONING)` at legacy's session begin (`:118`), which
-///            the port never calls, so spec §5.5 gates the equivalent condition at the call site
-///            instead (Task 6 calls both these entries only under `Root::NoteRowEditor`).
+///            the port never calls, so the equivalent condition is gated at the call site
+///            instead (both these entries are called only under `Root::NoteRowEditor`).
 ModelStackWithNoteRow* noteRowForSequenceDirection(ModelStackWithTimelineCounter* modelStack) {
 	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 	if (clip->output->type == OutputType::KIT) {

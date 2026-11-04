@@ -294,8 +294,8 @@ gotError:
 
 	if (is_dx) {
 		// F1 task 9, site 11 of 14: **not gated, and it stays that way until `dxMenu` has a port.**
-		// `src/scenes/README.md` records the three bespoke DX items as owed to E2's browser work, so
-		// there is no node to name here -- and naming the wrong one is worse than opening the legacy
+		// `src/scenes/README.md`'s "Legacy features not yet ported" lists `dxMenu`'s three bespoke DX
+		// items, so there is no node to name here -- and naming the wrong one is worse than opening the legacy
 		// menu. `gui/ui/shell_menu_entry.cpp`'s table has all fourteen sites and this one's row.
 		soundEditor.setup(clip, &dxMenu, 0);
 		openUI(&soundEditor);

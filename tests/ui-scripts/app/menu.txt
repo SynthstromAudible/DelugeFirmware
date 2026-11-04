@@ -1,4 +1,4 @@
-# Level 3 (spec G §4.2): **the branch's acceptance test.** One script, run twice against two SD-card
+# Level 3: **the acceptance test for the ported menu.** One script, run twice against two SD-card
 # fixtures that differ by exactly one file, and the two trees compared against each other:
 #
 #   ui_app_scripts_menu        SD root tests/fixtures/card             -> ShellMenu OFF: legacy SoundEditor
@@ -39,10 +39,10 @@
 # tree. Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:898`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
 # that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
-# where address 0 is mapped. Recorded in F1 task 11's report; this script stays on a clip-carrying
+# where address 0 is mapped. This script stays on a clip-carrying
 # site so that the leg it would crash is the one that has to run.
 #
-# The shape is spec E §7's: boot into a scene, one navigation, one edit gesture, one popup, back out.
+# The shape: boot into a scene, one navigation, one edit gesture, one popup, back out.
 #
 # 50 ms rather than 0: the legacy app blits its first OLED frame from inside the main loop, after
 # its first input poll, so nothing has been drawn at 0 ms (boot.txt's own note).
@@ -67,15 +67,14 @@
 
 # Back out. A SHORT Back, which is the exit a user actually performs: the long press goes through
 # `TimerName::BACK_MENU_EXIT` -> `exitUI()` (`hid/buttons.cpp:114-121`,
-# `gui/ui_timer_manager.cpp:149-155`), and the short one does not. This step is what found F1 task
-# 11's port defect -- before the fix, the toggle-on leg was left wedged here with an empty shell
-# stack and every later press swallowed.
+# `gui/ui_timer_manager.cpp:149-155`), and the short one does not. A toggle-on leg that mishandles it is
+# left wedged here with an empty shell stack and every later press swallowed.
 1300   button Back down
 1320   button Back up
 1500   snapshot menu-exit
 
 # ---------------------------------------------------------------------------------------------
-# F2 task 8: **one MenuAction verb, performed end to end, from a real press.**
+# **One MenuAction verb, performed end to end, from a real press.**
 #
 # Everything above is the *shape* of a menu visit. Everything below drives
 # `MenuAction::SetClipLengthToSampleLength` through `gui::ui::dispatchShellActions`'s arm
@@ -84,7 +83,7 @@
 # (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`). The two popups are
 # byte-identical, which is the claim.
 #
-# **Why this verb, when the plan asked for a different one.** Of `MenuAction`'s seven enumerators,
+# **Why this verb.** Of `MenuAction`'s seven enumerators,
 # six cannot be reached by any script, and five of those for one reason: `SoundEditor::setup`
 # dereferences a null `clip` at `gui/ui/sound_editor.cpp:1893` (`else if (clip->type == ...)`,
 # reached whenever `currentSound` is null), so every `soundEditor.setup()` call that passes no clip
@@ -92,11 +91,11 @@
 # (SELECT from the session view / arranger -> Song) and 4 (performance view), i.e. every root that
 # holds `SetShortcutsVersion`, `ScreensaverSettingsChanged`, `OpenSongMidiLearn`, `OpenSongMacros`
 # and `OpenPerformanceView`. Measured under gdb, in the toggle-OFF leg, on an unmodified tree --
-# the same pre-existing legacy bug F1 task 11 recorded in this file's own note above, which is why
+# the same pre-existing legacy bug noted above, which is why
 # the script had stayed on `InstrumentClipMinder`'s clip-carrying site 6. `StartStemExport` is
 # reachable only from the song root (the same crash) or the kit-global-FX root, which needs a kit
 # this empty card cannot create ("NO MORE PRESETS FOUND"), and would write stems to the fixture.
-# That leaves this one. F2 task 8's report has the whole table.
+# That leaves this one.
 #
 # **The route is the gesture a user performs**, not a back door: convert the boot song's one
 # (empty) synth clip to an audio clip in the song view -- hold its pad, press the select encoder
@@ -171,19 +170,19 @@
 # (`gui/views/audio_clip_view.cpp:758-769`) ends in one of two `displayPopup`s, and this clip has a
 # sample holder, so it is the CLIP LENGTH ADJUSTED arm (`:764`). Break the dispatcher's
 # `SetClipLengthToSampleLength` arm and this panel loses the popup while the OFF leg keeps it,
-# which is what makes the A/B red -- proven, F2 task 8 report step 5.
+# which is what makes the A/B red -- proven.
 6350   snapshot verb-done
 
 # ---------------------------------------------------------------------------------------------
-# F3 task 4: **the ported file selector, opened by a real press, over a real card.**
+# **The ported file selector, opened by a real press, over a real card.**
 #
-# Everything above drives menus. This drives the one thing the whole F3 plan was for: **site 8**
+# Everything above drives menus. This drives **site 8**
 # (`gui/views/instrument_clip_view.cpp:502-519`), the only one of the eight gated
 # `openUI(&soundEditor)` sites that names a *leaf* rather than a root -- legacy
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` at `:515`, the
 # guest's `openShellMenu(..., ShellMenuNode::Osc0FileSelector)` at `:507-511`. It is reachable from
 # the boot view with no SHIFT, so it does NOT hit the null-`Clip*` `SoundEditor::setup` crash that
-# confined F2 task 8 to one MenuAction arm of seven.
+# confines the MenuAction verb above to one arm of seven.
 #
 # **The gesture is legacy's own**: hold an audition pad on a synth clip and press LOAD.
 # `InstrumentClipView::buttonAction`'s arm is `currentUIMode == UI_MODE_AUDITIONING && (b == LOAD ||
@@ -195,7 +194,7 @@
 # song-grid pad is legacy's create gesture (`gui/views/session_view.cpp:849-882`,
 # `createNewInstrumentClip` at `:876`), and it makes a SYNTH whatever the defaults say, because
 # `:873-874` rewrites NONE/CV/AUDIO to SYNTH. Appending rather than inserting is deliberate: every
-# timestamp above is unchanged, so no golden recorded before this task can move for a timing reason.
+# timestamp above is unchanged, so no earlier golden moves for a timing reason.
 #
 # **The card fixture holds a sample now** -- `SAMPLES/TONE.WAV`, generated by
 # `scripts/make_fixture_sample.py` and byte-identical in both SD roots -- because a browser over a
@@ -204,7 +203,7 @@
 # `favouritesManager.setCategory("SAMPLES")` (`gui/ui/browser/sample_browser.cpp:105`) would
 # otherwise write into the fixture on the OFF leg alone.
 #
-# **Two port defects were found here and both are fixed** (F3 task 4's report has the table):
+# **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1993`), so the ported browser refused to open at all; and
 # `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:871`) which
@@ -236,7 +235,7 @@
 9600   snapshot synth-clip-made
 
 # Site 8, in two presses. `auditioning` is the held audition pad; `file-selector` is the panel this
-# whole plan exists to compare -- legacy's `SampleBrowser` (title "Audio files",
+# acceptance test exists to compare -- legacy's `SampleBrowser` (title "Audio files",
 # `sample_browser.cpp:89`) against the ported `browser::BrowserScene` on the `Sample` descriptor
 # (the same title, `scenes/browser/browser_scene.cpp:294`), both listing the fixture's one file.
 #
@@ -258,17 +257,18 @@
 # **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
 # (`sample_browser.cpp:392`) with the toggle off, and with it on it is `BrowserScene`'s deferred
 # choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
-# `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile` (F3 tasks 1-2), whose
-# success arm re-roots the ported menu onto the source page (F3 task 3).
+# `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
+# success arm re-roots the ported menu onto the source page.
 #
 # **The landing page is deliberately NOT photographed, and that is a finding rather than a gap.**
 # Both legs land on the same page with the same column focused -- measured -- but they draw it
-# differently, for reasons this task did not close: `FileSelector::renderInHorizontalMenu`
+# differently, for reasons that are undiagnosed: `FileSelector::renderInHorizontalMenu`
 # (`gui/menu_item/file_selector.cpp:88-91`) and `FileSelector::getColumnLabel` (`:93-114`, which
 # shows the loaded sample's folder, "SAMPLES", where the port shows the node's own name "FILE")
 # have no port, and the fourth visible column differs (legacy PLAY MODE, port REVERSE). Recording
-# that panel would be photographing a difference this task has not explained, which is exactly what
-# F3 task 4's brief forbids. `src/scenes/README.md` carries all three.
+# that panel would be photographing a difference nobody has explained. Of these, only the fourth-column
+# difference remains, listed in `src/scenes/README.md`'s "Legacy features not yet ported"; the column
+# renderer and the folder column label are ported.
 12000  button SelectEnc down
 12020  button SelectEnc up
 
@@ -279,8 +279,8 @@
 # claim press removed produces the same bytes here, checked. Its two teeth are that a claim which
 # SIGSEGVs writes no snapshot at all and fails `ui_app_scripts_menu_shell` outright (which is what
 # the ON leg did before `SoundEditor::adoptResolvedContext`), and that a menu left wedged with a
-# non-empty shell stack swallows these two Backs -- the failure mode F1 task 11 found on the very
-# first exit.
+# non-empty shell stack swallows these two Backs -- the failure mode of the short-Back exit
+# above.
 14000  button Back down
 14020  button Back up
 14400  button Back down
@@ -290,9 +290,8 @@
 # **The gesture this script never made, and why it is here.** Everything above opens menus and
 # turns encoders; the only main-grid presses (`pad 0 7`, `pad 0 6`) happen with no menu open, to
 # make a clip. So `SoundEditor::padAction`'s forwarding switch and its `exitCompletely()` tail
-# (`gui/ui/sound_editor.cpp:1474-1545`) were never once exercised by the acceptance test, and the
-# guest's divergence from both shipped through five task reviews and three whole-branch reviews.
-# See the pad-forwarding spec §7.2.
+# (`gui/ui/sound_editor.cpp:1474-1545`) are exercised by no other part of this test, so this
+# gesture drives them.
 #
 # Root here is `InstrumentClipView` (the `claim-exited` snapshot above), which is the one root that
 # reaches two arms: the audition column at `x == kDisplayWidth + 1` (`:1500-1502`) and the tail.
@@ -320,9 +319,9 @@
 19000  snapshot pad-menu-closed
 
 # ---------------------------------------------------------------------------------------------
-# Note-family task 8: **sites 12 and 13 of `gui/ui/shell_menu_entry.cpp`'s table, the note editor
-# and the note-row editor.** Both are gated from this commit, and this is the first run in which
-# the ported leg reaches either one.
+# **Sites 12 and 13 of `gui/ui/shell_menu_entry.cpp`'s table, the note editor
+# and the note-row editor.** Both are gated, and the ported leg reaches each
+# one here.
 #
 # Root here is `InstrumentClipView` with no menu open, and the clip has no notes: `pad-menu-closed`
 # lights only the sidebar (x=16 on every row, x=17 on rows 0 and 7), identically on both legs.
