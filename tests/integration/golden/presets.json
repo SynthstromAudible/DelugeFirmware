@@ -2387,6 +2387,24 @@
   "rms_db": -26.11,
   "sha256": "3a981db7468d3146b90ad1d218769cbb9c75f239b6d46c122dd654c963173e64"
  },
+ "voice/ringmod_supersaws": {
+  "frames": 88200,
+  "peak": 173382912,
+  "rms_db": -29.24,
+  "sha256": "bb67a4dd66900c7bde2257a0ff30e27467be58052df0d8713b92fd5e6a2f8926"
+ },
+ "voice/ringmod_supersaws_resonance_middle": {
+  "frames": 88200,
+  "peak": 393450496,
+  "rms_db": -29.84,
+  "sha256": "133e364a882885850784d27a726f052ce82da4df87d2610b564285c5d9da8f8b"
+ },
+ "voice/ringmod_supersaws_resonance_top": {
+  "frames": 88200,
+  "peak": 803119104,
+  "rms_db": -17.68,
+  "sha256": "e39bb92ca36b69755ed36306eb984184f8230d69d95ca518bae91de244083235"
+ },
  "voice/ringmod_sync": {
   "frames": 88200,
   "peak": 173382912,
