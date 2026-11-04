@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -57,8 +58,8 @@ struct FadeIn {
 
 	/// @brief The levels. State{} is a fresh filter's: dry 1, wet kOneQ31, which is active.
 	struct State {
-		float dry = 1.0F;  ///< The dry level, 1 at the start of a fade, × 0.99 per step.
-		q31 wet = kOneQ31; ///< The wet level the next sample blends at, Q31.
+		float dry = 1.0F;         ///< The dry level, 1 at the start of a fade, × 0.99 per step.
+		Q<31> wet = Q<31>::max(); ///< The wet level the next sample blends at.
 	};
 
 	/// @brief The dry level below which the fade is over, compared as a double.
@@ -78,20 +79,21 @@ struct FadeIn {
 	}
 
 	/// @brief Starts fading in from dry: dry 1, wet 0. A fade under way restarts.
-	[[gnu::always_inline]] static void begin(State& s) { s = {.dry = 1.0F, .wet = 0}; }
+	[[gnu::always_inline]] static void begin(State& s) { s = {.dry = 1.0F, .wet = Q<31>{}}; }
 
 	/// @brief The filter set's zeroing: dry 0 and wet 0, no fade.
-	[[gnu::always_inline]] static void zero(State& s) { s = {.dry = 0.0F, .wet = 0}; }
+	[[gnu::always_inline]] static void zero(State& s) { s = {.dry = 0.0F, .wet = Q<31>{}}; }
 
 	/// @brief One channel-sample: the blend at the current level, then the level's step.
 	/// @param s The levels, stepped once.
 	/// @param dry The dry sample, Q31.
 	/// @param wet The filtered sample, Q31.
 	/// @return dry_wet_blend(dry, wet, level) at the level before the step, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 blend_step(State& s, q31 dry, q31 wet) {
-		const q31 out = dry_wet_blend(dry, wet, s.wet);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> blend_step(State& s, Q<31> dry, Q<31> wet) {
+		const Q<31> out = dry_wet_blend(dry, wet, s.wet);
 		s.dry = static_cast<float>(static_cast<double>(s.dry) * kDecay);
-		s.wet = static_cast<q31>(static_cast<float>(kOneQ31) * (1.0F - s.dry));
+		// Raw: the level's float ramp, converted by the same cast the target makes
+		s.wet = Q<31>::from_raw(static_cast<int32_t>(static_cast<float>(kOneQ31) * (1.0F - s.dry)));
 		return out;
 	}
 
@@ -102,8 +104,8 @@ struct FadeIn {
 	/// @return The blended frame, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample dry, StereoSample wet) {
-		const q31 l = blend_step(s, dry.l, wet.l);
-		const q31 r = blend_step(s, dry.r, wet.r);
+		const Q<31> l = blend_step(s, dry.l, wet.l);
+		const Q<31> r = blend_step(s, dry.r, wet.r);
 		return {.l = l, .r = r};
 	}
 };
@@ -114,8 +116,8 @@ struct FadeIn {
 /// order exactly. So an owner whose blocks are mono on some calls and interleaved stereo on others runs this one form
 /// over both and keeps one State, as @ref FilterSet does.
 struct FadeInMono {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< One sample per step.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< One sample per step.
 
 	using Settings = FadeIn::Settings;         ///< Nothing to set.
 	using Coefficients = FadeIn::Coefficients; ///< Nothing to read but the State.
@@ -131,8 +133,8 @@ struct FadeInMono {
 	/// @param dry The dry sample, Q31.
 	/// @param wet The filtered sample, Q31.
 	/// @return The blend, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 dry, q31 wet) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> dry, Q<31> wet) {
 		return FadeIn::blend_step(s, dry, wet);
 	}
 };

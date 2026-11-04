@@ -22,6 +22,7 @@
 // render is pinned (filter_workload_records.h): each block's output and draws, the values drawn, and the state at the
 // end; the firmware's renders must equal the same pins.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/fade_in.h"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "filter_workload_records.h"
@@ -48,9 +49,14 @@ namespace {
 
 namespace fixed = deluge::dsp::fixed;
 namespace ref = filters_reference;
-using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
+using deluge::dsp::typed_view;
 using filter_workloads::Digest;
+
+/// @brief The reference set's raw scratch as the firmware set's typed scratch, over the same storage.
+[[nodiscard]] fixed::FilterScratch typed(ref::FilterScratch scratch) {
+	return {.fade = typed_view(scratch.fade), .parallel = typed_view(scratch.parallel)};
+}
 
 /// @brief The firmware's FilterSet behind the reference set's interface, its state digested as
 /// @ref filters_reference::ReferenceFilterSet::digest digests the reference's.
@@ -60,10 +66,10 @@ using filter_workloads::Digest;
 /// slot takes a ladder over (a fresh, zeroed ladder in the reference).
 class FirmwareSet {
 public:
-	[[nodiscard]] q31 configure(q31 gain, const fixed::FilterConfig& low, fixed::LowPassSlot low_slot,
-	                            const fixed::FilterConfig& high, fixed::HighPassSlot high_slot,
-	                            fixed::FilterRoute route) {
-		const q31 out = set_.configure(gain, low, low_slot, high, high_slot, route);
+	[[nodiscard]] q31_t configure(q31_t gain, const ref::FilterConfig& low, fixed::LowPassSlot low_slot,
+	                              const ref::FilterConfig& high, fixed::HighPassSlot high_slot,
+	                              fixed::FilterRoute route) {
+		const q31_t out = set_.configure(gain, ref::typed(low), low_slot, ref::typed(high), high_slot, route);
 		const fixed::FilterSet::View v = set_.view();
 		if (v.low_held != low_held_) {
 			ladder_ = {};
@@ -75,11 +81,11 @@ public:
 		return out;
 	}
 
-	void render_mono(std::span<q31> block, fixed::FilterScratch scratch) {
-		set_.render_mono(block, scratch, deluge::synth_noise);
+	void render_mono(std::span<q31_t> block, ref::FilterScratch scratch) {
+		set_.render_mono(typed_view(block), typed(scratch), deluge::synth_noise);
 	}
-	void render_stereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
-		set_.render_stereo(interleaved, scratch, deluge::synth_noise);
+	void render_stereo(std::span<q31_t> interleaved, ref::FilterScratch scratch) {
+		set_.render_stereo(typed_view(interleaved), typed(scratch), deluge::synth_noise);
 	}
 
 	void reset() {
@@ -135,7 +141,7 @@ template <bool kStereo>
 struct FirmwareFamily : kernel_filters::KernelFamily<kStereo> {
 	using FilterSet = FirmwareSet;
 
-	[[nodiscard]] static fixed::FilterScratch filter_scratch(std::span<q31> fade, std::span<q31> parallel) {
+	[[nodiscard]] static ref::FilterScratch filter_scratch(std::span<q31_t> fade, std::span<q31_t> parallel) {
 		return {.fade = fade, .parallel = parallel};
 	}
 
@@ -152,7 +158,7 @@ using filter_workloads::ReferenceFamily;
 /// @return Whether two fades' levels are the same, bit for bit.
 [[nodiscard]] bool same_fade(const ref::ReferenceDryWetFade& reference, const fixed::FadeIn::State& firmware) {
 	return std::bit_cast<uint32_t>(reference.dry()) == std::bit_cast<uint32_t>(firmware.dry)
-	       && reference.wet() == firmware.wet;
+	       && reference.wet() == firmware.wet.raw();
 }
 
 /// @return Each filter workload where the firmware parts from the reference, named with the block and what parted: a
@@ -180,14 +186,14 @@ using filter_workloads::ReferenceFamily;
 /// (advanced by the block's draws) and the caller's put back after.
 /// @return The gain the set returns, Q31.
 template <typename Scratch, typename Set>
-q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, bool mono, std::vector<q31>& block,
-               std::span<q31> fade, std::span<q31> parallel) {
+q31_t play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, bool mono, std::vector<q31_t>& block,
+                 std::span<q31_t> fade, std::span<q31_t> parallel) {
 	const uint32_t outer = deluge::synth_noise.state();
 	deluge::synth_noise.seed(cong);
 	if (s.event == filter_workloads::Event::RESET) {
 		set.reset();
 	}
-	const q31 gain = set.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
+	const q31_t gain = set.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
 	const Scratch scratch{.fade = fade.first(block.size()), .parallel = parallel};
 	if (mono) {
 		set.render_mono(block, scratch);
@@ -209,21 +215,21 @@ alternating_parting(const filter_workloads::FilterWorkload& workload) {
 	FirmwareSet firmware;
 	uint32_t reference_cong = filter_workloads::kCongSeed;
 	uint32_t firmware_cong = filter_workloads::kCongSeed;
-	std::vector<q31> fade(2 * filter_workloads::kMaxFrames);
-	std::vector<q31> parallel(2 * filter_workloads::kMaxFrames);
+	std::vector<q31_t> fade(2 * filter_workloads::kMaxFrames);
+	std::vector<q31_t> parallel(2 * filter_workloads::kMaxFrames);
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		const filter_workloads::FilterStep s = workload.step(b);
 		const bool mono = b % 2 == 0;
-		std::vector<q31> in = filter_workloads::filter_input(workload, b);
+		std::vector<q31_t> in = filter_workloads::filter_input(workload, b);
 		if (mono) {
 			in.resize(in.size() / 2);
 		}
-		std::vector<q31> out_reference = in;
-		std::vector<q31> out_firmware = in;
-		const q31 gain_reference =
+		std::vector<q31_t> out_reference = in;
+		std::vector<q31_t> out_firmware = in;
+		const q31_t gain_reference =
 		    play_block<ref::FilterScratch>(reference, reference_cong, s, mono, out_reference, fade, parallel);
-		const q31 gain_firmware =
-		    play_block<fixed::FilterScratch>(firmware, firmware_cong, s, mono, out_firmware, fade, parallel);
+		const q31_t gain_firmware =
+		    play_block<ref::FilterScratch>(firmware, firmware_cong, s, mono, out_firmware, fade, parallel);
 		if (out_reference != out_firmware) {
 			return filter_workloads::Parting{.block = b, .what = "output"};
 		}
@@ -248,7 +254,7 @@ alternating_parting(const filter_workloads::FilterWorkload& workload) {
 	return std::nullopt;
 }
 
-/// @return How many samples of @p workload (a parallel set) sum past q31 when its low-pass and high-pass run alone
+/// @return How many samples of @p workload (a parallel set) sum past Q31 when its low-pass and high-pass run alone
 /// and are added in 64 bits, and how many of its outputs differ from the two added wrapping.
 [[nodiscard]] std::pair<size_t, size_t> parallel_wraps(const filter_workloads::FilterWorkload& workload) {
 	using filter_workloads::FilterStep;
@@ -269,9 +275,9 @@ alternating_parting(const filter_workloads::FilterWorkload& workload) {
 	filter_workloads::FilterRun<ReferenceFamily> both{workload};
 	filter_workloads::FilterRun<ReferenceFamily> low_alone{low};
 	filter_workloads::FilterRun<ReferenceFamily> high_alone{high};
-	std::vector<q31> out;
-	std::vector<q31> out_low;
-	std::vector<q31> out_high;
+	std::vector<q31_t> out;
+	std::vector<q31_t> out_low;
+	std::vector<q31_t> out_high;
 	Digest noise;
 	size_t wraps = 0;
 	size_t mismatched = 0;
@@ -369,7 +375,7 @@ describe verbatim_filters("the filters' verbatim references", ${
 			filter_workloads::FilterRun<ReferenceFamily> reference{workload};
 			filter_workloads::FilterRun<FirmwareFamily<false>> mono{workload};
 			filter_workloads::FilterRun<FirmwareFamily<true>> stereo{workload};
-			std::vector<q31> out;
+			std::vector<q31_t> out;
 			Digest noise;
 			std::vector<bool> active;
 			for (size_t b = 0; b <= std::max(blocks); ++b) {

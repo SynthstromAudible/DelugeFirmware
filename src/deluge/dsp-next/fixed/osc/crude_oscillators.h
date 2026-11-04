@@ -52,7 +52,7 @@ class CrudeSaw {
 	Phase phasor_;
 
 public:
-	using value_type = q31; ///< Full-scale q31 wave samples.
+	using value_type = Q<31>; ///< Full-scale wave samples.
 
 	explicit CrudeSaw(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
@@ -65,9 +65,9 @@ public:
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void render_block(Buffer output) {
-		for (q31& sample : output) {
-			sample = static_cast<int32_t>(phasor_.advance().raw());
+	void render_block(dsp::Buffer<Q<31>> output) {
+		for (Q<31>& sample : output) {
+			sample = reinterpret_bits<Q<31>>(phasor_.advance());
 		}
 	}
 };
@@ -86,7 +86,7 @@ class CrudeSquare {
 	uint32_t pulse_width_;
 
 public:
-	using value_type = q31; ///< Full-scale q31 wave samples.
+	using value_type = Q<31>; ///< Full-scale wave samples.
 
 	CrudeSquare(Phase phasor, uint32_t pulse_width) : phasor_{phasor}, pulse_width_{pulse_width} {}
 	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
@@ -99,9 +99,9 @@ public:
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void render_block(Buffer output) {
-		for (q31& sample : output) {
-			sample = square(phasor_.advance().raw(), pulse_width_);
+	void render_block(dsp::Buffer<Q<31>> output) {
+		for (Q<31>& sample : output) {
+			sample = Q<31>::from_raw(square(phasor_.advance().raw(), pulse_width_));
 		}
 	}
 };
@@ -118,7 +118,7 @@ class CrudeTriangle {
 	Phase phasor_;
 
 public:
-	using value_type = q31; ///< Full-scale q31 wave samples.
+	using value_type = Q<31>; ///< Full-scale wave samples.
 
 	explicit CrudeTriangle(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
@@ -131,9 +131,9 @@ public:
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void render_block(Buffer output) {
-		for (q31& sample : output) {
-			sample = triangle_half_scale(phasor_.advance().raw());
+	void render_block(dsp::Buffer<Q<31>> output) {
+		for (Q<31>& sample : output) {
+			sample = Q<31>::from_raw(triangle_half_scale(phasor_.advance().raw()));
 		}
 	}
 };
@@ -151,7 +151,7 @@ class CrudeSine {
 	Phase phasor_;
 
 public:
-	using value_type = q31; ///< Full-scale q31 wave samples.
+	using value_type = Q<31>; ///< Full-scale wave samples.
 
 	explicit CrudeSine(Phase phasor) : phasor_{phasor} {}
 	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
@@ -164,9 +164,9 @@ public:
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void render_block(Buffer output) {
-		for (q31& sample : output) {
-			sample = kSineTable.value(phasor_.advance().raw());
+	void render_block(dsp::Buffer<Q<31>> output) {
+		for (Q<31>& sample : output) {
+			sample = Q<31>::from_raw(kSineTable.value(phasor_.advance().raw()));
 		}
 	}
 };

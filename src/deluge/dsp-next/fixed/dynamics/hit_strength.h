@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/sample.h"
 
 #include <algorithm>
@@ -32,24 +32,24 @@ namespace deluge::dsp::fixed {
 /// @brief Two hit strengths (Q31) arriving before one block, combined: the stronger half plus half the clamped sum.
 /// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (kOneQ31) before it is
 /// halved, so the result never exceeds full scale.
-[[nodiscard]] [[gnu::always_inline]] constexpr q31 combine_hit_strengths(q31 a, q31 b) {
-	// Full scale, kOneQ31, unsigned: the sum is clamped to it.
-	constexpr uint32_t kFullScale{kOneQ31};
-	const uint32_t sum = std::min(static_cast<uint32_t>(a) + static_cast<uint32_t>(b), kFullScale);
-	return (std::max(a, b) >> 1) + static_cast<q31>(sum >> 1);
+[[nodiscard]] [[gnu::always_inline]] constexpr Q<31> combine_hit_strengths(Q<31> a, Q<31> b) {
+	// Full scale, unsigned: the sum is clamped to it. Raw: an unsigned sum clamped below 2^31 has no typed form
+	constexpr auto kFullScale = static_cast<uint32_t>(Q<31>::max().raw());
+	const uint32_t sum = std::min(static_cast<uint32_t>(a.raw()) + static_cast<uint32_t>(b.raw()), kFullScale);
+	return add_wrap(scale_shr_floor<1>(std::max(a, b)), Q<31>::from_raw(static_cast<int32_t>(sum >> 1)));
 }
 
 /// @brief A hit waiting for the next block. Strength Q31, 0 when none.
 struct PendingHit {
-	q31 strength{0}; ///< The hit's strength, Q31: how far below kOneQ31 it ducks. 0 is no hit.
+	Q<31> strength{}; ///< The hit's strength: how far below Q<31>::max() it ducks. 0 is no hit.
 
 	/// @return This hit combined with another of strength @p more (Q31), by @ref combine_hit_strengths.
-	[[nodiscard]] [[gnu::always_inline]] constexpr PendingHit with(q31 more) const {
+	[[nodiscard]] [[gnu::always_inline]] constexpr PendingHit with(Q<31> more) const {
 		return {combine_hit_strengths(strength, more)};
 	}
 
 	/// @return Whether no hit is waiting.
-	[[nodiscard]] [[gnu::always_inline]] constexpr bool empty() const { return strength == 0; }
+	[[nodiscard]] [[gnu::always_inline]] constexpr bool empty() const { return strength == Q<31>{}; }
 };
 
 } // namespace deluge::dsp::fixed

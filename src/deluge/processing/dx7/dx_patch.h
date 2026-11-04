@@ -50,8 +50,8 @@ public:
 
 	/// The patch's LFO, shared by its voices; configured from the patch before each block.
 	deluge::dsp::Control<deluge::dsp::fixed::dx7::Lfo> lfo;
-	/// The LFO's value after the last block, Q24.
-	int32_t lfo_value = 0;
+	/// The LFO's value after the last block.
+	deluge::dsp::Q<24> lfo_value{};
 
 	void computeLfo(int n);
 

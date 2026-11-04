@@ -15,8 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/lanes.h"
@@ -26,7 +29,6 @@
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
@@ -50,10 +52,19 @@ using namespace deluge::dsp;
 
 namespace {
 
+/// The test blocks are raw words; @p v viewed as the typed samples a component takes.
+std::span<Q<31>> typed(std::vector<int32_t>& v) {
+	return typed_view(std::span{v});
+}
+/// @copydoc typed(std::vector<int32_t>&)
+std::span<const Q<31>> typed(const std::vector<int32_t>& v) {
+	return typed_view(std::span{v});
+}
+
+using Tanh3 = fixed::Tanh<3>;
 using fixed::DuckEnvelope;
 using fixed::OnePole;
 using fixed::SeededNoise;
-using fixed::Tanh;
 using Tracker = fixed::ShiftTracker<11>;
 /// The shift tracker as a high-pass, its mode fixed at compile time.
 using Remove = Pinned<Tracker, Tracker::Mode::REMOVE>;
@@ -74,7 +85,7 @@ struct AddK {
 	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s, q31 x) {
 		++s.steps;
-		return wrapping_add(x, c.offset);
+		return add_wrap(x, c.offset);
 	}
 };
 
@@ -105,11 +116,11 @@ struct ScaleK {
 	static Block prepare(const Coefficients& c, State& s, std::size_t /*n*/) {
 		prepare_log.push_back(kLogId);
 		++s.prepares;
-		return {.gain = wrapping_add(c.base, s.acc >> 4)};
+		return {.gain = add_wrap(c.base, scale_shr_floor<4>(s.acc))};
 	}
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& s, q31 x) {
-		const q31 y = multiply_32x32_rshift32(x, b.gain) << 1;
-		s.acc = wrapping_add(s.acc, y >> 3);
+		const q31 y = mul_as_wrap<q31>(x, b.gain);
+		s.acc = add_wrap(s.acc, scale_shr_floor<3>(y));
 		return y;
 	}
 };
@@ -147,7 +158,7 @@ struct RampGen {
 	};
 	static Coefficients coefficients(const Settings& s) { return {.by = s.by}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s) {
-		s.v = wrapping_add(s.v, c.by);
+		s.v = add_wrap(s.v, c.by);
 		return s.v;
 	}
 };
@@ -163,7 +174,7 @@ struct SumMix {
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 a, q31 b) {
-		s.acc = wrapping_add(s.acc >> 1, wrapping_sub(a, b >> 1));
+		s.acc = add_wrap(scale_shr_floor<1>(s.acc), sub_wrap(a, scale_shr_floor<1>(b)));
 		return s.acc;
 	}
 };
@@ -178,9 +189,9 @@ struct QuirkK {
 		q31 z; ///< The running sum of each input's quarter.
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static void reset(State& s) { s.z = 7; }
+	static void reset(State& s) { s.z = q31::from_raw(7); }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
-		s.z = wrapping_add(s.z, x >> 2);
+		s.z = add_wrap(s.z, scale_shr_floor<2>(x));
 		return s.z;
 	}
 };
@@ -200,16 +211,16 @@ struct StagedK {
 	}
 };
 
-/// A vector processor: a pass-through over Argon<q31>.
+/// A vector processor: a pass-through over QVec<31>.
 struct VecK {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
-	                                              Argon<q31> x) {
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                            QVec<31> x) {
 		return x;
 	}
 };
@@ -218,8 +229,8 @@ struct VecK {
 struct VecCountedK : VecK {
 	static constexpr bool kPartialStepAdvancesByCount = true;
 	using VecK::step;
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
-	                                              Argon<q31> x, ActiveLanes /*n*/) {
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                            QVec<31> x, ActiveLanes /*n*/) {
 		return x;
 	}
 };
@@ -247,7 +258,7 @@ struct Picker {
 	template <Pick M>
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 x) {
 		++s.steps;
-		return wrapping_add(x, M == Pick::FIRST ? First : Second);
+		return add_wrap(x, q31::from_raw(M == Pick::FIRST ? First : Second));
 	}
 };
 
@@ -262,9 +273,9 @@ static_assert(processor_kernel<AddK> && processor_kernel<ScaleK> && generator_ke
 
 using Three = Chain<AddK, ScaleK, Remove>;
 using Inner = Chain<AddK, ScaleK>;
-using Nested = Chain<Inner, Tanh<3>>;
-using Flat = Chain<AddK, ScaleK, Tanh<3>>;
-using Generated = Chain<RampGen, Tanh<3>>;
+using Nested = Chain<Inner, Tanh3>;
+using Flat = Chain<AddK, ScaleK, Tanh3>;
+using Generated = Chain<RampGen, Tanh3>;
 using Mixed = Chain<SumMix, AddK>;
 using Quirky = Chain<AddK, QuirkK, ScaleK>;
 
@@ -290,7 +301,7 @@ static_assert(!detail::declares_prepare<Generated> && !detail::declares_prepare<
 static_assert(std::same_as<kernel_block_t<Generated>, EmptyBlock>);
 static_assert(!detail::declares_reset<Three> && !detail::declares_reset<Nested>);
 static_assert(detail::declares_reset<Quirky> && detail::resets_exactly<Quirky>);
-static_assert(detail::declares_reset<Chain<Quirky, Tanh<3>>>, "a nested chain's reset quirk is the outer chain's");
+static_assert(detail::declares_reset<Chain<Quirky, Tanh3>>, "a nested chain's reset quirk is the outer chain's");
 
 // Every aggregate of a three-part chain is a plain value.
 static_assert(detail::plain_value<Three::Settings> && detail::plain_value<Three::Coefficients>
@@ -316,7 +327,7 @@ using FilteredBoth = Chain<OnePole, Tracker>;
 
 // A chain's mode is its moded parts' modes; a chain of unmoded parts stays unmoded.
 static_assert(moded_kernel<Picked> && processor_kernel<Picked> && moded_kernel<PickedAround>);
-static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, Tanh<3>>>);
+static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, fixed::Tanh<3>>>);
 static_assert(!detail::has_modes<Three> && !detail::has_modes<Nested> && !detail::has_modes<Chain<Remove, Remove>>);
 static_assert(std::same_as<std::remove_cv_t<decltype(Picked::Coefficients{}.mode)>, Picked::Mode>);
 static_assert(detail::plain_value<Picked::Coefficients> && detail::plain_value<Filtered::Coefficients>
@@ -359,18 +370,18 @@ struct ModeOnly {
 static_assert(sizeof(Parts<ShaperLike, ModeOnly>) >= sizeof(ShaperLike) + sizeof(ModeOnly),
               "no part sits in another's tail padding");
 static_assert(sizeof(Parts<q31, EmptyBlock>) == sizeof(q31) && sizeof(Parts<EmptyBlock, q31>) == sizeof(q31)
-                  && sizeof(Parts<EmptyBlock, q31, Tanh<3>::State, AddK::Settings>) == 2 * sizeof(q31)
-                  && sizeof(Parts<q31, EmptyBlock, Tanh<3>::State>) == sizeof(q31),
+                  && sizeof(Parts<EmptyBlock, q31, Tanh3::State, AddK::Settings>) == 2 * sizeof(q31)
+                  && sizeof(Parts<q31, EmptyBlock, Tanh3::State>) == sizeof(q31),
               "an empty part takes no space beside parts holding bytes");
 
 /// The block lengths every case runs.
 constexpr std::size_t kMaxLength = 9;
 
 /// @p n samples of seeded noise.
-std::vector<q31> noise(std::size_t n, uint32_t seed) {
+std::vector<int32_t> noise(std::size_t n, uint32_t seed) {
 	SeededNoise stream{seed};
-	std::vector<q31> v(n);
-	for (q31& x : v) {
+	std::vector<int32_t> v(n);
+	for (int32_t& x : v) {
 		x = stream.render();
 	}
 	return v;
@@ -391,7 +402,8 @@ std::vector<unsigned char> bytes_of(const T& v) {
 
 /// The three-part chain's settings: an offset, a gain and the tracker (whose mode Pinned ignores).
 Three::Settings three_settings() {
-	return Three::Settings{AddK::Settings{.offset = 0x01234567}, ScaleK::Settings{.base = 0x50000000},
+	return Three::Settings{AddK::Settings{.offset = q31::from_raw(0x01234567)},
+	                       ScaleK::Settings{.base = q31::from_raw(0x50000000)},
 	                       Remove::Settings{.mode = Tracker::Mode::TRACK}};
 }
 
@@ -403,10 +415,10 @@ struct Sequential {
 
 	explicit Sequential(const Three::Settings& s) : add{get<0>(s)}, scale{get<1>(s)}, remove{get<2>(s)} {}
 
-	void render_block(const std::vector<q31>& in, std::vector<q31>& out) {
-		add.render_block(in, out);
-		scale.render_block(out, out);
-		remove.render_block(out, out);
+	void render_block(const std::vector<int32_t>& in, std::vector<int32_t>& out) {
+		add.render_block(typed(in), typed(out));
+		scale.render_block(typed(out), typed(out));
+		remove.render_block(typed_view(std::span{out}), typed_view(std::span{out}));
 	}
 };
 
@@ -422,11 +434,11 @@ std::vector<std::vector<unsigned char>> part_states(const Sequential& parts) {
 }
 
 /// @p frames as interleaved samples, left first.
-std::vector<q31> interleaved(const std::vector<StereoSample>& frames) {
-	std::vector<q31> v;
+std::vector<int32_t> interleaved(const std::vector<StereoSample>& frames) {
+	std::vector<int32_t> v;
 	for (const StereoSample& f : frames) {
-		v.push_back(f.l);
-		v.push_back(f.r);
+		v.push_back(f.l.raw());
+		v.push_back(f.r.raw());
 	}
 	return v;
 }
@@ -445,14 +457,14 @@ constexpr std::array<OnePole::Mode, 4> kFilterModes{OnePole::Mode::LOW_PASS, One
 
 /// The filtering chain's settings at @p mode: a one-pole at a fixed moveability, then the pinned tracker.
 Filtered::Settings filtered_settings(OnePole::Mode mode) {
-	return Filtered::Settings{OnePole::Settings{.moveability = 0x0c000000, .mode = mode},
+	return Filtered::Settings{OnePole::Settings{.moveability = Q<31>::from_raw(0x0c000000), .mode = mode},
 	                          Remove::Settings{.mode = Tracker::Mode::TRACK}};
 }
 
 /// What one `Lanes<Filtered, N>` run gave, and what its N `Mono<Filtered>`s gave.
 struct LanesRun {
-	std::vector<std::vector<q31>> got;                   ///< Each block's lanes, out of place then in place.
-	std::vector<std::vector<q31>> want;                  ///< The Monos' blocks, once for each.
+	std::vector<std::vector<int32_t>> got;               ///< Each block's lanes, out of place then in place.
+	std::vector<std::vector<int32_t>> want;              ///< The Monos' blocks, once for each.
 	std::vector<std::vector<unsigned char>> got_states;  ///< Each lane's part States at the end, both runs.
 	std::vector<std::vector<unsigned char>> want_states; ///< The Monos' part States, once for each.
 };
@@ -470,25 +482,25 @@ LanesRun run_lanes_and_monos() {
 			const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
 			out_of_place.configure(settings);
 			in_place.configure(settings);
-			std::vector<Frame<q31, N>> frames(n);
-			std::vector<std::vector<q31>> want(N);
+			std::vector<Frame<Q<31>, N>> frames(n);
+			std::vector<std::vector<int32_t>> want(N);
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				const std::vector<q31> in = noise(n, 0xa11 + static_cast<uint32_t>((lane * 131) + (block * 7) + n));
+				const std::vector<int32_t> in = noise(n, 0xa11 + static_cast<uint32_t>((lane * 131) + (block * 7) + n));
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i][lane] = in[i];
+					frames[i][lane] = Q<31>::from_raw(in[i]);
 				}
 				monos[lane].configure(settings);
 				want[lane].resize(n);
-				monos[lane].render_block(in, want[lane]);
+				monos[lane].render_block(typed_view(std::span{in}), typed_view(std::span{want[lane]}));
 			}
-			std::vector<Frame<q31, N>> got(n);
+			std::vector<Frame<Q<31>, N>> got(n);
 			out_of_place.render_block(frames, got);
 			in_place.render_block(frames, frames);
-			for (const std::vector<Frame<q31, N>>* result : {&got, &frames}) {
+			for (const std::vector<Frame<Q<31>, N>>* result : {&got, &frames}) {
 				for (std::size_t lane = 0; lane < N; ++lane) {
-					std::vector<q31> samples;
-					for (const Frame<q31, N>& f : *result) {
-						samples.push_back(f[lane]);
+					std::vector<int32_t> samples;
+					for (const Frame<Q<31>, N>& f : *result) {
+						samples.push_back(f[lane].raw());
 					}
 					run.got.push_back(samples);
 					run.want.push_back(want[lane]);
@@ -519,19 +531,22 @@ static_assert(detail::state_in_place_v<PinnedSplitInPlace> && !detail::state_in_
 /// Three @p n-sample blocks through Mono<K>, configured with @p first then, from the third block, @p third. Returns
 /// the outputs, with the final State's bytes appended as words.
 template <typename K>
-std::vector<q31> run_split_chain(std::size_t n, const typename K::Settings& first, const typename K::Settings& third) {
+std::vector<int32_t> run_split_chain(std::size_t n, const typename K::Settings& first,
+                                     const typename K::Settings& third) {
 	Mono<K> mono{first};
-	std::vector<q31> out;
+	std::vector<int32_t> out;
 	for (std::size_t block = 0; block < 3; ++block) {
 		if (block == 2) {
 			mono.configure(third);
 		}
-		std::vector<q31> buf = loop_state_test::input(n, block);
+		std::vector<Q<31>> buf = loop_state_test::input(n, block);
 		mono.render_block(buf, buf);
-		out.insert(out.end(), buf.begin(), buf.end());
+		for (const Q<31> x : buf) {
+			out.push_back(x.raw());
+		}
 	}
 	const auto& s = mono.state();
-	std::vector<q31> words(sizeof s / sizeof(q31));
+	std::vector<int32_t> words(sizeof s / sizeof(int32_t));
 	std::memcpy(words.data(), &s, sizeof s);
 	out.insert(out.end(), words.begin(), words.end());
 	return out;
@@ -545,10 +560,10 @@ describe chain("Chain", ${
 			Mono<Three> fused{three_settings()};
 			Sequential parts{three_settings()};
 			for (uint32_t block = 0; block < 2; ++block) {
-				const std::vector<q31> in = noise(n, 0x5eed + (block * 31) + static_cast<uint32_t>(n));
-				std::vector<q31> got(n);
-				std::vector<q31> want(n);
-				fused.render_block(in, got);
+				const std::vector<int32_t> in = noise(n, 0x5eed + (block * 31) + static_cast<uint32_t>(n));
+				std::vector<int32_t> got(n);
+				std::vector<int32_t> want(n);
+				fused.render_block(typed(in), typed(got));
 				parts.render_block(in, want);
 				expect(got).to_equal(want);
 			}
@@ -559,17 +574,17 @@ describe chain("Chain", ${
 	it("equals its parts over a long seeded run of uneven blocks", _ {
 		Mono<Three> fused{three_settings()};
 		Sequential parts{three_settings()};
-		const std::vector<q31> in = noise(4096, 0xc0ffee);
+		const std::vector<int32_t> in = noise(4096, 0xc0ffee);
 		std::size_t at = 0;
-		std::vector<q31> first_got;
-		std::vector<q31> first_want;
+		std::vector<int32_t> first_got;
+		std::vector<int32_t> first_want;
 		for (std::size_t block = 0; at < in.size(); ++block) {
 			const std::size_t n = std::min<std::size_t>((block % 61) + 1, in.size() - at);
-			const std::vector<q31> slice(in.begin() + static_cast<std::ptrdiff_t>(at),
+			const std::vector<int32_t> slice(in.begin() + static_cast<std::ptrdiff_t>(at),
 			                             in.begin() + static_cast<std::ptrdiff_t>(at + n));
-			std::vector<q31> got(n);
-			std::vector<q31> want(n);
-			fused.render_block(slice, got);
+			std::vector<int32_t> got(n);
+			std::vector<int32_t> want(n);
+			fused.render_block(typed(slice), typed(got));
 			parts.render_block(slice, want);
 			if (got != want && first_got.empty()) {
 				first_got = got;
@@ -584,39 +599,39 @@ describe chain("Chain", ${
 
 	it("starts from a generator", _ {
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
-			const RampGen::Settings ramp{.by = 0x01300000};
-			Mono<Generated> fused{Generated::Settings{ramp, Tanh<3>::Settings{}}};
+			const RampGen::Settings ramp{.by = q31::from_raw(0x01300000)};
+			Mono<Generated> fused{Generated::Settings{ramp, Tanh3::Settings{}}};
 			Mono<RampGen> gen{ramp};
-			Mono<Tanh<3>> shape;
+			Mono<Tanh3> shape;
 			for (int block = 0; block < 2; ++block) {
-				std::vector<q31> got(n);
-				std::vector<q31> want(n);
-				fused.render_block(got);
-				gen.render_block(want);
-				shape.render_block(want, want);
+				std::vector<int32_t> got(n);
+				std::vector<int32_t> want(n);
+				fused.render_block(typed(got));
+				gen.render_block(typed(want));
+				shape.render_block(typed(want), typed(want));
 				expect(got).to_equal(want);
 			}
-			expect(get<0>(fused.state()).v).to_equal(gen.state().v);
+			expect(get<0>(fused.state()).v.raw()).to_equal(gen.state().v.raw());
 		}
 	});
 
 	it("starts from a mixer", _ {
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
-			const AddK::Settings add_settings{.offset = -0x00700000};
+			const AddK::Settings add_settings{.offset = q31::from_raw(-0x00700000)};
 			Mono<Mixed> fused{Mixed::Settings{SumMix::Settings{}, add_settings}};
 			Mono<SumMix> mix;
 			Mono<AddK> add{add_settings};
 			for (uint32_t block = 0; block < 2; ++block) {
-				const std::vector<q31> a = noise(n, 11 + block);
-				const std::vector<q31> b = noise(n, 23 + block);
-				std::vector<q31> got(n);
-				std::vector<q31> want(n);
-				fused.render_block(a, b, got);
-				mix.render_block(a, b, want);
-				add.render_block(want, want);
+				const std::vector<int32_t> a = noise(n, 11 + block);
+				const std::vector<int32_t> b = noise(n, 23 + block);
+				std::vector<int32_t> got(n);
+				std::vector<int32_t> want(n);
+				fused.render_block(typed(a), typed(b), typed(got));
+				mix.render_block(typed(a), typed(b), typed(want));
+				add.render_block(typed(want), typed(want));
 				expect(got).to_equal(want);
 			}
-			expect(get<0>(fused.state()).acc).to_equal(mix.state().acc);
+			expect(get<0>(fused.state()).acc.raw()).to_equal(mix.state().acc.raw());
 			expect(get<1>(fused.state()).steps).to_equal(add.state().steps);
 		}
 	});
@@ -624,35 +639,35 @@ describe chain("Chain", ${
 	it("prepares each declaring part once per block, in part order", _ {
 		Mono<Chain<PrepLog<1>, AddK, PrepLog<3>, ScaleK>> chain;
 		prepare_log.clear();
-		std::vector<q31> buffer = noise(5, 99);
-		chain.render_block(buffer, buffer);
+		std::vector<int32_t> buffer = noise(5, 99);
+		chain.render_block(typed(buffer), typed(buffer));
 		expect(prepare_log).to_equal(std::vector<int>{1, 3, ScaleK::kLogId});
-		chain.render_block(buffer, buffer);
+		chain.render_block(typed(buffer), typed(buffer));
 		expect(prepare_log).to_equal(std::vector<int>{1, 3, ScaleK::kLogId, 1, 3, ScaleK::kLogId});
 		expect(get<3>(chain.state()).prepares).to_equal(2);
 		expect(get<1>(chain.state()).steps).to_equal(10);
 	});
 
 	it("resets through a part's reset quirk, every other part to State{}", _ {
-		Mono<Quirky> chain{Quirky::Settings{AddK::Settings{.offset = 3}, QuirkK::Settings{},
-		                                     ScaleK::Settings{.base = 0x40000000}}};
-		std::vector<q31> buffer = noise(6, 7);
-		chain.render_block(buffer, buffer);
+		Mono<Quirky> chain{Quirky::Settings{AddK::Settings{.offset = q31::from_raw(3)}, QuirkK::Settings{},
+		                                     ScaleK::Settings{.base = q31::from_raw(0x40000000)}}};
+		std::vector<int32_t> buffer = noise(6, 7);
+		chain.render_block(typed(buffer), typed(buffer));
 		expect(get<0>(chain.state()).steps).to_equal(6);
 		expect(get<2>(chain.state()).prepares).to_equal(1);
 
 		chain.reset();
 		expect(get<0>(chain.state()).steps).to_equal(0);
-		expect(get<1>(chain.state()).z).to_equal(7);
-		expect(get<2>(chain.state()).acc).to_equal(0);
+		expect(get<1>(chain.state()).z.raw()).to_equal(7);
+		expect(get<2>(chain.state()).acc.raw()).to_equal(0);
 		expect(get<2>(chain.state()).prepares).to_equal(0);
 	});
 
 	it("resets one part through Mono::on, every other part bit for bit untouched", _ {
 		Mono<Three> chain{three_settings()};
-		std::vector<q31> buffer = noise(9, 41);
-		chain.render_block(buffer, buffer);
-		chain.render_block(buffer, buffer);
+		std::vector<int32_t> buffer = noise(9, 41);
+		chain.render_block(typed(buffer), typed(buffer));
+		chain.render_block(typed(buffer), typed(buffer));
 		const Three::State before = chain.state();
 		expect(get<1>(before).prepares).to_equal(2);
 
@@ -664,12 +679,12 @@ describe chain("Chain", ${
 
 	it("resets one part through its reset quirk, through Mono::on", _ {
 		Mono<Quirky> chain;
-		std::vector<q31> buffer = noise(4, 5);
-		chain.render_block(buffer, buffer);
+		std::vector<int32_t> buffer = noise(4, 5);
+		chain.render_block(typed(buffer), typed(buffer));
 		const Quirky::State before = chain.state();
 
 		chain.on<&Quirky::reset_part<1>>();
-		expect(get<1>(chain.state()).z).to_equal(7);
+		expect(get<1>(chain.state()).z.raw()).to_equal(7);
 		expect(bytes_of(get<0>(chain.state()))).to_equal(bytes_of(get<0>(before)));
 		expect(bytes_of(get<2>(chain.state()))).to_equal(bytes_of(get<2>(before)));
 	});
@@ -677,10 +692,10 @@ describe chain("Chain", ${
 	it("resets one part in every lane through Stereo::on, every other part untouched", _ {
 		Stereo<Three> chain{three_settings()};
 		std::vector<StereoSample> frames(7);
-		const std::vector<q31> l = noise(frames.size(), 1);
-		const std::vector<q31> r = noise(frames.size(), 2);
+		const std::vector<int32_t> l = noise(frames.size(), 1);
+		const std::vector<int32_t> r = noise(frames.size(), 2);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
-			frames[i] = {.l = l[i], .r = r[i]};
+			frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 		}
 		chain.render_block(frames, frames);
 		const Three::State left = chain.left();
@@ -690,9 +705,9 @@ describe chain("Chain", ${
 		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {
 			expect(bytes_of(get<0>(now))).to_equal(bytes_of(get<0>(before)));
 			expect(bytes_of(get<1>(now))).to_equal(bytes_of(get<1>(before)));
-			expect(get<2>(now).y).to_equal(0);
+			expect(get<2>(now).y.raw()).to_equal(0);
 		}
-		expect(get<2>(left).y).not_().to_equal(0);
+		expect(get<2>(left).y.raw()).not_().to_equal(0);
 	});
 
 	it("steps a pinned kernel at its pinned mode, whatever its settings say", _ {
@@ -702,13 +717,13 @@ describe chain("Chain", ${
 			Mono<Tracker> tracking{Tracker::Settings{.mode = Tracker::Mode::TRACK}};
 			expect(std::to_underlying(pinned.coefficients().mode)).to_equal(std::to_underlying(Tracker::Mode::REMOVE));
 			for (uint32_t block = 0; block < 2; ++block) {
-				const std::vector<q31> in = noise(n, 0x4321 + block);
-				std::vector<q31> got(n);
-				std::vector<q31> removed(n);
-				std::vector<q31> tracked(n);
-				pinned.render_block(in, got);
-				removing.render_block(in, removed);
-				tracking.render_block(in, tracked);
+				const std::vector<int32_t> in = noise(n, 0x4321 + block);
+				std::vector<int32_t> got(n);
+				std::vector<int32_t> removed(n);
+				std::vector<int32_t> tracked(n);
+				pinned.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
+				removing.render_block(typed_view(std::span{in}), typed_view(std::span{removed}));
+				tracking.render_block(typed_view(std::span{in}), typed_view(std::span{tracked}));
 				expect(got).to_equal(removed);
 				expect(got).not_().to_equal(tracked);
 			}
@@ -716,16 +731,16 @@ describe chain("Chain", ${
 	});
 
 	it("nests: a chain as a part equals the flat chain", _ {
-		const Inner::Settings inner{AddK::Settings{.offset = 0x00abcdef}, ScaleK::Settings{.base = 0x60000000}};
+		const Inner::Settings inner{AddK::Settings{.offset = q31::from_raw(0x00abcdef)}, ScaleK::Settings{.base = q31::from_raw(0x60000000)}};
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
-			Mono<Nested> nested{Nested::Settings{inner, Tanh<3>::Settings{}}};
-			Mono<Flat> flat{Flat::Settings{get<0>(inner), get<1>(inner), Tanh<3>::Settings{}}};
+			Mono<Nested> nested{Nested::Settings{inner, Tanh3::Settings{}}};
+			Mono<Flat> flat{Flat::Settings{get<0>(inner), get<1>(inner), Tanh3::Settings{}}};
 			for (uint32_t block = 0; block < 2; ++block) {
-				const std::vector<q31> in = noise(n, 0x1234 + block);
-				std::vector<q31> got(n);
-				std::vector<q31> want(n);
-				nested.render_block(in, got);
-				flat.render_block(in, want);
+				const std::vector<int32_t> in = noise(n, 0x1234 + block);
+				std::vector<int32_t> got(n);
+				std::vector<int32_t> want(n);
+				nested.render_block(typed(in), typed(got));
+				flat.render_block(typed(in), typed(want));
 				expect(got).to_equal(want);
 			}
 			expect(bytes_of(get<1>(get<0>(nested.state())))).to_equal(bytes_of(get<1>(flat.state())));
@@ -739,17 +754,17 @@ describe chain("Chain", ${
 			Stereo<Three> stereo_out_of_place{three_settings()};
 			Stereo<Three> stereo_in_place{three_settings()};
 			for (uint32_t block = 0; block < 2; ++block) {
-				const std::vector<q31> in = noise(n, 0x777 + block);
-				std::vector<q31> got(n);
-				out_of_place.render_block(in, got);
-				std::vector<q31> buffer = in;
-				in_place.render_block(buffer, buffer);
+				const std::vector<int32_t> in = noise(n, 0x777 + block);
+				std::vector<int32_t> got(n);
+				out_of_place.render_block(typed(in), typed(got));
+				std::vector<int32_t> buffer = in;
+				in_place.render_block(typed(buffer), typed(buffer));
 				expect(buffer).to_equal(got);
 
-				const std::vector<q31> r = noise(n, 0x999 + block);
+				const std::vector<int32_t> r = noise(n, 0x999 + block);
 				std::vector<StereoSample> frames(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i] = {.l = in[i], .r = r[i]};
+					frames[i] = {.l = Q<31>::from_raw(in[i]), .r = Q<31>::from_raw(r[i])};
 				}
 				std::vector<StereoSample> stereo_got(n);
 				stereo_out_of_place.render_block(frames, stereo_got);
@@ -760,27 +775,27 @@ describe chain("Chain", ${
 	});
 	it("dispatches every combination of its parts' modes to that combination's steps, block by block", _ {
 		Mono<Picked> picked;
-		Mono<PickedAround> around{PickedAround::Settings{PickA::Settings{}, AddK::Settings{.offset = 100}, PickB::Settings{}}};
-		std::vector<std::vector<q31>> got;
-		std::vector<std::vector<q31>> got_around;
+		Mono<PickedAround> around{PickedAround::Settings{PickA::Settings{}, AddK::Settings{.offset = q31::from_raw(100)}, PickB::Settings{}}};
+		std::vector<std::vector<int32_t>> got;
+		std::vector<std::vector<int32_t>> got_around;
 		std::vector<std::pair<int, int>> modes;
 		std::vector<std::pair<int, int>> want_modes;
-		std::vector<std::vector<q31>> want;
-		std::vector<std::vector<q31>> want_around;
+		std::vector<std::vector<int32_t>> want;
+		std::vector<std::vector<int32_t>> want_around;
 		for (const auto& [a, b] : kPickCombos) {
 			picked.configure(Picked::Settings{PickA::Settings{.mode = a}, PickB::Settings{.mode = b}});
-			around.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100},
+			around.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = q31::from_raw(100)},
 			                                        PickB::Settings{.mode = b}});
 			modes.emplace_back(std::to_underlying(get<0>(picked.coefficients().mode)),
 			                   std::to_underlying(get<1>(picked.coefficients().mode)));
 			want_modes.emplace_back(std::to_underlying(a), std::to_underlying(b));
-			const std::vector<q31> silence(kPickLength);
-			std::vector<q31> out(kPickLength);
-			picked.render_block(silence, out);
+			const std::vector<int32_t> silence(kPickLength);
+			std::vector<int32_t> out(kPickLength);
+			picked.render_block(typed(silence), typed(out));
 			got.push_back(out);
-			around.render_block(silence, out);
+			around.render_block(typed(silence), typed(out));
 			got_around.push_back(out);
-			const q31 added = (a == Pick::FIRST ? 1 : 2) + (b == Pick::FIRST ? 10 : 20);
+			const int32_t added = (a == Pick::FIRST ? 1 : 2) + (b == Pick::FIRST ? 10 : 20);
 			want.emplace_back(kPickLength, added);
 			want_around.emplace_back(kPickLength, added + 100);
 		}
@@ -799,9 +814,9 @@ describe chain("Chain", ${
 		expect(get<1>(Picked::Mode{})).to_equal(Pick::SECOND);
 
 		Mono<Picked> picked;
-		std::vector<q31> out(kPickLength);
-		picked.render_block(std::vector<q31>(kPickLength), out);
-		expect(out).to_equal(std::vector<q31>(kPickLength, 21));
+		std::vector<int32_t> out(kPickLength);
+		picked.render_block(typed(std::vector<int32_t>(kPickLength)), typed(out));
+		expect(out).to_equal(std::vector<int32_t>(kPickLength, 21));
 
 		const FilteredBoth::Coefficients both{};
 		expect(get<0>(both.mode)).to_equal(OnePole::Mode::LOW_PASS);
@@ -846,19 +861,19 @@ describe chain("Chain", ${
 			Mono<Filtered> fused;
 			Mono<OnePole> filter;
 			Mono<Remove> remove;
-			std::vector<std::vector<q31>> got;
-			std::vector<std::vector<q31>> want;
+			std::vector<std::vector<int32_t>> got;
+			std::vector<std::vector<int32_t>> want;
 			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
 				const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
 				fused.configure(settings);
 				filter.configure(get<0>(settings));
 				remove.configure(get<1>(settings));
-				const std::vector<q31> in = noise(n, 0xf11 + static_cast<uint32_t>((block * 13) + n));
-				std::vector<q31> fused_out(n);
-				std::vector<q31> parts_out(n);
-				fused.render_block(in, fused_out);
-				filter.render_block(in, parts_out);
-				remove.render_block(parts_out, parts_out);
+				const std::vector<int32_t> in = noise(n, 0xf11 + static_cast<uint32_t>((block * 13) + n));
+				std::vector<int32_t> fused_out(n);
+				std::vector<int32_t> parts_out(n);
+				fused.render_block(typed_view(std::span{in}), typed_view(std::span{fused_out}));
+				filter.render_block(typed_view(std::span{in}), typed_view(std::span{parts_out}));
+				remove.render_block(typed_view(std::span{parts_out}), typed_view(std::span{parts_out}));
 				got.push_back(fused_out);
 				want.push_back(parts_out);
 			}
@@ -869,23 +884,23 @@ describe chain("Chain", ${
 	});
 
 	it("nests a moded chain: the outer chain's mode holds the inner chain's", _ {
-		using Shaped = Chain<Filtered, Tanh<3>>;
+		using Shaped = Chain<Filtered, fixed::Tanh<3>>;
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			Mono<Shaped> nested;
 			Mono<Filtered> filtered;
-			Mono<Tanh<3>> shape;
-			std::vector<std::vector<q31>> got;
-			std::vector<std::vector<q31>> want;
+			Mono<Tanh3> shape;
+			std::vector<std::vector<int32_t>> got;
+			std::vector<std::vector<int32_t>> want;
 			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
-				nested.configure(Shaped::Settings{filtered_settings(kFilterModes[block]), Tanh<3>::Settings{}});
+				nested.configure(Shaped::Settings{filtered_settings(kFilterModes[block]), Tanh3::Settings{}});
 				filtered.configure(filtered_settings(kFilterModes[block]));
 				expect(get<0>(get<0>(nested.coefficients().mode))).to_equal(kFilterModes[block]);
-				const std::vector<q31> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));
-				std::vector<q31> nested_out(n);
-				std::vector<q31> parts_out(n);
-				nested.render_block(in, nested_out);
-				filtered.render_block(in, parts_out);
-				shape.render_block(parts_out, parts_out);
+				const std::vector<int32_t> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));
+				std::vector<int32_t> nested_out(n);
+				std::vector<int32_t> parts_out(n);
+				nested.render_block(typed_view(std::span{in}), typed_view(std::span{nested_out}));
+				filtered.render_block(typed_view(std::span{in}), typed_view(std::span{parts_out}));
+				shape.render_block(typed(parts_out), typed(parts_out));
 				got.push_back(nested_out);
 				want.push_back(parts_out);
 			}
@@ -899,22 +914,22 @@ describe chain("Chain", ${
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			Mono<NestedPick> nested;
 			Mono<PickedAround> flat;
-			std::vector<std::vector<q31>> got;
-			std::vector<std::vector<q31>> want;
+			std::vector<std::vector<int32_t>> got;
+			std::vector<std::vector<int32_t>> want;
 			for (std::size_t block = 0; block < kPickCombos.size(); ++block) {
 				const auto& [a, b] = kPickCombos[block];
 				nested.configure(NestedPick::Settings{
-				    PickInner::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100}},
+				    PickInner::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = q31::from_raw(100)}},
 				    PickB::Settings{.mode = b}});
-				flat.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = 100},
+				flat.configure(PickedAround::Settings{PickA::Settings{.mode = a}, AddK::Settings{.offset = q31::from_raw(100)},
 				                                      PickB::Settings{.mode = b}});
 				expect(get<0>(get<0>(nested.coefficients().mode))).to_equal(a);
 				expect(get<1>(nested.coefficients().mode)).to_equal(b);
-				const std::vector<q31> in = noise(n, 0x5e7 + static_cast<uint32_t>((block * 11) + n));
-				std::vector<q31> nested_out(n);
-				std::vector<q31> flat_out(n);
-				nested.render_block(in, nested_out);
-				flat.render_block(in, flat_out);
+				const std::vector<int32_t> in = noise(n, 0x5e7 + static_cast<uint32_t>((block * 11) + n));
+				std::vector<int32_t> nested_out(n);
+				std::vector<int32_t> flat_out(n);
+				nested.render_block(typed(in), typed(nested_out));
+				flat.render_block(typed(in), typed(flat_out));
 				got.push_back(nested_out);
 				want.push_back(flat_out);
 			}
@@ -936,19 +951,19 @@ describe chain("Chain", ${
 				in_place.configure(settings);
 				left.configure(settings);
 				right.configure(settings);
-				const std::vector<q31> l = noise(n, 0x3e1 + static_cast<uint32_t>((block * 5) + n));
-				const std::vector<q31> r = noise(n, 0x3e2 + static_cast<uint32_t>((block * 5) + n));
+				const std::vector<int32_t> l = noise(n, 0x3e1 + static_cast<uint32_t>((block * 5) + n));
+				const std::vector<int32_t> r = noise(n, 0x3e2 + static_cast<uint32_t>((block * 5) + n));
 				std::vector<StereoSample> frames(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i] = {.l = l[i], .r = r[i]};
+					frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 				}
-				std::vector<q31> want_l(n);
-				std::vector<q31> want_r(n);
-				left.render_block(l, want_l);
-				right.render_block(r, want_r);
+				std::vector<int32_t> want_l(n);
+				std::vector<int32_t> want_r(n);
+				left.render_block(typed_view(std::span{l}), typed_view(std::span{want_l}));
+				right.render_block(typed_view(std::span{r}), typed_view(std::span{want_r}));
 				std::vector<StereoSample> want(n);
 				for (std::size_t i = 0; i < n; ++i) {
-					want[i] = {.l = want_l[i], .r = want_r[i]};
+					want[i] = {.l = Q<31>::from_raw(want_l[i]), .r = Q<31>::from_raw(want_r[i])};
 				}
 				std::vector<StereoSample> got(n);
 				out_of_place.render_block(frames, got);
@@ -975,16 +990,16 @@ describe chain("Chain", ${
 	it("resets one part of a moded chain in both channels through Stereo::on", _ {
 		Stereo<Filtered> chain{filtered_settings(OnePole::Mode::HIGH_PASS)};
 		std::vector<StereoSample> frames(8);
-		const std::vector<q31> l = noise(frames.size(), 3);
-		const std::vector<q31> r = noise(frames.size(), 4);
+		const std::vector<int32_t> l = noise(frames.size(), 3);
+		const std::vector<int32_t> r = noise(frames.size(), 4);
 		for (std::size_t i = 0; i < frames.size(); ++i) {
-			frames[i] = {.l = l[i], .r = r[i]};
+			frames[i] = {.l = Q<31>::from_raw(l[i]), .r = Q<31>::from_raw(r[i])};
 		}
 		chain.render_block(frames, frames);
 		const Filtered::State left = chain.left();
 		const Filtered::State right = chain.right();
-		expect(get<1>(left).y).not_().to_equal(0);
-		expect(get<1>(right).y).not_().to_equal(0);
+		expect(get<1>(left).y.raw()).not_().to_equal(0);
+		expect(get<1>(right).y.raw()).not_().to_equal(0);
 
 		chain.on<&Filtered::reset_part<1>>();
 		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {

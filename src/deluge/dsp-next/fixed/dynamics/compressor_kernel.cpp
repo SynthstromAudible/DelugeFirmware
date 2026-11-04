@@ -25,29 +25,30 @@
 
 namespace deluge::dsp::fixed {
 
-float ratio_fraction(q31 ratio) {
-	return 0.5f + (static_cast<float>(ratio) / kOneQ31f) / 2;
+float ratio_fraction(Q<31> ratio) {
+	return 0.5f + (static_cast<float>(ratio.raw()) / kOneQ31f) / 2;
 }
 
-float compressor_attack_ms(q31 attack) {
+float compressor_attack_ms(Q<31> attack) {
 	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return static_cast<float>(0.5
-	                          + static_cast<double>((std::exp(2 * static_cast<float>(attack) / kOneQ31f) - 1) * 10));
+	return static_cast<float>(
+	    0.5 + static_cast<double>((std::exp(2 * static_cast<float>(attack.raw()) / kOneQ31f) - 1) * 10));
 }
 
-float compressor_release_ms(q31 release) {
+float compressor_release_ms(Q<31> release) {
 	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return 50 + (std::exp(2 * static_cast<float>(release) / kOneQ31f) - 1) * 50;
+	return 50 + (std::exp(2 * static_cast<float>(release.raw()) / kOneQ31f) - 1) * 50;
 }
 
-float compressor_ratio(q31 ratio) {
+float compressor_ratio(Q<31> ratio) {
 	return 1 / (1 - ratio_fraction(ratio));
 }
 
-float compressor_sidechain_hz(q31 sidechain_hpf) {
+float compressor_sidechain_hz(Q<31> sidechain_hpf) {
 	// The exp runs from 1 to about 4.5: about 33 Hz at half the knob, 104 Hz at the top.
 	return static_cast<float>(
-	    (std::exp(1.5 * static_cast<double>(static_cast<float>(sidechain_hpf)) / static_cast<double>(kOneQ31f)) - 1)
+	    (std::exp(1.5 * static_cast<double>(static_cast<float>(sidechain_hpf.raw())) / static_cast<double>(kOneQ31f))
+	     - 1)
 	    * 30);
 }
 
@@ -64,11 +65,12 @@ Compressor::Coefficients Compressor::coefficients(const Settings& s) {
 	    .release_ms = release_ms,
 	    .fraction = ratio_fraction(k.ratio),
 	    .base_gain = s.base_gain,
-	    .detector_moveability = static_cast<q31>(wc * static_cast<float>(kOneQ31)),
-	    // kOneQ31 is fully wet: the blend is no modulated param, so it needs no headroom.
-	    .dry = kOneQ31 - k.blend,
+	    // Raw: the float moveability converted by the target's truncating cast
+	    .detector_moveability = Q<31>::from_raw(static_cast<int32_t>(wc * static_cast<float>(kOneQ31))),
+	    // Q<31>::max() is fully wet: the blend is no modulated param, so it needs no headroom.
+	    .dry = sub_wrap(Q<31>::max(), k.blend),
 	    .wet = k.blend,
-	    .mode = k.blend == kOneQ31 ? Mode::WET : Mode::BLEND,
+	    .mode = k.blend == Q<31>::max() ? Mode::WET : Mode::BLEND,
 	};
 }
 

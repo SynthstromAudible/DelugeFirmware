@@ -33,7 +33,7 @@
 /// Not lifted, as no lane kernel uses them yet: the 64-bit narrows and `widen`, the Q16 and Q16x2 forms (`mul_top`,
 /// `mul_bottom`, `dot*`, `to_q16_sat`, `from_q16`), the float conversions, `reinterpret_bits` and the run-time
 /// `clamp_bits(x, n)`. The comparisons are LanePack's own (lane_pack.h). @ref from_raw and @ref to_raw convert a raw
-/// scalar or pack and a typed one, for a step whose interface is raw.
+/// scalar or pack and a typed one, for raw words meeting a lane step: the specs' and the codegen probes' references.
 ///
 /// A kernel's step written once over its value type V runs on a `Q<F>` for one stream and on `LanePack<Q<F>, N>` for N
 /// streams. The lanes are scalar, so `mul` on two lanes is two `smmul`: independent instructions the A9 overlaps, not
@@ -475,11 +475,10 @@ requires detail::lanewise_operands<A> && requires(detail::lane_t<A> x) { scale_s
 	return detail::lanewise([] [[gnu::always_inline]] (auto x) { return scale_shr_round<N>(x); }, a);
 }
 
-// Boundaries: a kernel whose interface is raw converts its operands at entry and its results at exit.
+// Boundaries: raw words, a scalar or a pack of lanes, meeting a typed lane step convert here.
 
 /// @brief @p v's bits read in @p T's format: a raw scalar to a @p T, or a pack of raw lanes to a pack of @p T.
-/// @details For a step written over its value type V, which is a raw scalar for one stream and a raw pack for several:
-/// the one call converts either.
+/// @details One call converts either form, so a reference written over a raw scalar and a raw pack converts once.
 /// @tparam T The format, a `Fixed`.
 /// @param v A raw value of @p T's storage type, or a pack of them.
 /// @return @p T, or `LanePack<T, N>`, holding @p v's bits.

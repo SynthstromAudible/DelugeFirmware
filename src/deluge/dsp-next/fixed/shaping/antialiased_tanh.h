@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
@@ -49,8 +50,8 @@ namespace deluge::dsp::fixed {
 /// **Starting mid-signal.** State{} starts at the centre, as silence would leave it. @ref seed and @ref place set the
 /// position instead, for a caller whose signal was already running.
 struct AntialiasedTanh {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief The width of a position, in bits: the table spans the whole unsigned 32-bit range on both axes.
 	static constexpr int32_t kPositionBits = 32;
@@ -67,9 +68,9 @@ struct AntialiasedTanh {
 	/// rather than dispatching on the width per sample. The defaults are drive 0's: 12 bits. Build them with
 	/// coefficients(), which derives the bounds from the drive: setting the drive alone leaves drive 0's bounds.
 	struct Coefficients {
-		uint32_t drive = 0;     ///< The drive as a power of two. 0 to 30.
-		int32_t floor = -2048;  ///< The lowest input kept before the shift, Q31: −2^(width − 1).
-		int32_t ceiling = 2047; ///< The highest input kept before the shift, Q31: 2^(width − 1) − 1.
+		uint32_t drive = 0;                    ///< The drive as a power of two. 0 to 30.
+		Q<31> floor = Q<31>::from_raw(-2048);  ///< The lowest input kept before the shift: −2^(width − 1).
+		Q<31> ceiling = Q<31>::from_raw(2047); ///< The highest input kept before the shift: 2^(width − 1) − 1.
 	};
 
 	/// @brief The previous sample's position. State{} is silence: the centre.
@@ -82,7 +83,7 @@ struct AntialiasedTanh {
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
 		const int32_t width = (s.drive >= 1u && s.drive <= 20u) ? 32 - static_cast<int32_t>(s.drive) : 12;
 		const auto ceiling = static_cast<int32_t>((uint32_t{1} << (width - 1)) - 1u);
-		return {.drive = s.drive, .floor = -ceiling - 1, .ceiling = ceiling};
+		return {.drive = s.drive, .floor = Q<31>::from_raw(-ceiling - 1), .ceiling = Q<31>::from_raw(ceiling)};
 	}
 
 	/// @brief One sample through the curve, interpolated from the previous position, which it then replaces.
@@ -90,12 +91,13 @@ struct AntialiasedTanh {
 	/// @param s The previous position, set to this sample's.
 	/// @param x The input, Q31.
 	/// @return The saturated sample, Q31 shifted down by drive + 1.
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x) {
 		const uint32_t position = position_of(c, x);
-		const q31 out = kBilinearTableInterpolator.interpolate_signed<kTanhTable>(position, s.position, kPositionBits,
-		                                                                          kPositionBits)
-		                >> (c.drive + kLevelShift);
+		// The table's tanh, Q31, shifted down at run time in the same format
+		const auto out = Q<31>::from_raw(kBilinearTableInterpolator.interpolate_signed<kTanhTable>(
+		                                     position, s.position, kPositionBits, kPositionBits)
+		                                 >> (c.drive + kLevelShift));
 		s.position = position;
 		return out;
 	}
@@ -105,7 +107,7 @@ struct AntialiasedTanh {
 	/// @param c The drive the position is taken at.
 	/// @param s The state whose position is set.
 	/// @param sample The sample, Q31.
-	[[gnu::always_inline]] static void seed(const Coefficients& c, State& s, q31 sample) {
+	[[gnu::always_inline]] static void seed(const Coefficients& c, State& s, Q<31> sample) {
 		s.position = position_of(c, sample);
 	}
 
@@ -117,8 +119,8 @@ struct AntialiasedTanh {
 
 private:
 	/// @brief @p x's position at the coefficients' drive: sat(x · 2^drive) + @ref kTanhCentre, wrapping unsigned.
-	[[nodiscard]] [[gnu::always_inline]] static uint32_t position_of(const Coefficients& c, q31 x) {
-		return (static_cast<uint32_t>(std::clamp(x, c.floor, c.ceiling)) << c.drive) + kTanhCentre;
+	[[nodiscard]] [[gnu::always_inline]] static uint32_t position_of(const Coefficients& c, Q<31> x) {
+		return (static_cast<uint32_t>(std::clamp(x, c.floor, c.ceiling).raw()) << c.drive) + kTanhCentre;
 	}
 };
 

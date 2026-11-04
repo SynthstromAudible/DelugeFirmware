@@ -100,7 +100,7 @@ void LiveInputBuffer::give_input(int32_t num_samples, AudioInputPort& port, Inpu
 			// guard against dividing by 0
 			int32_t percussiveness = angle ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-			percussiveness = dsp::fixed::tanh<23>(percussiveness);
+			percussiveness = dsp::fixed::tanh<23>(dsp::Q<31>::from_raw(percussiveness)).raw();
 
 			perc_buffer[(num_raw_samples_processed >> kPercBufferReductionMagnitude) & (kInputPercBufferSize - 1)] =
 			    percussiveness;

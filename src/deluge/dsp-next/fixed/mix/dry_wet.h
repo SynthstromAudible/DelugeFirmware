@@ -20,7 +20,6 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/types.h"
 
 #include <cstdint>
@@ -44,12 +43,11 @@ namespace deluge::dsp::fixed {
 /// @param wet The wet sample, Q31.
 /// @param level The wet level, Q31: 0 is fully dry, kOneQ31 fully wet.
 /// @return The blend, Q31, its lowest bit clear.
-[[nodiscard]] [[gnu::always_inline]] constexpr q31 dry_wet_blend(q31 dry, q31 wet, q31 level) {
-	const auto wet_level = Q<31>::from_raw(level);
-	const Q<31> dry_level = sub_wrap(Q<31>::max(), wet_level);
+[[nodiscard]] [[gnu::always_inline]] constexpr Q<31> dry_wet_blend(Q<31> dry, Q<31> wet, Q<31> level) {
+	const Q<31> dry_level = sub_wrap(Q<31>::max(), level);
 	// Each product of two Q31 values is Q30
-	const Q<30> sum = mla_r(mul(Q<31>::from_raw(wet), wet_level), Q<31>::from_raw(dry), dry_level);
-	return as_wrap<Q<31>>(sum).raw();
+	const Q<30> sum = mla_r(mul(wet, level), dry, dry_level);
+	return as_wrap<Q<31>>(sum);
 }
 
 /// @brief The dry/wet blend as a mixer kernel: inputs dry and wet, at a wet level constant per block.
@@ -57,8 +55,8 @@ namespace deluge::dsp::fixed {
 /// identity, so the skip the compressor makes at full wet is a mode of its own, chosen by @ref coefficients at a level
 /// of exactly kOneQ31. Stateless.
 struct DryWetBlend {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief What a step returns.
 	enum class Mode : uint8_t {
@@ -69,13 +67,13 @@ struct DryWetBlend {
 
 	/// @brief What the owner sets.
 	struct Settings {
-		q31 level = 0; ///< The wet level, Q31: 0 is fully dry, kOneQ31 fully wet.
+		Q<31> level{}; ///< The wet level: 0 is fully dry, Q<31>::max() fully wet.
 	};
 
 	/// @brief What a step reads: the level and the mode the wrapper dispatches on once per block.
 	struct Coefficients {
-		q31 level = 0;           ///< The wet level, Q31.
-		Mode mode = Mode::BLEND; ///< FULL_WET when level == kOneQ31.
+		Q<31> level{};           ///< The wet level.
+		Mode mode = Mode::BLEND; ///< FULL_WET when level is Q<31>::max().
 	};
 
 	/// @brief No state: each sample's blend is its own.
@@ -83,7 +81,7 @@ struct DryWetBlend {
 
 	/// @brief The coefficients for @p s: the level, and FULL_WET at exactly kOneQ31, BLEND at every other level.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
-		return {.level = s.level, .mode = s.level == kOneQ31 ? Mode::FULL_WET : Mode::BLEND};
+		return {.level = s.level, .mode = s.level == Q<31>::max() ? Mode::FULL_WET : Mode::BLEND};
 	}
 
 	/// @brief One sample: the blend of @p dry and @p wet, or @p wet unchanged in FULL_WET.
@@ -93,8 +91,8 @@ struct DryWetBlend {
 	/// @param wet The wet sample, Q31.
 	/// @return dry_wet_blend(dry, wet, level) (BLEND) or @p wet (FULL_WET), Q31.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/,
-	                                                     q31 dry, q31 wet) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/,
+	                                                       Q<31> dry, Q<31> wet) {
 		if constexpr (M == Mode::FULL_WET) {
 			return wet;
 		}

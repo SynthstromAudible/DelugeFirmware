@@ -22,6 +22,7 @@
 // which returns wet as the compressor's skip does, is pinned to differ from the blend there. Then Mono<DryWetBlend>
 // against the blend, or the wet sample at full wet, across a configure that moves it into and out of FULL_WET.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
 
 #include "dsp-next/core/concepts.h"
@@ -45,23 +46,35 @@ namespace {
 
 using Mode = DryWetBlend::Mode;
 
+/// dry_wet_blend on raw Q31 words: the pins below are written in them.
+q31_t blend(q31_t dry, q31_t wet, q31_t level) {
+	return dry_wet_blend(Q<31>::from_raw(dry), Q<31>::from_raw(wet), Q<31>::from_raw(level)).raw();
+}
+
+/// DryWetBlend's step at mode @p M on raw Q31 words.
+template <Mode M>
+q31_t step_raw(const DryWetBlend::Coefficients& c, q31_t dry, q31_t wet) {
+	DryWetBlend::State s{};
+	return DryWetBlend::step<M>(c, {}, s, Q<31>::from_raw(dry), Q<31>::from_raw(wet)).raw();
+}
+
 static_assert(mixer_kernel<DryWetBlend>);
 static_assert(moded_kernel<DryWetBlend>);
 static_assert(!std::is_polymorphic_v<DryWetBlend>);
 static_assert(mixer<Mono<DryWetBlend>>);
-static_assert(DryWetBlend::coefficients({.level = kOneQ31}).mode == Mode::FULL_WET);
-static_assert(DryWetBlend::coefficients({.level = kOneQ31}).level == kOneQ31);
-static_assert(DryWetBlend::coefficients({.level = kOneQ31 - 1}).mode == Mode::BLEND);
-static_assert(DryWetBlend::coefficients({.level = 1 << 30}).level == 1 << 30);
+static_assert(DryWetBlend::coefficients({.level = Q<31>::from_raw(kOneQ31)}).mode == Mode::FULL_WET);
+static_assert(DryWetBlend::coefficients({.level = Q<31>::from_raw(kOneQ31)}).level.raw() == kOneQ31);
+static_assert(DryWetBlend::coefficients({.level = Q<31>::from_raw(kOneQ31 - 1)}).mode == Mode::BLEND);
+static_assert(DryWetBlend::coefficients({.level = Q<31>::from_raw(1 << 30)}).level.raw() == 1 << 30);
 static_assert(DryWetBlend::coefficients({}).mode == Mode::BLEND);
 static_assert(DryWetBlend::Coefficients{}.mode == Mode::BLEND);
 
-/// The extremes of q31.
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+/// The extremes of Q31.
+constexpr q31_t kMin = std::numeric_limits<q31_t>::min();
+constexpr q31_t kMax = std::numeric_limits<q31_t>::max();
 /// The levels the comparisons run, Q31, across the callers' range: fully dry, the least wet, a quarter, a half,
 /// 1/√2, the most wet short of full, and full.
-constexpr std::array<q31, 7> kLevels{0, 1, 1 << 29, 1 << 30, 0x5A82'7999, kOneQ31 - 1, kOneQ31};
+constexpr std::array<q31_t, 7> kLevels{0, 1, 1 << 29, 1 << 30, 0x5A82'7999, kOneQ31 - 1, kOneQ31};
 /// The samples the long comparisons run.
 constexpr std::size_t kLongRun = 10'000;
 /// The seeds of the dry and wet noise.
@@ -69,11 +82,11 @@ constexpr uint32_t kDrySeed = 0xD1E7'0001;
 constexpr uint32_t kWetSeed = 0x0E70'0002;
 
 /// Every pairing of the extremes, zero and ±1, then @p n samples of full-scale seeded noise.
-std::vector<q31> extremes_then_full_scale(std::size_t n, uint32_t seed, bool second) {
-	constexpr std::array<q31, 6> kEdges{kMin, kMin + 1, -1, 0, 1, kMax};
-	std::vector<q31> v;
-	for (const q31 a : kEdges) {
-		for (const q31 b : kEdges) {
+std::vector<q31_t> extremes_then_full_scale(std::size_t n, uint32_t seed, bool second) {
+	constexpr std::array<q31_t, 6> kEdges{kMin, kMin + 1, -1, 0, 1, kMax};
+	std::vector<q31_t> v;
+	for (const q31_t a : kEdges) {
+		for (const q31_t b : kEdges) {
 			v.push_back(second ? b : a);
 		}
 	}
@@ -85,10 +98,10 @@ std::vector<q31> extremes_then_full_scale(std::size_t n, uint32_t seed, bool sec
 }
 
 /// The legacy fade's blend arithmetic for one sample, written out without dry_wet_blend:
-///     const q31 wet = multiply_32x32_rshift32(block[i], wet_);
+///     const q31_t wet = multiply_32x32_rshift32(block[i], wet_);
 ///     block[i] = multiply_accumulate_32x32_rshift32_rounded(wet, scratch[i], kOneQ31 - wet_) << 1;
-q31 fade_blend(q31 filtered, q31 dry_copy, q31 wet_level) {
-	const q31 wet = multiply_32x32_rshift32(filtered, wet_level);
+q31_t fade_blend(q31_t filtered, q31_t dry_copy, q31_t wet_level) {
+	const q31_t wet = multiply_32x32_rshift32(filtered, wet_level);
 	return multiply_accumulate_32x32_rshift32_rounded(wet, dry_copy, kOneQ31 - wet_level) << 1;
 }
 
@@ -99,9 +112,9 @@ q31 fade_blend(q31 filtered, q31 dry_copy, q31 wet_level) {
 ///     sample.l = multiply_32x32_rshift32(sample.l, wet_);
 ///     sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, scratch[i].l, dry_);
 ///     sample.l <<= 1;
-q31 compressor_blend(q31 sample, q31 scratch, q31 blend) {
-	const q31 dry_level = kOneQ31 - blend;
-	const q31 wet_level = blend;
+q31_t compressor_blend(q31_t sample, q31_t scratch, q31_t blend) {
+	const q31_t dry_level = kOneQ31 - blend;
+	const q31_t wet_level = blend;
 	sample = multiply_32x32_rshift32(sample, wet_level);
 	sample = multiply_accumulate_32x32_rshift32_rounded(sample, scratch, dry_level);
 	sample <<= 1;
@@ -110,8 +123,8 @@ q31 compressor_blend(q31 sample, q31 scratch, q31 blend) {
 
 /// What a block at @p level mixes: the wet sample unchanged at exactly kOneQ31, as the compressor skips its blend, else
 /// the blend.
-q31 expected_mix(q31 level, q31 dry, q31 wet) {
-	return level == kOneQ31 ? wet : dry_wet_blend(dry, wet, level);
+q31_t expected_mix(q31_t level, q31_t dry, q31_t wet) {
+	return level == kOneQ31 ? wet : blend(dry, wet, level);
 }
 
 /// The block lengths the wrapper comparison runs, ending on a long odd one.
@@ -124,37 +137,37 @@ describe dry_wet_spec("DryWetBlend", ${
 	context("dry_wet_blend", _ {
 		it("blends full-scale and extreme samples to hand-computed values", _ {
 			// Full scale times full scale keeps the high word 2^30 - 1, doubled to 2^31 - 2.
-			expect(dry_wet_blend(0, kMax, kOneQ31)).to_equal(q31{0x7FFF'FFFE});
-			expect(dry_wet_blend(kMax, 0, 0)).to_equal(q31{0x7FFF'FFFE});
-			expect(dry_wet_blend(kMax, kMax, 1 << 30)).to_equal(q31{0x7FFF'FFFC});
-			expect(dry_wet_blend(kMin, kMin, 1 << 30)).to_equal(kMin + 2);
-			expect(dry_wet_blend(kMax, kMin, kOneQ31)).to_equal(kMin);
-			expect(dry_wet_blend(1, 1, kOneQ31)).to_equal(q31{0});
-			expect(dry_wet_blend(12345, -7, 1 << 30)).to_equal(q31{6168});
+			expect(blend(0, kMax, kOneQ31)).to_equal(q31_t{0x7FFF'FFFE});
+			expect(blend(kMax, 0, 0)).to_equal(q31_t{0x7FFF'FFFE});
+			expect(blend(kMax, kMax, 1 << 30)).to_equal(q31_t{0x7FFF'FFFC});
+			expect(blend(kMin, kMin, 1 << 30)).to_equal(kMin + 2);
+			expect(blend(kMax, kMin, kOneQ31)).to_equal(kMin);
+			expect(blend(1, 1, kOneQ31)).to_equal(q31_t{0});
+			expect(blend(12345, -7, 1 << 30)).to_equal(q31_t{6168});
 		});
 
 		it("wraps the dry level and the doubling as two's complement at a negative level", _ {
 			// kOneQ31 - INT32_MIN wraps to -1; the doubled 2^30 wraps to INT32_MIN.
-			expect(dry_wet_blend(0, kMin, kMin)).to_equal(kMin);
-			expect(dry_wet_blend(kMax, kMin, kMin)).to_equal(kMin);
+			expect(blend(0, kMin, kMin)).to_equal(kMin);
+			expect(blend(kMax, kMin, kMin)).to_equal(kMin);
 		});
 
 		it("blends exactly as the legacy fade's arithmetic, at every level", _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
-			for (const q31 level : kLevels) {
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			for (const q31_t level : kLevels) {
 				for (std::size_t i = 0; i < dry.size(); ++i) {
-					expect(dry_wet_blend(dry[i], wet[i], level)).to_equal(fade_blend(wet[i], dry[i], level));
+					expect(blend(dry[i], wet[i], level)).to_equal(fade_blend(wet[i], dry[i], level));
 				}
 			}
 		});
 
 		it("blends exactly as the compressor's arithmetic, at every level", _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
-			for (const q31 level : kLevels) {
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			for (const q31_t level : kLevels) {
 				for (std::size_t i = 0; i < dry.size(); ++i) {
-					expect(dry_wet_blend(dry[i], wet[i], level)).to_equal(compressor_blend(wet[i], dry[i], level));
+					expect(blend(dry[i], wet[i], level)).to_equal(compressor_blend(wet[i], dry[i], level));
 				}
 			}
 		});
@@ -162,70 +175,71 @@ describe dry_wet_spec("DryWetBlend", ${
 		it("is not the wet signal at full wet: a negative sample loses its lowest bit, a positive one lands 1 or 2 below "
 		   "itself with its lowest bit clear",
 		   _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
 			std::size_t differing = 0;
 			for (std::size_t i = 0; i < dry.size(); ++i) {
-				differing += dry_wet_blend(dry[i], wet[i], kOneQ31) != wet[i] ? 1 : 0;
+				differing += blend(dry[i], wet[i], kOneQ31) != wet[i] ? 1 : 0;
 			}
 			expect(differing).to_be_greater_than(std::size_t{0});
-			expect(dry_wet_blend(0, kMax, kOneQ31)).to_equal(kMax - 1);
-			expect(dry_wet_blend(0, 2, kOneQ31)).to_equal(q31{0});
-			expect(dry_wet_blend(0, -3, kOneQ31)).to_equal(q31{-4});
-			expect(dry_wet_blend(0, -2, kOneQ31)).to_equal(q31{-2});
+			expect(blend(0, kMax, kOneQ31)).to_equal(kMax - 1);
+			expect(blend(0, 2, kOneQ31)).to_equal(q31_t{0});
+			expect(blend(0, -3, kOneQ31)).to_equal(q31_t{-4});
+			expect(blend(0, -2, kOneQ31)).to_equal(q31_t{-2});
 		});
 	});
 
 	context("the kernel", _ {
 		it("chooses FULL_WET at exactly kOneQ31 and BLEND at every other level", _ {
-			expect(DryWetBlend::coefficients({.level = kOneQ31}).mode).to_equal(Mode::FULL_WET);
-			for (const q31 level : {kMin, -1, q31{0}, q31{1}, q31{1 << 30}, kOneQ31 - 1}) {
-				const DryWetBlend::Coefficients c = DryWetBlend::coefficients({.level = level});
+			expect(DryWetBlend::coefficients({.level = Q<31>::from_raw(kOneQ31)}).mode).to_equal(Mode::FULL_WET);
+			for (const q31_t level : {kMin, -1, q31_t{0}, q31_t{1}, q31_t{1 << 30}, kOneQ31 - 1}) {
+				const DryWetBlend::Coefficients c = DryWetBlend::coefficients({.level = Q<31>::from_raw(level)});
 				expect(c.mode).to_equal(Mode::BLEND);
-				expect(c.level).to_equal(level);
+				expect(c.level.raw()).to_equal(level);
 			}
 		});
 
 		it("blends as dry_wet_blend in BLEND, at every level, full included", _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
-			for (const q31 level : kLevels) {
-				const DryWetBlend::Coefficients c{.level = level, .mode = Mode::BLEND};
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			for (const q31_t level : kLevels) {
+				const DryWetBlend::Coefficients c{.level = Q<31>::from_raw(level), .mode = Mode::BLEND};
 				DryWetBlend::State s{};
 				for (std::size_t i = 0; i < dry.size(); ++i) {
-					expect(DryWetBlend::step<Mode::BLEND>(c, {}, s, dry[i], wet[i]))
-					    .to_equal(dry_wet_blend(dry[i], wet[i], level));
+					expect(step_raw<Mode::BLEND>(c, dry[i], wet[i]))
+					    .to_equal(blend(dry[i], wet[i], level));
 				}
 			}
 		});
 
 		it("returns the wet sample unchanged in FULL_WET, as the compressor's skip does", _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
-			const DryWetBlend::Coefficients c = DryWetBlend::coefficients({.level = kOneQ31});
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			const DryWetBlend::Coefficients c = DryWetBlend::coefficients({.level = Q<31>::from_raw(kOneQ31)});
 			DryWetBlend::State s{};
 			for (std::size_t i = 0; i < dry.size(); ++i) {
-				expect(DryWetBlend::step<Mode::FULL_WET>(c, {}, s, dry[i], wet[i])).to_equal(wet[i]);
+				expect(step_raw<Mode::FULL_WET>(c, dry[i], wet[i])).to_equal(wet[i]);
 			}
-			expect(DryWetBlend::step<Mode::FULL_WET>(c, {}, s, 0, kMax)).to_equal(kMax);
-			expect(DryWetBlend::step<Mode::FULL_WET>(c, {}, s, 1, 1)).to_equal(q31{1});
+			expect(step_raw<Mode::FULL_WET>(c, 0, kMax)).to_equal(kMax);
+			expect(step_raw<Mode::FULL_WET>(c, 1, 1)).to_equal(q31_t{1});
 		});
 	});
 
 	context("Mono<DryWetBlend>", _ {
 		it("mixes as the blend, or passes the wet sample at full wet, across a configure into FULL_WET and back", _ {
-			const std::vector<q31> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
-			const std::vector<q31> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
-			constexpr std::array<q31, 4> kBlockLevels{1 << 30, kOneQ31, 0x5A82'7999, kOneQ31};
+			const std::vector<q31_t> dry = extremes_then_full_scale(kLongRun, kDrySeed, false);
+			const std::vector<q31_t> wet = extremes_then_full_scale(kLongRun, kWetSeed, true);
+			constexpr std::array<q31_t, 4> kBlockLevels{1 << 30, kOneQ31, 0x5A82'7999, kOneQ31};
 			Mono<DryWetBlend> mono;
 			std::size_t start = 0;
 			std::size_t full_wet_blocks = 0;
-			for (const q31 level : kBlockLevels) {
+			for (const q31_t level : kBlockLevels) {
 				for (const std::size_t n : kLengths) {
-					mono.configure({.level = level});
+					mono.configure({.level = Q<31>::from_raw(level)});
 					full_wet_blocks += mono.coefficients().mode == Mode::FULL_WET ? 1 : 0;
-					std::vector<q31> out(n);
-					mono.render_block(fixed::Signal{dry.data() + start, n}, fixed::Signal{wet.data() + start, n}, out);
+					std::vector<q31_t> out(n);
+					mono.render_block(typed_view(std::span<const q31_t>{dry.data() + start, n}),
+					                  typed_view(std::span<const q31_t>{wet.data() + start, n}), typed_view(std::span{out}));
 					for (std::size_t i = 0; i < n; ++i) {
 						expect(out[i]).to_equal(expected_mix(level, dry[start + i], wet[start + i]));
 					}
@@ -236,10 +250,10 @@ describe dry_wet_spec("DryWetBlend", ${
 		});
 
 		it("mixes a single pair as the kernel does", _ {
-			Mono<DryWetBlend> mono{{.level = 1 << 30}};
-			expect(mono.render(kMax, kMax)).to_equal(q31{0x7FFF'FFFC});
-			mono.configure({.level = kOneQ31});
-			expect(mono.render(0, kMax)).to_equal(kMax);
+			Mono<DryWetBlend> mono{{.level = Q<31>::from_raw(1 << 30)}};
+			expect(mono.render(Q<31>::from_raw(kMax), Q<31>::from_raw(kMax)).raw()).to_equal(q31_t{0x7FFF'FFFC});
+			mono.configure({.level = Q<31>::from_raw(kOneQ31)});
+			expect(mono.render(Q<31>{}, Q<31>::from_raw(kMax)).raw()).to_equal(kMax);
 		});
 	});
 });

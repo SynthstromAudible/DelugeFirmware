@@ -1562,7 +1562,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 
 			// We wanna start, skipping, but if MOD fx are on...
 			if ((modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE)
-			    || core().compressor().dsp().threshold() > 0) {
+			    || core().compressor().dsp().threshold() > deluge::dsp::Q<31>{}) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1822,7 +1822,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Do sidechain
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
-			core().sidechain().registerHit(sideChainHitPending);
+			core().sidechain().register_hit(sideChainHitPending);
 		}
 
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
@@ -2057,9 +2057,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t amplitudeL, amplitudeR;
 		bool doPanning = false;
 		if (AudioEngine::renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-			amplitudeL = amplitudes.left;
-			amplitudeR = amplitudes.right;
+			const deluge::dsp::fixed::PanAmplitudes amplitudes =
+			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+			amplitudeL = amplitudes.left.raw();
+			amplitudeR = amplitudes.right.raw();
 			doPanning = pan != 0;
 		}
 
@@ -2067,13 +2068,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		if (!voice_rendered_in_stereo) {
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
+				// The voices render raw Q31 samples.
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitudeL), dsp::Q<30>::from_raw(amplitudeR));
+					return dsp::panned_mono(dsp::Q<31>::from_raw(sample), dsp::Q<30>::from_raw(amplitudeL),
+					                        dsp::Q<30>::from_raw(amplitudeR));
 				});
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), StereoSample::from_mono);
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [](q31_t sample) {
+					return StereoSample::from_mono(dsp::Q<31>::from_raw(sample)); // the voices' raw Q31
+				});
 			}
 		}
 
@@ -2955,7 +2960,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
-	core().compressor().dsp().set_threshold(effects.compressor.threshold); // what a save before any render writes back
+	// what a save before any render writes back
+	core().compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(effects.compressor.threshold));
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];

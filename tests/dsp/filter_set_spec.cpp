@@ -19,6 +19,7 @@
 // Exact reference values pin the routing, the gain chain and the reset and fade rules, each case from a reset set
 // with the synth-wide noise generator seeded the same.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "util/synth_noise.h"
 
@@ -27,6 +28,8 @@
 #include <tuple>
 #include <vector>
 
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 using namespace deluge::dsp::fixed;
 
 namespace {
@@ -53,10 +56,22 @@ const std::vector<int32_t> kLoud = [] {
 	return block;
 }();
 
-constexpr FilterConfig kLow{.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true};
-constexpr FilterConfig kHigh{.frequency = 1 << 23, .resonance = 1 << 27, .morph = 1 << 26, .allow_oversampling = true};
-constexpr FilterConfig kOpenLow{.frequency = 1 << 26, .resonance = 0, .morph = 0, .allow_oversampling = true};
-constexpr FilterConfig kOpenHigh{.frequency = 0, .resonance = 0, .morph = 0, .allow_oversampling = true};
+constexpr FilterConfig kLow{.frequency = Q<31>::from_raw(1 << 24),
+                            .resonance = Q<29>::from_raw(1 << 28),
+                            .morph = Q<29>::from_raw(1 << 27),
+                            .allow_oversampling = true};
+constexpr FilterConfig kHigh{.frequency = Q<31>::from_raw(1 << 23),
+                             .resonance = Q<29>::from_raw(1 << 27),
+                             .morph = Q<29>::from_raw(1 << 26),
+                             .allow_oversampling = true};
+constexpr FilterConfig kOpenLow{.frequency = Q<31>::from_raw(1 << 26),
+                                .resonance = Q<29>::from_raw(0),
+                                .morph = Q<29>::from_raw(0),
+                                .allow_oversampling = true};
+constexpr FilterConfig kOpenHigh{.frequency = Q<31>::from_raw(0),
+                                 .resonance = Q<29>::from_raw(0),
+                                 .morph = Q<29>::from_raw(0),
+                                 .allow_oversampling = true};
 
 constexpr LowPassSlot kLowOff{.kind = LowPassSlot::Kind::OFF};
 constexpr LowPassSlot kLow12{.kind = LowPassSlot::Kind::LADDER, .ladder = LowPassLadderMode::TRANSISTOR_12DB};
@@ -72,8 +87,8 @@ constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf = SvfMod
 /// A set with its scratch, starting reset.
 struct Rig {
 	FilterSet set;
-	std::vector<int32_t> fade = std::vector<int32_t>(64);
-	std::vector<int32_t> parallel = std::vector<int32_t>(64);
+	std::vector<Q<31>> fade = std::vector<Q<31>>(64);
+	std::vector<Q<31>> parallel = std::vector<Q<31>>(64);
 
 	int32_t configure(LowPassSlot low, HighPassSlot high, FilterRoute route = FilterRoute::HIGH_TO_LOW,
 	                  const FilterConfig& low_config = kLow, const FilterConfig& high_config = kHigh) {
@@ -81,12 +96,12 @@ struct Rig {
 	}
 	std::vector<int32_t> mono(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.render_mono(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		set.render_mono(typed_view(std::span{block}), {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 	std::vector<int32_t> stereo(const std::vector<int32_t>& in) {
 		std::vector<int32_t> block = in;
-		set.render_stereo(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		set.render_stereo(typed_view(std::span{block}), {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		return block;
 	}
 };

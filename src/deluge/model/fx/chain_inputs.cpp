@@ -111,10 +111,10 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 	    .mod_fx_depth = modFx.depth,
 	    .mod_fx_offset = modFx.offset,
 	    .mod_fx_feedback = modFx.feedback,
-	    .eq = {.bass = unpatched->getValue(params::UNPATCHED_BASS),
-	           .treble = unpatched->getValue(params::UNPATCHED_TREBLE),
-	           .bass_frequency = unpatched->getValue(params::UNPATCHED_BASS_FREQ),
-	           .treble_frequency = unpatched->getValue(params::UNPATCHED_TREBLE_FREQ)},
+	    .eq = {.bass = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS)),
+	           .treble = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE)),
+	           .bass_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS_FREQ)),
+	           .treble_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE_FREQ))},
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
@@ -190,9 +190,10 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	int32_t amplitudeR = 0;
 	const bool doPanning = pan != 0 && AudioEngine::renderInStereo;
 	if (doPanning) {
-		const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-		amplitudeL = amplitudes.left;
-		amplitudeR = amplitudes.right;
+		const deluge::dsp::fixed::PanAmplitudes amplitudes =
+		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+		amplitudeL = amplitudes.left.raw();
+		amplitudeR = amplitudes.right.raw();
 	}
 
 	return {

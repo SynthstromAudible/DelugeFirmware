@@ -41,6 +41,7 @@
 
 using namespace deluge::effects;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 namespace {
 
@@ -120,9 +121,9 @@ public:
 	void clearGrainFXBuffer() { fx_.clear(); }
 	void startSkippingRendering() { fx_.startSkippingRendering(); }
 
-	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
+	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
-		fx_.render(frames,
+		fx_.render(deluge::dsp::test::typed_frames(frames),
 		           {.rate = rate,
 		            .mix = mix,
 		            .density = density,
@@ -165,12 +166,13 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 	std::vector<uint32_t> words{s.write, static_cast<uint32_t>(s.full), static_cast<uint32_t>(s.initialized),
 	                            static_cast<uint32_t>(s.wraps_to_shutdown)};
 	for (const auto& g : s.grains) {
-		push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse, g.pan_l,
-		           g.pan_r);
+		push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse, g.pan_l.raw(),
+		           g.pan_r.raw());
 	}
 	if (all) {
-		for (const int32_t w : {s.lpf_l.z, s.lpf_r.z, s.levels.size, s.levels.period, s.levels.wet, s.levels.dry,
-		                        s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
+		for (const int32_t w :
+		     {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet.raw(), s.levels.dry.raw(),
+		      s.levels.feedback.raw(), s.knobs.rate.raw(), s.knobs.mix.raw(), s.knobs.density.raw()}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 	}
@@ -200,7 +202,7 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 		const auto lpf = fx.low_pass();
 		const ReferenceGranular::Cache c = fx.cache();
 		for (const int32_t w :
-		     {lpf[0].z, lpf[1].z, c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
+		     {lpf[0].z.raw(), lpf[1].z.raw(), c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 	}
@@ -213,16 +215,16 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 	std::vector<uint32_t> words;
 	words.reserve(2 * Granular::Kernel::kRingFrames);
 	for (uint32_t i = 0; i < static_cast<uint32_t>(Granular::Kernel::kRingFrames); ++i) {
-		const StereoSample frame = i < s.written ? s.ring[i] : StereoSample{0, 0};
-		words.push_back(static_cast<uint32_t>(frame.l));
-		words.push_back(static_cast<uint32_t>(frame.r));
+		const StereoSample frame = i < s.written ? s.ring[i] : StereoSample{};
+		words.push_back(static_cast<uint32_t>(frame.l.raw()));
+		words.push_back(static_cast<uint32_t>(frame.r.raw()));
 	}
 	return words;
 }
 
 [[nodiscard]] std::vector<uint32_t> reference_ring_words(const ReferenceGranular& fx) {
 	std::vector<uint32_t> words;
-	for (const StereoSample frame : fx.ring_frames()) {
+	for (const RawFrame frame : fx.ring_frames()) {
 		words.push_back(static_cast<uint32_t>(frame.l));
 		words.push_back(static_cast<uint32_t>(frame.r));
 	}
@@ -237,12 +239,12 @@ template <typename Fx, typename Leave, typename Enter>
 	gw::GranularTrace trace;
 	const auto render = [&](std::size_t from, std::size_t count) {
 		for (std::size_t b = from; b < from + count; ++b) {
-			std::vector<StereoSample> frames = gw::stereo_input(256, b);
+			std::vector<RawFrame> frames = gw::stereo_input(256, b);
 			std::vector<q31_t> send = gw::send_input(256, b, false);
 			int32_t volume = gw::kStartVolume;
 			fx.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, true,
 			                  gw::kSendAmount, send);
-			for (const StereoSample frame : frames) {
+			for (const RawFrame frame : frames) {
 				trace.samples.push_back(frame.l);
 				trace.samples.push_back(frame.r);
 			}
@@ -265,9 +267,9 @@ template <typename Fx>
 	gw::GranularTrace trace;
 	for (std::size_t b = 0; b < silent + 300; ++b) {
 		const bool sound = b >= silent;
-		std::vector<StereoSample> frames = gw::stereo_input(256, b);
+		std::vector<RawFrame> frames = gw::stereo_input(256, b);
 		if (!sound) {
-			std::ranges::fill(frames, StereoSample{0, 0});
+			std::ranges::fill(frames, RawFrame{0, 0});
 		}
 		std::vector<q31_t> send = gw::send_input(256, b, false);
 		int32_t volume = gw::kStartVolume;
@@ -276,7 +278,7 @@ template <typename Fx>
 		}
 		fx.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, sound,
 		                  gw::kSendAmount, send);
-		for (const StereoSample frame : frames) {
+		for (const RawFrame frame : frames) {
 			trace.samples.push_back(frame.l);
 			trace.samples.push_back(frame.r);
 		}
@@ -294,7 +296,7 @@ static_assert(kSilentBlocks * 256 > Granular::Kernel::kRingFrames / 2);
 /// @brief A reference that does not exist until its first sounding block, as a chain's processor does not.
 class LateReference {
 public:
-	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
+	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
 		if (!reference_) {
 			if (!sound) {
@@ -371,8 +373,8 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		Owner owner;
 		expect(owner.fx().holdsRing()).to_equal(false);
 		expect(owner.fx().samplesToShutdown()).to_equal(0);
-		const std::vector<StereoSample> input = gw::stereo_input(128, 3);
-		std::vector<StereoSample> frames = input;
+		const std::vector<RawFrame> input = gw::stereo_input(128, 3);
+		std::vector<RawFrame> frames = input;
 		std::vector<q31_t> send = gw::send_input(128, 3, false);
 		const std::vector<q31_t> send_in = send;
 		int32_t volume = gw::kStartVolume;
@@ -582,12 +584,12 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			const std::vector<uint32_t> before = state_words(fx);
 			deluge::synth_noise.seed(gw::kCongSeed);
 			for (std::size_t b = 0; b < 4; ++b) {
-				const std::vector<StereoSample> input = gw::stereo_input(256, b);
-				std::vector<StereoSample> frames = input;
+				const std::vector<RawFrame> input = gw::stereo_input(256, b);
+				std::vector<RawFrame> frames = input;
 				std::vector<q31_t> send = gw::send_input(256, b, false);
 				const std::vector<q31_t> send_in = send;
 				int32_t volume = gw::kStartVolume;
-				fx.render(frames,
+				fx.render(deluge::dsp::test::typed_frames(std::span{frames}),
 				          {.rate = gw::kRateMid,
 				           .mix = gw::kMixMid,
 				           .density = gw::kDensityMid,

@@ -114,11 +114,11 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ output_buffer, int32
 			                                            ? interpolator_.interpolate(num_channels, which_kernel, osc_pos)
 			                                            : interpolator_.interpolate_linear(num_channels, osc_pos);
 
-			add_levelled<5>(output_buffer, sample_read.l, amplitude);
+			add_levelled<5>(output_buffer, sample_read.l.raw(), amplitude);
 			output_buffer++;
 
 			if (num_channels == 2) {
-				add_levelled<5>(output_buffer, sample_read.r, amplitude);
+				add_levelled<5>(output_buffer, sample_read.r.raw(), amplitude);
 				output_buffer++;
 			}
 		} while (output_buffer != output_buffer_end);

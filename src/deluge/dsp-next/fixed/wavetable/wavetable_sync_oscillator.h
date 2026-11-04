@@ -38,7 +38,7 @@ namespace deluge::dsp::fixed {
 /// block-level, so there is no per-sample `render()`.
 class WavetableSyncOscillator {
 public:
-	using value_type = q31; ///< q31 wave samples.
+	using value_type = Q<31>; ///< Wave samples.
 
 	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
 	                        uint32_t retrigger_phase, int32_t wave_index, int32_t wave_index_increment)
@@ -49,7 +49,7 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
-	void render_block(Buffer output) {
+	void render_block(dsp::Buffer<Q<31>> output) {
 		uint32_t phase = phasor_.phase().raw();
 		uint32_t phase_increment = phasor_.increment().raw();
 		uint32_t resetter_phase = resetter_.phase;

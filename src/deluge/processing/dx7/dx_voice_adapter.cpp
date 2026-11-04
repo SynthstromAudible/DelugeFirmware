@@ -16,6 +16,7 @@
  */
 #include "processing/dx7/dx_voice_adapter.h"
 #include "board_config.h" // CACHE_LINE_SIZE
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
@@ -95,13 +96,17 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 		patch_->refreshVoiceParams();
 	}
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
-	const PoolVoice::BlockInputs in{
-	    .base_pitch = adjpitch, .lfo_value = patch_->lfo_value, .eg_mod = patch_->eg_mod, .amp_mod = ampModParam >> 13};
+	// The pitch is the float log2 read as Q24 octaves.
+	const PoolVoice::BlockInputs in{.base_pitch = Q<24>::from_raw(adjpitch),
+	                                .lfo_value = patch_->lfo_value,
+	                                .eg_mod = patch_->eg_mod,
+	                                .amp_mod = ampModParam >> 13};
 	if (patchChanged) {
 		voice_->retune(s);
 	}
 	const auto n = static_cast<std::size_t>(numSamples);
-	if (!voice_->render_block(s, {uniBuf, n}, in, getDxEngine()->buses())) {
+	// The voice renders Q24 samples into the raw block the caller reads.
+	if (!voice_->render_block(s, typed_view<Q<24>>(std::span<int32_t>{uniBuf, n}), in, getDxEngine()->buses())) {
 		return {}; // voice has ended
 	}
 	return std::span<const int32_t>{uniBuf, n};

@@ -41,10 +41,10 @@ SourceRenderResult DX7Source::render(const SourceBlock& block) {
 		for (int i = 0; i < block.num_samples; i++) {
 			amplitude = add_wrap(amplitude, step);
 			const auto amplified = mul_as_wrap<Q<31>>(Q<26>::from_raw(fm[i]), amplitude);
-			const dsp::StereoSample panned = dsp::panned_mono(amplified.raw(), amplitude_l, amplitude_r);
+			const dsp::StereoSample panned = dsp::panned_mono(amplified, amplitude_l, amplitude_r);
 			auto* frame = &block.osc_buffer[i << 1];
-			frame[0] = add_wrap(Q<31>::from_raw(frame[0]), Q<31>::from_raw(panned.l)).raw();
-			frame[1] = add_wrap(Q<31>::from_raw(frame[1]), Q<31>::from_raw(panned.r)).raw();
+			frame[0] = add_wrap(Q<31>::from_raw(frame[0]), panned.l).raw();
+			frame[1] = add_wrap(Q<31>::from_raw(frame[1]), panned.r).raw();
 		}
 	}
 	else {

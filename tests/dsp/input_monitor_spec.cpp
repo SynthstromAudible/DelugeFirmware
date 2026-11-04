@@ -40,6 +40,10 @@
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
+using deluge::dsp::test::raw_frame;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frame;
+using deluge::dsp::test::typed_frames;
 
 namespace {
 
@@ -72,10 +76,10 @@ constexpr std::array<std::pair<int32_t, int32_t>, 4> kRamps{
     {{0, 1 << 27}, {1 << 27, 1 << 27}, {1 << 28, 0}, {0x40000000, 0x7FFFFFFF}}};
 
 /// @p n frames of @p ring from frame @p at, wrapping, copied as the track copies them.
-std::vector<StereoSample> ring_read(const std::vector<StereoSample>& ring, std::size_t at, std::size_t n) {
+std::vector<RawFrame> ring_read(const std::vector<RawFrame>& ring, std::size_t at, std::size_t n) {
 	const std::size_t first = std::min(n, ring.size() - at);
-	std::vector<StereoSample> out(ring.begin() + static_cast<std::ptrdiff_t>(at),
-	                              ring.begin() + static_cast<std::ptrdiff_t>(at + first));
+	std::vector<RawFrame> out(ring.begin() + static_cast<std::ptrdiff_t>(at),
+	                          ring.begin() + static_cast<std::ptrdiff_t>(at + first));
 	out.insert(out.end(), ring.begin(), ring.begin() + static_cast<std::ptrdiff_t>(n - first));
 	return out;
 }
@@ -85,15 +89,15 @@ std::vector<StereoSample> ring_read(const std::vector<StereoSample>& ring, std::
 // clang-format off
 describe input_monitor_spec("the input folds monitoring adds to the output", ${
 	it("folds as the output stage did, at each fold and shift", _ {
-		const std::vector<StereoSample> ring = frames(kRingFrames, 0x1A9E0001);
+		const std::vector<RawFrame> ring = frames(kRingFrames, 0x1A9E0001);
 		for (const auto [fold, action] : kOutputFolds) {
 			for (const int shift : {0, 1, 2, 3, 8}) {
-				const std::vector<StereoSample> out = frames(kRingFrames, 0x1A9E0002);
+				const std::vector<RawFrame> out = frames(kRingFrames, 0x1A9E0002);
 				for (std::size_t i = 0; i < ring.size(); ++i) {
 					int32_t l = out[i].l;
 					int32_t r = out[i].r;
 					reference::output_monitor(action, &ring[i].l, l, r, shift);
-					const StereoSample add = output_monitor_fold(fold, ring[i], shift);
+					const RawFrame add = raw_frame(output_monitor_fold(fold, typed_frame(ring[i]), shift));
 					expect(wrapping_add(out[i].l, add.l)).to_equal(l);
 					expect(wrapping_add(out[i].r, add.r)).to_equal(r);
 				}
@@ -102,22 +106,22 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 	});
 
 	it("adds the input at a ramped amplitude as the track did, at each mode", _ {
-		std::vector<StereoSample> ring = frames(kRingFrames, 0x1A9E0003);
+		std::vector<RawFrame> ring = frames(kRingFrames, 0x1A9E0003);
 		const int32_t* ring_end = &ring.back().l + 2;
 		for (const auto [mode, channel] : kTrackModes) {
 			for (const auto [from, to] : kRamps) {
 				Mono<TrackMonitor> k;
-				std::vector<StereoSample> a = frames(kRingFrames, 0x1A9E0004);
-				std::vector<StereoSample> b = a;
+				std::vector<RawFrame> a = frames(kRingFrames, 0x1A9E0004);
+				std::vector<RawFrame> b = a;
 				std::size_t read = kStart;
 				std::size_t at = 0;
 				for (std::size_t i = 0; at < a.size(); ++i) {
 					const std::size_t n = block_at(i, a.size() - at);
 					reference::track_monitor(channel, std::span{a}.subspan(at, n), &ring[read].l, ring_end,
 					                         static_cast<int32_t>(kRingFrames), from, to);
-					const std::vector<StereoSample> input = ring_read(ring, read, n);
-					k.configure({.amplitude_start = from, .amplitude_end = to, .mode = mode});
-					k.render_block(std::span{b}.subspan(at, n), input, std::span{b}.subspan(at, n));
+					const std::vector<RawFrame> input = ring_read(ring, read, n);
+					k.configure({.amplitude_start = Q<30>::from_raw(from), .amplitude_end = Q<30>::from_raw(to), .mode = mode});
+					k.render_block(typed_frames(std::span{b}.subspan(at, n)), typed_frames(std::span{input}), typed_frames(std::span{b}.subspan(at, n)));
 					read = (read + n) % kRingFrames;
 					at += n;
 				}
@@ -127,10 +131,12 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 	});
 	it("passes the input through at an amplitude of 2^30, its two lowest bits floored", _ {
 		Mono<TrackMonitor> k;
-		std::vector<StereoSample> input{{.l = 0x12345677, .r = -0x12345677}, {.l = INT32_MAX, .r = INT32_MIN}};
-		std::vector<StereoSample> out(input.size(), StereoSample{.l = 0, .r = 0});
-		k.configure({.amplitude_start = 1 << 30, .amplitude_end = 1 << 30, .mode = TrackMonitor::Mode::STEREO});
-		k.render_block(out, input, out);
+		std::vector<RawFrame> input{{.l = 0x12345677, .r = -0x12345677}, {.l = INT32_MAX, .r = INT32_MIN}};
+		std::vector<RawFrame> out(input.size(), RawFrame{.l = 0, .r = 0});
+		k.configure({.amplitude_start = Q<30>::from_raw(1 << 30),
+		             .amplitude_end = Q<30>::from_raw(1 << 30),
+		             .mode = TrackMonitor::Mode::STEREO});
+		k.render_block(typed_frames(std::span{out}), typed_frames(std::span{input}), typed_frames(std::span{out}));
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			expect(out[i].l).to_equal(input[i].l & ~3);
 			expect(out[i].r).to_equal(input[i].r & ~3);

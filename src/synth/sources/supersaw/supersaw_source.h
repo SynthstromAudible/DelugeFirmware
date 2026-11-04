@@ -55,14 +55,12 @@ public:
 	/// @param waveIndexLast the wave index param's previous block value, which sets the spread
 	/// @param waveIndexIncrement its per-sample slope; spread is taken where the block ends
 	void render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
-	                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	                 int32_t wave_index_increment, std::span<int32_t> output, std::span<int32_t> scratch);
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                      deluge::dsp::fixed::Buffer out) override {
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<int32_t> out) override {
 		render_into(controls, block.phase_increment, block.wavetable.index_last, block.wavetable.index_increment, out,
-		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
+		            std::span<int32_t>{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 
 private:

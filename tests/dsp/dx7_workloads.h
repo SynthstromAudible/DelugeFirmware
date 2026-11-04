@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/dx7/modern_vector_operator.h"
 #include "dsp-next/fixed/dx7/tables.h"
@@ -536,12 +537,14 @@ struct VectorCore {
 		namespace dx7 = deluge::dsp::fixed::dx7;
 		deluge::dsp::Mono<dx7::ModernVectorOperator> op{{.input = input,
 		                                                 .output = add ? dx7::Output::ADD : dx7::Output::SET,
-		                                                 .level_in = param.level_in,
-		                                                 .freq = param.freq,
+		                                                 .level_in = deluge::dsp::Q<24>::from_raw(param.level_in),
+		                                                 .freq = dx7::Phase::from_raw(param.freq),
 		                                                 .tables = &vector_tables()}};
-		op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = gain1});
+		op.on<&dx7::ModernVectorOperator::resume>(
+		    dx7::OperatorState{.phase = dx7::Phase::from_raw(param.phase), .gain_out = gain1});
 		const auto len = static_cast<std::size_t>(n);
-		op.render_block({modulation, len}, {out, len}, {out, len});
+		const auto block = deluge::dsp::typed_view<deluge::dsp::Q<24>>(std::span{out, len});
+		op.render_block(deluge::dsp::typed_view<deluge::dsp::Q<24>>(std::span{modulation, len}), block, block);
 	}
 };
 

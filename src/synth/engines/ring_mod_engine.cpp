@@ -17,7 +17,7 @@
 
 #include "synth/engines/ring_mod_engine.h"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h" // std::span<int32_t>
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
 #include "synth/engines/pitch.h"
@@ -68,9 +68,9 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 	for (int32_t u = 0; u < cfg.num_unison; u++) {
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);
-		int32_t unison_amplitude_l = unison_pan_amplitudes.left;
-		int32_t unison_amplitude_r = unison_pan_amplitudes.right;
+		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
+		int32_t unison_amplitude_l = unison_pan_amplitudes.left.raw();
+		int32_t unison_amplitude_r = unison_pan_amplitudes.right.raw();
 
 		// The two sources' phase increments. One too high abandons every remaining unison part: the parts ascend in
 		// frequency, so the rest are too high as well.
@@ -172,8 +172,8 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		    make_block_controls(0, 0, source.pulse_width, /*apply_amplitude=*/false, synced, osc_sync_pos,
 		                        src0.phase_increment, source.retrigger_phase, cpu_direness);
 		// NOLINTEND(readability-suspicious-call-argument)
-		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(num_samples)};
-		const dsp::fixed::Buffer sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
+		const std::span<int32_t> out{scratch[s], static_cast<size_t>(num_samples)};
+		const std::span<int32_t> sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
 		std::visit(
 		    [&]<class Held>(Held& held) {
 			    if constexpr (std::is_same_v<Held, VirtualAnalogSource>) {

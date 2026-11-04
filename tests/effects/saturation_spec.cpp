@@ -20,7 +20,8 @@ int32_t first_sample(uint32_t drive) {
 	using deluge::dsp::fixed::AntialiasedTanh;
 	AntialiasedTanh::State state{};
 	return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = drive}), deluge::dsp::EmptyBlock{}, state,
-	                             kInput);
+	                             deluge::dsp::Q<31>::from_raw(kInput))
+	    .raw();
 }
 
 /// The voice variant of one first sample, by hand: tanh at 5 + amount, shifted from amount 2.
@@ -36,7 +37,8 @@ int32_t chain_by_hand(uint8_t amount) {
 std::vector<StereoSample> ramp() {
 	std::vector<StereoSample> block;
 	for (int32_t i = 0; i < 16; i++) {
-		block.push_back({.l = i * (1 << 25), .r = -i * (1 << 24)});
+		block.push_back(
+		    {.l = deluge::dsp::Q<31>::from_raw(i * (1 << 25)), .r = deluge::dsp::Q<31>::from_raw(-i * (1 << 24))});
 	}
 	return block;
 }
@@ -84,8 +86,8 @@ describe saturation("tanh saturation per voice and per chain", ${
 		byBlock.process(block, params);
 		const std::vector<StereoSample> input = ramp();
 		for (size_t i = 0; i < input.size(); i++) {
-			expect(block[i].l).to_equal(bySample.saturate(input[i].l, 0, params));
-			expect(block[i].r).to_equal(bySample.saturate(input[i].r, 1, params));
+			expect(block[i].l.raw()).to_equal(bySample.saturate(input[i].l.raw(), 0, params));
+			expect(block[i].r.raw()).to_equal(bySample.saturate(input[i].r.raw(), 1, params));
 		}
 	});
 });

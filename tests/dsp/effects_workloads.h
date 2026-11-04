@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/noise.h"
+#include "raw_frame.h"
 
 #include <algorithm>
 #include <array>
@@ -33,7 +33,7 @@
 
 namespace effects_workloads {
 
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 /// The block sizes every kernel comparison cycles through: a single frame, odd sizes, a vector and one past it, the
 /// engine's 128, and a pair.
@@ -51,10 +51,10 @@ constexpr std::array<int32_t, 9> kSweep{std::numeric_limits<int32_t>::min(),
                                         std::numeric_limits<int32_t>::max()};
 
 /// @p n full-scale frames of seeded noise, left and right from one stream.
-inline std::vector<StereoSample> frames(std::size_t n, uint32_t seed) {
+inline std::vector<RawFrame> frames(std::size_t n, uint32_t seed) {
 	deluge::dsp::fixed::SeededNoise noise{seed};
-	std::vector<StereoSample> out(n);
-	for (StereoSample& f : out) {
+	std::vector<RawFrame> out(n);
+	for (RawFrame& f : out) {
 		f.l = noise.render();
 		f.r = noise.render();
 	}
@@ -62,8 +62,8 @@ inline std::vector<StereoSample> frames(std::size_t n, uint32_t seed) {
 }
 
 /// Whether two frame blocks are identical.
-inline bool same(const std::vector<StereoSample>& a, const std::vector<StereoSample>& b) {
-	return std::ranges::equal(a, b, [](StereoSample x, StereoSample y) { return x.l == y.l && x.r == y.r; });
+inline bool same(const std::vector<RawFrame>& a, const std::vector<RawFrame>& b) {
+	return std::ranges::equal(a, b, [](RawFrame x, RawFrame y) { return x.l == y.l && x.r == y.r; });
 }
 
 /// The block length at cut @p i of a run with @p left frames left: kBlockSizes in turn, the last cut short.

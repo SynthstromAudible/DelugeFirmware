@@ -3,6 +3,7 @@
 // three feedback shifts for the feedback modes. The samples, the held phase and gain, and the feedback history
 // match; then the audibility gate and the skipped block's bookkeeping.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/operator.h"
@@ -14,9 +15,12 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Mono;
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 using dx7::Engine;
 using dx7::Input;
 using dx7::Operator;
@@ -25,7 +29,7 @@ using dx7::Output;
 namespace {
 
 constexpr std::array<int32_t, 3> kFeedbackShifts{1, 4, 16};
-constexpr dx7::FeedbackHistory kHistory{.y0 = 0x00123456, .y1 = -0x00234567};
+constexpr std::array<int32_t, 2> kHistory{0x00123456, -0x00234567}; // the reference's raw y0, y1
 
 /// @brief EngineMkI::render's gains for an op: the attenuation the last block ended at (0 read as just below
 /// silence), the level's, and the per-sample step.
@@ -50,8 +54,8 @@ void run_reference(const dx7_reference::Tables& t, Engine engine, Input input, b
 	r.gains = engine == Engine::MODERN ? dx7_asm_pin::modern_gains(t, gain_out, level_in, n)
 	                                   : mki_gains(gain_out, level_in, n);
 	const auto [g1, g2, dg] = r.gains;
-	r.fb[0] = kHistory.y0;
-	r.fb[1] = kHistory.y1;
+	r.fb[0] = kHistory[0];
+	r.fb[1] = kHistory[1];
 	if (engine == Engine::MODERN) {
 		switch (input) {
 		case Input::NONE:
@@ -113,21 +117,26 @@ describe dx7_operator_spec("dx7::Operator", ${
 							              g.level_in, shift, inputs.modulation, reference);
 
 							Mono<Operator> unit{{.engine = engine, .input = input, .output = output,
-							                     .level_in = g.level_in, .freq = p.freq, .feedback_shift = shift,
+							                     .level_in = Q<24>::from_raw(g.level_in),
+							                     .freq = dx7::Phase::from_raw(p.freq), .feedback_shift = shift,
 							                     .tables = &tables}};
-							unit.on<&Operator::resume>(dx7::OperatorState{.phase = p.phase0, .gain_out = g.gain_out},
-							                           kHistory);
+							unit.on<&Operator::resume>(
+							    dx7::OperatorState{.phase = dx7::Phase::from_raw(p.phase0), .gain_out = g.gain_out},
+							    dx7::FeedbackHistory{.y0 = Q<24>::from_raw(kHistory[0]),
+							                         .y1 = Q<24>::from_raw(kHistory[1])});
 							const auto len = static_cast<std::size_t>(n);
-							const int32_t* modulation = input == Input::BUS ? inputs.modulation : out;
-							unit.render_block({modulation, len}, {out, len}, {out, len});
+							int32_t* modulation = input == Input::BUS ? inputs.modulation : out;
+							const auto block = typed_view<Q<24>>(std::span{out, len});
+							unit.render_block(typed_view<Q<24>>(std::span{modulation, len}), block, block);
 
 							expect(std::ranges::equal(std::span{out, len}, std::span{reference.out, len})).to_be_true();
 							expect(unit.state().op.gain_out).to_equal(reference.gains.gain2);
-							expect(unit.state().op.phase)
-							    .to_equal(Operator::advance_phase(p.phase0, p.freq, len));
+							expect(unit.state().op.phase.raw())
+							    .to_equal(Operator::advance_phase(dx7::Phase::from_raw(p.phase0),
+							                                      dx7::Phase::from_raw(p.freq), len).raw());
 							if (input == Input::FEEDBACK) {
-								expect(unit.state().loop.feedback.y0).to_equal(reference.fb[0]);
-								expect(unit.state().loop.feedback.y1).to_equal(reference.fb[1]);
+								expect(unit.state().loop.feedback.y0.raw()).to_equal(reference.fb[0]);
+								expect(unit.state().loop.feedback.y1.raw()).to_equal(reference.fb[1]);
 							}
 						}
 					}
@@ -146,8 +155,9 @@ describe dx7_operator_spec("dx7::Operator", ${
 					const bool gate = engine == Engine::MODERN
 					    ? (r.gain1 >= dx7::kGainLevelThresh || r.gain2 >= dx7::kGainLevelThresh)
 					    : (r.gain1 <= dx7::kMkILevelThresh || r.gain2 <= dx7::kMkILevelThresh);
-					const dx7::OperatorState held{.phase = 0x7fff0000, .gain_out = g.gain_out};
-					Mono<Operator> unit{{.engine = engine, .level_in = g.level_in, .freq = 0x01000000,
+					const dx7::OperatorState held{.phase = dx7::Phase::from_raw(0x7fff0000), .gain_out = g.gain_out};
+					const auto freq = dx7::Phase::from_raw(0x01000000);
+					Mono<Operator> unit{{.engine = engine, .level_in = Q<24>::from_raw(g.level_in), .freq = freq,
 					                     .tables = &tables}};
 					const auto len = static_cast<std::size_t>(n);
 					expect(Operator::audible(unit.coefficients(), held, len)).to_equal(gate);
@@ -155,7 +165,8 @@ describe dx7_operator_spec("dx7::Operator", ${
 					unit.on<&Operator::resume>(held, dx7::FeedbackHistory{});
 					unit.on<&Operator::skip>(len);
 					expect(unit.state().op.gain_out).to_equal(r.gain2);
-					expect(unit.state().op.phase).to_equal(Operator::advance_phase(held.phase, 0x01000000, len));
+					expect(unit.state().op.phase.raw()).to_equal(Operator::advance_phase(held.phase, freq, len).raw());
+
 				}
 			}
 		}

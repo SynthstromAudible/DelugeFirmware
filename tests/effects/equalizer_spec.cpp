@@ -15,7 +15,7 @@ std::vector<StereoSample> sine(size_t frames, size_t offset = 0) {
 	std::vector<StereoSample> block;
 	for (size_t i = offset; i < offset + frames; i++) {
 		const auto v = static_cast<int32_t>(std::sin(static_cast<double>(i) * 0.01) * (1 << 28));
-		block.push_back({.l = v, .r = v});
+		block.push_back(StereoSample::from_mono(deluge::dsp::Q<31>::from_raw(v)));
 	}
 	return block;
 }
@@ -27,13 +27,14 @@ bool same(const std::vector<StereoSample>& a, const std::vector<StereoSample>& b
 int64_t level(const std::vector<StereoSample>& block) {
 	int64_t sum = 0;
 	for (const StereoSample& s : block) {
-		sum += std::abs(static_cast<int64_t>(s.l));
+		sum += std::abs(static_cast<int64_t>(s.l.raw()));
 	}
 	return sum;
 }
 
 constexpr EqualizerParams kFlat{};
-constexpr EqualizerParams kBassBoost{.bass = 0x30000000, .bass_frequency = 0x10000000};
+constexpr EqualizerParams kBassBoost{.bass = deluge::dsp::Q<31>::from_raw(0x30000000),
+                                     .bass_frequency = deluge::dsp::Q<31>::from_raw(0x10000000)};
 
 } // namespace
 

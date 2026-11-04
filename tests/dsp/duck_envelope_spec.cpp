@@ -63,17 +63,22 @@ static_assert(!std::is_polymorphic_v<Control<DuckEnvelope>>);
 
 // The release's curve extent: the shape biased to 0 at INT32_MIN, in curvedness units of 2^16. The middle shape is
 // exactly one unit (fully curved at the release's start); the top is just under two.
-static_assert(DuckEnvelope::coefficients({.shape = std::numeric_limits<q31>::min()}).curve_extent16 == 0);
-static_assert(DuckEnvelope::coefficients({.shape = 0}).curve_extent16 == 65536);
-static_assert(DuckEnvelope::coefficients({.shape = std::numeric_limits<q31>::max()}).curve_extent16 == 131071);
+static_assert(DuckEnvelope::coefficients({.shape = Q<31>::min()}).curve_extent16 == 0);
+static_assert(DuckEnvelope::coefficients({.shape = Q<31>{}}).curve_extent16 == 65536);
+static_assert(DuckEnvelope::coefficients({.shape = Q<31>::max()}).curve_extent16 == 131071);
 
-constexpr Settings kRates{.attack = 37640, .release = 3680, .shape = 0, .instant_attack = false};
+constexpr Settings kRates{.attack = 37640, .release = 3680, .shape = Q<31>{}, .instant_attack = false};
 /// The minimum attack: a 2^23 stage in 8 samples.
-constexpr Settings kInstantRates{.attack = 1048576, .release = 3680, .shape = 0, .instant_attack = true};
-constexpr q31 kHit = 0x60000000;
+constexpr Settings kInstantRates{.attack = 1048576, .release = 3680, .shape = Q<31>{}, .instant_attack = true};
+constexpr q31_t kHit = 0x60000000;
+
+/// combine_hit_strengths on raw Q31 words.
+constexpr q31_t combine(q31_t a, q31_t b) {
+	return combine_hit_strengths(Q<31>::from_raw(a), Q<31>::from_raw(b)).raw();
+}
 
 /// One hit, then 40 blocks of 128, and the stage after each.
-const std::vector<q31> kMain{
+const std::vector<q31_t> kMain{
     -420429314,  -1603353912, -1585455984, -1556814480, -1517238720, -1466648424, -1404845568, -1331730312,
     -1247071680, -1150905768, -1043224560, -924359688,  -794962752,  -656393304,  -510967296,  -362615304,
     -217681152,  -86159664,   0,           0,           0,           0,           0,           0,
@@ -86,79 +91,79 @@ const std::vector<S> kMainStages{S::ATTACK,  S::RELEASE, S::RELEASE, S::RELEASE,
                                  S::OFF,     S::OFF,     S::OFF,     S::OFF,     S::OFF,     S::OFF,     S::OFF,
                                  S::OFF,     S::OFF,     S::OFF,     S::OFF,     S::OFF};
 /// One hit, three blocks, a hit of 2^29 (weaker than the duck), five more.
-const std::vector<q31> kWeaker{-420429314,  -1603353912, -1585455984, -1556814480,
-                               -1517238720, -1466648424, -1404845568, -1331730312};
+const std::vector<q31_t> kWeaker{-420429314,  -1603353912, -1585455984, -1556814480,
+                                 -1517238720, -1466648424, -1404845568, -1331730312};
 /// One hit, three blocks, a hit as deep as the level held (strength 1585455984), five more.
-constexpr q31 kEqualStrength = 1585455984;
-const std::vector<q31> kEqual{-420429314,  -1603353912, -1585455984, -1556814480,
-                              -1517238720, -1466648424, -1404845568, -1331730312};
+constexpr q31_t kEqualStrength = 1585455984;
+const std::vector<q31_t> kEqual{-420429314,  -1603353912, -1585455984, -1556814480,
+                                -1517238720, -1466648424, -1404845568, -1331730312};
 /// One hit, three blocks, a full-scale hit, five more; and the stages.
-const std::vector<q31> kStronger{-420429314,  -1603353912, -1585455984, -1732165928,
-                                 -2137805216, -2113941312, -2075752640, -2022984960};
+const std::vector<q31_t> kStronger{-420429314,  -1603353912, -1585455984, -1732165928,
+                                   -2137805216, -2113941312, -2075752640, -2022984960};
 const std::vector<S> kStrongerStages{S::ATTACK,  S::RELEASE, S::RELEASE, S::ATTACK,
                                      S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE};
 /// One hit at the minimum attack, then six blocks of 4; and the stages.
-const std::vector<q31> kInstant{-1610558754, -1610494940, -1610421552, -1610338158, -1610196644, -1610093758};
+const std::vector<q31_t> kInstant{-1610558754, -1610494940, -1610421552, -1610338158, -1610196644, -1610093758};
 const std::vector<S> kInstantStages{S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE};
 /// One hit, then 20 blocks at shapes INT32_MIN, INT32_MAX and 2^30.
-const std::vector<q31> kShapeMin{-420429314,  -1520173056, -1429733376, -1339293696, -1248854016,
-                                 -1158414336, -1067974656, -977534976,  -887095296,  -796655616,
-                                 -706215936,  -615776256,  -525336576,  -434896896,  -344457216,
-                                 -254017536,  -163577856,  -73138176,   0,           0};
-const std::vector<q31> kShapeMax{-420429314,  -1608302592, -1605156864, -1600880640, -1594982400,
-                                 -1586970624, -1576009728, -1561116672, -1540669440, -1512849408,
-                                 -1474805760, -1422901248, -1351974912, -1255194624, -1123024896,
-                                 -942587904,  -696287232,  -359890944,  0,           0};
-const std::vector<q31> kShapeQuarter{-420429314,  -1608302592, -1605156864, -1600880640, -1594982400,
-                                     -1586970624, -1576009728, -1561116672, -1540669440, -1509002664,
-                                     -1427519472, -1327922184, -1208281920, -1066542168, -900251136,
-                                     -706900488,  -484035840,  -229536048,  0,           0};
+const std::vector<q31_t> kShapeMin{-420429314,  -1520173056, -1429733376, -1339293696, -1248854016,
+                                   -1158414336, -1067974656, -977534976,  -887095296,  -796655616,
+                                   -706215936,  -615776256,  -525336576,  -434896896,  -344457216,
+                                   -254017536,  -163577856,  -73138176,   0,           0};
+const std::vector<q31_t> kShapeMax{-420429314,  -1608302592, -1605156864, -1600880640, -1594982400,
+                                   -1586970624, -1576009728, -1561116672, -1540669440, -1512849408,
+                                   -1474805760, -1422901248, -1351974912, -1255194624, -1123024896,
+                                   -942587904,  -696287232,  -359890944,  0,           0};
+const std::vector<q31_t> kShapeQuarter{-420429314,  -1608302592, -1605156864, -1600880640, -1594982400,
+                                       -1586970624, -1576009728, -1561116672, -1540669440, -1509002664,
+                                       -1427519472, -1327922184, -1208281920, -1066542168, -900251136,
+                                       -706900488,  -484035840,  -229536048,  0,           0};
 /// A late hit of 0x50000000 50, 1000 and 5000 samples ago, then four blocks; the stage before the first, then
 /// after each.
-const std::vector<q31> kLate50{-729814812, -1336128260, -1321213320, -1297345400};
+const std::vector<q31_t> kLate50{-729814812, -1336128260, -1321213320, -1297345400};
 const std::vector<S> kLate50Stages{S::ATTACK, S::ATTACK, S::RELEASE, S::RELEASE, S::RELEASE};
-const std::vector<q31> kLate1000{-1104626534, -1033333938, -952444524, -861971840};
+const std::vector<q31_t> kLate1000{-1104626534, -1033333938, -952444524, -861971840};
 const std::vector<S> kLate1000Stages{S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE, S::RELEASE};
-const std::vector<q31> kLate5000{0, 0, 0, 0};
+const std::vector<q31_t> kLate5000{0, 0, 0, 0};
 const std::vector<S> kLate5000Stages{S::OFF, S::OFF, S::OFF, S::OFF, S::OFF};
 /// One hit, three blocks, then a late hit of 0x50000000 50 samples ago, four more.
-const std::vector<q31> kLateMidDuck{-420429314,  -1603353912, -1585455984, -729814812,
-                                    -1336128260, -1321213320, -1297345400};
+const std::vector<q31_t> kLateMidDuck{-420429314,  -1603353912, -1585455984, -729814812,
+                                      -1336128260, -1321213320, -1297345400};
 /// Late hits 221, 222, 2500 and 2501 samples ago: the stage each lands in.
 const std::vector<S> kLateEdgeStages{S::ATTACK, S::RELEASE, S::RELEASE, S::OFF};
 /// Hits of 0x30000000 and 0x40000000 before one render, then four blocks.
-const std::vector<q31> kTwoHits{-385393538, -1469741086, -1453334652, -1427079940};
+const std::vector<q31_t> kTwoHits{-385393538, -1469741086, -1453334652, -1427079940};
 /// Stopped one block into a duck with a weaker hit pending (dropped against the duck's level), then that hit again.
-const std::vector<q31> kStopped{-420429314, 0, 0, -70071554, -267225652};
+const std::vector<q31_t> kStopped{-420429314, 0, 0, -70071554, -267225652};
 /// combine_hit_strengths at (0, 2^30), (2^30, 0), (x, x), near full scale, at full scale, and across 2^30.
-const std::vector<q31> kCombined{1073741824, 1073741824, 1207959552, 2013265919, 2147483646, 1610612735};
+const std::vector<q31_t> kCombined{1073741824, 1073741824, 1207959552, 2013265919, 2147483646, 1610612735};
 
 /// @p rates at the release shape @p shape.
-constexpr Settings at_shape(Settings rates, q31 shape) {
-	rates.shape = shape;
+constexpr Settings at_shape(Settings rates, q31_t shape) {
+	rates.shape = Q<31>::from_raw(shape);
 	return rates;
 }
 
 /// A duck with its outputs and its stage after each block.
 struct Rig {
 	Control<DuckEnvelope> duck;
-	std::vector<q31> out;
+	std::vector<q31_t> out;
 	std::vector<S> stages;
 
 	/// @p count blocks of @p length, each configured at @p rates and @p shape before it advances.
-	void blocks(int count, std::size_t length, q31 shape = 0, Settings rates = kRates) {
+	void blocks(int count, std::size_t length, q31_t shape = 0, Settings rates = kRates) {
 		for (int i = 0; i < count; i++) {
 			duck.configure(at_shape(rates, shape));
-			out.push_back(duck.advance(length));
+			out.push_back(duck.advance(length).raw());
 			stages.push_back(duck.state().stage);
 		}
 	}
 };
 
 /// @p count blocks of 128 after one hit of @p strength at @p shape.
-std::vector<q31> afterHit(q31 strength, int count, q31 shape = 0) {
+std::vector<q31_t> afterHit(q31_t strength, int count, q31_t shape = 0) {
 	Rig rig;
-	rig.duck.on<&DuckEnvelope::hit>(strength);
+	rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(strength));
 	rig.blocks(count, 128, shape);
 	return rig.out;
 }
@@ -166,13 +171,13 @@ std::vector<q31> afterHit(q31 strength, int count, q31 shape = 0) {
 /// A late hit of 0x50000000 @p samples_ago at kRates.
 void hitLate(Control<DuckEnvelope>& duck, uint32_t samples_ago) {
 	duck.configure(kRates);
-	duck.on<&DuckEnvelope::hit_at>(q31{0x50000000}, samples_ago);
+	duck.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(q31_t{0x50000000}), samples_ago);
 }
 
 /// Four blocks of 128 after a late hit @p samples_ago, a pending hit dropped by it; the stage from before the first.
 Rig late(uint32_t samples_ago) {
 	Rig rig;
-	rig.duck.on<&DuckEnvelope::hit>(kOneQ31);
+	rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kOneQ31));
 	hitLate(rig.duck, samples_ago);
 	rig.stages.push_back(rig.duck.state().stage);
 	rig.blocks(4, 128);
@@ -192,7 +197,7 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("ducks through attack, release and off exactly, each stage handing over inside the block it ends in", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(40, 128);
 		expect(rig.out).to_equal(kMain);
 		expect(rig.stages).to_equal(kMainStages);
@@ -200,9 +205,9 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("ignores a hit weaker than the duck under way", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(3, 128);
-		rig.duck.on<&DuckEnvelope::hit>(q31{0x20000000});
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(q31_t{0x20000000}));
 		rig.blocks(5, 128);
 		expect(rig.out).to_equal(kWeaker);
 		expect(rig.out).to_equal(afterHit(kHit, 8));
@@ -210,12 +215,12 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("ignores a hit exactly as deep as the level held", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(3, 128);
-		const q31 held = rig.out.back() + kOneQ31;
+		const q31_t held = rig.out.back() + kOneQ31;
 		expect(kOneQ31 - held).to_equal(kEqualStrength);
-		expect(rig.duck.state().level).to_equal(held);
-		rig.duck.on<&DuckEnvelope::hit>(kEqualStrength);
+		expect(rig.duck.state().level.raw()).to_equal(held);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kEqualStrength));
 		rig.blocks(5, 128);
 		expect(rig.out).to_equal(kEqual);
 		expect(rig.out).to_equal(afterHit(kHit, 8));
@@ -223,9 +228,9 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("takes a stronger hit, attacking again from the level where it lands", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(3, 128);
-		rig.duck.on<&DuckEnvelope::hit>(kOneQ31);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kOneQ31));
 		rig.blocks(5, 128);
 		expect(rig.out).to_equal(kStronger);
 		expect(rig.stages).to_equal(kStrongerStages);
@@ -233,16 +238,16 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("jumps straight to release at the minimum attack, in blocks shorter than its 8 samples", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(6, 4, 0, kInstantRates);
 		expect(rig.out).to_equal(kInstant);
 		expect(rig.stages).to_equal(kInstantStages);
 	});
 
 	it("releases straight at the lowest shape, curved at the middle, clamped at the top", _ {
-		expect(afterHit(kHit, 20, std::numeric_limits<q31>::min())).to_equal(kShapeMin);
+		expect(afterHit(kHit, 20, std::numeric_limits<q31_t>::min())).to_equal(kShapeMin);
 		expect(afterHit(kHit, 20, 0x40000000)).to_equal(kShapeQuarter);
-		expect(afterHit(kHit, 20, std::numeric_limits<q31>::max())).to_equal(kShapeMax);
+		expect(afterHit(kHit, 20, std::numeric_limits<q31_t>::max())).to_equal(kShapeMax);
 	});
 
 	it("places a late hit in its attack, dropping the pending hit", _ {
@@ -259,7 +264,7 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("starts a late hit's attack from no duck, wherever the level stood", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(3, 128);
 		hitLate(rig.duck, 50);
 		rig.blocks(4, 128);
@@ -286,52 +291,52 @@ describe duck_envelope("DuckEnvelope", ${
 		// No attack: a hit 3 samples ago is 3 samples into the release, at 3 * 3680, and one 10 samples ago at 10 *
 		// 3680, whatever the attack's step.
 		Control<DuckEnvelope> three_ago{kInstantRates};
-		three_ago.on<&DuckEnvelope::hit_at>(kHit, uint32_t{3});
+		three_ago.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(kHit), uint32_t{3});
 		expect(three_ago.state().stage).to_equal(S::RELEASE);
 		expect(three_ago.state().pos).to_equal(11040U);
 
 		Settings wrapped = kInstantRates; // a synced instant attack's step, wrapped in its lift
 		wrapped.attack = INT32_MIN;
 		Control<DuckEnvelope> ten_ago{wrapped};
-		ten_ago.on<&DuckEnvelope::hit_at>(kHit, uint32_t{10});
+		ten_ago.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(kHit), uint32_t{10});
 		expect(ten_ago.state().stage).to_equal(S::RELEASE);
 		expect(ten_ago.state().pos).to_equal(36800U);
 	});
 
 	it("stops the duck, weighing a pending hit against the level it stood at", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(1, 128);
 		rig.duck.on<&DuckEnvelope::stop>();
 		expect(rig.duck.state().stage).to_equal(S::OFF);
-		rig.duck.on<&DuckEnvelope::hit>(q31{0x10000000});
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(q31_t{0x10000000}));
 		rig.blocks(2, 128);
-		rig.duck.on<&DuckEnvelope::hit>(q31{0x10000000});
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(q31_t{0x10000000}));
 		rig.blocks(2, 128);
 		expect(rig.out).to_equal(kStopped);
 	});
 
 	it("combines two hits registered before one block", _ {
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(q31{0x30000000});
-		rig.duck.on<&DuckEnvelope::hit>(q31{0x40000000});
-		expect(rig.duck.state().pending.strength).to_equal(combine_hit_strengths(0x30000000, 0x40000000));
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(q31_t{0x30000000}));
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(q31_t{0x40000000}));
+		expect(rig.duck.state().pending.strength.raw()).to_equal(combine(0x30000000, 0x40000000));
 		rig.blocks(4, 128);
 		expect(rig.out).to_equal(kTwoHits);
-		expect(rig.out).to_equal(afterHit(combine_hit_strengths(0x30000000, 0x40000000), 4));
+		expect(rig.out).to_equal(afterHit(combine(0x30000000, 0x40000000), 4));
 		expect(rig.duck.state().pending.empty()).to_be_true();
 	});
 
 	it("combines hit strengths exactly, the sum clamped at full scale", _ {
-		const std::vector<q31> combined{
-		    combine_hit_strengths(0, 0x40000000),          combine_hit_strengths(0x40000000, 0),
-		    combine_hit_strengths(0x30000000, 0x30000000), combine_hit_strengths(0x70000000, 0x60000000),
-		    combine_hit_strengths(kOneQ31, kOneQ31),       combine_hit_strengths(0x3FFFFFFF, 0x40000001),
+		const std::vector<q31_t> combined{
+		    combine(0, 0x40000000),          combine(0x40000000, 0),
+		    combine(0x30000000, 0x30000000), combine(0x70000000, 0x60000000),
+		    combine(kOneQ31, kOneQ31),       combine(0x3FFFFFFF, 0x40000001),
 		};
 		expect(combined).to_equal(kCombined);
-		static_assert(combine_hit_strengths(0x70000000, 0x60000000) == 2013265919);
-		static_assert(PendingHit{}.with(0x30000000).with(0x40000000).strength
-		              == combine_hit_strengths(0x30000000, 0x40000000));
+		static_assert(combine(0x70000000, 0x60000000) == 2013265919);
+		static_assert(PendingHit{}.with(Q<31>::from_raw(0x30000000)).with(Q<31>::from_raw(0x40000000)).strength.raw()
+		              == combine(0x30000000, 0x40000000));
 	});
 
 	it("restarts the release at position 0 when the attack ends one sample into a block, dropping the overrun", _ {
@@ -341,7 +346,7 @@ describe duck_envelope("DuckEnvelope", ${
 		// 4817920, 4785392 past the end. The release then starts at 0 and advances by the whole block, 128 * 3680 =
 		// 471040: not by the 127 samples the attack left over, and not from the attack's overrun.
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		rig.blocks(1, 222);
 		expect(rig.duck.state().stage).to_equal(S::ATTACK);
 		expect(rig.duck.state().pos).to_equal(8356080U);
@@ -350,7 +355,9 @@ describe duck_envelope("DuckEnvelope", ${
 		expect(rig.duck.state().pos).to_equal(471040U);
 		const DuckEnvelope::State& state = rig.duck.state();
 		expect(rig.out.back())
-		    .to_equal(release_level(state.depth, state.pos, rig.duck.coefficients().curve_extent16) - kOneQ31);
+		    .to_equal(sub_wrap(release_level(state.depth, state.pos, rig.duck.coefficients().curve_extent16),
+		                       Q<31>::max())
+		                  .raw());
 	});
 
 	it("uses a new release rate from the next block, the release's position carried over", _ {
@@ -358,7 +365,7 @@ describe duck_envelope("DuckEnvelope", ${
 		// 4817920; the second ends the attack and releases 128 * 3680 = 471040 from 0; each later block adds 471040,
 		// then 128 * 7360 = 942080 once the rate doubles.
 		Rig rig;
-		rig.duck.on<&DuckEnvelope::hit>(kHit);
+		rig.duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		Settings doubled = kRates;
 		doubled.release = kRates.release * 2;
 		std::vector<uint32_t> positions;
@@ -374,9 +381,9 @@ describe duck_envelope("DuckEnvelope", ${
 
 	it("advances a duck never configured as no duck, staying off", _ {
 		Control<DuckEnvelope> duck;
-		expect(duck.advance(128)).to_equal(0);
+		expect(duck.advance(128).raw()).to_equal(0);
 		expect(duck.state().stage).to_equal(S::OFF);
-		expect(duck.state().level).to_equal(kOneQ31);
+		expect(duck.state().level.raw()).to_equal(kOneQ31);
 	});
 
 	it("places a late hit at a zero rate in that stage, at its start, as a stage that never ends", _ {
@@ -384,12 +391,12 @@ describe duck_envelope("DuckEnvelope", ${
 		// envelope never configured. A zero-rate stage never ends, so placement divides by no zero: the hit stays in
 		// it, at position 0.
 		Control<DuckEnvelope> unconfigured;
-		unconfigured.on<&DuckEnvelope::hit_at>(q31{0x50000000}, uint32_t{1000});
+		unconfigured.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(q31_t{0x50000000}), uint32_t{1000});
 		expect(unconfigured.state().stage).to_equal(S::ATTACK);
 		expect(unconfigured.state().pos).to_equal(0U);
 
 		Control<DuckEnvelope> no_release{Settings{.attack = 37640, .release = 0}};
-		no_release.on<&DuckEnvelope::hit_at>(q31{0x50000000}, uint32_t{1000});
+		no_release.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(q31_t{0x50000000}), uint32_t{1000});
 		expect(no_release.state().stage).to_equal(S::RELEASE);
 		expect(no_release.state().pos).to_equal(0U);
 	});

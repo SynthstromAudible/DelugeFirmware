@@ -20,6 +20,7 @@
 // foundation the persistent voice model relies on; the band-reselect-on-set_increment case is the key hazard.
 // Run on x86 (SIMDe) + ARM/QEMU via CTest.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/bandlimited/saw.h"
 #include "dsp-next/fixed/bandlimited/square.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
@@ -47,7 +48,7 @@ constexpr std::size_t kN = 16; // a render block
 template <typename Osc>
 std::array<int32_t, kN> block(Osc& osc) {
 	std::array<int32_t, kN> out{};
-	osc.render_block(Buffer{out});
+	osc.render_block(deluge::dsp::typed_view(std::span{out}));
 	return out;
 }
 } // namespace

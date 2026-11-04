@@ -19,6 +19,7 @@
 // edge-to-edge BLEP has to carry an edge across a block boundary), its headroom, and the SupersawSource seam over it.
 // Run on x86 (SIMDe) + ARM/QEMU via CTest.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/osc/supersaw.h"
 #include "synth/sources/supersaw/supersaw_source.h"
@@ -29,12 +30,12 @@
 #include <cppspec.hpp>
 #include <cstdint>
 #include <numbers>
+#include <span>
 #include <vector>
 
 namespace {
 using deluge::dsp::Q;
 using deluge::dsp::Ramp;
-using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::Supersaw;
 using deluge::synth::BlockControls;
 using deluge::synth::SupersawSource;
@@ -57,7 +58,8 @@ std::vector<int32_t> render(uint32_t inc, int32_t spread, int32_t saws, int32_t 
 	std::vector<int32_t> block(256 + 4);
 	for (int32_t pos = 0, b = 0; pos < total; b++) {
 		int32_t n = std::min(blocks[b % blocks.size()], total - pos);
-		Supersaw::render(Buffer{block.data(), static_cast<size_t>(n)}, inc, spread, saws, centre, sides, true);
+		Supersaw::render(deluge::dsp::typed_view(std::span{block.data(), static_cast<size_t>(n)}), inc, spread, saws,
+		                 centre, sides, true);
 		std::copy_n(block.begin(), n, out.begin() + pos);
 		pos += n;
 	}
@@ -170,7 +172,8 @@ std::uint64_t naive_hash() {
 			p = next();
 		}
 		for (int block = 0; block < 2; ++block) {
-			Supersaw::render(Buffer{out}, increment, spread, num_saws, centre, sides, false);
+			Supersaw::render(deluge::dsp::typed_view(std::span{out}), increment, spread, num_saws, centre, sides,
+			                 false);
 			for (const int32_t x : out) {
 				hash = (hash ^ static_cast<uint32_t>(x)) * 0x0000'0100'0000'01b3ULL;
 			}
@@ -225,7 +228,7 @@ describe supersaw("the dsp-next supersaw", ${
 			uint32_t centre = kStartPhase;
 			auto sides = Supersaw::side_phases_from(kStartPhase);
 			for (int32_t pos = 0; pos < 2048; pos += 128) {
-				Supersaw::render(Buffer{naive.data() + pos, 128}, inc, kSpreadMin, 7, centre, sides, false);
+				Supersaw::render(deluge::dsp::typed_view(std::span{naive.data() + pos, 128}), inc, kSpreadMin, 7, centre, sides, false);
 			}
 			auto blep = render(inc, kSpreadMin, 7, 2048, {128});
 			expect(aliasRatioDb(blep, 1760)).to_be_less_than(aliasRatioDb(naive, 1760) - 40);
@@ -248,7 +251,7 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> got(1024);
 			std::vector<int32_t> scratch(128);
 			for (int32_t pos = 0; pos < 1024; pos += 128) {
-				source.render_into(controls(false), inc, 0, 0, Buffer{got.data() + pos, 128}, Buffer{scratch});
+				source.render_into(controls(false), inc, 0, 0, std::span<int32_t>{got.data() + pos, 128}, std::span<int32_t>{scratch});
 			}
 			expect(got == render(inc, 0, 7, 1024, {128})).to_be_true();
 			expect(source.phase()).to_equal(kStartPhase + inc * 1024);
@@ -262,8 +265,8 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> wave(128);
 			std::vector<int32_t> out(128, 1000);
 			std::vector<int32_t> scratch(128);
-			raw.render_into(controls(false), inc, 0, 0, Buffer{wave}, Buffer{scratch});
-			mixed.render_into(controls(true, amplitude), inc, 0, 0, Buffer{out}, Buffer{scratch});
+			raw.render_into(controls(false), inc, 0, 0, std::span<int32_t>{wave}, std::span<int32_t>{scratch});
+			mixed.render_into(controls(true, amplitude), inc, 0, 0, std::span<int32_t>{out}, std::span<int32_t>{scratch});
 			for (size_t i = 0; i < out.size(); i++) {
 				// vqdmulh by the halved, quadrupled amplitude, plus what was already in the buffer
 				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value().raw() << 2) >> 1)) >> 31) + 1000;
@@ -278,8 +281,8 @@ describe supersaw("the dsp-next supersaw", ${
 			std::vector<int32_t> scratch(128);
 			SupersawSource a{0, Supersaw::side_phases_from(0)};
 			SupersawSource b{0, Supersaw::side_phases_from(0)};
-			a.render_into(controls(false), inc, 0, 0, Buffer{first}, Buffer{scratch});
-			b.render_into(controls(false), inc, 0, 0, Buffer{second}, Buffer{scratch});
+			a.render_into(controls(false), inc, 0, 0, std::span<int32_t>{first}, std::span<int32_t>{scratch});
+			b.render_into(controls(false), inc, 0, 0, std::span<int32_t>{second}, std::span<int32_t>{scratch});
 			expect(first == second).to_be_true();
 		});
 	});

@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {
 
-void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-                                   deluge::dsp::fixed::Buffer scratch) {
+void WavetableSource::render_block(const BlockControls& controls, std::span<int32_t> output,
+                                   std::span<int32_t> scratch) {
 	const uint32_t orig_phase = phasor_.phase().raw();
 	const uint32_t orig_inc = phasor_.increment().raw();
 
@@ -55,7 +56,7 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 	if (!do_osc_sync) {
 		deluge::dsp::fixed::WavetableOscillator osc{table_, render_phase, render_inc, wave_index,
 		                                            wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::typed_view(std::span<int32_t>{dst, output.size()}));
 		rendered_phase = osc.phase();
 	}
 	else {
@@ -67,14 +68,15 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 		    controls.retrigger_phase,
 		    wave_index,
 		    wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::typed_view(std::span<int32_t>{dst, output.size()}));
 		rendered_phase = osc.phase();
 	}
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
+		vca.render_block(deluge::dsp::typed_view(std::span<const int32_t>{scratch}),
+		                 deluge::dsp::typed_view(std::span<const int32_t>{output}), deluge::dsp::typed_view(output));
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance

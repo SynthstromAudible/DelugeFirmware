@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <concepts>
@@ -39,10 +40,10 @@ struct BlockGenerator {
 
 namespace detail {
 
-/// @brief @p D renders a vector of arithmetic @p T per call.
+/// @brief @p D renders a vector of @p T per call: `Argon<T>` for a float T, `QVec<31>` for Q<31>.
 template <typename D, typename T>
-concept simd_generator_render = std::is_arithmetic_v<T> && requires(D d) {
-	{ d.render() } -> std::same_as<Argon<T>>;
+concept simd_generator_render = (std::floating_point<T> || std::same_as<T, Q<31>>) && requires(D d) {
+	{ d.render() } -> std::same_as<vector_t<T>>;
 };
 
 /// @brief @p D renders a vector of stereo frames per call.
@@ -61,10 +62,11 @@ concept scalar_generator_render = requires(D d) {
 
 /// @brief CRTP mixin: builds a generator's `render_block` from its `render()`.
 /// @tparam Derived the component, which defines `render()`.
-/// @tparam T the sample type of the block (`q31`, `f32` or @ref StereoSample).
+/// @tparam T the sample type of the block (`Q<31>`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
 /// `Derived::render()`:
-/// - SIMD, when it returns `Argon<T>`: one `render()` per vector, through `argon::vectorize::for_each`.
+/// - SIMD, when it returns `Argon<T>` (or `QVec<31>` over Q<31>): one `render()` per vector, through
+///   `argon::vectorize::for_each`.
 /// - SIMD stereo, when `T` is @ref StereoSample and it returns @ref StereoVector: one `render()` per vector
 ///   of frames, interleaved on store through `argon::vectorize::for_each_interleaved`.
 /// - Scalar, when it returns `T`: one `render()` per sample.
@@ -89,15 +91,15 @@ struct Generator {
 		if constexpr (detail::simd_generator_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
 			T* out = output.data();
-			argon::vectorize::for_each<T>(size,
-			                              [&] [[gnu::always_inline]] (auto step) { step.Store(out, self.render()); });
+			argon::vectorize::for_each<detail::loop_lane_t<T>>(
+			    size, [&] [[gnu::always_inline]] (auto step) { detail::store_step(step, out, self.render()); });
 		}
 		else if constexpr (detail::simd_stereo_generator_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
-			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
+			std::int32_t* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<std::int32_t, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames = self.render();
-				step.Store(out, {frames.l, frames.r});
+				step.Store(out, {frames.l.raw(), frames.r.raw()});
 			});
 		}
 		else {

@@ -16,10 +16,12 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/lane_pack.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -382,10 +384,18 @@ concept declares_kernel_types = std::is_class_v<K> && !std::is_final_v<K> && req
 template <typename K>
 concept scalar_step_kernel = std::same_as<typename K::step_type, typename K::value_type>;
 
-/// @brief K steps a vector of consecutive q31 samples.
+/// @brief Whether @p T is a Q31 sample.
+template <typename T>
+concept q31_sample = std::same_as<T, Q<31>>;
+
+/// @brief Whether @p T is a 32-bit fixed-point sample a kernel steps: Q<F> of any format.
+template <typename T>
+concept q_sample = std::same_as<T, Q<T::kFractionalBits>>;
+
+/// @brief K steps a vector of consecutive 32-bit samples: `QVec<F>` over Q<F>.
 template <typename K>
 concept vector_step_kernel =
-    std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, Argon<q31>>;
+    q_sample<typename K::value_type> && std::same_as<typename K::step_type, vector_t<typename K::value_type>>;
 
 /// @brief K steps a vector of consecutive stereo frames, de-interleaved one vector per channel.
 template <typename K>
@@ -393,7 +403,7 @@ concept stereo_vector_step_kernel =
     std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
 
 /// @brief Whether a wrapper has a loop for K's step type over its value type: the step type is the value type,
-/// `Argon<q31>` over q31, or StereoVector over StereoSample.
+/// `QVec<F>` over Q<F>, or StereoVector over StereoSample.
 template <typename K>
 concept supported_step_pair = scalar_step_kernel<K> || vector_step_kernel<K> || stereo_vector_step_kernel<K>;
 
@@ -475,13 +485,13 @@ struct ChainVectors {
 };
 
 /// @brief How many chains K's chained step runs at once: K::kChains, or 1 when K declares none.
-/// @details A q31 vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
+/// @details A 32-bit vector kernel whose step is one long dependency chain declares `static constexpr std::size_t
 /// kChains = N` (N > 1) and `step_chains` (a template on the mode for a moded kernel), taking each input as
 /// `ChainVectors<step_type, N>` of consecutive vectors and returning the N outputs the same way. It must compute
 /// exactly what N calls of `step` in a row compute, state included; it exists to write the N chains' instructions
 /// interleaved, stage by stage, which the A9 needs to overlap them and which an unrolled loop of `step` does not give.
 /// `Mono` runs every whole group of N vectors through it, then the rest of the block, the partial vector included,
-/// through `step`. Only `Mono`'s q31 vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
+/// through `step`. Only `Mono`'s vector loop runs chains: a scalar or stereo kernel declaring kChains is rejected.
 template <typename K>
 inline constexpr std::size_t chains_of_v = 1;
 
@@ -497,7 +507,7 @@ inline constexpr std::size_t chains_of_v<K> = [] {
 /// @brief The shape every kernel has: value/step types, Settings → Coefficients (pure), State, optional prepare.
 /// @details Requires:
 /// - a non-final class declaring `value_type`, `step_type` and `Settings`, with a step type a wrapper has a loop
-///   for: the value type itself, `Argon<q31>` over q31 blocks, or StereoVector over StereoSample blocks;
+///   for: the value type itself, `QVec<F>` over Q<F> blocks, or StereoVector over StereoSample blocks;
 /// - `Coefficients`, `State` and kernel_block_t<K> as plain value structs (default-constructible, trivially
 ///   copyable);
 /// - `static Coefficients coefficients(const Settings&)`;
@@ -601,8 +611,9 @@ concept moded_kernel = kernel<K> && detail::has_modes<K>;
 
 namespace detail {
 
-/// @brief The lane pack the opt-in is detected at: two q31 lanes.
-using ProbePack = LanePack<q31, 2>;
+/// @brief The lane pack the opt-in is detected at: two lanes of K's value type.
+template <typename K>
+using ProbePack = LanePack<typename K::value_type, 2>;
 
 /// @brief Whether K declares `static constexpr bool kLanePackable = true`.
 template <typename K>
@@ -611,16 +622,18 @@ concept declares_lane_packable = requires {
 	requires K::kLanePackable;
 };
 
-/// @brief Whether K's state is written over its value type: `StateT<q31>` is K's State, and `StateT<P>` holds every
-/// member as a P, so a pack of N lanes is N States side by side, member by member.
+/// @brief Whether K's state is written over its value type: `StateT<value_type>` is K's State, and `StateT<P>` holds
+/// every member as a P, so a pack of N lanes is N States side by side, member by member.
 /// @details Checked by size: a pack's state is the probe width's times a State's, and both copy as plain bytes. The
-/// size shows every member is a P only while the packed state is aligned as a q31 is, so that no padding can make up
-/// a member of another type; an over-aligned packed state is rejected.
+/// size shows every member is a P only while the packed state is aligned as a Q31 word is, so that no padding can make
+/// up a member of another type; an over-aligned packed state is rejected.
 template <typename K, typename P>
 concept state_written_over_value =
-    requires { typename K::template StateT<P>; } && std::same_as<typename K::template StateT<q31>, typename K::State>
+    requires { typename K::template StateT<P>; }
+    && std::same_as<typename K::template StateT<typename K::value_type>, typename K::State>
     && plain_value<typename K::template StateT<P>> && std::is_trivially_copyable_v<typename K::State>
-    && sizeof(typename K::State) % sizeof(q31) == 0 && alignof(typename K::template StateT<P>) == alignof(q31)
+    && sizeof(typename K::State) % sizeof(std::int32_t) == 0
+    && alignof(typename K::template StateT<P>) == alignof(std::int32_t)
     && sizeof(typename K::template StateT<P>) == 2 * sizeof(typename K::State);
 
 /// @brief Whether K's `step` written over a value type is callable at pack P, with the form's step values as P's, and
@@ -647,24 +660,24 @@ concept steps_packed =
 /// as one @ref LanePack.
 /// @details K declares:
 /// - `static constexpr bool kLanePackable = true`;
-/// - `template <class V> struct StateT`, every member a V, with `using State = StateT<q31>`;
+/// - `template <class V> struct StateT`, every member a V, with `using State = StateT<value_type>`;
 /// - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&, …)` (without the
-///   mode when K has none), its arithmetic written so it resolves for q31 and for a LanePack: `wrapping_add`,
-///   `wrapping_sub` and the fixed-point multiplies called unqualified.
+///   mode when K has none), its arithmetic written so it resolves for its value type and for a LanePack of it:
+///   fixed_point.h's operations, which fixed_point_lanes.h applies lane by lane.
 ///
 /// The coefficients stay scalar: every lane shares them, and a pack's operations broadcast a scalar operand. K is a
-/// generator, processor or mixer kernel stepping q31. The op-major step is not offered to a kernel that declares a
-/// `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk, which acts on one State,
-/// nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of registers: `Lanes` steps those
-/// lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed step would draw for every lane at
-/// once.
+/// generator, processor or mixer kernel stepping one Q<F> sample. The op-major step is not offered to a
+/// kernel that declares a `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk,
+/// which acts on one State, nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of
+/// registers: `Lanes` steps those lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed
+/// step would draw for every lane at once.
 template <typename K>
 concept lane_packable =
     (generator_kernel<K> || processor_kernel<K> || mixer_kernel<K>)
-    && std::same_as<typename K::value_type, q31> && std::same_as<typename K::step_type, q31>
+    && detail::q_sample<typename K::value_type> && std::same_as<typename K::step_type, typename K::value_type>
     && detail::declares_lane_packable<K> && !detail::declares_prepare<K> && !detail::declares_reset<K>
     && !detail::declares_loop_state<K> && !detail::state_in_place_v<K> && !detail::declares_context<K>
-    && detail::state_written_over_value<K, detail::ProbePack> && detail::steps_packed<K, detail::ProbePack>;
+    && detail::state_written_over_value<K, detail::ProbePack<K>> && detail::steps_packed<K, detail::ProbePack<K>>;
 
 namespace detail {
 

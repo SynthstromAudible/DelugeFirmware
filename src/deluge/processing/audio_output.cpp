@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -285,14 +286,16 @@ renderEnvelope:
 				// If we need to duplicate mono to stereo...
 				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 					// If can write directly into Song buffer...
+					// The clip renders raw Q31 samples.
+					const auto typed_mono = deluge::dsp::typed_view(render_mono);
 					if (bufferToTransferTo != nullptr) {
-						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
+						std::ranges::transform(typed_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
 						                       StereoSample::from_mono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
-						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
+						std::ranges::transform(typed_mono.rbegin(), typed_mono.rend(), render.rbegin(),
 						                       StereoSample::from_mono);
 					}
 				}
@@ -367,8 +370,8 @@ renderEnvelope:
 		std::memcpy(input.data() + before_wrap, ring_start, (input.size() - before_wrap) * sizeof(StereoSample));
 
 		deluge::dsp::Mono<TrackMonitor> monitor{{
-		    .amplitude_start = amplitude_start,
-		    .amplitude_end = amplitude_end,
+		    .amplitude_start = deluge::dsp::Q<30>::from_raw(amplitude_start),
+		    .amplitude_end = deluge::dsp::Q<30>::from_raw(amplitude_end),
 		    .mode = mode,
 		}};
 		monitor.render_block(output, input, output);

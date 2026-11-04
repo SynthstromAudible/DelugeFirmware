@@ -63,8 +63,8 @@ namespace deluge::dsp::fixed {
 /// **Wrapping.** Every sum and difference wraps modulo 2^32, as the target's `add` and `sub` do: at full scale the
 /// input less its low-pass and the loop's sum leave q31.
 struct HighPassLadder {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief The saturation the loop runs, chosen per block by the processed resonance.
 	enum class Saturation : uint8_t {
@@ -105,7 +105,7 @@ struct HighPassLadder {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, in the owner's format.
+		int32_t gain = 0; ///< The volume going in, in the owner's format.
 		/// The cutoff (Q31, lifted by 2^5 onto the tan table: see @ref FilterConfig::frequency), the resonance (Q29)
 		/// and the morph (Q29). The oversampling flag is not read.
 		FilterConfig config{};
@@ -121,7 +121,7 @@ struct HighPassLadder {
 		Q<30> low_pass_1_feedback{};         ///< The second section's feedback, Q30.
 		Q<30> high_pass_3_feedback{};        ///< The third section's feedback, Q30.
 		Q<28> divide_by_total_moveability{}; ///< R / (1 − mR/2 + m²R), Q28: R over the loop's denominator.
-		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, in its format.
+		int32_t gain_compensation = 0;       ///< The gain going in, cut as the resonance rises, in its format.
 		Mode mode = Mode::BYPASS;            ///< The saturation and cutoff, dispatched on once per block.
 	};
 
@@ -148,26 +148,26 @@ struct HighPassLadder {
 	/// with the fourth power of the resonance.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		constexpr auto kExtraFeedback = Q<31>::from_raw(1200000000);
-		constexpr int32_t kResonanceUpperLimit = 536870911;
+		constexpr auto kResonanceUpperLimit = Q<29>::from_raw(536870911);
 		constexpr auto kLeastResonance = Q<30>::from_raw(134217728);
 
 		Coefficients c{};
-		c.morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
+		c.morph = as_clamp_then_shift<Q<31>>(s.config.morph);
 		const CurvedFrequency curved = curve_frequency(s.config.frequency);
 		const Q<31> m = curved.fc;
 		const Q<31> divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
 		c.moveability = m;
 
 		const Q<31> damping =
-		    sub_wrap(Q<31>::max(), as_wrap<Q<31>>(Q<29>::from_raw(std::min(s.config.resonance, kResonanceUpperLimit))));
+		    sub_wrap(Q<31>::max(), as_wrap<Q<31>>(std::min(s.config.resonance, kResonanceUpperLimit)));
 		// 1 − damping² at Q31, read as Q30: twice it.
 		const Q<30> processed_resonance_unaltered = std::max(
 		    reinterpret_bits<Q<30>>(sub_wrap(Q<31>::max(), mul_r_as_wrap<Q<31>>(damping, damping))), kLeastResonance);
 
 		c.processed_resonance = mul_as_wrap<Q<30>>(processed_resonance_unaltered, kExtraFeedback);
 		// Raw: a double reciprocal of the resonance's top bits, 2^31 over its value >> 23, gives 1 / 2R at Q25.
-		c.divide_by_processed_resonance =
-		    Q<25>::from_raw(static_cast<q31>(2147483648.0 / static_cast<double>(c.processed_resonance.raw() >> 23)));
+		c.divide_by_processed_resonance = Q<25>::from_raw(
+		    static_cast<int32_t>(2147483648.0 / static_cast<double>(c.processed_resonance.raw() >> 23)));
 
 		const Q<29> moveability_times_resonance = mul(processed_resonance_unaltered, m);
 		const Q<28> moveability_squared_times_resonance = mul(moveability_times_resonance, m);
@@ -192,7 +192,7 @@ struct HighPassLadder {
 		c.mode = mode_of(saturation, c.morph == Q<31>{} ? Cutoff::FIXED : Cutoff::MORPHING);
 
 		// The volume falls as the resonance rises: by 19/32 of its fourth power.
-		const auto resonance = as_wrap<Q<31>>(Q<29>::from_raw(std::min(s.config.resonance, q31{kOneQ31 >> 2})));
+		const auto resonance = as_wrap<Q<31>>(std::min(s.config.resonance, Q<29>::from_raw(kOneQ31 >> 2)));
 		const auto squared = mul_as_wrap<Q<31>>(resonance, resonance);
 		const Q<30> fourth = mul(squared, squared);
 		// Raw: the × 19 / 2^4 is an integer scale, reading the Q30 fourth power as Q31.
@@ -203,7 +203,7 @@ struct HighPassLadder {
 	}
 
 	/// @brief The gain compensation: the gain going in, in its format, cut as the resonance rises.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
+	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}
 
@@ -214,24 +214,24 @@ struct HighPassLadder {
 	/// @param x The input, Q31.
 	/// @return The ladder's output, Q31.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x) {
 		constexpr Saturation kSaturation = saturation_of(M);
-		const auto input = Q<31>::from_raw(x);
+		const Q<31> input = x;
 		// The floor is about as low as the cutoff goes without sounding broken. FIXED: the nudge by a zero morph is
 		// exactly zero, so the clamp of the block's moveability is the same.
 		const Q<31> nudged = cutoff_of(M) == Cutoff::FIXED ? c.moveability : nudge(c, input);
 		const Q<31> m = std::max(nudged, kLowerLimit);
 
-		const q31 first_output = section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_1, m, x);
+		const Q<31> first_output = section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_1, m, x);
 		const Q<31> feedbacks = add_wrap(OnePole::feedback(s.high_pass_3, c.high_pass_3_feedback),
 		                                 OnePole::feedback(s.low_pass_1, c.low_pass_1_feedback));
 		// (h + feedback) × D is Q27; to Q31 and doubled, wrapping.
-		Q<31> a = scale_shl_wrap<1>(
-		    mul_r_as_wrap<Q<31>>(c.divide_by_total_moveability, add_wrap(Q<31>::from_raw(first_output), feedbacks)));
+		Q<31> a =
+		    scale_shl_wrap<1>(mul_r_as_wrap<Q<31>>(c.divide_by_total_moveability, add_wrap(first_output, feedbacks)));
 
 		if constexpr (kSaturation == Saturation::ANTIALIASED) {
-			a = Q<31>::from_raw(AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a.raw()));
+			a = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a);
 		}
 		else {
 			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): this placement is
@@ -248,9 +248,9 @@ struct HighPassLadder {
 
 		// Only the sections' memories are wanted here: they feed back on the next sample.
 		std::ignore = section_step<OnePole::Mode::LOW_PASS>(
-		    s.low_pass_1, m, section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_3, m, a.raw()));
+		    s.low_pass_1, m, section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_3, m, a));
 
-		return mul_r_as_wrap<Q<31>>(a, c.divide_by_processed_resonance).raw();
+		return mul_r_as_wrap<Q<31>>(a, c.divide_by_processed_resonance);
 	}
 
 private:
@@ -276,8 +276,8 @@ private:
 
 	/// @brief One step of @p section at moveability @p m in mode @p M.
 	template <OnePole::Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 section_step(OnePole::State& section, Q<31> m, q31 x) {
-		return OnePole::step<M>(OnePole::Coefficients{.m = m.raw(), .mode = M}, EmptyBlock{}, section, x);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> section_step(OnePole::State& section, Q<31> m, Q<31> x) {
+		return OnePole::step<M>(OnePole::Coefficients{.m = m, .mode = M}, EmptyBlock{}, section, x);
 	}
 };
 

@@ -34,6 +34,10 @@ set(mono_spec_DEPS)
 set(fixed_point_spec_DEPS)
 # The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
 set(fixed_point_lanes_spec_DEPS)
+# The typed-kernel spec needs no sources: the framework and its test kernels are header-only.
+set(typed_kernel_spec_DEPS)
+# The seam-view spec needs no sources: buffer_view.h is header-only.
+set(buffer_view_spec_DEPS)
 # The fixed-point NEON spec needs no sources: fixed_point_neon.h is header-only.
 set(fixed_point_neon_spec_DEPS)
 # The Ramp spec needs no sources: ramp.h is header-only.

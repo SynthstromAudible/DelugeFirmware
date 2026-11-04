@@ -39,7 +39,7 @@ namespace deluge::dsp::fixed {
 /// Band selection and render rate are usually the same increment, but pulse-width waves render at
 /// a rewritten (faster) increment while their band-limiting must still target the perceived pitch;
 /// the four-argument constructor decouples the two (see @p selection_increment).
-class BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, q31> {
+class BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, Q<31>> {
 	const BandlimitedTable* bands_; ///< the wave's band set, retained so the band can be re-selected per block
 	TableOscillator oscillator_;
 
@@ -79,7 +79,7 @@ public:
 		oscillator_.setTable(bands_->select(selection_increment));
 	}
 
-	[[gnu::always_inline]] Argon<q31> render() { return oscillator_.render(); }
+	[[gnu::always_inline]] QVec<31> render() { return oscillator_.render(); }
 };
 static_assert(block_generator<BandLimitedTableOscillator>, "a band-limited oscillator fills a block");
 static_assert(!std::is_polymorphic_v<BandLimitedTableOscillator>,

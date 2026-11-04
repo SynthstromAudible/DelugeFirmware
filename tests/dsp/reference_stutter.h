@@ -33,6 +33,7 @@
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/state.h"
+#include "raw_frame.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -61,12 +62,12 @@ public:
 
 	/// @brief Begins a stutter at @p rate with @p settings: a tape of the size @p rate plays at, plus the write lag,
 	/// its storage holding @p fill.
-	void begin(uint32_t rate, const effects::StutterState& settings, StereoSample fill = {.l = 0, .r = 0}) {
+	void begin(uint32_t rate, const effects::StutterState& settings, RawFrame fill = {}) {
 		playing_settings_ = settings;
 		current_reverse_ = playing_settings_.reversed;
 		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		const std::size_t frames = static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag);
-		storage_.assign(frames, fill);
+		storage_.assign(frames, typed_frame(fill));
 		tape_ = DelayTape{std::span<StereoSample>{storage_}, static_cast<std::size_t>(size), rate};
 		if (clamped) {
 			tape_.make_native_rate_precise();
@@ -76,14 +77,14 @@ public:
 	}
 
 	/// @brief Renders @p audio in place at @p rate.
-	void process(std::span<StereoSample> audio, uint32_t rate) {
+	void process(std::span<RawFrame> audio, uint32_t rate) {
 		DelayTape& tape = tape_;
 
 		tape.setup_for_render(static_cast<int32_t>(rate));
 
 		if (recording_) {
 			counts.record_blocks += 1;
-			for (StereoSample sample : audio) {
+			for (RawFrame sample : audio) {
 				int32_t strength1 = 0;
 				int32_t strength2 = 0;
 
@@ -91,7 +92,7 @@ public:
 					counts.native_frames += 1;
 					tape.clear_and_move_on();
 					size_left_until_record_finished_--;
-					tape.write_native(sample);
+					tape.write_native(typed_frame(sample));
 				}
 				else {
 					counts.resampled_frames += 1;
@@ -100,7 +101,7 @@ public:
 						size_left_until_record_finished_--;
 					});
 					strength1 = 65536 - strength2;
-					tape.write_resampled(sample, strength1, strength2);
+					tape.write_resampled(typed_frame(sample), strength1, strength2);
 				}
 			}
 
@@ -116,7 +117,7 @@ public:
 		}
 		else {
 			counts.play_blocks += 1;
-			for (StereoSample& sample : audio) {
+			for (RawFrame& sample : audio) {
 				int32_t strength1 = 0;
 				int32_t strength2 = 0;
 				counts.reverse_frames += current_reverse_ ? 1 : 0;
@@ -129,8 +130,8 @@ public:
 					else {
 						tape.move_on();
 					}
-					sample.l = tape.current().l;
-					sample.r = tape.current().r;
+					sample.l = tape.current().l.raw();
+					sample.r = tape.current().r.raw();
 				}
 				else {
 					counts.resampled_frames += 1;
@@ -148,8 +149,8 @@ public:
 					if (other == tape.end()) {
 						other = tape.begin();
 					}
-					const StereoSample& from_delay1 = tape.current();
-					const StereoSample& from_delay2 = *other;
+					const RawFrame from_delay1 = raw_frame(tape.current());
+					const RawFrame from_delay2 = raw_frame(*other);
 					sample.l = mix(from_delay1.l, from_delay2.l, strength1, strength2);
 					sample.r = mix(from_delay1.r, from_delay2.r, strength1, strength2);
 				}
@@ -174,10 +175,10 @@ public:
 
 private:
 	/// @return The two taps @p a and @p b weighed by @p strength1 and @p strength2 (16.16, summing to 65536), Q31.
-	[[nodiscard]] static q31 mix(q31 a, q31 b, int32_t strength1, int32_t strength2) {
-		const q31 sum =
+	[[nodiscard]] static q31_t mix(q31_t a, q31_t b, int32_t strength1, int32_t strength2) {
+		const q31_t sum =
 		    wrapping_add(multiply_32x32_rshift32(a, strength1 << 14), multiply_32x32_rshift32(b, strength2 << 14));
-		return static_cast<q31>(static_cast<uint32_t>(sum) << 2);
+		return static_cast<q31_t>(static_cast<uint32_t>(sum) << 2);
 	}
 
 	std::vector<StereoSample> storage_;

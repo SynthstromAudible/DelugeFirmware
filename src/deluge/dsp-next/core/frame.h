@@ -47,7 +47,7 @@ struct Frame {
 
 static_assert(sizeof(Frame<q31, 2>) == sizeof(StereoSample) && alignof(Frame<q31, 2>) == alignof(StereoSample)
                   && std::is_trivially_copyable_v<Frame<q31, 2>>,
-              "a two-lane frame of q31 has a stereo frame's layout, so the two convert by bit cast");
+              "a two-lane frame of Q31 has a stereo frame's layout, so the two convert by bit cast");
 
 /// @brief A stereo frame as two lanes: left in lane 0, right in lane 1, Q31 unchanged.
 [[nodiscard]] [[gnu::always_inline]] constexpr Frame<q31, 2> to_frame(StereoSample s) {

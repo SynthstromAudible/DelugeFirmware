@@ -57,8 +57,9 @@ DelayRig rig{};
 void fill_delay_tape(std::span<StereoSample> storage) {
 	dsp::fixed::SeededNoise noise{kTapeSeed};
 	for (StereoSample& sample : storage) {
-		sample.l = noise.render() >> 10;
-		sample.r = noise.render() >> 10;
+		// The noise's raw words, 10 bits down.
+		sample.l = dsp::Q<31>::from_raw(noise.render() >> 10);
+		sample.r = dsp::Q<31>::from_raw(noise.render() >> 10);
 	}
 }
 
@@ -80,7 +81,7 @@ void DelayWholeCase::setup(std::size_t n) {
 	if (config_.growing) {
 		// The owner's settled-rate growth (Delay::initializeSecondaryBuffer): a tape native at the new rate, the
 		// primary's native rate made precise relative to it.
-		std::ranges::fill(rig.secondary_storage, StereoSample{.l = 0, .r = 0});
+		std::ranges::fill(rig.secondary_storage, StereoSample{});
 		rig.secondary = tape_for_rate(rig.secondary_storage, kDelayResHiRate);
 		rig.primary.make_native_rate_precise_relative_to(rig.secondary);
 		rig.growing = &rig.secondary;
@@ -92,8 +93,9 @@ void DelayWholeCase::setup(std::size_t n) {
 	fill_delay_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;
-	std::ranges::transform(spans.in, rig.work.begin(),
-	                       [](StereoSample frame) { return StereoSample{.l = frame.l >> 1, .r = frame.r >> 1}; });
+	std::ranges::transform(spans.in, rig.work.begin(), [](StereoSample frame) {
+		return StereoSample{.l = halve_floor(frame.l), .r = halve_floor(frame.r)};
+	});
 }
 
 void DelayWholeCase::block(std::size_t /*n*/) {

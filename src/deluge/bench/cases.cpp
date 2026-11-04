@@ -35,17 +35,17 @@ constexpr std::size_t kBlockGap = 64;
 /// partial addresses), which costs a mono case about 1 cycle per sample whenever its output sits a multiple of 1 KB
 /// from its input.
 struct SharedBlocks {
-	alignas(16) std::array<q31, kMaxBlock> input_a;                  ///< The first input.
-	std::array<q31, kBlockGap> after_a;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> input_b;                  ///< The second input.
-	std::array<q31, kBlockGap> after_b;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> output;                   ///< The output.
-	std::array<q31, kBlockGap> after_output;                         ///< Padding, never read or written.
-	alignas(16) std::array<StereoSample, kMaxBlock> stereo;          ///< The stereo block, read and written in place.
-	std::array<q31, kBlockGap / 2> after_stereo;                     ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
-	std::array<q31, kBlockGap> after_lanes_input;                    ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
+	alignas(16) std::array<q31_t, kMaxBlock> input_a;                  ///< The first input.
+	std::array<q31_t, kBlockGap> after_a;                              ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock> input_b;                  ///< The second input.
+	std::array<q31_t, kBlockGap> after_b;                              ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock> output;                   ///< The output.
+	std::array<q31_t, kBlockGap> after_output;                         ///< Padding, never read or written.
+	alignas(16) std::array<StereoSample, kMaxBlock> stereo;            ///< The stereo block, read and written in place.
+	std::array<q31_t, kBlockGap / 2> after_stereo;                     ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
+	std::array<q31_t, kBlockGap> after_lanes_input;                    ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
 };
 
 /// @brief Whether the blocks at byte offsets @p a and @p b of SharedBlocks sit a multiple of 1 KB apart.
@@ -90,9 +90,9 @@ const dsp::fixed::WaveTableBand wavetable_band{
 };
 
 /// @brief Fills @p block from a fresh stream at @p seed.
-void fill(std::span<q31> block, uint32_t seed) {
+void fill(std::span<q31_t> block, uint32_t seed) {
 	dsp::fixed::SeededNoise noise{seed};
-	for (q31& sample : block) {
+	for (q31_t& sample : block) {
 		sample = noise.render();
 	}
 }
@@ -106,7 +106,7 @@ void fill_inputs() {
 /// @brief The lanes blocks' first @p n frames of type F: the q31 storage viewed as frames of interleaved lanes.
 template <class F>
 [[nodiscard]] FrameSpans<F> frame_spans(std::size_t n) {
-	static_assert(sizeof(F) % sizeof(q31) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31)
+	static_assert(sizeof(F) % sizeof(q31_t) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31_t)
 	              && std::is_trivially_copyable_v<F>);
 	return FrameSpans<F>{
 	    .in = dsp::Signal<F>{reinterpret_cast<const F*>(shared.lanes_input.data()), n},
@@ -117,23 +117,23 @@ template <class F>
 /// @return The first @p n samples of each shared q31 block.
 [[nodiscard]] BlockSpans spans(std::size_t n) {
 	return BlockSpans{
-	    .a = dsp::fixed::Signal{shared.input_a.data(), n},
-	    .b = dsp::fixed::Signal{shared.input_b.data(), n},
-	    .out = dsp::fixed::Buffer{shared.output.data(), n},
+	    .a = std::span<const int32_t>{shared.input_a.data(), n},
+	    .b = std::span<const int32_t>{shared.input_b.data(), n},
+	    .out = std::span<int32_t>{shared.output.data(), n},
 	};
 }
 
 } // namespace
 
-std::span<const q31, kMaxBlock> input_a() {
+std::span<const q31_t, kMaxBlock> input_a() {
 	return shared.input_a;
 }
 
-std::span<const q31, kMaxBlock> input_b() {
+std::span<const q31_t, kMaxBlock> input_b() {
 	return shared.input_b;
 }
 
-std::span<const q31, kMaxBlock> output() {
+std::span<const q31_t, kMaxBlock> output() {
 	return shared.output;
 }
 
@@ -141,11 +141,11 @@ std::span<const StereoSample, kMaxBlock> stereo() {
 	return shared.stereo;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_input() {
+std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_input() {
 	return shared.lanes_input;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_output() {
+std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_output() {
 	return shared.lanes_output;
 }
 
@@ -187,7 +187,7 @@ void AmplitudeCase::setup(std::size_t n) {
 }
 
 void AmplitudeCase::block(std::size_t /*n*/) {
-	vca_.render_block(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 void CrudeAmplitudeCase::setup(std::size_t n) {
@@ -197,7 +197,7 @@ void CrudeAmplitudeCase::setup(std::size_t n) {
 }
 
 void CrudeAmplitudeCase::block(std::size_t /*n*/) {
-	vca_.render_block(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 dsp::fixed::PulseOscillator PulseCase::make() {
@@ -213,7 +213,7 @@ void PulseCase::setup(std::size_t n) {
 }
 
 void PulseCase::block(std::size_t /*n*/) {
-	pulse_.render_block(spans_.out);
+	pulse_.render_block(dsp::typed_view(spans_.out));
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
@@ -226,7 +226,7 @@ void BandLimitedTableCase::setup(std::size_t n) {
 }
 
 void BandLimitedTableCase::block(std::size_t /*n*/) {
-	oscillator_.render_block(spans_.out);
+	oscillator_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeSawCase::setup(std::size_t n) {
@@ -235,7 +235,7 @@ void CrudeSawCase::setup(std::size_t n) {
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
-	saw_.render_block(spans_.out);
+	saw_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeSquareCase::setup(std::size_t n) {
@@ -245,7 +245,7 @@ void CrudeSquareCase::setup(std::size_t n) {
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
-	square_.render_block(spans_.out);
+	square_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeTriangleCase::setup(std::size_t n) {
@@ -254,7 +254,7 @@ void CrudeTriangleCase::setup(std::size_t n) {
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
-	triangle_.render_block(spans_.out);
+	triangle_.render_block(dsp::typed_view(spans_.out));
 }
 
 void SyncedPulseCase::setup(std::size_t n) {
@@ -273,7 +273,7 @@ void SyncedPulseCase::block(std::size_t n) {
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
 	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
-	synced.render_block(spans_.out);
+	synced.render_block(dsp::typed_view(spans_.out));
 	audible_phase_ = scale_shl_wrap<1>(dsp::UQ<32>::from_raw(synced.phase())).raw();
 	// The master's increment times the block's samples: an integer product, wrapping.
 	master_.seek(
@@ -308,27 +308,27 @@ void WavetableCase::setup(std::size_t n) {
 }
 
 void WavetableCase::block(std::size_t /*n*/) {
-	oscillator_.render_block(spans_.out);
+	oscillator_.render_block(dsp::typed_view(spans_.out));
 }
 
 void MonoGainCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	mono_.configure({.gain = kGain});
+	mono_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void MonoGainCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void MonoVecGainCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	mono_.configure({.gain = kGain});
+	mono_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void MonoVecGainCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void StereoGainCase::setup(std::size_t n) {
@@ -336,10 +336,10 @@ void StereoGainCase::setup(std::size_t n) {
 	in_ = out_;
 	dsp::fixed::SeededNoise noise{kSeed};
 	for (StereoSample& frame : shared.stereo) {
-		frame.l = noise.render();
-		frame.r = noise.render();
+		frame.l = dsp::Q<31>::from_raw(noise.render()); // the noise's raw words
+		frame.r = dsp::Q<31>::from_raw(noise.render());
 	}
-	stereo_.configure({.gain = kGain});
+	stereo_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void StereoGainCase::block(std::size_t /*n*/) {
@@ -347,7 +347,7 @@ void StereoGainCase::block(std::size_t /*n*/) {
 }
 
 void DuckEnvelopeCase::setup(std::size_t /*n*/) {
-	level_ = shared.output.data();
+	level_ = dsp::typed_view(std::span{shared.output}).data();
 	duck_.configure(kSettings);
 	duck_.reset();
 	duck_.on<&DuckEnvelope::hit_at>(kHitStrength, kHitSamplesAgo);
@@ -366,7 +366,7 @@ void ShiftTrackerCase::setup(std::size_t n) {
 }
 
 void ShiftTrackerCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 template <OnePole::Mode M>
@@ -379,7 +379,7 @@ void OnePoleCase<M>::setup(std::size_t n) {
 
 template <OnePole::Mode M>
 void OnePoleCase<M>::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 template class OnePoleCase<OnePole::Mode::LOW_PASS>;
@@ -393,7 +393,7 @@ void AntialiasedTanhCase::setup(std::size_t n) {
 }
 
 void AntialiasedTanhCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void Tanh3Case::setup(std::size_t n) {
@@ -402,7 +402,7 @@ void Tanh3Case::setup(std::size_t n) {
 }
 
 void Tanh3Case::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void DryWetBlendCase::setup(std::size_t n) {
@@ -412,7 +412,7 @@ void DryWetBlendCase::setup(std::size_t n) {
 }
 
 void DryWetBlendCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.b, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 void ReleaseRateCase::setup(std::size_t n) {
@@ -444,18 +444,18 @@ void SampleInterpolateCase::block(std::size_t n) {
 		position_ += kRate;
 		interpolator_.push_l(static_cast<int16_t>(spans_.a[i] >> 16));
 		interpolator_.push_r(static_cast<int16_t>(spans_.b[i] >> 16));
-		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l;
+		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l.raw();
 	}
 }
 
 void SupersawCase::block(std::size_t /*n*/) {
-	dsp::fixed::Supersaw::render(spans_.out, kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws, centre_phase_,
-	                             side_phases_, true);
+	dsp::fixed::Supersaw::render(dsp::typed_view(spans_.out), kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws,
+	                             centre_phase_, side_phases_, true);
 }
 
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.moveability = kMoveability, .mode = OnePole::Mode::LOW_PASS});
 	lanes_.reset();
@@ -471,7 +471,7 @@ template class LanesOnePoleCase<4>;
 
 template <std::size_t N>
 void LanesShiftTrackerCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.mode = ShiftTrackerCase::Tracker::Mode::REMOVE});
 	lanes_.reset();
@@ -498,28 +498,28 @@ void StereoAntialiasedTanhCase::block(std::size_t /*n*/) {
 
 void fill_delay_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 1;
 	}
 }
 
 void fill_filter_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 4;
 	}
 }
 
 void fill_compressor_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 3;
 	}
 }
 
-std::span<q31> in_place_filter_block(std::size_t samples) {
+std::span<q31_t> in_place_filter_block(std::size_t samples) {
 	fill_filter_input();
-	const std::span<q31> work{shared.lanes_output.data(), samples};
+	const std::span<q31_t> work{shared.lanes_output.data(), samples};
 	std::ranges::copy(std::span{shared.lanes_input}.first(samples), work.begin());
 	return work;
 }
@@ -539,9 +539,9 @@ void Chain3PassesCase::setup(std::size_t n) {
 }
 
 void Chain3PassesCase::block(std::size_t /*n*/) {
-	tanh_.render_block(spans_.a, spans_.out);
-	low_pass_.render_block(written_, spans_.out);
-	high_pass_.render_block(written_, spans_.out);
+	tanh_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
+	low_pass_.render_block(dsp::typed_view(written_), dsp::typed_view(spans_.out));
+	high_pass_.render_block(dsp::typed_view(written_), dsp::typed_view(spans_.out));
 }
 
 void Chain3FusedCase::setup(std::size_t n) {
@@ -554,7 +554,7 @@ void Chain3FusedCase::setup(std::size_t n) {
 }
 
 void Chain3FusedCase::block(std::size_t /*n*/) {
-	chain_.render_block(spans_.a, spans_.out);
+	chain_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 CaseSet& case_set() {

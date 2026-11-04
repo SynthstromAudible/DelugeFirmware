@@ -17,6 +17,7 @@
 
 #include "effects/filter.h"
 
+#include "dsp-next/core/buffer_view.h"
 #include "effects/filter_slots.h"
 
 #include <cstddef>
@@ -48,16 +49,16 @@ int32_t Filter::configure(const FilterState& state, const FilterParams& params, 
 	const bool high_on = params.hpf_frequency_param > kMinimum || params.hpf_morph_param > kMinimum;
 	return set_.configure(post_fx_volume,
 	                      {
-	                          .frequency = params.lpf_frequency,
-	                          .resonance = params.lpf_resonance,
-	                          .morph = params.lpf_morph,
+	                          .frequency = dsp::Q<31>::from_raw(params.lpf_frequency),
+	                          .resonance = dsp::Q<29>::from_raw(params.lpf_resonance),
+	                          .morph = dsp::Q<29>::from_raw(params.lpf_morph),
 	                          .allow_oversampling = params.allow_oversampling,
 	                      },
 	                      low_on ? low_pass_slot(state.lpf_mode) : dsp::fixed::LowPassSlot{},
 	                      {
-	                          .frequency = params.hpf_frequency,
-	                          .resonance = params.hpf_resonance,
-	                          .morph = params.hpf_morph,
+	                          .frequency = dsp::Q<31>::from_raw(params.hpf_frequency),
+	                          .resonance = dsp::Q<29>::from_raw(params.hpf_resonance),
+	                          .morph = dsp::Q<29>::from_raw(params.hpf_morph),
 	                          .allow_oversampling = params.allow_oversampling,
 	                      },
 	                      high_on ? high_pass_slot(state.hpf_mode) : dsp::fixed::HighPassSlot{},
@@ -68,9 +69,9 @@ void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScrat
 	// The set reads the frames as one interleaved run of samples, left then right.
 	static_assert(std::is_standard_layout_v<dsp::StereoSample>);
 	static_assert(offsetof(dsp::StereoSample, l) == 0);
-	static_assert(offsetof(dsp::StereoSample, r) == sizeof(dsp::q31));
-	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(dsp::q31));
-	set_.render_stereo({&block.data()->l, block.size() * 2}, scratch, noise);
+	static_assert(offsetof(dsp::StereoSample, r) == sizeof(q31_t));
+	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(q31_t));
+	set_.render_stereo(std::span<dsp::Q<31>>{&block.data()->l, block.size() * 2}, scratch, noise);
 }
 
 } // namespace deluge::effects

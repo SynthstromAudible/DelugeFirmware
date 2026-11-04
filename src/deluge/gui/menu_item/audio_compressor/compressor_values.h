@@ -71,7 +71,9 @@ public:
 	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/attack", deluge::serialization::Value::makeNumber(value));
 	}
-	float getDisplayValue() override { return deluge::dsp::fixed::compressor_attack_ms(shown().attack); }
+	float getDisplayValue() override {
+		return deluge::dsp::fixed::compressor_attack_ms(deluge::dsp::Q<31>::from_raw(shown().attack));
+	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
 	void getColumnLabel(etl::istring& label) override {
 		label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT));
@@ -84,7 +86,9 @@ public:
 	void setCompressorValue(q31_t value, ModControllableAudio& owner) final {
 		effectSettingFor(owner, "audioCompressor/release", deluge::serialization::Value::makeNumber(value));
 	}
-	float getDisplayValue() override { return deluge::dsp::fixed::compressor_release_ms(shown().release); }
+	float getDisplayValue() override {
+		return deluge::dsp::fixed::compressor_release_ms(deluge::dsp::Q<31>::from_raw(shown().release));
+	}
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
 
@@ -99,7 +103,9 @@ public:
 	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/ratio", deluge::serialization::Value::makeNumber(value));
 	}
-	float getDisplayValue() override { return deluge::dsp::fixed::compressor_ratio(shown().ratio); }
+	float getDisplayValue() override {
+		return deluge::dsp::fixed::compressor_ratio(deluge::dsp::Q<31>::from_raw(shown().ratio));
+	}
 	const char* getUnit() override { return " : 1"; }
 };
 class SideHPF final : public CompressorValue {
@@ -109,7 +115,9 @@ public:
 	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/compHPF", deluge::serialization::Value::makeNumber(value));
 	}
-	float getDisplayValue() override { return deluge::dsp::fixed::compressor_sidechain_hz(shown().sidechain_hpf); }
+	float getDisplayValue() override {
+		return deluge::dsp::fixed::compressor_sidechain_hz(deluge::dsp::Q<31>::from_raw(shown().sidechain_hpf));
+	}
 	const char* getUnit() override { return "HZ"; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return HPF; }
 };
@@ -130,7 +138,9 @@ public:
 		effectSettingFor(owner, "audioCompressor/compBlend", deluge::serialization::Value::makeNumber(knobPos));
 	}
 
-	float getDisplayValue() override { return deluge::dsp::fixed::compressor_blend_percent(shown().blend); }
+	float getDisplayValue() override {
+		return deluge::dsp::fixed::compressor_blend_percent(deluge::dsp::Q<31>::from_raw(shown().blend));
+	}
 	const char* getUnit() override { return " %"; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }

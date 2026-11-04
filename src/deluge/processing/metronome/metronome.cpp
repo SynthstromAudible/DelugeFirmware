@@ -28,9 +28,9 @@ void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, int32_t volu
 	}
 	// The metronome's volume ((e^(v/200) − 1) at Q27) times the song's Q27 post-FX volume: the high word, the click's
 	// level
-	click_.configure({.level = mul(deluge::dsp::Q<27>::from_raw(static_cast<int32_t>(volume_)),
-	                               deluge::dsp::Q<27>::from_raw(volume_post_fx))
-	                               .raw()});
+	click_.configure({.level = deluge::dsp::reinterpret_bits<deluge::dsp::Q<31>>(
+	                      mul(deluge::dsp::Q<27>::from_raw(static_cast<int32_t>(volume_)),
+	                          deluge::dsp::Q<27>::from_raw(volume_post_fx)))});
 	click_.render_block(buffer, buffer);
 }
 

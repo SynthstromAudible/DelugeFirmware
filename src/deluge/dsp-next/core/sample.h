@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h" // q31_t, kOneQ31, kOneQ31f (standard-headers-only, L0-clean)
 #include <concepts>
 
@@ -24,15 +25,13 @@
 // realised in the q31 (fixed/) and f32 (float/) backends.
 namespace deluge::dsp {
 
-// q31 fixed-point sample: int32 where kOneQ31 (2^31 - 1) represents +1.0.
+// q31 fixed-point sample: Q<31>, where Q<31>::max() (2^31 - 1) represents +1.0.
 //
-// Deliberately an *alias* of the firmware-wide q31_t, not a strong wrapper type.
-// During the strangler migration every app boundary speaks q31_t; an opaque
-// wrapper would force a conversion at each of those boundaries and buy nothing —
-// numeric-agnosticism here comes from templating primitives over SampleType and
-// providing two backends, not from wrapping the scalar. (A wrapper could be
-// revisited once dsp-next is the only DSP library.)
-using q31 = q31_t;
+// A typed format, not a raw int32: every operation on a sample names its overflow
+// and rounding (fixed_point.h), and the format travels with the value. The app's
+// raw q31_t meets it only at the seam (buffer_view.h's typed_view and raw_view,
+// from_raw and raw()).
+using q31 = Q<31>;
 
 // float32 sample: nominal range [-1, 1].
 using f32 = float;

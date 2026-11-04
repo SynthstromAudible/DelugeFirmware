@@ -399,12 +399,12 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			block[i] = {v, -v};
+			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
 		owner.core().mod_fx().render(block, in, volume, deluge::synth_noise);
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			changed = changed || block[i].l != v || block[i].r != -v;
+			changed = changed || block[i].l.raw() != v || block[i].r.raw() != -v;
 		}
 	}
 	return changed;
@@ -441,7 +441,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			block[i] = {v, -v};
+			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
 		int32_t volume = kOneQ31 >> 1;
 		master.core().soft_off_grain(fx);

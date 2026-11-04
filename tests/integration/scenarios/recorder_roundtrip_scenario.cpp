@@ -288,10 +288,10 @@ bool beginCase(const Case& c) {
 
 	// Build the input ramp.
 	std::vector<StereoSample>& input = g_case.input;
-	input.assign(c.frames, StereoSample{0, 0});
+	input.assign(c.frames, StereoSample{});
 	for (uint32_t i = 0; i < c.frames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = (c.channels == 2) ? rampSample(i, 1) : 0;
+		input[i].l = deluge::dsp::Q<31>::from_raw(rampSample(i, 0)); // a raw ramp
+		input[i].r = deluge::dsp::Q<31>::from_raw((c.channels == 2) ? rampSample(i, 1) : 0);
 	}
 
 	g_case.rec.emplace();
@@ -319,7 +319,7 @@ bool beginCase(const Case& c) {
 		// and the final block naturally overshoots by less than one block). Feed a few extra silent
 		// frames beyond the margin so a later iteration inside feedAudio's own do-while loop re-checks
 		// the stop condition and finds it satisfied.
-		std::vector<StereoSample> silence(kAudioClipMarginSizePostEnd + 64, StereoSample{0, 0});
+		std::vector<StereoSample> silence(kAudioClipMarginSizePostEnd + 64, StereoSample{});
 		rec.feedAudio(std::span<StereoSample>(silence));
 	}
 
@@ -650,8 +650,8 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 
 	std::vector<StereoSample> input(kTickedFrames);
 	for (uint32_t i = 0; i < kTickedFrames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = 0;
+		input[i].l = deluge::dsp::Q<31>::from_raw(rampSample(i, 0)); // a raw ramp
+		input[i].r = {};
 	}
 	g_ticked.rec->feedAudio(std::span<StereoSample>(input));
 	// The abort runs, and the create's open, end nothing here: they abort a recording still capturing.

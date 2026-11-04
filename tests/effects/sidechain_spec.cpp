@@ -10,6 +10,7 @@
 #include <limits>
 #include <vector>
 
+using deluge::dsp::Q;
 using namespace deluge::effects;
 using deluge::dsp::Control;
 using deluge::dsp::fixed::DuckEnvelope;
@@ -119,13 +120,13 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 	});
 
 	it("passes the shape through to the duck's settings", _ {
-		expect(Sidechain::settings(state(SyncLevel::NONE), kFastInverse, kStraightShape).shape).to_equal(kStraightShape);
-		expect(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, 0x40000000).shape).to_equal(0x40000000);
+		expect(Sidechain::settings(state(SyncLevel::NONE), kFastInverse, kStraightShape).shape.raw()).to_equal(kStraightShape);
+		expect(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, 0x40000000).shape.raw()).to_equal(0x40000000);
 	});
 
 	it("renders a synced duck exactly", _ {
 		Sidechain sidechain;
-		sidechain.registerHit(kHit);
+		sidechain.register_hit(kHit);
 		std::vector<int32_t> out;
 		for (int i = 0; i < 50; i++) {
 			out.push_back(sidechain.render(128, 0, state(SyncLevel::EIGHTH), kFastInverse));
@@ -137,14 +138,14 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		const SidechainState synced = state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH);
 		Sidechain sidechain;
 		Control<DuckEnvelope> duck;
-		sidechain.registerHit(kHit);
-		duck.on<&DuckEnvelope::hit>(kHit);
+		sidechain.register_hit(kHit);
+		duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		std::vector<int32_t> through_sidechain;
 		std::vector<int32_t> through_duck;
 		for (int i = 0; i < 20; i++) {
 			through_sidechain.push_back(sidechain.render(16, 0x40000000, synced, kSlowInverse));
 			duck.configure(Sidechain::settings(synced, kSlowInverse, 0x40000000));
-			through_duck.push_back(duck.advance(16));
+			through_duck.push_back(duck.advance(16).raw());
 		}
 		expect(through_sidechain).to_equal(through_duck);
 		expect(through_sidechain.front()).not_().to_equal(0);
@@ -156,12 +157,12 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		std::vector<int32_t> through_duck;
 		for (int i = 0; i < 3; i++) {
 			duck.configure(Sidechain::settings(synced, kFastInverse, kStraightShape));
-			through_duck.push_back(duck.advance(128));
+			through_duck.push_back(duck.advance(128).raw());
 		}
-		duck.on<&DuckEnvelope::hit_at>(kHit, kReleaseAge);
+		duck.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(kHit), kReleaseAge);
 		for (int i = 0; i < 3; i++) {
 			duck.configure(Sidechain::settings(synced, kFastInverse, kStraightShape));
-			through_duck.push_back(duck.advance(128));
+			through_duck.push_back(duck.advance(128).raw());
 		}
 
 		const std::vector<int32_t> straight = lateHitBetweenBlocks(kStraightShape);
@@ -187,7 +188,7 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		// level is two LSBs under no duck.
 		const SidechainState zero_attack = state(SyncLevel::NONE, 0);
 		Sidechain sidechain;
-		sidechain.registerHit(kHit);
+		sidechain.register_hit(kHit);
 		std::vector<int32_t> out;
 		for (int i = 0; i < 8; i++) {
 			out.push_back(sidechain.render(128, 0, zero_attack, kFastInverse));
@@ -226,7 +227,7 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 			for (uint32_t block = 0; block < 50; block++) {
 				const int32_t hit = block == 3 || block == 20 ? kHit : 0;
 				if (hit != 0) {
-					by_hand.registerHit(hit);
+					by_hand.register_hit(hit);
 				}
 				const int32_t duck = by_hand.render(128, kStraightShape, s, kFastInverse);
 				const DuckBlock b{.frames = 128,
@@ -236,11 +237,11 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 				                  .state = s,
 				                  .tick_inverse = kFastInverse};
 				if (block % 2 == 0) {
-					expect(by_level.level<DuckScale::CLIP>(b)).to_equal(duck_gain<DuckScale::CLIP>(duck, 0x20000000));
+					expect(by_level.level<DuckScale::CLIP>(b)).to_equal(duck_gain<DuckScale::CLIP>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 				}
 				else {
 					expect(by_level.level<DuckScale::REVERB_RETURN>(b))
-					    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+					    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 				}
 			}
 		}

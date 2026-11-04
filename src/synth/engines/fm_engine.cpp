@@ -338,9 +338,10 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 
 	if (c.stereo_unison) {
 		// Pan this part's carriers into the stereo buffer
-		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(block.cfg->unison_pan[u]);
+		const dsp::fixed::PanAmplitudes pan =
+		    dsp::fixed::pan_amplitudes(dsp::Q<31>::from_raw(block.cfg->unison_pan[u]));
 		for (int32_t i = 0; i < num_samples; i++) {
-			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left, pan.right);
+			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left.raw(), pan.right.raw());
 		}
 	}
 }

@@ -34,6 +34,12 @@ namespace deluge::bench::reference {
 
 using dsp::StereoSample;
 
+/// @brief A raw stereo frame: the references' arithmetic is on the Q31 words.
+struct RawFrame {
+	int32_t l; ///< The left channel, Q31.
+	int32_t r; ///< The right channel, Q31.
+};
+
 /// @brief The analog delay's 26-tap impulse response (Q31 taps), one stereo sample at a time: the reference
 /// arithmetic the kernel is checked against.
 /// @details Its sums are plain signed adds. Each product is half the tap times the input, and the taps' magnitudes sum
@@ -43,13 +49,14 @@ class ReferenceImpulseResponse {
 public:
 	/// @param input A stereo sample, Q31.
 	/// @return The response's output for it, Q31.
-	[[nodiscard]] StereoSample process(StereoSample input) {
-		const StereoSample output{.l = pending_[0].l + tap(input.l, 0), .r = pending_[0].r + tap(input.r, 0)};
+	[[nodiscard]] StereoSample process(StereoSample frame) {
+		const RawFrame input{.l = frame.l.raw(), .r = frame.r.raw()};
+		const RawFrame output{.l = pending_[0].l + tap(input.l, 0), .r = pending_[0].r + tap(input.r, 0)};
 		for (size_t i = 1; i < kPending; i++) {
 			pending_[i - 1] = {.l = pending_[i].l + tap(input.l, i), .r = pending_[i].r + tap(input.r, i)};
 		}
 		pending_[kPending - 1] = {.l = tap(input.l, kPending), .r = tap(input.r, kPending)};
-		return output;
+		return {.l = dsp::Q<31>::from_raw(output.l), .r = dsp::Q<31>::from_raw(output.r)};
 	}
 
 private:
@@ -69,7 +76,7 @@ private:
 	}
 
 	/// The sums still to come out: entry i is the output i + 1 samples from now, less the inputs yet to arrive, Q31.
-	std::array<StereoSample, kPending> pending_{};
+	std::array<RawFrame, kPending> pending_{};
 };
 
 /// @brief @ref ReferenceImpulseResponse with every add through uint32_t: two's complement, wrapping modulo 2^32 as the
@@ -78,16 +85,17 @@ class WrappingReferenceImpulseResponse {
 public:
 	/// @param input A stereo sample, Q31.
 	/// @return The response's output for it, Q31, wrapped.
-	[[nodiscard]] StereoSample process(StereoSample input) {
+	[[nodiscard]] StereoSample process(StereoSample frame) {
 		using dsp::wrapping_add;
-		const StereoSample output{.l = wrapping_add(pending_[0].l, tap(input.l, 0)),
-		                          .r = wrapping_add(pending_[0].r, tap(input.r, 0))};
+		const RawFrame input{.l = frame.l.raw(), .r = frame.r.raw()};
+		const RawFrame output{.l = wrapping_add(pending_[0].l, tap(input.l, 0)),
+		                      .r = wrapping_add(pending_[0].r, tap(input.r, 0))};
 		for (size_t i = 1; i < kPending; i++) {
 			pending_[i - 1] = {.l = wrapping_add(pending_[i].l, tap(input.l, i)),
 			                   .r = wrapping_add(pending_[i].r, tap(input.r, i))};
 		}
 		pending_[kPending - 1] = {.l = tap(input.l, kPending), .r = tap(input.r, kPending)};
-		return output;
+		return {.l = dsp::Q<31>::from_raw(output.l), .r = dsp::Q<31>::from_raw(output.r)};
 	}
 
 private:
@@ -107,7 +115,7 @@ private:
 	}
 
 	/// The sums still to come out, Q31.
-	std::array<StereoSample, kPending> pending_{};
+	std::array<RawFrame, kPending> pending_{};
 };
 
 } // namespace deluge::bench::reference

@@ -22,6 +22,7 @@
 // draws compared word for word. And each runtime's order against chain.h's, and the master's between: once per block,
 // after the send and volume, before the filter.
 
+#include "dsp-next/core/buffer_view.h"
 #include "effects/chain.h"
 #include "effects/master_chain.h"
 #include "effects/sound_chain.h"
@@ -54,8 +55,8 @@ std::vector<int32_t> words(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	out.reserve(block.size() * 2);
 	for (const StereoSample s : block) {
-		out.push_back(s.l);
-		out.push_back(s.r);
+		out.push_back(s.l.raw());
+		out.push_back(s.r.raw());
 	}
 	return out;
 }
@@ -89,7 +90,10 @@ std::string first_difference(std::string_view workload, int block, const Produce
 struct Scratch {
 	std::vector<q31_t> fade = std::vector<q31_t>(cw::kMaxFrames * 2);
 	std::vector<q31_t> parallel = std::vector<q31_t>(cw::kMaxFrames * 2);
-	[[nodiscard]] deluge::dsp::fixed::FilterScratch view() { return {.fade = fade, .parallel = parallel}; }
+	[[nodiscard]] deluge::dsp::fixed::FilterScratch view() {
+		return {.fade = deluge::dsp::typed_view(std::span{fade}),
+		        .parallel = deluge::dsp::typed_view(std::span{parallel})};
+	}
 };
 
 /// @return The first difference between SoundChain and the reference over every workload, or empty.

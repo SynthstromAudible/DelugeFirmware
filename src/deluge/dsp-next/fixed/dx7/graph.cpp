@@ -59,6 +59,8 @@
 
 #include "dsp-next/fixed/dx7/graph.h"
 
+#include "dsp-next/core/buffer_view.h"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -77,7 +79,7 @@ namespace {
 
 #ifdef DELUGE_DX7_NEON_KERNEL
 /// @brief Silence: the kernel's modulation for an op with no input, and its mix for an op that sets its output.
-alignas(16) constexpr std::array<q31, kMaxBlock> kZeros{};
+alignas(16) constexpr std::array<int32_t, kMaxBlock> kZeros{};
 
 /// @brief The kernel's count for a block of @p n: a multiple of 4, and never 12k + 8, which it cannot take.
 constexpr int kernel_count(std::size_t n) {
@@ -90,15 +92,17 @@ constexpr int kernel_count(std::size_t n) {
 } // namespace
 
 void Graph::render_op(const Operator::Settings& settings, [[maybe_unused]] const Gains& gains, std::size_t op,
-                      Signal modulation, Buffer target) {
+                      dsp::Signal<Q<24>> modulation, dsp::Buffer<Q<24>> target) {
 	if (settings.engine == Engine::MODERN && settings.input != Input::FEEDBACK) {
 #ifdef DELUGE_DX7_NEON_KERNEL
 		const std::size_t n = target.size();
 		// The kernel computes what ModernVectorOperator computes (tests/dsp/dx7_graph_spec.cpp holds them equal), with
 		// its loads issued a block ahead, which the compiler cannot schedule for the vector step without spilling.
-		DELUGE_DX7_NEON_KERNEL(settings.input == Input::NONE ? kZeros.data() : modulation.data(),
-		                       settings.output == Output::ADD ? target.data() : kZeros.data(), target.data(),
-		                       kernel_count(n), ops_[op].phase, settings.freq, gains.gain1, gains.dgain);
+		// The kernel's interface is raw: Q24 samples and phases as words.
+		const auto raw_target = raw_view(target);
+		DELUGE_DX7_NEON_KERNEL(settings.input == Input::NONE ? kZeros.data() : raw_view(modulation).data(),
+		                       settings.output == Output::ADD ? raw_target.data() : kZeros.data(), raw_target.data(),
+		                       kernel_count(n), ops_[op].phase.raw(), settings.freq.raw(), gains.gain1, gains.dgain);
 		hold_op(op, gains, settings.freq, n);
 #else
 		Mono<ModernVectorOperator> vector{{.input = settings.input,
@@ -121,7 +125,9 @@ void Graph::render_op(const Operator::Settings& settings, [[maybe_unused]] const
 	}
 }
 
-void Graph::render_block(const Settings& s, Buffer out, Buses& lent) {
+// The algorithm walk stays one function: split, its inlined op loops schedule worse (MkI feedback ~8% slower on the
+// device). NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void Graph::render_block(const Settings& s, dsp::Buffer<Q<24>> out, Buses& lent) {
 	const std::size_t n = out.size();
 	assert(n > 0 && n <= kMaxBlock);
 	const bool mki = s.engine == Engine::MKI;
@@ -135,7 +141,7 @@ void Graph::render_block(const Settings& s, Buffer out, Buses& lent) {
 	}
 
 	std::array<bool, 3> has_contents{true, false, false};
-	const std::array<q31*, 3> buses{out.data(), lent.bus[0].data(), lent.bus[1].data()};
+	const std::array<Q<24>*, 3> buses{out.data(), lent.bus[0].data(), lent.bus[1].data()};
 	for (std::size_t op = 0; op < 6; ++op) {
 		const uint8_t flags = ops[op];
 		bool add = has(flags, Flag::OUT_BUS_ADD);
@@ -160,7 +166,7 @@ void Graph::render_block(const Settings& s, Buffer out, Buses& lent) {
 		}
 		Operator::Settings settings = probe;
 		settings.output = add ? Output::ADD : Output::SET;
-		const Buffer target{buses[outbus], n};
+		const dsp::Buffer<Q<24>> target{buses[outbus], n};
 		if (inbus == 0 || !has_contents[inbus]) { // an empty input is no input
 			if (has(flags, Flag::FB_IN) && has(flags, Flag::FB_OUT) && feedback_on) {
 				if (mki && s.algorithm == 3) {
@@ -185,7 +191,7 @@ void Graph::render_block(const Settings& s, Buffer out, Buses& lent) {
 		}
 		else {
 			settings.input = Input::BUS;
-			render_op(settings, gains, op, Signal{buses[inbus], n}, target);
+			render_op(settings, gains, op, dsp::Signal<Q<24>>{buses[inbus], n}, target);
 		}
 		has_contents[outbus] = true;
 	}

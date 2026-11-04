@@ -769,12 +769,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return std::string(digits) + unit;
 		};
 		namespace fx = deluge::dsp::fixed;
-		expect(banner(menu::nodes::comp_attack, 64)).to_equal(shown(fx::compressor_attack_ms(64 << 24), 2, "MS"));
-		expect(banner(menu::nodes::comp_release, 30)).to_equal(shown(fx::compressor_release_ms(30 << 24), 1, "MS"));
-		expect(banner(menu::nodes::comp_ratio, 10)).to_equal(shown(fx::compressor_ratio(10 << 24), 2, " : 1"));
-		expect(banner(menu::nodes::comp_hpf, 0)).to_equal(shown(fx::compressor_sidechain_hz(0), 2, "HZ"));
+		expect(banner(menu::nodes::comp_attack, 64)).to_equal(shown(fx::compressor_attack_ms(deluge::dsp::Q<31>::from_raw(64 << 24)), 2, "MS"));
+		expect(banner(menu::nodes::comp_release, 30)).to_equal(shown(fx::compressor_release_ms(deluge::dsp::Q<31>::from_raw(30 << 24)), 1, "MS"));
+		expect(banner(menu::nodes::comp_ratio, 10)).to_equal(shown(fx::compressor_ratio(deluge::dsp::Q<31>::from_raw(10 << 24)), 2, " : 1"));
+		expect(banner(menu::nodes::comp_hpf, 0)).to_equal(shown(fx::compressor_sidechain_hz(deluge::dsp::Q<31>::from_raw(0)), 2, "HZ"));
 		expect(banner(menu::nodes::comp_blend, 128))
-		    .to_equal(std::to_string(fx::compressor_blend_percent(std::numeric_limits<int32_t>::max())) + " %");
+		    .to_equal(std::to_string(fx::compressor_blend_percent(deluge::dsp::Q<31>::from_raw(std::numeric_limits<int32_t>::max()))) + " %");
 	});
 
 	it("a compressor value's screen is main's display value and unit, edited a step at a time", _ {
@@ -803,7 +803,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		rig48.begin_tick(6000);
 		menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
 		char digits[24];
-		floatToString(deluge::dsp::fixed::compressor_attack_ms(after << 24), digits, 2, 2);
+		floatToString(deluge::dsp::fixed::compressor_attack_ms(deluge::dsp::Q<31>::from_raw(after << 24)), digits, 2, 2);
 		const std::string text = std::string(digits) + "MS";
 		deluge::ui::test::Rig48 want;
 		want.reference.draw_string_centred(text.c_str(), 18 + 5, 18, 20);

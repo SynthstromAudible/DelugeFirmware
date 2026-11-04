@@ -39,6 +39,8 @@
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frames;
 
 namespace {
 
@@ -46,14 +48,16 @@ static_assert(processor_kernel<ShelfPair>);
 static_assert(moded_kernel<ShelfPair>);
 static_assert(!std::is_polymorphic_v<ShelfPair>);
 static_assert(ShelfPair::flat({}));
-static_assert(!ShelfPair::flat({.bass = 1}));
-static_assert(!ShelfPair::flat({.treble = -1}));
+static_assert(!ShelfPair::flat({.bass = Q<31>::from_raw(1)}));
+static_assert(!ShelfPair::flat({.treble = Q<31>::from_raw(-1)}));
 
 constexpr std::size_t kFrames = 2048;
 
 reference::EqualizerParams as_reference(const ShelfPair::Settings& s) {
-	return {
-	    .bass = s.bass, .treble = s.treble, .bass_frequency = s.bass_frequency, .treble_frequency = s.treble_frequency};
+	return {.bass = s.bass.raw(),
+	        .treble = s.treble.raw(),
+	        .bass_frequency = s.bass_frequency.raw(),
+	        .treble_frequency = s.treble_frequency.raw()};
 }
 
 } // namespace
@@ -68,18 +72,18 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 				for (const int32_t treble : kSweep) {
 					reference::Equalizer ref;
 					deluge::effects::Equalizer k;
-					std::vector<StereoSample> a = frames(kFrames, 0xE0E00001);
-					std::vector<StereoSample> b = a;
+					std::vector<RawFrame> a = frames(kFrames, 0xE0E00001);
+					std::vector<RawFrame> b = a;
 					std::size_t at = 0;
 					for (std::size_t i = 0; at < a.size(); ++i) {
 						const std::size_t n = block_at(i, a.size() - at);
 						// Each band flat one block in five, so it switches off and on.
-						const ShelfPair::Settings s{.bass = i % 5 == 1 ? 0 : bass,
-						                            .treble = i % 5 == 3 ? 0 : treble,
-						                            .bass_frequency = bass_frequency,
-						                            .treble_frequency = treble_frequency};
+						const ShelfPair::Settings s{.bass = Q<31>::from_raw(i % 5 == 1 ? 0 : bass),
+						                            .treble = Q<31>::from_raw(i % 5 == 3 ? 0 : treble),
+						                            .bass_frequency = Q<31>::from_raw(bass_frequency),
+						                            .treble_frequency = Q<31>::from_raw(treble_frequency)};
 						ref.process(std::span{a}.subspan(at, n), as_reference(s));
-						k.process(std::span{b}.subspan(at, n), s);
+						k.process(typed_frames(std::span{b}.subspan(at, n)), s);
 						at += n;
 					}
 					expect(same(a, b)).to_be_true();
@@ -90,17 +94,17 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 
 	it("leaves a flat band's memory where it was", _ {
 		const std::array<ShelfPair::Settings, 3> phases{{
-		    {.bass = 0, .treble = 0x30000000, .bass_frequency = 0x10000000, .treble_frequency = -0x10000000},
-		    {.bass = 0x30000000, .treble = 0, .bass_frequency = 0x10000000, .treble_frequency = -0x10000000},
-		    {.bass = 0, .treble = 0x30000000, .bass_frequency = 0x10000000, .treble_frequency = -0x10000000},
+		    {.bass = Q<31>::from_raw(0), .treble = Q<31>::from_raw(0x30000000), .bass_frequency = Q<31>::from_raw(0x10000000), .treble_frequency = Q<31>::from_raw(-0x10000000)},
+		    {.bass = Q<31>::from_raw(0x30000000), .treble = Q<31>::from_raw(0), .bass_frequency = Q<31>::from_raw(0x10000000), .treble_frequency = Q<31>::from_raw(-0x10000000)},
+		    {.bass = Q<31>::from_raw(0), .treble = Q<31>::from_raw(0x30000000), .bass_frequency = Q<31>::from_raw(0x10000000), .treble_frequency = Q<31>::from_raw(-0x10000000)},
 		}};
 		reference::Equalizer ref;
 		deluge::effects::Equalizer k;
-		std::vector<StereoSample> a = frames(192, 0xE0E00002);
-		std::vector<StereoSample> b = a;
+		std::vector<RawFrame> a = frames(192, 0xE0E00002);
+		std::vector<RawFrame> b = a;
 		for (std::size_t i = 0; i < phases.size(); ++i) {
 			ref.process(std::span{a}.subspan(i * 64, 64), as_reference(phases[i]));
-			k.process(std::span{b}.subspan(i * 64, 64), phases[i]);
+			k.process(typed_frames(std::span{b}.subspan(i * 64, 64)), phases[i]);
 		}
 		expect(same(a, b)).to_be_true();
 	});
@@ -113,13 +117,13 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 		const reference::EqualizerParams treble_only{.bass = 0, .treble = -0x30000000, .bass_frequency = 0,
 		                                             .treble_frequency = 0x7000000};
 		reference::Equalizer original;
-		std::vector<StereoSample> warm = frames(300, 0xE0E00003);
+		std::vector<RawFrame> warm = frames(300, 0xE0E00003);
 		original.process(warm, both);
 		reference::Equalizer copied;
 		copied.copy_coefficients_from(original);
 		reference::Equalizer fresh;
-		std::vector<StereoSample> a = frames(384, 0xE0E00004);
-		std::vector<StereoSample> b = a;
+		std::vector<RawFrame> a = frames(384, 0xE0E00004);
+		std::vector<RawFrame> b = a;
 		for (const auto& [at, p] : {std::pair{0, both}, std::pair{128, bass_only}, std::pair{256, treble_only}}) {
 			copied.process(std::span{a}.subspan(at, 128), p);
 			fresh.process(std::span{b}.subspan(at, 128), p);

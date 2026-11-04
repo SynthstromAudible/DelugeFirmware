@@ -40,7 +40,7 @@ namespace deluge::dsp::fixed {
 /// that is the Amplitude mixer's job, applied with the same vqdmulhq arithmetic as the
 /// TableOscillator path). The seekable phase lets a @ref SyncedOscillator drive the pulse
 /// under hard sync, exactly as the legacy renderOscSync did. Bit-exact, structural only.
-class PulseOscillator : public Generator<PulseOscillator, q31> {
+class PulseOscillator : public Generator<PulseOscillator, Q<31>> {
 	const int16_t* samples_;
 	int32_t magnitude_;
 	Phasor phasor_;
@@ -63,7 +63,7 @@ public:
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
 	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
 
-	[[gnu::always_inline]] Argon<q31> render() {
+	[[gnu::always_inline]] QVec<31> render() {
 		const uint32_t phase = phasor_.phase().raw();
 		const uint32_t increment = phasor_.increment().raw();
 
@@ -110,7 +110,7 @@ public:
 		    mla_doubling_wide_sat(mul_doubling_wide_sat(strength_b2, pairs_b.hi()), strength_b1, pairs_b.lo());
 
 		// Ring-modulate the two squares: the rounded doubling product, then << 1 restores full scale (wrapping).
-		const Argon<q31> output = scale_shl_wrap<1>(mul_doubling_r_sat(square_a, square_b)).raw();
+		const QVec<31> output = scale_shl_wrap<1>(mul_doubling_r_sat(square_a, square_b));
 		phasor_.seek(UQ<32>::from_raw(phase + increment * 4));
 		return output;
 	}

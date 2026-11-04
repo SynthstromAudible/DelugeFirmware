@@ -70,8 +70,7 @@ public:
 		std::visit([&](auto& shape) { shape.seek(phase); }, shape_);
 	}
 
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch) {
+	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
 		// The engine owns its phase across blocks. The shape advances/seeks its phasor only meaningfully on a real
 		// hard-sync block (where it lands on the synced phase); otherwise we advance the original-domain phase by
 		// the block length here — exactly the legacy "phase += increment * numSamples, real-sync overrides" rule.
@@ -86,17 +85,16 @@ public:
 	/// Render one block into @p output (sets the per-block pitch first), VCA per @p controls. The public
 	/// block-render API used by @ref RingModEngine (raw render) and by @ref renderOscBlock. The engine owns its
 	/// phase across blocks.
-	void render_into(const BlockControls& controls, uint32_t phase_increment, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch) {
+	void render_into(const BlockControls& controls, uint32_t phase_increment, std::span<int32_t> output,
+	                 std::span<int32_t> scratch) {
 		set_increment(phase_increment);
 		render_block(controls, output, scratch);
 	}
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                      deluge::dsp::fixed::Buffer out) override {
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<int32_t> out) override {
 		render_into(controls, block.phase_increment, out,
-		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
+		            std::span<int32_t>{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 
 private:

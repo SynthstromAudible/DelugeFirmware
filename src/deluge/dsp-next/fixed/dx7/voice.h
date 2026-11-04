@@ -92,10 +92,10 @@ public:
 
 	/// @brief What a block takes from outside the patch.
 	struct BlockInputs {
-		int32_t base_pitch = 0; ///< The note's pitch, Q24 octaves, relative to the oscillators' base.
-		int32_t lfo_value = 0;  ///< The patch's LFO, Q24.
-		int32_t eg_mod = 127;   ///< The envelope's amplitude-modulation floor, 0 to 127.
-		int32_t amp_mod = 0;    ///< Q24 doublings added to each op's level per unit of its AMS depth >> 16 (0 to 256).
+		Q<24> base_pitch{};   ///< The note's pitch in octaves, relative to the oscillators' base.
+		Q<24> lfo_value{};    ///< The patch's LFO, 0 to 1.
+		int32_t eg_mod = 127; ///< The envelope's amplitude-modulation floor, 0 to 127.
+		int32_t amp_mod = 0;  ///< Q24 doublings added to each op's level per unit of its AMS depth >> 16 (0 to 256).
 		int32_t vel_mod = 0;  ///< Q24 doublings added to each op's level per step of its velocity sensitivity (0 to 7).
 		int32_t rate_mod = 0; ///< qRate units added to each envelope stage's rate as a block enters it.
 	};
@@ -120,7 +120,7 @@ public:
 	/// @return Whether the voice sounds on: the key is down, or an op's gain is at or above kGainLevelThresh. That
 	/// threshold is the modern engine's. A MkI op's gain is an attenuation, so a silent MkI op (attenuation near
 	/// kEnvMax) passes it, and a released MkI voice never ends: a known quirk the recorded references pin.
-	[[nodiscard]] bool render_block(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses);
+	[[nodiscard]] bool render_block(const Settings& s, dsp::Buffer<Q<24>> out, const BlockInputs& in, Buses& buses);
 
 	/// @brief Whether the patch keys its LFO at note-on (byte 141).
 	[[nodiscard]] static bool key_sync_lfo(const Settings& s) { return (*s.patch)[kLfoSync] != 0; }
@@ -168,7 +168,7 @@ private:
 	std::array<Control<Envelope>, 6> env_{}; ///< Each op's envelope.
 	Control<PitchEnvelope> pitch_env_{};     ///< The pitch envelope.
 	Control<LfoDelay> lfo_delay_{};          ///< The LFO's delay, configured at note-on only.
-	std::array<int32_t, 6> base_pitch_{};    ///< Each op's pitch offset, Q24 octaves.
+	std::array<Q<24>, 6> base_pitch_{};      ///< Each op's pitch offset in octaves.
 	std::array<int16_t, 6> detune_{};        ///< Each op's random detune draw.
 	std::array<int32_t, 6> output_level_{};  ///< Each op's output level for the note, in microsteps.
 	std::array<int32_t, 6> rate_scaling_{};  ///< Each op's rate scaling for the note, in qRate units.
@@ -185,17 +185,17 @@ void Voice<Noise>::start(const Settings& s, Noise& noise) {
 		scale_op(s, op, s.velocity);
 		env_[op].configure(env_settings(s, op, 0));
 		env_[op].template on<&Envelope::start>();
-		detune_[op] = static_cast<int16_t>(static_cast<q31>(noise.next()) >> 16);
-		base_pitch_[op] =
-		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
+		detune_[op] = static_cast<int16_t>(static_cast<int32_t>(noise.next()) >> 16);
+		base_pitch_[op] = Q<24>::from_raw(
+		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune));
 	}
 	pitch_env_.configure({pitch_params(s)});
 	pitch_env_.template on<&PitchEnvelope::start>();
 
-	std::array<q31, 6> phases{};
+	std::array<Phase, 6> phases{};
 	if (p[kOscSync] == 0) {
-		for (q31& phase : phases) {
-			phase = static_cast<q31>(noise.next());
+		for (Phase& phase : phases) {
+			phase = Phase::from_raw(static_cast<int32_t>(noise.next())); // a draw's bits are a phase anywhere
 		}
 	}
 	graph_.restart(phases);
@@ -220,8 +220,8 @@ void Voice<Noise>::retune(const Settings& s) {
 	const int32_t log_freq = note_to_log_freq(s.midinote);
 	for (std::size_t op = 0; op < 6; ++op) {
 		const std::size_t off = op * kOpBytes;
-		base_pitch_[op] =
-		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune);
+		base_pitch_[op] = Q<24>::from_raw(
+		    osc_freq(log_freq, p[off + 17], p[off + 18], p[off + 19], p[off + 20], detune_[op], s.random_detune));
 		scale_op(s, op, velocity_);
 		env_[op].configure(env_settings(s, op, 0));
 		env_[op].template on<&Envelope::retune>();
@@ -230,32 +230,30 @@ void Voice<Noise>::retune(const Settings& s) {
 }
 
 template <noise_stream Noise>
-bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs& in, Buses& buses) {
+bool Voice<Noise>::render_block(const Settings& s, dsp::Buffer<Q<24>> out, const BlockInputs& in, Buses& buses) {
 	const PatchBytes& p = *s.patch;
 	const std::size_t n = out.size();
-	const int32_t lfo_delay = lfo_delay_.advance(n);
-	int32_t lfo_val = in.lfo_value;
+	const Q<24> lfo_delay = lfo_delay_.advance(n);
 
 	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope. The depths are a
 	// byte (0 to 99) scaled to 0 to 255, Q8.
 	const int32_t pitch_depth = (p[kPitchModDepth] * 165) >> 6;
 	const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
-	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q8 × Q24: Q32
+	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay.raw()); // Q8 × Q24: Q32
 	// The LFO about its middle, times the sensitivity's table value (0 to 255): an integer product, Q24.
-	const int32_t senslfo = pitch_sens * sub_wrap(Q<24>::from_raw(lfo_val), Lfo::kMiddle).raw();
+	const int32_t senslfo = pitch_sens * sub_wrap(in.lfo_value, Lfo::kMiddle).raw();
 	// The Q32 depth times the Q24 swing, scaled to the pitch's Q24 octaves by the sensitivity's table: a 64-bit
 	// integer scaling. |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets
 	// INT32_MIN.
 	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
 	// Q24 octaves, each well inside the word: the envelope's ±4, the LFO's under 1 and the note's.
 	const Q<24> pitch_mod =
-	    add_wrap(add_wrap(Q<24>::from_raw(pitch_env_.advance(n)), Q<24>::from_raw(pmod * (senslfo < 0 ? -1 : 1))),
-	             Q<24>::from_raw(in.base_pitch));
+	    add_wrap(add_wrap(pitch_env_.advance(n), Q<24>::from_raw(pmod * (senslfo < 0 ? -1 : 1))), in.base_pitch);
 
 	// amplitude: the LFO's depth after its delay, inverted, no shallower than the envelope's floor
-	const Q<24> lfo_inverted = sub_wrap(Q<24>::one(), Q<24>::from_raw(lfo_val));
+	const Q<24> lfo_inverted = sub_wrap(Q<24>::one(), in.lfo_value);
 	const int32_t amp_depth = (p[kAmpModDepth] * 165) >> 6;
-	const auto amp_delayed = narrow_floor_wrap<Q<24>>(mul_wide(Q<8>::from_raw(amp_depth), Q<24>::from_raw(lfo_delay)));
+	const auto amp_delayed = narrow_floor_wrap<Q<24>>(mul_wide(Q<8>::from_raw(amp_depth), lfo_delay));
 	auto amd_mod = narrow_floor_wrap<Q<24>>(mul_wide(amp_delayed, lfo_inverted));
 	const Q<24> eg_floor = as_wrap<Q<24>>(Q<7>::from_raw(in.eg_mod + 1)); // the floor, 1 to 128 in 1/128
 	amd_mod = std::max(sub_wrap(Q<24>::one(), eg_floor), amd_mod);
@@ -269,11 +267,10 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 			std::ignore = env_[op].advance(n);
 			continue;
 		}
-		graph.freq[op] =
-		    freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op]
-		                                            : add_wrap(Q<24>::from_raw(base_pitch_[op]), pitch_mod).raw());
+		graph.freq[op] = Phase::from_raw(
+		    freq_lookup(*s.tables, (p[off + 17] != 0 ? base_pitch_[op] : add_wrap(base_pitch_[op], pitch_mod)).raw()));
 		with_extra_rate(op, in.rate_mod);
-		Q<24> level = Q<24>::from_raw(env_[op].advance(n)); // Q24 doublings
+		Q<24> level = env_[op].advance(n); // doublings
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
 			// The modulation depth through the sensitivity's table, then the device's float curve: integer and
@@ -289,7 +286,7 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 			    level, Q<24>::from_raw((ams >> 16) * in.amp_mod)); // amp_mod times the sensitivity's Q8 table value
 		}
 		// velocity sensitivity (0 to 7) steps of vel_mod's doublings
-		graph.level_in[op] = add_wrap(level, Q<24>::from_raw(p[off + 15] * in.vel_mod)).raw();
+		graph.level_in[op] = add_wrap(level, Q<24>::from_raw(p[off + 15] * in.vel_mod));
 	}
 	graph_.render_block(graph, out, buses);
 

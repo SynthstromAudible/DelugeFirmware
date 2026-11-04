@@ -21,9 +21,9 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/reverb/freeverb.h"
 #include "dsp-next/float/reverb/plate.h"
+#include "raw_frame.h"
 #include "reverb_views.h"
 
 #include <algorithm>
@@ -46,8 +46,8 @@ namespace deluge::dsp::test {
 		v.lines[Freeverb::kCombs + i] = line(Freeverb::kLayout.comb[1][i]);
 		v.index[i] = s.left.comb_index[i];
 		v.index[Freeverb::kCombs + i] = s.right.comb_index[i];
-		v.store[i] = s.left.comb_store[i];
-		v.store[Freeverb::kCombs + i] = s.right.comb_store[i];
+		v.store[i] = s.left.comb_store[i].raw();
+		v.store[Freeverb::kCombs + i] = s.right.comb_store[i].raw();
 	}
 	for (std::size_t i = 0; i < Freeverb::kAllpasses; ++i) {
 		v.lines[(2 * Freeverb::kCombs) + i] = line(Freeverb::kLayout.allpass[0][i]);
@@ -55,7 +55,7 @@ namespace deluge::dsp::test {
 		v.index[(2 * Freeverb::kCombs) + i] = s.left.allpass_index[i];
 		v.index[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = s.right.allpass_index[i];
 	}
-	v.dc = s.dc.y;
+	v.dc = s.dc.y.raw();
 	return v;
 }
 
@@ -87,17 +87,17 @@ inline constexpr std::size_t kImpulseBlock = 64;
 template <class Render>
 [[nodiscard]] std::vector<double> impulse_envelope(Render&& render, double seconds) {
 	std::vector<int32_t> input(kImpulseBlock, 0);
-	std::vector<StereoSample> output(kImpulseBlock);
+	std::vector<RawFrame> output(kImpulseBlock);
 	input[0] = 1 << 28;
 	const auto blocks = static_cast<std::size_t>(seconds * 44100.0 / kImpulseBlock);
 	std::vector<double> envelope;
 	envelope.reserve(blocks);
 	for (std::size_t block = 0; block < blocks; ++block) {
-		std::ranges::fill(output, StereoSample{.l = 0, .r = 0});
-		render(std::span<int32_t>{input}, std::span<StereoSample>{output});
+		std::ranges::fill(output, RawFrame{.l = 0, .r = 0});
+		render(std::span<int32_t>{input}, std::span<RawFrame>{output});
 		std::ranges::fill(input, 0);
 		double peak = 0.0;
-		for (const StereoSample& sample : output) {
+		for (const RawFrame& sample : output) {
 			peak = std::max(peak, std::abs(static_cast<double>(sample.l)));
 		}
 		envelope.push_back(peak);

@@ -43,6 +43,7 @@
 #include <utility>
 #include <vector>
 
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayBlockResult;
@@ -66,11 +67,11 @@ inline int32_t pattern(size_t word) {
 /// The k-th input sample: two unrelated pseudo-random channels, 28 bits of magnitude, for the first 800 samples.
 inline StereoSample input(int32_t k) {
 	if (k >= 800) {
-		return {.l = 0, .r = 0};
+		return StereoSample{};
 	}
 	const uint32_t a = static_cast<uint32_t>(k + 1) * 2654435761u;
 	const uint32_t b = static_cast<uint32_t>(k + 7) * 2246822519u;
-	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a) >> 3), .r = Q<31>::from_raw(static_cast<int32_t>(b) >> 3)};
 }
 
 /// A 64-bit FNV-1a over 32-bit words.
@@ -279,7 +280,7 @@ struct Buffer {
 		const size_t samples = static_cast<size_t>(size) + static_cast<size_t>(DelayTape::kWriteLag);
 		storage.resize(samples);
 		for (size_t i = 0; i < samples; ++i) {
-			storage[i] = {.l = pattern(2 * i), .r = pattern((2 * i) + 1)};
+			storage[i] = {.l = Q<31>::from_raw(pattern(2 * i)), .r = Q<31>::from_raw(pattern((2 * i) + 1))};
 		}
 		tape = DelayTape{std::span{storage}, static_cast<size_t>(size), rate};
 		if (clamped) {
@@ -327,7 +328,7 @@ public:
 		DelayTape* const growing = secondary.is_active() ? &secondary : nullptr;
 		const DelayBlockResult result = processor_.process(buffer, &primary, growing,
 		                                                   {.rate = s.rate,
-		                                                    .feedback = s.feedback,
+		                                                    .feedback = deluge::dsp::Q<31>::from_raw(s.feedback),
 		                                                    .analog = s.analog,
 		                                                    .analog_saturation = s.saturation,
 		                                                    .ping_pong = s.ping_pong,
@@ -374,8 +375,8 @@ private:
 std::vector<int32_t> words(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	for (const StereoSample s : block) {
-		out.push_back(s.l);
-		out.push_back(s.r);
+		out.push_back(s.l.raw());
+		out.push_back(s.r.raw());
 	}
 	return out;
 }
@@ -431,7 +432,7 @@ std::vector<uint64_t> runSteps(const std::vector<Step>& steps) {
 		}
 		std::ignore = processor.process(block, &primary.tape, nullptr,
 		                                {.rate = kNativeRate,
-		                                 .feedback = 0x38000000,
+		                                 .feedback = deluge::dsp::Q<31>::from_raw(0x38000000),
 		                                 .analog = step.analog,
 		                                 .analog_saturation = step.saturation,
 		                                 .ping_pong = false,
@@ -479,7 +480,7 @@ describe delay_processor("DelayProcessor", ${
 		}
 		const std::vector<int32_t> before = words(block);
 		const DelayBlockResult result = processor.process(block, nullptr, nullptr, {.rate = kNativeRate,
-		    .feedback = 0x30000000, .analog = false, .analog_saturation = 8, .ping_pong = false,
+		    .feedback = deluge::dsp::Q<31>::from_raw(0x30000000), .analog = false, .analog_saturation = 8, .ping_pong = false,
 		    .render_in_stereo = true});
 		expect(result.wrapped).to_be_false();
 		expect(result.secondary_written).to_equal(0);
@@ -490,7 +491,7 @@ describe delay_processor("DelayProcessor", ${
 		Buffer secondary;
 		std::ignore = secondary.init(kNativeRate);
 		DelayProcessor processor;
-		const DelayBlock settings{.rate = kNativeRate, .feedback = 0x30000000, .analog = false,
+		const DelayBlock settings{.rate = kNativeRate, .feedback = deluge::dsp::Q<31>::from_raw(0x30000000), .analog = false,
 		    .analog_saturation = 8, .ping_pong = false, .render_in_stereo = true};
 		std::vector<int32_t> written;
 		std::vector<int32_t> wrapped;

@@ -34,13 +34,13 @@ namespace sw = stutter_workloads;
 using deluge::dsp::test::ReferenceStutter;
 
 /// @return Every block's output of @p workload, its storage starting as @p fill.
-[[nodiscard]] std::vector<int32_t> outputs(const sw::Workload& workload, deluge::dsp::StereoSample fill) {
+[[nodiscard]] std::vector<int32_t> outputs(const sw::Workload& workload, deluge::dsp::test::RawFrame fill) {
 	ReferenceStutter stutter;
 	std::vector<int32_t> out;
 	sw::play(
 	    workload, stutter,
-	    [&](std::size_t, std::span<const deluge::dsp::StereoSample> block) {
-		    for (const deluge::dsp::StereoSample frame : block) {
+	    [&](std::size_t, std::span<const deluge::dsp::test::RawFrame> block) {
+		    for (const deluge::dsp::test::RawFrame frame : block) {
 			    out.push_back(frame.l);
 			    out.push_back(frame.r);
 		    }
@@ -84,7 +84,7 @@ describe reference_stutter("the stutter reference", ${
 	it("finishes recording and plays in every workload", _ {
 		for (const sw::Workload& workload : sw::all_workloads()) {
 			ReferenceStutter stutter;
-			sw::play(workload, stutter, [](std::size_t, std::span<const deluge::dsp::StereoSample>) {});
+			sw::play(workload, stutter, [](std::size_t, std::span<const deluge::dsp::test::RawFrame>) {});
 			expect(stutter.playing()).to_be_true();
 		}
 	});
@@ -94,7 +94,7 @@ describe reference_stutter("the stutter reference", ${
 		const std::vector<int32_t> out = outputs(workload, {});
 		std::vector<int32_t> in;
 		for (std::size_t b = 0; b < 16; ++b) {
-			for (const deluge::dsp::StereoSample frame : sw::input(128, b, false, b * 128)) {
+			for (const deluge::dsp::test::RawFrame frame : sw::input(128, b, false, b * 128)) {
 				in.push_back(frame.l);
 				in.push_back(frame.r);
 			}

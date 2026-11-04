@@ -55,23 +55,23 @@ struct TrackMonitor {
 
 	/// @brief The block's ramp and fold.
 	struct Settings {
-		q31 amplitude_start = 0;  ///< The track's amplitude at the block's start, Q30.
-		q31 amplitude_end = 0;    ///< At its end, Q30.
+		Q<30> amplitude_start{};  ///< The track's amplitude at the block's start.
+		Q<30> amplitude_end{};    ///< At its end.
 		Mode mode = Mode::STEREO; ///< The fold.
 	};
 	/// @brief The block's ramp and fold, as set.
 	struct Coefficients {
-		q31 amplitude_start = 0;  ///< The ramp's start, Q30.
-		q31 amplitude_end = 0;    ///< The ramp's end, Q30.
+		Q<30> amplitude_start{};  ///< The ramp's start.
+		Q<30> amplitude_end{};    ///< The ramp's end.
 		Mode mode = Mode::STEREO; ///< The fold.
 	};
 	/// @brief The running amplitude, set by each block's prepare.
 	struct State {
-		q31 amplitude = 0; ///< The amplitude the last frame took, Q30.
+		Q<30> amplitude{}; ///< The amplitude the last frame took.
 	};
 	/// @brief The block's per-frame step.
 	struct Block {
-		q31 increment = 0; ///< Added to the amplitude before each frame, Q30.
+		Q<30> increment{}; ///< Added to the amplitude before each frame.
 	};
 
 	/// @brief The ramp and fold, unchanged.
@@ -82,8 +82,9 @@ struct TrackMonitor {
 	/// @brief Starts the amplitude at the block's start and works out its step over @p n frames.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		s.amplitude = c.amplitude_start;
-		return {.increment = static_cast<q31>(static_cast<double>(wrapping_sub(c.amplitude_end, c.amplitude_start))
-		                                      / static_cast<double>(n))};
+		// Raw: the ramp's step is the change over the block in double, truncated
+		return {.increment = Q<30>::from_raw(static_cast<int32_t>(
+		            static_cast<double>(sub_wrap(c.amplitude_end, c.amplitude_start).raw()) / static_cast<double>(n)))};
 	}
 
 	/// @brief One frame: @p output plus @p input at the stepped amplitude, folded by @p M.
@@ -96,24 +97,24 @@ struct TrackMonitor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const Block& blk, State& s,
 	                                                              StereoSample output, StereoSample input) {
-		const Q<30> amplitude = add_wrap(Q<30>::from_raw(s.amplitude), Q<30>::from_raw(blk.increment));
-		s.amplitude = amplitude.raw();
-		const auto l = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.l), amplitude);
-		const auto r = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.r), amplitude);
-		StereoSample add{.l = l.raw(), .r = r.raw()};
+		const Q<30> amplitude = add_wrap(s.amplitude, blk.increment);
+		s.amplitude = amplitude;
+		const auto l = mul_as_wrap<Q<31>>(input.l, amplitude);
+		const auto r = mul_as_wrap<Q<31>>(input.r, amplitude);
+		StereoSample add{.l = l, .r = r};
 		if constexpr (M == Mode::LEFT) {
-			add = StereoSample::from_mono(l.raw());
+			add = StereoSample::from_mono(l);
 		}
 		else if constexpr (M == Mode::RIGHT) {
-			add = StereoSample::from_mono(r.raw());
+			add = StereoSample::from_mono(r);
 		}
 		else if constexpr (M == Mode::BALANCED) {
-			add = StereoSample::from_mono(sub_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
+			add = StereoSample::from_mono(sub_wrap(halve_toward_zero(l), halve_toward_zero(r)));
 		}
 		else if constexpr (M == Mode::COMBINE) {
-			add = StereoSample::from_mono(add_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
+			add = StereoSample::from_mono(add_wrap(halve_toward_zero(l), halve_toward_zero(r)));
 		}
-		return {.l = wrapping_add(output.l, add.l), .r = wrapping_add(output.r, add.r)};
+		return output + add;
 	}
 };
 

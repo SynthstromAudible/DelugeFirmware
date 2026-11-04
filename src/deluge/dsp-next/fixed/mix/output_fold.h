@@ -46,14 +46,14 @@ enum class OutputFold : uint8_t {
                                                                              int shift) {
 	switch (fold) {
 	case OutputFold::DIFFERENTIAL: {
-		const q31 v = wrapping_sub(in.l >> (shift + 1), in.r >> shift);
+		const auto v = Q<31>::from_raw(wrapping_sub(in.l.raw() >> (shift + 1), in.r.raw() >> shift));
 		return {.l = v, .r = v};
 	}
 	case OutputFold::LEFT_ONLY:
-		return {.l = in.l >> shift, .r = in.l >> shift};
+		return StereoSample::from_mono(Q<31>::from_raw(in.l.raw() >> shift));
 	case OutputFold::STEREO:
 	default:
-		return {.l = in.l >> shift, .r = in.r >> shift};
+		return {.l = Q<31>::from_raw(in.l.raw() >> shift), .r = Q<31>::from_raw(in.r.raw() >> shift)};
 	}
 }
 

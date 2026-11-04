@@ -476,7 +476,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 
 q31_t GlobalEffectable::displayedCompressorThreshold() {
 	// The master's threshold is its setting; a track chain's render follows its threshold param, which the knob shows.
-	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold();
+	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold().raw();
 }
 
 int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
@@ -557,7 +557,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 				deluge::edits::changeEffect(*this, "audioCompressor/ratio",
 				                            deluge::serialization::Value::makeNumber(knob_level(current + 64)));
-				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_ratio(effects().compressor.ratio));
+				displayLevel = static_cast<int32_t>(
+				    deluge::dsp::fixed::compressor_ratio(deluge::dsp::Q<31>::from_raw(effects().compressor.ratio)));
 				unit = " : 1";
 				break;
 
@@ -570,8 +571,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(*this, "audioCompressor/attack",
 				                            deluge::serialization::Value::makeNumber(knob_level(current + 64)));
-				displayLevel =
-				    static_cast<int32_t>(deluge::dsp::fixed::compressor_attack_ms(effects().compressor.attack));
+				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_attack_ms(
+				    deluge::dsp::Q<31>::from_raw(effects().compressor.attack)));
 				unit = " MS";
 				break;
 
@@ -584,8 +585,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(*this, "audioCompressor/release",
 				                            deluge::serialization::Value::makeNumber(knob_level(current + 64)));
-				displayLevel =
-				    static_cast<int32_t>(deluge::dsp::fixed::compressor_release_ms(effects().compressor.release));
+				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_release_ms(
+				    deluge::dsp::Q<31>::from_raw(effects().compressor.release)));
 				unit = " MS";
 				break;
 
@@ -598,8 +599,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(*this, "audioCompressor/compHPF",
 				                            deluge::serialization::Value::makeNumber(knob_level(current + 64)));
-				displayLevel = static_cast<int32_t>(
-				    deluge::dsp::fixed::compressor_sidechain_hz(effects().compressor.sidechain_hpf));
+				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_sidechain_hz(
+				    deluge::dsp::Q<31>::from_raw(effects().compressor.sidechain_hpf)));
 				unit = " HZ";
 				break;
 
@@ -612,7 +613,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				q31_t level = current == 64 ? kOneQ31 : knob_level(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
-				displayLevel = deluge::dsp::fixed::compressor_blend_percent(level);
+				displayLevel = deluge::dsp::fixed::compressor_blend_percent(deluge::dsp::Q<31>::from_raw(level));
 				unit = " %";
 				break;
 			}

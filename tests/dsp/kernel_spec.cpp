@@ -14,6 +14,8 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/q31_ops.h"
@@ -46,7 +48,7 @@ struct Gain {
 	struct State {};
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
-		return multiply_32x32_rshift32(x, c.gain) << 1;
+		return mul_as_wrap<q31>(x, c.gain);
 	}
 };
 
@@ -67,10 +69,10 @@ struct Shaped {
 	template <Mode M>
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
 		if constexpr (M == Mode::HALF) {
-			return x >> 1;
+			return scale_shr_floor<1>(x);
 		}
 		else {
-			return x << 1;
+			return scale_shl_wrap<1>(x);
 		}
 	}
 };
@@ -86,7 +88,8 @@ struct Counter {
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
-		return ++s.n;
+		s.n = add_wrap(s.n, q31::from_raw(1));
+		return s.n;
 	}
 };
 
@@ -100,7 +103,7 @@ struct Add {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 a,
 	                                       q31 b2) {
-		return a + b2;
+		return add_wrap(a, b2);
 	}
 };
 
@@ -119,28 +122,28 @@ struct Prepared {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) { return {.offset = s.offset}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& /*s*/, q31 x) {
-		return x + b.offset;
+		return add_wrap(x, b.offset);
 	}
 };
 
 /// A vector processor kernel whose ramp persists across blocks, so its partial last vector advances by the count.
 struct Ramp {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	static constexpr bool kPartialStepAdvancesByCount = true;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {
-		Argon<q31> value; ///< The ramp's value in each lane.
+		QVec<31> value; ///< The ramp's value in each lane.
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s, Argon<q31> x) {
-		return step(c, b, s, x, ActiveLanes{.n = Argon<q31>::lanes});
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& c, const EmptyBlock& b, State& s, QVec<31> x) {
+		return step(c, b, s, x, ActiveLanes{.n = QVec<31>::kLanes});
 	}
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                              Argon<q31> x, ActiveLanes active) {
-		const Argon<q31> out = x + s.value;
-		s.value = s.value + Argon<q31>{static_cast<q31>(active.n)};
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                            QVec<31> x, ActiveLanes active) {
+		const QVec<31> out = add_wrap(x, s.value);
+		s.value = add_wrap(s.value, QVec<31>::splat(q31::from_raw(static_cast<int32_t>(active.n))));
 		return out;
 	}
 };
@@ -198,13 +201,13 @@ struct StereoVectorOverQ31 {
 /// A processor stepping q31 vectors over stereo frames: no loop runs that pair.
 struct VectorOverFrames {
 	using value_type = StereoSample;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
-	                                              Argon<q31> x) {
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                            QVec<31> x) {
 		return x;
 	}
 };
@@ -249,7 +252,7 @@ struct ListedDefaultMode {
 /// A component written with its own verbs instead of a kernel's.
 struct CustomVerbs {
 	using value_type = q31;
-	q31 gain = 0;
+	q31 gain{};
 	void configure(q31 g) { gain = g; }
 	void render_mono(Buffer<q31> out) {
 		for (q31& v : out) {
@@ -271,7 +274,7 @@ struct TwoArities {
 	}
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 a,
 	                                       q31 b2) {
-		return a + b2;
+		return add_wrap(a, b2);
 	}
 };
 
@@ -382,21 +385,21 @@ struct BlockNoPrepare {
 /// A vector generator whose phase persists across blocks: the counted step is at the generator arity.
 struct VecPhase {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	static constexpr bool kPartialStepAdvancesByCount = true;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {
-		Argon<q31> phase; ///< The phase in each lane.
+		QVec<31> phase; ///< The phase in each lane.
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const EmptyBlock& b, State& s) {
-		return step(c, b, s, ActiveLanes{.n = Argon<q31>::lanes});
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& c, const EmptyBlock& b, State& s) {
+		return step(c, b, s, ActiveLanes{.n = QVec<31>::kLanes});
 	}
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
-	                                              ActiveLanes active) {
-		const Argon<q31> out = s.phase;
-		s.phase = s.phase + Argon<q31>{static_cast<q31>(active.n)};
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
+	                                            ActiveLanes active) {
+		const QVec<31> out = s.phase;
+		s.phase = add_wrap(s.phase, QVec<31>::splat(q31::from_raw(static_cast<int32_t>(active.n))));
 		return out;
 	}
 };
@@ -437,7 +440,7 @@ struct ModedStaged {
 	template <Mode M>
 	static void process(const Coefficients& /*c*/, State& /*s*/, Signal<q31> in, Buffer<q31> out) {
 		for (std::size_t i = 0; i < in.size(); ++i) {
-			out[i] = M == Mode::COPY ? in[i] : -in[i];
+			out[i] = M == Mode::COPY ? in[i] : neg_wrap(in[i]);
 		}
 	}
 };
@@ -445,14 +448,14 @@ struct ModedStaged {
 /// A vector kernel declaring the counted partial step without providing it.
 struct VecNoCount {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	static constexpr bool kPartialStepAdvancesByCount = true;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
-	                                              Argon<q31> x) {
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
+	                                            QVec<31> x) {
 		return x;
 	}
 };
@@ -460,14 +463,14 @@ struct VecNoCount {
 /// A vector generator declaring the counted partial step without providing it.
 struct VecGeneratorNoCount {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	static constexpr bool kPartialStepAdvancesByCount = true;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/) {
-		return Argon<q31>{0};
+	[[gnu::always_inline]] static QVec<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/) {
+		return QVec<31>::splat(q31::from_raw(0));
 	}
 };
 
@@ -516,7 +519,7 @@ struct WrongStepReturn {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static int64_t step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
 	                                           q31 x) {
-		return x;
+		return x.raw();
 	}
 };
 
@@ -575,9 +578,10 @@ struct ResetQuirk {
 		q31 n;
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static void reset(State& s) { s.n = 100; }
+	static void reset(State& s) { s.n = q31::from_raw(100); }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
-		return ++s.n;
+		s.n = add_wrap(s.n, q31::from_raw(1));
+		return s.n;
 	}
 };
 
@@ -591,9 +595,10 @@ struct MemberReset {
 		q31 n;
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	void reset(State& s) const { s.n = 100; }
+	void reset(State& s) const { s.n = q31::from_raw(100); }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
-		return ++s.n;
+		s.n = add_wrap(s.n, q31::from_raw(1));
+		return s.n;
 	}
 };
 
@@ -607,9 +612,10 @@ struct ValueReset {
 		q31 n;
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static State reset() { return {.n = 100}; }
+	static State reset() { return {.n = q31::from_raw(100)}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
-		return ++s.n;
+		s.n = add_wrap(s.n, q31::from_raw(1));
+		return s.n;
 	}
 };
 
@@ -624,12 +630,12 @@ struct Fall {
 		q31 rate; ///< Fall per sample, Q1.31.
 	};
 	struct State {
-		q31 level = kOneQ31; ///< Q1.31.
+		q31 level = q31::from_raw(kOneQ31); ///< Q1.31.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const int64_t next = int64_t{s.level} - (int64_t{c.rate} * static_cast<int64_t>(n));
-		s.level = next < 0 ? 0 : static_cast<q31>(next);
+		const int64_t next = int64_t{s.level.raw()} - (int64_t{c.rate.raw()} * static_cast<int64_t>(n));
+		s.level = q31::from_raw(next < 0 ? 0 : static_cast<int32_t>(next));
 		return s.level;
 	}
 };
@@ -653,7 +659,7 @@ struct ModedFall {
 	template <Mode M>
 	static q31 advance(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
 		if constexpr (M == Mode::CLEAR) {
-			s.level = 0;
+			s.level = q31::from_raw(0);
 		}
 		return s.level;
 	}
@@ -667,9 +673,9 @@ struct AdvanceAndStep {
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return q31::from_raw(0); }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/) {
-		return 0;
+		return q31::from_raw(0);
 	}
 };
 
@@ -682,7 +688,7 @@ struct AdvancePrepare {
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static EmptyBlock prepare(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return q31::from_raw(0); }
 };
 
 /// A control kernel declaring the counted partial step, which a block-rate kernel has no vector to need.
@@ -694,18 +700,18 @@ struct AdvancePartialCount {
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return q31::from_raw(0); }
 };
 
 /// A control kernel whose step type is a vector over its q31 value type.
 struct AdvanceVectorStep {
 	using value_type = q31;
-	using step_type = Argon<q31>;
+	using step_type = QVec<31>;
 	struct Settings {};
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) { return q31::from_raw(0); }
 };
 
 /// A control kernel whose advance takes its count as an int rather than a std::size_t.
@@ -716,7 +722,7 @@ struct AdvanceIntCount {
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, int /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, int /*n*/) { return q31::from_raw(0); }
 };
 
 /// A control kernel whose advance takes its count as a uint32_t, which is std::size_t on a 32-bit Linux target.
@@ -727,7 +733,7 @@ struct AdvanceU32Count {
 	struct Coefficients {};
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static q31 advance(const Coefficients& /*c*/, State& /*s*/, uint32_t /*n*/) { return 0; }
+	static q31 advance(const Coefficients& /*c*/, State& /*s*/, uint32_t /*n*/) { return q31::from_raw(0); }
 };
 
 /// A control kernel whose advance is a template on its count's type: its address converts to the exact signature,
@@ -741,7 +747,7 @@ struct AdvanceDeducedCount {
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	template <typename N>
 	static q31 advance(const Coefficients& /*c*/, State& /*s*/, N /*n*/) {
-		return 0;
+		return q31::from_raw(0);
 	}
 };
 
@@ -771,7 +777,7 @@ struct AdvanceFirstModeOnly {
 	template <Mode M>
 	requires(M == Mode::A)
 	static q31 advance(const Coefficients& /*c*/, State& /*s*/, std::size_t /*n*/) {
-		return 0;
+		return q31::from_raw(0);
 	}
 };
 
@@ -797,8 +803,8 @@ struct Voiced {
 	static constexpr Coefficients coefficients(const Settings& s) { return {.mode = s.mode}; }
 	template <Mode M>
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
-		const q31 scaled = M.scale == Scale::HALF ? x >> 1 : x << 1;
-		return M.negate ? -scaled : scaled;
+		const q31 scaled = M.scale == Scale::HALF ? scale_shr_floor<1>(x) : scale_shl_wrap<1>(x);
+		return M.negate ? neg_wrap(scaled) : scaled;
 	}
 };
 
@@ -944,96 +950,96 @@ describe kernel_concepts("kernel concepts", ${
 		const EmptyBlock none{};
 
 		Gain::State gain_state{};
-		const Gain::Coefficients half = Gain::coefficients({.gain = 0x40000000}); // 0.5 in Q1.31
-		expect(Gain::step(half, none, gain_state, 1000)).to_equal(500);
+		const Gain::Coefficients half = Gain::coefficients({.gain = q<31>(0.5)});
+		expect(Gain::step(half, none, gain_state, q31::from_raw(1000)).raw()).to_equal(500);
 
 		Shaped::State shaped_state{};
 		const Shaped::Coefficients shaped = Shaped::coefficients({.mode = Shaped::Mode::DOUBLE});
 		expect(shaped.mode).to_equal(Shaped::Mode::DOUBLE);
-		expect(Shaped::step<Shaped::Mode::HALF>(shaped, none, shaped_state, 100)).to_equal(50);
-		expect(Shaped::step<Shaped::Mode::DOUBLE>(shaped, none, shaped_state, 100)).to_equal(200);
+		expect(Shaped::step<Shaped::Mode::HALF>(shaped, none, shaped_state, q31::from_raw(100)).raw()).to_equal(50);
+		expect(Shaped::step<Shaped::Mode::DOUBLE>(shaped, none, shaped_state, q31::from_raw(100)).raw()).to_equal(200);
 
 		Counter::State counter_state{};
 		std::ignore = Counter::step({}, none, counter_state);
-		expect(Counter::step({}, none, counter_state)).to_equal(2);
+		expect(Counter::step({}, none, counter_state).raw()).to_equal(2);
 
 		Add::State add_state{};
-		expect(Add::step({}, none, add_state, 3, 4)).to_equal(7);
+		expect(Add::step({}, none, add_state, q31::from_raw(3), q31::from_raw(4)).raw()).to_equal(7);
 
-		Prepared::State prepared_state{.offset = 10};
+		Prepared::State prepared_state{.offset = q31::from_raw(10)};
 		const Prepared::Block block = Prepared::prepare({}, prepared_state, 4);
-		expect(Prepared::step({}, block, prepared_state, 5)).to_equal(15);
+		expect(Prepared::step({}, block, prepared_state, q31::from_raw(5)).raw()).to_equal(15);
 
-		Ramp::State ramp_state{.value = Argon<q31>{0}};
-		std::ignore = Ramp::step({}, none, ramp_state, Argon<q31>{100});
-		std::ignore = Ramp::step({}, none, ramp_state, Argon<q31>{100}, ActiveLanes{.n = 3});
+		Ramp::State ramp_state{.value = QVec<31>::splat(q31::from_raw(0))};
+		std::ignore = Ramp::step({}, none, ramp_state, QVec<31>::splat(q31::from_raw(100)));
+		std::ignore = Ramp::step({}, none, ramp_state, QVec<31>::splat(q31::from_raw(100)), ActiveLanes{.n = 3});
 		std::array<q31, 4> lanes{};
-		ramp_state.value.StoreTo(lanes.data());
-		expect(lanes[0]).to_equal(7);
-		expect(lanes[3]).to_equal(7);
+		ramp_state.value.store(lanes.data());
+		expect(lanes[0].raw()).to_equal(7);
+		expect(lanes[3].raw()).to_equal(7);
 
 		Staged::State staged_state{};
-		const std::array<q31, 3> in{1, 2, 3};
+		const std::array<q31, 3> in{q31::from_raw(1), q31::from_raw(2), q31::from_raw(3)};
 		std::array<q31, 3> out{};
 		Staged::process({}, staged_state, in, out);
-		expect(out[0]).to_equal(3);
-		expect(out[2]).to_equal(1);
+		expect(out[0].raw()).to_equal(3);
+		expect(out[2].raw()).to_equal(1);
 
 		ModedStaged::State moded_staged_state{};
 		ModedStaged::process<ModedStaged::Mode::NEGATE>({}, moded_staged_state, in, out);
-		expect(out[0]).to_equal(-1);
-		expect(out[2]).to_equal(-3);
+		expect(out[0].raw()).to_equal(-1);
+		expect(out[2].raw()).to_equal(-3);
 
-		VecPhase::State phase_state{.phase = Argon<q31>{0}};
+		VecPhase::State phase_state{.phase = QVec<31>::splat(q31::from_raw(0))};
 		std::ignore = VecPhase::step({}, none, phase_state);
 		std::ignore = VecPhase::step({}, none, phase_state, ActiveLanes{.n = 2});
-		phase_state.phase.StoreTo(lanes.data());
-		expect(lanes[0]).to_equal(6);
+		phase_state.phase.store(lanes.data());
+		expect(lanes[0].raw()).to_equal(6);
 
 		Fall::State fall_state{};
-		expect(Fall::advance({.rate = 10}, fall_state, 3)).to_equal(kOneQ31 - 30);
-		expect(Fall::advance({.rate = kOneQ31}, fall_state, 2)).to_equal(0);
+		expect(Fall::advance({.rate = q31::from_raw(10)}, fall_state, 3).raw()).to_equal(kOneQ31 - 30);
+		expect(Fall::advance({.rate = q31::from_raw(kOneQ31)}, fall_state, 2).raw()).to_equal(0);
 
-		ModedFall::State moded_fall_state{.level = 5};
-		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
-		expect(ModedFall::advance<ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
+		ModedFall::State moded_fall_state{.level = q31::from_raw(5)};
+		expect(ModedFall::advance<ModedFall::Mode::HOLD>({}, moded_fall_state, 4).raw()).to_equal(5);
+		expect(ModedFall::advance<ModedFall::Mode::CLEAR>({}, moded_fall_state, 4).raw()).to_equal(0);
 	});
 
 	it("dispatches a kernel with a structural mode to the step at that mode", _ {
 		const std::array<Voiced::Mode, 3> modes{
 		    {{Voiced::Scale::DOUBLE, false}, {Voiced::Scale::HALF, false}, {Voiced::Scale::HALF, true}}};
-		const std::array<q31, 3> want{200, 50, -50};
+		const std::array<int32_t, 3> want{200, 50, -50};
 		for (std::size_t i = 0; i < modes.size(); ++i) {
 			const Voiced::Coefficients c = Voiced::coefficients({.mode = modes[i]});
 			Voiced::State s{};
-			q31 got = 0;
+			q31 got{};
 			kernel_ops::dispatch_mode<Voiced>(c, [&]<auto M>() {
-				got = kernel_ops::step_at<Voiced, M>(c, EmptyBlock{}, s, 100);
+				got = kernel_ops::step_at<Voiced, M>(c, EmptyBlock{}, s, q31::from_raw(100));
 			});
-			expect(got).to_equal(want[i]);
+			expect(got.raw()).to_equal(want[i]);
 		}
 	});
 
 	it("advances a control kernel and processes a staged kernel through kernel_ops at a mode", _ {
 		Fall::State fall_state{};
-		expect(kernel_ops::advance_at<Fall, kernel_ops::NoMode::NONE>({.rate = 10}, fall_state, 3))
+		expect(kernel_ops::advance_at<Fall, kernel_ops::NoMode::NONE>({.rate = q31::from_raw(10)}, fall_state, 3).raw())
 		    .to_equal(kOneQ31 - 30);
 
-		ModedFall::State moded_fall_state{.level = 5};
-		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::HOLD>({}, moded_fall_state, 4)).to_equal(5);
-		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::CLEAR>({}, moded_fall_state, 4)).to_equal(0);
+		ModedFall::State moded_fall_state{.level = q31::from_raw(5)};
+		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::HOLD>({}, moded_fall_state, 4).raw()).to_equal(5);
+		expect(kernel_ops::advance_at<ModedFall, ModedFall::Mode::CLEAR>({}, moded_fall_state, 4).raw()).to_equal(0);
 
-		const std::array<q31, 3> in{1, 2, 3};
+		const std::array<q31, 3> in{q31::from_raw(1), q31::from_raw(2), q31::from_raw(3)};
 		std::array<q31, 3> out{};
 		Staged::State staged_state{};
 		kernel_ops::process_at<Staged, kernel_ops::NoMode::NONE>({}, staged_state, in, out);
-		expect(out[0]).to_equal(3);
-		expect(out[2]).to_equal(1);
+		expect(out[0].raw()).to_equal(3);
+		expect(out[2].raw()).to_equal(1);
 
 		ModedStaged::State moded_staged_state{};
 		kernel_ops::process_at<ModedStaged, ModedStaged::Mode::NEGATE>({}, moded_staged_state, in, out);
-		expect(out[0]).to_equal(-1);
-		expect(out[2]).to_equal(-3);
+		expect(out[0].raw()).to_equal(-1);
+		expect(out[2].raw()).to_equal(-3);
 	});
 
 	it("steps a kernel declaring kLoopState on its State's loop member, through kernel_ops", _ {
@@ -1044,12 +1050,14 @@ describe kernel_concepts("kernel concepts", ${
 		const auto c = lst::SplitLoop::coefficients({.mode = lst::Mode::XOR});
 		const auto bw = kernel_ops::prepare_block<lst::SplitWhole>(c, whole, 4);
 		const auto bs = kernel_ops::prepare_block<lst::SplitLoop>(c, split, 4);
-		for (const q31 x : {1, -7, 1 << 30, 12345}) {
+		for (const int32_t raw : {1, -7, 1 << 30, 12345}) {
+			const q31 x = q31::from_raw(raw);
 			const q31 want = kernel_ops::step_at<lst::SplitWhole, lst::Mode::XOR>(
 			    c, bw, kernel_ops::loop_state<lst::SplitWhole>(whole), x);
 			expect(kernel_ops::step_at<lst::SplitLoop, lst::Mode::XOR>(c, bs, kernel_ops::loop_state<lst::SplitLoop>(split),
-			                                                           x))
-			    .to_equal(want);
+			                                                           x)
+			           .raw())
+			    .to_equal(want.raw());
 		}
 		expect(loop_state_test::state_words(split)).to_equal(loop_state_test::state_words(whole));
 	});

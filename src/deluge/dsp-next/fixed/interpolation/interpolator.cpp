@@ -55,10 +55,11 @@ StereoSample Interpolator::interpolate(std::size_t channels, int32_t which_kerne
 	const int16_t* kernel_row = kWindowedSincKernel.variant(which_kernel) + progress_small * kSincKernelTaps;
 	SincWindow kernel = blend_sinc_kernel(kernel_row, strength2);
 
+	// The windows' dot products are the Q31 samples, summed raw.
 	StereoSample output;
-	output.l = windowed_sinc_dot(kernel, load_window(buffer_l.data()));
+	output.l = Q<31>::from_raw(windowed_sinc_dot(kernel, load_window(buffer_l.data())));
 	if (channels == 2) {
-		output.r = windowed_sinc_dot(kernel, load_window(buffer_r.data()));
+		output.r = Q<31>::from_raw(windowed_sinc_dot(kernel, load_window(buffer_r.data())));
 	}
 	return output;
 }
@@ -68,9 +69,10 @@ StereoSample Interpolator::interpolate_linear(std::size_t channels, uint32_t pha
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	output.l = (buffer_l[1] * strength1) + (buffer_l[0] * strength2);
+	// The 16-bit samples times their Q15 strengths, summed: integer products, read as the Q31 sample.
+	output.l = Q<31>::from_raw((buffer_l[1] * strength1) + (buffer_l[0] * strength2));
 	if (channels == 2) {
-		output.r = (buffer_r[1] * strength1) + (buffer_r[0] * strength2);
+		output.r = Q<31>::from_raw((buffer_r[1] * strength1) + (buffer_r[0] * strength2));
 	}
 	return output;
 }

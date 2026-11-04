@@ -31,8 +31,8 @@ namespace {
 /// Two samples per frame, for a stereo block.
 constexpr std::size_t kFilterScratchSamples = SSI_TX_BUFFER_NUM_SAMPLES * 2;
 
-std::array<dsp::q31, kFilterScratchSamples> filter_fade{};
-std::array<dsp::q31, kFilterScratchSamples> filter_parallel{};
+std::array<dsp::Q<31>, kFilterScratchSamples> filter_fade{};
+std::array<dsp::Q<31>, kFilterScratchSamples> filter_parallel{};
 
 /// In internal SRAM: the sources read it every sample of a synced block.
 PLACE_INTERNAL_FRUNK int32_t osc_sync[SSI_TX_BUFFER_NUM_SAMPLES + 4] __attribute__((aligned(CACHE_LINE_SIZE)));

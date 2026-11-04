@@ -17,6 +17,7 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
@@ -335,21 +336,22 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 
 	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
 	const bool allow_oversampling = cfg.cpu_direness < 14;
-	filter_gain = filter_set_.configure(cfg.volume_neutral_value_for_unison << 1,
-	                                    {
-	                                        .frequency = params_.param_final_values[params::LOCAL_LPF_FREQ],
-	                                        .resonance = params_.param_final_values[params::LOCAL_LPF_RESONANCE],
-	                                        .morph = params_.param_final_values[params::LOCAL_LPF_MORPH],
-	                                        .allow_oversampling = allow_oversampling,
-	                                    },
-	                                    cfg.low_pass,
-	                                    {
-	                                        .frequency = params_.param_final_values[params::LOCAL_HPF_FREQ],
-	                                        .resonance = params_.param_final_values[params::LOCAL_HPF_RESONANCE],
-	                                        .morph = params_.param_final_values[params::LOCAL_HPF_MORPH],
-	                                        .allow_oversampling = allow_oversampling,
-	                                    },
-	                                    cfg.high_pass, cfg.filter_route);
+	filter_gain = filter_set_.configure(
+	    cfg.volume_neutral_value_for_unison << 1,
+	    {
+	        .frequency = dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_LPF_FREQ]),
+	        .resonance = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_LPF_RESONANCE]),
+	        .morph = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_LPF_MORPH]),
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    cfg.low_pass,
+	    {
+	        .frequency = dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_HPF_FREQ]),
+	        .resonance = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_HPF_RESONANCE]),
+	        .morph = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_HPF_MORPH]),
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    cfg.high_pass, cfg.filter_route);
 
 	SynthMode synth_mode = cfg.synth_mode;
 
@@ -423,11 +425,12 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	    .clipping_amount = cfg.clipping_amount,
 	};
 	if (did_stereo_temp_buffer) {
-		const std::span<dsp::q31> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
+		const std::span<q31_t> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
-			dsp::fixed::Wavefolder{params_.param_final_values[params::LOCAL_FOLD]}.render_block(stereo, stereo);
+			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
+			    dsp::typed_view(stereo), dsp::typed_view(stereo));
 		}
-		filter_set_.render_stereo(stereo, args.filter_scratch, *noise_);
+		filter_set_.render_stereo(dsp::typed_view(stereo), args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_stereo<false>(output);
 		}
@@ -436,12 +439,13 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 	else {
-		const std::span<dsp::q31> mono{osc_buffer, osc_buffer + num_samples};
+		const std::span<q31_t> mono{osc_buffer, osc_buffer + num_samples};
 		// wavefolding pre filter
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
-			dsp::fixed::Wavefolder{params_.param_final_values[params::LOCAL_FOLD]}.render_block(mono, mono);
+			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
+			    dsp::typed_view(mono), dsp::typed_view(mono));
 		}
-		filter_set_.render_mono(mono, args.filter_scratch, *noise_);
+		filter_set_.render_mono(dsp::typed_view(mono), args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_mono<false>(output);
 		}
@@ -578,8 +582,9 @@ Voice::VoicePan Voice::voice_pan(const VoiceConfig& cfg, bool applying_pan_at_vo
 		return {};
 	}
 	const int32_t pan = params_.param_final_values[params::LOCAL_PAN];
-	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left, .amplitude_r = amplitudes.right};
+	const deluge::dsp::fixed::PanAmplitudes amplitudes =
+	    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left.raw(), .amplitude_r = amplitudes.right.raw()};
 }
 
 template <bool kClipping>
@@ -607,14 +612,16 @@ void Voice::write_stereo(const VoiceOutput& output) {
 			output_sample_r = output_saturation_.saturate(output_sample_r, 1, saturation);
 		}
 
-		// Write to the output buffer, panning or not
+		// Write to the output buffer, panning or not: the voice's samples are raw Q31.
+		const auto left = deluge::dsp::Q<31>::from_raw(output_sample_l);
+		const auto right = deluge::dsp::Q<31>::from_raw(output_sample_r);
 		if (output.pan.do_panning) {
-			*output_sample += deluge::dsp::panned_stereo(output_sample_l, output_sample_r,
-			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
-			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
+			*output_sample +=
+			    deluge::dsp::panned_stereo(left, right, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+			                               deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 		}
 		else {
-			*output_sample += StereoSample{.l = output_sample_l, .r = output_sample_r};
+			*output_sample += StereoSample{.l = left, .r = right};
 		}
 
 		output_sample++;
@@ -643,13 +650,14 @@ void Voice::write_mono(const VoiceOutput& output) {
 		}
 
 		if (output.sound_in_stereo) {
+			const auto typed = deluge::dsp::Q<31>::from_raw(sample); // the voice's samples are raw Q31
 			if (output.pan.do_panning) {
 				*(reinterpret_cast<StereoSample*>(output_sample)) +=
-				    deluge::dsp::panned_mono(sample, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+				    deluge::dsp::panned_mono(typed, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
 				                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 			}
 			else {
-				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(sample);
+				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(typed);
 			}
 			output_sample += 2;
 		}

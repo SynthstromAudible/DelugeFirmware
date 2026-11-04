@@ -663,27 +663,27 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	}
 	else if (arm.path == "audioCompressor/ratio") {
 		out.title = text(String::STRING_FOR_RATIO);
-		shown = static_cast<int32_t>(dsp::fixed::compressor_ratio(stored));
+		shown = static_cast<int32_t>(dsp::fixed::compressor_ratio(dsp::Q<31>::from_raw(stored)));
 		unit = " : 1";
 	}
 	else if (arm.path == "audioCompressor/attack") {
 		out.title = text(String::STRING_FOR_ATTACK);
-		shown = static_cast<int32_t>(dsp::fixed::compressor_attack_ms(stored));
+		shown = static_cast<int32_t>(dsp::fixed::compressor_attack_ms(dsp::Q<31>::from_raw(stored)));
 		unit = " MS";
 	}
 	else if (arm.path == "audioCompressor/release") {
 		out.title = text(String::STRING_FOR_RELEASE);
-		shown = static_cast<int32_t>(dsp::fixed::compressor_release_ms(stored));
+		shown = static_cast<int32_t>(dsp::fixed::compressor_release_ms(dsp::Q<31>::from_raw(stored)));
 		unit = " MS";
 	}
 	else if (arm.path == "audioCompressor/compHPF") {
 		out.title = text(String::STRING_FOR_HPF);
-		shown = static_cast<int32_t>(dsp::fixed::compressor_sidechain_hz(stored));
+		shown = static_cast<int32_t>(dsp::fixed::compressor_sidechain_hz(dsp::Q<31>::from_raw(stored)));
 		unit = " HZ";
 	}
 	else {
 		out.title = text(String::STRING_FOR_BLEND);
-		shown = dsp::fixed::compressor_blend_percent(stored);
+		shown = dsp::fixed::compressor_blend_percent(dsp::Q<31>::from_raw(stored));
 		unit = " %";
 	}
 	out.value_text = std::to_string(shown) + unit;

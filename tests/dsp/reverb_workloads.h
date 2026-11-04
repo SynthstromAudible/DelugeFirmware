@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
+#include "raw_frame.h"
 #include "reverb_views.h"
 
 #include <algorithm>
@@ -40,7 +40,7 @@
 
 namespace reverb_workloads {
 
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using q31 = int32_t;
 
 /// @brief A model as a song file saves it.
@@ -171,9 +171,8 @@ struct Workload {
 /// @return @p n dry frames of block @p block, whose first frame is the workload's @p first_frame: LCG noise at ±2^29
 /// per channel, seeded per block; or, beside a full-scale send, full scale on both channels, so the reverb's add to
 /// the output wraps.
-[[nodiscard]] inline std::vector<StereoSample> dry(std::size_t n, Send kind, std::size_t block,
-                                                   std::size_t first_frame) {
-	std::vector<StereoSample> v(n);
+[[nodiscard]] inline std::vector<RawFrame> dry(std::size_t n, Send kind, std::size_t block, std::size_t first_frame) {
+	std::vector<RawFrame> v(n);
 	if (kind == Send::FULL_SCALE) {
 		for (std::size_t i = 0; i < n; ++i) {
 			const q31 extreme = full_scale(first_frame + i);
@@ -183,7 +182,7 @@ struct Workload {
 	}
 	uint32_t l = 0x9e3779b9U * static_cast<uint32_t>(block + 1);
 	uint32_t r = (0x85ebca6bU * static_cast<uint32_t>(block + 1)) + 1;
-	for (StereoSample& frame : v) {
+	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
 		frame = {static_cast<q31>(l) >> 2, static_cast<q31>(r) >> 2};
@@ -354,8 +353,8 @@ inline std::ostream& operator<<(std::ostream& out, const WorkloadRecord& r) {
 
 /// @brief A reverb a workload can drive: a model change, the knobs, one block in place, and its state's digest.
 template <class R>
-concept ReverbRunner = requires(R r, const R cr, Model m, const Knobs& k, std::span<q31> send,
-                                std::span<StereoSample> out, q31 pan, Digest& d) {
+concept ReverbRunner = requires(R r, const R cr, Model m, const Knobs& k, std::span<q31> send, std::span<RawFrame> out,
+                                q31 pan, Digest& d) {
 	r.set_model(m);
 	r.set_knobs(k);
 	r.render(send, out, pan, pan);
@@ -409,7 +408,7 @@ void play(const Workload& w, R& runner, Each&& each) {
 	for (std::size_t b = 0; b < w.blocks; ++b) {
 		const Step step = w.step(b);
 		std::vector<q31> send_block = send(step.frames, step.send, b, frame);
-		std::vector<StereoSample> out = dry(step.frames, step.send, b, frame);
+		std::vector<RawFrame> out = dry(step.frames, step.send, b, frame);
 		frame += step.frames;
 		if (step.model) {
 			runner.set_model(*step.model);
@@ -417,8 +416,8 @@ void play(const Workload& w, R& runner, Each&& each) {
 		if (step.knobs) {
 			runner.set_knobs(*step.knobs);
 		}
-		runner.render(std::span<q31>{send_block}, std::span<StereoSample>{out}, step.pan_l, step.pan_r);
-		each(b, std::span<const q31>{send_block}, std::span<const StereoSample>{out});
+		runner.render(std::span<q31>{send_block}, std::span<RawFrame>{out}, step.pan_l, step.pan_r);
+		each(b, std::span<const q31>{send_block}, std::span<const RawFrame>{out});
 	}
 }
 
@@ -441,8 +440,8 @@ template <ReverbRunner R>
 	R runner{};
 	Digest outputs;
 	Digest sends;
-	play(w, runner, [&](std::size_t, std::span<const q31> send_block, std::span<const StereoSample> out) {
-		for (const StereoSample s : out) {
+	play(w, runner, [&](std::size_t, std::span<const q31> send_block, std::span<const RawFrame> out) {
+		for (const RawFrame s : out) {
 			outputs.add(s.l);
 			outputs.add(s.r);
 		}

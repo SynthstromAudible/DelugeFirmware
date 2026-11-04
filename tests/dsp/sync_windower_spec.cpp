@@ -20,17 +20,19 @@
 // payoff of making it an object): bit-exact equivalence with the legacy renderOscSync on real waves
 // is the golden harness's job; here we pin the structural invariants. Dual-arch (x86 SIMDe + ARM).
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/sync/sync_windower.h"
 #include "sync_reference.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace {
-using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::Resetter;
 using deluge::dsp::fixed::SyncWindower;
 
@@ -43,7 +45,7 @@ constexpr uint32_t kSlowResetter = 0x00040000u; // ~16k samples per cycle -> no 
 // only the window geometry (offset/length/phase) matters here, which is independent of contents.
 std::vector<SyncWindower::Window> collect(uint32_t resetter_increment) {
 	std::array<int32_t, kBlock> buffer{};
-	SyncWindower windower{Buffer{buffer}, Resetter{0u, resetter_increment}, 0u, kInc, 0u};
+	SyncWindower windower{deluge::dsp::typed_view(std::span{buffer}), Resetter{0u, resetter_increment}, 0u, kInc, 0u};
 	std::vector<SyncWindower::Window> windows;
 	while (std::optional<SyncWindower::Window> window = windower.next()) {
 		windows.push_back(*window);
@@ -56,10 +58,25 @@ template <class Windower>
 std::pair<std::array<int32_t, kBlock>, uint32_t> render(Resetter resetter, uint32_t phase, uint32_t increment,
                                                         uint32_t retrigger) {
 	std::array<int32_t, kBlock> buffer{};
-	Windower windower{Buffer{buffer}, resetter, phase, increment, retrigger};
+	// The firmware's windower takes the block typed; the reference's (verbatim) takes it raw.
+	auto block = [&] {
+		if constexpr (std::is_constructible_v<Windower, deluge::dsp::Buffer<deluge::dsp::Q<31>>, Resetter, uint32_t,
+		                                      uint32_t, uint32_t>) {
+			return deluge::dsp::typed_view(std::span{buffer});
+		}
+		else {
+			return std::span<int32_t>{buffer};
+		}
+	}();
+	Windower windower{block, resetter, phase, increment, retrigger};
 	while (auto window = windower.next()) {
-		for (int32_t& sample : window->output) {
-			sample = static_cast<int32_t>(window->phasor.advance().raw());
+		for (auto& sample : window->output) {
+			if constexpr (std::is_same_v<std::remove_cvref_t<decltype(sample)>, int32_t>) {
+				sample = static_cast<int32_t>(window->phasor.advance().raw());
+			}
+			else {
+				sample = deluge::dsp::reinterpret_bits<deluge::dsp::Q<31>>(window->phasor.advance());
+			}
 		}
 	}
 	return {buffer, windower.phase()};
@@ -98,7 +115,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 
 	it("advances the phase by the whole block when there is no crossover", _ {
 		std::array<int32_t, kBlock> buffer{};
-		SyncWindower windower{Buffer{buffer}, Resetter{0u, kSlowResetter}, 0u, kInc, 0u};
+		SyncWindower windower{deluge::dsp::typed_view(std::span{buffer}), Resetter{0u, kSlowResetter}, 0u, kInc, 0u};
 		while (windower.next()) {
 		}
 		expect(windower.phase()).to_equal(static_cast<uint32_t>(kInc * kBlock));
@@ -113,7 +130,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		expect(static_cast<int32_t>(windows.front().output.size())).to_equal(kBlock);
 
 		std::array<int32_t, kBlock> buffer{};
-		SyncWindower windower{Buffer{buffer}, Resetter{0u, 0u}, 0u, kInc, 0u};
+		SyncWindower windower{deluge::dsp::typed_view(std::span{buffer}), Resetter{0u, 0u}, 0u, kInc, 0u};
 		while (windower.next()) {
 		}
 		expect(windower.phase()).to_equal(static_cast<uint32_t>(kInc * kBlock));
@@ -136,7 +153,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		for (uint32_t increment : {8u, 255u, 4096u, 65535u, 65536u, 1u << 20}) {
 			for (uint32_t ahead : {increment / 8, increment / 4}) {
 				std::array<int32_t, kBlock> buffer{};
-				SyncWindower windower{Buffer{buffer}, Resetter{ahead - (increment * 4), increment}, 0u, kInc, kRetrigger};
+				SyncWindower windower{deluge::dsp::typed_view(std::span{buffer}), Resetter{ahead - (increment * 4), increment}, 0u, kInc, kRetrigger};
 				const auto exact = static_cast<int64_t>(uint64_t{kInc} * ahead / increment);
 				bool first = true;
 				while (std::optional<SyncWindower::Window> window = windower.next()) {
@@ -161,7 +178,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 			for (int i = 0; i < 64; ++i) {
 				const uint32_t phase = i % 2 == 0 ? xorshift(x) : 0u - (xorshift(x) % 40u);
 				std::array<int32_t, kBlock> buffer{};
-				SyncWindower windower{Buffer{buffer}, Resetter{phase, increment}, 0u, kInc, 0u};
+				SyncWindower windower{deluge::dsp::typed_view(std::span{buffer}), Resetter{phase, increment}, 0u, kInc, 0u};
 				int32_t windows = 0;
 				int32_t end = 0;
 				while (std::optional<SyncWindower::Window> window = windower.next()) {
