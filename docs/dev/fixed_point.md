@@ -186,8 +186,9 @@ instructions.
   (`Amplitude`) holds its Q31 amplitude at Q30 (`QVec<30>`) and takes the doubled high word with `mul_doubling_sat`,
   so its product is Q30 too, summed into a mix read as Q30. Each wave sets the amplitude: the band-limited saw, square
   and pulse pass `scale_shl_wrap<1>` of the voice's amplitude.
-- **Frames:** `StereoSample`'s `+` and `+=` wrap. `panned_mono` and `panned_stereo` take `Q<30>` amplitudes, unity at
-  2^30, and keep `q31_ops.h`'s multiply until the voice kernel moves.
+- **Frames:** `StereoSample` is two `Q<31>` channels. Its `+` and `+=` are a frame's mix: `add_wrap` per channel.
+  `panned_mono` and `panned_stereo` take `Q<31>` samples and `Q<30>` amplitudes (unity at 2^30), multiplying with
+  `mul_as_wrap<Q<31>>`. The sample-rate reducer's grabs are a `Q<30>` pair.
 - **Curves:** `instant_tan` and `release_rate` blend Q28 and Q31 table entries at Q31 weights; the square and linear
   param curves take a Q29 combination and read the neutral as Q31, so each product is reformatted back to the
   neutral's units; `exp_curve`'s blend is Q30 of 2^fraction. `quick_log` stays integer (2^25 per octave).
@@ -277,8 +278,10 @@ instructions.
   0..128 knob is Q7 lifted to Q31 (`knob_level`); the arp's spreads are Q7 and its random amounts a true triangle
   (`triangle_of`). What stays integer: the 64-bit tick and increment arithmetic, run-time shifts (the recorder's input
   gain among them), MIDI and menu scalings, and the UI's display mappings.
-- **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
-  kernel's interface stays raw and converts at its entry and exit.
+- **dsp-next's interfaces** are typed: `q31` is `Q<31>`, `fixed::Buffer` and `Signal` are spans of it, and every
+  kernel's value and step types are a `Q<F>` or `QVec<F>` (the DX7 engine's `Q<24>`). The component framework has no
+  raw-integer path. The app and the legacy synth still hold raw `q31_t` buffers and view them typed at each call
+  (see the seam view below); S6b types those interfaces and removes the views.
 
 ## Measuring
 
@@ -300,14 +303,21 @@ any source change, so an empty result is not the gate. Each changed function is 
 ## The edges
 
 - **Buffers** are declared as `Q<F>` arrays by the code that owns them. A single audited raw `int32_t` view sits at
-  the codec/DMA edge. There is no `may_alias` and no reinterpreting of buffers.
-- **`scripts/check_fixed_point_raw.py`** counts two things per file outside `fixed_point.h` and `q31_ops.h`:
+  the codec/DMA edge. There is no `may_alias`.
+- **The seam view** (`dsp-next/core/buffer_view.h`): `typed_view<T = Q<31>>(span<int32_t>)` views raw words as a
+  32-bit format and `raw_view(span<Q<F>>)` views them back, over the same storage (a `Q<F>` is standard layout with
+  its `int32_t` as its only member). It is for raw callers meeting a typed kernel: the app, the legacy synth, the
+  bench and the specs. Inside dsp-next only raw machine code takes it: the DX7 graph's call into the device's NEON
+  kernel and the supersaw's hand-written NEON passes. S6b removes the app's and the legacy synth's views as their
+  interfaces are typed.
+- **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `q31_ops.h`:
   - raw sites, meaning raw helper calls and DSP-instruction asm;
+  - seam views, meaning `typed_view` and `raw_view` calls;
   - boundary crossings, meaning `from_raw`, `.raw()`, `->raw()` and `reinterpret_bits`.
 
-  `scripts/fixed_point_raw_allowlist.txt` pins the raw counts, and they may only shrink. A count below its entry also
+  `scripts/fixed_point_raw_allowlist.txt` pins the raw and view counts, and they may only shrink. A count below its entry also
   fails until `--write` records it, so freed headroom can't be spent again. Boundary crossings are recorded but not
-  gated: while interfaces still take raw `q31`, moving code onto the typed operations adds them. Moving a file onto
+  gated: while the app's interfaces still take raw words, moving code onto the typed operations adds them. Moving a file onto
   the typed operations is the unit of progress.
 - **What the ratchet can't see:** bare `int32_t` audio arithmetic (`+` or `<<` on samples) looks like any other
   integer code, so reviews have to catch it.
