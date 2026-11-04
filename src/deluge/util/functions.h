@@ -30,6 +30,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
 #include "util/synth_noise.h"
+#include "util/triangle_distribution.h"
 #include <bit>
 #include <cstdint>
 #include <cstring>
@@ -160,11 +161,11 @@ char const* sourceToStringShort(PatchSource source);
 	return static_cast<int32_t>(deluge::synth_noise.next());
 }
 
-/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+/// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0, from two of the synth's noise draws (triangle_of).
 inline q31_t sampleTriangleDistribution() {
 	auto u1 = getNoise();
 	auto u2 = getNoise();
-	return add_sat(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2)).raw();
+	return triangle_of(u1, u2);
 }
 
 void seedRandom();
