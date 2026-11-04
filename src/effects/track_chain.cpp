@@ -50,7 +50,7 @@ TrackBlock TrackChain::begin_block(const TrackChainInputs& in, std::size_t frame
 	}
 
 	core_.compressor().configure(settings.compressor);
-	core_.compressor().dsp().set_threshold(in.compressor_threshold); // a track chain's threshold is its param
+	core_.compressor().dsp().set_threshold(dsp::Q<31>::from_raw(in.compressor_threshold)); // its param
 	return levels;
 }
 
@@ -80,7 +80,7 @@ bool TrackChain::post_tap(std::span<dsp::StereoSample> block, const TrackChainIn
 	                                                   .ramp = true,
 	                                                   .stereo = in.fx.stereo});
 	if (in.compressor_threshold > 0) {
-		core_.compressor().dsp().render_volume_neutral(block, levels.volume_post_fx);
+		core_.compressor().dsp().render_volume_neutral(block, dsp::Q<29>::from_raw(levels.volume_post_fx));
 	}
 	else {
 		core_.compressor().dsp().reset();

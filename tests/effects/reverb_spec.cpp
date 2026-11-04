@@ -314,11 +314,11 @@ describe reverb("the reverb component", ${
 		for (int block = 0; block < 40; block++) {
 			const int32_t hit = block == 2 || block == 25 ? kHit : 0;
 			if (hit != 0) {
-				alongside.registerHit(hit);
+				alongside.register_hit(hit);
 			}
 			const int32_t duck = alongside.render(128, kShape, rates, kInverse);
 			expect(reverb->return_level(128, hit, rates, kInverse))
-			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 		}
 	});
 
@@ -342,12 +342,12 @@ describe reverb("the reverb component", ${
 			int32_t duck = 0;
 			if (depth != 0) {
 				if (hit != 0) {
-					by_hand.registerHit(hit);
+					by_hand.register_hit(hit);
 				}
 				duck = by_hand.render(128, kShape, rates, kInverse);
 			}
 			expect(reverb->return_level(128, hit, rates, kInverse))
-			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, depth));
+			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(depth)));
 		}
 	});
 });

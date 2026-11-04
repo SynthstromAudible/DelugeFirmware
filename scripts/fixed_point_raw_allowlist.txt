@@ -10,12 +10,12 @@
 # which refuses to raise a raw or view count or add a file with either.
 #
 # <path> raw=<n> [view=<n>] boundary=<n>
-src/deluge/bench/cases.cpp raw=0 view=25 boundary=16
-src/deluge/bench/cases.h raw=0 boundary=49
+src/deluge/bench/cases.cpp raw=0 view=26 boundary=16
+src/deluge/bench/cases.h raw=0 boundary=54
 src/deluge/bench/chain_cases.cpp raw=0 boundary=4
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=4
 src/deluge/bench/filter_cases.cpp raw=0 view=4 boundary=0
-src/deluge/bench/reference_chains.h raw=4 boundary=0
+src/deluge/bench/reference_chains.h raw=4 boundary=7
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
 src/deluge/dsp-next/core/fixed_point_lanes.h raw=0 boundary=5
@@ -36,9 +36,13 @@ src/deluge/dsp-next/fixed/dx7/modern_vector_operator.h raw=0 boundary=34
 src/deluge/dsp-next/fixed/dx7/operator.h raw=0 boundary=18
 src/deluge/dsp-next/fixed/dx7/pitch_envelope.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/dx7/voice.h raw=0 boundary=18
-src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp raw=0 boundary=2
-src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=0 boundary=33
-src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/dynamics/compressor_kernel.cpp raw=0 boundary=7
+src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=0 boundary=29
+src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp raw=0 boundary=4
+src/deluge/dsp-next/fixed/dynamics/duck_envelope.h raw=0 boundary=1
+src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=0 boundary=2
+src/deluge/dsp-next/fixed/dynamics/hit_strength.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/dynamics/rms_feedback_compressor.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/fft/radix.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/fft/real_dft.cpp raw=0 boundary=6
 src/deluge/dsp-next/fixed/filter/fade_in.h raw=0 boundary=7
@@ -79,13 +83,16 @@ src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/wavetable/wavetable_sync_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/float/reverb/plate.h raw=2 boundary=0
 src/deluge/dsp/timestretch/time_stretcher.cpp raw=0 boundary=15
+src/deluge/gui/menu_item/audio_compressor/compressor_values.h raw=0 boundary=5
 src/deluge/model/drum/drum.cpp raw=0 boundary=2
 src/deluge/model/drum/expression_combine.h raw=0 boundary=2
 src/deluge/model/fx/chain_inputs.cpp raw=0 boundary=10
 src/deluge/model/fx/song_stutter.cpp raw=0 boundary=3
 src/deluge/model/fx/track_channel.cpp raw=0 boundary=3
+src/deluge/model/global_effectable/global_effectable.cpp raw=0 boundary=6
 src/deluge/model/instrument/cv_instrument.cpp raw=0 boundary=3
 src/deluge/model/instrument/midi_instrument.cpp raw=0 boundary=6
+src/deluge/model/mod_controllable/mod_controllable_audio.h raw=0 boundary=1
 src/deluge/model/sample/clip_increment.h raw=0 boundary=3
 src/deluge/model/sample/pitch_scan.cpp raw=0 boundary=3
 src/deluge/model/sample/sample.cpp raw=0 boundary=4
@@ -97,9 +104,9 @@ src/deluge/modulation/arpeggiator.cpp raw=0 boundary=7
 src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
 src/deluge/processing/audio_output.cpp raw=0 boundary=14
-src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=14
+src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=17
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
-src/deluge/processing/sound/sound.cpp raw=0 boundary=10
+src/deluge/processing/sound/sound.cpp raw=0 boundary=11
 src/deluge/processing/sound/sound_chain_inputs.cpp raw=0 boundary=4
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
@@ -108,15 +115,22 @@ src/deluge/util/param_functions.cpp raw=0 boundary=5
 src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
 src/effects/bitcrush.cpp raw=0 boundary=6
 src/effects/chain_core.h raw=0 boundary=3
+src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=3
 src/effects/filter.cpp raw=0 view=1 boundary=6
-src/effects/master_chain.cpp raw=0 boundary=12
+src/effects/master_chain.cpp raw=0 boundary=10
 src/effects/param_fragment.h raw=0 boundary=3
+src/effects/reverb.cpp raw=0 boundary=1
 src/effects/saturation.cpp raw=0 boundary=4
 src/effects/saturation.h raw=0 boundary=2
 src/effects/send_and_volume.cpp raw=0 view=1 boundary=4
 src/effects/send_and_volume.h raw=0 boundary=2
-src/effects/sidechain.cpp raw=0 boundary=5
+src/effects/sidechain.cpp raw=0 boundary=8
+src/effects/sidechain.h raw=0 boundary=3
+src/effects/sound_chain.cpp raw=0 boundary=2
+src/effects/track_chain.cpp raw=0 boundary=2
+src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
+src/scenes/services/knob_push.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/block_controls.h raw=0 boundary=2
 src/synth/engines/dual_source_engine.cpp raw=0 boundary=10

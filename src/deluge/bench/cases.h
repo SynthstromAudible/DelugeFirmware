@@ -853,9 +853,9 @@ class DuckEnvelopeCase {
 public:
 	/// @brief The rates and shape, as the owner resolves them.
 	static constexpr dsp::fixed::DuckEnvelope::Settings kSettings{
-	    .attack = 37'640, .release = 472, .shape = 0, .instant_attack = false};
+	    .attack = 37'640, .release = 472, .shape = dsp::Q<31>{}, .instant_attack = false};
 	/// @brief The hit's strength, Q31.
-	static constexpr q31 kHitStrength = 0x6000'0000;
+	static constexpr dsp::Q<31> kHitStrength = dsp::Q<31>::from_raw(0x6000'0000);
 	/// @brief How long ago the hit landed, in samples.
 	static constexpr uint32_t kHitSamplesAgo = 4'665;
 
@@ -870,7 +870,7 @@ public:
 
 private:
 	dsp::Control<dsp::fixed::DuckEnvelope> duck_;
-	q31* level_ = nullptr; ///< The output block's first sample, which receives the level.
+	dsp::Q<31>* level_ = nullptr; ///< The output block's first sample, which receives the level.
 };
 
 /// @brief Fills the lanes input with stereo noise at under half of full scale: each sample of the noise halved.
@@ -1387,27 +1387,27 @@ using FilterMonoCase = FilterCase<false>;
 using FilterStereoCase = FilterCase<true>;
 
 /// @brief The compressor cases' threshold knob, Q31 of its travel: half, where the compressor reduces the cases' level.
-inline constexpr q31 kCompressorThreshold = 1 << 30;
+inline constexpr dsp::Q<31> kCompressorThreshold = dsp::Q<31>::from_raw(1 << 30);
 /// @brief The blended cases' blend knob, Q31: half, which the menu shows as 50%.
-inline constexpr q31 kCompressorHalfBlend = 1 << 30;
+inline constexpr dsp::Q<31> kCompressorHalfBlend = dsp::Q<31>::from_raw(1 << 30);
 /// @brief The channels' gain in the `render` cases, 4.27 signed: the song master's neutral post-FX volume
 /// (167,763,968), halved as the master halves it.
-inline constexpr q31 kCompressorVolume = 83'881'984;
+inline constexpr dsp::Q<27> kCompressorVolume = dsp::Q<27>::from_raw(83'881'984);
 /// @brief The final volume, 3.29: GLOBAL_VOLUME_POST_FX's neutral value, as a sound passes it to
 /// `render_volume_neutral`. The `render` cases pass it shifted down by 3, as `render_volume_neutral` does.
-inline constexpr q31 kCompressorFinalVolume = 134'217'728;
+inline constexpr dsp::Q<29> kCompressorFinalVolume = dsp::Q<29>::from_raw(134'217'728);
 
 /// @brief One compressor case's configuration.
 struct CompressorCaseConfig {
-	q31 blend;    ///< The blend knob, Q31: kOneQ31 fully wet.
+	dsp::Q<31> blend; ///< The blend knob: Q<31>::max() fully wet.
 	bool neutral; ///< `render_volume_neutral`, as a sound and a track chain call it; else `render`, as the song master
 	              ///< does.
 };
 
 /// @brief `compressor_wet_render`: fully wet, through `render`.
-inline constexpr CompressorCaseConfig kCompressorWetRender{.blend = kOneQ31, .neutral = false};
+inline constexpr CompressorCaseConfig kCompressorWetRender{.blend = dsp::Q<31>::max(), .neutral = false};
 /// @brief `compressor_wet_neutral`: fully wet, through `render_volume_neutral`.
-inline constexpr CompressorCaseConfig kCompressorWetNeutral{.blend = kOneQ31, .neutral = true};
+inline constexpr CompressorCaseConfig kCompressorWetNeutral{.blend = dsp::Q<31>::max(), .neutral = true};
 /// @brief `compressor_blend_render`: half blended, through `render`.
 inline constexpr CompressorCaseConfig kCompressorBlendRender{.blend = kCompressorHalfBlend, .neutral = false};
 /// @brief `compressor_blend_neutral`: half blended, through `render_volume_neutral`.

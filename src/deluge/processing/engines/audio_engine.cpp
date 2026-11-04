@@ -2071,7 +2071,9 @@ void updateReverbParams() {
 }
 
 void registerSideChainHit(int32_t strength) {
-	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(strength, sideChainHitPending);
+	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(deluge::dsp::Q<31>::from_raw(strength),
+	                                                                deluge::dsp::Q<31>::from_raw(sideChainHitPending))
+	                          .raw();
 }
 
 PreviewVolume PreviewVolume::neutral() {

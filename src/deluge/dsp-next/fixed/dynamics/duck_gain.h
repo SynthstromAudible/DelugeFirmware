@@ -34,7 +34,7 @@ enum class DuckScale : uint8_t {
 
 /// @brief The level the duck offsets from before squaring, raw: 2^29, which is 2 at the offset sum's Q28. Squared at
 /// REVERB_RETURN's scale it is 2^29 again, the unducked return level the reverb gives without a duck.
-inline constexpr q31 kDuckGainNeutral = 1 << 29;
+inline constexpr Q<28> kDuckGainNeutral = Q<28>::from_raw(1 << 29);
 /// @brief The shift on the first factor of the square, at either scale.
 inline constexpr int kDuckGainFirstShift = 15;
 
@@ -49,15 +49,16 @@ inline constexpr int kDuckGainFirstShift = 15;
 /// way (a sidechain cable's ±2^30, or a host chain's sidechain volume, 0 to 2), so p stays in [0, 2^30 − 1] and
 /// REVERB_RETURN's square peaks at 2147385345. Sidechain::level asserts the owners' ranges.
 /// @tparam S The owner's scale.
-/// @param duck The duck, Q31: 0 is none, negative ducks.
-/// @param depth The depth, Q29: the sidechain volume as a patch cable's amount.
-/// @return The squared level at @p S's scale.
+/// @param duck The duck: 0 is none, negative ducks.
+/// @param depth The depth: the sidechain volume as a patch cable's amount.
+/// @return The squared level at @p S's scale, in the owner's volume units.
 template <DuckScale S>
-[[nodiscard]] [[gnu::always_inline]] inline q31 duck_gain(q31 duck, q31 depth) {
+[[nodiscard]] [[gnu::always_inline]] inline int32_t duck_gain(Q<31> duck, Q<29> depth) {
 	constexpr int kSecondShift = S == DuckScale::CLIP ? 16 : 14;
-	const q31 p = add_wrap(mul(Q<31>::from_raw(duck), Q<29>::from_raw(depth)), Q<28>::from_raw(kDuckGainNeutral)).raw();
+	const int32_t p = add_wrap(mul(duck, depth), kDuckGainNeutral).raw();
 	// Raw: the square is an integer product of the two truncated factors, not a fixed-point multiply.
-	return static_cast<q31>(static_cast<uint32_t>(p >> kDuckGainFirstShift) * static_cast<uint32_t>(p >> kSecondShift));
+	return static_cast<int32_t>(static_cast<uint32_t>(p >> kDuckGainFirstShift)
+	                            * static_cast<uint32_t>(p >> kSecondShift));
 }
 
 } // namespace deluge::dsp::fixed

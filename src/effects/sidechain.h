@@ -64,7 +64,7 @@ public:
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
 	/// @param strength The hit's strength, Q31.
-	void registerHit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(strength); }
+	void register_hit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(dsp::Q<31>::from_raw(strength)); }
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
 	/// for @p time_per_tick_inverse.
@@ -93,13 +93,13 @@ public:
 	template <dsp::fixed::DuckScale S>
 	[[nodiscard]] int32_t level(const DuckBlock& b) {
 		if (b.hit != 0) {
-			registerHit(b.hit);
+			register_hit(b.hit);
 		}
 		const int32_t duck = render(b.frames, b.shape, b.state, b.tick_inverse);
 		// The ranges duck_gain's square stays in range for (see its Wrapping note).
 		assert(duck <= 0 && duck > INT32_MIN);
 		assert(b.depth >= -(1 << 30) && b.depth <= (1 << 30));
-		return dsp::fixed::duck_gain<S>(duck, b.depth);
+		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), dsp::Q<29>::from_raw(b.depth));
 	}
 
 	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::DuckEnvelope::stop.

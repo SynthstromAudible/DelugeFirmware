@@ -347,7 +347,7 @@ void StereoGainCase::block(std::size_t /*n*/) {
 }
 
 void DuckEnvelopeCase::setup(std::size_t /*n*/) {
-	level_ = shared.output.data();
+	level_ = dsp::typed_view(std::span{shared.output}).data();
 	duck_.configure(kSettings);
 	duck_.reset();
 	duck_.on<&DuckEnvelope::hit_at>(kHitStrength, kHitSamplesAgo);

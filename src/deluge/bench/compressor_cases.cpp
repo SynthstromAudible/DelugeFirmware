@@ -37,7 +37,8 @@ void CompressorCase::block(std::size_t /*n*/) {
 		rig.compressor.render_volume_neutral(rig.work, kCompressorFinalVolume);
 	}
 	else {
-		rig.compressor.render(rig.work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);
+		rig.compressor.render(rig.work, kCompressorVolume, kCompressorVolume,
+		                      scale_shr_floor<3>(kCompressorFinalVolume));
 	}
 }
 

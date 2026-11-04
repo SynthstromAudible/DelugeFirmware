@@ -89,7 +89,7 @@ template <typename C>
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		std::ignore = run.block(b, block);
 		const compressor_reference::View v = run.compressor().view();
-		wrapped += static_cast<size_t>(v.current_volume_l < 0 || v.current_volume_r > 0);
+		wrapped += static_cast<size_t>(v.current_volume_l.raw() < 0 || v.current_volume_r.raw() > 0);
 	}
 	return wrapped;
 }
@@ -126,7 +126,7 @@ struct LevelProbe {
 			continue;
 		}
 		++probe.rendered;
-		const q31 moveability = run.compressor().view().detector_moveability;
+		const q31 moveability = run.compressor().view().detector_moveability.raw();
 		uint64_t sum = 0;
 		for (const StereoSample frame : block) {
 			const q31 l = deluge::dsp::wrapping_sub(frame.l, detector[0].lowPass(frame.l, moveability));
@@ -241,8 +241,8 @@ describe fixed_compressor("the compressor's fixed reference", ${
 			std::ignore = run.block(b, block);
 		}
 		// Past 31 on each side, at most 32: at the rails.
-		expect(run.compressor().view().current_volume_l > (31 << 26)).to_be_true();
-		expect(run.compressor().view().current_volume_r < -(31 << 26)).to_be_true();
+		expect(run.compressor().view().current_volume_l.raw() > (31 << 26)).to_be_true();
+		expect(run.compressor().view().current_volume_r.raw() < -(31 << 26)).to_be_true();
 		expect(cw::first_parting<ReferenceRmsFeedbackCompressor, FixedReferenceRmsFeedbackCompressor>(workload))
 		    .to_have_value();
 	});
@@ -264,7 +264,7 @@ describe fixed_compressor("the compressor's fixed reference", ${
 		expect(block[0].l).to_equal(INT32_MIN);
 		expect(block[0].r).to_equal(-(1 << 30));
 		const compressor_reference::View v = run.compressor().view();
-		expect(v.detector_moveability).to_equal(0);
+		expect(v.detector_moveability.raw()).to_equal(0);
 		expect(v.detector_l.z.raw()).to_equal(0);
 		constexpr float kNs = 2;
 		const float mean = (static_cast<float>(int64_t{1} << 30) / kOneQ31f) / kNs;

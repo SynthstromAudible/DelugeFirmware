@@ -691,7 +691,8 @@ CompressorReference compressor_reference(const CompressorCaseConfig& config, std
 			out.compressor.render_volume_neutral(work, kCompressorFinalVolume);
 		}
 		else {
-			out.compressor.render(work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);
+			out.compressor.render(work, kCompressorVolume, kCompressorVolume,
+			                      dsp::scale_shr_floor<3>(kCompressorFinalVolume));
 		}
 	}
 	out.last_block = interleaved(work);

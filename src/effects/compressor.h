@@ -28,12 +28,12 @@ namespace deluge::effects {
 /// @return The knobs for the dsp-next compressor.
 [[nodiscard]] constexpr dsp::fixed::CompressorKnobs compressor_knobs(const CompressorState& state) {
 	return {
-	    .attack = state.attack,
-	    .release = state.release,
-	    .threshold = state.threshold,
-	    .ratio = state.ratio,
-	    .sidechain_hpf = state.sidechain_hpf,
-	    .blend = state.blend,
+	    .attack = dsp::Q<31>::from_raw(state.attack),
+	    .release = dsp::Q<31>::from_raw(state.release),
+	    .threshold = dsp::Q<31>::from_raw(state.threshold),
+	    .ratio = dsp::Q<31>::from_raw(state.ratio),
+	    .sidechain_hpf = dsp::Q<31>::from_raw(state.sidechain_hpf),
+	    .blend = dsp::Q<31>::from_raw(state.blend),
 	};
 }
 

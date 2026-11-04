@@ -1460,7 +1460,8 @@ void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
 	}
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
-	sound.core().compressor().dsp().set_threshold(sound.effects().compressor.threshold + (123 << 16));
+	sound.core().compressor().dsp().set_threshold(
+	    deluge::dsp::Q<31>::from_raw(sound.effects().compressor.threshold + (123 << 16)));
 	const deluge::instrument::SoundState before = *sound.boundState();
 	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
 	{

@@ -96,12 +96,12 @@ class ReferenceRmsFeedbackCompressor {
 public:
 	/// @brief A compressor at the default knobs, fully wet, with no gain reduction.
 	ReferenceRmsFeedbackCompressor() {
-		setAttack(configured_.attack);
-		setRelease(configured_.release);
-		set_threshold(configured_.threshold);
-		setRatio(configured_.ratio);
-		setSidechain(configured_.sidechain_hpf);
-		setBlend(configured_.blend);
+		setAttack(configured_.attack.raw());
+		setRelease(configured_.release.raw());
+		set_threshold(configured_.threshold.raw());
+		setRatio(configured_.ratio.raw());
+		setSidechain(configured_.sidechain_hpf.raw());
+		setBlend(configured_.blend.raw());
 	}
 
 	/// @brief Takes @p knobs, recomputing only when they changed.
@@ -109,14 +109,14 @@ public:
 		if (knobs == configured_) {
 			return;
 		}
-		setAttack(knobs.attack);
-		setRelease(knobs.release);
+		setAttack(knobs.attack.raw());
+		setRelease(knobs.release.raw());
 		if (knobs.threshold != configured_.threshold) {
-			set_threshold(knobs.threshold);
+			set_threshold(knobs.threshold.raw());
 		}
-		setRatio(knobs.ratio);
-		setSidechain(knobs.sidechain_hpf);
-		setBlend(knobs.blend);
+		setRatio(knobs.ratio.raw());
+		setSidechain(knobs.sidechain_hpf.raw());
+		setBlend(knobs.blend.raw());
 		configured_ = knobs;
 	}
 
@@ -228,10 +228,10 @@ public:
 		    .fraction = fraction_,
 		    .makeup = makeup_,
 		    .threshold = threshold_,
-		    .detector_moveability = detector_moveability_,
+		    .detector_moveability = deluge::dsp::Q<31>::from_raw(detector_moveability_),
 		    .reduction_envelope = reduction_envelope_,
-		    .current_volume_l = current_volume_l_,
-		    .current_volume_r = current_volume_r_,
+		    .current_volume_l = deluge::dsp::Q<26>::from_raw(current_volume_l_),
+		    .current_volume_r = deluge::dsp::Q<26>::from_raw(current_volume_r_),
 		    .log_rms = log_rms_,
 		    .mean = mean_,
 		    .saturation_drive = saturation_[0].drive(),
@@ -243,9 +243,9 @@ public:
 		    .attack_ms = attack_ms_,
 		    .release_ms = release_ms_,
 		    .base_gain = base_gain_,
-		    .threshold_knob = threshold_knob_,
-		    .dry = dry_,
-		    .wet = wet_,
+		    .threshold_knob = deluge::dsp::Q<31>::from_raw(threshold_knob_),
+		    .dry = deluge::dsp::Q<31>::from_raw(dry_),
+		    .wet = deluge::dsp::Q<31>::from_raw(wet_),
 		    .gain_reduction = gain_reduction_,
 		};
 	}
@@ -360,12 +360,12 @@ class FixedReferenceRmsFeedbackCompressor {
 public:
 	/// @brief A compressor at the default knobs, fully wet, with no gain reduction.
 	FixedReferenceRmsFeedbackCompressor() {
-		setAttack(configured_.attack);
-		setRelease(configured_.release);
-		set_threshold(configured_.threshold);
-		setRatio(configured_.ratio);
-		setSidechain(configured_.sidechain_hpf);
-		setBlend(configured_.blend);
+		setAttack(configured_.attack.raw());
+		setRelease(configured_.release.raw());
+		set_threshold(configured_.threshold.raw());
+		setRatio(configured_.ratio.raw());
+		setSidechain(configured_.sidechain_hpf.raw());
+		setBlend(configured_.blend.raw());
 	}
 
 	/// @brief Takes @p knobs, recomputing only when they changed.
@@ -373,14 +373,14 @@ public:
 		if (knobs == configured_) {
 			return;
 		}
-		setAttack(knobs.attack);
-		setRelease(knobs.release);
+		setAttack(knobs.attack.raw());
+		setRelease(knobs.release.raw());
 		if (knobs.threshold != configured_.threshold) {
-			set_threshold(knobs.threshold);
+			set_threshold(knobs.threshold.raw());
 		}
-		setRatio(knobs.ratio);
-		setSidechain(knobs.sidechain_hpf);
-		setBlend(knobs.blend);
+		setRatio(knobs.ratio.raw());
+		setSidechain(knobs.sidechain_hpf.raw());
+		setBlend(knobs.blend.raw());
 		configured_ = knobs;
 	}
 
@@ -484,10 +484,10 @@ public:
 		    .fraction = fraction_,
 		    .makeup = makeup_,
 		    .threshold = threshold_,
-		    .detector_moveability = detector_moveability_,
+		    .detector_moveability = deluge::dsp::Q<31>::from_raw(detector_moveability_),
 		    .reduction_envelope = reduction_envelope_,
-		    .current_volume_l = current_volume_l_,
-		    .current_volume_r = current_volume_r_,
+		    .current_volume_l = deluge::dsp::Q<26>::from_raw(current_volume_l_),
+		    .current_volume_r = deluge::dsp::Q<26>::from_raw(current_volume_r_),
 		    .log_rms = log_rms_,
 		    .mean = mean_,
 		    .saturation_drive = kSaturator.drive,
@@ -499,9 +499,9 @@ public:
 		    .attack_ms = attack_ms_,
 		    .release_ms = release_ms_,
 		    .base_gain = base_gain_,
-		    .threshold_knob = threshold_knob_,
-		    .dry = dry_,
-		    .wet = wet_,
+		    .threshold_knob = deluge::dsp::Q<31>::from_raw(threshold_knob_),
+		    .dry = deluge::dsp::Q<31>::from_raw(dry_),
+		    .wet = deluge::dsp::Q<31>::from_raw(wet_),
 		    .gain_reduction = gain_reduction_,
 		};
 	}
@@ -622,21 +622,21 @@ static_assert(std::is_trivially_copyable_v<FixedReferenceRmsFeedbackCompressor>)
 
 /// @brief Folds every value of @p v into @p d, in the legacy compressor's member order, floats by their bits.
 inline void digest(const View& v, Digest& d) {
-	d.add(v.configured.attack);
-	d.add(v.configured.release);
-	d.add(v.configured.threshold);
-	d.add(v.configured.ratio);
-	d.add(v.configured.sidechain_hpf);
-	d.add(v.configured.blend);
+	d.add(v.configured.attack.raw());
+	d.add(v.configured.release.raw());
+	d.add(v.configured.threshold.raw());
+	d.add(v.configured.ratio.raw());
+	d.add(v.configured.sidechain_hpf.raw());
+	d.add(v.configured.blend.raw());
 	d.add(v.attack_rate);
 	d.add(v.release_rate);
 	d.add(v.fraction);
 	d.add(v.makeup);
 	d.add(v.threshold);
-	d.add(v.detector_moveability);
+	d.add(v.detector_moveability.raw());
 	d.add(v.reduction_envelope);
-	d.add(v.current_volume_l);
-	d.add(v.current_volume_r);
+	d.add(v.current_volume_l.raw());
+	d.add(v.current_volume_r.raw());
 	d.add(v.log_rms);
 	d.add(v.mean);
 	d.add(v.saturation_drive);
@@ -649,9 +649,9 @@ inline void digest(const View& v, Digest& d) {
 	d.add(v.attack_ms);
 	d.add(v.release_ms);
 	d.add(v.base_gain);
-	d.add(v.threshold_knob);
-	d.add(v.dry);
-	d.add(v.wet);
+	d.add(v.threshold_knob.raw());
+	d.add(v.dry.raw());
+	d.add(v.wet.raw());
 	d.add(v.gain_reduction);
 }
 

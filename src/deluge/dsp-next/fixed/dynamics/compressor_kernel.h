@@ -38,35 +38,35 @@ namespace deluge::dsp::fixed {
 
 /// @brief The compressor's knob positions, each 0 to 2^31 (Q31 of the knob's travel).
 struct CompressorKnobs {
-	q31 attack{5 << 24};  ///< about 0.5 to 70 ms for a 3 dB change
-	q31 release{5 << 24}; ///< about 50 to 400 ms for a 3 dB change
-	q31 threshold{0};     ///< the threshold as a fraction of the volume's level in nepers: 0 is 1, 2^31 is 0.2
-	q31 ratio{64 << 24};  ///< 0 is 2:1, 2^31 is 256:1
-	q31 sidechain_hpf{0}; ///< the level detector's high-pass, about 0 to 100 Hz
-	q31 blend{kOneQ31};   ///< the wet level, kOneQ31 fully wet
+	Q<31> attack = Q<31>::from_raw(5 << 24);  ///< about 0.5 to 70 ms for a 3 dB change
+	Q<31> release = Q<31>::from_raw(5 << 24); ///< about 50 to 400 ms for a 3 dB change
+	Q<31> threshold{};                        ///< as a fraction of the volume's level in nepers: 0 is 1, one is 0.2
+	Q<31> ratio = Q<31>::from_raw(64 << 24);  ///< 0 is 2:1, one is 256:1
+	Q<31> sidechain_hpf{};                    ///< the level detector's high-pass, about 0 to 100 Hz
+	Q<31> blend = Q<31>::max();               ///< the wet level, Q<31>::max() fully wet
 	bool operator==(const CompressorKnobs&) const = default;
 };
 
 /// @brief The attack time in ms for a 3 dB change at knob @p attack.
 /// @param attack The knob position, Q31 of its travel.
 /// @return The attack time, in ms.
-[[nodiscard]] float compressor_attack_ms(q31 attack);
+[[nodiscard]] float compressor_attack_ms(Q<31> attack);
 /// @brief The release time in ms for a 3 dB change at knob @p release.
 /// @param release The knob position, Q31 of its travel.
 /// @return The release time, in ms.
-[[nodiscard]] float compressor_release_ms(q31 release);
+[[nodiscard]] float compressor_release_ms(Q<31> release);
 /// @brief The ratio at knob @p ratio.
 /// @param ratio The knob position, Q31 of its travel.
 /// @return The ratio (2 to 256).
-[[nodiscard]] float compressor_ratio(q31 ratio);
+[[nodiscard]] float compressor_ratio(Q<31> ratio);
 /// @brief The level detector's high-pass cutoff in Hz at knob @p sidechain_hpf.
 /// @param sidechain_hpf The knob position, Q31 of its travel.
 /// @return The cutoff, in Hz.
-[[nodiscard]] float compressor_sidechain_hz(q31 sidechain_hpf);
+[[nodiscard]] float compressor_sidechain_hz(Q<31> sidechain_hpf);
 /// @brief 1 - 1/ratio at knob @p ratio: how far a level change past the threshold is cut.
 /// @param ratio The knob position, Q31 of its travel.
 /// @return The fraction, 0.5 (2:1) to 1 (256:1).
-[[nodiscard]] float ratio_fraction(q31 ratio);
+[[nodiscard]] float ratio_fraction(Q<31> ratio);
 
 /// @brief The RMS feedback compressor as a processor kernel of stereo frames: the gain for each block follows the RMS
 /// level, in log space, of the block before it. Rendered in place as `Mono<Compressor>::render_block(block, block)`.
@@ -127,31 +127,31 @@ struct Compressor {
 
 	/// @brief The knobs' rates, ratio, detector and blend, as the kernel and its owner read them.
 	struct Coefficients {
-		float attack_rate;        ///< Per sample, negative.
-		float release_rate;       ///< Per sample, negative.
-		float attack_ms;          ///< For a 3 dB change.
-		float release_ms;         ///< For a 3 dB change.
-		float fraction;           ///< 1 - 1/ratio, 0.5 to 1.
-		float base_gain;          ///< Nepers.
-		q31 detector_moveability; ///< The detector's high-pass moveability, Q31.
-		q31 dry;                  ///< The dry level in the blend, Q31.
-		q31 wet;                  ///< The wet level in the blend, Q31.
-		Mode mode;                ///< WET when wet == kOneQ31.
+		float attack_rate;          ///< Per sample, negative.
+		float release_rate;         ///< Per sample, negative.
+		float attack_ms;            ///< For a 3 dB change.
+		float release_ms;           ///< For a 3 dB change.
+		float fraction;             ///< 1 - 1/ratio, 0.5 to 1.
+		float base_gain;            ///< Nepers.
+		Q<31> detector_moveability; ///< The detector's high-pass moveability.
+		Q<31> dry;                  ///< The dry level in the blend.
+		Q<31> wet;                  ///< The wet level in the blend.
+		Mode mode;                  ///< WET when wet is Q<31>::max().
 	};
 
 	/// @brief The block's inputs, which the owner sets before each block with @ref set_levels.
 	struct Levels {
-		q31 volume_l = 0;     ///< The left channel's linear gain, 4.27 signed.
-		q31 volume_r = 0;     ///< The right channel's linear gain, 4.27 signed.
-		q31 final_volume = 0; ///< The peak-to-peak volume scale, 3.29.
-		q31 threshold = 0;    ///< Q31 of the knob's travel.
+		Q<27> volume_l{};     ///< The left channel's linear gain.
+		Q<27> volume_r{};     ///< The right channel's linear gain.
+		Q<29> final_volume{}; ///< The peak-to-peak volume scale.
+		Q<31> threshold{};    ///< The knob's travel.
 	};
 
 	/// @brief What the loop steps: the channel gains, the saturation, the detectors, the frame waiting to be measured
 	/// and the block's running sum.
 	struct Loop {
-		q31 current_volume_l = 0;              ///< The left channel's gain this frame, 5.26 signed.
-		q31 current_volume_r = 0;              ///< The right channel's gain this frame, 5.26 signed.
+		Q<26> current_volume_l{};              ///< The left channel's gain this frame.
+		Q<26> current_volume_r{};              ///< The right channel's gain this frame.
 		AntialiasedTanh::State saturation_l{}; ///< The left saturation's position on the curve.
 		AntialiasedTanh::State saturation_r{}; ///< The right saturation's position on the curve.
 		OnePole::State detector_l{};           ///< The left detector's one-pole memory, Q31.
@@ -182,8 +182,8 @@ struct Compressor {
 
 	/// @brief The block's gain ramps, from @ref prepare.
 	struct Block {
-		q31 increment_l; ///< The left gain's step per frame, 5.26 signed.
-		q31 increment_r; ///< The right gain's step per frame, 5.26 signed.
+		Q<26> increment_l; ///< The left gain's step per frame.
+		Q<26> increment_r; ///< The right gain's step per frame.
 	};
 
 	/// @brief The coefficients for @p s: the knobs' time constants, ratio, detector high-pass and blend.
@@ -205,7 +205,7 @@ struct Compressor {
 
 		// The offset keeps a final volume of zero from giving NaNs. The log is of the raw integer, not of its 3.29
 		// value: about 21.5 at 0x7fffffff, ln 2^29 (about 20.1) above the value's 1.39 nepers.
-		const float song_volume = logf(s.levels.final_volume + 1e-10);
+		const float song_volume = logf(static_cast<float>(s.levels.final_volume.raw() + 1e-10));
 		const float threshold = song_volume * s.threshold;
 		// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction
 		// then move at the same rate.
@@ -225,9 +225,9 @@ struct Compressor {
 		// The channels' target gains, 13.18 signed, held as floats on the way to the increments, and held within the
 		// 5.26 gain's range: a volume above unity at a gain near 31 asks for more than 32, and gets the rail.
 		const float final_volume_l =
-		    std::clamp(gain * static_cast<float>(s.levels.volume_l >> 9), kGainFloor, kGainCeiling);
+		    std::clamp(gain * static_cast<float>(s.levels.volume_l.raw() >> 9), kGainFloor, kGainCeiling);
 		const float final_volume_r =
-		    std::clamp(gain * static_cast<float>(s.levels.volume_r >> 9), kGainFloor, kGainCeiling);
+		    std::clamp(gain * static_cast<float>(s.levels.volume_r.raw() >> 9), kGainFloor, kGainCeiling);
 
 		// × 4 for dB, then × 4 again for the LEDs' range, since a 30 dB reduction is all but silence.
 		const auto leds = static_cast<int32_t>(-(reduction) * 4 * 4);
@@ -242,14 +242,10 @@ struct Compressor {
 		// (from one rail toward the other over a block of a frame or two) saturates: that block ends short of its
 		// target, and the next carries on.
 		return {
-		    .increment_l =
-		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
-		                          (final_volume_l - static_cast<float>(s.loop.current_volume_l >> 8)) / frames)))
-		            .raw(),
-		    .increment_r =
-		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
-		                          (final_volume_r - static_cast<float>(s.loop.current_volume_r >> 8)) / frames)))
-		            .raw(),
+		    .increment_l = as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		        (final_volume_l - static_cast<float>(s.loop.current_volume_l.raw() >> 8)) / frames))),
+		    .increment_r = as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		        (final_volume_r - static_cast<float>(s.loop.current_volume_r.raw() >> 8)) / frames))),
 		};
 	}
 
@@ -264,27 +260,27 @@ struct Compressor {
 	                                                              StereoSample x) {
 		// The ramp runs from its start toward a target, both within 5.26, by steps that never overshoot it (a
 		// saturated step falls short), so the sum never leaves 5.26.
-		s.current_volume_l = add_wrap(Q<26>::from_raw(s.current_volume_l), Q<26>::from_raw(b.increment_l)).raw();
-		s.current_volume_r = add_wrap(Q<26>::from_raw(s.current_volume_r), Q<26>::from_raw(b.increment_r)).raw();
+		s.current_volume_l = add_wrap(s.current_volume_l, b.increment_l);
+		s.current_volume_r = add_wrap(s.current_volume_r, b.increment_r);
 
 		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
 		// input, so it takes x × gain / 4.
 		StereoSample y{
-		    .l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_l,
-		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(
-		                                   mul(Q<31>::from_raw(x.l), Q<26>::from_raw(s.current_volume_l)))))
+		    .l = AntialiasedTanh::step(
+		             kSaturator, EmptyBlock{}, s.saturation_l,
+		             reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(Q<31>::from_raw(x.l), s.current_volume_l))))
 		             .raw(),
-		    .r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_r,
-		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(
-		                                   mul(Q<31>::from_raw(x.r), Q<26>::from_raw(s.current_volume_r)))))
+		    .r = AntialiasedTanh::step(
+		             kSaturator, EmptyBlock{}, s.saturation_r,
+		             reinterpret_bits<Q<31>>(as_wrap<Q<29>>(mul(Q<31>::from_raw(x.r), s.current_volume_r))))
 		             .raw(),
 		};
 
 		if constexpr (M == Mode::BLEND) {
 			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), its dry level from the coefficients: two Q31 × Q31
 			// products, Q30, the sum lifted back to Q31.
-			const auto wet = Q<31>::from_raw(c.wet);
-			const auto dry = Q<31>::from_raw(c.dry);
+			const Q<31> wet = c.wet;
+			const Q<31> dry = c.dry;
 			y.l = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.l), wet), Q<31>::from_raw(x.l), dry)).raw();
 			y.r = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.r), wet), Q<31>::from_raw(x.r), dry)).raw();
 		}
@@ -302,8 +298,8 @@ struct Compressor {
 	/// @brief The threshold as a fraction of the final volume's level in nepers, from knob @p threshold.
 	/// @param threshold The knob position, Q31 of its travel.
 	/// @return The fraction: 1 at 0, 0.2 at 2^31.
-	[[nodiscard]] static float threshold_fraction(q31 threshold) {
-		return 1 - 0.8f * (static_cast<float>(threshold) / kOneQ31f);
+	[[nodiscard]] static float threshold_fraction(Q<31> threshold) {
+		return 1 - 0.8f * (static_cast<float>(threshold.raw()) / kOneQ31f);
 	}
 
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.
@@ -332,8 +328,7 @@ private:
 	/// magnitude squared (the high word of an unsigned 32×32 product).
 	[[gnu::always_inline]] static void measure(const Coefficients& c, Loop& s, StereoSample y) {
 		// The output less its one-pole low-pass, wrapping as the target's `sub` does.
-		const OnePole::Coefficients detector{.m = Q<31>::from_raw(c.detector_moveability),
-		                                     .mode = OnePole::Mode::HIGH_PASS};
+		const OnePole::Coefficients detector{.m = c.detector_moveability, .mode = OnePole::Mode::HIGH_PASS};
 		const uint32_t l = magnitude(
 		    OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, Q<31>::from_raw(y.l)).raw());
 		const uint32_t r = magnitude(

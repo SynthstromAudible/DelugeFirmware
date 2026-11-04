@@ -112,7 +112,7 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const int32_t>
 
 int32_t Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
 	if (return_duck_.depth == 0) {
-		return dsp::fixed::kDuckGainNeutral;
+		return dsp::fixed::kDuckGainNeutral.raw();
 	}
 	return return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
 	    .frames = frames,

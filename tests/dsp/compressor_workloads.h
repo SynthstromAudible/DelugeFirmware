@@ -142,11 +142,22 @@ using filter_workloads::detail::kBlocks;
 [[nodiscard]] inline CompressorKnobs owner_knobs(Owner owner) {
 	switch (owner) {
 	case Owner::MASTER:
-		return {.attack = 5 << 24, .release = 5 << 24, .threshold = 1 << 30, .ratio = 64 << 24};
+		return {.attack = deluge::dsp::Q<31>::from_raw(5 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(5 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(1 << 30),
+		        .ratio = deluge::dsp::Q<31>::from_raw(64 << 24)};
 	case Owner::SOUND:
-		return {.attack = 3 << 24, .release = 20 << 24, .threshold = 0, .ratio = 100 << 24, .sidechain_hpf = 1 << 30};
+		return {.attack = deluge::dsp::Q<31>::from_raw(3 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(20 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(0),
+		        .ratio = deluge::dsp::Q<31>::from_raw(100 << 24),
+		        .sidechain_hpf = deluge::dsp::Q<31>::from_raw(1 << 30)};
 	case Owner::CLIP:
-		return {.attack = 40 << 24, .release = 2 << 24, .threshold = 0, .ratio = 20 << 24, .sidechain_hpf = 1 << 28};
+		return {.attack = deluge::dsp::Q<31>::from_raw(40 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(2 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(0),
+		        .ratio = deluge::dsp::Q<31>::from_raw(20 << 24),
+		        .sidechain_hpf = deluge::dsp::Q<31>::from_raw(1 << 28)};
 	}
 	return {};
 }
@@ -198,10 +209,10 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             .blocks = kBlocks,
 		             .step = [owner](size_t b) {
 			             CompressorStep s = owner_step(owner, b);
-			             s.knobs.blend = kPartialWet;
+			             s.knobs.blend = deluge::dsp::Q<31>::from_raw(kPartialWet);
 			             if (b >= 25) {
-				             s.knobs.attack = 10 << 24;
-				             s.knobs.release = 60 << 24;
+				             s.knobs.attack = deluge::dsp::Q<31>::from_raw(10 << 24);
+				             s.knobs.release = deluge::dsp::Q<31>::from_raw(60 << 24);
 			             }
 			             s.signal = b < 3 ? Signal::SILENCE : b % 5 == 4 ? Signal::LOUD : Signal::VOICE;
 			             s.render = !(b < 3 || b == 16 || b == 17);
@@ -228,7 +239,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 	             .blocks = kBlocks,
 	             .step = [](size_t b) {
 		             CompressorStep s = owner_step(Owner::SOUND, b);
-		             s.knobs.blend = (b / 3) % 2 == 0 ? kOneQ31 : kPartialWet;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw((b / 3) % 2 == 0 ? kOneQ31 : kPartialWet);
 		             s.signal = b < 2 ? Signal::SILENCE : Signal::VOICE;
 		             return s;
 	             }});
@@ -260,7 +271,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 	             .blocks = kBlocks,
 	             .step = [](size_t b) {
 		             CompressorStep s = owner_step(Owner::CLIP, b);
-		             s.knobs.blend = 1 << 30;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw(1 << 30);
 		             s.signal = Signal::FULL_SCALE;
 		             return s;
 	             }});
@@ -273,8 +284,8 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             // Wet at 2^-31: a frame of INT32_MIN comes out as -2^31 when its saturated wet part, scaled by the
 		             // blend, rounds to -1. With the detector's high-pass at 0 its low-pass stays at 0, so the detector
 		             // passes the frame as it is. The other frames are quiet, so no block's sum wraps.
-		             s.knobs.blend = 1;
-		             s.knobs.sidechain_hpf = 0;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw(1);
+		             s.knobs.sidechain_hpf = deluge::dsp::Q<31>::from_raw(0);
 		             s.min_left = true;
 		             return s;
 	             }});
@@ -286,7 +297,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             CompressorStep s = owner_step(Owner::MASTER, b);
 		             // The threshold knob at its top and the final volume at full scale drive the makeup, and so the
 		             // gain, to its cap of 31; at a channel gain of ±2 the targets ask for ±62.
-		             s.knobs.threshold = INT32_MAX;
+		             s.knobs.threshold = deluge::dsp::Q<31>::from_raw(INT32_MAX);
 		             s.final_volume = INT32_MAX;
 		             s.volume_l = 1 << 28;
 		             s.volume_r = -(1 << 28);
@@ -336,7 +347,12 @@ public:
 		out = compressor_input(workload_, b);
 		compressor_.configure(s.knobs);
 		if (workload_.owner != Owner::MASTER) {
-			compressor_.set_threshold(s.threshold);
+			if constexpr (kTyped) {
+				compressor_.set_threshold(deluge::dsp::Q<31>::from_raw(s.threshold));
+			}
+			else {
+				compressor_.set_threshold(s.threshold);
+			}
 		}
 		if (!s.render) {
 			compressor_.reset();
@@ -350,6 +366,17 @@ public:
 			}
 			else {
 				compressor_.render_volume_neutral(block, s.final_volume, scratch);
+			}
+		}
+		else if constexpr (kTyped) {
+			// The levels as the firmware's compressor takes them: the gains Q27, the final volume Q29
+			if (workload_.owner == Owner::MASTER) {
+				compressor_.render(block, deluge::dsp::Q<27>::from_raw(s.volume_l),
+				                   deluge::dsp::Q<27>::from_raw(s.volume_r),
+				                   deluge::dsp::Q<29>::from_raw(s.final_volume));
+			}
+			else {
+				compressor_.render_volume_neutral(block, deluge::dsp::Q<29>::from_raw(s.final_volume));
 			}
 		}
 		else {
@@ -373,6 +400,9 @@ private:
 	/// Whether @p C blends from a caller's scratch, as the references do; the firmware's compressor blends in place.
 	static constexpr bool kTakesScratch =
 	    requires(C& c, std::span<StereoSample> b) { c.render(b, q31{}, q31{}, q31{}, b); };
+	/// Whether @p C takes its threshold and levels typed, as the firmware's compressor does; the references take raw
+	/// words.
+	static constexpr bool kTyped = requires(C& c) { c.set_threshold(deluge::dsp::Q<31>{}); };
 
 	const CompressorWorkload& workload_;
 	C compressor_{};

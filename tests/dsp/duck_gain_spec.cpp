@@ -37,6 +37,12 @@ namespace {
 constexpr std::array<q31, 7> kDepths{0, 1, 1 << 27, 0x20000000, 0x3FFFFFFF, -0x20000000, -1};
 /// The ducks compared before the noise: the extremes and zero's neighbours.
 constexpr std::array<q31, 5> kEdges{std::numeric_limits<q31>::min(), -1, 0, 1, std::numeric_limits<q31>::max()};
+/// duck_gain on raw words: the duck Q31, the depth Q29.
+template <DuckScale S>
+int32_t raw_duck_gain(q31 duck, q31 depth) {
+	return duck_gain<S>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(depth));
+}
+
 /// Noise ducks per depth.
 constexpr int kNoise = 20000;
 
@@ -45,23 +51,23 @@ constexpr int kNoise = 20000;
 // clang-format off
 describe duck_gain_spec("the duck's squared level at the clip's and the reverb return's scales", ${
 	it("is neutral at no duck", _ {
-		expect(duck_gain<DuckScale::CLIP>(0, 0x20000000)).to_equal(134217728);
-		expect(duck_gain<DuckScale::REVERB_RETURN>(0, 0x20000000)).to_equal(1 << 29);
-		expect(duck_gain<DuckScale::REVERB_RETURN>(std::numeric_limits<q31>::min(), 0)).to_equal(1 << 29);
+		expect(raw_duck_gain<DuckScale::CLIP>(0, 0x20000000)).to_equal(134217728);
+		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(0, 0x20000000)).to_equal(1 << 29);
+		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(std::numeric_limits<q31>::min(), 0)).to_equal(1 << 29);
 	});
 
 	it("equals both legacy expressions across the duck's range", _ {
 		for (const q31 depth : kDepths) {
 			for (const q31 duck : kEdges) {
-				expect(duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
-				expect(duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
+				expect(raw_duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
+				expect(raw_duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
 				    .to_equal(reference::reverb_duck_level(duck, depth));
 			}
 			SeededNoise noise{0xD0C40001};
 			for (int i = 0; i < kNoise; ++i) {
 				const q31 duck = noise.render();
-				expect(duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
-				expect(duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
+				expect(raw_duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
+				expect(raw_duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
 				    .to_equal(reference::reverb_duck_level(duck, depth));
 			}
 		}

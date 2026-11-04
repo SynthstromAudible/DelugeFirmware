@@ -134,9 +134,9 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 
 	q31_t compThreshold = in.compressor_threshold;
 	c.compressor().configure(settings.compressor);
-	c.compressor().dsp().set_threshold(compThreshold);
+	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 	if (compThreshold > 0) {
-		c.compressor().dsp().render_volume_neutral(sound_stereo, postFXVolume);
+		c.compressor().dsp().render_volume_neutral(sound_stereo, deluge::dsp::Q<29>::from_raw(postFXVolume));
 	}
 	else {
 		c.compressor().dsp().reset();
@@ -172,7 +172,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	int32_t postReverbVolume = in.post_reverb_volume_neutral;
 	if (in.sidechain_on) {
 		if (in.sidechain_hit != 0) {
-			c.sidechain().registerHit(in.sidechain_hit);
+			c.sidechain().register_hit(in.sidechain_hit);
 		}
 		int32_t sidechainOutput = c.sidechain().render(global_effectable_audio.size(), in.sidechain_shape,
 		                                               settings.sidechain, in.tick_inverse);
@@ -184,7 +184,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 
 	c.compressor().configure(settings.compressor);
 	const q31_t compThreshold = in.compressor_threshold;
-	c.compressor().dsp().set_threshold(compThreshold);
+	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 
 	saturation_.process(global_effectable_audio, {.clipping_amount = settings.saturation.clipping_amount,
 	                                              .variant = fx::SaturationVariant::CHAIN});
@@ -209,7 +209,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	                                                 postReverbVolume, reverbSendAmount, pan, true, in.fx.stereo);
 
 	if (compThreshold > 0) {
-		c.compressor().dsp().render_volume_neutral(global_effectable_audio, volumePostFX);
+		c.compressor().dsp().render_volume_neutral(global_effectable_audio, deluge::dsp::Q<29>::from_raw(volumePostFX));
 	}
 	else {
 		c.compressor().dsp().reset();
@@ -266,8 +266,9 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	}
 
 	c.compressor().configure(settings.compressor);
-	c.compressor().dsp().render(renderingBuffer, masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
-	                            post->song_volume >> 3);
+	c.compressor().dsp().render(renderingBuffer, deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentL >> 1),
+	                            deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentR >> 1),
+	                            deluge::dsp::Q<29>::from_raw(post->song_volume >> 3));
 	return sent;
 }
 

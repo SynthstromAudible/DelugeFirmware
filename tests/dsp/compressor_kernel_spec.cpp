@@ -46,7 +46,9 @@
 #include <vector>
 
 using deluge::dsp::Mono;
+using deluge::dsp::Q;
 using deluge::dsp::q31;
+using deluge::dsp::scale_shr_floor;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::Compressor;
 using deluge::dsp::fixed::CompressorKnobs;
@@ -94,7 +96,7 @@ public:
 	}
 
 	/// @brief The threshold the next block renders with, Q31 of the knob's travel.
-	void set_threshold(q31 threshold) { threshold_knob_ = threshold; }
+	void set_threshold(Q<31> threshold) { threshold_knob_ = threshold; }
 
 	/// @brief Makeup gain in nepers at no reduction.
 	void set_base_gain(float base_gain) {
@@ -109,7 +111,7 @@ public:
 	/// @param block Rendered in place (or from a copy, when not kInPlace).
 	/// @param volume_l, volume_r 4.27 signed.
 	/// @param final_volume 3.29.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
+	void render(std::span<StereoSample> block, Q<27> volume_l, Q<27> volume_r, Q<29> final_volume) {
 		mono_.template on<&Compressor::set_levels>(Compressor::Levels{
 		    .volume_l = volume_l, .volume_r = volume_r, .final_volume = final_volume, .threshold = threshold_knob_});
 		if (!mono_.state().seeded) {
@@ -126,8 +128,8 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume) {
-		render(block, 1 << 27, 1 << 27, final_volume >> 3);
+	void render_volume_neutral(std::span<StereoSample> block, Q<29> final_volume) {
+		render(block, Q<27>::one(), Q<27>::one(), scale_shr_floor<3>(final_volume));
 	}
 
 	/// @return The last block's gain reduction for the LEDs.
@@ -174,7 +176,7 @@ private:
 
 	CompressorKnobs configured_{};
 	float base_gain_ = 1.35f;
-	q31 threshold_knob_ = 0;
+	Q<31> threshold_knob_{};
 	Mono<Compressor> mono_;
 };
 
@@ -233,12 +235,15 @@ template <typename A, typename B>
 /// @return A state with every member set away from its default, so a reset shows what it keeps.
 [[nodiscard]] Compressor::State busy_state() {
 	Compressor::State s{};
-	s.levels = {.volume_l = 1, .volume_r = 2, .final_volume = 3, .threshold = 4};
+	s.levels = {.volume_l = Q<27>::from_raw(1),
+	            .volume_r = Q<27>::from_raw(2),
+	            .final_volume = Q<29>::from_raw(3),
+	            .threshold = Q<31>::from_raw(4)};
 	s.threshold = 0.5f;
 	s.makeup = 1.5f;
 	s.reduction_envelope = 2.5f;
-	s.loop.current_volume_l = 5;
-	s.loop.current_volume_r = 6;
+	s.loop.current_volume_l = Q<26>::from_raw(5);
+	s.loop.current_volume_r = Q<26>::from_raw(6);
 	s.log_rms = 7.5f;
 	s.mean = 0.25f;
 	s.loop.saturation_l.position = 8;
@@ -284,7 +289,7 @@ describe compressor_kernel("the Compressor kernel", ${
 		for (size_t b = 0; b < workload.blocks; ++b) {
 			std::ignore = run.block(b, block);
 			const Compressor::Mode mode = run.compressor().coefficients().mode;
-			expect(mode).to_equal(workload.step(b).knobs.blend == kOneQ31 ? Compressor::Mode::WET
+			expect(mode).to_equal(workload.step(b).knobs.blend == Q<31>::max() ? Compressor::Mode::WET
 			                                                               : Compressor::Mode::BLEND);
 			wet += static_cast<size_t>(mode == Compressor::Mode::WET);
 			blended += static_cast<size_t>(mode == Compressor::Mode::BLEND);
@@ -313,8 +318,8 @@ describe compressor_kernel("the Compressor kernel", ${
 			const cw::CompressorStep step = workload.step(b);
 			std::vector<StereoSample> block = cw::compressor_input(workload, b);
 			mono.on<&Compressor::set_levels>(Compressor::Levels{
-			    .volume_l = 1 << 27, .volume_r = 1 << 27, .final_volume = step.final_volume >> 3,
-			    .threshold = step.threshold});
+			    .volume_l = Q<27>::from_raw(1 << 27), .volume_r = Q<27>::from_raw(1 << 27), .final_volume = Q<29>::from_raw(step.final_volume >> 3),
+			    .threshold = Q<31>::from_raw(step.threshold)});
 			if (!mono.state().seeded) {
 				mono.on<&Compressor::seed>(block[0]);
 			}
@@ -346,7 +351,7 @@ describe compressor_kernel("the Compressor kernel", ${
 		expect(s.loop.saturation_r.position).to_equal(expected.loop.saturation_r.position);
 		expect(s.loop.detector_l.z).to_equal(expected.loop.detector_l.z);
 		expect(s.loop.detector_r.z).to_equal(expected.loop.detector_r.z);
-		expect(s.levels.threshold).to_equal(expected.levels.threshold);
+		expect(s.levels.threshold.raw()).to_equal(expected.levels.threshold.raw());
 		expect(s.gain_reduction).to_equal(expected.gain_reduction);
 	});
 
@@ -358,35 +363,35 @@ describe compressor_kernel("the Compressor kernel", ${
 		const Compressor::Coefficients c = Compressor::coefficients({});
 		const auto prepared = [&](q31 current) {
 			Compressor::State s{};
-			Compressor::set_levels(s, {.volume_l = kVolume, .volume_r = -kVolume, .final_volume = 1 << 29});
+			Compressor::set_levels(s, {.volume_l = Q<27>::from_raw(kVolume), .volume_r = Q<27>::from_raw(-kVolume), .final_volume = Q<29>::from_raw(1 << 29)});
 			s.makeup = 50;
 			s.log_rms = -100;
-			s.loop.current_volume_l = current;
-			s.loop.current_volume_r = -current;
+			s.loop.current_volume_l = Q<26>::from_raw(current);
+			s.loop.current_volume_r = Q<26>::from_raw(-current);
 			const Compressor::Block b = Compressor::prepare(c, s, 1);
 			std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, {.l = 0, .r = 0});
 			return std::pair{b, s.loop};
 		};
 		// From a gain of 24 over one frame the step reaches the rail exactly.
 		const auto [from_24, loop_24] = prepared(3 << 29);
-		expect(from_24.increment_l).to_equal(kRail - (3 << 29));
-		expect(loop_24.current_volume_l).to_equal(kRail);
-		expect(loop_24.current_volume_r).to_equal(-kRail - 256);
+		expect(from_24.increment_l.raw()).to_equal(kRail - (3 << 29));
+		expect(loop_24.current_volume_l.raw()).to_equal(kRail);
+		expect(loop_24.current_volume_r.raw()).to_equal(-kRail - 256);
 		// From -24 the step is past 32 a frame: it saturates, and the ramp ends the frame short of the rail.
 		const auto [from_minus_24, loop_minus_24] = prepared(-(3 << 29));
-		expect(from_minus_24.increment_l).to_equal(INT32_MAX);
-		expect(from_minus_24.increment_r).to_equal(INT32_MIN);
-		expect(loop_minus_24.current_volume_l).to_equal(INT32_MAX - (3 << 29));
-		expect(loop_minus_24.current_volume_r).to_equal(INT32_MIN + (3 << 29));
+		expect(from_minus_24.increment_l.raw()).to_equal(INT32_MAX);
+		expect(from_minus_24.increment_r.raw()).to_equal(INT32_MIN);
+		expect(loop_minus_24.current_volume_l.raw()).to_equal(INT32_MAX - (3 << 29));
+		expect(loop_minus_24.current_volume_r.raw()).to_equal(INT32_MIN + (3 << 29));
 	});
 
 	it("takes the threshold knob into the block's levels and a fraction of the volume's level", _ {
 		Compressor::State s{};
-		Compressor::set_levels(s, {.volume_l = 1, .volume_r = 2, .final_volume = 3, .threshold = 1 << 30});
-		expect(s.levels.volume_l).to_equal(1);
-		expect(s.levels.volume_r).to_equal(2);
-		expect(s.levels.final_volume).to_equal(3);
-		expect(s.levels.threshold).to_equal(1 << 30);
+		Compressor::set_levels(s, {.volume_l = Q<27>::from_raw(1), .volume_r = Q<27>::from_raw(2), .final_volume = Q<29>::from_raw(3), .threshold = Q<31>::from_raw(1 << 30)});
+		expect(s.levels.volume_l.raw()).to_equal(1);
+		expect(s.levels.volume_r.raw()).to_equal(2);
+		expect(s.levels.final_volume.raw()).to_equal(3);
+		expect(s.levels.threshold.raw()).to_equal(1 << 30);
 		expect(s.threshold).to_equal(1 - 0.8f * (static_cast<float>(1 << 30) / kOneQ31f));
 	});
 });
