@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/generator.h" // Buffer, q31
+#include "dsp-next/core/generator.h" // Buffer
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/osc/sine_table.h" // kSineTable
 #include "dsp-next/fixed/sync/resetter.h"  // resetter_reciprocal
@@ -60,7 +60,7 @@ public:
 	/// fills with position-indexed state (e.g. the wavetable cross-cycle morph, which advances with
 	/// output position and so reuses the same value when the crossover sample is redone).
 	struct Window {
-		Buffer output;
+		dsp::Buffer<Q<31>> output;
 		Phasor phasor; ///< the (reset) phasor to fill this window from; pre-increment per sample.
 		int32_t offset;
 	};
@@ -70,7 +70,8 @@ public:
 	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
 	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment, uint32_t retrigger_phase)
+	SyncWindower(dsp::Buffer<Q<31>> output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
+	             uint32_t retrigger_phase)
 	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
 	      resetter_{resetter}, resetter_divide_{Q<16>::from_raw(resetter_reciprocal(resetter.phase_increment))},
 	      phase_{phase}, phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
@@ -86,14 +87,14 @@ public:
 			// Finalise the window handed out last call (the caller has filled it by now).
 			// Crossfade the restart seam at its *start*, if it opened on a crossover.
 			if (crossed_over_) {
-				const Q<31> sample = Q<31>::from_raw(*window_);
+				const Q<31> sample = *window_;
 				const Q<31> average = add_wrap(halve_floor(sample), halve_floor(pre_crossover_sample_));
 				const Q<31> half_difference = sub_wrap(halve_floor(sample), halve_floor(pre_crossover_sample_));
 				// The sine's phase is the fade's bits halved, read unsigned: a fade of ±1 is a quarter turn either side
 				// of zero, so the sine runs from −1 to 1 across the seam
 				const Q<31> sine =
 				    Q<31>::from_raw(kSineTable.value(static_cast<uint32_t>(halve_floor(seam_fade_).raw())));
-				*window_ = add_wrap(average, as_wrap<Q<31>>(mul(half_difference, sine))).raw();
+				*window_ = add_wrap(average, as_wrap<Q<31>>(mul(half_difference, sine)));
 			}
 
 			if (!crosses_) {
@@ -106,7 +107,7 @@ public:
 
 			// Re-base onto the crossover sample (this window overlaps it by one), and plan the restart.
 			window_ += samples_to_crossover_ - 1;
-			pre_crossover_sample_ = Q<31>::from_raw(*window_);
+			pre_crossover_sample_ = *window_;
 			samples_remaining_ -= static_cast<int32_t>(samples_to_crossover_) - 1;
 
 			// Advance the resetter past the crossover. After the first crossover its phase reads one
@@ -154,7 +155,7 @@ public:
 		}
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;
-		return Window{.output = Buffer{window_, static_cast<std::size_t>(length_)},
+		return Window{.output = dsp::Buffer<Q<31>>{window_, static_cast<std::size_t>(length_)},
 		              .phasor = Phasor{UQ<32>::from_raw(phase_), UQ<32>::from_raw(phase_increment_)},
 		              .offset = static_cast<int32_t>(window_ - block_start_)};
 	}
@@ -164,8 +165,8 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phase_; }
 
 private:
-	q31* const block_start_;
-	q31* window_;
+	Q<31>* block_start_;
+	Q<31>* window_;
 	int32_t samples_remaining_;
 	Resetter resetter_;
 	Q<16> resetter_divide_; // 1 / the resetter increment read as Q31 (@ref resetter_reciprocal)

@@ -59,7 +59,7 @@ class SyncedOscillator {
 	uint32_t retrigger_phase_;
 
 public:
-	using value_type = q31; ///< q31 wave samples.
+	using value_type = Q<31>; ///< Wave samples.
 
 	SyncedOscillator(Osc oscillator, uint32_t phase, uint32_t phase_increment, Resetter resetter,
 	                 uint32_t retrigger_phase)
@@ -78,7 +78,7 @@ public:
 	}
 
 	/// @brief Fill @p output with the synced wave, one wrapped-oscillator block per sync window.
-	void render_block(Buffer output) {
+	void render_block(dsp::Buffer<Q<31>> output) {
 		// Each sync window is just the wrapped oscillator restarted at the window's phase; the
 		// shared windower owns the split + seam crossfade. The wrapped oscillator carries no
 		// position-indexed state, so the window offset is ignored.

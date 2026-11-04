@@ -87,7 +87,7 @@ constexpr int32_t kSincRowBlendShift =
 /// — the oscillators call it for the whole chunk (free-running) or per sync window. @ref band is
 /// null when no band holds data for this cycle pair (the chunk is then skipped).
 struct CycleChunk {
-	Buffer output;
+	dsp::Buffer<Q<31>> output;
 	int32_t first_cycle;
 	const WaveTableBand* band;
 	uint32_t cross_cycle_blend;          ///< the cross-cycle blend (morph) at the chunk's first sample.
@@ -99,10 +99,10 @@ struct CycleChunk {
 	/// sinc @ref kernel). @p offset is the window's position within the chunk (0 for the whole chunk),
 	/// which positions the cross-cycle blend so a redone sync-crossover sample reuses the same blend.
 	/// Caller must have checked @ref band is non-null.
-	[[gnu::always_inline]] void render(Buffer output_window, Phasor phasor, int32_t offset) const {
+	[[gnu::always_inline]] void render(dsp::Buffer<Q<31>> output_window, Phasor phasor, int32_t offset) const {
 		using namespace wavetable_detail;
-		int32_t* __restrict__ sample = output_window.data();
-		int32_t const* const end = sample + output_window.size();
+		Q<31>* __restrict__ sample = output_window.data();
+		Q<31> const* const end = sample + output_window.size();
 		uint32_t phase = phasor.phase().raw();
 		uint32_t phase_increment = phasor.increment().raw();
 		int32_t magnitude = band->cycleSizeMagnitude;
@@ -111,8 +111,9 @@ struct CycleChunk {
 			const int16_t* __restrict__ cycle = band->dataAccessAddress;
 			do {
 				phase += phase_increment;
-				*sample = windowed_sinc_apply(sinc_kernel_row(kernel, phase, magnitude),
-				                              sinc_row_blend(phase, magnitude), load_window(cycle, phase, magnitude));
+				*sample = Q<31>::from_raw(windowed_sinc_apply(sinc_kernel_row(kernel, phase, magnitude),
+				                                              sinc_row_blend(phase, magnitude),
+				                                              load_window(cycle, phase, magnitude)));
 			} while (++sample != end);
 			return;
 		}
@@ -130,7 +131,8 @@ struct CycleChunk {
 			    blend_sinc_kernel(sinc_kernel_row(kernel, phase, magnitude), sinc_row_blend(phase, magnitude));
 			const auto value1 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude)));
 			const auto value2 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude)));
-			*sample = morph(value1, value2, blend).raw();
+			// The Q29 blend's bits are the sample, as the windowed single cycle's are
+			*sample = reinterpret_bits<Q<31>>(morph(value1, value2, blend));
 			blend += cross_cycle_blend_increment;
 		} while (++sample != end);
 	}
@@ -150,8 +152,8 @@ struct CycleChunk {
 /// Bit-exact with the legacy `WaveTable::render` loop.
 class WavetableCycleChunker {
 public:
-	WavetableCycleChunker(const WaveTableData& table, Buffer output, uint32_t phase_increment, int32_t wave_index,
-	                      int32_t wave_index_increment)
+	WavetableCycleChunker(const WaveTableData& table, dsp::Buffer<Q<31>> output, uint32_t phase_increment,
+	                      int32_t wave_index, int32_t wave_index_increment)
 	    : table_{&table}, phase_increment_{phase_increment}, next_output_{output.data()},
 	      samples_remaining_{static_cast<int32_t>(output.size())},
 	      wave_index_scaled_{multiply_32x32_rshift32_rounded(table.wave_index_multiplier(), wave_index)},
@@ -217,8 +219,8 @@ private:
 	static constexpr int32_t kWaveIndexScaledInputBits = 30; // legacy NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT
 
 	/// Carve @p length samples off the front of the remaining block.
-	Buffer take(int32_t length) {
-		Buffer slice{next_output_, static_cast<std::size_t>(length)};
+	dsp::Buffer<Q<31>> take(int32_t length) {
+		dsp::Buffer<Q<31>> slice{next_output_, static_cast<std::size_t>(length)};
 		next_output_ += length;
 		samples_remaining_ -= length;
 		return slice;
@@ -230,7 +232,7 @@ private:
 
 	const WaveTableData* table_;
 	uint32_t phase_increment_;
-	q31* next_output_;
+	Q<31>* next_output_;
 	int32_t samples_remaining_;
 	int32_t wave_index_scaled_;
 	int32_t wave_index_increment_scaled_;

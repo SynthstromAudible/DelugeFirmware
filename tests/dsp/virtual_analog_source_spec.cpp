@@ -23,6 +23,7 @@
 
 #include "synth/sources/va/virtual_analog_source.h"
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"
 #include "dsp-next/fixed/bandlimited/band_limited_table.h"
@@ -60,7 +61,7 @@ BlockControls standalone(int32_t cpu_direness, uint32_t pulse_width = 0, std::op
 template <typename Osc>
 std::array<int32_t, kN> renderKernel(Osc osc) {
 	std::array<int32_t, kN> out{};
-	osc.render_block(Buffer{out});
+	osc.render_block(deluge::dsp::typed_view(Buffer{out}));
 	return out;
 }
 
@@ -176,7 +177,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		deluge::dsp::fixed::CrudeSaw ref{deluge::dsp::fixed::SyncedPhasor{
 		    Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}, Phasor{UQ<32>::from_raw(kResetPhase), UQ<32>::from_raw(kResetInc)}, UQ<32>::from_raw(2147483648u)}};
 		std::array<int32_t, kN> raw{};
-		ref.render_block(Buffer{raw}); // render in place so ref.phase() reflects the advanced phase
+		ref.render_block(deluge::dsp::typed_view(Buffer{raw})); // render in place so ref.phase() reflects the advanced phase
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(out[i]).to_equal(raw[i] >> 1);
 		}

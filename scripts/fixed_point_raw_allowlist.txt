@@ -10,7 +10,7 @@
 # which refuses to raise a raw or view count or add a file with either.
 #
 # <path> raw=<n> [view=<n>] boundary=<n>
-src/deluge/bench/cases.cpp raw=0 view=26 boundary=16
+src/deluge/bench/cases.cpp raw=0 view=33 boundary=16
 src/deluge/bench/cases.h raw=0 boundary=55
 src/deluge/bench/chain_cases.cpp raw=0 boundary=4
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=4
@@ -52,17 +52,18 @@ src/deluge/dsp-next/fixed/filter/high_pass_ladder.h raw=1 boundary=20
 src/deluge/dsp-next/fixed/filter/low_pass_ladder.h raw=0 boundary=30
 src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=0 boundary=20
 src/deluge/dsp-next/fixed/filter/svf.h raw=0 boundary=6
-src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=44
+src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=39
 src/deluge/dsp-next/fixed/interpolation/interpolator.cpp raw=0 boundary=1
 src/deluge/dsp-next/fixed/interpolation/sinc_interpolation.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/mix/track_monitor.h raw=0 boundary=10
-src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=0 boundary=72
-src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=4
-src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=13
+src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=0 boundary=60
+src/deluge/dsp-next/fixed/osc/click.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=7
+src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=12
 src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=4
 src/deluge/dsp-next/fixed/osc/supersaw.cpp raw=0 boundary=7
-src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=9
+src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/shaping/antialiased_tanh.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/shaping/bit_depth.h raw=0 boundary=2
@@ -70,7 +71,7 @@ src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=20
 src/deluge/dsp-next/fixed/shaping/tanh.h raw=1 boundary=5
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=0 boundary=8
-src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=15
+src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=12
 src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
 src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/vca/amplitude.h raw=0 boundary=6
@@ -78,7 +79,7 @@ src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/vca/pan.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/vca/send_and_volume.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/wavetable/band_builder.cpp raw=1 boundary=2
-src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h raw=2 boundary=8
+src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h raw=2 boundary=9
 src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/wavetable/wavetable_sync_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/float/reverb/plate.h raw=0 boundary=8
@@ -118,7 +119,9 @@ src/effects/chain_core.h raw=0 boundary=3
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 view=1 boundary=6
+src/effects/granular.cpp raw=0 view=1 boundary=1
 src/effects/master_chain.cpp raw=0 boundary=10
+src/effects/mod_fx.cpp raw=0 boundary=6
 src/effects/param_fragment.h raw=0 boundary=3
 src/effects/reverb.cpp raw=0 view=2 boundary=5
 src/effects/saturation.cpp raw=0 boundary=4
@@ -151,8 +154,8 @@ src/synth/sources/input/live/live_pitch_shifter_play_head.cpp raw=0 boundary=4
 src/synth/sources/source.h raw=0 boundary=9
 src/synth/sources/source_slot.cpp raw=0 boundary=8
 src/synth/sources/supersaw/supersaw_source.cpp raw=0 view=3 boundary=0
-src/synth/sources/va/va_shapes.cpp raw=0 view=6 boundary=34
+src/synth/sources/va/va_shapes.cpp raw=0 view=12 boundary=34
 src/synth/sources/va/va_shapes.h raw=0 boundary=24
-src/synth/sources/wavetable/wavetable_source.cpp raw=0 view=3 boundary=4
+src/synth/sources/wavetable/wavetable_source.cpp raw=0 view=5 boundary=4
 src/synth/sources/wavetable/wavetable_source.h raw=0 boundary=3
 src/synth/voice/voice.cpp raw=0 view=6 boundary=40

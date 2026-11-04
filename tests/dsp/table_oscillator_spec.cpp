@@ -20,6 +20,7 @@
 // controlled synthetic tables; bit-exact equivalence with the legacy
 // waveRenderingFunctionGeneral on the real band-limited tables is the golden harness's job.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
 #include <arm_neon.h>
 #include <array>
@@ -109,7 +110,7 @@ std::size_t reference_mismatches() {
 		TableOscillator osc{Table{table, 8}, phase, increment};
 		reference::TableOscillator expected{Table{table, 8}, phase, increment};
 		for (int block = 0; block < 4; ++block) {
-			const auto got = osc.render().to_array();
+			const auto got = osc.render().raw().to_array();
 			const auto want = expected.render().to_array();
 			for (std::size_t i = 0; i < 4; ++i) {
 				bad += got[i] != want[i] ? 1 : 0;
@@ -132,7 +133,7 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 			std::array<int16_t, 8> table{};
 			table.fill(0x0123);
 			TableOscillator osc{Table{table, kMag}, 0u, kInc};
-			int32x4_t out = osc.render();
+			int32x4_t out = osc.render().raw();
 			expect(vgetq_lane_s32(out, 0)).to_equal(0x01230000);
 			expect(vgetq_lane_s32(out, 1)).to_equal(0x01230000);
 			expect(vgetq_lane_s32(out, 2)).to_equal(0x01230000);
@@ -144,7 +145,7 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 		it("interpolates within the table's value range", _ {
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 			TableOscillator osc{Table{table, kMag}, 0u, kInc};
-			int32x4_t out = osc.render();
+			int32x4_t out = osc.render().raw();
 			expect(vgetq_lane_s32(out, 0)).to_be_between(int32_t{0}, int32_t{7000} << 16);
 			expect(vgetq_lane_s32(out, 3)).to_be_between(int32_t{0}, int32_t{7000} << 16);
 		});
@@ -155,11 +156,11 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 
 			TableOscillator a{Table{table, kMag}, 0u, kInc};
-			int32x4_t expected = a.render();
+			int32x4_t expected = a.render().raw();
 
 			TableOscillator b{Table{table, kMag}, 0u, kInc};
 			std::array<int32_t, 4> buf{};
-			b.render_block(deluge::dsp::fixed::Buffer{buf});
+			b.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Buffer{buf}));
 
 			expect(buf[0]).to_equal(vgetq_lane_s32(expected, 0));
 			expect(buf[1]).to_equal(vgetq_lane_s32(expected, 1));

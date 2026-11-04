@@ -48,11 +48,11 @@ struct Click {
 
 	/// @brief The click's level.
 	struct Settings {
-		q31 level = 0; ///< The amplitude, Q31.
+		Q<31> level{}; ///< The amplitude.
 	};
 	/// @brief The click's level.
 	struct Coefficients {
-		q31 level = 0; ///< The amplitude, Q31.
+		Q<31> level{}; ///< The amplitude.
 	};
 	/// @brief The square's phase and the gate.
 	struct State {
@@ -88,9 +88,9 @@ struct Click {
 	/// @brief One frame with the square added.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
-		const q31 value = s.phase <= kHighUntil ? c.level : wrapping_sub(0, c.level);
+		const Q<31> value = s.phase <= kHighUntil ? c.level : neg_wrap(c.level);
 		s.phase += s.increment;
-		return {.l = wrapping_add(x.l, value), .r = wrapping_add(x.r, value)};
+		return {.l = add_wrap(Q<31>::from_raw(x.l), value).raw(), .r = add_wrap(Q<31>::from_raw(x.r), value).raw()};
 	}
 };
 

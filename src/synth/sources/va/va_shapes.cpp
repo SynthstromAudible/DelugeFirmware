@@ -170,13 +170,13 @@ template <typename Osc, typename MakeVca>
 void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude, fixed::Buffer output,
                         fixed::Buffer scratch) {
 	if (apply_amplitude) {
-		osc.render_block(scratch);
+		osc.render_block(dsp::typed_view(scratch));
 		auto vca = make_vca();
 		vca.render_block(dsp::typed_view(fixed::Signal{scratch}), dsp::typed_view(fixed::Signal{output}),
 		                 dsp::typed_view(output));
 	}
 	else {
-		osc.render_block(output);
+		osc.render_block(dsp::typed_view(output));
 		if (scale == Standalone::HALVE) {
 			for (auto& sample : output) {
 				sample >>= 1;
@@ -203,7 +203,7 @@ void render_band_limited(const fixed::BandlimitedTable& bands, uint32_t selectio
 		                                      selection_increment},
 		    phasor.phase().raw(), phasor.increment().raw(),
 		    fixed::Resetter{.phase = sync->phase().raw(), .phase_increment = sync->increment().raw()}, retrigger};
-		osc.render_block(dst);
+		osc.render_block(dsp::typed_view(dst));
 		phasor.seek(uq32(osc.phase()));
 		mix_through_vca(amplitude, output, scratch);
 	}
@@ -230,16 +230,16 @@ void render_perfect_pulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_se
 		fixed::SyncedOscillator osc{
 		    pulse, phase, increment,
 		    fixed::Resetter{.phase = sync->phase().raw(), .phase_increment = sync->increment().raw()}, retrigger};
-		osc.render_block(dst);
+		osc.render_block(dsp::typed_view(dst));
 		phasor.seek(scale_shl_wrap<1>(uq32(osc.phase())));
 		mix_through_vca(amplitude, output, scratch);
 	}
 	else if (apply_amplitude) {
-		pulse.render_block(scratch);
+		pulse.render_block(dsp::typed_view(scratch));
 		mix_through_vca(amplitude, output, scratch);
 	}
 	else {
-		pulse.render_block(output);
+		pulse.render_block(dsp::typed_view(output));
 	}
 }
 

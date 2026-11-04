@@ -76,7 +76,7 @@ describe click_spec("the metronome's click as a kernel", ${
 						}
 						ref.render(std::span{a}.subspan(at, n), volume, post_fx);
 						if (k.on<&Click::sounding>()) {
-							k.configure({.level = multiply_32x32_rshift32(static_cast<int32_t>(volume), post_fx)});
+							k.configure({.level = deluge::dsp::Q<31>::from_raw(multiply_32x32_rshift32(static_cast<int32_t>(volume), post_fx))});
 							k.render_block(std::span{b}.subspan(at, n), std::span{b}.subspan(at, n));
 						}
 						expect(k.on<&Click::sounding>()).to_equal(ref.sounding);
@@ -109,7 +109,7 @@ describe click_spec("the metronome's click as a kernel", ${
 
 	it("never opens its gate by rendering, before a trigger or after the gate closes: only a trigger opens it", _ {
 		Mono<Click> k;
-		k.configure({.level = 1 << 28});
+		k.configure({.level = deluge::dsp::Q<31>::from_raw(1 << 28)});
 		std::vector<StereoSample> silent(128, StereoSample{});
 		k.render_block(silent, silent);
 		expect(k.on<&Click::sounding>()).to_be_false();

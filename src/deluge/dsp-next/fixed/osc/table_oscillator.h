@@ -39,7 +39,7 @@ namespace deluge::dsp::fixed {
 /// bit-exact, raw (no amplitude/mix; that is the Amplitude mixer's job). The block fill
 /// comes from the Generator mixin (render() per 4-lane chunk). The owned phase is the
 /// fill phase; the caller still owns the persistent per-voice phase.
-class TableOscillator : public Generator<TableOscillator, q31> {
+class TableOscillator : public Generator<TableOscillator, Q<31>> {
 	const int16_t* samples_;
 	int32_t magnitude_;
 	Phasor phasor_;
@@ -66,7 +66,7 @@ public:
 		magnitude_ = table.magnitude;
 	}
 
-	[[gnu::always_inline]] Argon<q31> render() {
+	[[gnu::always_inline]] QVec<31> render() {
 		// Per lane: the high bits of the phase pick a table entry, the next bits are the
 		// interpolation fraction. `value_pair` packs {entry, next entry} into one 32-bit word.
 		Argon<uint32_t> value_pair = 0U;
@@ -95,7 +95,7 @@ public:
 		const auto pairs = Q16x2Vec<15>::from_raw(value_pair);
 		const Q16Half<15> entry = pairs.lo();
 		const Q16Half<15> slope = sub_wrap(pairs.hi(), entry);
-		return mla_doubling_wide_sat(from_q16(entry), slope, weight).raw();
+		return mla_doubling_wide_sat(from_q16(entry), slope, weight);
 	}
 };
 static_assert(block_generator<TableOscillator>, "a table oscillator fills a block");

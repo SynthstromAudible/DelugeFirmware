@@ -112,11 +112,11 @@ public:
 		}
 		const ModFx::Mode mode = mode_of(block.type, block.stereo);
 		mono_.configure({.mode = mode,
-		                 .rate = block.rate,
-		                 .depth = block.depth,
-		                 .offset = block.offset,
-		                 .feedback = block.feedback});
-		volume = ModFx::post_fx_volume(mono_.coefficients(), volume);
+		                 .rate = deluge::dsp::UQ<32>::from_raw(static_cast<uint32_t>(block.rate)),
+		                 .depth = deluge::dsp::Q<31>::from_raw(block.depth),
+		                 .offset = deluge::dsp::Q<31>::from_raw(block.offset),
+		                 .feedback = deluge::dsp::Q<31>::from_raw(block.feedback)});
+		volume = ModFx::post_fx_volume(mono_.coefficients(), deluge::dsp::Q<27>::from_raw(volume)).raw();
 		if (mode != ModFx::Mode::PHASER && mono_.state().ring == nullptr) {
 			return;
 		}

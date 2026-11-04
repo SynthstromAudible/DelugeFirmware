@@ -56,7 +56,7 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 	if (!do_osc_sync) {
 		deluge::dsp::fixed::WavetableOscillator osc{table_, render_phase, render_inc, wave_index,
 		                                            wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Buffer{dst, output.size()}));
 		rendered_phase = osc.phase();
 	}
 	else {
@@ -68,7 +68,7 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 		    controls.retrigger_phase,
 		    wave_index,
 		    wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Buffer{dst, output.size()}));
 		rendered_phase = osc.phase();
 	}
 

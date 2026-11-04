@@ -20,6 +20,7 @@
 // asserting the chunk tiling + cycle walk in isolation; the per-sample sinc render is golden-covered.
 // Dual-arch (x86 SIMDe + ARM/QEMU) via CTest — pure index logic, kept dual-arch for parity.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <array>
 #include <cppspec.hpp>
@@ -50,7 +51,8 @@ WaveTableData make_table(int32_t num_cycles, int32_t transitions_magnitude, int3
 }
 
 std::vector<CycleChunk> collect(const WaveTableData& table, Buffer output, int32_t wave_index_increment) {
-	WavetableCycleChunker chunker{table, output, kPlayRate, /*wave_index=*/0, wave_index_increment};
+	WavetableCycleChunker chunker{table, deluge::dsp::typed_view(output), kPlayRate, /*wave_index=*/0,
+	                              wave_index_increment};
 	std::vector<CycleChunk> chunks;
 	while (std::optional<CycleChunk> chunk = chunker.next()) {
 		chunks.push_back(*chunk);

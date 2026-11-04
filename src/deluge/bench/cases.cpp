@@ -213,7 +213,7 @@ void PulseCase::setup(std::size_t n) {
 }
 
 void PulseCase::block(std::size_t /*n*/) {
-	pulse_.render_block(spans_.out);
+	pulse_.render_block(dsp::typed_view(spans_.out));
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
@@ -226,7 +226,7 @@ void BandLimitedTableCase::setup(std::size_t n) {
 }
 
 void BandLimitedTableCase::block(std::size_t /*n*/) {
-	oscillator_.render_block(spans_.out);
+	oscillator_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeSawCase::setup(std::size_t n) {
@@ -235,7 +235,7 @@ void CrudeSawCase::setup(std::size_t n) {
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
-	saw_.render_block(spans_.out);
+	saw_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeSquareCase::setup(std::size_t n) {
@@ -245,7 +245,7 @@ void CrudeSquareCase::setup(std::size_t n) {
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
-	square_.render_block(spans_.out);
+	square_.render_block(dsp::typed_view(spans_.out));
 }
 
 void CrudeTriangleCase::setup(std::size_t n) {
@@ -254,7 +254,7 @@ void CrudeTriangleCase::setup(std::size_t n) {
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
-	triangle_.render_block(spans_.out);
+	triangle_.render_block(dsp::typed_view(spans_.out));
 }
 
 void SyncedPulseCase::setup(std::size_t n) {
@@ -273,7 +273,7 @@ void SyncedPulseCase::block(std::size_t n) {
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
 	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
-	synced.render_block(spans_.out);
+	synced.render_block(dsp::typed_view(spans_.out));
 	audible_phase_ = scale_shl_wrap<1>(dsp::UQ<32>::from_raw(synced.phase())).raw();
 	// The master's increment times the block's samples: an integer product, wrapping.
 	master_.seek(
@@ -308,7 +308,7 @@ void WavetableCase::setup(std::size_t n) {
 }
 
 void WavetableCase::block(std::size_t /*n*/) {
-	oscillator_.render_block(spans_.out);
+	oscillator_.render_block(dsp::typed_view(spans_.out));
 }
 
 void MonoGainCase::setup(std::size_t n) {

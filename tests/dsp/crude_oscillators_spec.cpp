@@ -67,7 +67,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("emits the phase ramp itself", _ {
 			CrudeSaw osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x10000000u)}};
 			std::array<int32_t, 4> out{};
-			osc.render_block(Buffer{out});
+			osc.render_block(typed_view(Buffer{out}));
 			// Pre-increment: sample i is phase + (i+1) * increment.
 			expect(out[0]).to_equal(static_cast<int32_t>(0x10000000));
 			expect(out[1]).to_equal(static_cast<int32_t>(0x20000000));
@@ -80,7 +80,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("switches at the pulse-width threshold", _ {
 			CrudeSquare osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x20000000u)}, 0x80000000u}; // 50% duty
 			std::array<int32_t, 4> out{};
-			osc.render_block(Buffer{out});
+			osc.render_block(typed_view(Buffer{out}));
 			// phases 0x20/0x40/0x60M are below the threshold (high), 0x80M is at/above it (low).
 			expect(out[0]).to_equal(deluge::dsp::fixed::square(0x20000000u, 0x80000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::square(0x60000000u, 0x80000000u));
@@ -93,7 +93,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("matches the triangle kernel at each phase", _ {
 			CrudeTriangle osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x30000000u)}};
 			std::array<int32_t, 4> out{};
-			osc.render_block(Buffer{out});
+			osc.render_block(typed_view(Buffer{out}));
 			expect(out[0]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x30000000u));
 			expect(out[1]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x60000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x90000000u));
@@ -105,7 +105,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("matches the sine LUT at each phase", _ {
 			CrudeSine osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x30000000u)}};
 			std::array<int32_t, 4> out{};
-			osc.render_block(Buffer{out});
+			osc.render_block(typed_view(Buffer{out}));
 			expect(out[0]).to_equal(kSineTable.value(0x30000000u));
 			expect(out[1]).to_equal(kSineTable.value(0x60000000u));
 			expect(out[2]).to_equal(kSineTable.value(0x90000000u));

@@ -130,8 +130,8 @@ struct Granular {
 		Grain grains[kGrains]{}; ///< The grains.
 		OnePole::State lpf_l{};  ///< The left wet low-pass memory, Q31.
 		OnePole::State lpf_r{};  ///< The right wet low-pass memory, Q31.
-		q31* send = nullptr;     ///< This block's reverb send cursor, set by set_send; advanced per frame.
-		q31 send_amount = 0;     ///< The reverb send amount, Q31.
+		Q<31>* send = nullptr;   ///< This block's reverb send cursor, set by set_send; advanced per frame.
+		Q<31> send_amount{};     ///< The reverb send amount.
 		Block levels{};          ///< The knobs' derived values; the randomness is refreshed each block.
 		Knobs knobs{};           ///< The knob positions @ref levels came from.
 	};
@@ -259,9 +259,7 @@ struct Granular {
 		const Q<31> wet_r =
 		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_r, mul_as_wrap<Q<31>>(wet_sum_r, wet));
 		// A little reverb covers much of the granular artifacts.
-		*s.send = add_wrap(Q<31>::from_raw(*s.send),
-		                   mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), Q<31>::from_raw(s.send_amount)))
-		              .raw();
+		*s.send = add_wrap(*s.send, mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), s.send_amount));
 		++s.send;
 		const auto dry = Q<31>::from_raw(b.dry);
 		return {.l = add_sat(mul_as_wrap<Q<31>>(Q<31>::from_raw(x.l), dry), wet_l).raw(),
@@ -276,7 +274,7 @@ struct Granular {
 	/// @brief Event: the owner takes the ring back.
 	static void clear_ring(State& s) { s.ring = nullptr; }
 	/// @brief Event: this block's reverb send, a frame per frame rendered, and its amount (Q31).
-	static void set_send(State& s, q31* send, q31 amount) {
+	static void set_send(State& s, Q<31>* send, Q<31> amount) {
 		s.send = send;
 		s.send_amount = amount;
 	}
@@ -332,10 +330,10 @@ private:
 		return static_cast<uint16_t>(noise.next() >> 16) % (upper + 1);
 	}
 	/// @return A triangle distribution from -1 to 1, Q31: the mean of two full-range draws (Irwin–Hall of two).
-	[[nodiscard]] [[gnu::always_inline]] static q31 triangle(Noise& noise) {
-		const auto u1 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		const auto u2 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		return dsp::triangle(u1, u2).raw();
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> triangle(Noise& noise) {
+		const auto u1 = Q<31>::from_raw(static_cast<int32_t>(noise.next()));
+		const auto u2 = Q<31>::from_raw(static_cast<int32_t>(noise.next()));
+		return dsp::triangle(u1, u2);
 	}
 
 	/// @brief Starts the first silent grain, if any, at @p write_index: its spray, direction, pitch, length, window and
@@ -354,7 +352,7 @@ private:
 
 			// The pitch class: more randomness reaches further from unison.
 			// The draw times the randomness, Q31, times 3.5 (7 at Q1), floored: -4 to 3.
-			const Q<31> spread = mul_as_wrap<Q<31>>(Q<31>::from_raw(triangle(noise)), Q<31>::from_raw(b.randomness));
+			const Q<31> spread = mul_as_wrap<Q<31>>(triangle(noise), Q<31>::from_raw(b.randomness));
 			const auto pitch_class = static_cast<int8_t>(mul(spread, Q<1>::from_raw(7)).raw());
 			switch (pitch_class) {
 			case -3:

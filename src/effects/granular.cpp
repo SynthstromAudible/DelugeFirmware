@@ -16,6 +16,7 @@
  */
 
 #include "effects/granular.h"
+#include "dsp-next/core/buffer_view.h"
 
 #include <cassert>
 #include <memory>
@@ -119,7 +120,7 @@ void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& 
 		}
 		mono.configure({.rate = in.rate, .mix = in.mix, .density = in.density, .randomness = in.randomness});
 		post_fx_volume = Kernel::post_fx_volume(post_fx_volume);
-		mono.on<&Kernel::set_send>(reverb_send.data(), in.send_amount);
+		mono.on<&Kernel::set_send>(dsp::typed_view(reverb_send).data(), dsp::Q<31>::from_raw(in.send_amount));
 		mono.render_block(block, block, noise);
 		if (mono.state().wraps_to_shutdown < 0) {
 			mono.on<&Kernel::restart>();

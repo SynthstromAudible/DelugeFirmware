@@ -21,6 +21,7 @@
 // (reference_granular.h) bit for bit on every workload (granular_workloads.h): each
 // block's output, post-FX volume and reverb send, and at the end the State and the ring as the kernel reads it.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -91,7 +92,8 @@ public:
 			}
 			mono_.configure({.rate = rate, .mix = mix, .density = density, .randomness = randomness});
 			*volume = Granular::post_fx_volume(*volume);
-			mono_.on<&Granular::set_send>(send.data(), reverb_amount);
+			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
+			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
 			mono_.render_block(frames, frames, deluge::synth_noise);
 			if (mono_.state().wraps_to_shutdown < 0) {
 				mono_.on<&Granular::restart>();
