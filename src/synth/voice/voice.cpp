@@ -112,9 +112,9 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	}
 
 	if (event.reset_envelopes) {
-		source_levels_.amplitudes_last_time.fill(0);
+		source_levels_.amplitudes_last_time.fill(Q<31>{});
 		engines_.fm().reset_levels();
-		overall_osc_amplitude_last_time_ = 0;
+		overall_osc_amplitude_last_time_ = Q<31>{};
 		done_first_render_ = false;
 		filter_set_.reset();
 
@@ -174,7 +174,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 	previously_ignored_note_off_ = false;
 	expression_sources_currently_smoothing_.reset();
-	source_levels_.filter_gain_last_time = 0;
+	source_levels_.filter_gain_last_time = Q<28>{};
 
 	return true;
 }
@@ -310,13 +310,13 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	const int32_t num_samples = args.num_samples;
 	const bool sound_rendering_in_stereo = args.sound_in_stereo;
 	const bool applying_pan_at_voice_level = args.pan_at_voice_level;
-	const int32_t external_pitch_adjust = args.pitch_adjust;
+	const Q<24> external_pitch_adjust = args.pitch_adjust;
 
 	bool did_stereo_temp_buffer = false;
 
 	bool unassign_voice_after = render_modulation(control_block, cfg, block, num_samples, args.sources_changed);
 
-	const int32_t overall_pitch_adjust = pitch_adjust(cfg, num_samples, external_pitch_adjust);
+	const Q<24> overall_pitch_adjust = pitch_adjust(cfg, num_samples, external_pitch_adjust);
 
 	// Auto-release for a play-once sample. Despite this being envelope-related, meaning we'd ideally prefer to do it
 	// before patching, we can only do it after because we need to know pitch
@@ -335,15 +335,15 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	    add_wrap(halve_floor(Q<31>::from_raw(params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0)])),
 	             dsp::q<31>(0.5));
 	const Q<30> product = mul(matrix::param_value<params::LOCAL_VOLUME>(params_.param_final_values), envelope);
-	int32_t overall_osc_amplitude = scale_shl_wrap<2>(clamp_bits<30>(product)).raw();
-
-	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
-	int32_t filter_gain = 0;
+	// The quadrupled Q30 product's word is the voice's amplitude
+	auto overall_osc_amplitude = dsp::reinterpret_bits<Q<31>>(scale_shl_wrap<2>(clamp_bits<30>(product)));
 
 	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
+	// The gain they return compensates for any change in gain the filters cause; its word is Q28 (2^28 unity)
 	const bool allow_oversampling = cfg.cpu_direness < 14;
-	filter_gain = filter_set_.configure(
-	    cfg.volume_neutral_value_for_unison << 1,
+	const Q<28> filter_gain = Q<28>::from_raw(filter_set_.configure(
+	    // The filter set takes the gain's word
+	    scale_shl_wrap<1>(cfg.volume_neutral_value_for_unison).raw(),
 	    {
 	        .frequency = matrix::param_value<params::LOCAL_LPF_FREQ>(params_.param_final_values),
 	        .resonance = matrix::param_value<params::LOCAL_LPF_RESONANCE>(params_.param_final_values),
@@ -357,11 +357,11 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	        .morph = matrix::param_value<params::LOCAL_HPF_MORPH>(params_.param_final_values),
 	        .allow_oversampling = allow_oversampling,
 	    },
-	    cfg.high_pass, cfg.filter_route);
+	    cfg.high_pass, cfg.filter_route));
 
 	SynthMode synth_mode = cfg.synth_mode;
 
-	int32_t overall_oscillator_amplitude_increment = 0;
+	Q<31> overall_oscillator_amplitude_increment{};
 	const bool first_render = !done_first_render_;
 
 	if (synth_mode == SynthMode::FM) {
@@ -369,16 +369,17 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 		// sample at the end
 		// The amplitude times the unison's neutral (2^27 for one part): the rounded high word, Q30 of the amplitude's
 		// units, ×8
-		overall_osc_amplitude = scale_shl_wrap<3>(mul_r(Q<31>::from_raw(overall_osc_amplitude),
-		                                                Q<31>::from_raw(cfg.volume_neutral_value_for_unison)))
-		                            .raw();
+		// The Q30 product's word is the amplitude the carriers take
+		overall_osc_amplitude = dsp::reinterpret_bits<Q<31>>(
+		    scale_shl_wrap<3>(mul_r(overall_osc_amplitude, cfg.volume_neutral_value_for_unison)));
 	}
 	else {
 		if (first_render && matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values) > 245632) {
 			overall_osc_amplitude_last_time_ = overall_osc_amplitude;
 		}
+		// Raw: the increment is an integer division of the change
 		overall_oscillator_amplitude_increment =
-		    (overall_osc_amplitude - overall_osc_amplitude_last_time_) / num_samples;
+		    Q<31>::from_raw((overall_osc_amplitude.raw() - overall_osc_amplitude_last_time_.raw()) / num_samples);
 	}
 
 	done_first_render_ = true;
@@ -555,18 +556,18 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 namespace {
 /// @brief Two Q24 pitch multipliers' product, Q24: the rounded Q16 high word held under 2^23 (128×), so its move back
 /// to Q24 cannot wrap.
-int32_t pitch_product(int32_t a, int32_t b) {
-	const Q<16> product = mul_r(Q<24>::from_raw(a), Q<24>::from_raw(b));
-	return as_wrap<Q<24>>(clamp_high(product, Q<16>::from_raw(8388607))).raw();
+Q<24> pitch_product(Q<24> a, Q<24> b) {
+	const Q<16> product = mul_r(a, b);
+	return as_wrap<Q<24>>(clamp_high(product, Q<16>::from_raw(8388607)));
 }
 } // namespace
 
-int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t external_pitch_adjust) {
+Q<24> Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, Q<24> external_pitch_adjust) {
 	// Sort out pitch
-	int32_t overall_pitch_adjust = params_.param_final_values[params::LOCAL_PITCH_ADJUST];
+	Q<24> overall_pitch_adjust = matrix::param_value<params::LOCAL_PITCH_ADJUST>(params_.param_final_values);
 
 	// Pitch adjust from "external" - e.g. the Kit
-	if (external_pitch_adjust != kMaxSampleValue) {
+	if (external_pitch_adjust != Q<24>::one()) {
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, external_pitch_adjust);
 	}
 
@@ -575,10 +576,8 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 	    (cfg.monophonic_expression_values[0] / 192) * cfg.bend_ranges[BEND_RANGE_MAIN]
 	    + (local_expression_source_values_before_smoothing_[0] / 192) * cfg.bend_ranges[BEND_RANGE_FINGER_LEVEL];
 
-	// The pitch adjust is Q24 (2^24 is unison); the halved bend is its octaves at Q26
-	overall_pitch_adjust =
-	    deluge::dsp::fixed::exp_curve(Q<24>::from_raw(overall_pitch_adjust), Q<26>::from_raw(total_bend_amount >> 1))
-	        .raw();
+	// The halved bend is the pitch's octaves at Q26
+	overall_pitch_adjust = deluge::dsp::fixed::exp_curve(overall_pitch_adjust, Q<26>::from_raw(total_bend_amount >> 1));
 
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
@@ -586,7 +585,7 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 		const auto env_value = Q<31>::from_raw(get_decay4(porta_envelope_pos_, 23));
 		// One plus the decay times the porta depth
 		const auto porta = mul_r_as_wrap<Q<24>>(env_value, porta_envelope_max_amplitude_);
-		const int32_t pitch_adjustment_here = add_wrap(Q<24>::one(), porta).raw();
+		const Q<24> pitch_adjustment_here = add_wrap(Q<24>::one(), porta);
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
@@ -617,17 +616,16 @@ void Voice::write_stereo(const VoiceOutput& output) {
 	dsp::Q<31> const* __restrict__ osc_buffer_pos = output.buffer;
 	dsp::Q<31> const* const osc_buffer_end = output.buffer + (output.num_samples << 1);
 	auto* __restrict__ output_sample = reinterpret_cast<StereoSample*>(output.sound_buffer);
-	int32_t overall_osc_amplitude_now = output.amplitude_start;
+	Q<31> overall_osc_amplitude_now = output.amplitude_start;
 
 	do {
 		Q<31> left = *(osc_buffer_pos++);
 		Q<31> right = *(osc_buffer_pos++);
 
-		overall_osc_amplitude_now += output.amplitude_increment;
+		overall_osc_amplitude_now = add_wrap(overall_osc_amplitude_now, output.amplitude_increment);
 		if (!output.fm) {
-			const Q<31> amplitude = Q<31>::from_raw(overall_osc_amplitude_now);
-			left = mul_r_as_wrap<Q<31>>(left, amplitude);
-			right = mul_r_as_wrap<Q<31>>(right, amplitude);
+			left = mul_r_as_wrap<Q<31>>(left, overall_osc_amplitude_now);
+			right = mul_r_as_wrap<Q<31>>(right, overall_osc_amplitude_now);
 		}
 
 		if constexpr (kClipping) {
@@ -655,14 +653,14 @@ void Voice::write_mono(const VoiceOutput& output) {
 	dsp::Q<31> const* __restrict__ osc_buffer_pos = output.buffer;
 	dsp::Q<31> const* const osc_buffer_end = output.buffer + output.num_samples;
 	dsp::Q<31>* __restrict__ output_sample = output.sound_buffer;
-	int32_t overall_osc_amplitude_now = output.amplitude_start;
+	Q<31> overall_osc_amplitude_now = output.amplitude_start;
 
 	do {
 		Q<31> sample = *osc_buffer_pos;
 
 		if (!output.fm) {
-			overall_osc_amplitude_now += output.amplitude_increment;
-			sample = mul_r_as_wrap<Q<31>>(sample, Q<31>::from_raw(overall_osc_amplitude_now));
+			overall_osc_amplitude_now = add_wrap(overall_osc_amplitude_now, output.amplitude_increment);
+			sample = mul_r_as_wrap<Q<31>>(sample, overall_osc_amplitude_now);
 		}
 
 		if constexpr (kClipping) {
@@ -747,7 +745,7 @@ bool Voice::end_with_parts() {
 
 // A voice whose every active source is a play-once sample starts its release so that it ends with the sample: once the
 // highest-pitched unison part has less left than the release takes.
-void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, int32_t overall_pitch_adjust) {
+void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, Q<24> overall_pitch_adjust) {
 	// Not if already releasing, or with no release set, or a noise source
 	if (cfg.synth_mode == SynthMode::FM || envelopes_[0].stage() >= Envelope::Stage::RELEASE || !has_release_stage()
 	    || cfg.noise_volume_contains_something) {
@@ -788,7 +786,9 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		if (!adjust_pitch(actual_sample_read_rate, overall_pitch_adjust)) {
 			continue;
 		}
-		if (!adjust_pitch(actual_sample_read_rate, params_.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+		if (!adjust_pitch(
+		        actual_sample_read_rate,
+		        matrix::param_value_at<params::LOCAL_OSC_A_PITCH_ADJUST, kNumSources>(params_.param_final_values, s))) {
 			continue;
 		}
 		// The read rate leaves time stretching out, which songs made since V3.0 rely on.
@@ -829,11 +829,10 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 }
 
 DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
-                                               const VoiceBlock& block, int32_t filter_gain,
-                                               int32_t overall_pitch_adjust, bool first_render,
-                                               bool stereo_unison) const {
+                                               const VoiceBlock& block, Q<28> filter_gain, Q<24> overall_pitch_adjust,
+                                               bool first_render, bool stereo_unison) const {
 	DualSourceControls controls{
-	    .noise_volume = params_.param_final_values[params::LOCAL_NOISE_VOLUME],
+	    .noise_volume = matrix::param_value<params::LOCAL_NOISE_VOLUME>(params_.param_final_values),
 	    .env0_attack = matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values),
 	    .filter_gain = filter_gain,
 	    .overall_pitch_adjust = overall_pitch_adjust,
@@ -844,8 +843,10 @@ DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& contro
 	    .stereo_unison = stereo_unison,
 	};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		controls.volume[s] = params_.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
-		controls.pitch_adjust[s] = params_.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
+		controls.volume[s] =
+		    matrix::param_value_at<params::LOCAL_OSC_A_VOLUME, kNumSources>(params_.param_final_values, s);
+		controls.pitch_adjust[s] =
+		    matrix::param_value_at<params::LOCAL_OSC_A_PITCH_ADJUST, kNumSources>(params_.param_final_values, s);
 		controls.phase_width[s] = params_.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s];
 		controls.wave_index[s] = params_.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
 		controls.pitch_mod_disallows_cache[s] =
@@ -854,7 +855,7 @@ DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& contro
 	return controls;
 }
 
-FmControls Voice::fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain, int32_t overall_pitch_adjust,
+FmControls Voice::fm_controls(Q<31> overall_osc_amplitude, Q<28> filter_gain, Q<24> overall_pitch_adjust,
                               bool first_render, bool stereo_unison) const {
 	FmControls controls{
 	    .overall_osc_amplitude = overall_osc_amplitude,
@@ -865,15 +866,22 @@ FmControls Voice::fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain
 	    .stereo_unison = stereo_unison,
 	};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		controls.carrier_volume[s] = params_.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
-		controls.carrier_pitch_adjust[s] = params_.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
-		controls.carrier_feedback[s] = params_.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s];
+		controls.carrier_volume[s] =
+		    matrix::param_value_at<params::LOCAL_OSC_A_VOLUME, kNumSources>(params_.param_final_values, s);
+		controls.carrier_pitch_adjust[s] =
+		    matrix::param_value_at<params::LOCAL_OSC_A_PITCH_ADJUST, kNumSources>(params_.param_final_values, s);
+		controls.carrier_feedback[s] =
+		    matrix::param_value_at<params::LOCAL_CARRIER_0_FEEDBACK, kNumSources>(params_.param_final_values, s);
 		controls.wave_index[s] = params_.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
 	}
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		controls.modulator_volume[m] = params_.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
-		controls.modulator_pitch_adjust[m] = params_.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m];
-		controls.modulator_feedback[m] = params_.param_final_values[params::LOCAL_MODULATOR_0_FEEDBACK + m];
+		controls.modulator_volume[m] =
+		    matrix::param_value_at<params::LOCAL_MODULATOR_0_VOLUME, kNumModulators>(params_.param_final_values, m);
+		controls.modulator_pitch_adjust[m] =
+		    matrix::param_value_at<params::LOCAL_MODULATOR_0_PITCH_ADJUST, kNumModulators>(params_.param_final_values,
+		                                                                                   m);
+		controls.modulator_feedback[m] =
+		    matrix::param_value_at<params::LOCAL_MODULATOR_0_FEEDBACK, kNumModulators>(params_.param_final_values, m);
 	}
 	return controls;
 }

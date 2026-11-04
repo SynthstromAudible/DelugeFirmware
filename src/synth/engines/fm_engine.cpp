@@ -173,10 +173,8 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 	}
 }
 
-void FMEngine::set_levels(std::span<const int32_t, kNumModulators> modulator_volume) {
-	// The modulators' volumes are Q31 param words
-	std::ranges::transform(modulator_volume, modulator_amplitude_last_time_.begin(),
-	                       [](int32_t volume) { return Q<31>::from_raw(volume); });
+void FMEngine::set_levels(std::span<const Q<31>, kNumModulators> modulator_volume) {
+	std::ranges::copy(modulator_volume, modulator_amplitude_last_time_.begin());
 }
 
 EngineRenderResult FMEngine::render(const EngineBlock& block) {
@@ -214,9 +212,9 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 	// Each carrier's amplitude, with the voice's worked in: no multiplication per sample at the end. Clipped below
 	// "4" in the oscillators' terms.
 	for (int32_t s = 0; s < kNumSources; s++) {
-		pass.source_amplitudes[s] =
-		    std::min(mul(Q<31>::from_raw(c.carrier_volume[s]), Q<31>::from_raw(c.overall_osc_amplitude)).raw(),
-		             static_cast<int32_t>(134217727));
+		// The product's word, Q30, is the carrier's level as the operators take it
+		pass.source_amplitudes[s] = dsp::reinterpret_bits<Q<31>>(
+		    clamp_high(mul(c.carrier_volume[s], c.overall_osc_amplitude), Q<30>::from_raw(134217727)));
 	}
 
 	// A new filter gain, or a slow attack on the first block, jumps to the new levels rather than ramping to them
@@ -225,18 +223,20 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 		levels.amplitudes_last_time = pass.source_amplitudes;
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
-		pass.source_amplitude_increments[s] =
-		    static_cast<int32_t>(pass.source_amplitudes[s] - levels.amplitudes_last_time[s]) / num_samples;
+		// Raw: the increment is an integer division of the levels' difference
+		pass.source_amplitude_increments[s] = Q<31>::from_raw(
+		    static_cast<int32_t>(pass.source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw()) / num_samples);
 	}
 	levels.filter_gain_last_time = c.filter_gain;
 
 	// Whether each modulator sounds this block
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		// Raw: the increment is an integer division of the levels' difference
-		const int32_t last = modulator_amplitude_last_time_[m].raw();
-		pass.modulators_active[m] = (c.modulator_volume[m] != 0 || last != 0);
+		const Q<31> last = modulator_amplitude_last_time_[m];
+		pass.modulators_active[m] = (c.modulator_volume[m] != Q<31>{} || last != Q<31>{});
 		if (pass.modulators_active[m]) {
-			pass.modulator_amplitude_increments[m] = static_cast<int32_t>(c.modulator_volume[m] - last) / num_samples;
+			// Raw: the increment is an integer division of the levels' difference
+			pass.modulator_amplitude_increments[m] =
+			    Q<31>::from_raw(static_cast<int32_t>(c.modulator_volume[m].raw() - last.raw()) / num_samples);
 		}
 	}
 
@@ -250,14 +250,14 @@ std::array<UQ<32>, kNumSources> FMEngine::carrier_increments(const EngineBlock& 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
 		const bool too_high =
-		    (c.overall_pitch_adjust != kMaxSampleValue && !adjust_pitch(phase_increments[s], c.overall_pitch_adjust));
+		    (c.overall_pitch_adjust != Q<24>::one() && !adjust_pitch(phase_increments[s], c.overall_pitch_adjust));
 		if (too_high) {
-			pass.source_amplitudes[s] = 0;
+			pass.source_amplitudes[s] = Q<31>{};
 		}
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (!adjust_pitch(phase_increments[s], c.carrier_pitch_adjust[s])) {
-			pass.source_amplitudes[s] = 0;
+			pass.source_amplitudes[s] = Q<31>{};
 		}
 	}
 	return phase_increments;
@@ -273,7 +273,7 @@ std::array<UQ<32>, kNumModulators> FMEngine::modulator_increments(const EngineBl
 			pass.modulators_active[m] = false;
 		}
 	}
-	if (c.overall_pitch_adjust != kMaxSampleValue) {
+	if (c.overall_pitch_adjust != Q<24>::one()) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 			if (pass.modulators_active[m] && !adjust_pitch(increments[m], c.overall_pitch_adjust)) {
 				pass.modulators_active[m] = false;
@@ -300,30 +300,26 @@ bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
 	const bool into_silent_modulator = cfg.modulator1_to_modulator0 && !active[0];
 	if (active[1] && !into_silent_modulator) {
 		render_sine_wave_with_feedback(modulator_scratch, num_samples, &modulator_phase_[u][1],
-		                               modulator_amplitude_last_time_[1], increments[1],
-		                               Q<31>::from_raw(c.modulator_feedback[1]), &modulator_feedback_[u][1], false,
-		                               Q<31>::from_raw(pass.modulator_amplitude_increments[1]));
+		                               modulator_amplitude_last_time_[1], increments[1], c.modulator_feedback[1],
+		                               &modulator_feedback_[u][1], false, pass.modulator_amplitude_increments[1]);
 		if (cfg.modulator1_to_modulator0) {
 			// Modulator 0, frequency-modulated by modulator 1
 			render_fm_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-			                        modulator_amplitude_last_time_[0], increments[0],
-			                        Q<31>::from_raw(c.modulator_feedback[0]), modulator_feedback_[u].data(),
-			                        Q<31>::from_raw(pass.modulator_amplitude_increments[0]));
+			                        modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
+			                        modulator_feedback_[u].data(), pass.modulator_amplitude_increments[0]);
 		}
 		else if (active[0]) {
 			// Modulator 0 beside it, added
 			render_sine_wave_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-			                               modulator_amplitude_last_time_[0], increments[0],
-			                               Q<31>::from_raw(c.modulator_feedback[0]), modulator_feedback_[u].data(),
-			                               true, Q<31>::from_raw(pass.modulator_amplitude_increments[0]));
+			                               modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
+			                               modulator_feedback_[u].data(), true, pass.modulator_amplitude_increments[0]);
 		}
 		return true;
 	}
 	if (!active[1] && active[0]) {
 		render_sine_wave_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
-		                               modulator_amplitude_last_time_[0], increments[0],
-		                               Q<31>::from_raw(c.modulator_feedback[0]), modulator_feedback_[u].data(), false,
-		                               Q<31>::from_raw(pass.modulator_amplitude_increments[0]));
+		                               modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
+		                               modulator_feedback_[u].data(), false, pass.modulator_amplitude_increments[0]);
 		return true;
 	}
 	return false;
@@ -346,12 +342,11 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 		std::fill_n(fm_osc_buffer, num_samples, Q<31>{});
 	}
 
-	// The pass's levels and the controls are Q31 words
 	const bool modulated = render_modulators(block, u, increments, pass);
 
 	// The carriers: frequency-modulated by the modulators, else plain sines
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (pass.source_amplitudes[s] == 0) {
+		if (pass.source_amplitudes[s] == Q<31>{}) {
 			continue;
 		}
 		SlotPhase& carrier = block.parts[u].slots[s];
@@ -359,22 +354,19 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 			// The carriers render into their own buffer, modulated by the modulators'
 			// NOLINTNEXTLINE(readability-suspicious-call-argument)
 			render_fm_with_feedback_add(fm_osc_buffer, num_samples, block.spare_buffers[2], &carrier.osc_pos,
-			                            Q<31>::from_raw(pass.source_amplitudes_now[s]), phase_increments[s],
-			                            Q<31>::from_raw(c.carrier_feedback[s]), &carrier.carrier_feedback,
-			                            Q<31>::from_raw(pass.source_amplitude_increments[s]));
+			                            pass.source_amplitudes_now[s], phase_increments[s], c.carrier_feedback[s],
+			                            &carrier.carrier_feedback, pass.source_amplitude_increments[s]);
 		}
 		else {
-			render_sine_wave_with_feedback(fm_osc_buffer, num_samples, &carrier.osc_pos,
-			                               Q<31>::from_raw(pass.source_amplitudes_now[s]), phase_increments[s],
-			                               Q<31>::from_raw(c.carrier_feedback[s]), &carrier.carrier_feedback, true,
-			                               Q<31>::from_raw(pass.source_amplitude_increments[s]));
+			render_sine_wave_with_feedback(fm_osc_buffer, num_samples, &carrier.osc_pos, pass.source_amplitudes_now[s],
+			                               phase_increments[s], c.carrier_feedback[s], &carrier.carrier_feedback, true,
+			                               pass.source_amplitude_increments[s]);
 		}
 	}
 
 	if (c.stereo_unison) {
 		// Pan this part's carriers into the stereo buffer
-		const dsp::fixed::PanAmplitudes pan =
-		    dsp::fixed::pan_amplitudes(dsp::Q<31>::from_raw(block.cfg->unison_pan[u]));
+		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(block.cfg->unison_pan[u]);
 		for (int32_t i = 0; i < num_samples; i++) {
 			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left, pan.right);
 		}

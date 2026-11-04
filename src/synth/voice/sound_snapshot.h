@@ -45,7 +45,7 @@ struct SoundSnapshot {
 	/// render reads parts below num_unison.
 	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unison_detuners{};
 	/// Derived from num_unison and unison_stereo_spread: each unison part's pan offset, under the same rule.
-	std::array<int32_t, kMaxNumVoicesUnison> unison_pan{};
+	std::array<dsp::Q<31>, kMaxNumVoicesUnison> unison_pan{};
 	SynthMode synth_mode{
 	    SynthMode::SUBTRACTIVE}; ///< SoundState::synth_mode; selects the subtractive/ring-mod/FM render
 	bool oscillator_sync{false}; ///< SoundState::oscillator_sync

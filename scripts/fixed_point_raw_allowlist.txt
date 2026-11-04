@@ -123,7 +123,7 @@ src/deluge/processing/audio_output.cpp raw=0 boundary=18
 src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=33
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
-src/deluge/processing/sound/sound.cpp raw=0 boundary=20
+src/deluge/processing/sound/sound.cpp raw=0 boundary=23
 src/deluge/processing/sound/sound_chain_inputs.cpp raw=0 boundary=4
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
@@ -151,14 +151,13 @@ src/effects/sound_chain.cpp raw=0 boundary=2
 src/effects/track_chain.cpp raw=0 boundary=2
 src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
 src/scenes/services/knob_push.cpp raw=0 boundary=5
-src/synth/engines/block_controls.cpp raw=0 boundary=2
 src/synth/engines/block_controls.h raw=0 boundary=2
-src/synth/engines/dual_source_engine.cpp raw=0 boundary=11
-src/synth/engines/fm_engine.cpp raw=0 boundary=47
-src/synth/engines/pitch.h raw=0 boundary=4
-src/synth/engines/ring_mod_engine.cpp raw=0 boundary=6
+src/synth/engines/dual_source_engine.cpp raw=0 boundary=6
+src/synth/engines/fm_engine.cpp raw=0 boundary=35
+src/synth/engines/pitch.h raw=0 boundary=3
+src/synth/engines/ring_mod_engine.cpp raw=0 boundary=2
 src/synth/engines/slot_engine.cpp raw=0 boundary=5
-src/synth/engines/subtractive_engine.cpp raw=0 boundary=3
+src/synth/engines/subtractive_engine.cpp raw=0 boundary=4
 src/synth/matrix/evaluator.cpp raw=0 boundary=2
 src/synth/matrix/matrix_fixed.h raw=0 boundary=21
 src/synth/matrix/param_format.h raw=0 boundary=2
@@ -178,4 +177,4 @@ src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=16
 src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=11
-src/synth/voice/voice.cpp raw=0 boundary=40
+src/synth/voice/voice.cpp raw=0 boundary=35

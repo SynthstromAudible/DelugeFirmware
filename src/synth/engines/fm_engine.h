@@ -52,7 +52,7 @@ public:
 	void reset_levels() { modulator_amplitude_last_time_.fill(dsp::Q<31>{}); }
 	/// Sets the modulator levels to @p modulator_volume: held still on a slow attack's first block, and stored for the
 	/// next block at each block's end, whatever the mode.
-	void set_levels(std::span<const int32_t, kNumModulators> modulator_volume);
+	void set_levels(std::span<const dsp::Q<31>, kNumModulators> modulator_volume);
 
 	/// Renders @p block's FM into its buffer, which it clears first (FM renders no noise), and stores the source levels
 	/// the next block starts from.
@@ -62,12 +62,12 @@ private:
 	/// What each unison part's render in this block shares.
 	struct Pass {
 		/// Each carrier's amplitude this block; knocked to 0 where too high to render, for the higher parts too.
-		std::array<int32_t, kNumSources> source_amplitudes{};
-		std::array<int32_t, kNumSources> source_amplitudes_now{};       ///< Each carrier's amplitude at block start
-		std::array<int32_t, kNumSources> source_amplitude_increments{}; ///< Its per-sample increment
+		std::array<dsp::Q<31>, kNumSources> source_amplitudes{};
+		std::array<dsp::Q<31>, kNumSources> source_amplitudes_now{};       ///< Each carrier's amplitude at block start
+		std::array<dsp::Q<31>, kNumSources> source_amplitude_increments{}; ///< Its per-sample increment
 		/// Whether each modulator sounds; knocked to false where too high to render, for the higher parts too.
 		std::array<bool, kNumModulators> modulators_active{};
-		std::array<int32_t, kNumModulators> modulator_amplitude_increments{}; ///< Each one's per-sample increment
+		std::array<dsp::Q<31>, kNumModulators> modulator_amplitude_increments{}; ///< Each one's per-sample increment
 	};
 
 	/// The block's carrier levels (held, or ramping from the last block's) and which modulators sound.

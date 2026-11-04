@@ -68,7 +68,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp:
 	for (int32_t u = 0; u < cfg.num_unison; u++) {
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
+		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : deluge::dsp::Q<31>{});
 		const dsp::Q<30> unison_amplitude_l = unison_pan_amplitudes.left;
 		const dsp::Q<30> unison_amplitude_r = unison_pan_amplitudes.right;
 
@@ -80,7 +80,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp:
 		}
 
 		// If overall pitch adjusted...
-		if (c.overall_pitch_adjust != kMaxSampleValue) {
+		if (c.overall_pitch_adjust != dsp::Q<24>::one()) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (!adjust_pitch(phase_increments[s], c.overall_pitch_adjust)) {
 					return;
@@ -127,13 +127,13 @@ namespace {
 }
 } // namespace
 
-int32_t RingModEngine::level(bool has_filters, int32_t filter_gain, OscType source0, OscType source1) {
+dsp::Q<31> RingModEngine::level(bool has_filters, dsp::Q<28> filter_gain, OscType source0, OscType source1) {
 	using dsp::Q;
 	// 2^27, times the gain rounded to Q27 and back at Q31. Each step saturates: two wavetables or supersaws reach full
 	// scale unfiltered, and the resonant ladders' compensation passes it.
 	Q<31> amplitude = Q<31>::from_raw(1 << 27);
 	if (has_filters) {
-		amplitude = as_sat<Q<31>>(mul_r(amplitude, dsp::Q<28>::from_raw(filter_gain)));
+		amplitude = as_sat<Q<31>>(mul_r(amplitude, filter_gain));
 	}
 	// Sine and triangle waves come out bigger in fixed-amplitude rendering, so the others are compensated
 	for (const OscType type : {source0, source1}) {
@@ -144,18 +144,18 @@ int32_t RingModEngine::level(bool has_filters, int32_t filter_gain, OscType sour
 			amplitude = scale_shl_sat<2>(amplitude);
 		}
 	}
-	return amplitude.raw();
+	return amplitude;
 }
 
 void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
                                        dsp::UQ<32> osc_sync_pos, bool has_filters, int32_t cpu_direness,
-                                       int32_t filter_gain, dsp::Q<30> unison_amplitude_l,
+                                       dsp::Q<28> filter_gain, dsp::Q<30> unison_amplitude_l,
                                        dsp::Q<30> unison_amplitude_r, bool stereo_unison, dsp::Q<31>* osc_buffer,
                                        int32_t num_samples, dsp::Q<31>* scratch0, dsp::Q<31>* scratch1,
                                        std::span<dsp::Q<31>> sync_scratch) {
 
 	using dsp::Q;
-	const Q<31> amplitude_for_ring_mod = Q<31>::from_raw(level(has_filters, filter_gain, src0.osc_type, src1.osc_type));
+	const Q<31> amplitude_for_ring_mod = level(has_filters, filter_gain, src0.osc_type, src1.osc_type);
 
 	const std::array<const RingSource*, kNumSources> sources{&src0, &src1};
 	const std::array<dsp::Q<31>*, kNumSources> scratch{scratch0, scratch1};
@@ -171,8 +171,8 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		// The master's phase and increment are the resetter's
 		// NOLINTBEGIN(readability-suspicious-call-argument)
 		const synth::BlockControls controls =
-		    make_block_controls(0, 0, source.pulse_width, /*apply_amplitude=*/false, synced, osc_sync_pos,
-		                        src0.phase_increment, source.retrigger_phase, cpu_direness);
+		    make_block_controls(dsp::Q<31>{}, dsp::Q<31>{}, source.pulse_width, /*apply_amplitude=*/false, synced,
+		                        osc_sync_pos, src0.phase_increment, source.retrigger_phase, cpu_direness);
 		// NOLINTEND(readability-suspicious-call-argument)
 		const std::span<dsp::Q<31>> out{scratch[s], static_cast<size_t>(num_samples)};
 		const std::span<dsp::Q<31>> sync_block = sync_scratch.first(static_cast<size_t>(num_samples));

@@ -98,7 +98,7 @@ inline SoundSnapshot snapshot(SynthMode mode) {
 
 inline VoiceConfig config(SynthMode mode, OscType osc) {
 	VoiceConfig cfg{};
-	cfg.volume_neutral_value_for_unison = 134217728;
+	cfg.volume_neutral_value_for_unison = deluge::dsp::Q<31>::from_raw(134217728);
 	cfg.voice_priority = VoicePriority::MEDIUM;
 	cfg.synth_mode = mode;
 	cfg.num_unison = 1;
@@ -144,7 +144,7 @@ inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cf
 	    {
 	        .buffer = rig.out.data(),
 	        .num_samples = kBlock,
-	        .pitch_adjust = kMaxSampleValue,
+	        .pitch_adjust = deluge::dsp::Q<24>::one(),
 	        .spare_buffers = {rig.spare[0].data(), rig.spare[1].data(), rig.spare[2].data(), rig.spare[3].data()},
 	        .filter_scratch = {.fade = rig.fade, .parallel = rig.parallel},
 	        .sync_scratch = rig.sync,

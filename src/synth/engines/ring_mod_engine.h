@@ -51,7 +51,7 @@ public:
 	/// @brief The level the two sources' product is scaled by: 2^27, times the filters' Q28 gain (2^28 unity) when
 	/// there are filters, then doubled for a saw source and quadrupled for a wavetable or supersaw one, as those waves
 	/// render smaller.
-	[[nodiscard]] static int32_t level(bool has_filters, int32_t filter_gain, OscType source0, OscType source1);
+	[[nodiscard]] static dsp::Q<31> level(bool has_filters, dsp::Q<28> filter_gain, OscType source0, OscType source1);
 
 private:
 	/// Renders each unison part; stops at the first too high to render.
@@ -62,7 +62,7 @@ private:
 	/// @p scratch0, @p scratch1 and @p sync_scratch are the voice's (each ≥ @p num_samples).
 	static void render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
 	                               dsp::UQ<32> osc_sync_pos, bool has_filters, int32_t cpu_direness,
-	                               int32_t filter_gain, dsp::Q<30> unison_amplitude_l, dsp::Q<30> unison_amplitude_r,
+	                               dsp::Q<28> filter_gain, dsp::Q<30> unison_amplitude_l, dsp::Q<30> unison_amplitude_r,
 	                               bool stereo_unison, dsp::Q<31>* osc_buffer, int32_t num_samples,
 	                               dsp::Q<31>* scratch0, dsp::Q<31>* scratch1, std::span<dsp::Q<31>> sync_scratch);
 };

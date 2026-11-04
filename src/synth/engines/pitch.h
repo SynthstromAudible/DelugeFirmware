@@ -23,14 +23,14 @@
 
 namespace deluge::synth {
 
-/// Scales @p phase_increment by @p adjustment, a pitch adjust where kMaxSampleValue (2^24) is unity.
+/// Scales @p phase_increment by @p adjustment, a pitch factor (2^24 is unison).
 /// @return false when the result is too high to render (above 22.05 kHz); @p phase_increment is then not valid.
-[[nodiscard]] inline bool adjust_pitch(dsp::UQ<32>& phase_increment, int32_t adjustment) {
-	if (adjustment != kMaxSampleValue) {
+[[nodiscard]] inline bool adjust_pitch(dsp::UQ<32>& phase_increment, dsp::Q<24> adjustment) {
+	if (adjustment != dsp::Q<24>::one()) {
 		using dsp::Q;
 		// The increment's word read as signed Q31 (base increments stay under 2^31) times the Q24 adjustment, rounded:
 		// Q23, too high at 1.0 and above, else moved back to Q31 and its word read as the increment again
-		const Q<23> output = mul_r(dsp::reinterpret_bits<Q<31>>(phase_increment), Q<24>::from_raw(adjustment));
+		const Q<23> output = mul_r(dsp::reinterpret_bits<Q<31>>(phase_increment), adjustment);
 		if (output.raw() >= (1 << 23)) {
 			return false;
 		}

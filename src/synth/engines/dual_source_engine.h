@@ -46,23 +46,23 @@ protected:
 	/// Each source's wavetable index slope for this block.
 	[[nodiscard]] static std::array<int32_t, kNumSources> wave_index_increments(const EngineBlock& block);
 	/// Stores the levels the next block starts from: @p amplitudes and this block's wavetable indexes.
-	static void store_levels(const EngineBlock& block, const std::array<int32_t, kNumSources>* amplitudes);
+	static void store_levels(const EngineBlock& block, const std::array<dsp::Q<31>, kNumSources>* amplitudes);
 
 	/// Renders source @p s in each unison part, adding into @c block.osc_buffer. @p increments_out, unless empty,
 	/// takes each part's increment (0 when too high to render) for the parts osc sync follows; with @p advance_only
 	/// the source only advances its phase. @return whether a unison part became inactive (its sample ended).
 	[[nodiscard]] static bool render_source(const EngineBlock& block, int32_t s, bool stereo_buffer,
-	                                        int32_t source_amplitude, int32_t amplitude_increment, bool do_osc_sync,
-	                                        const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
-	                                        std::span<dsp::UQ<32>> increments_out, bool advance_only,
-	                                        int32_t wave_index_increment);
+	                                        dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
+	                                        bool do_osc_sync, const dsp::UQ<32>* sync_pos,
+	                                        const dsp::UQ<32>* sync_increments, std::span<dsp::UQ<32>> increments_out,
+	                                        bool advance_only, int32_t wave_index_increment);
 	/// Whether every unison part's sources have ended, with no noise to keep the voice sounding.
 	[[nodiscard]] static bool all_parts_inactive(const EngineBlock& block);
 
 private:
 	/// One unison part of one source through the @ref Source contract.
 	static SourceRenderResult render_part(const EngineBlock& block, int32_t u, int32_t s, bool stereo_buffer,
-	                                      int32_t source_amplitude, int32_t amplitude_increment,
+	                                      dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
 	                                      dsp::UQ<32> phase_increment, bool do_osc_sync, const dsp::UQ<32>* sync_pos,
 	                                      const dsp::UQ<32>* sync_increments, int32_t wave_index_increment,
 	                                      bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r);

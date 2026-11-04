@@ -1977,7 +1977,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
-		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
+		    // The neutral is the volume's Q31 word, scaled in floating point
+		    .volume_neutral_value_for_unison = deluge::dsp::Q<31>::from_raw(volumeNeutralValueForUnison),
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .voice_priority = snapshot_.voice_priority,
 		    .synth_mode = getSynthMode(),
@@ -2043,7 +2044,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                    .sound_in_stereo = voice_rendered_in_stereo,
 			                                    .pan_at_voice_level = applyingPanAtVoiceLevel,
 			                                    .sources_changed = voiceSourcesChanged,
-			                                    .pitch_adjust = pitchAdjust,
+			                                    .pitch_adjust = deluge::dsp::Q<24>::from_raw(pitchAdjust),
 			                                    .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
 			                                                      spareRenderingBuffer[2], spareRenderingBuffer[3]},
 			                                    .filter_scratch = deluge::render::filter_scratch(),
@@ -2567,7 +2568,8 @@ void Sound::setupUnisonStereoSpread() {
 			bool isOdd = std::min(u, snapshot_.num_unison - 1 - u) & 1;
 			int32_t sign = isOdd ? -1 : 1;
 
-			snapshot_.unison_pan[u] = sign * (lowestVoice + voiceSpacing * u);
+			// Raw: the pans are integer steps of the spread across the stereo field
+			snapshot_.unison_pan[u] = deluge::dsp::Q<31>::from_raw(sign * (lowestVoice + voiceSpacing * u));
 		}
 	}
 }
