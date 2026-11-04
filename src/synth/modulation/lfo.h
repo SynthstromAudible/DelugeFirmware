@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
@@ -58,7 +58,9 @@ namespace lfo_wave {
 /// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate).
 /// @param num_samples     samples in this render block.
 [[gnu::always_inline]] inline void advance(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-	phase += phase_increment * num_samples;
+	// The block's step is an integer product, wrapping
+	phase = add_wrap(deluge::dsp::UQ<32>::from_raw(phase), deluge::dsp::UQ<32>::from_raw(phase_increment * num_samples))
+	            .raw();
 }
 
 /// Rising ramp: the phase itself, reinterpreted as a signed q31 sweep from −1 to +1.
@@ -127,7 +129,9 @@ struct RandomWalk {
 			//   held_value_ ==  8*range => bias + range/2 == 0       => next value <= current (forced down)
 			//   held_value_ ==  0       => bias + range/2 == range/2 => equal chance up or down
 			//   held_value_ == -8*range => bias + range/2 == range   => next value >= current (forced up)
-			held_value_ = add_saturate((held_value_ / -16) + (range / 2) - noise.next() % range, held_value_);
+			// The step is integer, in the held value's Q31 units; the sum saturates.
+			const auto step = static_cast<int32_t>((held_value_ / -16) + (range / 2) - noise.next() % range);
+			held_value_ = add_sat(deluge::dsp::Q<31>::from_raw(step), deluge::dsp::Q<31>::from_raw(held_value_)).raw();
 		}
 		advance(phase, phase_increment, num_samples);
 		return held_value_;
@@ -149,8 +153,13 @@ struct Warbler {
 			speed_ = 0;
 		}
 		int32_t distance_to_target = target_ - held_value_;
-		speed_ = speed_ + num_samples * (multiply_32x32_rshift32(distance_to_target, phase_increment >> 8));
-		held_value_ = add_saturate(held_value_, speed_);
+		// The distance's high word scaled by the increment's top 24 bits: the speed's change per sample, in the held
+		// value's Q31 units
+		const int32_t pull = mul(deluge::dsp::Q<31>::from_raw(distance_to_target),
+		                         deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(phase_increment >> 8)))
+		                         .raw();
+		speed_ = speed_ + (num_samples * pull);
+		held_value_ = add_sat(deluge::dsp::Q<31>::from_raw(held_value_), deluge::dsp::Q<31>::from_raw(speed_)).raw();
 		advance(phase, phase_increment, num_samples);
 		return held_value_;
 	}
@@ -196,7 +205,7 @@ public:
 	void tick(int32_t num_samples, uint32_t phase_increment) {
 		// Note: if this overflows and we're using SAMPLE_AND_HOLD or RANDOM_WALK, the next render() won't know
 		// it has overflown. Probably not an issue.
-		phase_ += phase_increment * num_samples;
+		lfo_wave::advance(phase_, phase_increment, num_samples);
 	}
 
 	uint32_t phase() const { return phase_; }

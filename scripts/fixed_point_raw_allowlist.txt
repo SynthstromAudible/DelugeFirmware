@@ -113,8 +113,8 @@ src/synth/engines/slot_engine.cpp raw=1 boundary=0
 src/synth/engines/subtractive_engine.cpp raw=1 boundary=0
 src/synth/matrix/matrix_fixed.h raw=0 boundary=41
 src/synth/modulation/cable_depth.h raw=0 boundary=12
-src/synth/modulation/envelope.cpp raw=5 boundary=0
-src/synth/modulation/lfo.h raw=3 boundary=0
+src/synth/modulation/envelope.cpp raw=0 boundary=20
+src/synth/modulation/lfo.h raw=0 boundary=12
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=15
 src/synth/sources/input/input_source.cpp raw=8 boundary=0
 src/synth/sources/input/live/live_input_buffer.cpp raw=1 boundary=0
