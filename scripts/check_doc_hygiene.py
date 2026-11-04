@@ -8,7 +8,7 @@
 A comment says what the code is and why; how it got there is git's. Two kinds of finding:
 
 - ``history``: a task, review or workstream breadcrumb (``Task 7``, ``fix round 1``, ``F1 task 11``, ``WS4b``,
-  ``spec E``) or rename/former narration (``used to``, ``was renamed``).
+  ``spec D §7``, ``spec E3``, ``shell spec §15.1`` -- the plan specs live outside the tree) or rename/former narration (``used to``, ``was renamed``).
 - ``own-citation``: a ``file:N`` citation whose file is ours -- the port's trees and the guest glue -- which a later
   edit moves out from under it. Cite the symbol instead. Citations into legacy code are ``check_citations.py``'s.
 
@@ -51,7 +51,8 @@ HISTORY = re.compile(
     r"|\b[A-Z]\d+ task\b"
     r"|\bfinal review\b"
     r"|\bWS\d+[a-z]?(?:-\d+)?\b"
-    r"|\bspec E\b"
+    r"|\bspec [A-H](?:\d+)?(?:-[a-z-]+)?\b"
+    r"|\b(?:shell|design|migration) spec\b"
     r"|(?<!is )(?<!are )(?<!be )(?<!been )\bused to\b"
     r"|\bwas renamed\b|\brenamed from\b|\bthe old name\b"
 )

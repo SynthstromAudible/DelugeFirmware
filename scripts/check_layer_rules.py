@@ -629,19 +629,7 @@ RULES = [
         # scenes-includes-outside above already forbids gui/ (except gui/l10n/) and hid/ wholesale,
         # but names every other allowed directory explicitly rather than the two forbidden ones --
         # this row restates the gui/hid half on its own so a reviewer scanning by rule name finds
-        # it without re-deriving the negation. The (include, *excludes) glob tuple already exists
-        # (`rule_covers`, check_layer_rules.py:775-787, as ui-widgets-read-input-directly uses at
-        # :319) -- no checker change needed; this row needs no `except` field of its own.
-        #
-        # Both numbers in that parenthetical were wrong before F1 task 12 as well as after it, and
-        # they are why `SCAN_ROOTS` now reaches `scripts/`: nothing has ever read a citation written
-        # in a Python file. At 32f4d4551 `:214-226` was the `ui-grid-no-oled` row and `:98` was a
-        # `CATALOGUE_DISPATCH_CALLS` entry -- neither has been `rule_covers` or a glob tuple for
-        # several plans. They are left wrong on purpose: the wrongness IS the example, and
-        # correcting them would delete it. What a reader should know is that they have since drifted
-        # further -- F3 task 5's `CLAIM_SEAM_CALLS` insert moved `rule_covers` from `:885` to `:946`
-        # -- and that `check_citation_shift.py` cannot see this, because a self-citation inside the
-        # file it cites is compared against the same file's own new text.
+        # it without re-deriving the negation. This row needs no `except` field of its own.
         "scenes-includes-gui",
         "src/scenes/**",
         "include",

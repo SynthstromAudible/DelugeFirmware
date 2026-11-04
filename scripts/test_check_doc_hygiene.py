@@ -25,6 +25,11 @@ class HistoryTest(unittest.TestCase):
             "// E2 task 12 found the gap.",
             "// carried from WS4b into here",
             "// spec E §4.1's MustSelectRange",
+            "// the seam for spec D §7",
+            "// spec E3's carry",
+            "// spec E-note-family §5.2",
+            "// a permanent blit (shell spec §15.1, §15.3)",
+            "// design spec §15.7",
         ):
             with self.subTest(note=note):
                 self.assertEqual(kinds(note), ["history"])
@@ -40,6 +45,7 @@ class HistoryTest(unittest.TestCase):
             kinds("// The release of a fed press is fed too, whatever the claim."), []
         )
         self.assertEqual(kinds("// A task the scheduler runs."), [])
+        self.assertEqual(kinds("// the spec examples pin it"), [])
 
     def test_reads_comments_only(self):
         self.assertEqual(kinds('const char* s = "Task 7";\n'), [])
