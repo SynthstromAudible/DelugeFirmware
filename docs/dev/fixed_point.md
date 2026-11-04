@@ -189,9 +189,13 @@ instructions.
 - **Frames:** `StereoSample` is two `Q<31>` channels. Its `+` and `+=` are a frame's mix: `add_wrap` per channel.
   `panned_mono` and `panned_stereo` take `Q<31>` samples and `Q<30>` amplitudes (unity at 2^30), multiplying with
   `mul_as_wrap<Q<31>>`. The sample-rate reducer's grabs are a `Q<30>` pair.
-- **Curves:** `instant_tan` and `release_rate` blend Q28 and Q31 table entries at Q31 weights; the square and linear
-  param curves take a Q29 combination and read the neutral as Q31, so each product is reformatted back to the
-  neutral's units; `exp_curve`'s blend is Q30 of 2^fraction. `quick_log` stays integer (2^25 per octave).
+- **Curves:** a param's combination is `Q<29>` (2^29 is "1"; `preset_combination` gives a stored word's). The square,
+  linear and exponential curves take the neutral as any `Q<F>` and return that format (`curve_square<F>`): the
+  product is reformatted back to the neutral's, the same arithmetic for every F. `curve_bipolar` is `Q<31>`. The
+  exponential and release-rate curves read the combination's word as octaves (`exp_curve`'s `Q<26>`) and as table
+  steps at 2^24. `instant_tan` takes a `Q<31>` angle (2^31 spans 1.44 radians) to a `Q<28>` tangent;
+  `instant_tan` and `release_rate` blend table entries at Q31 weights, and `exp_curve`'s blend is Q30 of
+  2^fraction. `quick_log` stays integer (2^25 per octave). Callers whose neutral has mixed units read it as `Q<31>`.
 - **Hard sync:** the phases and increments are `UQ<32>`, read as Q31 for the signed multiplies; the resetter
   reciprocal is `Q<16>`, 1 / the resetter increment read as Q31, so an overshoot over the increment is a fraction of
   a sample at Q15.
@@ -281,9 +285,13 @@ instructions.
 - **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A
   fixed-point kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a
   `StereoSample` stepped as itself or as `StereoVector`; the float kernels step `f32` as `Argon<float>`. The component
-  framework has no raw-integer path. `fixed::SeededNoise` gives raw noise words, the specs' and benches' inputs. The
-  app and the legacy synth hold raw `q31_t` buffers and view them typed at each call (see the seam view below), until
-  their own interfaces are typed.
+  framework has no raw-integer path. `fixed::SeededNoise` gives raw noise words, the specs' and benches' inputs.
+- **The synth's and the app's buffers** are typed. The synth backend (`synth/sources/backend.h`) names a sample and
+  a level `Q<31>` and a pan `Q<30>`, so the source and engine blocks, the voice's buffers and the render scratch
+  (`spareRenderingBuffer`, the osc-sync buffer) are `Q<31>`; the DX7 port returns `Q<24>`. The FM operators' buffers
+  and the sample reader's mix hold their Q30 products as the words of the voice's Q31 samples (`buffer_sample`,
+  `mixed_in`). The audio clip, the sample reader, the reverb send (`ReverbSend`, the engine's reverb memory) and the
+  bench's blocks are typed too. Their internal arithmetic, phases and the mod matrix still convert at each step.
 
 ## Measuring
 
@@ -308,10 +316,9 @@ any source change, so an empty result is not the gate. Each changed function is 
   the codec/DMA edge. There is no `may_alias`.
 - **The seam view** (`dsp-next/core/buffer_view.h`): `typed_view<T = Q<31>>(span<int32_t>)` views raw words as a
   32-bit format and `raw_view(span<Q<F>>)` views them back, over the same storage (a `Q<F>` is standard layout with
-  its `int32_t` as its only member). It is for raw callers meeting a typed kernel: the app, the legacy synth, the
-  bench and the specs. Inside dsp-next only raw machine code takes it: the DX7 graph's call into the device's NEON
-  kernel and the supersaw's hand-written NEON passes. The app's and the legacy synth's views go as their interfaces
-  are typed.
+  its `int32_t` as its only member). Raw machine code takes it: the DX7 graph's call into the device's NEON kernel and
+  the supersaw's hand-written NEON passes, the only views outside the specs. The specs view their raw references'
+  buffers with it.
 - **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `q31_ops.h`:
   - raw sites, meaning raw helper calls and DSP-instruction asm;
   - seam views, meaning `typed_view` and `raw_view` calls;
