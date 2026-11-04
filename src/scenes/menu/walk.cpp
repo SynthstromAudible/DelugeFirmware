@@ -308,7 +308,7 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms, plus legacy's
+	// (`sound_editor.cpp:1991-1995`), ahead of every one of its arms, plus legacy's
 	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
 	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
 	// doc for why the two callers need the same piece.

@@ -2,7 +2,7 @@
 # row 1 of a small vertical wrapper, with two MultiRanges on the source.
 #
 # Entry is not *refused*: `Permission::MustSelectRange` makes `MenuScene::enter_child` open `nodes::multi_range` in the leaf's place -- legacy's own
-# `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (`sound_editor.cpp:1857-1858`).
+# `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (`SoundEditor::setup`).
 # So `after_select_press` is the real range picker, listing both ranges by name, and `after_back`
 # is the wrapper again. The script pins that the *leaf* is never opened and its value never
 # moves.

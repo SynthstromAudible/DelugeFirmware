@@ -124,7 +124,7 @@ bool portedMenuOnAuditionedRowDirection();
 /// @brief `soundEditor.goUpOneLevel()` (`gui/ui/sound_editor.cpp:710-729`), ported.
 void noteModeGoUpOneLevel();
 
-/// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`gui/ui/sound_editor.cpp:1925-1975`), ported.
+/// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`gui/ui/sound_editor.cpp:1923-1973`), ported.
 void noteModeToggleNoteEditorParamMenu(int32_t on);
 
 /// @}

@@ -19,6 +19,7 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
+#include "io/midi/midi_device.h"
 
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
@@ -80,6 +81,43 @@ struct Rig {
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(at)});
 	}
 };
+
+/// @brief A cable this spec owns: `MIDICable` is abstract and no shipped subclass builds without a backend.
+struct SpecCable final : ::MIDICable {
+	void writeToFlash(uint8_t*) override {}
+	char const* getDisplayName() override { return "contract"; }
+	void sendMessage(MIDIMessage) override {}
+	void sendSysex(const uint8_t*, int32_t) override {}
+	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
+
+protected:
+	void writeReferenceAttributesToFile(Serializer&) override {}
+};
+
+SpecCable& spec_cable() {
+	static SpecCable instance;
+	return instance;
+}
+
+using deluge::ui::shell::ButtonId;
+using deluge::ui::shell::Result;
+using deluge::ui::shell::UiEvent;
+
+/// @brief Hand the menu one event, with Shift held or not and nothing else held.
+Result send(const UiEvent& event, bool shift = false) {
+	const deluge::ui::shell::ButtonSet held{};
+	const deluge::ui::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, shift, false, 0, deluge_profile()};
+	return menu_scene().handle(event, ui);
+}
+
+Result button(ButtonId b, bool on) {
+	return send(UiEvent{.kind = UiEvent::Kind::Button, .on = on, .button = b});
+}
+
+Result midi(UiEvent::Kind kind, bool shift = false) {
+	return send(UiEvent{.kind = kind, .channel = 3, .data1 = 64, .data2 = 100, .cable = &spec_cable()}, shift);
+}
 
 } // namespace
 
@@ -176,6 +214,88 @@ describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 	});
 });
+
+describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
+	it("uses no MIDI message outside learn mode", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		for (const UiEvent::Kind k : {UiEvent::Kind::MidiNoteOn, UiEvent::Kind::MidiProgramChange,
+		                              UiEvent::Kind::MidiCc, UiEvent::Kind::MidiPitchBend}) {
+			expect(midi(k).handled).to_be_false();
+		}
+	});
+
+	it("in learn mode uses a note-on even on an item that learns nothing from it", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		(void)button(ButtonId::Learn, true);
+		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
+		expect(midi(UiEvent::Kind::MidiNoteOn).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiNoteOn, true).handled).to_be_true();
+	});
+
+	it("in learn mode uses a CC and a program change whatever Shift does, and a pitch bend only with Shift up", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		(void)button(ButtonId::Learn, true);
+		expect(midi(UiEvent::Kind::MidiCc).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiCc, true).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiProgramChange).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiProgramChange, true).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiPitchBend).handled).to_be_true();
+		expect(midi(UiEvent::Kind::MidiPitchBend, true).handled).to_be_false();
+	});
+
+	it("leaves learn mode on LEARN's release, and the next note-on plays", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		(void)button(ButtonId::Learn, true);
+		(void)button(ButtonId::Learn, false);
+		expect(midi(UiEvent::Kind::MidiNoteOn).handled).to_be_false();
+	});
+
+	it("ignores Back while learning, and goes back once LEARN is up", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		const uint8_t depth = menu_scene().state_for_spec().depth;
+		const Node* const focused = menu_scene().focused();
+		(void)button(ButtonId::Learn, true);
+		const Result back = button(ButtonId::Back, true);
+		(void)button(ButtonId::Back, false);
+		r.shell.tick(10);
+		expect(back.handled).to_be_true();
+		expect(back.actions.empty()).to_be_true();
+		expect(menu_scene().state_for_spec().depth).to_equal(depth);
+		expect(menu_scene().focused() == focused).to_be_true();
+
+		(void)button(ButtonId::Learn, false);
+		const Result back_after = button(ButtonId::Back, true);
+		r.shell.tick(20);
+		expect(!back_after.actions.empty() || menu_scene().state_for_spec().depth != depth).to_be_true();
+	});
+
+	it("is not learning when input comes back to it from a scene above", _ {
+		// LEARN's release went to the scene above, so the menu never saw it.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		(void)button(ButtonId::Learn, true);
+		menu_scene().on_resume();
+		expect(menu_scene().select_release_blocked()).to_be_false();
+		expect(midi(UiEvent::Kind::MidiNoteOn).handled).to_be_false();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(menu_contract_spec, menu_contract_drain, menu_contract_claims, menu_contract_visit)
+DELUGE_SPEC(menu_contract_spec, menu_contract_drain, menu_contract_claims, menu_contract_visit, menu_contract_learn)

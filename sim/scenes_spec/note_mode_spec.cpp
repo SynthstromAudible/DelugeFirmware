@@ -56,7 +56,7 @@
 
 #include "spec/support/spec_main.h"
 
-// `gui/ui/ui.cpp:267-268`: the pending-grid-render accumulators `uiNeedsRendering` writes, which
+// `gui/ui/ui.cpp:296-297`: the pending-grid-render accumulators `uiNeedsRendering` writes, which
 // `ui.h` does not export. Declared here the way `file_catalogue_spec.cpp` reaches its own globals.
 extern uint32_t whichMainRowsNeedRendering;
 extern uint32_t whichSideRowsNeedRendering;

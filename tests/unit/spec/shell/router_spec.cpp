@@ -249,11 +249,8 @@ describe shell_router("shell::Router", $ {
 		// The routing claim, and the three legacy facts behind it are on
 		// `scenes/services/midi_learn.h`:
 		//
-		//   1. `View` is the fallback AFTER the current UI in both MIDI-learn dispatchers --
-		//      `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn`
-		//      first and falls through to `view.` (`src/deluge/playback/playback_handler.cpp:2968-2971`),
-		//      and `midiCCReceived` gives `soundEditor` first dibs and falls through to `view.`
-		//      (`:3128-3136`).
+		//   1. `View` is the fallback AFTER the current UI in every MIDI learn offer -- `UI`'s base
+		//      answers are `View`'s learn, and `SoundEditor` answers before falling back to them.
 		//   2. The four `View::buttonAction` arms `MidiLearn` owns sit in the SAME `if`/`else if`
 		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:140-487`),
 		//      so their relative order is unobservable given that `GlobalControls` abstains from
@@ -459,7 +456,7 @@ describe shell_router("shell::Router", $ {
 		// The gold-knob PUSH is the third hook with this shape. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
 		// (`hid/buttons.cpp:225-231`), i.e. after `getCurrentUI()->buttonAction` at `:134` -- and
 		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
-		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
+		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-74`) is another bare
 		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
 		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).

@@ -224,7 +224,7 @@ struct Descriptor {
 	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so
 	///       the browser needs no extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
-	///       (`gui/ui/sound_editor.cpp:2097-2102`, consumed by `osc/audio_recorder.h:40-48`): the
+	///       (`gui/ui/sound_editor.cpp:2095-2100`, consumed by `osc/audio_recorder.h:40-48`): the
 	///       recorder scene has no `take_choice()` equivalent to drain, so nothing calls the entry
 	///       point for it. Recorded on `nodes::AudioRecorderItem::on_focus`.
 	///

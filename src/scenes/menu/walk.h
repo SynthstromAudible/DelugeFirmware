@@ -77,7 +77,7 @@ public:
 	///        otherwise leave the focus where it is (`Submenu::focusChild`).
 	void focus_column(MenuCore core, const Node& column);
 	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation
-	///        (`sound_editor.cpp:1993-1997`) plus legacy's `MUST_SELECT_RANGE` substitution --
+	///        (`sound_editor.cpp:1991-1995`) plus legacy's `MUST_SELECT_RANGE` substitution --
 	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
 	///        (`:1857-1858`) -- the one piece `enter_child` (a descent) and `handle()`'s button
 	///        focus (legacy's `initializeItem` call in `HorizontalMenu::handleItemAction`) both run,

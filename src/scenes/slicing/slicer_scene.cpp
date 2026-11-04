@@ -130,7 +130,7 @@ void SlicerScene::reset_state() {
 
 void SlicerScene::on_resume() {
 	// `closeUI` calls `focusRegained()` on whatever is left on top once something above it closes
-	// (`gui/ui/ui.cpp:194-199`), and legacy's `Slicer` gets nothing else on that edge -- so this is
+	// (`gui/ui/ui.cpp:223-228`), and legacy's `Slicer` gets nothing else on that edge -- so this is
 	// `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`) again, exactly as `on_enter` is.
 	//
 	// A popup this scene raises is a shell scene, where legacy's is a display overlay that never reaches `closeUI`;
@@ -585,6 +585,8 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// the message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
+	case UiEvent::Kind::MidiProgramChange:
+	case UiEvent::Kind::MidiPitchBend:
 	case UiEvent::Kind::AllReleased:
 		return Result::unhandled();
 	}

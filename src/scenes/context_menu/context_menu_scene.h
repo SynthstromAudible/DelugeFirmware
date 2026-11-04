@@ -234,7 +234,7 @@ public:
 	///        (`context_menu.h:27`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`,
-	///        `*rows` left at the caller's zero (`gui/ui/ui.cpp:74-83`) -- every column, no rows.
+	///        `*rows` left at the caller's zero (`gui/ui/ui.cpp:103-112`) -- every column, no rows.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
 	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.

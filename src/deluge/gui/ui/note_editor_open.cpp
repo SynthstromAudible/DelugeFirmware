@@ -25,14 +25,14 @@ namespace deluge::gui::ui {
 
 bool noteEditorOpen() {
 	// Legacy's expression, then its port for the guest: `inNoteEditor()` reads
-	// `menuItemNavigationRecord[0]` (`gui/ui/sound_editor.cpp:1916-1918`), which no guest path writes,
+	// `menuItemNavigationRecord[0]` (`gui/ui/sound_editor.cpp:1914-1916`), which no guest path writes,
 	// and `activeNoteMode()` is that read's port. Off the guest's stack the second half is false.
 	return (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
 	       || activeNoteMode() == NoteModeKind::NoteEditor;
 }
 
 bool noteRowEditorOpen() {
-	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`gui/ui/sound_editor.cpp:1920-1922`).
+	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`gui/ui/sound_editor.cpp:1918-1920`).
 	return (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())
 	       || activeNoteMode() == NoteModeKind::NoteRowEditor;
 }

@@ -620,6 +620,8 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
+	case UiEvent::Kind::MidiProgramChange:
+	case UiEvent::Kind::MidiPitchBend:
 	case UiEvent::Kind::AllReleased:
 		break;
 	}

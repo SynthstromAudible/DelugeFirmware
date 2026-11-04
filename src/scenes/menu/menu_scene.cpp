@@ -171,7 +171,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a
 			// picker.
 			if (ctx_.addresses.slot && ctx_.range_index < 0) {
-				// `sound_editor.cpp:1855-1859`: `multiRangeMenu.menuItemHeadingTo =
+				// `SoundEditor::setup`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
 				// *instead of* the item, and the item is remembered for the picker's own select
 				// press. `enter_child` ports the same two statements for a descent
@@ -214,6 +214,8 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 }
 
 void MenuScene::on_resume() {
+	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
+	visit_.learn.cancel();
 	visit_.blink_restart =
 	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
@@ -256,7 +258,7 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (i >= r.size() || r[i] == nullptr) {
 		return false;
 	}
-	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2079-2087`). Legacy answers `nullptr`
+	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`). Legacy answers `nullptr`
 	// when no menu in the chain lists the item, and its caller then does nothing at all -- which is
 	// this `false`.
 	const Node* page = horizontal_page_listing(*r[i], *item);
@@ -689,7 +691,7 @@ Result MenuScene::after_render() {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
-		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2092`), and
+		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and
 		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
 		// own `openUI`. The four items with no return affordance record one too and nothing ever
@@ -742,6 +744,22 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// `bindings::write` is the only reader.
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+
+	// A MIDI message is an offer for MIDI learn, and nothing else here reads it.
+	switch (event.kind) {
+	case UiEvent::Kind::MidiNoteOn:
+	case UiEvent::Kind::MidiCc:
+	case UiEvent::Kind::MidiProgramChange:
+	case UiEvent::Kind::MidiPitchBend:
+		return Result{.handled = visit_.learn.offer(ctx_, st_, event, ctx)};
+	default:
+		break;
+	}
+
+	// `SoundEditor::buttonAction` acts on BACK only outside learn mode; in it, the press does nothing.
+	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && visit_.learn.mode()) {
+		return Result{.handled = true};
+	}
 
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
 	if (visit_.learn.observe(ctx_, st_, event, ctx)) {

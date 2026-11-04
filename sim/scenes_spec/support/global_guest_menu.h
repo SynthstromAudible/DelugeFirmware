@@ -29,7 +29,7 @@ namespace deluge::scenes::spec {
 ///        `setRootUILowLevel` or opens the guest with `openUI`.
 ///
 /// `menu_actions_spec.cpp`'s `UiStackGuard`, unchanged: `nullifyUIs()` is what legacy itself calls
-/// to tear the hierarchy down (`gui/ui/ui.cpp:257-261`), and `closeUI` is not safe here for the
+/// to tear the hierarchy down (`gui/ui/ui.cpp:286-290`), and `closeUI` is not safe here for the
 /// same `[-1]` reason that file's copy of this note gives.
 struct UiStackGuard {
 	UiStackGuard(const UiStackGuard&) = delete;
@@ -129,7 +129,7 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 /// an action whenever the current UI is not the root, unless a note editor is open
 /// (`model/action/action_logger.cpp:98-102`) -- the gate every note-mode edit is written through. With no
 /// UI seated, `getRootUI()` is null and `getCurrentUI()` is whatever `nullifyUIs` last left
-/// (`gui/ui/ui.cpp:136-150`), so the gate's answer would be an accident of the previous example rather
+/// (`gui/ui/ui.cpp:165-179`), so the gate's answer would be an accident of the previous example rather
 /// than the question production asks. And `instrumentClipView` is the root every note-mode handler
 /// runs under. Tear down with `UiStackGuard` and `GlobalGuestGuard`.
 ///

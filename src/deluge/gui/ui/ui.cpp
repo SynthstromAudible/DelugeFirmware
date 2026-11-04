@@ -44,6 +44,35 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	view.modEncoderButtonAction(whichModEncoder, on);
 }
 
+bool UI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
+	if (currentUIMode != UI_MODE_MIDI_LEARN) {
+		return false;
+	}
+	view.noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
+	return true;
+}
+
+bool UI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
+	if (currentUIMode != UI_MODE_MIDI_LEARN) {
+		return false;
+	}
+	view.pcReceivedForMIDILearn(cable, channel, program);
+	return true;
+}
+
+bool UI::ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value) {
+	if (currentUIMode != UI_MODE_MIDI_LEARN) {
+		return false;
+	}
+	view.ccReceivedForMIDILearn(cable, channelOrZone, cc, value);
+	return true;
+}
+
+bool UI::pitchBendReceivedForMidiLearn(MIDICable& /*cable*/, int32_t /*channel*/, uint8_t /*data1*/,
+                                       uint8_t /*data2*/) {
+	return false;
+}
+
 void UI::graphicsRoutine() {
 	if (getRootUI() && canSeeViewUnderneath()) {
 		getRootUI()->graphicsRoutine();

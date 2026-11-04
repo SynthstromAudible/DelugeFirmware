@@ -1211,7 +1211,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	it("resets its state when a real scene above it closes", _ {
 		// The other half of the pair above, and the half `SlicerScene::on_resume`'s empty-body
 		// placeholder could not make: `closeUI` calls `focusRegained()` on whatever it leaves on
-		// top (`gui/ui/ui.cpp:194-199`), so an opaque scene closing over the slicer DOES reset it.
+		// top (`gui/ui/ui.cpp:223-228`), so an opaque scene closing over the slicer DOES reset it.
 		// `ContextMenuScene` is the stand-in for the context menus and MIDI-learn overlays wiring
 		// will put here; unlike a popup it is not `input_transparent()`, so it really does take the
 		// input top and really does hand it back.

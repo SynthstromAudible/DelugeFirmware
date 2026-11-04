@@ -52,7 +52,7 @@
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
 /// Two of the ported functions call `getRootUI()->midiLearnFlash()` (`view.cpp:507-509`, `:817-819`),
-/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:145-150`).
+/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:174-179`).
 /// `global_controls_spec.cpp`'s `StubUI` derives from `UI` and gets away with it because nothing on
 /// its paths calls a `RootUI` virtual; here that would be a virtual call through a
 /// wrong-type pointer. `StubRootUI` below derives from `RootUI`, whose `midiLearnFlash()` is an
@@ -1333,8 +1333,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const uint32_t dropped_before = rig.router.dropped_events();
 		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
 
-		// The bool `ShellHostUI::noteOnReceivedForMidiLearn` returns to legacy, so its `else`
-		// (`playback_handler.cpp:2969-2971`) does not hand the same message to `view` as well.
+		// The bool `ShellHostUI::noteOnReceivedForMidiLearn` returns to `PlaybackHandler`, so the note does not also
+		// play, nor reach `view`'s learn as well.
 		expect(handled).to_be_true();
 		expect(rig.router.dropped_events() == dropped_before).to_be_true();
 		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
@@ -1342,26 +1342,18 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("MidiCc: legacy's CC DISPATCHER and the Router reach the same `LearnedMIDI`", _ {
-		// **The port side of this example has no producer in `src/`**, and that is the one thing it
-		// cannot assert. `PlaybackHandler::midiCCReceived` reaches learn at
-		// `playback_handler.cpp:3168-3169` with no
-		// `getCurrentUI()->...ForMidiLearn` call and no `UI` virtual to override (`gui/ui/ui.h:130`,
-		// `:132` are the only two `*ForMidiLearn` hooks the class declares), so the guest cannot
-		// intercept it the way it intercepts note-on. What is asserted is that the *transport* --
-		// the kind, the chain position, the service arm -- lands the same model write legacy's
-		// dispatcher does, so the day that dispatcher gains a seam there is nothing else to build.
+		// The legacy side is `PlaybackHandler::midiCCReceived` with a plain root UI current, whose base
+		// `UI::ccReceivedForMidiLearn` reaches `view`'s learn; the port side is the event
+		// `ShellHostUI::ccReceivedForMidiLearn` routes. Both must land the same model write.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 6};
 
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // `playback_handler.cpp:3168`'s gate
-		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so `playback_handler.cpp:3164`'s
-		// first-dibs test is
-		// false and the message falls to `view.ccReceivedForMIDILearn` at
-		// `playback_handler.cpp:3169` -- the branch this
-		// example is about. Asserted, because if it were ever true this would compare nothing.
+		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // the base answer reaches `view` only in learn mode
+		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so the base answer -- `view.ccReceivedForMIDILearn` --
+		// is the branch this example is about. Asserted, because if it were `soundEditor` this would compare nothing.
 		expect(getCurrentUI() == static_cast<UI*>(&soundEditor)).to_be_false();
 		view.sectionMidiLearnPadPressed(true, 6);
 		bool thru = false;

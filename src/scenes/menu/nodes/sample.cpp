@@ -146,7 +146,7 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// that member, so `[navigationDepth]` here IS `[0]`. The two arms differ only in the order of
 	// those two statements. What a caller would additionally have to carry is the pair's own
 	// content -- `parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally and `menuItemHeadingTo`
-	// is the matching *file selector*, not the recorder (`sound_editor.cpp:2100-2102`) -- and
+	// is the matching *file selector*, not the recorder (`sound_editor.cpp:2098-2100`) -- and
 	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuWalkState::go_up_on_resume`.
 	// So the consequence here is still one extra BACK press after a recording.
 	//

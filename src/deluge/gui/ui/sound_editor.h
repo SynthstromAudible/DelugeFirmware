@@ -134,8 +134,6 @@ public:
 	bool secondLayerShortcutsToggled{};
 
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
-	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
-	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset) override;
 	bool canSeeViewUnderneath() override { return true; }
 	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
@@ -150,8 +148,15 @@ public:
 	ActionResult exitCompletely();
 	void goUpOneLevel();
 	void enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFrom = nullptr);
+	/// @name MIDI learn into the focused item
+	/// In learn mode with Shift up, each message learns into the focused item; a note-on learns whatever Shift
+	/// does. Otherwise, and for a note-on the item does not use, the base `UI` answer.
+	/// @{
+	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) override;
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
-	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
+	bool ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value) override;
+	bool pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channel, uint8_t data1, uint8_t data2) override;
+	/// @}
 	void markInstrumentAsEdited();
 	/// Checks ONLY the basic top level shortcut. Does not handle layers or whether patch cables are possible
 	static std::tuple<MenuItem*, bool> get_basic_shortcut_action(int32_t x, int32_t y, bool doKitAffectEntire);

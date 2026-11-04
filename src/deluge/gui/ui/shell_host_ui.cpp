@@ -198,7 +198,7 @@ bool ShellHostUI::opened() {
 
 void ShellHostUI::focusRegained() {
 	// Legacy calls this on the UI that is the current one again after something above it closed
-	// (`closeUI`, `gui/ui/ui.cpp:194-199`), and `Scene::on_resume` is the port of exactly that
+	// (`closeUI`, `gui/ui/ui.cpp:223-228`), and `Scene::on_resume` is the port of exactly that
 	// call, in as many words (`Scene::on_resume`).
 	//
 	// **`input_top()`, not `top()`**, and `on_resume`'s own contract is that it fires on the scene
@@ -1143,54 +1143,45 @@ void ShellHostUI::closeGuest() {
 
 // -- MIDI learn ---------------------------------------------------------------------
 //
-// The two `UI` virtuals `SoundEditor` overrides, ported. `@par MIDI learn` on this class has the
-// whole table -- which two of the four message types are reachable at all, why CC and pitch bend
-// are not, and the `UI_MODE_MIDI_LEARN` gate that makes every one of them inert today. Read it
-// before treating either of these as a live path.
-//
-// Both go through `gui/ui/shell_guest_services.h`'s free functions rather than naming `MenuScene`
-// here, for the reason `wireShellGuestServices` does: the host spec suite compiles this file
-// directly and never builds the `deluge_scenes` closure (`tests/spec/CMakeLists.txt`), so a
-// `MenuScene` type in this translation unit would take `shell_host_ui_spec`'s examples off the
-// board. The seam is a symbol, and the fake is one line each.
+// See `@par MIDI learn` on the class. Each offer goes to the guest's chain -- the input-top scene, then the song view's
+// learn -- and, when nothing there uses it, to the base answer, which is legacy's own learn mode reaching `View`.
 
-bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
-	// `SoundEditor::pcReceivedForMidiLearn`, whole. There is
-	// no service half and that is not an omission: `View::pcReceivedForMIDILearn` has an **empty
-	// body** (`gui/views/view.h`), so the `view` fallback `PlaybackHandler::programChangeReceived`
-	// runs does nothing, there is nothing for `services::MidiLearn` to port, and no
-	// `UiEvent` kind was added for program change.
-	return shellGuestMenuLearnProgramChange(cable, channel, program);
+namespace {
+
+/// @brief A MIDI learn offer as the shell's event.
+deluge::ui::shell::UiEvent midi_event(deluge::ui::shell::UiEvent::Kind kind, MIDICable& cable, int32_t channel,
+                                      int32_t data1, int32_t data2) {
+	return deluge::ui::shell::UiEvent{.kind = kind,
+	                                  .channel = static_cast<uint8_t>(channel),
+	                                  .data1 = static_cast<uint8_t>(data1),
+	                                  .data2 = static_cast<uint8_t>(data2),
+	                                  .cable = &cable};
 }
 
-bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
-	// **The menu first**, which is `SoundEditor::noteOnReceivedForMidiLearn`
-	// (`SoundEditor::noteOnReceivedForMidiLearn`): the focused item's own answer, no mode guard, and a `true` is what
-	// makes legacy skip its `else`.
-	if (shellGuestMenuLearnNoteOn(cable, channel, note)) {
-		return true;
-	}
+} // namespace
 
-	// **Then the shell's own chain**, which is where the `else` goes under the guest. Legacy's
-	// fallback is `view.noteOnReceivedForMidiLearn` (`PlaybackHandler::noteMessageReceived`), and the
-	// port of that function is `services::MidiLearn::note_on_received` -- installed in this shell's
-	// `midi_learn` slot by `wireShellGuestServices()`. So the message goes to the port of `View`,
-	// not to `View`: routing it and returning the chain's answer is what keeps ONE learn state
-	// authoritative while the guest is open, instead of splitting a press between the port (which
-	// owns the pads) and legacy's `View` (which cannot see them).
-	//
-	// `Shell::route_midi` is synchronous precisely so this can return a bool at all -- the queueing
-	// feeds this class's other input hooks use could not (see its doc, and `@par Input is fed, not
-	// answered`). `MidiLearn::handle` claims the message whenever the cable is non-null, matching
-	// the dispatcher's own unconditional `return`, so in practice `view` does not run;
-	// the value is still taken from the chain rather than hardcoded, because a scene that declines
-	// with no service installed must still fall through.
-	const deluge::ui::shell::UiEvent event{.kind = deluge::ui::shell::UiEvent::Kind::MidiNoteOn,
-	                                       .channel = static_cast<uint8_t>(channel),
-	                                       .data1 = static_cast<uint8_t>(note),
-	                                       .data2 = static_cast<uint8_t>(velocity),
-	                                       .cable = &cable};
-	return shell_.route_midi(event, nowMs());
+bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
+	using Kind = deluge::ui::shell::UiEvent::Kind;
+	return shell_.route_midi(midi_event(Kind::MidiNoteOn, cable, channelOrZone, note, velocity), nowMs())
+	       || UI::noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
+}
+
+bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
+	using Kind = deluge::ui::shell::UiEvent::Kind;
+	return shell_.route_midi(midi_event(Kind::MidiProgramChange, cable, channel, program, 0), nowMs())
+	       || UI::pcReceivedForMidiLearn(cable, channel, program);
+}
+
+bool ShellHostUI::ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value) {
+	using Kind = deluge::ui::shell::UiEvent::Kind;
+	return shell_.route_midi(midi_event(Kind::MidiCc, cable, channelOrZone, cc, value), nowMs())
+	       || UI::ccReceivedForMidiLearn(cable, channelOrZone, cc, value);
+}
+
+bool ShellHostUI::pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channel, uint8_t data1, uint8_t data2) {
+	using Kind = deluge::ui::shell::UiEvent::Kind;
+	return shell_.route_midi(midi_event(Kind::MidiPitchBend, cable, channel, data1, data2), nowMs())
+	       || UI::pitchBendReceivedForMidiLearn(cable, channel, data1, data2);
 }
 
 } // namespace deluge::gui::ui

@@ -1421,7 +1421,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("with HorizontalMenus off a shortcut opens the item alone", _ {
-		// `getCurrentHorizontalMenusChain` answers nothing with the feature off (`sound_editor.cpp:2328-2330`).
+		// `getCurrentHorizontalMenusChain` answers nothing with the feature off (`sound_editor.cpp:2326-2328`).
 		select_language();
 		Rig r;
 		MenuContext ctx = r.open(horiz_page);

@@ -326,18 +326,15 @@ public:
 	/// The odd one out of the three feeds, in the one way that matters: `on_board_event` and
 	/// `on_encoder_edges` *queue*, and nothing is routed until the next `tick()`
 	/// (`pump_input`) -- so neither can report what a scene did. This one routes synchronously,
-	/// because its caller is a legacy `UI` virtual whose whole contract is a bool: the note-on and
-	/// program-change learn dispatchers are
-	/// `if (getCurrentUI()->...ForMidiLearn(...)) {} else { view....(...); }`
-	/// (`playback/playback_handler.cpp:2968-2971`, `:2897-2901`), and a guest that answered "ask me
-	/// again next tick" would hand the message to `view` as well.
+	/// because its caller is a `UI` learn offer whose answer is a bool: `PlaybackHandler` acts on the message only when
+	/// the current UI did not use it, so an answer deferred to the next tick would let it act as well.
 	///
 	/// It is not a lowering event and does not open the lowering's tick window: \p event is built
-	/// by the caller (`Kind::MidiNoteOn` or `Kind::MidiCc`, with the cable, channel and two data
-	/// bytes), not derived from a `DelugeInputEvent`, and the held sets, shift latch and press
+	/// by the caller (one of the MIDI kinds, with the cable, channel and data bytes), not derived from a
+	/// `DelugeInputEvent`, and the held sets, shift latch and press
 	/// bookkeeping `make_context` reads are levels that are as valid between ticks as within one.
 	///
-	/// @param event  The event; anything but the two MIDI kinds is a caller error and is routed
+	/// @param event  The event; anything but the MIDI kinds is a caller error and is routed
 	///               anyway (there is no shape here worth a second gate -- `Router` is total over
 	///               `Kind`).
 	/// @param now_ms The wall clock, for the `UiContext`.

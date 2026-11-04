@@ -46,6 +46,8 @@ extern int mod_encoder_actions;
 extern int mod_button_actions;
 extern int mod_encoder_button_actions;
 extern int graphics_routines;
+/// Every call of one of `UI`'s four base MIDI-learn offers.
+extern int base_learn_offers;
 /// @brief One recorded `uiNeedsRendering` call.
 struct RenderRequest {
 	UI* ui;
@@ -129,26 +131,6 @@ extern bool knob_clear_saw_close;
 /// `deluge_scenes` closure this suite never builds; see its own header for why the seam is a free
 /// function rather than three members.
 extern int service_wirings;
-
-/// @brief The arguments of the last `shellGuestMenuLearn*` call the guest made.
-struct MidiLearnCall {
-	const ::MIDICable* cable = nullptr;
-	int32_t channel = 0;
-	/// The note number, or the program number.
-	int32_t data = 0;
-	int32_t unused = 0;
-	bool operator==(const MidiLearnCall&) const = default;
-};
-/// How many times `deluge::gui::ui::shellGuestMenuLearnNoteOn()` was called. Like
-/// `wireShellGuestServices`, the real one lives in the `deluge_scenes` closure this suite never
-/// builds.
-extern int menu_learn_note_ons;
-/// How many times `deluge::gui::ui::shellGuestMenuLearnProgramChange()` was called.
-extern int menu_learn_program_changes;
-/// The arguments of whichever of the two ran last.
-extern MidiLearnCall last_menu_learn;
-/// What both of them return -- the ported menu item's own answer, which the guest acts on.
-extern bool menu_learn_claims;
 
 /// @brief How many times `deluge::gui::ui::dispatchShellActions()` was called.
 ///

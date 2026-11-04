@@ -21,6 +21,7 @@ int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
+int base_learn_offers = 0;
 std::vector<RenderRequest> render_requests;
 std::vector<UiCall> ui_calls;
 double system_time_s = 0.0;
@@ -30,10 +31,6 @@ bool shift_stuck = false;
 int knob_indicator_clears = 0;
 bool knob_clear_saw_close = false;
 int service_wirings = 0;
-int menu_learn_note_ons = 0;
-int menu_learn_program_changes = 0;
-MidiLearnCall last_menu_learn{};
-bool menu_learn_claims = false;
 int action_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
@@ -84,6 +81,7 @@ void reset() {
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
 	graphics_routines = 0;
+	base_learn_offers = 0;
 	render_requests.clear();
 	ui_calls.clear();
 	system_time_s = 0.0;
@@ -93,10 +91,6 @@ void reset() {
 	knob_indicator_clears = 0;
 	knob_clear_saw_close = false;
 	service_wirings = 0;
-	menu_learn_note_ons = 0;
-	menu_learn_program_changes = 0;
-	last_menu_learn = MidiLearnCall{};
-	menu_learn_claims = false;
 	action_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
@@ -209,7 +203,7 @@ UI::UI() {
 	oledShowsUIUnderneath = false;
 }
 
-// The three mod hooks forward to `view` in legacy (`gui/ui/ui.cpp:35-45`). `view` is the legacy
+// The three mod hooks forward to `view` in legacy (`gui/ui/ui.cpp:35-74`). `view` is the legacy
 // `View` global; here they only record, which is enough for the one thing a guest spec asks of
 // them -- that they still exist and that `ShellHostUI` does not override them.
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
@@ -230,7 +224,7 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	fakelegacyui::mod_encoder_button_actions++;
 }
 
-// `UI::graphicsRoutine` (`gui/ui/ui.cpp:47-51`) runs the ROOT view's per-frame animation when
+// `UI::graphicsRoutine` (`gui/ui/ui.cpp:76-80`) runs the ROOT view's per-frame animation when
 // `canSeeViewUnderneath()` says the root is still visible. There is no root UI in this suite, so
 // the fake records the call and evaluates the predicate the real one gates on -- which is the half
 // a guest spec cares about.
@@ -241,6 +235,28 @@ void UI::graphicsRoutine() {
 
 void UI::displayOrLanguageChanged() {
 	renderUIsForOled();
+}
+
+// The MIDI-learn offers' base answers are the song view's learn (`gui/ui/ui.cpp`), and there is no `View` here: they
+// record the offer and use nothing.
+bool UI::noteOnReceivedForMidiLearn(MIDICable&, int32_t, int32_t, int32_t) {
+	fakelegacyui::base_learn_offers++;
+	return false;
+}
+
+bool UI::pcReceivedForMidiLearn(MIDICable&, int32_t, int32_t) {
+	fakelegacyui::base_learn_offers++;
+	return false;
+}
+
+bool UI::ccReceivedForMidiLearn(MIDICable&, int32_t, int32_t, int32_t) {
+	fakelegacyui::base_learn_offers++;
+	return false;
+}
+
+bool UI::pitchBendReceivedForMidiLearn(MIDICable&, int32_t, uint8_t, uint8_t) {
+	fakelegacyui::base_learn_offers++;
+	return false;
 }
 
 void UI::close() {
@@ -334,7 +350,7 @@ namespace indicator_leds {
 void clearKnobIndicatorLevels() {
 	fakelegacyui::knob_indicator_clears++;
 	// The **order** matters and is what this records: `closeUI` hands focus to the UI beneath on the
-	// same call (`gui/ui/ui.cpp:199`) and that is what re-fills the rings, so a clear made after the
+	// same call (`gui/ui/ui.cpp:228`) and that is what re-fills the rings, so a clear made after the
 	// close blanks rings nothing then refreshes. True here means the close had already happened.
 	fakelegacyui::knob_clear_saw_close = !fakelegacyui::closed.empty();
 }
@@ -356,25 +372,7 @@ void wireShellGuestServices() {
 	fakelegacyui::service_wirings++;
 }
 
-// The other two symbols out of `gui/ui/shell_guest_services.h`, faked for the same reason and with
-// one addition: these two have a return value the guest ACTS on, so the fake records the arguments
-// and answers whatever `fakelegacyui::menu_learn_claims` is set to. The real ones ask
-// `menu_scene().learn_note_on` / `learn_program_change`, which are `MenuScene`'s and are covered by
-// `sim/scenes_spec`; what a guest spec can say is that the hook forwards the right three arguments
-// and honours the answer.
-bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note) {
-	fakelegacyui::menu_learn_note_ons++;
-	fakelegacyui::last_menu_learn = fakelegacyui::MidiLearnCall{&cable, channel, note, 0};
-	return fakelegacyui::menu_learn_claims;
-}
-
-bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program) {
-	fakelegacyui::menu_learn_program_changes++;
-	fakelegacyui::last_menu_learn = fakelegacyui::MidiLearnCall{&cable, channel, program, 0};
-	return fakelegacyui::menu_learn_claims;
-}
-
-// `gui/ui/shell_action_dispatch.cpp`'s share, on exactly the terms of the three above: the real one
+// `gui/ui/shell_action_dispatch.cpp`'s share, on the terms of the one above: the real one
 // reads `deluge::scenes::menu_scene()` and its seven arms name `performanceView`, `audioClipView`,
 // `stemExport`, two `gui/context_menu/` singletons, `soundEditor` and
 // `hid::display::Screensaver` -- the `deluge_scenes` and legacy-view closures this suite never

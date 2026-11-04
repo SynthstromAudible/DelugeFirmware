@@ -37,6 +37,21 @@ public:
 	/// @brief Ask the focused item to forget what it learned, and drop a param's learned knob.
 	void unlearn(const MenuContext& ctx, const MenuState& st) const;
 
+	/// @brief Offer a MIDI message for learn: `SoundEditor`'s four learn answers.
+	///
+	/// Outside learn mode nothing is used. In learn mode: a note-on learns into the item and is used whether or not the
+	/// item took it; a program change or CC learns with Shift up and is used either way; a pitch bend learns the
+	/// item's knob with Shift up and is used, and with Shift held plays.
+	/// @param ctx   The menu context.
+	/// @param st    The menu state.
+	/// @param event A MIDI kind; anything else is not used.
+	/// @param ui    The input context: Shift.
+	/// @return True when the message was used.
+	bool offer(const MenuContext& ctx, const MenuState& st, const deluge::ui::shell::UiEvent& event,
+	           const deluge::ui::shell::UiContext& ui) const;
+	/// @brief Leave learn mode: the menu no longer takes input, so a later message must not be used by it.
+	void cancel() { mode_ = false; }
+
 	/// @brief `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on.
 	/// @param ctx   The menu context.
 	/// @param st    The menu state.

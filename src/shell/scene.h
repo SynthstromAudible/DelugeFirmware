@@ -14,14 +14,13 @@
 #include <optional>
 #include <span>
 
-/// @brief The MIDI cable a `UiEvent::Kind::MidiNoteOn`/`MidiCc` arrived on -- declared, never
-///        defined, in this layer.
+/// @brief The MIDI cable a `UiEvent`'s MIDI kinds arrived on -- declared, never defined, in this layer.
 ///
 /// `MIDICable` is `io/midi/midi_device.h`'s, and `check_layer_rules.py`'s `shell-includes-outside`
 /// row keeps `io/` (like `model/`, `gui/` and `hid/`) out of `src/shell/**`. A forward declaration
 /// is not an include and asks nothing of the type: `UiEvent` stores the pointer and the shell hands
-/// it on, and only `scenes::services::MidiLearn` -- which is in `src/scenes/`, the first layer
-/// allowed to reach the model -- ever dereferences it. Declaring the real type rather than an
+/// it on, and only the scenes that learn from it -- `src/scenes/` is the first layer allowed to reach the model --
+/// ever dereference it. Declaring the real type rather than an
 /// opaque `void*` is what keeps the hand-off type-checked across the seam.
 class MIDICable;
 
@@ -104,34 +103,39 @@ static_assert(alignof(SceneState) == 8);
 /// | `EncoderButton` | `button` (the encoder's own `*Enc` id), `on` |
 /// | `AllReleased` | none -- the edge where the last held button and pad went up |
 /// | `MidiNoteOn` | `cable`, `channel` (channel or MPE zone), `data1` (note), `data2` (velocity) |
-/// | `MidiCc` | `cable`, `channel`, `data1` (CC number), `data2` (CC value) |
+/// | `MidiCc` | `cable`, `channel` (channel or MPE zone), `data1` (CC number), `data2` (CC value) |
+/// | `MidiProgramChange` | `cable`, `channel`, `data1` (program) |
+/// | `MidiPitchBend` | `cable`, `channel`, `data1` (low seven bits), `data2` (high seven bits) |
 ///
 /// @note `AllReleased` is an edge, not a level: it fires once when the held set empties, and
 ///       `UiContext::held`/`held_pads` are the level a scene should test instead.
 ///
-/// @par The two MIDI kinds, and why they are `UiEvent`s at all
+/// @par The MIDI kinds: learn offers
 ///
-/// They are the transport for `services::MidiLearn`'s `note_on_received` and `cc_received`, ports of
-/// `View::noteOnReceivedForMidiLearn` and `View::ccReceivedForMIDILearn`: an event shape a
-/// `Router` can carry. Routing them rather than calling the service directly is what puts the **scene** first: legacy's
-/// note-on dispatcher asks `getCurrentUI()->noteOnReceivedForMidiLearn` before it falls through to `view`
-/// (`playback/playback_handler.cpp:2968-2971`), and `Router::run_chain`'s scene-then-`midi_learn`
-/// order is the same shape -- which is what a `SessionScene` / `NoteClipScene` needs when it answers
-/// `learnable_at(pad)` and claims the message itself.
-///
-/// Unlike every other kind these are **not** produced by `InputLowering`: they arrive from
-/// legacy's MIDI dispatchers, synchronously, through `Shell::route_midi`.
+/// A MIDI message reaches the shell only as an offer for MIDI learn: `PlaybackHandler` asks the current UI first
+/// (`UI::noteOnReceivedForMidiLearn` and its three siblings), and while the guest is the current UI it routes the
+/// message here and acts on it only if nothing used it. The input-top scene is asked first -- the menu learns into its
+/// focused item -- and then `services::MidiLearn`, the song view's learn. `Router::run_chain` carries them in that
+/// order, synchronously, through `Shell::route_midi`; `InputLowering` never produces them.
 ///
 /// @note `cable` is the one pointer in this struct and the only thing here the shell layer cannot
 ///       name a definition for -- `MIDICable` lives in `io/midi/`, which
 ///       `check_layer_rules.py`'s `shell-includes-outside` row keeps out of `src/shell/**`. It is
-///       forward-declared above and **never dereferenced in this layer**: only
-///       `services::MidiLearn`, which is in `src/scenes/` and may reach the model, ever reads
-///       through it. A null `cable` is what a `MidiNoteOn`/`MidiCc` built without one carries, and
-///       every consumer must treat it as "no message" rather than dereferencing it.
+///       forward-declared above and **never dereferenced in this layer**. A null `cable` means "no message", and every
+///       consumer must treat it so rather than dereferencing it.
 struct UiEvent {
 	/// @brief Which shape this event has; see the table above.
-	enum class Kind : uint8_t { Pad, Button, Encoder, EncoderButton, AllReleased, MidiNoteOn, MidiCc };
+	enum class Kind : uint8_t {
+		Pad,
+		Button,
+		Encoder,
+		EncoderButton,
+		AllReleased,
+		MidiNoteOn,
+		MidiCc,
+		MidiProgramChange,
+		MidiPitchBend,
+	};
 
 	Kind kind;
 	uint8_t x = 0;                    ///< `Pad`: column, absolute.
@@ -144,17 +148,14 @@ struct UiEvent {
 	/// `Encoder`: @ref delta is a host's already-lowered turn (`Shell::route_lowered_turn`), filtered and accelerated,
 	/// which its consumer applies as it is.
 	bool lowered = false;
-	/// `MidiNoteOn`/`MidiCc`: channel, or the MPE zone `MIDIPort::channelToZone` mapped it to.
-	/// Never a `+ IS_A_CC`/`+ IS_A_PC` composite -- that encoding is `LearnedMIDI`'s and the
-	/// service applies it (`services::MidiLearn::cc_received`), so this field stays the raw
-	/// dispatcher argument.
+	/// The MIDI kinds: the channel; for a note-on or CC, the MPE zone `MIDIPort::channelToZone` mapped it to. Never a
+	/// `+ IS_A_CC`/`+ IS_A_PC` composite -- that encoding is `LearnedMIDI`'s and the learner applies it.
 	uint8_t channel = 0;
-	/// `MidiNoteOn`: the note number. `MidiCc`: the CC number.
+	/// The MIDI kinds' first data byte; see the table above.
 	uint8_t data1 = 0;
-	/// `MidiNoteOn`: the velocity. `MidiCc`: the CC value.
+	/// The MIDI kinds' second data byte; see the table above.
 	uint8_t data2 = 0;
-	/// `MidiNoteOn`/`MidiCc`: the cable the message arrived on; null means "no message". Opaque
-	/// here -- see the note above.
+	/// The MIDI kinds: the cable the message arrived on; null means "no message". Opaque here -- see the note above.
 	::MIDICable* cable = nullptr;
 };
 
@@ -464,7 +465,7 @@ public:
 	/// @brief Called when this scene becomes the **input** top again because something above it
 	///        left.
 	///
-	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:194-199`), and it means the
+	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-228`), and it means the
 	/// same thing: input reaches this scene again after reaching something else. The stack fires it
 	/// only when `SceneStack::input_top()` genuinely changed hands, so a passive
 	/// `input_transparent()` layer -- a popup, a console line, the working animation -- appearing
@@ -591,7 +592,7 @@ public:
 	///   * `View::buttonAction` (`gui/views/view.cpp:140-487`) is reached only from a **root view**.
 	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
 	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
-	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
+	///     (`gui/ui/ui.cpp:35-74`). `grep "public RootUI"` finds exactly two classes in the tree,
 	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
 	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
 	///     (`gui/views/timeline_view.cpp:119-121`, `gui/ui/keyboard/keyboard_screen.cpp:591`). So

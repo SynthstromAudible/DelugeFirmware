@@ -101,7 +101,7 @@ constexpr NoteModeLegacyCalls kRealCalls{
 const NoteModeLegacyCalls* installed = &kRealCalls;
 
 /// @brief The mode a menu root names -- `inNoteEditor()` / `inNoteRowEditor()`'s comparison of
-///        `menuItemNavigationRecord[0]` against the two root items (`gui/ui/sound_editor.cpp:1916-1922`),
+///        `menuItemNavigationRecord[0]` against the two root items (`gui/ui/sound_editor.cpp:1914-1920`),
 ///        in the port's representation of "which root is open".
 NoteModeKind modeForRoot(MenuContext::Root root) {
 	switch (root) {
@@ -241,7 +241,7 @@ void exitNoteModeBeforeClose() {
 		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`
 		// `:751-752`, "refresh grid to potentially unhighlight edited notes": `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- under the toggle, this guest.
-		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:279-303`),
+		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:308-332`),
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.
 		uiNeedsRendering(&shellHostUI, 0xFFFFFFFF, 0);
@@ -275,7 +275,7 @@ bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
 
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
 	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
-	// (`gui/ui/sound_editor.cpp:1908-1910`); `MenuScene::focused()` is `path[depth]`, its port.
+	// (`gui/ui/sound_editor.cpp:1906-1908`); `MenuScene::focused()` is `path[depth]`, its port.
 	const Node* const focused = deluge::scenes::menu_scene().focused();
 	switch (item) {
 	case NoteModeMenuItem::NoteEditorRoot:

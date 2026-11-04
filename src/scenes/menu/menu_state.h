@@ -88,7 +88,7 @@ struct MenuTick {
 ///        menu re-roots (`MenuScene::retarget`).
 struct MenuWalkState {
 	/// The `MustSelectRange` permission outcome: `enter_child` descends into `nodes::multi_range` instead, which is
-	/// legacy's own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem` followed
+	/// legacy's own substitution in `SoundEditor::setup` (`multiRangeMenu.menuItemHeadingTo = newItem` followed
 	/// by `newItem = &multiRangeMenu`).
 	///
 	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
@@ -232,7 +232,7 @@ struct MenuWalkState {
 	/// next descent -- which is precisely why legacy has the flag.
 	bool go_up_on_resume = false;
 	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
-	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2092`).
+	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2090`).
 	///
 	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
 	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written in
@@ -421,6 +421,6 @@ struct MenuSavedState {
 	int16_t focus = 0;
 };
 static_assert(sizeof(MenuSavedState) <= 32);
-static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:61 -- 256
+static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // 256
 
 } // namespace deluge::scenes::menu

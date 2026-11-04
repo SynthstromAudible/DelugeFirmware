@@ -33,7 +33,7 @@
 ///   * **`is_grid_overlay() -> true`.** `renderMainPads` returns true unconditionally, so this is drawn over whatever
 ///     root is beneath and is not the grid base.
 ///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and
-///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so legacy's top-down grid walk keeps going and
+///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:177-180`), so legacy's top-down grid walk keeps going and
 ///     the sidebar beneath paints -- `MarkerScene`'s situation. The predicate means "covers the grid completely, so
 ///     scenes beneath need not render" (`shell/scene.h`), and `Shell::tick_stack` stops advancing clocks beneath a
 ///     scene that claims it; claiming it here would stop the clock of the scene that owns the sidebar.
@@ -73,7 +73,7 @@
 /// @par `on_resume()` and popups
 ///
 /// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), because `closeUI` calls `focusRegained()` on
-/// whatever it leaves on top (`gui/ui/ui.cpp:194-199`). A legacy popup is a display overlay, not a UI, while a shell
+/// whatever it leaves on top (`gui/ui/ui.cpp:223-228`). A legacy popup is a display overlay, not a UI, while a shell
 /// popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an
 /// `input_transparent()` overlay never holds it, so a popup the scene raises coming and going does not reset its
 /// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
@@ -82,7 +82,7 @@
 /// @par Two legacy hazards
 ///
 /// Legacy's `closeUI` quizzes `Slicer::renderMainPads` with the no-argument form (`gui/ui/ui.cpp`), which `UI`'s
-/// header requires every override to survive (`gui/ui/ui.h:141-142`); `renderMainPads` returns early on `!image`. The
+/// header requires every override to survive (`UI::renderMainPads`); `renderMainPads` returns early on `!image`. The
 /// port has no such call: `render_grid` is always handed a real frame.
 ///
 /// **The MANUAL slice mark can land in the sidebar, and the port clips it rather than reproducing it.**

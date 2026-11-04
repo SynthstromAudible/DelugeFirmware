@@ -23,12 +23,9 @@
 /// (`shell/router.cpp`), and this service is deliberately last. Three separate legacy facts say
 /// so, and none of them is "it was the empty slot":
 ///
-///   1. **`View` is the fallback after the current UI in every learn dispatcher.**
-///      `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn`
-///      first and falls through to `view.noteOnReceivedForMidiLearn`
-///      (`playback/playback_handler.cpp:2968-2971`); `PlaybackHandler::midiCCReceived` gives
-///      `soundEditor` first dibs and falls through to `view.ccReceivedForMIDILearn`
-///      (`:3128-3136`). So the scene gets first refusal, exactly as it does for the other two
+///   1. **`View` is the fallback after the current UI in every learn offer.** `UI`'s base learn answers are
+///      `View`'s learn, and `SoundEditor` answers before falling back to them
+///      (`SoundEditor::ccReceivedForMidiLearn`). So the scene gets first refusal, exactly as it does for the other two
 ///      services.
 ///   2. **The four button arms live in the same `if`/`else if` chain as `GlobalControls`'s**, so
 ///      their relative order is only observable if both services could claim the same event --
@@ -345,11 +342,9 @@ public:
 	/// @param velocity       The velocity. Legacy takes it and never reads it; kept so the
 	///                       signature is legacy's and a future arm has it.
 	///
-	/// @note **Routed, not called.** Its transport is
-	///       `UiEvent::Kind::MidiNoteOn` (`shell/scene.h`) carried by `Router::run_chain`'s
-	///       `midi_learn` step, produced by `ShellHostUI::noteOnReceivedForMidiLearn`. `handle()`
-	///       is the only caller in `src/`; this stays public because the spec drives it directly
-	///       for the arms it compares against legacy, and because `cc_received` re-enters it.
+	/// @note **Routed, not called.** Its transport is `UiEvent::Kind::MidiNoteOn`, routed by
+	///       `ShellHostUI::noteOnReceivedForMidiLearn` after the input-top scene declines it; `handle()` is its
+	///       caller. Public because the spec drives it directly against legacy, and `cc_received` re-enters it.
 	void note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t velocity);
 	/// @brief `View::ccReceivedForMIDILearn`.
 	///
@@ -360,18 +355,7 @@ public:
 	/// @param cc      The CC number.
 	/// @param value   The CC value; zero is ignored by the second arm.
 	///
-	/// @warning **`UiEvent::Kind::MidiCc` exists and `handle()` consumes it, but nothing in `src/`
-	///          produces one.** The transport exists for both MIDI kinds but a producer is wired only for
-	///          the note-on half, because legacy's two dispatchers are not the same shape:
-	///          `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn` first
-	///          (`playback/playback_handler.cpp:2968`), which is a `UI` virtual the guest can
-	///          override, while `PlaybackHandler::midiCCReceived` has **no such virtual to
-	///          override** -- `gui/ui/ui.h` declares exactly two `*ForMidiLearn` hooks (`:130`
-	///          `pc`, `:132` `noteOn`) -- and reaches learn through a hardcoded
-	///          `getCurrentUI() == &soundEditor` test at `playback_handler.cpp:3164` followed by a
-	///          bare `view.ccReceivedForMIDILearn` at `playback_handler.cpp:3169`. Giving this a
-	///          producer means adding a `UI` virtual and rewriting that dispatch, which is a
-	///          legacy-behaviour change the port does not make.
+	/// @note Routed like `note_on_received`, as `UiEvent::Kind::MidiCc`.
 	void cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
 	/// @}
 

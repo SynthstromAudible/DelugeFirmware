@@ -18,10 +18,8 @@
 /// @file
 /// @brief The menu's MIDI learn. See `learn.h`.
 ///
-/// `SoundEditor`'s three delivery members and `unlearnAction`, forwarded to the focused item exactly as legacy's
-/// `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:516`, `:1550-1570`). The note-on and program-change
-/// halves reach here through `ShellHostUI`'s two `UI` overrides (`gui/ui/shell_guest_services.h`); `cc` has no `UI`
-/// virtual to override. See `node.h`'s note on the declarations.
+/// `SoundEditor`'s learn answers and `unlearnAction`, forwarded to the focused item as legacy's
+/// `getCurrentMenuItem()->learnX(...)` does. MIDI reaches `offer` as a learn offer routed to the menu by `ShellHostUI`.
 
 #include "scenes/menu/learn.h"
 
@@ -97,6 +95,33 @@ bool MenuLearn::cc(const MenuState& st, ::MIDICable& cable, int32_t channel, int
 bool MenuLearn::program_change(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t program) const {
 	const CustomItem* item = focused_custom(st);
 	return item != nullptr && item->learn_program_change(cable, channel, program);
+}
+
+bool MenuLearn::offer(const MenuContext& /*ctx*/, const MenuState& st, const UiEvent& event,
+                      const UiContext& ui) const {
+	if (!mode_ || event.cable == nullptr) {
+		return false;
+	}
+	::MIDICable& cable = *event.cable;
+	switch (event.kind) {
+	case UiEvent::Kind::MidiNoteOn:
+		(void)note_on(st, cable, event.channel, event.data1);
+		return true;
+	case UiEvent::Kind::MidiProgramChange:
+		if (!ui.shift) {
+			(void)program_change(st, cable, event.channel, event.data1);
+		}
+		return true;
+	case UiEvent::Kind::MidiCc:
+		if (!ui.shift) {
+			(void)cc(st, cable, event.channel, event.data1, event.data2);
+		}
+		return true;
+	case UiEvent::Kind::MidiPitchBend:
+		return !ui.shift;
+	default:
+		return false;
+	}
 }
 
 void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {

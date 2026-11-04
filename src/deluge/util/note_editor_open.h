@@ -42,12 +42,12 @@ namespace deluge::gui::ui {
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()`, or the ported menu
 ///        on the guest's stack at `MenuContext::Root::NoteEditor`. `SoundEditor::inNoteEditor`
-///        (`gui/ui/sound_editor.cpp:1916-1918`) is the record read the second half ports.
+///        (`gui/ui/sound_editor.cpp:1914-1916`) is the record read the second half ports.
 bool noteEditorOpen();
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor()`, or the ported
 ///        menu on the guest's stack at `MenuContext::Root::NoteRowEditor`. `SoundEditor::inNoteRowEditor`
-///        (`gui/ui/sound_editor.cpp:1920-1922`) is the record read the second half ports.
+///        (`gui/ui/sound_editor.cpp:1918-1920`) is the record read the second half ports.
 bool noteRowEditorOpen();
 
 } // namespace deluge::gui::ui

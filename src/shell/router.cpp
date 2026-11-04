@@ -18,7 +18,7 @@ namespace {
 /// down the same dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its
 /// *tail* (`hid/buttons.cpp:225-231`, reached only past the `getCurrentUI()->buttonAction` call at
 /// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
-/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
+/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-74`) is a bare
 /// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
 /// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 /// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
@@ -77,20 +77,8 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own
 	// tail for them. Last is what keeps that abstention live.
 	//
-	// It is also the order legacy's **note-on** learn dispatcher uses for
-	// `UiEvent::Kind::MidiNoteOn`: `PlaybackHandler::noteMessageReceived` asks
-	// `getCurrentUI()->noteOnReceivedForMidiLearn` and only falls through to
-	// `view.noteOnReceivedForMidiLearn` when it declines (`playback/playback_handler.cpp:2968-2971`),
-	// and `PlaybackHandler::programChangeReceived` has the identical shape one dispatcher up
-	// (`:2897-2901`). **The CC dispatcher does NOT:** `PlaybackHandler::midiCCReceived` has no
-	// `getCurrentUI()->…ForMidiLearn` call and `UI` declares no such virtual (`gui/ui/ui.h:130`,
-	// `:132` are the only two); what sits at `playback_handler.cpp:3164` is a hardcoded
-	// `getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(...)` **outside** the
-	// `UI_MODE_MIDI_LEARN` gate, after which learn goes straight to `view.ccReceivedForMIDILearn`
-	// at `playback_handler.cpp:3169` with no UI-first refusal at all. So note-on is the dispatcher
-	// this ordering mirrors, `Kind::MidiCc` is carried in the same position for consistency of the
-	// chain rather than because legacy asks a UI first, and the divergence that leaves under the
-	// guest is noted at `playback_handler.cpp:3164`.
+	// It is also the order of a MIDI learn offer: the input-top scene (the menu, learning into its focused item) and
+	// then the song view's learn, as legacy's `SoundEditor` answers before `View` does.
 	Result learn_result = services_.midi_learn->handle(event, ctx);
 	apply(learn_result);
 	if (learn_result.handled) {

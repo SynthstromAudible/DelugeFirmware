@@ -39,7 +39,7 @@ constexpr SceneKind kOver = static_cast<SceneKind>(static_cast<uint8_t>(SceneKin
 ///
 /// A real `UI` rather than a cast pointer: `rearmTimer`'s guard only ever compares the address, but
 /// an example that lies about a type to make a comparison come out right is one nobody can later
-/// change safely. `UI` has exactly two pure virtuals (`gui/ui/ui.h:157`, `:164`), and neither is
+/// change safely. `UI` has exactly two pure virtuals (`gui/ui/ui.h:186`, `:193`), and neither is
 /// reached here -- nothing renders this and nothing asks its type.
 class OtherUI final : public UI {
 public:
@@ -111,6 +111,9 @@ public:
 			    deluge::ui::shell::Action{.kind = deluge::ui::shell::Action::Kind::Remove, .pop_to = kind_});
 			return r;
 		}
+		if (handle_midi && ev.kind >= UiEvent::Kind::MidiNoteOn) {
+			return Result{.handled = true};
+		}
 		// Unhandled on purpose: the guest's input hooks are about *delivery*, and a scene that
 		// claimed an event would stop it reaching anything below it and make the routing this
 		// records depend on what the scene decided.
@@ -121,6 +124,8 @@ public:
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
 
 	bool remove_self_on_event = false;
+	/// Make `handle` use every MIDI learn offer.
+	bool handle_midi = false;
 	/// How many times `on_model_changed` ran.
 	int model_changed = 0;
 
@@ -595,7 +600,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(copy_of(OLED::main.bytes()) == rendered).to_be_true();
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
-		// time it calls here (`gui/ui/ui.cpp:365`).
+		// time it calls here (`gui/ui/ui.cpp:394`).
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
@@ -727,7 +732,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.shell().tick(0);
 		blank_legacy_pads();
 
-		// `UI`'s contract: quizzable without any rendering (`gui/ui/ui.h:140-142`). Legacy asks it
+		// `UI`'s contract: quizzable without any rendering (`gui/ui/ui.h:140-146`). Legacy asks it
 		// this way in `uiNeedsRendering` (`gui/ui/ui.cpp`) and in `closeUI`
 		// (`:186-187`).
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
@@ -981,7 +986,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("hands the main pads back when the guest closes while it owns them", _ {
-		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:203-212`), and by
+		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:232-241`), and by
 		// then its stack is empty and answers no -- so the guest itself must ask for the root view's
 		// main pads, or the keyboard's last frame stays on them.
 		Rig r;
@@ -1002,7 +1007,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 		expect(mainAsked).to_be_true();
 		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
-		// its stack (`gui/ui/ui.cpp:306-330`), so a request after the close would be dropped.
+		// its stack (`gui/ui/ui.cpp:335-359`), so a request after the close would be dropped.
 		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
 		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close) == fakelegacyui::UiCall::Render)
 		    .to_be_true();
@@ -1070,7 +1075,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
-		// animation only while it does (`gui/ui/ui.cpp:47-51`).
+		// animation only while it does (`gui/ui/ui.cpp:76-80`).
 		r.base.occludes = false;
 		expect(r.guest.canSeeViewUnderneath()).to_be_true();
 
@@ -1094,7 +1099,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
 		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
-		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
+		// the next UI down is about to be asked with (`gui/ui/ui.cpp:102-112`), so a false answer must
 		// leave them alone.
 		r.base.greyout = {};
 		uint32_t cols = 0xDEADBEEF;
@@ -1121,7 +1126,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(rows).to_equal(uint32_t(0x00000080));
 
 		// A scene above with an empty mask obeys the one beneath, as legacy's top-down walk does
-		// (`gui/ui/ui.cpp:73-83`): a popup over the menu leaves the menu's greyout standing.
+		// (`gui/ui/ui.cpp:102-112`): a popup over the menu leaves the menu's greyout standing.
 		r.over.overlay = true;
 		r.over.regions = PadRegions::None;
 		r.over.greyout = {};
@@ -1238,7 +1243,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
 		// **The answer is `ACTIONED_AND_CAUSED_CHANGE`, not `NOT_DEALT_WITH`.** `ui.h`'s
-		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:152-153`), a UI
+		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:181-182`), a UI
 		// did, and every legacy self-closing implementation answers this value -- including the
 		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
 		// (`gui/ui/sound_editor.h`, returning at `gui/ui/sound_editor.cpp`).
@@ -1287,7 +1292,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
-		// (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath, so a timer armed here would
+		// (`gui/ui/ui.cpp:226`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
 		// (`gui/ui_timer_manager.cpp`).
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
@@ -1308,95 +1313,59 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 	});
 
-	// ---- MIDI learn: the two `UI` virtuals -----------------------------------------------------
+	// ---- MIDI learn: the four `UI` learn offers --------------------------------------------------
 	//
-	// These examples are about **delivery**, which is all this suite can be about: the far side of
-	// both hooks is `gui/ui/shell_guest_services.h`'s two free functions, faked here for the reason
-	// `wireShellGuestServices` is (`tests/spec/CMakeLists.txt`: the `deluge_scenes` closure is
-	// deliberately not built). So what is driven is the guest's own composition -- menu first, then
-	// the shell's chain, and what each hook returns to legacy's `if`/`else` -- and NOT
-	// `MenuScene::learn_note_on`, whose behaviour is `sim/scenes_spec`'s.
-	//
-	// The mode/shift gate on the program-change hook is likewise on the far side (it reads
-	// `currentUIMode` and `Buttons`, neither of which this suite links), and is covered where the
-	// real closure exists.
+	// Each override routes the message through the guest's chain as one `UiEvent` and answers with the chain's
+	// answer, falling back to the base `UI` answer (legacy's learn mode reaching `View`) when nothing in the chain
+	// used it. What the menu and `services::MidiLearn` do with the event is `sim/scenes_spec`'s.
 
-	it("the note-on hook offers the message to the menu first and routes it into the shell when the "
-	   "menu declines", _ {
+	it("each learn offer routes one event carrying the message, and falls back to the base answer", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		struct Case {
+			UiEvent::Kind kind;
+			uint8_t data1;
+			uint8_t data2;
+		};
+		for (const Case c : {Case{UiEvent::Kind::MidiNoteOn, 64, 100}, Case{UiEvent::Kind::MidiProgramChange, 12, 0},
+		                     Case{UiEvent::Kind::MidiCc, 74, 64}, Case{UiEvent::Kind::MidiPitchBend, 5, 70}}) {
+			fakelegacyui::reset();
+			r.base.seen.clear();
+			bool handled = true;
+			switch (c.kind) {
+			case UiEvent::Kind::MidiNoteOn:
+				handled = r.guest.noteOnReceivedForMidiLearn(fake_cable(), 9, c.data1, c.data2);
+				break;
+			case UiEvent::Kind::MidiProgramChange:
+				handled = r.guest.pcReceivedForMidiLearn(fake_cable(), 9, c.data1);
+				break;
+			case UiEvent::Kind::MidiCc:
+				handled = r.guest.ccReceivedForMidiLearn(fake_cable(), 9, c.data1, c.data2);
+				break;
+			default:
+				handled = r.guest.pitchBendReceivedForMidiLearn(fake_cable(), 9, c.data1, c.data2);
+				break;
+			}
+			expect(r.base.seen.size()).to_equal(size_t(1));
+			expect(r.base.seen[0].ev.kind == c.kind).to_be_true();
+			expect(r.base.seen[0].ev.channel).to_equal(uint8_t(9));
+			expect(r.base.seen[0].ev.data1).to_equal(c.data1);
+			expect(r.base.seen[0].ev.data2).to_equal(c.data2);
+			expect(r.base.seen[0].ev.cable == &fake_cable()).to_be_true();
+			// `PatternScene` declines and this rig installs no services, so the base answer decides.
+			expect(fakelegacyui::base_learn_offers).to_equal(1);
+			expect(handled).to_be_false();
+		}
+	});
+
+	it("a learn offer the chain uses goes no further", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
 		fakelegacyui::reset();
-		fakelegacyui::menu_learn_claims = false;
-
-		const bool handled = r.guest.noteOnReceivedForMidiLearn(fake_cable(), 9, 64, 100);
-
-		// Offered to the menu, with the dispatcher's own three arguments and no fourth: legacy's
-		// `SoundEditor::noteOnReceivedForMidiLearn` drops the velocity too
-		// (`gui/ui/sound_editor.cpp`).
-		expect(fakelegacyui::menu_learn_note_ons).to_equal(1);
-		expect(fakelegacyui::last_menu_learn.cable == &fake_cable()).to_be_true();
-		expect(fakelegacyui::last_menu_learn.channel).to_equal(int32_t(9));
-		expect(fakelegacyui::last_menu_learn.data).to_equal(int32_t(64));
-
-		// …and then routed, synchronously. `Shell::route_midi` does NOT queue, so the scene has the
-		// event before this line -- which is the whole reason that entry point exists (a queued feed
-		// could not produce the bool legacy's `else` is decided by).
+		r.base.handle_midi = true;
+		expect(r.guest.ccReceivedForMidiLearn(fake_cable(), 9, 74, 64)).to_be_true();
 		expect(r.base.seen.size()).to_equal(size_t(1));
-		expect(r.base.seen[0].ev.kind == UiEvent::Kind::MidiNoteOn).to_be_true();
-		expect(r.base.seen[0].ev.channel).to_equal(uint8_t(9));
-		expect(r.base.seen[0].ev.data1).to_equal(uint8_t(64));
-		expect(r.base.seen[0].ev.data2).to_equal(uint8_t(100));
-		expect(r.base.seen[0].ev.cable == &fake_cable()).to_be_true();
-
-		// `PatternScene` declines and this rig installs no services (`Services{}` -- the real three
-		// arrive through `wireShellGuestServices`, which is a counter here), so nothing handled it
-		// and the guest says so. Legacy then runs `view.noteOnReceivedForMidiLearn`
-		// (`playback/playback_handler.cpp:2970`), which is the correct fallback for a guest whose
-		// chain claimed nothing.
-		expect(handled).to_be_false();
-	});
-
-	it("the note-on hook stops at the menu when the menu claims, and routes nothing", _ {
-		Rig r;
-		expect(r.open()).to_be_true();
-		fakelegacyui::reset();
-		fakelegacyui::menu_learn_claims = true;
-
-		const bool handled = r.guest.noteOnReceivedForMidiLearn(fake_cable(), 9, 64, 100);
-
-		expect(handled).to_be_true();
-		expect(fakelegacyui::menu_learn_note_ons).to_equal(1);
-		// **Nothing routed.** This is the half that regresses silently: a hook that always fed the
-		// shell as well would deliver one message twice, once to the focused menu item and once to
-		// `services::MidiLearn`. Legacy's `SoundEditor` returning true is what stops `view` seeing
-		// it, and `MidiLearn` is `View`'s port.
-		expect(r.base.seen.size()).to_equal(size_t(0));
-	});
-
-	it("the program-change hook forwards to the menu and returns its answer, and never routes", _ {
-		// Legacy's `View::pcReceivedForMIDILearn` is an EMPTY BODY (`gui/views/view.h`), so there
-		// is nothing for `services::MidiLearn` to port, no `UiEvent` kind for program change and
-		// nothing for this hook to route -- unlike its note-on neighbour, which has both halves.
-		Rig r;
-		expect(r.open()).to_be_true();
-		fakelegacyui::reset();
-		fakelegacyui::menu_learn_claims = true;
-
-		expect(r.guest.pcReceivedForMidiLearn(fake_cable(), 4, 12)).to_be_true();
-		expect(fakelegacyui::menu_learn_program_changes).to_equal(1);
-		expect(fakelegacyui::last_menu_learn.cable == &fake_cable()).to_be_true();
-		expect(fakelegacyui::last_menu_learn.channel).to_equal(int32_t(4));
-		expect(fakelegacyui::last_menu_learn.data).to_equal(int32_t(12));
-		expect(r.base.seen.size()).to_equal(size_t(0));
-		expect(fakelegacyui::menu_learn_note_ons).to_equal(0);
-
-		// And the other direction, so "returns its answer" is a claim about the value rather than
-		// about the one value that happened to be set.
-		fakelegacyui::reset();
-		fakelegacyui::menu_learn_claims = false;
-		expect(r.guest.pcReceivedForMidiLearn(fake_cable(), 4, 12)).to_be_false();
-		expect(fakelegacyui::menu_learn_program_changes).to_equal(1);
-		expect(r.base.seen.size()).to_equal(size_t(0));
+		expect(fakelegacyui::base_learn_offers).to_equal(0);
 	});
 
 	// ---- the hooks deliberately left to the base ----------------------------------------------
@@ -1414,7 +1383,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `getRootUI()` and a legacy view tree this suite does not build -- so reaching the counter
 		// says the call landed on the base, and says nothing about a root view animating. That the
 		// base's real body then runs the root's animation while `canSeeViewUnderneath()` is a claim
-		// about `gui/ui/ui.cpp:47-51`, read, not driven here. The example's job is the half that can
+		// about `gui/ui/ui.cpp:76-80`, read, not driven here. The example's job is the half that can
 		// regress silently: `ShellHostUI` adding an override.
 		expect(fakelegacyui::graphics_routines).to_equal(1);
 		// And the predicate the base gates on, evaluated by the fake, is the one the guest answers
@@ -1436,7 +1405,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		r.guest.displayOrLanguageChanged();
 		// Legacy still hears about it: the base's `renderUIsForOled()` is what sets
-		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:53-55`).
+		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:82-84`).
 		expect(fakelegacyui::oled_redraws).to_equal(1);
 		// And the shell will actually re-render on its next tick, rather than serving the frame it
 		// happens to be holding.
@@ -2043,7 +2012,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::service_wirings).to_equal(2);
 
 		// A refused open does not wire: `openUI` rolls the hierarchy back on `false`
-		// (`gui/ui/ui.cpp:237-242`), so there is no guest to serve.
+		// (`gui/ui/ui.cpp:266-271`), so there is no guest to serve.
 		Rig refused;
 		expect(fakelegacyui::service_wirings).to_equal(0); // the Rig ctor reset the counter
 		refused.guest.setInitialScene(SceneId{SceneKind::Null, 0});
@@ -2099,7 +2068,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
-		// to the UI beneath on the same call (`gui/ui/ui.cpp:199`) and that is what re-fills the
+		// to the UI beneath on the same call (`gui/ui/ui.cpp:228`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
 		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
@@ -2415,7 +2384,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// The same guest shape, varying only the one thing the refusal is about: no initial scene,
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
-		// hierarchy back to the previous UI (`gui/ui/ui.cpp:237-242`) -- an arm left standing here
+		// hierarchy back to the previous UI (`gui/ui/ui.cpp:266-271`) -- an arm left standing here
 		// would deliver this guest's `timerCallback` to *that* UI, since the manager dispatches to
 		// `getCurrentUI()` (`gui/ui_timer_manager.cpp`).
 		Rig refused;
@@ -2505,7 +2474,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// And it recovers the moment the guest is current again, which is the half that says the
 		// guard is not a wedge. In production `closeUI` does this through `focusRegained`
-		// (`gui/ui/ui.cpp:197-199`); here the topology is declared rather than simulated.
+		// (`gui/ui/ui.cpp:226-228`); here the topology is declared rather than simulated.
 		fakelegacyui::current_ui = &r.guest;
 		set_clock_ms(700);
 		(void)r.guest.timerCallback();
@@ -2594,7 +2563,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// What legacy does when a UI opened over the guest closes again: `closeUI` unsets the timer
-		// (`gui/ui/ui.cpp:197`) and then hands focus back (`:199`). Without the re-arm the guest
+		// (`gui/ui/ui.cpp:226`) and then hands focus back (`:228`). Without the re-arm the guest
 		// would tick normally until anything was opened over it and never again.
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250); // the guest was mid-animation
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -2636,7 +2605,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
 		// The close path, varying only the stack depth. `close()` is `closeUI(this)`, which unsets
-		// the timer itself (`gui/ui/ui.cpp:197`) -- so arming here would be undone one line later,
+		// the timer itself (`gui/ui/ui.cpp:226`) -- so arming here would be undone one line later,
 		// or worse, handed to the UI beneath.
 		Rig closing;
 		expect(closing.open()).to_be_true();

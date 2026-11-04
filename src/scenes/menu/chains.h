@@ -66,7 +66,7 @@ bool page_lists(const Node& page, const Node& column);
 /// none of the roots reaches either file selector through one, so resolving them here would be
 /// machinery with no caller.
 ///
-/// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2112-2114`) is the
+/// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2110-2112`) is the
 /// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
 /// @param node The subtree to search.
 /// @param item The node the page must list.

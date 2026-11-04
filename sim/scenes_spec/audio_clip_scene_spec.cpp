@@ -140,7 +140,7 @@ extern bool currentlyActioningSwungTickOrResettingPlayPos;
 /// **`Buttons::buttonAction` cannot be used to set it in a spec process**: its very first act after
 /// recording the press is `getCurrentUI()->buttonAction(...)` (in `Buttons::buttonAction`), and
 /// `getCurrentUI()` is null here (`numUIsOpen == 0` -> `lastUIBeforeNullifying`,
-/// `gui/ui/ui.cpp:136-141`). Found by segfault, not by reading.
+/// `gui/ui/ui.cpp:165-170`). Found by segfault, not by reading.
 /// @{
 namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];

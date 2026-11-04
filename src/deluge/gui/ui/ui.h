@@ -138,11 +138,40 @@ public:
 	virtual TimelineView* toTimelineView() { return nullptr; }
 
 	virtual void scrollFinished() {}
-	virtual bool pcReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t program) { return false; }
+	/// @name MIDI learn
+	/// `PlaybackHandler` offers each learnable message to the current UI before acting on it. The base answers are the
+	/// song view's learn: outside learn mode nothing is used; in learn mode a note-on, a program change and a CC go to
+	/// `View`'s learn and are used up; a pitch bend is never used. A UI with learn targets of its own overrides them.
+	/// @{
 
-	virtual bool noteOnReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t note, int32_t velocity) {
-		return false;
-	} // Returns whether it was used, I think?
+	/// @brief Offer a note-on (never a note-off) for MIDI learn.
+	/// @param cable         The cable it arrived on.
+	/// @param channelOrZone The channel, or the MPE zone it belongs to.
+	/// @param note          The note number.
+	/// @param velocity      The velocity.
+	/// @return True when it was used for learn, so it does not also play.
+	virtual bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity);
+	/// @brief Offer a program change for MIDI learn.
+	/// @param cable   The cable it arrived on.
+	/// @param channel The channel.
+	/// @param program The program number.
+	/// @return True when it was used for learn, so it is not offered to learned commands.
+	virtual bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program);
+	/// @brief Offer a CC from a channel outside any MPE zone for MIDI learn.
+	/// @param cable         The cable it arrived on.
+	/// @param channelOrZone The channel, or the MPE zone it belongs to.
+	/// @param cc            The CC number.
+	/// @param value         The CC value.
+	/// @return True when it was used for learn, so it does not also act.
+	virtual bool ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value);
+	/// @brief Offer a pitch bend from a channel outside any MPE zone for MIDI learn.
+	/// @param cable   The cable it arrived on.
+	/// @param channel The channel.
+	/// @param data1   The bend's low seven bits.
+	/// @param data2   The bend's high seven bits.
+	/// @return True when it was used for learn, so it does not also bend.
+	virtual bool pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channel, uint8_t data1, uint8_t data2);
+	/// @}
 
 	virtual bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 		return false;

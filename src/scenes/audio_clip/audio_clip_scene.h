@@ -254,7 +254,7 @@ inline constexpr uint32_t kMarkerBlinkMs = static_cast<uint32_t>(kSampleMarkerBl
 /// mode word at all, and for which two values it can hold.
 /// @{
 /// @brief `UI_MODE_NONE` (`gui/ui/ui.h:34`) -- `isNoUIModeActive()` is `!currentUIMode`
-///        (`gui/ui/ui.cpp:438-440`).
+///        (`gui/ui/ui.cpp:467-469`).
 inline constexpr uint32_t kUiModeNone = 0;
 /// @brief `EXCLUSIVE_UI_MODES_MASK` (`gui/ui/ui.h`): a value at or below it occupies the low
 ///        byte and displaces any other low-byte value; a value above it is an independent flag.
@@ -395,7 +395,7 @@ public:
 	void tick(uint32_t dt_ms) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	/// @brief `AudioClipView::focusRegained` (`audio_clip_view.cpp:79-90`) again, as `on_enter` is:
-	///        `closeUI` calls `focusRegained()` on whatever it leaves on top (`gui/ui/ui.cpp:194-199`).
+	///        `closeUI` calls `focusRegained()` on whatever it leaves on top (`gui/ui/ui.cpp:223-228`).
 	void on_resume() override;
 	/// @brief `AudioClipView::clipNeedsReRendering`,
 	///        `sampleNeedsReRendering` (`:720-724`) and `playbackEnded` (`:703-705`).
@@ -419,7 +419,7 @@ public:
 	/// @brief True: `renderMainPads` and `renderSidebar` both return true unconditionally
 	///        (`AudioClipView::renderMainPads`, `AudioClipView::renderSidebar`), and `doAnyPendingGridRendering`'s
 	///        top-down walk
-	///        (`gui/ui/ui.cpp:321-348`) stops as soon as both instruction words are used up -- so
+	///        (`gui/ui/ui.cpp:350-377`) stops as soon as both instruction words are used up -- so
 	///        nothing below this in the hierarchy renders.
 	///
 	/// @note Its one consumer is `Shell::tick_stack`, which stops
@@ -441,7 +441,7 @@ public:
 	/// Two independent deadlines, and the nearer wins:
 	///
 	///   * **the playhead.** `AudioClipView::graphicsRoutine` is a per-frame redraw rather than a
-	///     deadline (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`). It is **not** called from the
+	///     deadline (`UI::graphicsRoutine`, `gui/ui/ui.cpp:76-80`). It is **not** called from the
 	///     main loop on every iteration: its one external driver is
 	///     `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm, re-armed at 15 ms
 	///     (`gui/ui_timer_manager.cpp:213-218`); `ShellHostUI` is the host that has to decide
@@ -649,7 +649,7 @@ private:
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
 	FlashCursor flash_cursor_ = FlashCursor::Slow;
 
-	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp:398`), restricted to the two values this scene sets.
+	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp:427`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.
 	uint32_t ui_mode_ = kUiModeNone;
 

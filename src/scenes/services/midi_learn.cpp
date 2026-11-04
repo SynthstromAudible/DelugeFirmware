@@ -360,29 +360,32 @@ uint32_t MidiLearn::unported_calls(UnportedCall which) const {
 // -- Routing -------------------------------------------------------------------------------------
 
 Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
-	// The two MIDI kinds first, and deliberately ABOVE the root-scene gate below. That gate is the
+	// The MIDI kinds first, and deliberately ABOVE the root-scene gate below. That gate is the
 	// `View::buttonAction` reachability rule and nothing else (`Scene::is_root`); legacy's learn
-	// dispatchers reach `view.noteOnReceivedForMidiLearn` / `view.ccReceivedForMIDILearn` from
-	// `PlaybackHandler` with no root-UI test anywhere on the path
-	// (`playback/playback_handler.cpp:2970`, `:3169`), so applying the button gate to them would
-	// invent a restriction legacy does not have.
+	// dispatchers reach `View`'s learn from `PlaybackHandler` with no root-UI test anywhere on the path, so applying
+	// the button gate to them would invent a restriction legacy does not have.
 	//
-	// Claimed unconditionally, matching legacy's dispatchers: both `return` immediately after the
-	// `view.` call whatever it did (`PlaybackHandler::noteMessageReceived`, `PlaybackHandler::midiCCReceived`), and
-	// both ported functions are no-ops when nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null
-	// `cable` is the "no message" value `UiEvent` documents and is dropped rather than
-	// dereferenced.
-	if (event.kind == UiEvent::Kind::MidiNoteOn || event.kind == UiEvent::Kind::MidiCc) {
-		if (event.cable == nullptr) {
+	// In learn mode only, as the dispatchers reach `View` only then; there, a note-on, a CC and a program change are
+	// used up whatever they learned (`View::pcReceivedForMIDILearn` learns nothing), and a pitch bend is never used. A
+	// null `cable` is the "no message" value `UiEvent` documents and is dropped rather than dereferenced.
+	switch (event.kind) {
+	case UiEvent::Kind::MidiNoteOn:
+	case UiEvent::Kind::MidiCc:
+	case UiEvent::Kind::MidiProgramChange:
+		if (!active_ || event.cable == nullptr) {
 			return Result::unhandled();
 		}
 		if (event.kind == UiEvent::Kind::MidiNoteOn) {
 			note_on_received(*event.cable, event.channel, event.data1, event.data2);
 		}
-		else {
+		else if (event.kind == UiEvent::Kind::MidiCc) {
 			cc_received(*event.cable, event.channel, event.data1, event.data2);
 		}
 		return Result{.handled = true};
+	case UiEvent::Kind::MidiPitchBend:
+		return Result::unhandled();
+	default:
+		break;
 	}
 
 	if (event.kind != UiEvent::Kind::Button) {

@@ -25,7 +25,7 @@
 /// @par What the router sends here
 ///
 /// A mod button, a gold-knob turn and a gold-knob push, each only after the top scene has declined it
-/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`gui/ui/ui.cpp:35-45`).
+/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`gui/ui/ui.cpp:35-74`).
 ///
 /// @par Acceleration
 ///
@@ -140,7 +140,7 @@ public:
 		/// The root is performance view (`View::modButtonAction`): a mod button is taken whatever UI mode is active,
 		/// and it leaves a stutter playing.
 		bool root_is_performance = false;
-		/// The root is a clip minder (`gui/ui/ui.cpp:157-160`): the VU meter is not offered. Not the same question as
+		/// The root is a clip minder (`gui/ui/ui.cpp:186-189`): the VU meter is not offered. Not the same question as
 		/// `is_clip_context`: in session view with a clip pressed the knobs are on the clip and the root is not one.
 		bool root_is_clip_minder = false;
 		/// `View::modButtonUIModeInRange`: true with no UI mode active.

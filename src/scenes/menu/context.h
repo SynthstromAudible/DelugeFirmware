@@ -4,7 +4,7 @@
 ///        the model through it, and gate entry into a node with it.
 ///
 /// This is the context-resolution half of `SoundEditor::setup`
-/// (`src/deluge/gui/ui/sound_editor.cpp:1673-1906`), `SoundEditor::getCurrentModelStack` (`:1999`)
+/// (`src/deluge/gui/ui/sound_editor.cpp:1673-1904`), `SoundEditor::getCurrentModelStack` (`:1997`)
 /// and the common rule behind the `checkPermissionToBeginSession` overrides
 /// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, `:1933`), ported as free
 /// functions over plain arguments. (`gui/menu_item/` has 18 *files* naming
@@ -48,7 +48,7 @@ struct Node;
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
 	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
-	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2328-2330`).
+	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2326-2328`).
 	bool horizontal_menus = true;
 	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
 	///        by default, as `MenuOnly` is).
@@ -182,8 +182,8 @@ struct MenuContext {
 	/// @}
 };
 
-/// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half
-///        (`sound_editor.cpp:1686-1826` and `:1828-1859`), with no UI reads.
+/// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,
+///        with no UI reads.
 ///
 /// @param song                    the song that owns @p clip; used instead of the `currentSong`
 ///                                global wherever `setup()` reached for it.
@@ -258,7 +258,7 @@ int32_t range_count(const MenuContext& ctx);
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1993`.
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1991`.
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
 /// "Not owned by this file"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first

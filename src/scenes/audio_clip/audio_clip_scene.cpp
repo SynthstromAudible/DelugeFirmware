@@ -314,6 +314,8 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
+	case UiEvent::Kind::MidiProgramChange:
+	case UiEvent::Kind::MidiPitchBend:
 	case UiEvent::Kind::AllReleased:
 		break;
 	}
@@ -1024,7 +1026,7 @@ void AudioClipScene::tick(uint32_t dt_ms) {
 
 std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// The playhead first: `graphicsRoutine` runs on every main-loop iteration
-	// (`gui/ui/ui.cpp:47-51`), so its port is "repaint next tick" whenever the cursor could move.
+	// (`gui/ui/ui.cpp:76-80`), so its port is "repaint next tick" whenever the cursor could move.
 	// The condition is `graphicsRoutine`'s own first gate, read positively
 	// (`audio_clip_view.cpp:270-274`): with no playback, no active clip, or a count-in running, the
 	// column is a constant 255 and nothing animates.
@@ -1186,7 +1188,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 				// `:157-218`, the "grey regions + flashing columns" loop. `drawUndefinedArea` is
 				// the caller's fourth argument and defaults to true (`audio_clip_view.h:32`);
 				// `doAnyPendingGridRendering` calls the three-argument form
-				// (`gui/ui/ui.cpp:329`), so on the device it is always true.
+				// (`gui/ui/ui.cpp:358`), so on the device it is always true.
 				for (int32_t y = 0; y < main.bounds().h; y++) {
 					// -------- END marker (`:160-181`) --------
 					if (end_square < kMainCols) {

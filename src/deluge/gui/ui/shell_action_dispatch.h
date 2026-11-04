@@ -115,10 +115,10 @@ namespace deluge::gui::ui {
 ///
 /// @warning **What opening an unavailable MIDI-learn menu does, reported rather than fixed.** The
 ///          context menu appears and reads "MIDI learn", but `currentUIMode` still holds the other
-///          mode, and every legacy MIDI-learn dispatch arm is gated on `currentUIMode ==
-///          UI_MODE_MIDI_LEARN` (`playback/playback_handler.cpp:2897`, `:2963`, `:3168`) -- so the
-///          menu learns nothing. `SessionView::enterMidiLearnMode` has meanwhile overwritten
-///          `previousGridModeActive` and forced `gridModeActive` to `SessionGridModeLaunch`
+///          mode, and `UI`'s base MIDI-learn answers act only when `currentUIMode ==
+///          UI_MODE_MIDI_LEARN` (`UI::noteOnReceivedForMidiLearn` and its siblings) -- so the menu learns nothing.
+///          `SessionView::enterMidiLearnMode` has meanwhile overwritten `previousGridModeActive` and forced
+///          `gridModeActive` to `SessionGridModeLaunch`
 ///          (`gui/views/session_view.cpp:3072-3077`) regardless, and the exit restores those
 ///          (`:3079-3083`) while `View::endMIDILearn` leaves the latched mode alone, because it only
 ///          clears `currentUIMode` when it *is* `UI_MODE_MIDI_LEARN` (`gui/views/view.cpp:511-513`).
@@ -195,7 +195,7 @@ void pushShellHighlighting();
 /// @return The type legacy would export, or `std::nullopt` where legacy's `if`/`else if` chain falls
 ///         through: any root that is not one of the three named, `instrumentClipView` over a
 ///         non-`KIT` output, and a null root (`getRootUI()` answers `nullptr` while `numUIsOpen ==
-///         0`, `gui/ui/ui.cpp:145-150`, which is "during song load / swap", `:64`).
+///         0`, `gui/ui/ui.cpp:174-179`, which is "during song load / swap", `:93`).
 std::optional<StemExportType> stemExportTypeForRootUI();
 
 } // namespace deluge::gui::ui

@@ -1537,7 +1537,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(110);
 		// `enter_child` substitutes the picker for the item, which is legacy's own
 		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
-		// (`sound_editor.cpp:1857-1858`). So the *picker* is entered, not the leaf.
+		// (`SoundEditor::setup`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
@@ -1569,7 +1569,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
-		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1993`), so a
+		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1991`), so a
 		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
 		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
@@ -1639,7 +1639,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a deep link onto a MULTI-range source opens the picker, not the item", _ {
 		// The other arm of the same gate, and the one that is easy to miss. Legacy's
 		// `checkPermissionToBeginSessionForRangeSpecificParam` answers `MUST_SELECT_RANGE` when the
-		// source has more than one range and none is remembered (`sound_editor.cpp:2010-2014`), and
+		// source has more than one range and none is remembered (`sound_editor.cpp:2008-2012`), and
 		// `SoundEditor::setup` then opens `multiRangeMenu` *instead of* the named item
 		// (`:1855-1859`) -- for a named item exactly as for a navigated one, because `setup` runs
 		// the check on `horizontal_menu_child` whichever way it was asked for.

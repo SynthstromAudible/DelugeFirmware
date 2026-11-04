@@ -194,7 +194,7 @@ void install(const MenuContext& ctx, Song* song) {
 	soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
 	soundEditor.currentMultiRangeIndex = ctx.range_index;
 	soundEditor.currentArpSettings = spec::menu_engine(ctx).arp;
-	// `SoundEditor::setup` derives the sidechain from the mod-controllable (`sound_editor.cpp:2086-2088`).
+	// `SoundEditor::setup` derives the sidechain from the mod-controllable (`sound_editor.cpp:2084-2086`).
 	soundEditor.currentSidechain = deluge::scenes::spec::menu_engine(ctx).mod != nullptr
 	                                   ? &deluge::scenes::spec::menu_engine(ctx).mod->core().sidechain()
 	                                   : nullptr;
@@ -904,7 +904,7 @@ const std::vector<CommandPair>& command_pairs() {
 /// popup taken when the item is *not* the current menu item (`command.cpp:120-122`, `:100-103`) and
 /// FILL's `CANT_LEARN_PC` refusal (`:107`). Without a display the first is avoidable -- point
 /// `soundEditor`'s navigation record at the item and the `renderUIsForOled()` branch is taken
-/// instead, and that function is one assignment (`gui/ui/ui.cpp:263-265`) -- but the second is not:
+/// instead, and that function is one assignment (`gui/ui/ui.cpp:292-294`) -- but the second is not:
 /// legacy pops unconditionally there. So the examples below install this for the scope, which both
 /// keeps the legacy call alive and makes "did legacy refuse?" directly observable.
 struct SpyDisplay final : deluge::hid::Display {
@@ -1367,7 +1367,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			// `nullifyUIs()` clears `numUIsOpen`, which is all `getRootUI()` reads -- but it also sets
 			// `lastUIBeforeNullifying`, so `getCurrentUI()` is left pointing at this case's view and,
 			// after the last iteration, at `&automationView`. That is DELIBERATE, not an oversight to
-			// inherit: `lastUIBeforeNullifying` is defined at `gui/ui/ui.cpp:66` with no declaration in
+			// inherit: `lastUIBeforeNullifying` is defined at `gui/ui/ui.cpp:95` with no declaration in
 			// `ui.h`, so resetting it is not available from here. It is benign because `getRootUI()`
 			// answers null on `numUIsOpen == 0` regardless; because `currentUIIsClipMinderScreen()` --
 			// the only consumer of the `toClipMinder()` difference that makes `automationView` the

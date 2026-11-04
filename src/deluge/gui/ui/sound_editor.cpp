@@ -1848,37 +1848,35 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset) {
 	return getRootUI()->verticalEncoderAction(offset);
 }
 
+bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
+	if (currentUIMode == UI_MODE_MIDI_LEARN && getCurrentMenuItem()->learnNoteOn(cable, channelOrZone, note)) {
+		return true;
+	}
+	return UI::noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
+}
+
 bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnProgramChange(cable, channel, program);
 		return true;
 	}
-	return false;
-}
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
-	return getCurrentMenuItem()->learnNoteOn(cable, channel, note);
+	return UI::pcReceivedForMidiLearn(cable, channel, program);
 }
 
-// Returns true if some use was made of the message here
-bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
-
+bool SoundEditor::ccReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t cc, int32_t value) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
+		getCurrentMenuItem()->learnCC(cable, channelOrZone, cc, value);
 		return true;
 	}
-
-	return false;
+	return UI::ccReceivedForMidiLearn(cable, channelOrZone, cc, value);
 }
 
-// Returns true if some use was made of the message here
-bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
-
+bool SoundEditor::pitchBendReceivedForMidiLearn(MIDICable& cable, int32_t channel, uint8_t data1, uint8_t data2) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
 		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
 		return true;
 	}
-
-	return false;
+	return UI::pitchBendReceivedForMidiLearn(cable, channel, data1, data2);
 }
 
 void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {

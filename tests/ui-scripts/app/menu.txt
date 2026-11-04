@@ -31,7 +31,7 @@
 # `MenuContext::Root::Sound`.
 #
 # **The four null-clip sites cannot be scripted here, and it is not the port's fault.**
-# `sound_editor.cpp:1893`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
+# `sound_editor.cpp:1891`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
 # (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
@@ -85,7 +85,7 @@
 #
 # **Why this verb.** Of `MenuAction`'s seven enumerators,
 # six cannot be reached by any script, and five of those for one reason: `SoundEditor::setup`
-# dereferences a null `clip` at `gui/ui/sound_editor.cpp:1893` (`else if (clip->type == ...)`,
+# dereferences a null `clip` at `gui/ui/sound_editor.cpp:1891` (`else if (clip->type == ...)`,
 # reached whenever `currentSound` is null), so every `soundEditor.setup()` call that passes no clip
 # SIGSEGVs the OFF leg on the host sim. That is sites 1 (SHIFT+SELECT -> Settings), 2 and 3
 # (SELECT from the session view / arranger -> Song) and 4 (performance view), i.e. every root that
@@ -205,7 +205,7 @@
 #
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
-# check runs (`gui/ui/sound_editor.cpp:1993`), so the ported browser refused to open at all; and
+# check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
 # `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:871`) which
 # no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
 6500   button Back down

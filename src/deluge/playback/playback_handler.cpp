@@ -2958,17 +2958,12 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel
 }
 
 void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, int32_t program) {
-	// If user assigning MIDI commands, do that
-	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {}
-		else {
-			view.pcReceivedForMIDILearn(cable, channel, program);
-		}
+	// The current UI may take it for MIDI learn
+	if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {
+		return;
 	}
-	else {
-		// we build ontop of the CC hack
-		offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
-	}
+	// we build ontop of the CC hack
+	offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
 }
 bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note) {
 
@@ -3036,17 +3031,13 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 
 void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
                                           bool* doingMidiThru) {
-	// If user assigning/learning MIDI commands, do that
-	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
-		// Checks velocity to let note-offs pass through,
-		// so no risk of stuck note if they pressed learn while holding a note
+	// The current UI may take a note-on for MIDI learn. Note-offs always pass through, so a note held when learn
+	// began cannot stick.
+	if (on) {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-
-		if (getCurrentUI()->noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity)) {}
-		else {
-			view.noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
+		if (getCurrentUI()->noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity)) {
+			return;
 		}
-		return;
 	}
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
@@ -3149,27 +3140,9 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 		cable.inputChannels[channel].defaultInputMPEValues[0] = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192)
 		                                                        << 2;
 	}
-	else {
-		// **The same divergence `midiCCReceived` carries at `playback_handler.cpp:3164`, and the same
-		// ruling** (F1 task 10): under the ShellMenu toggle `getCurrentUI()` is `ShellHostUI`, so
-		// pitch-bend MIDI learn never reaches the ported menu, and it cannot be closed by a `UI`
-		// virtual because none
-		// exists. Read that comment for the whole account.
-		//
-		// This half has a *second* reason it could not be closed even with a seam here:
-		// `SoundEditor::pitchBendReceived` calls `getCurrentMenuItem()->learnKnob(...)`
-		// (`gui/ui/sound_editor.cpp:1614`), and `MenuItem::learnKnob` has **no port at all** --
-		// `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`,
-		// `learn_cc` and `learn_program_change` and not a fourth. Recorded at
-		// `gui/ui/shell_host_ui.h`'s `@par What leaving the mod hooks on the base costs`, which is
-		// where the gold-knob half of the same missing port is written up.
-		//
-		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.pitchBendReceived(cable, channel, data1, data2)) {
-				return;
-			}
-		}
+	// The current UI may take it for MIDI learn
+	else if (getCurrentUI()->pitchBendReceivedForMidiLearn(cable, channel, data1, data2)) {
+		return;
 	}
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3215,36 +3188,8 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	}
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-		// **A divergence under `RuntimeFeatureSettingType::ShellMenu`, recorded by F1 task 10 rather
-		// than closed.** With the toggle on, `ShellHostUI` is the current UI wherever `soundEditor`
-		// would have been, so this test is false and a CC arriving under MIDI learn goes straight to
-		// `view.ccReceivedForMIDILearn` below -- the ported menu never sees it, and
-		// `MenuScene::learn_cc` (`scenes/menu/menu_scene.cpp`) has no caller.
-		//
-		// The guest closes the note-on and program-change halves of the same gesture by overriding
-		// `UI::noteOnReceivedForMidiLearn` / `pcReceivedForMidiLearn`, because those two dispatchers
-		// ask the current UI through a virtual (`:2968`, `:2898`). **This one cannot be closed that
-		// way: there is no virtual to override.** `gui/ui/ui.h` declares exactly two `*ForMidiLearn`
-		// hooks (`:130` pc, `:132` noteOn), and what stands here instead is a hardcoded identity
-		// test against one global, sitting *outside* the `UI_MODE_MIDI_LEARN` gate. Closing it means
-		// adding a third `UI` virtual and rewriting this `if`/`else if` chain -- a legacy-behaviour
-		// change, which plan F1 does not make. Same shape and same reason at
-		// `pitchBendReceived`'s `playback_handler.cpp:3091`.
-		//
-		// It is latent today for a reason that is not this line's: nothing under the guest ever sets
-		// `currentUIMode = UI_MODE_MIDI_LEARN` in the first place (`ShellHostUI`'s `@par MIDI learn`
-		// has the two lines in the tree that do, and why neither runs). The divergence becomes
-		// visible the moment that changes, which is why it is written down here and not left to be
-		// rediscovered then.
-		//
-		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
-			return;
-		}
-		// then midi learn is second priority
-		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			view.ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
-			// we don't want this learn to immediately trigger the thing it was learnt to so just return
+		// The current UI may take it for MIDI learn; a learned CC must not also trigger what it was learned to
+		if (getCurrentUI()->ccReceivedForMidiLearn(cable, channelOrZone, ccNumber, value)) {
 			return;
 		}
 		// check if it was learned to on/off commands (loop, drums, section launch etc.)
