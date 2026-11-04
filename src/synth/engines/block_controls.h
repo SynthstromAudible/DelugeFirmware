@@ -16,12 +16,19 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "synth/sources/source.h" // deluge::synth::BlockControls
 #include <cstdint>
 
 /// @file Bundles a source's already-modulated per-block values into a @ref deluge::synth::BlockControls, for the
 /// voice's per-source render (in a @ref deluge::synth::SourceBlock) and for @ref RingModEngine.
 namespace deluge::synth {
+
+/// @brief A source's pulse width from its phase-width param: the Q31 param doubled, held to 31 bits first, read as the
+/// fraction of the cycle (UQ<32>) the pulse is high for.
+[[nodiscard]] inline uint32_t pulse_width_from(int32_t phase_width) {
+	return static_cast<uint32_t>(scale_shl_wrap<1>(clamp_bits<31>(dsp::Q<31>::from_raw(phase_width))).raw());
+}
 
 /// Build the already-modulated per-block controls a source component renders from; the component derives its pulse,
 /// sync, retrigger, band and scale from them.

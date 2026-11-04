@@ -105,12 +105,13 @@ src/effects/master_chain.cpp raw=0 boundary=12
 src/effects/param_fragment.h raw=0 boundary=3
 src/effects/sidechain.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
-src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
+src/synth/engines/block_controls.h raw=0 boundary=2
+src/synth/engines/dual_source_engine.cpp raw=0 boundary=8
 src/synth/engines/fm_engine.cpp raw=0 boundary=49
 src/synth/engines/pitch.h raw=0 boundary=6
-src/synth/engines/ring_mod_engine.cpp raw=8 boundary=0
+src/synth/engines/ring_mod_engine.cpp raw=0 boundary=16
 src/synth/engines/slot_engine.cpp raw=0 boundary=3
-src/synth/engines/subtractive_engine.cpp raw=1 boundary=0
+src/synth/engines/subtractive_engine.cpp raw=0 boundary=3
 src/synth/matrix/matrix_fixed.h raw=0 boundary=41
 src/synth/modulation/cable_depth.h raw=0 boundary=12
 src/synth/modulation/envelope.cpp raw=0 boundary=20

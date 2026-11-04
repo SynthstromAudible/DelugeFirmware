@@ -16,7 +16,8 @@
  */
 
 #include "synth/engines/ring_mod_engine.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
@@ -97,7 +98,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 		std::array<RingSource, kNumSources> ring_mod_sources{};
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// The pulse width only matters to a square wave, but is cheap to work out for any
-			const int32_t pulse_width = lshift_and_saturate<1>(c.phase_width[s]);
+			const auto pulse_width = static_cast<int32_t>(pulse_width_from(c.phase_width[s]));
 
 			ring_mod_sources[s] = RingSource{
 			    .part = &block.parts[u].slots[s],
@@ -118,16 +119,26 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 	}
 }
 
+namespace {
+/// @brief The two sources' Q31 product, Q30, times the level, rounded: the high words as the ring mod has them.
+[[gnu::always_inline]] inline int32_t ring_product(int32_t a, int32_t b, dsp::Q<31> amplitude) {
+	return mul_r(mul(dsp::Q<31>::from_raw(a), dsp::Q<31>::from_raw(b)), amplitude).raw();
+}
+} // namespace
+
 void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
                                        uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness,
                                        int32_t filter_gain, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
                                        bool stereo_unison, int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0,
                                        int32_t* scratch1, std::span<int32_t> sync_scratch) {
 
-	int32_t amplitude_for_ring_mod = 1 << 27;
+	using dsp::Q;
+	// The product's level: 2^27, times the filters' Q28 gain (2^28 unity) when there are filters, rounded to Q27 and
+	// back at Q31
+	Q<31> amplitude_for_ring_mod = Q<31>::from_raw(1 << 27);
 
 	if (has_filters) {
-		amplitude_for_ring_mod = multiply_32x32_rshift32_rounded(amplitude_for_ring_mod, filter_gain) << 4;
+		amplitude_for_ring_mod = as_wrap<Q<31>>(mul_r(amplitude_for_ring_mod, dsp::Q<28>::from_raw(filter_gain)));
 	}
 
 	const std::array<const RingSource*, kNumSources> sources{&src0, &src1};
@@ -172,10 +183,10 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we
 		// need to compensate
 		if (source.osc_type == OscType::SAW || source.osc_type == OscType::ANALOG_SAW_2) {
-			amplitude_for_ring_mod <<= 1;
+			amplitude_for_ring_mod = scale_shl_wrap<1>(amplitude_for_ring_mod);
 		}
 		else if (source.osc_type == OscType::WAVETABLE || source.osc_type == OscType::SUPERSAW) {
-			amplitude_for_ring_mod <<= 2;
+			amplitude_for_ring_mod = scale_shl_wrap<2>(amplitude_for_ring_mod);
 		}
 	}
 
@@ -186,10 +197,12 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 	if (stereo_unison) {
 		int32_t const* const osc_buffer_end = osc_buffer + 2 * num_samples;
 		do {
-			int32_t out =
-			    multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(*input0, *input1), amplitude_for_ring_mod);
-			*output++ += multiply_32x32_rshift32(out, unison_amplitude_l) << 2;
-			*output++ += multiply_32x32_rshift32(out, unison_amplitude_r) << 2;
+			const int32_t out = ring_product(*input0, *input1, amplitude_for_ring_mod);
+			const dsp::StereoSample panned =
+			    dsp::panned_mono(out, Q<30>::from_raw(unison_amplitude_l), Q<30>::from_raw(unison_amplitude_r));
+			output[0] = add_wrap(Q<31>::from_raw(output[0]), Q<31>::from_raw(panned.l)).raw();
+			output[1] = add_wrap(Q<31>::from_raw(output[1]), Q<31>::from_raw(panned.r)).raw();
+			output += 2;
 			input0++;
 			input1++;
 		} while (output != osc_buffer_end);
@@ -197,8 +210,9 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 	else {
 		int32_t const* const osc_buffer_end = osc_buffer + num_samples;
 		do {
-			*output +=
-			    multiply_32x32_rshift32_rounded(multiply_32x32_rshift32(*input0, *input1), amplitude_for_ring_mod);
+			*output = add_wrap(Q<31>::from_raw(*output),
+			                   Q<31>::from_raw(ring_product(*input0, *input1, amplitude_for_ring_mod)))
+			              .raw();
 			input0++;
 			input1++;
 		} while (++output != osc_buffer_end);

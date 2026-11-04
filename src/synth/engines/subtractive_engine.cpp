@@ -16,7 +16,7 @@
  */
 #include "synth/engines/subtractive_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
+#include "dsp-next/core/fixed_point.h"
 #include <array>
 #include <cstring>
 #include <span>
@@ -33,8 +33,10 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 	// is applied after the filters.
 	std::array<int32_t, kNumSources> source_amplitudes{};
 	for (int32_t s = 0; s < kNumSources; s++) {
+		// The Q31 volume at Q27: times the filters' gain (Q28, 2^28 unity) rounded, or a sixteenth unfiltered
+		const auto volume = dsp::Q<31>::from_raw(c.volume[s]);
 		source_amplitudes[s] =
-		    cfg.has_filters ? multiply_32x32_rshift32_rounded(c.volume[s], c.filter_gain) : c.volume[s] >> 4;
+		    (cfg.has_filters ? mul_r(volume, dsp::Q<28>::from_raw(c.filter_gain)) : as_floor<dsp::Q<27>>(volume)).raw();
 	}
 
 	Pass pass = begin(block, source_amplitudes);
