@@ -90,6 +90,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
+#include "util/d_stringbuf.h"
 #include "util/finally.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
@@ -166,6 +167,14 @@ void InstrumentClipView::focusRegained() {
 	InstrumentClipMinder::focusRegained();
 
 	setLedStates();
+
+	// Community Firmware: Topo Drums - reflect the current bank / knob values on entry
+	if (topoActive()) {
+		for (int32_t i = 0; i < kNumModButtons; i++) {
+			indicator_leds::setLedState(indicator_leds::modLed[i], i == topoBank_);
+		}
+		updateTopoKnobLEDs(getCurrentInstrumentClip());
+	}
 }
 
 void InstrumentClipView::displayOrLanguageChanged() {
@@ -1071,6 +1080,11 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 		}
 	}
 	else {
+		// Community Firmware: Topo Drums - pressing the encoder jumps its LED to the engine value
+		if (topoActive() && on) {
+			updateTopoKnobLEDs(getCurrentInstrumentClip());
+			return;
+		}
 		view.modEncoderButtonAction(whichModEncoder, on);
 	}
 }
@@ -7604,10 +7618,67 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	performActualRender(whichRows, image[0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
+	// Community Firmware: Topo Drums - show the live pattern on the assigned lane rows
+	renderTopoPatternOverlay(whichRows, image);
 	render_selected_note_pulse(whichRows, image);
 	PadLEDs::renderingLock = false;
 
 	return true;
+}
+
+// Community Firmware: Topo Drums - overlay the engine's pattern for the current loop onto the
+// note rows which the banks are assigned to. Accented hits are drawn at full row colour,
+// normal hits dimmer. Existing note pixels are never overwritten.
+void InstrumentClipView::renderTopoPatternOverlay(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth]) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!topoActive()) {
+		return;
+	}
+	using namespace deluge::model::topo;
+	TopoEngine& engine = ((Kit*)clip->output)->topoEngine();
+
+	int32_t const loopLength = clip->loopLength;
+	if (loopLength <= 0) {
+		return;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	int32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
+	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
+
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if (!(whichRows & (1 << yDisplay))) {
+			continue;
+		}
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+		int32_t rowIndex = modelStackWithNoteRow->noteRowId;
+		int32_t bank = -1;
+		for (int32_t b = 0; b < kNumBanks; b++) {
+			if (clip->topoDrumsSettings.bankRows[b] == rowIndex) {
+				bank = b;
+			}
+		}
+		if (bank < 0) {
+			continue;
+		}
+
+		RGB* rowImage = image[yDisplay];
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t pos = getPosFromSquare(x, xScroll, xZoom);
+			int32_t step = (int32_t)(((int64_t)pos * kStepsPerPattern) / loopLength);
+			step = std::clamp<int32_t>(step, 0, kStepsPerPattern - 1);
+			if (!engine.fireAt(step, bank)) {
+				continue;
+			}
+			RGB& pixel = rowImage[x];
+			if (pixel == colours::black) {
+				pixel = engine.accentAt(step, bank) ? rowColour[yDisplay]
+				                                    : rowColour[yDisplay].adjustFractional(140 << 8, 255 << 8);
+			}
+		}
+	}
 }
 
 // occupancyMask now optional
@@ -7695,6 +7766,13 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
+	// Community Firmware: when Topo Drums is running on this clip, the two mod encoders edit the
+	// engine parameters of the currently-selected bank instead of the normal mod-knob params.
+	if (topoActive()) {
+		adjustTopoParam(whichModEncoder, offset, clip);
+		return;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -7734,6 +7812,183 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 	}
 
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
+// Community Firmware: Topo Drums ------------------------------------------------------------
+//
+// When the current kit clip has Topo Drums enabled, the two mod encoders edit engine parameters
+// directly instead of the normal mod-knob params. The first four mod buttons pick a bank of two
+// parameters (LED shows the selected bank):
+//   A: X / Y                                  (Euclidean mode: Length A / Length B)
+//   B: Randomness / Swing                     (Euclidean mode: Length C / Swing)
+//   C: Density A / Density B                  (Euclidean mode: Notes A / Notes B)
+//   D: Density C / Accent threshold           (Euclidean mode: Notes C / Accent threshold)
+
+bool InstrumentClipView::topoActive() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	return clip && clip->topoDrumsSettings.enabled && clip->output->type == OutputType::KIT
+	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableTopoDrums);
+}
+
+void InstrumentClipView::modButtonAction(uint8_t whichButton, bool on) {
+	if (!topoActive()) {
+		UI::modButtonAction(whichButton, on);
+		return;
+	}
+
+	if (!on || whichButton >= 4) {
+		return; // buttons E - H unused by Topo Drums
+	}
+
+	topoBank_ = whichButton;
+
+	// Keep the standard mode-LED logic in sync where possible
+	if (view.activeModControllableModelStack.modControllable) {
+		if (uint8_t* mode = view.activeModControllableModelStack.modControllable->getModKnobMode()) {
+			*mode = whichButton;
+		}
+	}
+	for (int32_t i = 0; i < kNumModButtons; i++) {
+		indicator_leds::setLedState(indicator_leds::modLed[i], i == whichButton);
+	}
+
+	// Pop up the two parameters the knobs now control
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	bool euclidean = clip->topoDrumsSettings.mode == deluge::model::topo::TopoMode::Euclidean;
+	using enum l10n::String;
+	static constexpr l10n::String kBankLabels[4][2] = {
+	    {STRING_FOR_TOPO_X, STRING_FOR_TOPO_Y},
+	    {STRING_FOR_TOPO_RANDOMNESS, STRING_FOR_TOPO_SWING},
+	    {STRING_FOR_TOPO_DENS_A, STRING_FOR_TOPO_DENS_B},
+	    {STRING_FOR_TOPO_DENS_C, STRING_FOR_TOPO_ACCENT},
+	};
+	static constexpr l10n::String kBankLabelsEuclidean[4][2] = {
+	    {STRING_FOR_TOPO_LEN_A, STRING_FOR_TOPO_LEN_B},
+	    {STRING_FOR_TOPO_LEN_C, STRING_FOR_TOPO_SWING},
+	    {STRING_FOR_TOPO_NOTES_A, STRING_FOR_TOPO_NOTES_B},
+	    {STRING_FOR_TOPO_NOTES_C, STRING_FOR_TOPO_ACCENT},
+	};
+	auto const& labels = euclidean ? kBankLabelsEuclidean : kBankLabels;
+
+	DEF_STACK_STRING_BUF(text, 40);
+	text.append(l10n::get(labels[whichButton][0]));
+	text.append(" / ");
+	text.append(l10n::get(labels[whichButton][1]));
+	display->displayPopup(text.c_str());
+
+	updateTopoKnobLEDs(clip);
+}
+
+void InstrumentClipView::adjustTopoParam(int32_t whichModEncoder, int32_t offset, InstrumentClip* clip) {
+	using namespace deluge::model::topo;
+	auto& settings = clip->topoDrumsSettings;
+	bool euclidean = settings.mode == TopoMode::Euclidean;
+	int32_t knob = topoBank_ * 2 + whichModEncoder;
+
+	DEF_STACK_STRING_BUF(text, 30);
+
+	if (knob == 3) { // Swing: turn clockwise = on, anticlockwise = off
+		if (offset > 0) {
+			settings.swing = true;
+		}
+		else if (offset < 0) {
+			settings.swing = false;
+		}
+		text.append(l10n::get(l10n::String::STRING_FOR_TOPO_SWING));
+		text.append(' ');
+		text.append(l10n::get(settings.swing ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF));
+		display->displayPopup(text.c_str());
+		updateTopoKnobLEDs(clip);
+		clip->instrumentBeenEdited();
+		return;
+	}
+
+	uint8_t* target;
+	l10n::String label;
+	switch (knob) {
+	case 0:
+		target = &settings.engine.x;
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_LEN_A : l10n::String::STRING_FOR_TOPO_X;
+		break;
+	case 1:
+		target = &settings.engine.y;
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_LEN_B : l10n::String::STRING_FOR_TOPO_Y;
+		break;
+	case 2:
+		target = &settings.engine.randomness;
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_LEN_C : l10n::String::STRING_FOR_TOPO_RANDOMNESS;
+		break;
+	case 4:
+		target = &settings.engine.density[0];
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_NOTES_A : l10n::String::STRING_FOR_TOPO_DENS_A;
+		break;
+	case 5:
+		target = &settings.engine.density[1];
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_NOTES_B : l10n::String::STRING_FOR_TOPO_DENS_B;
+		break;
+	case 6:
+		target = &settings.engine.density[2];
+		label = euclidean ? l10n::String::STRING_FOR_TOPO_NOTES_C : l10n::String::STRING_FOR_TOPO_DENS_C;
+		break;
+	default: // knob 7
+		target = &settings.engine.accentThreshold;
+		label = l10n::String::STRING_FOR_TOPO_ACCENT;
+		break;
+	}
+
+	int32_t newValue = std::clamp<int32_t>((int32_t)*target + offset * 2, 0, 255);
+	*target = (uint8_t)newValue;
+
+	text.append(l10n::get(label));
+	text.append(' ');
+	if (euclidean && (knob == 0 || knob == 1 || knob == 2)) {
+		text.appendInt((newValue >> 3) + 1); // pattern length 1 - 32
+	}
+	else if (euclidean && (knob >= 4 && knob <= 6)) {
+		text.appendInt(newValue >> 3); // notes per loop 0 - 31
+	}
+	else {
+		text.appendInt(newValue * 100 / 255); // percent
+	}
+	display->displayPopup(text.c_str());
+
+	updateTopoKnobLEDs(clip);
+	clip->instrumentBeenEdited();
+}
+
+void InstrumentClipView::updateTopoKnobLEDs(InstrumentClip* clip) {
+	auto& settings = clip->topoDrumsSettings;
+	int32_t base = topoBank_ * 2;
+	for (int32_t enc = 0; enc < NUM_LEVEL_INDICATORS; enc++) {
+		int32_t value;
+		switch (base + enc) {
+		case 0:
+			value = settings.engine.x;
+			break;
+		case 1:
+			value = settings.engine.y;
+			break;
+		case 2:
+			value = settings.engine.randomness;
+			break;
+		case 3:
+			value = settings.swing ? 255 : 0;
+			break;
+		case 4:
+			value = settings.engine.density[0];
+			break;
+		case 5:
+			value = settings.engine.density[1];
+			break;
+		case 6:
+			value = settings.engine.density[2];
+			break;
+		default:
+			value = settings.engine.accentThreshold;
+			break;
+		}
+		indicator_leds::setKnobIndicatorLevel(enc, (uint8_t)(value >> 1), false);
+	}
 }
 
 void InstrumentClipView::commandEuclidean(int32_t offset) {

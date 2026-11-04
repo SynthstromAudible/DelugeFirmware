@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/generative/topo/topo_drums_settings.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 
@@ -100,7 +101,22 @@ public:
 
 	void copyBasicsFrom(Clip const* otherClip) override;
 
+	/// Community Firmware: Topo Drums. Makes sure every engine bank has a lane (note row with a
+	/// drum), reusing existing GateDrum rows where possible and otherwise creating GateDrums on
+	/// the first free gate channels (skipping ones set to SPECIAL / RUN / CLOCK). Returns false
+	/// if some banks could not be assigned.
+	bool ensureTopoLanes(ModelStackWithTimelineCounter* modelStack);
+
+	/// Community Firmware: Topo Drums. Writes the engine's pattern for the next full loop onto
+	/// the assigned lane rows as notes (accents get velocity 127, normal hits 100), replacing
+	/// whatever was on those rows, then disables the engine so the notes take over. Returns the
+	/// number of notes written.
+	int32_t captureTopoPattern(ModelStackWithTimelineCounter* modelStack);
+
 	ArpeggiatorSettings arpSettings;
+
+	/// "Topo Drums" generative drum mode settings (community feature).
+	deluge::model::topo::TopoDrumsSettings topoDrumsSettings;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 

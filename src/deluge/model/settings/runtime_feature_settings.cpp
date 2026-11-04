@@ -217,6 +217,10 @@ void RuntimeFeatureSettings::init() {
 	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
 	};
+
+	// Topo Drums (generative drum mode for kits, engine ported from MI Grids)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableTopoDrums], STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS,
+	                  "enableTopoDrums", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

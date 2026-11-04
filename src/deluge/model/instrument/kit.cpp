@@ -34,6 +34,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
@@ -1132,11 +1133,138 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 	}
 }
 
+// Community Firmware: Topo Drums generative drum mode.
+//
+// The engine follows the active clip's position: one full engine cycle (32 steps = 96 pulses
+// at 24 PPQN granularity) is mapped onto the clip's loop length, so the pattern always stays
+// aligned with the loop no matter its length. Any swing the Deluge transport applies is
+// inherited automatically, because clip positions advance in swung time.
+void Kit::doTopoTick(ModelStack* modelStack, int32_t currentPos) {
+	using namespace deluge::model::topo;
+
+	InstrumentClip* clip = activeClip ? (InstrumentClip*)activeClip : nullptr;
+	if (!clip || !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableTopoDrums)
+	    || !clip->topoDrumsSettings.enabled) {
+		topoClip_ = nullptr;
+		topoLastPos_ = -1;
+		return;
+	}
+
+	int32_t const loopLength = clip->loopLength;
+	if (loopLength <= 0) {
+		return;
+	}
+
+	ModelStackWithTimelineCounter* timelineStack = modelStack->addTimelineCounter(clip);
+
+	auto pulseAt = [loopLength](int32_t pos) -> int64_t {
+		return (int64_t)pos * (int64_t)kPulsesPerPattern / (int64_t)loopLength;
+	};
+
+	bool restart = (clip != topoClip_) || (topoLastPos_ < 0);
+	int64_t fromPulse = restart ? 0 : pulseAt(topoLastPos_);
+	int64_t toPulse = pulseAt(currentPos);
+	if (toPulse < fromPulse) { // Clip looped back or was seeked backwards - restart the pattern
+		restart = true;
+		fromPulse = 0;
+	}
+	if (restart) {
+		topoEngine_.reset();
+		for (auto& off : topoGateOffPulse_) {
+			off = -1;
+		}
+		// Community Firmware: the pad overlay should refresh to show the new loop's pattern
+		if (getRootUI()) {
+			getRootUI()->clipNeedsReRendering(clip);
+		}
+	}
+	topoClip_ = clip;
+	topoLastPos_ = currentPos;
+
+	// Push the latest settings into the engine every tick - it's only a handful of bytes.
+	auto const& topoSettings = clip->topoDrumsSettings;
+	topoEngine_.settings() = topoSettings.engine;
+	topoEngine_.setMode(topoSettings.mode);
+	topoEngine_.setGateMode(topoSettings.gateMode);
+	topoEngine_.setSwing(topoSettings.swing);
+
+	// Close any gates / triggers which have reached their end.
+	for (int32_t b = 0; b < kNumBanks; b++) {
+		if (topoGateOffPulse_[b] >= 0 && toPulse >= topoGateOffPulse_[b]) {
+			topoGateOffPulse_[b] = -1;
+			silenceTopoBank(clip, timelineStack, topoSettings.bankRows[b]);
+		}
+	}
+
+	int64_t const pulsesToAdvance = toPulse - fromPulse;
+	if (pulsesToAdvance <= 0) {
+		return;
+	}
+
+	auto event = topoEngine_.advance((uint32_t)pulsesToAdvance);
+
+	for (int32_t b = 0; b < kNumBanks; b++) {
+		if (!event.fired(b)) {
+			continue;
+		}
+		fireTopoBank(clip, timelineStack, topoSettings.bankRows[b], event.accented(b) ? 127 : 100);
+		int64_t gatePulses = topoSettings.gateMode ? (int64_t)kPulsesPerStep : 1;
+		topoGateOffPulse_[b] = toPulse + gatePulses;
+	}
+}
+
+void Kit::fireTopoBank(InstrumentClip* clip, ModelStackWithTimelineCounter* timelineStack, int32_t rowIndex,
+                       uint8_t velocity) {
+	if (rowIndex < 0 || rowIndex >= clip->noteRows.getNumElements()) {
+		return;
+	}
+	NoteRow* row = clip->noteRows.getElement(rowIndex);
+	if (!row || !row->drum) {
+		return;
+	}
+	Drum* drum = row->drum;
+	if (drum->type == DrumType::SOUND) {
+		ModelStackWithNoteRow* noteRowStack = timelineStack->addNoteRow(rowIndex, row);
+		ModelStackWithThreeMainThings* threeMainThings =
+		    noteRowStack->addOtherTwoThings(drum->toModControllable(), &row->paramManager);
+		static constexpr int16_t kNeutralMpe[kNumExpressionDimensions] = {0, 0, 0};
+		drum->noteOn(threeMainThings, velocity, kNeutralMpe);
+	}
+	else {
+		ArpNote arpNote;
+		arpNote.velocity = velocity;
+		((NonAudioDrum*)drum)->noteOnPostArp(rowIndex, &arpNote, 0);
+	}
+}
+
+void Kit::silenceTopoBank(InstrumentClip* clip, ModelStackWithTimelineCounter* timelineStack, int32_t rowIndex) {
+	if (rowIndex < 0 || rowIndex >= clip->noteRows.getNumElements()) {
+		return;
+	}
+	NoteRow* row = clip->noteRows.getElement(rowIndex);
+	if (!row || !row->drum) {
+		return;
+	}
+	Drum* drum = row->drum;
+	if (drum->type == DrumType::SOUND) {
+		ModelStackWithNoteRow* noteRowStack = timelineStack->addNoteRow(rowIndex, row);
+		ModelStackWithThreeMainThings* threeMainThings =
+		    noteRowStack->addOtherTwoThings(drum->toModControllable(), &row->paramManager);
+		drum->noteOff(threeMainThings);
+	}
+	else {
+		((NonAudioDrum*)drum)->noteOffPostArp(rowIndex);
+	}
+}
+
 // Returns num ticks til next arp event
 int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	if (!activeClip) {
 		return 2147483647;
 	}
+
+	// Community Firmware: Topo Drums generative drum mode
+	doTopoTick(modelStack, currentPos);
 
 	bool clipIsActive = modelStack->song->isClipActive(activeClip);
 

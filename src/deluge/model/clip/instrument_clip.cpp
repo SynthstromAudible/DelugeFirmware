@@ -149,6 +149,155 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
+
+	topoDrumsSettings = otherInstrumentClip->topoDrumsSettings;
+}
+
+// Community Firmware: Topo Drums. Makes sure every engine bank has a lane (note row with a
+// drum), reusing existing GateDrum rows where possible and otherwise creating GateDrums on
+// the first free gate channels (skipping ones set to SPECIAL, i.e. used as RUN / CLOCK).
+// Returns false if some banks could not be assigned a lane.
+bool InstrumentClip::ensureTopoLanes(ModelStackWithTimelineCounter* modelStack) {
+	using namespace deluge::model::topo;
+
+	if (output->type != OutputType::KIT) {
+		return false;
+	}
+	Kit* kit = (Kit*)output;
+
+	// Mark gate channels already used by lanes which are assigned to banks, so we don't double up.
+	bool channelUsed[NUM_GATE_CHANNELS] = {};
+	for (int32_t b = 0; b < kNumBanks; b++) {
+		int32_t row = topoDrumsSettings.bankRows[b];
+		if (row >= 0 && row < noteRows.getNumElements()) {
+			Drum* drum = noteRows.getElement(row)->drum;
+			if (drum && drum->type == DrumType::GATE) {
+				channelUsed[((GateDrum*)drum)->channel] = true;
+			}
+		}
+	}
+
+	bool allAssigned = true;
+	for (int32_t b = 0; b < kNumBanks; b++) {
+		int32_t row = topoDrumsSettings.bankRows[b];
+		if (row >= 0 && row < noteRows.getNumElements() && noteRows.getElement(row)->drum) {
+			continue; // lane is already good
+		}
+		topoDrumsSettings.bankRows[b] = -1;
+
+		// 1) Try to reuse an existing row with a GateDrum on a not-yet-used channel.
+		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+			Drum* drum = noteRows.getElement(i)->drum;
+			if (drum && drum->type == DrumType::GATE && !channelUsed[((GateDrum*)drum)->channel]) {
+				channelUsed[((GateDrum*)drum)->channel] = true;
+				topoDrumsSettings.bankRows[b] = (int8_t)i;
+				break;
+			}
+		}
+		if (topoDrumsSettings.bankRows[b] >= 0) {
+			continue;
+		}
+
+		// 2) Find a free gate channel which isn't set to SPECIAL, get (or make) its GateDrum,
+		//    and put it on a new NoteRow.
+		for (int32_t channel = 0; channel < NUM_GATE_CHANNELS; channel++) {
+			if (channelUsed[channel] || cvEngine.gateChannels[channel].mode == GateType::SPECIAL) {
+				continue;
+			}
+
+			Drum* gateDrum = kit->getGateDrumForChannel(channel);
+			if (!gateDrum) {
+				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GateDrum));
+				if (!drumMemory) {
+					break;
+				}
+				GateDrum* newDrum = new (drumMemory) GateDrum();
+				newDrum->channel = channel;
+				kit->addDrum(newDrum);
+				gateDrum = newDrum;
+			}
+
+			int32_t newIndex = noteRows.getNumElements();
+			NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(newIndex);
+			if (!newNoteRow) {
+				break;
+			}
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(newIndex, newNoteRow);
+			newNoteRow->setDrum(gateDrum, kit, modelStackWithNoteRow);
+
+			channelUsed[channel] = true;
+			topoDrumsSettings.bankRows[b] = (int8_t)newIndex;
+			break;
+		}
+		if (topoDrumsSettings.bankRows[b] < 0) {
+			allAssigned = false;
+		}
+	}
+	return allAssigned;
+}
+
+// Community Firmware: Topo Drums. Writes the engine's pattern for the next full loop onto the
+// assigned lane rows as notes (accents get velocity 127, normal hits 100), replacing whatever
+// was on those rows, then disables the engine so the notes take over. Returns the number of
+// notes written.
+int32_t InstrumentClip::captureTopoPattern(ModelStackWithTimelineCounter* modelStack) {
+	using namespace deluge::model::topo;
+
+	if (output->type != OutputType::KIT || !topoDrumsSettings.enabled || loopLength <= 0) {
+		return 0;
+	}
+	Kit* kit = (Kit*)output;
+
+	TopoStepEvent events[kStepsPerPattern];
+	kit->topoEngine().simulateNextSteps(kStepsPerPattern, events);
+
+	int32_t const stepLength = loopLength / kStepsPerPattern;
+	int32_t notesWritten = 0;
+
+	for (int32_t b = 0; b < kNumBanks; b++) {
+		int32_t row = topoDrumsSettings.bankRows[b];
+		if (row < 0 || row >= noteRows.getNumElements()) {
+			continue;
+		}
+		NoteRow* noteRow = noteRows.getElement(row);
+		if (!noteRow->drum) {
+			continue;
+		}
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(row, noteRow);
+		noteRow->clear(nullptr, modelStackWithNoteRow, /*clearAutomation=*/false, /*clearSequenceAndMPE=*/false);
+
+		bool written[kStepsPerPattern] = {};
+		for (int32_t i = 0; i < kStepsPerPattern; i++) {
+			TopoStepEvent const& ev = events[i];
+			if (!ev.fired(b)) {
+				continue;
+			}
+			int32_t step = ev.step;
+			if (written[step]) {
+				continue;
+			}
+			written[step] = true;
+
+			int32_t pos = (int32_t)(((int64_t)step * loopLength) / kStepsPerPattern);
+			int32_t length = topoDrumsSettings.gateMode ? stepLength : 0;
+			uint8_t velocity = ev.accented(b) ? 127 : 100;
+			if (noteRow->addCorrespondingNotes(pos, length, velocity, modelStackWithNoteRow,
+			                                   allowNoteTails(modelStackWithNoteRow), nullptr)
+			    != Error::NONE) {
+				break; // out of memory - keep what we have
+			}
+			notesWritten++;
+		}
+	}
+
+	// The captured notes would otherwise double up with the engine
+	topoDrumsSettings.enabled = false;
+
+	if (getRootUI()) {
+		getRootUI()->clipNeedsReRendering(this);
+	}
+	return notesWritten;
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -2411,6 +2560,24 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.closeTag();
 
+	// Community Firmware: Topo Drums generative drum mode
+	writer.writeOpeningTagBeginning("topoDrums");
+	writer.writeAttribute("enabled", topoDrumsSettings.enabled ? 1 : 0);
+	writer.writeAttribute("mode", (int32_t)topoDrumsSettings.mode);
+	writer.writeAttribute("gateMode", topoDrumsSettings.gateMode ? 1 : 0);
+	writer.writeAttribute("swing", topoDrumsSettings.swing ? 1 : 0);
+	writer.writeAttribute("x", topoDrumsSettings.engine.x);
+	writer.writeAttribute("y", topoDrumsSettings.engine.y);
+	writer.writeAttribute("randomness", topoDrumsSettings.engine.randomness);
+	writer.writeAttribute("densityA", topoDrumsSettings.engine.density[0]);
+	writer.writeAttribute("densityB", topoDrumsSettings.engine.density[1]);
+	writer.writeAttribute("densityC", topoDrumsSettings.engine.density[2]);
+	writer.writeAttribute("accentThreshold", topoDrumsSettings.engine.accentThreshold);
+	writer.writeAttribute("bankRowA", topoDrumsSettings.bankRows[0]);
+	writer.writeAttribute("bankRowB", topoDrumsSettings.bankRows[1]);
+	writer.writeAttribute("bankRowC", topoDrumsSettings.bankRows[2]);
+	writer.closeTag();
+
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
@@ -2687,6 +2854,59 @@ someError:
 				}
 			}
 			reader.match('}'); // End arpeggiator value object.
+		}
+
+		// Community Firmware: Topo Drums generative drum mode
+		else if (!strcmp(tagName, "topoDrums")) {
+			reader.match('{');
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "enabled")) {
+					topoDrumsSettings.enabled = reader.readTagOrAttributeValueInt() != 0;
+				}
+				else if (!strcmp(tagName, "mode")) {
+					topoDrumsSettings.mode =
+					    reader.readTagOrAttributeValueInt() == (int32_t)deluge::model::topo::TopoMode::Euclidean
+					        ? deluge::model::topo::TopoMode::Euclidean
+					        : deluge::model::topo::TopoMode::Drums;
+				}
+				else if (!strcmp(tagName, "gateMode")) {
+					topoDrumsSettings.gateMode = reader.readTagOrAttributeValueInt() != 0;
+				}
+				else if (!strcmp(tagName, "swing")) {
+					topoDrumsSettings.swing = reader.readTagOrAttributeValueInt() != 0;
+				}
+				else if (!strcmp(tagName, "x")) {
+					topoDrumsSettings.engine.x = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "y")) {
+					topoDrumsSettings.engine.y = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "randomness")) {
+					topoDrumsSettings.engine.randomness = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "densityA")) {
+					topoDrumsSettings.engine.density[0] = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "densityB")) {
+					topoDrumsSettings.engine.density[1] = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "densityC")) {
+					topoDrumsSettings.engine.density[2] = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "accentThreshold")) {
+					topoDrumsSettings.engine.accentThreshold = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "bankRowA") || !strcmp(tagName, "bankRowB") || !strcmp(tagName, "bankRowC")) {
+					int32_t bank = tagName[7] - 'A'; // 'A', 'B' or 'C'
+					int32_t row = reader.readTagOrAttributeValueInt();
+					topoDrumsSettings.bankRows[bank] =
+					    (row >= 0 && row < kDisplayWidth * kDisplayHeight) ? (int8_t)row : -1;
+				}
+				else {
+					reader.exitTag(tagName);
+				}
+			}
+			reader.match('}');
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.

@@ -120,6 +120,8 @@ extern MenuItem* paramShortcutsForKitGlobalFX[kDisplayWidth][kDisplayHeight];
 
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+// Community Firmware: kit chain + Topo Drums menu (when the EnableTopoDrums feature is on)
+extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForKitWithTopo;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
 extern deluge::vector<gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;

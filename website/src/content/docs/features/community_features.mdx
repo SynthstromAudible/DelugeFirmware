@@ -1255,6 +1255,40 @@ For a detailed description of this feature, please refer to the feature document
   the kit.
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > DELETE UNUSED KIT ROWS`.
 
+### 4.6.5 - Topo Drums
+
+- <Badge text="c1.3" variant="tip" /> Topo Drums is a generative drum-pattern
+  engine for kit clips, ported from the pattern generator of the classic Mutable
+  Instruments *Grids* eurorack module (GPLv3, Emilie Gillet). It morphs between
+  25 reference drum patterns on a "topographic map", with per-bank densities,
+  per-loop randomness and velocity accents, plus a Euclidean mode.
+
+- Enable it via `SETTINGS > COMMUNITY FEATURES > TOPO DRUMS` (off by default). Inside a kit clip, a `TOPO DRUMS` menu
+  then appears in the clip's horizontal menu chain:
+  - `ENABLE` – turns the engine on for the clip and automatically assigns its three banks (A / B / C) to lanes.
+    Existing gate-drum rows are reused where possible, otherwise gate drums are created on the first free gate
+    outputs (outputs set to `SPECIAL` / RUN / CLOCK are skipped).
+  - `MODE` – `TOPOGRAPHIC` (continuous morph) or `EUCLIDEAN` (rhythmic patterns).
+  - `OUTPUT` – short `TRIGGER` pulses or `GATE` (held for the whole step).
+  - `BANK A/B/C` – assign each bank to a kit lane (note row), or `NONE`.
+  - `CAPTURE` – writes the pattern that is about to play onto the lane rows as ordinary notes (accents get velocity
+    127), then switches the engine off so the notes take over.
+
+- While enabled, the two mod knobs edit engine parameters directly; the first four mod buttons pick the parameter
+  bank (its LED lights):
+  - **A**: X / Y – position on the pattern map
+  - **B**: Randomness / Swing – per-loop variation; swing toggles with turn direction
+  - **C**: Density A / Density B – how busy each bank is
+  - **D**: Density C / Accent threshold
+
+  In Euclidean mode the same knobs control pattern lengths (`Len A/B/C`) and note counts (`Notes A/B/C`).
+
+- The assigned lanes show the live pattern on the pads (accents brighter), and the normal clip playhead applies.
+  Engine settings are saved with the clip.
+
+- Credit: engine ported from Mutable Instruments Grids (GPLv3, Emilie Gillet). "Grids" is a trademark of Mutable
+  Instruments and is not a feature name here.
+
 ## 4.7 Instrument Clip View - Midi Clip Features
 
 ### 4.7.1 - Save/Load MIDI Presets

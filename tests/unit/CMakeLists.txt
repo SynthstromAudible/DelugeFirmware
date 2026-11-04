@@ -74,6 +74,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/io/midi/midi_queue.cpp
         # For FFT magnitude tests
         ../../src/deluge/util/fast_pythag.cpp
+        # For Topo Drums engine tests
+        ../../src/deluge/model/generative/topo/topo_engine.cpp
+        ../../src/deluge/model/generative/topo/topo_pattern_data.cpp
 )
 
 add_executable(UnitTests
@@ -100,6 +103,7 @@ add_executable(UnitTests
         midi_queue_tests.cpp
         fast_pythag_tests.cpp
         tick_interpolation_tests.cpp
+        topo_engine_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

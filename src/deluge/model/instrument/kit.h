@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
+#include "model/generative/topo/topo_engine.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
@@ -119,6 +120,8 @@ public:
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
 	void loadCrucialAudioFilesOnly() override;
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
+	/// Community Firmware: Topo Drums - engine access for the pad display / capture
+	deluge::model::topo::TopoEngine& topoEngine() { return topoEngine_; }
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -185,4 +188,16 @@ private:
 	                                ParamManager* paramManager, std::span<StereoSample> output);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
 	void renderNonAudioArpPostOutput(std::span<StereoSample> output);
+
+	// Community Firmware: Topo Drums generative drum mode
+	void doTopoTick(ModelStack* modelStack, int32_t currentPos);
+	void fireTopoBank(class InstrumentClip* clip, ModelStackWithTimelineCounter* timelineStack, int32_t rowIndex,
+	                  uint8_t velocity);
+	void silenceTopoBank(class InstrumentClip* clip, ModelStackWithTimelineCounter* timelineStack, int32_t rowIndex);
+
+	deluge::model::topo::TopoEngine topoEngine_;
+	class InstrumentClip* topoClip_{nullptr}; ///< Clip the topo engine is currently following
+	int32_t topoLastPos_{-1};                 ///< Last clip position seen by the topo tick (-1 = restart)
+	int64_t topoGateOffPulse_[deluge::model::topo::kNumBanks]{-1, -1, -1}; ///< Pattern-relative pulse at which each
+	                                                                       ///< bank's gate closes (-1 = none)
 };

@@ -190,6 +190,7 @@ public:
 	void deleteDrum(SoundDrum* drum);
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
 
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun() override;
@@ -425,6 +426,13 @@ private:
 	                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	void recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
 	int32_t getVelocityToSound(int32_t velocity);
+
+	// Community Firmware: Topo Drums - mod knob / button routing
+	[[nodiscard]] bool topoActive();
+	void adjustTopoParam(int32_t whichModEncoder, int32_t offset, InstrumentClip* clip);
+	void updateTopoKnobLEDs(InstrumentClip* clip);
+	void renderTopoPatternOverlay(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth]);
+	int32_t topoBank_{0};
 };
 
 extern InstrumentClipView instrumentClipView;

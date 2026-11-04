@@ -217,6 +217,11 @@
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
+#include "gui/menu_item/topo/bank_lane.h"
+#include "gui/menu_item/topo/capture.h"
+#include "gui/menu_item/topo/enable.h"
+#include "gui/menu_item/topo/mode.h"
+#include "gui/menu_item/topo/output_mode.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
@@ -372,6 +377,20 @@ PLACE_SDRAM_BSS HorizontalMenu randomizerMenu{STRING_FOR_RANDOMIZER,
                                                &glideProbabilityMenu, &glideProbabilityMenuMIDIOrCV,
                                                // Reverse
                                                &reverseProbabilityMenu}};
+
+// Community Firmware: Topo Drums
+PLACE_SDRAM_BSS topo::Enable topoDrumsEnableMenu{STRING_FOR_ENABLED, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS};
+PLACE_SDRAM_BSS topo::Mode topoDrumsModeMenu{STRING_FOR_MODE, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS};
+PLACE_SDRAM_BSS topo::OutputMode topoDrumsOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS};
+PLACE_SDRAM_BSS topo::BankLane topoDrumsBankAMenu{STRING_FOR_BANK_A, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS, 0};
+PLACE_SDRAM_BSS topo::BankLane topoDrumsBankBMenu{STRING_FOR_BANK_B, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS, 1};
+PLACE_SDRAM_BSS topo::BankLane topoDrumsBankCMenu{STRING_FOR_BANK_C, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS, 2};
+PLACE_SDRAM_BSS topo::Capture topoDrumsCaptureMenu{STRING_FOR_TOPO_CAPTURE, STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS};
+PLACE_SDRAM_BSS HorizontalMenu topoDrumsMenu{STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS,
+                                             STRING_FOR_COMMUNITY_FEATURE_TOPO_DRUMS,
+                                             {&topoDrumsEnableMenu, &topoDrumsModeMenu, &topoDrumsOutputMenu,
+                                              &topoDrumsBankAMenu, &topoDrumsBankBMenu, &topoDrumsBankCMenu,
+                                              &topoDrumsCaptureMenu}};
 
 // Arp: Basic
 PLACE_SDRAM_BSS HorizontalMenu arpBasicMenu{
@@ -2040,6 +2059,16 @@ PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
 	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
 	&arpMenuGroupKit, &randomizerMenu
+};
+
+// Community Firmware: same kit chain with the Topo Drums menu appended (used when the
+// EnableTopoDrums community feature is on)
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForKitWithTopo = {
+	&kitClipMasterMenu,
+	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
+	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
+	&globalSidechainMenu, &audioCompMenu, &stutterMenu,
+	&arpMenuGroupKit, &randomizerMenu, &topoDrumsMenu
 };
 
 PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {

@@ -2388,6 +2388,10 @@ std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizonta
 		return horizontalMenusChainForSong;
 	}
 	if (editingKitAffectEntire()) {
+		// Community Firmware: offer the Topo Drums menu when the feature is enabled
+		if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableTopoDrums)) {
+			return horizontalMenusChainForKitWithTopo;
+		}
 		return horizontalMenusChainForKit;
 	}
 	if (editingCVOrMIDIClip()) {
