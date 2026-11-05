@@ -159,7 +159,7 @@ void reference_fill_tail(Windows& w, int32_t start, int32_t end, const std::vect
 	}
 }
 
-// The reader's resize loops and its far-end zeroing.
+// The reader's resize loops (widening as a move) and its far-end zeroing.
 void reference_narrow(Windows& w, int32_t offset, int32_t count, bool stereo) {
 	for (int32_t i = 0; i < count; i++) {
 		w.l[i] = w.l[i + offset];
@@ -169,7 +169,7 @@ void reference_narrow(Windows& w, int32_t offset, int32_t count, bool stereo) {
 	}
 }
 void reference_widen(Windows& w, int32_t offset, int32_t count, bool stereo) {
-	for (int32_t i = 0; i < count; i++) {
+	for (int32_t i = count - 1; i >= 0; i--) {
 		w.l[i + offset] = w.l[i];
 		if (stereo) {
 			w.r[i + offset] = w.r[i];
@@ -329,7 +329,7 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 		}
 	});
 
-	it("narrow, widen and clear move and zero the window as the resize loops did, widen's overlap included", _ {
+	it("narrow, widen and clear move and zero the window as the resize loops do", _ {
 		for (int32_t round = 0; round < kRounds; round++) {
 			for (const bool stereo : {false, true}) {
 				const std::size_t channels = stereo ? 2 : 1;
@@ -362,18 +362,17 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 		}
 	});
 
-	it("widen copies the newest taps along when the offset is under the count (quirk Q11)", _ {
+	it("widen moves the window even when the offset is under the count", _ {
 		Windows w;
 		for (int32_t i = 0; i < kTaps; i++) {
 			w.l[i] = static_cast<int16_t>(i + 1);
 		}
 		Interpolator interpolator = holding(w);
 		interpolator.widen(1, 3, 1);
-		// Slot 1 takes slot 0, then slot 2 takes the new slot 1, then slot 3 the new slot 2: four copies of tap 0
-		expect(interpolator.window_l()[0]).to_equal(int16_t{1});
+		// Slots 0-2 move to 1-3; slot 0 keeps its value for the owner to refill
 		expect(interpolator.window_l()[1]).to_equal(int16_t{1});
-		expect(interpolator.window_l()[2]).to_equal(int16_t{1});
-		expect(interpolator.window_l()[3]).to_equal(int16_t{1});
+		expect(interpolator.window_l()[2]).to_equal(int16_t{2});
+		expect(interpolator.window_l()[3]).to_equal(int16_t{3});
 		expect(interpolator.window_l()[4]).to_equal(int16_t{5});
 	});
 });

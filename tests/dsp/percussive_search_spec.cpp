@@ -16,8 +16,9 @@
  */
 
 // The live pitch shifter's percussive back-search (dsp-next/fixed/pitch_shift/percussive_search.h) against the old hop
-// end's (reference_hop_plan.h), over every shift's tuning, random moments and noise, on several histories; and the
-// float comparison of its averages (quirk Q6) against the integer cross-multiplication that could replace it.
+// end's (reference_hop_plan.h), over every shift's tuning, random moments and noise, on several histories (the old
+// end compared its averages as floats, the search cross-multiplies: Q6); and the two comparisons over the search's
+// range.
 
 #include "pitch_shift_histories.h"
 #include "reference_hop_plan.h"
@@ -64,7 +65,7 @@ describe percussive_search("deluge::dsp::fixed::pitch_shift::PercussiveSearch", 
 		expect(searches_as_the_old_hop_end<deluge::dsp::StereoSample>(0x32u)).to_be_true();
 	});
 
-	it("decides its best average as an integer cross-multiplication would (quirk Q6)", _ {
+	it("cross-multiplies as the old float comparison decided (quirk Q6)", _ {
 		// total / n > best / m, as floats, against total * m > best * n, as integers, over the search's range: up to 64
 		// entries of up to 63 each
 		std::mt19937 rng(0x33u);

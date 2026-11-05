@@ -180,20 +180,38 @@ private:
 	static constexpr int32_t kFirstHop = 256;
 	/// A playtime too long to run out.
 	static constexpr int32_t kForever = 2147483647;
+	/// How far ahead a playtime is counted: past the longest hop the tuning allows (140 hundred samples).
+	static constexpr int64_t kPlaytimeHorizon = 16384;
 
-	/// @brief The output samples @p head can play before it reaches now and runs out, pitching up.
-	/// @details The distance behind now, divided by the shift and then by its excess over 1 (quirk Q2,
-	/// docs/dev/live_pitch_shifter_quirks.md). A direct head never runs out.
+	/// @brief The output samples @p head can play before it runs out of input, pitching up.
+	/// @details The input arrives a block at a time: this block's is all written, and each later block brings a block
+	/// more. The head reads its step per sample, so it lasts the rest of this block if its reach does, then each block
+	/// in which the input it has covers a block's reading, and runs out in the first that does not. Counted to the
+	/// longest hop the tuning allows; a direct head never runs out.
 	[[nodiscard]] int32_t playtime(const Mono<Kernel>& head, const InputHistory<Frame>& history) const {
 		if (head.state().kind != HeadKind::REPITCHING) {
 			return kForever;
 		}
-		const uint32_t behind = history.now().since(head.state().cursor);
-		const auto scaled = static_cast<uint32_t>((static_cast<uint64_t>(behind) << 24)
-		                                          / static_cast<uint32_t>(block_.phase_increment));
-		const uint64_t estimate =
-		    (static_cast<uint64_t>(scaled) << 24) / static_cast<uint32_t>(block_.phase_increment - kMaxSampleValue);
-		return estimate >= kForever ? kForever : static_cast<int32_t>(estimate);
+		const auto step = static_cast<int64_t>(static_cast<uint32_t>(block_.phase_increment));
+		const auto block = static_cast<int64_t>(block_.length);
+		// The input ahead of the head, Q24 frames, less where its phase already stands
+		int64_t ahead = (static_cast<int64_t>(history.now().since(head.state().cursor)) << 24)
+		                - static_cast<int64_t>(head.state().phase);
+		const auto rest = static_cast<int64_t>(remaining_);
+		if (ahead < rest * step) {
+			return static_cast<int32_t>(std::max<int64_t>(ahead, 0) / step);
+		}
+		ahead -= rest * step;
+		int64_t played = rest;
+		while (played < kPlaytimeHorizon) {
+			ahead += block << 24;
+			if (ahead < block * step) {
+				return static_cast<int32_t>(played + (ahead / step));
+			}
+			ahead -= block * step;
+			played += block;
+		}
+		return kForever;
 	}
 
 	/// @brief The samples @p head can render before it reads the latest frame written, at the block's shift: with phase
