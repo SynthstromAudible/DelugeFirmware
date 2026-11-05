@@ -247,7 +247,7 @@ private:
 class AmplitudeCase {
 public:
 	/// @brief The ramp the VCA is built from: a start of 2^29, a quarter of full scale (Q31), rising 1,024 per sample.
-	static constexpr dsp::Ramp kRamp{dsp::Q<31>::from_raw(int32_t{1} << 29), dsp::Q<31>::from_raw(1024)};
+	static constexpr dsp::Ramp kRamp{dsp::q<31>(0.25), dsp::Q<31>::from_raw(1024)};
 
 	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -305,9 +305,9 @@ static_assert(int64_t{CrudeAmplitudeCase::kRamp.value().raw()}
 class PulseCase {
 public:
 	/// @brief The pulse's increment: half of A4's.
-	static constexpr uint32_t kIncrement = kA4Increment >> 1;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA4Increment >> 1);
 	/// @brief The phase between the two squares: the 50% width's, standing in for any width.
-	static constexpr uint32_t kPhaseOffset = 0xC000'0000;
+	static constexpr dsp::UQ<32> kPhaseOffset = dsp::uq<32>(0.75);
 
 	/// @brief Restarts the pulse at phase 0, and takes the output's span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -316,7 +316,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The pulse's phase.
-	[[nodiscard]] uint32_t phase() const { return pulse_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return pulse_.phase(); }
 
 private:
 	dsp::fixed::PulseOscillator pulse_{make()};
@@ -330,7 +330,7 @@ private:
 class BandLimitedTableCase {
 public:
 	/// @brief The oscillator's increment: A4.
-	static constexpr uint32_t kIncrement = kA4Increment;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA4Increment);
 
 	/// @brief Restarts the oscillator at phase 0, and takes the output's span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -339,7 +339,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
-	[[nodiscard]] uint32_t phase() const { return oscillator_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return oscillator_.phase(); }
 
 private:
 	dsp::fixed::BandLimitedTableOscillator oscillator_{make()};
@@ -353,7 +353,7 @@ private:
 class CrudeSawCase {
 public:
 	/// @brief The saw's increment: A1.
-	static constexpr uint32_t kIncrement = kA1Increment;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA1Increment);
 
 	/// @brief Restarts the saw at phase 0, and takes the output's span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -362,10 +362,10 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The saw's phase.
-	[[nodiscard]] uint32_t phase() const { return saw_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return saw_.phase(); }
 
 private:
-	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
+	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{dsp::UQ<32>{}, kIncrement}};
 	BlockSpans spans_{};
 };
 
@@ -377,7 +377,7 @@ private:
 class CrudeSquareCase {
 public:
 	/// @brief The square's increment: A1.
-	static constexpr uint32_t kIncrement = kA1Increment;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA1Increment);
 	/// @brief The square's threshold phase: half a cycle.
 	static constexpr uint32_t kPulseWidth = 0x8000'0000;
 
@@ -388,11 +388,10 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The square's phase.
-	[[nodiscard]] uint32_t phase() const { return square_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return square_.phase(); }
 
 private:
-	dsp::fixed::CrudeSquare<dsp::Phasor> square_{
-	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
+	dsp::fixed::CrudeSquare<dsp::Phasor> square_{dsp::Phasor{dsp::UQ<32>{}, kIncrement}, kPulseWidth};
 	BlockSpans spans_{};
 };
 
@@ -402,7 +401,7 @@ private:
 class CrudeTriangleCase {
 public:
 	/// @brief The triangle's increment: A4.
-	static constexpr uint32_t kIncrement = kA4Increment;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA4Increment);
 
 	/// @brief Restarts the triangle at phase 0, and takes the output's span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -411,11 +410,10 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The triangle's phase.
-	[[nodiscard]] uint32_t phase() const { return triangle_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return triangle_.phase(); }
 
 private:
-	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{
-	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
+	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{dsp::Phasor{dsp::UQ<32>{}, kIncrement}};
 	BlockSpans spans_{};
 };
 
@@ -437,7 +435,7 @@ public:
 	/// @brief The audible increment: 2.5 times the master's.
 	static constexpr uint32_t kAudibleIncrement = kMasterIncrement * 5 / 2;
 	/// @brief The phase between the pulse's two squares for a 50% width.
-	static constexpr uint32_t kPhaseOffset = PulseCase::kPhaseOffset;
+	static constexpr dsp::UQ<32> kPhaseOffset = PulseCase::kPhaseOffset;
 
 	/// @brief Restarts the master and the audible phase at 0, and takes the output's span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -446,13 +444,13 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The master's phase.
-	[[nodiscard]] uint32_t master_phase() const { return master_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> master_phase() const { return master_.phase(); }
 	/// @return The audible oscillator's phase, at the full (not halved) rate.
-	[[nodiscard]] uint32_t audible_phase() const { return audible_phase_; }
+	[[nodiscard]] dsp::UQ<32> audible_phase() const { return audible_phase_; }
 
 private:
-	dsp::Phasor master_{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
-	uint32_t audible_phase_ = 0;
+	dsp::Phasor master_{dsp::UQ<32>{}, dsp::UQ<32>::from_raw(kMasterIncrement)};
+	dsp::UQ<32> audible_phase_{};
 	BlockSpans spans_{};
 };
 
@@ -468,7 +466,7 @@ private:
 class WavetableCase {
 public:
 	/// @brief The oscillator's increment: A3.
-	static constexpr uint32_t kIncrement = kA3Increment;
+	static constexpr dsp::UQ<32> kIncrement = dsp::UQ<32>::from_raw(kA3Increment);
 	/// @brief The cycles in the wavetable.
 	static constexpr int32_t kCycles = 4;
 	/// @brief log2 of a cycle's samples.
@@ -485,7 +483,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
-	[[nodiscard]] uint32_t phase() const { return oscillator_.phase().raw(); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return oscillator_.phase(); }
 
 private:
 	dsp::fixed::WavetableOscillator oscillator_{make()};
@@ -498,7 +496,7 @@ private:
 class MonoGainCase {
 public:
 	/// @brief The gain: -3 dB, Q31.
-	static constexpr q31_t kGain = 0x5A82'799A;
+	static constexpr dsp::Q<31> kGain = dsp::Q<31>::from_raw(0x5A82'799A); // 1/√2, rounded
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -519,7 +517,7 @@ private:
 class MonoVecGainCase {
 public:
 	/// @brief The gain: -3 dB, Q31.
-	static constexpr q31_t kGain = MonoGainCase::kGain;
+	static constexpr dsp::Q<31> kGain = MonoGainCase::kGain;
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -543,7 +541,7 @@ class StereoGainCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 	/// @brief The gain: unity, Q31.
-	static constexpr q31_t kGain = 0x7FFF'FFFF;
+	static constexpr dsp::Q<31> kGain = dsp::Q<31>::max();
 
 	/// @brief Configures the gain, fills the stereo block and takes its span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -593,7 +591,7 @@ class OnePoleCase {
 public:
 	/// @brief The moveability, Q31: the granular kernel's wet low-pass. m = 1/4 gives tan(πf/fs) = 1/3, a cutoff of
 	/// about 4.5 kHz at 44.1 kHz.
-	static constexpr dsp::Q<31> kMoveability = dsp::Q<31>::from_raw(1 << 29);
+	static constexpr dsp::Q<31> kMoveability = dsp::q<31>(0.25);
 
 	/// @brief Configures the pole in @p M from silence, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -665,7 +663,7 @@ private:
 class DryWetBlendCase {
 public:
 	/// @brief The wet level, Q31: a half.
-	static constexpr dsp::Q<31> kLevel = dsp::Q<31>::from_raw(1 << 30);
+	static constexpr dsp::Q<31> kLevel = dsp::q<31>(0.5);
 
 	/// @brief Configures the level, fills the inputs and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -705,7 +703,7 @@ private:
 /// block carries every saw's phase on.
 class SupersawCase {
 public:
-	/// @brief The centre saw's increment: A3.
+	/// @brief The centre saw's increment: A3, a word as the supersaw takes it.
 	static constexpr uint32_t kIncrement = kA3Increment;
 	/// @brief Half the spread range (the bipolar wave-index param, ±2^30).
 	static constexpr int32_t kSpread = int32_t{1} << 29;
@@ -853,7 +851,7 @@ public:
 	static constexpr dsp::fixed::DuckEnvelope::Settings kSettings{
 	    .attack = 37'640, .release = 472, .shape = dsp::Q<31>{}, .instant_attack = false};
 	/// @brief The hit's strength, Q31.
-	static constexpr dsp::Q<31> kHitStrength = dsp::Q<31>::from_raw(0x6000'0000);
+	static constexpr dsp::Q<31> kHitStrength = dsp::q<31>(0.75);
 	/// @brief How long ago the hit landed, in samples.
 	static constexpr uint32_t kHitSamplesAgo = 4'665;
 
@@ -1197,22 +1195,22 @@ inline constexpr q31_t kFilterGain = 536'870'912;
 /// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
 /// which oversampling starts (2^24 would reach it, and oversample at this resonance). The resonance is high enough that
 /// the ladders saturate their input.
-inline constexpr dsp::fixed::FilterConfig kFilterLowSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
-                                                             .resonance = dsp::Q<29>::from_raw(1 << 28),
-                                                             .morph = dsp::Q<29>::from_raw(0),
+inline constexpr dsp::fixed::FilterConfig kFilterLowSettings{.frequency = dsp::q<31>(0.00390625),
+                                                             .resonance = dsp::q<29>(0.5),
+                                                             .morph = dsp::Q<29>{},
                                                              .allow_oversampling = true};
 /// @brief The drive ladder's oversampling settings: a bright cutoff (50,000,000, Q31) at high resonance (500,000,000,
 /// Q29), past the threshold above which the drive ladder runs at twice the rate.
 inline constexpr dsp::fixed::FilterConfig kFilterBrightSettings{.frequency = dsp::Q<31>::from_raw(50'000'000),
                                                                 .resonance = dsp::Q<29>::from_raw(500'000'000),
-                                                                .morph = dsp::Q<29>::from_raw(0),
+                                                                .morph = dsp::Q<29>{},
                                                                 .allow_oversampling = true};
 /// @brief The high-pass settings the filter cases run at: the cutoff at 2^23 (Q31), a quarter resonance (2^27 of Q29's
 /// 2^29), no morph. The ladder's processed resonance stays below the level at which it saturates: the high-pass
 /// ladder's unsaturated path, where most sounds run it.
-inline constexpr dsp::fixed::FilterConfig kFilterHighSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
-                                                              .resonance = dsp::Q<29>::from_raw(1 << 27),
-                                                              .morph = dsp::Q<29>::from_raw(0),
+inline constexpr dsp::fixed::FilterConfig kFilterHighSettings{.frequency = dsp::q<31>(0.00390625),
+                                                              .resonance = dsp::q<29>(0.25),
+                                                              .morph = dsp::Q<29>{},
                                                               .allow_oversampling = true};
 
 /// @brief One filter case's configuration: what each slot of the set runs, the route, and each filter's settings.
@@ -1252,16 +1250,14 @@ inline constexpr FilterCaseConfig kFilterLowDriveOs = filter_low_case(
     kFilterBrightSettings);
 /// @brief The low-pass settings of the `*_resonant_*` cases: kFilterLowSettings at a resonance (2^25, Q29) that
 /// keeps every ladder's processed resonance below its input's saturation threshold.
-inline constexpr dsp::fixed::FilterConfig kFilterLowResonantSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
-                                                                     .resonance = dsp::Q<29>::from_raw(1 << 25),
-                                                                     .morph = dsp::Q<29>::from_raw(0),
+inline constexpr dsp::fixed::FilterConfig kFilterLowResonantSettings{.frequency = dsp::q<31>(0.00390625),
+                                                                     .resonance = dsp::q<29>(0.0625),
+                                                                     .morph = dsp::Q<29>{},
                                                                      .allow_oversampling = true};
 /// @brief The low-pass settings of the `*_unresonant_*` cases: kFilterLowSettings at no resonance, so nothing is fed
 /// back.
-inline constexpr dsp::fixed::FilterConfig kFilterLowUnresonantSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
-                                                                       .resonance = dsp::Q<29>::from_raw(0),
-                                                                       .morph = dsp::Q<29>::from_raw(0),
-                                                                       .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterLowUnresonantSettings{
+    .frequency = dsp::q<31>(0.00390625), .resonance = dsp::Q<29>{}, .morph = dsp::Q<29>{}, .allow_oversampling = true};
 /// @brief `filter_lp12_resonant_*`: the 12 dB ladder fed back, its input not saturated.
 inline constexpr FilterCaseConfig kFilterLow12Resonant = filter_low_case(kFilterLow12.low, kFilterLowResonantSettings);
 /// @brief `filter_lp24_resonant_*`: the 24 dB ladder fed back, its input not saturated.
@@ -1297,9 +1293,9 @@ inline constexpr FilterCaseConfig kFilterHighMorph{.low = {},
                                                    .high = {.kind = dsp::fixed::HighPassSlot::Kind::LADDER},
                                                    .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
                                                    .low_config = kFilterLowSettings,
-                                                   .high_config = {.frequency = dsp::Q<31>::from_raw(1 << 23),
-                                                                   .resonance = dsp::Q<29>::from_raw(1 << 27),
-                                                                   .morph = dsp::Q<29>::from_raw(1 << 26),
+                                                   .high_config = {.frequency = dsp::q<31>(0.00390625),
+                                                                   .resonance = dsp::q<29>(0.25),
+                                                                   .morph = dsp::q<29>(0.125),
                                                                    .allow_oversampling = true}};
 
 /// @brief The configuration of `filterset_<hl|lh|par>_stereo`: the 24 dB ladder and the high-pass ladder (a sound's
@@ -1385,15 +1381,15 @@ using FilterMonoCase = FilterCase<false>;
 using FilterStereoCase = FilterCase<true>;
 
 /// @brief The compressor cases' threshold knob, Q31 of its travel: half, where the compressor reduces the cases' level.
-inline constexpr dsp::Q<31> kCompressorThreshold = dsp::Q<31>::from_raw(1 << 30);
+inline constexpr dsp::Q<31> kCompressorThreshold = dsp::q<31>(0.5);
 /// @brief The blended cases' blend knob, Q31: half, which the menu shows as 50%.
-inline constexpr dsp::Q<31> kCompressorHalfBlend = dsp::Q<31>::from_raw(1 << 30);
+inline constexpr dsp::Q<31> kCompressorHalfBlend = dsp::q<31>(0.5);
 /// @brief The channels' gain in the `render` cases, 4.27 signed: the song master's neutral post-FX volume
 /// (167,763,968), halved as the master halves it.
 inline constexpr dsp::Q<27> kCompressorVolume = dsp::Q<27>::from_raw(83'881'984);
 /// @brief The final volume, 3.29: GLOBAL_VOLUME_POST_FX's neutral value, as a sound passes it to
 /// `render_volume_neutral`. The `render` cases pass it shifted down by 3, as `render_volume_neutral` does.
-inline constexpr dsp::Q<29> kCompressorFinalVolume = dsp::Q<29>::from_raw(134'217'728);
+inline constexpr dsp::Q<29> kCompressorFinalVolume = dsp::q<29>(0.25);
 
 /// @brief One compressor case's configuration.
 struct CompressorCaseConfig {
@@ -1554,7 +1550,7 @@ inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
 /// @brief The granular cases' reverb send knob, Q31: an eighth. With the rig's volume, 8× unity, the send it makes is
 /// one Q26 LSB under full scale, just short of where it saturates. Each block turns it into the component's
 /// argument with the post-effect volume, as an owner's chain does (effects::ChainCore::render_fx).
-inline constexpr int32_t kGranularVerbAmount = 0x10000000;
+inline constexpr dsp::Q<31> kGranularVerbAmount = dsp::q<31>(0.125);
 /// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The kernel wraps its write index
 /// lazily, inside the per-sample step, and sets its initialised state only when a call starts with the index exactly at
 /// 65,536; that happens when the block length divides 65,536 (the bench's 32, 64 and 128 do). From then on grains draw

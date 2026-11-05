@@ -1229,21 +1229,21 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("runs each oscillator free at its configured increment", _ {
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
-				const auto advanced = [n](uint32_t increment, std::size_t blocks) {
-					return static_cast<uint32_t>(increment * n * blocks);
+				const auto advanced = [n](deluge::dsp::UQ<32> increment, std::size_t blocks) {
+					return deluge::dsp::advanced(deluge::dsp::UQ<32>{}, increment, n * blocks).raw();
 				};
 				render(set.pulse, n, 3);
-				expect(set.pulse.phase()).to_equal(advanced(PulseCase::kIncrement, 3));
+				expect(set.pulse.phase().raw()).to_equal(advanced(PulseCase::kIncrement, 3));
 				render(set.band_limited_table, n, 3);
-				expect(set.band_limited_table.phase()).to_equal(advanced(BandLimitedTableCase::kIncrement, 3));
+				expect(set.band_limited_table.phase().raw()).to_equal(advanced(BandLimitedTableCase::kIncrement, 3));
 				render(set.crude_saw, n, 3);
-				expect(set.crude_saw.phase()).to_equal(advanced(CrudeSawCase::kIncrement, 3));
+				expect(set.crude_saw.phase().raw()).to_equal(advanced(CrudeSawCase::kIncrement, 3));
 				render(set.crude_square, n, 3);
-				expect(set.crude_square.phase()).to_equal(advanced(CrudeSquareCase::kIncrement, 3));
+				expect(set.crude_square.phase().raw()).to_equal(advanced(CrudeSquareCase::kIncrement, 3));
 				render(set.crude_triangle, n, 3);
-				expect(set.crude_triangle.phase()).to_equal(advanced(CrudeTriangleCase::kIncrement, 3));
+				expect(set.crude_triangle.phase().raw()).to_equal(advanced(CrudeTriangleCase::kIncrement, 3));
 				render(set.wavetable, n, 3);
-				expect(set.wavetable.phase()).to_equal(advanced(WavetableCase::kIncrement, 3));
+				expect(set.wavetable.phase().raw()).to_equal(advanced(WavetableCase::kIncrement, 3));
 			}
 		});
 
@@ -1251,7 +1251,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				render(set.synced_pulse, n, 3);
-				expect(set.synced_pulse.master_phase())
+				expect(set.synced_pulse.master_phase().raw())
 				    .to_equal(static_cast<uint32_t>(SyncedPulseCase::kMasterIncrement * n * 3));
 			}
 		});
@@ -1269,18 +1269,18 @@ describe bench_runner("The DSP benchmark runner", ${
 					               << 1;
 				}
 				render(set.synced_pulse, n, blocks);
-				expect(set.synced_pulse.audible_phase()).not_().to_equal(free_running);
+				expect(set.synced_pulse.audible_phase().raw()).not_().to_equal(free_running);
 			}
 		});
 
 		it("configures each gain as documented", _ {
 			CaseSet& set = case_set();
 			set.mono_gain.setup(32);
-			expect(set.mono_gain.component().coefficients().gain.raw()).to_equal(MonoGainCase::kGain);
+			expect(set.mono_gain.component().coefficients().gain.raw()).to_equal(MonoGainCase::kGain.raw());
 			set.mono_vec_gain.setup(32);
-			expect(set.mono_vec_gain.component().coefficients().gain.raw()).to_equal(MonoVecGainCase::kGain);
+			expect(set.mono_vec_gain.component().coefficients().gain.raw()).to_equal(MonoVecGainCase::kGain.raw());
 			set.stereo_gain.setup(32);
-			expect(set.stereo_gain.component().coefficients().gain.raw()).to_equal(StereoGainCase::kGain);
+			expect(set.stereo_gain.component().coefficients().gain.raw()).to_equal(StereoGainCase::kGain.raw());
 		});
 
 		it("keeps the stereo frames at full scale through a whole in-place run at every block size", _ {

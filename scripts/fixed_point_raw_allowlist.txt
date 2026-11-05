@@ -10,15 +10,15 @@
 # which refuses to raise a raw or view count or add a file with either.
 #
 # <path> raw=<n> [view=<n>] boundary=<n>
-src/deluge/bench/cases.cpp raw=0 boundary=26
-src/deluge/bench/cases.h raw=0 boundary=52
-src/deluge/bench/chain_cases.cpp raw=0 boundary=15
+src/deluge/bench/cases.cpp raw=0 boundary=7
+src/deluge/bench/cases.h raw=0 boundary=22
+src/deluge/bench/chain_cases.cpp raw=0 boundary=1
 src/deluge/bench/delay_cases.cpp raw=0 boundary=2
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
-src/deluge/bench/granular_cases.cpp raw=0 boundary=2
+src/deluge/bench/granular_cases.cpp raw=0 boundary=1
 src/deluge/bench/reference_chains.h raw=4 boundary=37
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
-src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
+src/deluge/bench/va_shape_cases.cpp raw=0 boundary=1
 src/deluge/dsp-next/core/convert.h raw=0 boundary=7
 src/deluge/dsp-next/core/fixed_point_lanes.h raw=0 boundary=5
 src/deluge/dsp-next/core/generator.h raw=0 boundary=2

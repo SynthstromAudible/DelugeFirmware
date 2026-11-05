@@ -97,10 +97,10 @@ effects::FxInputs fx_inputs(effects::ChainCore& core, dsp::Q<31> grain_send) {
 	    .mod_fx_depth = 0x20000000,
 	    .mod_fx_offset = 0x08000000,
 	    .mod_fx_feedback = 0x10000000,
-	    .eq = {.bass = dsp::Q<31>::from_raw(0x20000000),
-	           .treble = dsp::Q<31>::from_raw(-0x10000000),
-	           .bass_frequency = dsp::Q<31>::from_raw(0x10000000),
-	           .treble_frequency = dsp::Q<31>::from_raw(-0x10000000)},
+	    .eq = {.bass = dsp::q<31>(0.25),
+	           .treble = dsp::q<31>(-0.125),
+	           .bass_frequency = dsp::q<31>(0.125),
+	           .treble_frequency = dsp::q<31>(-0.125)},
 	    .delay = delay,
 	    .stereo = true,
 	    .grain_send = grain_send,
@@ -146,13 +146,13 @@ void clear() {
 void sound_block(bool reference) {
 	effects::SoundChain& chain = *rig.sound;
 	const effects::SoundChainInputs in{
-	    .fx = fx_inputs(chain.core(), dsp::Q<31>::from_raw(0x04000000)),
+	    .fx = fx_inputs(chain.core(), dsp::q<31>(0.03125)),
 	    .bitcrush = kBitcrush,
 	    .post_fx_volume = kVolume,
 	    .post_reverb_volume = kVolume,
-	    .reverb_send = dsp::Q<31>::from_raw(0x08000000),
+	    .reverb_send = dsp::q<31>(0.0625),
 	    .sound = true,
-	    .compressor_threshold = dsp::Q<31>::from_raw(0x40000000),
+	    .compressor_threshold = dsp::q<31>(0.5),
 	    .stutter = nullptr,
 	    .stutter_rate = 0,
 	};
@@ -168,20 +168,20 @@ void sound_block(bool reference) {
 void clip_block(bool reference) {
 	effects::TrackChain& chain = *rig.clip;
 	const effects::TrackChainInputs in{
-	    .fx = fx_inputs(chain.core(), dsp::Q<31>::from_raw(0x08000000)),
+	    .fx = fx_inputs(chain.core(), dsp::q<31>(0.0625)),
 	    .bitcrush = kBitcrush,
 	    .filter = filter_params(),
 	    .filter_scratch = render::filter_scratch(),
 	    .volume_post_fx = kVolume,
-	    .reverb_send = dsp::Q<31>::from_raw(0x08000000),
-	    .pan = dsp::Q<31>::from_raw(0x10000000),
+	    .reverb_send = dsp::q<31>(0.0625),
+	    .pan = dsp::q<31>(0.125),
 	    .sidechain_on = false,
 	    .sidechain_hit = dsp::Q<31>{},
 	    .sidechain_shape = dsp::Q<31>{},
 	    .sidechain_depth = dsp::Q<29>{},
 	    .tick_inverse = kTickInverse,
 	    .post_reverb_volume_neutral = kVolume,
-	    .compressor_threshold = dsp::Q<31>::from_raw(0x40000000),
+	    .compressor_threshold = dsp::q<31>(0.5),
 	    .stutter = nullptr,
 	    .stutter_rate = 0,
 	};
@@ -200,10 +200,10 @@ void clip_block(bool reference) {
 void master_block(bool reference) {
 	effects::MasterChain& chain = *rig.master;
 	const effects::MasterChainInputs in{
-	    .fx = fx_inputs(chain.core(), dsp::Q<31>::from_raw(0x02000000)),
+	    .fx = fx_inputs(chain.core(), dsp::q<31>(0.015625)),
 	    .volume_post_fx = kVolume,
 	    .post_reverb_volume = kVolume,
-	    .reverb_send = dsp::Q<31>::from_raw(0x08000000),
+	    .reverb_send = dsp::q<31>(0.0625),
 	};
 	const effects::MasterPostInputs post{
 	    .filter = filter_params(),
@@ -214,7 +214,7 @@ void master_block(bool reference) {
 	    .do_pan = false,
 	    .pan_l = dsp::Q<30>{},
 	    .pan_r = dsp::Q<30>{},
-	    .song_volume = dsp::Q<27>::from_raw(0x40000000),
+	    .song_volume = dsp::q<27>(8.0),
 	    .stutter = nullptr,
 	    .stutter_rate = 0,
 	};
