@@ -101,6 +101,14 @@ using PadForwardPerform = void (*)(PadForwardTarget target, int32_t x, int32_t y
 /// @return Which arm matched -- already performed when this returns.
 PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 
+/// @brief Whether the root view keeps a shift-held main-grid pad that would otherwise be a menu shortcut.
+///
+/// `SoundEditor::potentialShortcutPadAction`'s carve-out: the automation view's interpolation and pad-selection pads,
+/// x 0 at y 6 and 7, are no shortcuts while it is the root. A pad kept here goes to `forwardGridPad`.
+/// @param x,y The pad, in `MatrixDriver` coordinates.
+/// @return True when the pad is the root view's.
+bool rootKeepsShortcutPad(int32_t x, int32_t y);
+
 /// @brief Replace what performs a decided forward; `nullptr` restores the real one.
 ///
 /// `shell_choice_dispatch.h`'s `setSampleClaimDispatch` for the same reason it exists there: the

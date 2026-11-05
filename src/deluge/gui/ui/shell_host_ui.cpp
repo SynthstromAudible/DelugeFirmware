@@ -754,17 +754,15 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 	case deluge::ui::shell::GridPadClaim::None:
 		return false;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
-		// `SoundEditor::potentialShortcutPadAction`'s gate,
-		// minus two halves that stay on legacy's side. One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene`
-		// already drops with the reason recorded (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`). The other is the
-		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
-		// (y == 6 || y == 7)` (in that function), which exempts those two pads from claiming a shortcut
-		// jump at all -- `src/scenes` cannot ask `getRootUI()`'s identity, so `MenuScene` claims
-		// them here exactly as it would anywhere else on the same arm. A known divergence
-		// from legacy. Past what remains of
-		// the gate legacy claims unconditionally, even where no shortcut table has an entry
-		// -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
-		// die (`MenuScene::handle_event`'s fall-through). The two agree.
+		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
+		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,
+		// `scenes/menu/pads.cpp`). A pad the root view keeps (`rootKeepsShortcutPad`: the automation view's
+		// interpolation pads) is no shortcut. Past the gate legacy claims unconditionally, even where no shortcut table
+		// has an entry -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad die
+		// (`MenuScene::handle_event`'s fall-through). The two agree.
+		if (rootKeepsShortcutPad(x, y)) {
+			return false;
+		}
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.

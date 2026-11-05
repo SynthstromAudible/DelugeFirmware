@@ -607,7 +607,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | The slicer's and the audio clip view's play cursor is always the slow flash: this layer cannot read the flash-cursor setting (see the boot wiring above). | `slicing/slicer_scene.cpp`, `audio_clip/audio_clip_scene.h` |
 | The ported browser opens on the default folder where legacy reopens on `SampleBrowser::lastFilePathLoaded`'s folder; the value lives on a `gui/` object. | `browser/browser_scene.cpp` |
 | A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp` |
-| Under the menu, the automation view's two interpolation pads (x 0, y 6/7) are claimed as shortcuts with shift held; legacy exempts them when the root UI is the automation view. | `ShellHostUI::claimsGridPad` |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad` |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback` |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp` |

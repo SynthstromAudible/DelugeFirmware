@@ -62,6 +62,15 @@
 
 namespace deluge::scenes::menu {
 
+/// @brief The param an automation item edits, as the automation view names its selection: `Clip::lastSelectedParamKind`
+///        and `lastSelectedParamID` (`MenuItem::getParamKind` and `getParamIndex` on legacy's item). A cable's kind is
+///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack` addresses it.
+struct AutomationParam {
+	deluge::modulation::params::Kind kind;
+	int32_t id;
+	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
+};
+
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
 class MenuScene final : public deluge::ui::shell::Scene {
@@ -176,6 +185,9 @@ public:
 	/// same-param test: `focused()` stops at the page itself on a horizontal menu, which is wrong by
 	/// the same measure `shouldForwardButtons` names.
 	const Node* focused_value() const;
+
+	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
+	std::optional<AutomationParam> focused_automation_param() const;
 
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
@@ -553,6 +565,10 @@ public:
 	void enter_submenu(const Node& node);
 	/// @}
 };
+
+/// @brief The automation view's identity of the param @p item edits, on the owner @p ctx edits; nullopt where it edits
+///        none.
+std::optional<AutomationParam> automation_param(const Node& item, const MenuContext& ctx, const MenuState& state);
 
 /// @brief Whether shift + select on @p item deletes its param's automation: a param node, a node whose value is learned
 ///        as a param (the transposes), or a custom item that says so (the cable strength pages) -- legacy's

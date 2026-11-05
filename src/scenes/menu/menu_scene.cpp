@@ -334,6 +334,11 @@ const Node* MenuScene::focused_value() const {
 	return menu::focused_value(ctx_, st_);
 }
 
+std::optional<AutomationParam> MenuScene::focused_automation_param() const {
+	const Node* value = focused_value();
+	return value != nullptr ? automation_param(*value, ctx_, st_) : std::nullopt;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
@@ -896,6 +901,20 @@ bool is_automation_item(const Node& item) {
 		return item.custom->is_automation_item();
 	}
 	return item.bind.param.valid();
+}
+
+std::optional<AutomationParam> automation_param(const Node& item, const MenuContext& ctx, const MenuState& state) {
+	if (item.custom != nullptr) {
+		if (!item.custom->is_automation_item()) {
+			return std::nullopt;
+		}
+		return AutomationParam{.kind = deluge::modulation::params::Kind::PATCH_CABLE,
+		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
+	}
+	if (!item.bind.param.valid()) {
+		return std::nullopt;
+	}
+	return AutomationParam{.kind = item.bind.param.kind, .id = item.bind.param.index};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

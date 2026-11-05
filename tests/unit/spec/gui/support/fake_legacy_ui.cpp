@@ -424,6 +424,12 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	return PadForwardTarget::None;
 }
 
+// The same file's root-UI question for the shortcut gate: no root view keeps a pad here, as none is the automation
+// view.
+bool rootKeepsShortcutPad(int32_t, int32_t) {
+	return false;
+}
+
 // The same file's root-UI question for the marker's sidebar: the real one reads `getRootUI()` and
 // draws through `instrumentClipView`, neither of which this suite builds.
 bool renderClipViewSidebarUnderMarker(uint32_t, RGB[][kDisplayWidth + kSideBarWidth],

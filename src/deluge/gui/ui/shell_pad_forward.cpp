@@ -51,25 +51,21 @@ namespace {
 /// legacy menu, and the state cannot be supplied here, because under the toggle the open menu
 /// genuinely is `MenuScene`.
 ///
+/// The param compared is the one `focused_value()` edits: on a horizontal page the focused column, as legacy's
+/// `getCurrentMenuItem()->getParamKind()` answers through `Submenu::getParamKind`; a cable page answers with the cable
+/// (kind `PATCH_CABLE`, id its descriptor word).
+///
 /// The `clip != nullptr` guard is legacy's missing one (`:1582-1586`). Writing it in this copy is
 /// not a fix to `sound_editor.cpp`; legacy's copy is untouched.
 bool menuShowsAutomationParam() {
-	const auto* focused = deluge::scenes::menu_scene().focused();
-	if (focused == nullptr) {
+	// `:1576`'s `kind != NONE && paramID != kNoParamID` is `focused_automation_param()` answering at all.
+	const std::optional<deluge::scenes::menu::AutomationParam> param =
+	    deluge::scenes::menu_scene().focused_automation_param();
+	if (!param) {
 		return false;
 	}
-	// `:1576`'s test, in this layer's representation. Legacy tests two things -- `kind != NONE`
-	// and `paramID != kNoParamID` -- but `kNoParamID` is `0xFFFFFFFF`
-	// (`modulation/params/param.h`) and `ParamRef::index` is a `uint8_t` whose unset value is
-	// 255, so that second comparison cannot be transcribed: it would be
-	// false for every possible index. `ParamRef::valid()` is the whole of the test here --
-	// an unbound `Binding` carries `Kind::NONE`.
-	const deluge::scenes::menu::ParamRef& param = focused->bind.param;
-	if (!param.valid()) {
-		return false;
-	}
-	const auto kind = param.kind;
-	const int32_t paramID = param.index;
+	const auto kind = param->kind;
+	const int32_t paramID = param->id;
 
 	if (automationView.onArrangerView) { // `:1578-1580`
 		return currentSong != nullptr && kind == currentSong->lastSelectedParamKind
@@ -188,6 +184,10 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 
 	perform(target, x, y, velocity);
 	return target;
+}
+
+bool rootKeepsShortcutPad(int32_t x, int32_t y) {
+	return getRootUI() == &automationView && x == 0 && (y == 6 || y == 7);
 }
 
 void setPadForwardPerform(PadForwardPerform p) {
