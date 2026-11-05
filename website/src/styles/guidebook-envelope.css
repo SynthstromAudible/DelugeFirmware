@@ -1,0 +1,362 @@
+/* The envelope explorer (EnvelopeFigure.astro), in the book's black-line style. Ink follows the
+   text colour; the readouts are drawn like the Deluge's OLED boxes in the book's figure. */
+.gb-env {
+  container-type: inline-size;
+  max-width: 560px;
+  color: var(--sl-color-white);
+}
+
+/* centred in the column, like the other figures' art */
+.gb-figure.gb-env {
+  margin-inline: auto;
+}
+
+.gb-env-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* The book figure's palette (online-manual tools/guidebook/figsvg.py): ink, greys mixed from ink
+   and paper, and the accent for the curve and values. */
+.gb-env-plot {
+  --gb-env-65: color-mix(in srgb, currentColor 65%, var(--gb-paper));
+  --gb-env-40: color-mix(in srgb, currentColor 40%, var(--gb-paper));
+  --gb-env-30: color-mix(in srgb, currentColor 30%, var(--gb-paper));
+}
+
+.gb-env-plot line,
+.gb-env-plot path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gb-env-plot .gb-env-curve {
+  stroke: var(--gb-accent);
+  stroke-width: 1.1;
+}
+
+.gb-env-plot .gb-env-guide {
+  stroke: var(--gb-env-65);
+  stroke-width: 0.93;
+}
+
+.gb-env-plot .gb-env-stage-end {
+  stroke: var(--gb-env-40);
+  stroke-width: 0.55;
+}
+
+.gb-env-plot .gb-env-bound {
+  stroke: var(--gb-env-30);
+  stroke-width: 0.93;
+  stroke-dasharray: 2.8 2.8;
+  stroke-linecap: square;
+}
+
+.gb-env-plot .gb-env-dest {
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-dasharray: 6 6;
+  stroke-linecap: square;
+}
+
+.gb-env-plot .gb-env-dest-dot {
+  fill: var(--gb-env-65);
+}
+
+.gb-env-plot .gb-env-dim {
+  stroke: var(--gb-env-65);
+  stroke-width: 0.67;
+}
+
+.gb-env-plot .gb-env-head,
+.gb-env-plot .gb-env-depth-mark {
+  fill: var(--gb-paper);
+  stroke: var(--gb-env-65);
+  stroke-width: 0.67;
+}
+
+.gb-env-plot .gb-env-value-box {
+  fill: var(--gb-paper);
+  stroke: var(--gb-env-40);
+  stroke-width: 0.32;
+}
+
+.gb-env-plot text {
+  fill: currentColor;
+  font-size: 10px;
+}
+
+.gb-env-plot .gb-env-axis-label {
+  font-size: 9.3px;
+}
+
+.gb-env-plot .gb-env-note {
+  fill: var(--gb-env-65);
+}
+
+.gb-env-plot .gb-env-kind {
+  fill: var(--gb-env-40);
+}
+
+/* stage names sit over the guides where a stage is short: lines pass behind them */
+.gb-env-plot .gb-env-stage,
+.gb-env-plot .gb-env-kind {
+  paint-order: stroke;
+  stroke: var(--gb-paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.gb-env-plot .gb-env-value {
+  fill: var(--gb-accent);
+  font-size: 10.7px;
+}
+
+.gb-env-plot .gb-env-tick {
+  fill: var(--gb-env-40);
+  font-size: 9px;
+}
+
+.gb-env-plot .gb-env-dot {
+  fill: var(--gb-accent);
+}
+
+/* The four readouts: the book's OLED boxes (title over a rule, value, bar), staggered as in the
+   book (attack and sustain above, decay and release below between them); the bar is the control. */
+.gb-env-readouts {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  row-gap: 0.85rem;
+  width: min(100%, 24rem);
+  margin: 0.5rem 0 0 3.6rem;
+}
+
+.gb-env-oled:nth-child(1) {
+  grid-area: 1 / 1 / 2 / 5;
+}
+
+.gb-env-oled:nth-child(2) {
+  grid-area: 2 / 3 / 3 / 7;
+}
+
+.gb-env-oled:nth-child(3) {
+  grid-area: 1 / 6 / 2 / 10;
+}
+
+.gb-env-oled:nth-child(4) {
+  grid-area: 2 / 9 / 3 / 13;
+}
+
+/* "TRY IT": a note at the figure's right edge, in the figure's own style (a stage name over a
+   grey "(…)" hint), with a grey leader and open arrowhead back to the bars. Shown only when
+   JavaScript runs. */
+.gb-env-readouts {
+  position: relative;
+}
+
+.gb-env-sticker {
+  position: absolute;
+  top: 31px;
+  /* from just right of the sustain readout to the figure's right edge */
+  left: calc(75% + 6px);
+  width: calc(100cqw - 3.6rem - 75% - 6px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.gb-env-sticker[hidden] {
+  display: none;
+}
+
+.gb-env-sticker-leader {
+  flex: 1;
+  min-width: 1.5rem;
+  overflow: visible;
+}
+
+.gb-env-sticker-leader line {
+  stroke: color-mix(in srgb, currentColor 65%, var(--gb-paper));
+  stroke-width: 0.67;
+}
+
+.gb-env-sticker-leader path {
+  fill: var(--gb-paper);
+  stroke: color-mix(in srgb, currentColor 65%, var(--gb-paper));
+  stroke-width: 0.67;
+}
+
+.gb-env-sticker-text {
+  display: grid;
+  gap: 1px;
+}
+
+.gb-env-sticker-hint {
+  color: color-mix(in srgb, currentColor 40%, var(--gb-paper));
+}
+
+/* too narrow to stagger: two by two */
+@container (max-width: 28rem) {
+  .gb-env-readouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-left: 0;
+  }
+
+  .gb-env-oled:nth-child(n) {
+    grid-area: auto;
+  }
+
+  .gb-env-sticker {
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: center;
+    width: auto;
+  }
+
+  .gb-env-sticker-leader {
+    display: none;
+  }
+
+  .gb-env-sticker-hint br {
+    display: none;
+  }
+}
+
+.gb-env-oled {
+  display: grid;
+  gap: 0.1rem;
+  padding: 4px 6px 6px;
+  border: 1.07px solid currentColor;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gb-env-oled-title {
+  padding-bottom: 1px;
+  border-bottom: 1px solid currentColor;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gb-env-oled output {
+  font-size: 18.7px;
+  line-height: 1.15;
+}
+
+.gb-env-oled input[type="range"] {
+  --fill: 50%;
+  appearance: none;
+  width: 100%;
+  height: 9px;
+  margin: 0;
+  border: 0.8px solid currentColor;
+  color: inherit;
+  background: linear-gradient(
+    to right,
+    currentColor var(--fill),
+    transparent var(--fill)
+  );
+  cursor: ew-resize;
+}
+
+.gb-env-oled input[type="range"]:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.gb-env-oled input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 0;
+  height: 0;
+}
+
+.gb-env-oled input[type="range"]::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
+.gb-env-oled input[type="range"]:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+.gb-env-oled-caption {
+  font-size: 10px;
+  font-weight: 400;
+  color: color-mix(in srgb, currentColor 55%, var(--gb-paper));
+}
+
+/* Hold note, and what the envelope modulates: shown only when JavaScript runs. */
+.gb-env-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.gb-env-actions[hidden] {
+  display: none;
+}
+
+.gb-env-hold {
+  padding: 0.3rem 1rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.gb-env-hold:hover,
+.gb-env-hold[aria-pressed="true"] {
+  border-color: var(--sl-color-accent);
+}
+
+.gb-env-hold[aria-pressed="true"] {
+  background: var(--sl-color-accent-low);
+}
+
+.gb-env-dest-choice {
+  display: flex;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--sl-text-sm);
+}
+
+.gb-env-dest-choice legend {
+  float: left;
+  margin-inline-end: 0.25rem;
+  color: var(--sl-color-gray-2);
+}
+
+@media print {
+  .gb-env-actions,
+  .gb-env-sticker {
+    display: none;
+  }
+
+  .gb-env {
+    color: #000;
+  }
+}

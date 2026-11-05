@@ -1,0 +1,256 @@
+---
+title: "3.3 Creating a Clip"
+sidebar:
+  order: 2
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "3.3"
+  chapter: 3
+  pdfPages:
+    [
+      103,
+      104,
+      105,
+      128,
+      129,
+      130,
+      132,
+      133,
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      176,
+      177,
+      178,
+      290,
+      291,
+      292,
+      306,
+    ]
+  printedPages:
+    [
+      97,
+      98,
+      99,
+      122,
+      123,
+      124,
+      126,
+      127,
+      154,
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      170,
+      171,
+      172,
+      284,
+      285,
+      286,
+      300,
+    ]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_3_1 from "../../../../assets/guidebook/figs/03-clips__03-creating-a-clip--1.svg?raw"
+import fig_fig_3_3_2 from "../../../../assets/guidebook/figs/03-clips__03-creating-a-clip--2.svg?raw"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+<StepFocus />
+
+## Creating / loading a new synthesizer clip
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Press :key[Shift + Synth] to create a synth clip.
+3. A new blank clip and subtractive square wave synth will be created and added at the end of the preset list. For example, If the last preset is 170, the new synth preset will be created as 171.
+
+</Steps>
+
+## Creating a new blank kit clip
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminates blue.
+2. Press :key[Shift + Kit] to create a kit clip.
+3. A new blank kit is created and the file browser opens in order to choose the first sample, example: 808 CONGA HIGH from the CONH folder within the DRUM library in the SAMPLES folder.
+4. Press a blank :key[Mute Pad] button to quickly exit. Alternatively press :key[BackUndo] to back up through the menu until the file browser is exited.
+5. Blank kit is created and the preset name created is displayed.
+
+</Steps>
+
+## Creating a new kit clip + sample
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminates blue.
+2. Press :key[Shift + Kit] to create a kit clip.
+3. A new blank kit is created and the file browser opens in order to choose the first sample, example: 808 CONGA HIGH from the CONH folder within the DRUM library in the SAMPLES folder.
+4. The sample name is scrolled on the display, the first open row is selected: :key[Mute Pad] and :key[Audition Pad] both pad buttons illuminate to show the row selected in-focus.
+5. :key[Turn Select] to navigate other samples if required.
+6. Press :key[Select] to load the sample to the row selected.
+7. Deluge will return to clip view and the file browser exited.
+8. The sample can be auditioned and played by pressing the row :key[Audition Pad].
+
+</Steps>
+
+:::note
+A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition Pad + Synth], :key[Audition Pad + MIDI], :key[Audition Pad + CV]
+:::
+
+## Creating a new kit clip + multiple (folder) samples
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminates blue.
+2. Press :key[Shift + Kit] to create a kit clip.
+3. A new blank kit is created and the file browser opens in order to choose the first sample, example: 808 CONGA HIGH from the CONH folder within the DRUM library in the SAMPLES folder.
+4. The sample name is scrolled on the display, the first open row is selected: :key[Mute Pad] and :key[Audition Pad] both pad buttons illuminate to show the row selected in-focus.
+5. Navigate to a folder to load. :key[BackUndo] will navigate back up the menu, pressing :key[Select] drills down. Select a folder in-focus to load, example: CLAVES.
+6. Press & hold :key[Select] until a menu of options appears. This should indicate ALL, if not :key[Turn Select] to select ALL.
+7. Press :key[Select]. Deluge will load the folder into the rows automatically.
+
+</Steps>
+
+etc
+
+<Figure
+  id="fig-3.3-1"
+  src={fig_fig_3_3_1}
+  alt={"Diagram: Sample 6 Sample 5 Folder Sample 4 Sample 3 Sample 2 Sample 1"}
+  page={126}
+/>
+
+Sample 3
+
+Sample 2
+
+Sample 1
+
+:::note
+It is recommended to organise your samples in a folder that can be recognised in groups from the file browser and will load batches to in a reasonable size, for example 8 samples per folder.
+:::
+
+## Creating a new clip from session view
+
+<Steps>
+
+1. Press :key[Song] to switch to session view. The button illuminates blue.
+2. Press a :key[Pad] of any empty, unlit row from the 16 x 8 main grid.
+3. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
+4. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added as a compressed single row.
+5. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within session view.
+
+</Steps>
+
+## Creating a new clip from session grid view
+
+<Steps>
+
+1. Press :key[Song] to switch to session mode. The button illuminates blue. Press :key[Song + Turn Select] to switch to grid view.
+2. Press the blue :key[Audition Pad] to select pad edit, blue mode.
+3. Press a :key[Pad] from the empty, unlit pad on the 16 x 8 main grid, starting in the first column of next available column. Select from an existing column to use the same instrument.
+4. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
+5. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added.
+6. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within session view.
+
+</Steps>
+
+{/* TODO(kate): community_features: 3.27; CHANGELOG.mdx: L624, L625, L626 */}
+
+<VersionNote version="C1.2" label="Default clip type">
+  See [Updated UI for Creating New Clips in New Tracks in Session Grid
+  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
+</VersionNote>
+
+## Creating an audio clip in session view
+
+<Steps>
+
+1. Press :key[Song] to switch to session view. If in Session grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] within the clip row. This can be either an existing or blank pad. The instrument button will flash indicating the type selected and display will show the preset or MIDI/CV Channel.
+3. While still holding the pad, press :key[Select].
+4. The track will be converted to an audio clip and the display will show the name, example: ‘AUDIO1’. If note steps exist and indicator is displayed and the clip wont be converted.
+5. Selecting the audio clip will allow audio to be loaded, recorded, edited.
+
+</Steps>
+
+## Creating a basic MIDI clip
+
+<Steps>
+
+1. Press :key[Clip] to select clip view.
+2. Press :key[MIDI], Button illuminates red.
+3. The display will indicate the existing MIDI channel set for MIDI output or a suffix on the channel number. \*
+4. Program a pattern using the grid by pressing the :key[Pad]’s. Rows represent the note pitch while columns represent the note timing. The same features as programming a synth exist in navigating and editing on the grid for MIDI clips.
+5. Press :key[Play] to play the pattern which in turn will trigger the connected device on the same MIDI channel.
+
+</Steps>
+
+:::note
+
+\* If you wish to have more than one clip outputting on the same MIDI channel simultaneously, additional clips will be set to the same MIDI channel but will contain a suffix after their channel number, e.g. “2A”, “2B”, and so on. This is to allow them to be treated as unique “instruments”, in terms of which ones may play simultaneously, while still outputting on the same channel.
+:::
+
+## Creating a basic CV clip
+
+<Steps>
+
+1. Select :key[Clip] view.
+2. Press :key[CV] to select a CV clip. Button illuminates red.
+3. :key[Turn Select] to choose the CV channel 1 or 2.
+4. CV will output voltage representing note pitch on this channel and also Gate will output voltage for note on/off on the same channel number.
+
+</Steps>
+
+<Figure
+  id="fig-3.3-2"
+  src={fig_fig_3_3_2}
+  alt={
+    "Diagram: Deluge includes 2 CV outputs, 4 gate outputs (which may also be set individually to output a trigger clock and / or “run” signal), and also…"
+  }
+  page={300}
+/>
+
+## New-clip type picker <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): community_features: 3.27, 3.32; CHANGELOG.mdx: L620, L622, L624, L626 */}
+
+<Unwritten>
+  See [Updated UI for Creating New Clips in New Tracks in Session Grid
+  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
+</Unwritten>

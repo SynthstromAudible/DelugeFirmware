@@ -1,0 +1,111 @@
+---
+title: "14.5 Arranger View - Advanced"
+description: "Arranger view is a powerful persona and view within Deluge."
+sidebar:
+  order: 4
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "14.5"
+  chapter: 14
+  pdfPages: [196, 197, 198]
+  printedPages: [190, 191, 192]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Arranger view is a powerful persona and view within Deluge. Understanding the basics is important to get started. More advanced functions also exist to integrate tightly with session view and align common functions such as song and clip playback.
+
+<StepFocus />
+
+## Opening clips in arranger directly from session view
+
+<Steps>
+
+1. Select session view :key[Song], button is lit solid blue.
+2. Press & hold :key[Pad], the clip row to drag to arranger + press :key[Song].
+3. The view will switch to arranger.
+4. While still holding the :key[Pad] in arranger view, :key[Turn Horizontal] to locate the position to a column across the instrument row.
+5. Release :key[Pad] to drop the clip instance in the arranger grid.
+
+</Steps>
+
+## Opening clips in session view directly from arranger
+
+<Steps>
+
+1. Select arranger view :key[Song], :key[Song]. Button flashes blue.
+2. Press & hold :key[Pad], the clip instance to drag to session view + press :key[Song]. The typical use would be to drag over a white clip, which by default doesn't exist in session view.
+3. The view will switch to session view.
+4. While still holding the :key[Pad] in session view, :key[Turn Vertical] to locate the position within the clip rows.
+5. Release :key[Pad] to drop the clip into the song grid row position.
+6. Once in session view, the clip will change from white to an assigned section and its associated colour. This colour will now be reflected in the clip instance in arrangement view.
+
+</Steps>
+
+## Synchronising playback between views
+
+<Steps>
+
+1. In arranger view:
+   1. Press the dimly lit :key[Pad] clip ‘tail’, not the left most bright pad, which will switch to clip view.
+   2. Pressing :key[Play] after entering clip view this way will start playback in the arranger from the beginning of this clip instance.
+2. In arranger view:
+   1. Press :key[Play] to play back the arrangement.
+   2. Switch to session view :key[Song], button lit solid blue.
+   3. The pads will be lit slightly dim while arranger controls the transport playback.
+   4. Control can be regained within the session mode. Sections and clips can be triggered in session mode which override the arranger.
+3. In session view:
+   1. Press :key[Play].
+   2. Press :key[Song] which will switch to the arranger view.
+   3. :key[Turn Horizontal] to set the playback start position in the arranger view.
+   4. Press & hold :key[Horizontal + Play] to start arranger playback from the new position once the song loop completes.
+
+</Steps>
+
+{/* TODO(kate): CHANGELOG.mdx: L530 */}
+
+<VersionNote version="C1.2" label="Playing from the scroll position" />
+
+## Clip rendering <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L662, L664 */}
+
+<Unwritten />
+
+## Starting from a held clip pad <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): community_features: 3.30; CHANGELOG.mdx: L253, L273, L277 */}
+
+<Unwritten>
+  See [Added ability to Start / Restart Playback from Specific Clip Pad in
+  Arranger
+  View](/features/community_features#330---added-ability-to-start--restart-playback-from-specific-clip-pad-in-arranger-view).
+</Unwritten>
+
+## Tempo automation <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L655; PRs: #4942 */}
+
+<Unwritten />
+
+## Inserting and deleting time with automation <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L255, L345 */}
+
+<Unwritten />
+
+:::note[See also]
+
+- [Changing a tracks preset when in arranger view](/guidebook/03-clips/04-presets#changing-a-tracks-preset-when-in-arranger-view): 3.4 Presets
+
+:::

@@ -1,0 +1,97 @@
+---
+title: "3.2 Clip View: Overview"
+description: "In clip view the pad grid is laid out with 16 x 8 physical pads which represents a piano roll style view."
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "3.2"
+  chapter: 3
+  pdfPages: [26, 27, 28, 29, 30, 31]
+  printedPages: [20, 21, 22, 23, 24, 25]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import fig_fig_3_2_1_a from "../../../../assets/guidebook/figs/03-clips__02-clip-view-overview--1-a.svg?raw"
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_2_1 from "../../../../assets/guidebook/figs/03-clips__02-clip-view-overview--1.svg?raw"
+import fig_fig_3_2_2 from "../../../../assets/guidebook/figs/03-clips__02-clip-view-overview--2.svg?raw"
+import fig_fig_3_2_3 from "../../../../assets/guidebook/figs/03-clips__02-clip-view-overview--3.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+In clip view the pad grid is laid out with 16 x 8 physical pads which represents a piano roll style view. Clip view is the default mode which is available on start-up and is indicated by the blue lit :key[Clip] button.
+
+## Grid Basics : Clip View
+
+{/* aside fig-3.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-3.2-1-a"
+  src={fig_fig_3_2_1_a}
+  alt={"Diagram: figure from guidebook page 20"}
+  page={20}
+/>
+
+<div>
+
+Notes or kit sounds can be programmed in the sequencer at the desired column step for its time position and row for synth pitch or kit sound by pressing a pad to toggle it on (lit) / off (unlit).
+
+In play mode, pressing pads will silently select the step. When not in play mode pads will trigger the sound when selected.
+
+</div>
+
+</div>
+
+<Figure
+  id="fig-3.2-1"
+  animate="playhead"
+  src={fig_fig_3_2_1}
+  alt={
+    "Pad grid: Sequence plays left to right First steps Time Higher notes Lower notes Synth: pitch is represented by the rows of the grid. Lower rows are…"
+  }
+  page={20}
+/>
+
+{/* /aside fig-3.2-1 */}
+
+<Figure
+  id="fig-3.2-2"
+  src={fig_fig_3_2_2}
+  alt={
+    "Diagram: Navigate the grid using the up / The undo / redo commands can be down (SCROLL▼▲) and left / used when editing notes. right (SCROLL◄►)…"
+  }
+  page={20}
+/>
+
+## Audition & Mute Pads : Clip View
+
+<Figure
+  id="fig-3.2-3"
+  src={fig_fig_3_2_3}
+  alt={
+    "Diagram: Mute [MUTE] status is shown The pads in the audition / section on the mute / launch pads column are located far right of located at the…"
+  }
+  page={21}
+/>
+
+<StepFocus />
+
+:::note[See also]
+
+- [Selecting a synth preset](/guidebook/03-clips/04-presets#selecting-a-synth-preset): 3.4 Presets
+- [Selecting a kit preset](/guidebook/03-clips/04-presets#selecting-a-kit-preset): 3.4 Presets
+- [Selecting a synth preset with selection menu](/guidebook/03-clips/04-presets#selecting-a-synth-preset-with-selection-menu): 3.4 Presets
+- [Selecting a kit preset](/guidebook/03-clips/04-presets#selecting-a-kit-preset-1): 3.4 Presets
+- [Saving a synth preset in clip view / keyboard view](/guidebook/03-clips/04-presets#saving-a-synth-preset-in-clip-view--keyboard-view): 3.4 Presets
+- [Saving a kit preset in clip view](/guidebook/03-clips/04-presets#saving-a-kit-preset-in-clip-view): 3.4 Presets
+- [Creating a preset folder](/guidebook/03-clips/04-presets#creating-a-preset-folder): 3.4 Presets
+
+:::

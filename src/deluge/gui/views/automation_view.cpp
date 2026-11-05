@@ -1140,12 +1140,19 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	using namespace hid::button;
 
+	// Sean todo: need to refactor this to handle different automation view types more cleanly and safely
+
 	Clip* clip = getCurrentClip();
 	bool isAudioClip = clip->type == ClipType::AUDIO;
 
-	// these button actions are not used in the audio clip automation view
-	if (isAudioClip) {
+	// these button actions are not used in the arranger or audio clip automation view
+	// (in arranger view the current clip is just whichever clip was last entered, so don't act on it)
+	if (onArrangerView || isAudioClip) {
 		if (b == SCALE_MODE || b == KIT || b == SYNTH || b == MIDI || b == CV) {
+			return ActionResult::DEALT_WITH;
+		}
+		// audio clips have no keyboard view (keyboard in arranger goes to performance view)
+		if (b == KEYBOARD && !onArrangerView) {
 			return ActionResult::DEALT_WITH;
 		}
 	}

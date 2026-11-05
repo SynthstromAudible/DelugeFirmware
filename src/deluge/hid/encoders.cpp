@@ -140,7 +140,8 @@ void initInterrupts() {
 		enableInputBuffer(1, m.irqPin);
 
 		setPinAsInput(1, m.compPin);
-		decoders[i].initialize(readInput(1, m.irqPin) != 0, readInput(1, m.compPin) != 0);
+		initializeDecoderAtBoot(decoders[i], i < kNumFunctionEncoders, readInput(1, m.irqPin) != 0,
+		                        readInput(1, m.compPin) != 0);
 
 		setIRQInterruptBothEdges(m.irqNum);
 

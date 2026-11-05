@@ -9,6 +9,7 @@
 using deluge::hid::encoders::ContinuousEncoder;
 using deluge::hid::encoders::DetentedEncoder;
 using deluge::hid::encoders::EncoderAcceleration;
+using deluge::hid::encoders::initializeDecoderAtBoot;
 using deluge::hid::encoders::kGoldEncoderAcceleration;
 using deluge::hid::encoders::kHorizontalMenuAcceleration;
 using deluge::hid::encoders::QuadratureDecoder;
@@ -430,4 +431,69 @@ TEST(BlackEncoderQuadratureTest, ChatterAtRestDoesNotReportExtraDetents) {
 
 	CHECK_EQUAL(1, readBlackEncoderMovement(states, true));
 	CHECK_EQUAL(1, readBlackEncoderMovement(states, false));
+}
+
+// The knob rests in a detent at boot, but the boot-time pin read can catch contact bounce or an unsettled input.
+// Whatever was read, every click must report exactly one detent, including the first click after each reversal.
+// Before initializeDecoderAtBoot() ignored the read for detented encoders, an off-rest read left every click out of
+// step until reboot and swallowed each of those reversal clicks.
+TEST(BlackEncoderQuadratureTest, OffRestBootReadDoesNotSwallowReversalClicks) {
+	// Quadrature states in positive order, starting from the detent rest state (A and B high).
+	constexpr std::array<EncoderPins, 4> cycle = {EncoderPins{true, true}, EncoderPins{true, false},
+	                                              EncoderPins{false, false}, EncoderPins{false, true}};
+	CHECK(cycle[0].a == DetentedEncoder::kRestA && cycle[0].b == DetentedEncoder::kRestB);
+
+	constexpr std::array<int, 12> clicks = {1, -1, 1, 1, -1, -1, -1, 1, -1, 1, 1, -1};
+	for (const EncoderPins& bootRead : cycle) {
+		for (bool invert : {false, true}) {
+			for (bool pollB : {false, true}) {
+				DetentedEncoder encoder;
+				QuadratureDecoder decoder;
+				initializeDecoderAtBoot(decoder, true, bootRead.a, bootRead.b);
+				// The encoder task's first poll sees the knob resting in its detent.
+				encoder.apply_edges(decoder.observe(cycle[0].a, cycle[0].b, invert));
+				CHECK_EQUAL(0, encoder.take());
+
+				int position = 0;
+				for (int click : clicks) {
+					for (int edge = 0; edge < 4; ++edge) {
+						const EncoderPins& previous = cycle[position & 3];
+						position += click;
+						const EncoderPins& current = cycle[position & 3];
+						if (current.a != previous.a) {
+							encoder.apply_edges(decoder.observeAEdge(current.a, current.b, invert));
+						}
+						else if (pollB) {
+							encoder.apply_edges(decoder.observe(current.a, current.b, invert));
+						}
+					}
+					// The encoder task polls the resting pins even when intermediate B edges were missed.
+					const EncoderPins& rest = cycle[position & 3];
+					encoder.apply_edges(decoder.observe(rest.a, rest.b, invert));
+					CHECK_EQUAL(invert ? -click : click, encoder.take());
+				}
+			}
+		}
+	}
+}
+
+// Gold encoders have no resting state, so they must start from the pins as read at boot, not the black encoders' rest
+// state. Booting at 00, a full cycle must confirm all but its last edge, as it would from any matching start.
+TEST(GoldEncoderQuadratureTest, BootReadIsUsedAsStartingState) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true},
+	                               EncoderPins{true, false}, EncoderPins{false, false}};
+	for (bool pollB : {false, true}) {
+		ContinuousEncoder encoder;
+		QuadratureDecoder decoder;
+		initializeDecoderAtBoot(decoder, false, states[0].a, states[0].b);
+		for (size_t i = 1; i < states.size(); ++i) {
+			if (states[i].a != states[i - 1].a) {
+				encoder.apply_edges(decoder.observeAEdge(states[i].a, states[i].b));
+			}
+			else if (pollB) {
+				encoder.apply_edges(decoder.observe(states[i].a, states[i].b));
+			}
+		}
+		CHECK_EQUAL(3, encoder.take());
+	}
 }

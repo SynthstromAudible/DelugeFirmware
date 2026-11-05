@@ -112,10 +112,10 @@ hold(AUDITION) + press(NAME)
 #OFFICIAL #KIT
 
 ```shortcut
-hold(AUDITION) + press(SAVE)
+hold(GRID) + press(SAVE)
 ```
 
-Hold the audition pad for the row you want to delete, then press Save/Delete.
+Hold a grid pad for the row you want to delete, then press Save/Delete.
 
 # MIDI note output in a kit clip
 

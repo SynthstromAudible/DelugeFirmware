@@ -1,0 +1,58 @@
+---
+title: "10.2 Modulation Routing Advanced"
+description: "Multiple sources can modulate multiple parameters."
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "10.2"
+  chapter: 10
+  pdfPages: [144, 145]
+  printedPages: [138, 139]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_10_2_1 from "../../../../assets/guidebook/figs/10-modulation__02-modulation-routing-advanced--1.svg?raw"
+import fig_fig_10_2_2 from "../../../../assets/guidebook/figs/10-modulation__02-modulation-routing-advanced--2.svg?raw"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Multiple sources can modulate multiple parameters. In addition, modulation sources can also modulate other modulators creating complex and advanced patching systems. The same methodology applies in connecting parameters but must start with the destination. The modulation depth is where to drill down to further modulation options. Pads will flash showing the routing based on the selected in focus parameter.
+
+## Example 1:
+
+LFO 2 modulates LFO 1 to modulate LPF : frequency cutoff.
+
+<Figure
+  id="fig-10.2-1"
+  src={fig_fig_10_2_1}
+  alt={
+    "Diagram: Destination Parameter Flashes quickly when connected to a modulation source and the destination parameter is selected / in-focus. [SHIFT] +…"
+  }
+  page={138}
+/>
+
+## Example 2:
+
+As per example 1, plus also demonstrates multiple modulators LFO and ENV 1 to one destination parameter and multiple destinations of one modulator i.e. ENV 1. Follow the same process drilling down from the in focus modulator value to access available modulator options.
+
+<Figure
+  id="fig-10.2-2"
+  src={fig_fig_10_2_2}
+  alt={
+    "Diagram: Destination Parameters LFP frequency and resonance Resonance Cutoff Freq Filter Modulator. Depth LFO 1 LFO 2 Rate"
+  }
+  page={139}
+/>
+
+## Unipolar and bipolar cables <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L122, L125 */}
+
+<Unwritten />
