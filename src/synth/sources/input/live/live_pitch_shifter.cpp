@@ -18,9 +18,8 @@
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/fixed/curves/quick_log.h"
-#include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
+#include "dsp-next/fixed/pitch_shift/pitch_shift_tuning.h"
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "synth/sources/input/audio_input_port.h"
@@ -330,54 +329,6 @@ startRenderAgain:
 	return hops_ended;
 }
 
-const int16_t kMinSearchFine[] = {
-    8, 8, 8, 8, 8, 8,  8,  8,  // -12, ....
-    8, 8, 8, 8, 8, 12, 14, 16, // +0, ....
-    17                         // +12
-};
-
-const int16_t kMinSearchCoarse[] = {10, 10, 10, 17, 20};
-
-const int16_t kMaxSearchFine[] = {
-    8, 8, 8,  8,  8,  8,  8,  8,  // -12, ....
-    8, 8, 10, 11, 12, 14, 16, 18, // +0, ....
-    21                            // +12
-};
-
-const int16_t kMaxSearchCoarse[] = {15, 15, 15, 21, 20};
-
-const int16_t kPercThresholdFine[] = {
-    18,  18, 18, 18, 24, 30, 25, 35, // -12, ....
-    130, 40, 40, 45, 50, 47, 45, 42, // +0, ....
-    40                               // +12
-};
-
-const int16_t kPercThresholdCoarse[] = {15, 18, 130, 40, 20};
-
-const int16_t kCrossfadeFine[] = {
-    30, 31, 32, 34, 35, 30, 25, 10, // -12, ....
-    10, 15, 15, 22, 30, 16, 15, 13, // +0, ....
-    40                              // +12
-};
-
-const int16_t kCrossfadeCoarse[] = {30, 30, 10, 40, 20};
-
-const int16_t kMaxHopLengthFine[] = {
-    20,  27,  35,  42,  50,  60,  70,  90,  // -12, ....
-    140, 140, 140, 140, 140, 140, 140, 140, // +0, ....
-    140                                     // +12
-};
-
-const int16_t kMaxHopLengthCoarse[] = {10, 20, 140, 140, 140};
-
-const int16_t kRandomFine[] = {
-    0, 0,  0,  0,  0,  0,  0,  0,  // -12, ....
-    0, 15, 25, 76, 50, 57, 65, 72, // +0, ....
-    80                             // +12
-};
-
-const int16_t kRandomCoarse[] = {0, 0, 0, 80, 80};
-
 void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& live_input,
                                uint64_t num_raw_samples_processed_at_now_time,
                                uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise) {
@@ -401,51 +352,14 @@ void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& l
 	play_heads[PLAY_HEAD_OLDER] = play_heads[PLAY_HEAD_NEWER];
 	uint32_t this_crossfade_length = next_crossfade_length;
 
-	int32_t pitch_log = dsp::fixed::quick_log(phase_increment);
-
-	int32_t min_search;
-	int32_t max_search;
-	int32_t max_hop_length;
-	int32_t random_element;
-
-	// Neutral is (832 << 20). Each octave is a (32 << 20)
-
-	// If within +/- 1 octave...
-	if (pitch_log >= (800 << 20) && pitch_log < (864 << 20)) {
-		int32_t position = pitch_log - (800 << 20);
-
-		min_search = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kMinSearchFine, 4) >> 9;
-		max_search = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kMaxSearchFine, 4) >> 9;
-		perc_threshold_for_cut =
-		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kPercThresholdFine, 4) >> 16;
-		next_crossfade_length =
-		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kCrossfadeFine, 4) >> 12;
-		max_hop_length =
-		    (dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kMaxHopLengthFine, 4) >> 16) * 100;
-		random_element = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, kRandomFine, 4);
-	}
-
-	// Or if outside of that...
-	else {
-		if (pitch_log > (896 << 20)) {
-			pitch_log = (896 << 20);
-		}
-		else if (pitch_log < (768 << 20)) {
-			pitch_log = (768 << 20);
-		}
-
-		int32_t position = pitch_log - (768 << 20);
-
-		min_search = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kMinSearchCoarse, 2) >> 9;
-		max_search = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kMaxSearchCoarse, 2) >> 9;
-		perc_threshold_for_cut =
-		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kPercThresholdCoarse, 2) >> 16;
-		next_crossfade_length =
-		    dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kCrossfadeCoarse, 2) >> 12;
-		max_hop_length =
-		    (dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kMaxHopLengthCoarse, 2) >> 16) * 100;
-		random_element = dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, kRandomCoarse, 2);
-	}
+	const dsp::fixed::pitch_shift::PitchShiftTuning::Coefficients tuning =
+	    dsp::fixed::pitch_shift::PitchShiftTuning::coefficients({.phase_increment = phase_increment});
+	int32_t min_search = tuning.min_search;
+	int32_t max_search = tuning.max_search;
+	perc_threshold_for_cut = tuning.percussive_threshold;
+	next_crossfade_length = tuning.crossfade_length;
+	int32_t max_hop_length = tuning.max_hop_length;
+	int32_t random_element = tuning.random_element;
 
 	/*
 	minSearch = StorageManager::devVarA << 7;

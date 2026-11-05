@@ -216,6 +216,8 @@ set(slope_follower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookupta
 set(input_history_spec_DEPS
   ${_repo_root}/src/synth/sources/input/live/live_input.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The pitch shifter's tuning against the old hop end's block: the table interpolator it reads through.
+set(pitch_shift_tuning_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp)
 # The live pitch shifter's oracle (reference_live_pitch_shifter.h, header-only) against the legacy classes it was
 # taken from, while they live: the shifter, its play head and its live input, and the interpolation and tables they
 # read, and the panic seam the shifter's E165 calls.
