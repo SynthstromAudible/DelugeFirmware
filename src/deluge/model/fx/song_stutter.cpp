@@ -18,7 +18,6 @@
 #include "model/fx/song_stutter.h"
 #include "dsp-next/core/fixed_point.h"
 
-#include "dsp-next/core/q31_ops.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"

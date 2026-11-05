@@ -4,7 +4,7 @@
 #pragma once
 
 #include "curves_reference.h"
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 
 #include <cstdint>
 

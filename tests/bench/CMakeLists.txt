@@ -13,6 +13,7 @@ deluge_specs_driver(bench_specs NEON
     ${CMAKE_CURRENT_LIST_DIR}/mod_fx_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/granular_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stutter_cases_host.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pitch_shift_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reverb_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dx7_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mod_matrix_cases_host.cpp

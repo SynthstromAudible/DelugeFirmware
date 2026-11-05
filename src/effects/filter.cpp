@@ -42,36 +42,37 @@ FilterParams Filter::params_from(const Words& words, bool allow_oversampling) {
 	};
 }
 
-int32_t Filter::configure(const FilterState& state, const FilterParams& params, int32_t post_fx_volume) {
+dsp::Q<27> Filter::configure(const FilterState& state, const FilterParams& params, dsp::Q<27> post_fx_volume) {
 	constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
 	const bool low_on = state.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE || params.lpf_frequency_param < kLowPassOpen
 	                    || params.lpf_morph_param > kMinimum;
 	const bool high_on = params.hpf_frequency_param > kMinimum || params.hpf_morph_param > kMinimum;
-	// FilterParams holds final_value's words; each field's format is its doc's.
-	return set_.configure(post_fx_volume,
-	                      {
-	                          .frequency = dsp::Q<31>::from_raw(params.lpf_frequency),
-	                          .resonance = dsp::Q<29>::from_raw(params.lpf_resonance),
-	                          .morph = dsp::Q<29>::from_raw(params.lpf_morph),
-	                          .allow_oversampling = params.allow_oversampling,
-	                      },
-	                      low_on ? low_pass_slot(state.lpf_mode) : dsp::fixed::LowPassSlot{},
-	                      {
-	                          .frequency = dsp::Q<31>::from_raw(params.hpf_frequency),
-	                          .resonance = dsp::Q<29>::from_raw(params.hpf_resonance),
-	                          .morph = dsp::Q<29>::from_raw(params.hpf_morph),
-	                          .allow_oversampling = params.allow_oversampling,
-	                      },
-	                      high_on ? high_pass_slot(state.hpf_mode) : dsp::fixed::HighPassSlot{},
-	                      filter_route(state.route));
+	// FilterParams holds final_value's words; each field's format is its doc's. The set's gain is a word in any
+	// format, so the volume's Q27 word goes through it.
+	return dsp::Q<27>::from_raw(set_.configure(post_fx_volume.raw(),
+	                                           {
+	                                               .frequency = dsp::Q<31>::from_raw(params.lpf_frequency),
+	                                               .resonance = dsp::Q<29>::from_raw(params.lpf_resonance),
+	                                               .morph = dsp::Q<29>::from_raw(params.lpf_morph),
+	                                               .allow_oversampling = params.allow_oversampling,
+	                                           },
+	                                           low_on ? low_pass_slot(state.lpf_mode) : dsp::fixed::LowPassSlot{},
+	                                           {
+	                                               .frequency = dsp::Q<31>::from_raw(params.hpf_frequency),
+	                                               .resonance = dsp::Q<29>::from_raw(params.hpf_resonance),
+	                                               .morph = dsp::Q<29>::from_raw(params.hpf_morph),
+	                                               .allow_oversampling = params.allow_oversampling,
+	                                           },
+	                                           high_on ? high_pass_slot(state.hpf_mode) : dsp::fixed::HighPassSlot{},
+	                                           filter_route(state.route)));
 }
 
 void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScratch scratch, dsp::fixed::Cong& noise) {
 	// The set reads the frames as one interleaved run of samples, left then right.
 	static_assert(std::is_standard_layout_v<dsp::StereoSample>);
 	static_assert(offsetof(dsp::StereoSample, l) == 0);
-	static_assert(offsetof(dsp::StereoSample, r) == sizeof(q31_t));
-	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(q31_t));
+	static_assert(offsetof(dsp::StereoSample, r) == sizeof(int32_t));
+	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(int32_t));
 	set_.render_stereo(std::span<dsp::Q<31>>{&block.data()->l, block.size() * 2}, scratch, noise);
 }
 

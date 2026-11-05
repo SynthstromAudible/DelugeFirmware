@@ -48,8 +48,25 @@ FRAMES_PER_SECOND = 44100
 DEFAULT_SECONDS = 2.0
 # Per-case capture lengths, for the cases whose sound outlasts the default.
 SECONDS = {"env_shape": 3.0}
-# Cases whose sources read the audio input: fed the harness's test signal instead of silence.
-INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
+# Cases whose sources read the audio input, and the harness test signal each is fed instead of silence: 1 the
+# sawtooth, 2 the percussive signal (noise bursts over a stepped-period saw).
+INPUT = {
+    "input_mono": 1,
+    "input_stereo": 1,
+    "input_pitchshift": 1,
+    "input_pitchshift_down12": 1,
+    "input_pitchshift_down5": 1,
+    "input_pitchshift_up_half": 1,
+    "input_pitchshift_up7": 1,
+    "input_pitchshift_up24": 1,
+    "input_pitchshift_linear": 1,
+    "input_pitchshift_glide": 1,
+    "input_pitchshift_perc_up7": 2,
+    "input_pitchshift_perc_down12": 2,
+    "input_pitchshift_chord": 2,
+    "stereo/input_pitchshift_stereo_up7": 2,
+    "stereo/input_pitchshift_unison": 1,
+}
 # Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
@@ -147,7 +164,7 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         dump.parent.mkdir(parents=True, exist_ok=True)
         env["RENDER_PARAM_DUMP"] = str(dump)
     if name in INPUT:
-        env["RENDER_INPUT"] = "1"
+        env["RENDER_INPUT"] = str(INPUT[name])
     if name.startswith(STEREO_DIR):
         env["RENDER_STEREO"] = "1"
     if name in ZONE_END:

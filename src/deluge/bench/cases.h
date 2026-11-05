@@ -36,7 +36,6 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -101,6 +100,9 @@ inline constexpr uint32_t kA4Increment = 42'852'282;
 inline constexpr uint32_t kA3Increment = 21'426'141;
 /// @brief A1, 55 Hz: inside the crude saw and square region (band index below 6, increments up to 7,040,929).
 inline constexpr uint32_t kA1Increment = 5'356'535;
+
+/// @brief The post-effect volume a mod FX or granular block starts from, Q27: half full scale, just under 8× unity.
+inline constexpr dsp::Q<27> kEffectStartVolume = scale_shr_floor<1>(dsp::Q<27>::max());
 
 /// @brief The input block every case's first input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
@@ -882,7 +884,7 @@ using DelayHighPass = dsp::Pinned<ShiftTrackerCase::Tracker, ShiftTrackerCase::T
 using DelayFeedbackChain = dsp::Chain<dsp::fixed::FeedbackShaper, DelayHighPass>;
 
 /// @brief The delay feedback cases' feedback amount, Q31: a half.
-inline constexpr q31_t kDelayFeedback = 1 << 30;
+inline constexpr int32_t kDelayFeedback = 1 << 30;
 /// @brief The delay feedback cases' tanh drive, as a power of two: a sound's.
 inline constexpr uint32_t kDelayDrive = 8;
 
@@ -1006,7 +1008,7 @@ public:
 	/// @return The right high-pass memory, Q31.
 	[[nodiscard]] int32_t high_pass_r() const { return high_pass_r_; }
 	/// @return The feedback amount, Q31.
-	[[nodiscard]] q31_t feedback() const { return feedback_; }
+	[[nodiscard]] int32_t feedback() const { return feedback_; }
 	/// @return The tanh drive, as a power of two.
 	[[nodiscard]] uint32_t drive() const { return drive_; }
 
@@ -1014,7 +1016,7 @@ private:
 	reference::WrappingReferenceImpulseResponse response_;
 	int32_t high_pass_l_ = 0;
 	int32_t high_pass_r_ = 0;
-	q31_t feedback_ = kDelayFeedback;
+	int32_t feedback_ = kDelayFeedback;
 	uint32_t drive_ = kDelayDrive;
 	std::span<StereoSample> work_{};
 };
@@ -1189,7 +1191,7 @@ inline constexpr DelayWholeConfig kDelayWholeGrowing{
 /// the low-pass ladder draws from: the app's boot value.
 inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
 /// @brief The gain going into every filter case's set, Q31: a quarter.
-inline constexpr q31_t kFilterGain = 536'870'912;
+inline constexpr int32_t kFilterGain = 536'870'912;
 
 /// @brief The low-pass settings the filter cases run at: the cutoff at 2^23 (Q31), half resonance (2^28 of Q29's
 /// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
@@ -1331,7 +1333,7 @@ void fill_filter_input();
 /// so they share it; each case's setup resets it.
 struct FilterRig {
 	dsp::fixed::FilterSet set;    ///< The set, as a Voice's filterSet.
-	q31_t gain{};                 ///< The last configure's gain.
+	int32_t gain{};               ///< The last configure's gain.
 	std::span<dsp::Q<31>> work{}; ///< The lanes output's first n samples (2n in stereo), filtered in place.
 };
 
@@ -1642,6 +1644,62 @@ private:
 	StutterConfig config_;
 };
 
+/// @brief One sample reader case's configuration.
+struct SampleReadConfig {
+	bool stereo = false; ///< Two channels; otherwise one.
+	bool linear = false; ///< Two-tap linear interpolation; otherwise the windowed sinc.
+};
+
+/// @brief A sample voice's resampled read, `SampleLowLevelReader::readSamplesResampled`, at a rate of 1.5 over a
+/// resident region of 32-bit frames: the interpolator's window fed by one- and two-sample jumps.
+class SampleReadCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit SampleReadCase(const SampleReadConfig& config) : config_{config} {}
+
+	/// @brief The reader over the bench region, at its start.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Reads one block of the size it was set up for, from the region's start.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	SampleReadConfig config_;
+};
+
+/// @brief One live pitch shifter case's configuration.
+struct PitchShiftConfig {
+	int32_t phase_increment = 1 << 24; ///< The shift, 8.24: 2^24 is unshifted.
+	bool stereo = false;               ///< A stereo input; otherwise the left channel.
+	bool percussive = false;           ///< The harness's percussive signal; otherwise its saw.
+};
+
+/// @brief One voice's live pitch shifter as the input source renders it, the shared live input ingesting each block.
+/// @details Setup fills the codec ring with the case's signal, makes the input and the shifter afresh, and renders a
+/// second of blocks untimed so the hops are in their steady pattern.
+class PitchShiftCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit PitchShiftCase(const PitchShiftConfig& config) : config_{config} {}
+
+	/// @brief The shifter afresh, warmed up.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	PitchShiftConfig config_;
+};
+
+/// @brief The pitch shift cases' rates, 8.24: up 7 semitones, down an octave.
+inline constexpr int32_t kPitchShiftUp7 = 25137421;
+inline constexpr int32_t kPitchShiftDown12 = 8388608;
+
 /// @brief The reverb models the cases time. reverb_cases.cpp maps each to the engine's model, which this header
 /// leaves out so that the host specs build it without the app's headers.
 enum class ReverbKind : uint8_t {
@@ -1948,30 +2006,40 @@ struct CaseSet {
 	FilterStereoCase filterset_lh_stereo{filter_set_case(dsp::fixed::FilterRoute::LOW_TO_HIGH)};
 	/// `filterset_par_stereo`
 	FilterStereoCase filterset_par_stereo{filter_set_case(dsp::fixed::FilterRoute::PARALLEL)};
-	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};               ///< `filter_lp24_fading_stereo`
-	CompressorCase compressor_wet_render{kCompressorWetRender};                   ///< `compressor_wet_render`
-	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};                 ///< `compressor_wet_neutral`
-	CompressorCase compressor_blend_render{kCompressorBlendRender};               ///< `compressor_blend_render`
-	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};             ///< `compressor_blend_neutral`
-	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                           ///< `mod_fx_chorus_stereo`
-	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                               ///< `mod_fx_chorus_mono`
-	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};              ///< `mod_fx_chorus_stereo_stereo`
-	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};                  ///< `mod_fx_chorus_stereo_mono`
-	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                     ///< `mod_fx_dimension_stereo`
-	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                         ///< `mod_fx_dimension_mono`
-	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                         ///< `mod_fx_flanger_stereo`
-	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                             ///< `mod_fx_flanger_mono`
-	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                           ///< `mod_fx_warble_stereo`
-	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                               ///< `mod_fx_warble_mono`
-	ModFxCase mod_fx_phaser{kModFxPhaser};                                        ///< `mod_fx_phaser`
-	GranularCase granular_sparse_unison{kGranularSparseUnison};                   ///< `granular_sparse_unison`
-	GranularCase granular_sparse_random{kGranularSparseRandom};                   ///< `granular_sparse_random`
-	GranularCase granular_dense_unison{kGranularDenseUnison};                     ///< `granular_dense_unison`
-	GranularCase granular_dense_random{kGranularDenseRandom};                     ///< `granular_dense_random`
-	StutterCase stutter_record_native{{.play = false, .resampled = false}};       ///< `stutter_record_native`
-	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};     ///< `stutter_record_resampled`
-	StutterCase stutter_play_native{{.play = true, .resampled = false}};          ///< `stutter_play_native`
-	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};        ///< `stutter_play_resampled`
+	FilterStereoCase filter_lp24_fading_stereo{kFilterLow24Fading};             ///< `filter_lp24_fading_stereo`
+	CompressorCase compressor_wet_render{kCompressorWetRender};                 ///< `compressor_wet_render`
+	CompressorCase compressor_wet_neutral{kCompressorWetNeutral};               ///< `compressor_wet_neutral`
+	CompressorCase compressor_blend_render{kCompressorBlendRender};             ///< `compressor_blend_render`
+	CompressorCase compressor_blend_neutral{kCompressorBlendNeutral};           ///< `compressor_blend_neutral`
+	ModFxCase mod_fx_chorus_stereo{kModFxChorusStereo};                         ///< `mod_fx_chorus_stereo`
+	ModFxCase mod_fx_chorus_mono{kModFxChorusMono};                             ///< `mod_fx_chorus_mono`
+	ModFxCase mod_fx_chorus_stereo_stereo{kModFxChorusStereoStereo};            ///< `mod_fx_chorus_stereo_stereo`
+	ModFxCase mod_fx_chorus_stereo_mono{kModFxChorusStereoMono};                ///< `mod_fx_chorus_stereo_mono`
+	ModFxCase mod_fx_dimension_stereo{kModFxDimensionStereo};                   ///< `mod_fx_dimension_stereo`
+	ModFxCase mod_fx_dimension_mono{kModFxDimensionMono};                       ///< `mod_fx_dimension_mono`
+	ModFxCase mod_fx_flanger_stereo{kModFxFlangerStereo};                       ///< `mod_fx_flanger_stereo`
+	ModFxCase mod_fx_flanger_mono{kModFxFlangerMono};                           ///< `mod_fx_flanger_mono`
+	ModFxCase mod_fx_warble_stereo{kModFxWarbleStereo};                         ///< `mod_fx_warble_stereo`
+	ModFxCase mod_fx_warble_mono{kModFxWarbleMono};                             ///< `mod_fx_warble_mono`
+	ModFxCase mod_fx_phaser{kModFxPhaser};                                      ///< `mod_fx_phaser`
+	GranularCase granular_sparse_unison{kGranularSparseUnison};                 ///< `granular_sparse_unison`
+	GranularCase granular_sparse_random{kGranularSparseRandom};                 ///< `granular_sparse_random`
+	GranularCase granular_dense_unison{kGranularDenseUnison};                   ///< `granular_dense_unison`
+	GranularCase granular_dense_random{kGranularDenseRandom};                   ///< `granular_dense_random`
+	StutterCase stutter_record_native{{.play = false, .resampled = false}};     ///< `stutter_record_native`
+	StutterCase stutter_record_resampled{{.play = false, .resampled = true}};   ///< `stutter_record_resampled`
+	StutterCase stutter_play_native{{.play = true, .resampled = false}};        ///< `stutter_play_native`
+	StutterCase stutter_play_resampled{{.play = true, .resampled = true}};      ///< `stutter_play_resampled`
+	SampleReadCase sample_read_sinc_mono{{.stereo = false, .linear = false}};   ///< `sample_read_sinc_mono`
+	SampleReadCase sample_read_sinc_stereo{{.stereo = true, .linear = false}};  ///< `sample_read_sinc_stereo`
+	SampleReadCase sample_read_linear_mono{{.stereo = false, .linear = true}};  ///< `sample_read_linear_mono`
+	SampleReadCase sample_read_linear_stereo{{.stereo = true, .linear = true}}; ///< `sample_read_linear_stereo`
+	PitchShiftCase pitch_shift_up7{{.phase_increment = kPitchShiftUp7}};        ///< `pitch_shift_up7`
+	PitchShiftCase pitch_shift_down12{{.phase_increment = kPitchShiftDown12}};  ///< `pitch_shift_down12`
+	PitchShiftCase pitch_shift_stereo_up7{
+	    {.phase_increment = kPitchShiftUp7, .stereo = true}}; ///< `pitch_shift_stereo_up7`
+	PitchShiftCase pitch_shift_perc_up7{
+	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                 ///< `pitch_shift_perc_up7`
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
 	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
 	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
@@ -2066,6 +2134,10 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the virtual-analog shapes as a voice renders them (crude and band-limited, free-running
 	/// and hard-synced), then the feedback chain's two cases from the chain list, as in the delay list.
 	VA_SHAPES,
+	/// The calibration loop, the sample reader's resampled read in each interpolation and width, the live pitch
+	/// shifter up and down, in stereo and on a percussive input, then the feedback chain's two cases from the chain
+	/// list, as in the delay list.
+	PITCH_SHIFT,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -2099,6 +2171,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
 inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
 #elif defined(DELUGE_DSP_BENCH_VA_SHAPES)
 inline constexpr CaseList kBenchCaseList = CaseList::VA_SHAPES;
+#elif defined(DELUGE_DSP_BENCH_PITCH_SHIFT)
+inline constexpr CaseList kBenchCaseList = CaseList::PITCH_SHIFT;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

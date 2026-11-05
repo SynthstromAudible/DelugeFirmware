@@ -63,7 +63,7 @@ constexpr uint32_t kDecayToQ15Shift = 16;
 }
 
 /// @brief Enters @p next at its start: the attack falls from the level held to the floor, the release rises from the
-/// floor to kOneQ31, and off holds nothing.
+/// floor to `Q<31>::max()`, and off holds nothing.
 void enter(State& s, Stage next) {
 	s.stage = next;
 	switch (next) {

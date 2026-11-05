@@ -85,6 +85,11 @@ void forgetRecordEvents(const ::Song& song);
 extern uint32_t recordWritesWithoutAddress;
 /// Writes applied by the interaction tier because the queue was full.
 extern uint32_t recordRingFullFallbacks;
+/// Writes found in the unheld lane when the render next reached it (each undone): it must stay 0.
+extern uint32_t unheldLaneWrites;
+/// Lanes the interaction tier resolved by address to another lane than the one the render's lookup finds: it must
+/// stay 0.
+extern uint32_t laneSplits;
 /// `ActionLogger::getNewAction` and `Action::recordParamChange` calls made on the render tier.
 extern uint32_t renderUndoCalls;
 /// Recorded writes the render had to grow a lane's node vector for: the reserved room ran out.

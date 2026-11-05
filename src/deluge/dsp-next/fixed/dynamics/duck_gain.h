@@ -45,8 +45,8 @@ inline constexpr int kDuckGainFirstShift = 15;
 /// **Wrapping.** The square is taken in unsigned arithmetic and reinterpreted, as the target's `mul` gives it: a duck
 /// above zero or a negative depth lifts p toward 2^30, where REVERB_RETURN's square reaches 2^31 and wraps, and below
 /// −2^29 a negative p squares positive, so the duck folds back up. The owners reach neither: a duck is at most
-/// −(2^31 − 1) deep (a full hit's level is 0, less kOneQ31) and never above zero, and a depth is at most 2.0 either
-/// way (a sidechain cable's ±2^30, or a host chain's sidechain volume, 0 to 2), so p stays in [0, 2^30 − 1] and
+/// −(2^31 − 1) deep (a full hit's level is 0, less `Q<31>::max()`) and never above zero, and a depth is at most 2.0
+/// either way (a sidechain cable's ±2^30, or a host chain's sidechain volume, 0 to 2), so p stays in [0, 2^30 − 1] and
 /// REVERB_RETURN's square peaks at 2147385345. Sidechain::level asserts the owners' ranges.
 /// @tparam S The owner's scale.
 /// @param duck The duck: 0 is none, negative ducks.

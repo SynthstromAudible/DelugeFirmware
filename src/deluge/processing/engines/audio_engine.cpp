@@ -86,11 +86,11 @@
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
 #include "synth/modulation/envelope.h"
-#include "synth/sources/input/live/live_input_buffer.h"
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -115,7 +115,6 @@
 namespace params = deluge::modulation::params;
 
 using namespace deluge;
-using deluge::synth::LiveInputBuffer;
 
 extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -494,8 +493,6 @@ bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
-
-LiveInputBuffer* liveInputBuffers[3];
 
 // For debugging
 double lastRoutineTime;
@@ -1065,8 +1062,8 @@ void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects
 	currentSong->live.master_channel.chain().render(renderingBuffer, master,
 	                                                {reverbMemory.data(), renderingBuffer.size()}, tracked);
 	if (post) {
-		masterVolumeAdjustmentL = kOneQ31;
-		masterVolumeAdjustmentR = kOneQ31;
+		masterVolumeAdjustmentL = std::numeric_limits<int32_t>::max();
+		masterVolumeAdjustmentR = std::numeric_limits<int32_t>::max();
 	}
 }
 void renderSamplePreview(size_t numSamples);
@@ -1114,11 +1111,9 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	View::RenderBlockStackWatch stackWatch;
 	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
-	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
-	struct RenderBlockMark {
-		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
-		~RenderBlockMark() { deluge::memory::noteRenderBlock(false); }
-	} renderBlockMark;
+	// The caller is the render tier for the block: onRenderTier() reads it, and the host counts the render's heap
+	// allocations by it (it must make none).
+	deluge::memory::RenderBlock renderBlock;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -1762,14 +1757,19 @@ uint32_t routine() {
 		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
 		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
 			size_t numSamples = kOfflineFramesPerBlock;
-			if (currentSong != nullptr) {
-				deluge::modulation::applyRecordEvents(*currentSong);
-			}
-			tickSongFinalizeWindows(numSamples);
-			sendWindowOutputsNow();
+			{
+				// The interaction tier runs this block's render work, as deluge_app_render's block holds it: the
+				// recorded values, the ticks and the render. It is the render tier while it does.
+				deluge::memory::RenderBlock renderBlock;
+				if (currentSong != nullptr) {
+					deluge::modulation::applyRecordEvents(*currentSong);
+				}
+				tickSongFinalizeWindows(numSamples);
+				sendWindowOutputsNow();
 
-			numSamplesLastTime = numSamples;
-			renderAudioForStemExport(numSamples);
+				numSamplesLastTime = numSamples;
+				renderAudioForStemExport(numSamples);
+			}
 			sideChainHitPending = 0;
 			audioSampleTimer += numSamples;
 			// Drains the just-rendered block to any OUTPUT-mode recorder
@@ -2219,30 +2219,6 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 	TimeStretcherPool::recycle(timeStretcher);
 }
 
-// TODO: delete unused ones
-deluge::synth::LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
-	const auto idx = ::util::to_underlying(inputType) - ::util::to_underlying(OscType::INPUT_L);
-	if (!liveInputBuffers[idx]) {
-		if (!mayCreate) {
-			return nullptr;
-		}
-
-		int32_t size = sizeof(LiveInputBuffer);
-		if (inputType == OscType::INPUT_STEREO) {
-			size += kInputRawBufferSize * sizeof(int32_t);
-		}
-
-		void* memory = deluge::memory::alloc_fast(size);
-		if (!memory) {
-			return nullptr;
-		}
-
-		liveInputBuffers[idx] = new (memory) LiveInputBuffer();
-	}
-
-	return liveInputBuffers[idx];
-}
-
 bool createdNewRecorder;
 
 void doRecorderCardRoutines() {
@@ -2350,17 +2326,6 @@ void slowRoutine() {
 	// start-up) made us miss a whole output-ring cycle. Ring geometry is the
 	// board's business; skipped input simply never reaches the input ring.
 	deluge_audio_input_resync();
-
-	// Discard any LiveInputBuffers which aren't in use
-	for (int32_t i = 0; i < 3; i++) {
-		if (liveInputBuffers[i]) {
-			if (liveInputBuffers[i]->up_to_time != audioSampleTimer) {
-				liveInputBuffers[i]->~LiveInputBuffer();
-				delugeDealloc(liveInputBuffers[i]);
-				liveInputBuffers[i] = nullptr;
-			}
-		}
-	}
 
 	createdNewRecorder = false;
 

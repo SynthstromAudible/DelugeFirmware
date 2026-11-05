@@ -18,8 +18,6 @@
 #include "processing/metronome/metronome.h"
 #include "dsp-next/core/fixed_point.h"
 
-#include "dsp-next/core/q31_ops.h"
-
 #include <cmath>
 
 void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, deluge::dsp::Q<27> volume_post_fx) {

@@ -26,10 +26,10 @@
 #include <utility>
 
 /// @file
-/// @brief Each patched param's final value in its own format, and the accessor that reads and writes it.
+/// @brief Each patched param's final value in its own format, and the accessors that read it.
 /// @details The matrix holds the final values as one word per param, because it evaluates them four lanes at a time
-/// by index; each word is its param's value in that param's format. A named read or write goes through
-/// @ref param_value and @ref set_param_value, which give the format below. A rate the consumer steps by as an
+/// by index; each word is its param's value in that param's format. A named read goes through @ref param_value,
+/// which gives the format below. A rate the consumer steps by as an
 /// integer (an envelope stage's position step) is an `int32_t`.
 
 namespace deluge::synth::matrix {

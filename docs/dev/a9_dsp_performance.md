@@ -103,7 +103,7 @@ shared blocks padded off 1 KB multiples:
 - Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolate_signed<Table>` takes its table
   (a built-in `int16_t[R][W]`) at compile time, so the base, the row stride and both log2 sizes are constants: the
   stride folds into the `ldrsh` offsets and every read stays inside one row. `AntialiasedTanh` clamps the input to
-  bounds its coefficients precompute, two compares in place of `lshift_and_saturate_unknown`'s jump table. `tanh_lookup`
+  bounds its coefficients precompute, two compares in place of a jump table on the width (the raw `detail::lshift_and_saturate_unknown`'s). `tanh_lookup`
   reads `kTanhSmallTable` through a `constexpr` base pointer.
 - What remains is one dependency chain per sample: `AntialiasedTanh` is 40 instructions in about 42 cycles (load,
   clamp, shift, index, four `ldrsh`, `mul`/`mla`, two `smmul`, shift, store), `Tanh<3>` 15 in about 16. Removing
@@ -735,6 +735,37 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   `-funsafe-math-optimizations` clang otherwise folds `(g + d) + d` into `g + 2d`, which the vector spec built with
   that flag caught.
 - **The controls move by 0.0-1.4%**, the bound on placement noise between the two images.
+
+## Live pitch shifter
+
+The `pitch_shift` list (`DELUGE_DSP_BENCH_CASES=pitch_shift`) times the sample reader's resampled read
+(`SampleLowLevelReader::readSamplesResampled`, at a rate of 1.5 over 32-bit frames) and one voice's live pitch shifter
+(up 7, down 12, stereo up 7, and up 7 on the harness's percussive signal), each block ingesting the input as the first
+voice on its channel does. Medians of three interleaved rounds against the legacy shifter and reader, cycles per
+sample (2026-11-05):
+
+| case | n=32 | n=64 | n=128 |
+|---|---:|---:|---:|
+| sample_read_sinc_mono | −2.7% | +1.4%¹ | −2.6% |
+| sample_read_sinc_stereo | −1.8% | −1.8% | −1.9% |
+| sample_read_linear_mono | +4.7%¹ | −6.3% | −14.3%¹ |
+| sample_read_linear_stereo | −6.4% | −7.5% | −7.9% |
+| pitch_shift_up7 | −1.8% | −0.6% | −1.3% |
+| pitch_shift_down12 | +0.2% | +0.1% | −0.5% |
+| pitch_shift_stereo_up7 | −0.3% | −0.9% | −0.8% |
+| pitch_shift_perc_up7 | +0.5% | −1.3% | −1.3% |
+
+¹ Within that case's run-to-run spread (up to 9 cps for linear mono). The delay-chain control cases are level
+throughout.
+
+- The reader's gain is the Interpolator's head and tail feeds: its resampled loop allocates differently and stores
+  fewer taps.
+- The shifter first measured +5% to +21%, worst at small blocks. About 850 cycles a block were the ingest's two scratch
+  blocks, value-initialised every block; the rest was the ingest's separate passes (ring walk, fold, follower, ring
+  store). The ingest now reads each codec frame once and stores, folds, follows and measures it in one loop, the
+  follower stepped through `kernel_ops::step_at`, and the shifter is level with the legacy.
+- Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
+  to +24%): the head's interpolator window is 64 bytes.
 
 ## Open questions
 

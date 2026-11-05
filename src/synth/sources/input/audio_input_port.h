@@ -16,23 +16,16 @@
  */
 #pragma once
 
-#include "synth/sources/input/input_channel.h"
-
 #include <cstdint>
 
 namespace deluge::synth {
 
-class LiveInputBuffer; // the per-channel ingest+analysis buffer; host-pooled
-
-/// @brief The port through which the live-input source reads the host's audio input — the dependency-inversion seam
-/// that lets the live-input DSP (the pitch-shifter, the ingest/analysis buffer) live in the library without naming
-/// `AudioEngine`.
+/// @brief The port through which the live-input source reads the host's audio input: the frame clock, the codec ring,
+/// the plug state and the hop report, so the live-input DSP lives in the library without naming `AudioEngine`.
 ///
-/// The firmware supplies the adapter (`AudioInputAdapter`, wrapping `AudioEngine`'s input ring + clock + plug-state +
-/// the shared per-channel `LiveInputBuffer` pool); a host/test could supply a fake. See
-/// `docs/dev/synth_source_ports.md`. The input ring is interleaved stereo (`NUM_MONO_INPUT_CHANNELS`-wide frames);
-/// the per-channel `LiveInputBuffer` is owned by the host pool (shared across voices), so the port hands back a
-/// borrowed pointer rather than transferring ownership.
+/// The firmware supplies the adapter (`AudioInputAdapter`); a host or test can supply a fake. See
+/// `docs/dev/synth_source_ports.md`. The input ring is interleaved stereo (`NUM_MONO_INPUT_CHANNELS`-wide frames). The
+/// histories the shifter reads are the oscillator's own (@ref LiveInputs).
 class AudioInputPort {
 public:
 	virtual ~AudioInputPort() = default;
@@ -50,13 +43,8 @@ public:
 	/// One past the last sample of the input ring (the wrap bound for @ref ringReadPos).
 	[[nodiscard]] virtual const int32_t* ring_end() const = 0;
 
-	/// The shared, per-channel ingest+analysis buffer for @p channel (host-pooled across voices, GC'd by
-	/// staleness). @return the borrowed buffer, or nullptr if unavailable and @p mayCreate is false / the pool is
-	/// empty.
-	[[nodiscard]] virtual LiveInputBuffer* buffer_for_channel(InputChannel channel, bool may_create) = 0;
-
 	/// Report the time-stretch hops the pitch-shifter performed this block, for the host's per-routine CPU-load
-	/// accounting (the pitch-shifter itself stays free of that global; see LivePitchShifter::render's return value).
+	/// accounting (the pitch-shifter itself stays free of that global; see PitchShifter::render's return value).
 	virtual void report_hops(int32_t hops_ended) = 0;
 };
 

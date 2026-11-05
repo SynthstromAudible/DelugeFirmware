@@ -10,6 +10,7 @@
 
 #include "alloc_seams.h"
 #include "param_regions.h"
+#include "raw_words.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "synth/matrix/matrix_fixed.h"

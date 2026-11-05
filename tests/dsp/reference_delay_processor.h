@@ -24,7 +24,6 @@
 #pragma once
 
 #include "dsp-next/core/chain.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
@@ -32,6 +31,7 @@
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 
 #include <algorithm>
 #include <array>

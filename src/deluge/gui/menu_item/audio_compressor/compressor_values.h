@@ -1,6 +1,5 @@
 #pragma once
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "effects/compressor.h"
 #include "gui/menu_item/decimal.h"
@@ -14,6 +13,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include <limits>
 
 namespace deluge::gui::menu_item::audio_compressor {
 
@@ -43,7 +43,7 @@ public:
 		if (value >= kMaxKnobPos) {
 			value = kMaxKnobPos - 1;
 		}
-		q31_t knobPos = knob_level(value);
+		int32_t knobPos = knob_level(value);
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -64,7 +64,7 @@ public:
 		}
 	}
 	virtual uint64_t getCompressorValue() = 0;
-	virtual void setCompressorValue(q31_t value, ModControllableAudio& owner) = 0;
+	virtual void setCompressorValue(int32_t value, ModControllableAudio& owner) = 0;
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxKnobPos; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	const char* getUnit() override { return "MS"; }
@@ -75,7 +75,7 @@ class Attack final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().attack); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+	void setCompressorValue(int32_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/attack", deluge::serialization::Value::makeNumber(value));
 	}
 	float getDisplayValue() override { return deluge::dsp::fixed::compressor_attack_ms(shown_knobs().attack); }
@@ -88,7 +88,7 @@ class Release final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() final { return static_cast<uint64_t>(shown().release); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) final {
+	void setCompressorValue(int32_t value, ModControllableAudio& owner) final {
 		effectSettingFor(owner, "audioCompressor/release", deluge::serialization::Value::makeNumber(value));
 	}
 	float getDisplayValue() override { return deluge::dsp::fixed::compressor_release_ms(shown_knobs().release); }
@@ -103,7 +103,7 @@ class Ratio final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().ratio); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+	void setCompressorValue(int32_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/ratio", deluge::serialization::Value::makeNumber(value));
 	}
 	float getDisplayValue() override { return deluge::dsp::fixed::compressor_ratio(shown_knobs().ratio); }
@@ -113,7 +113,7 @@ class SideHPF final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() override { return static_cast<uint64_t>(shown().sidechain_hpf); }
-	void setCompressorValue(q31_t value, ModControllableAudio& owner) override {
+	void setCompressorValue(int32_t value, ModControllableAudio& owner) override {
 		effectSettingFor(owner, "audioCompressor/compHPF", deluge::serialization::Value::makeNumber(value));
 	}
 	float getDisplayValue() override {
@@ -126,15 +126,15 @@ class Blend final : public CompressorValue {
 public:
 	using CompressorValue::CompressorValue;
 	uint64_t getCompressorValue() final { return static_cast<uint64_t>(shown().blend); }
-	void setCompressorValue(q31_t, ModControllableAudio& owner) final {
+	void setCompressorValue(int32_t, ModControllableAudio& owner) final {
 		auto value = this->getValue();
 
-		q31_t knobPos;
+		int32_t knobPos;
 		if (value < kMaxKnobPos) {
 			knobPos = knob_level(value);
 		}
 		else {
-			knobPos = kOneQ31;
+			knobPos = std::numeric_limits<int32_t>::max();
 		}
 		effectSettingFor(owner, "audioCompressor/compBlend", deluge::serialization::Value::makeNumber(knobPos));
 	}

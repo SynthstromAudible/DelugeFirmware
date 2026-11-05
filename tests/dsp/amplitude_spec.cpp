@@ -24,6 +24,7 @@
 
 #include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
+#include "raw_words.h"
 #include <arm_neon.h>
 #include <array>
 #include <cppspec.hpp>

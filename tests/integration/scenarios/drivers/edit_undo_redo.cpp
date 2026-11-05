@@ -66,8 +66,10 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -78,6 +80,7 @@
 #include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/structural_edit_probe.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -167,6 +170,101 @@ bool equalSnapshot(const Snapshot& a, const Snapshot& b) {
 		}
 	}
 	return true;
+}
+
+// The render reads a lane through its collection, never by address: wherever an owner's address resolves, the
+// collection's lane for the param is the one the address names. Every clip's unpatched and patched params, and the
+// song's.
+void laneAgreementTarget(Song* song) {
+	int32_t checked = 0;
+	int32_t mismatches = 0;
+	const auto agree = [&](ModelStackWithAutoParam* lane) {
+		if (lane == nullptr || lane->autoParam == nullptr) {
+			return;
+		}
+		const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*lane);
+		if (!address) {
+			return;
+		}
+		deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address);
+		if (resolved == nullptr) {
+			return;
+		}
+		checked++;
+		if (lane->paramCollection->findDocParamForId(lane->paramId) != resolved) {
+			mismatches++;
+		}
+	};
+	const auto walk = [&](ModelStackWithThreeMainThings* owner, ParamManager& manager) {
+		// The sets a manager holds: getUnpatchedParamSet and getPatchedParamSet freeze on a missing one.
+		if (manager.summaries[0].paramCollection != nullptr) {
+			for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
+				agree(owner->getUnpatchedAutoParamFromId(p));
+			}
+		}
+		if (manager.summaries[1].paramCollection != nullptr) {
+			for (int32_t p = 0; p < params::kNumParams; p++) {
+				agree(owner->getPatchedAutoParamFromId(p));
+			}
+		}
+	};
+	{
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+		ModelStackWithThreeMainThings* owner = song->setupModelStackWithSongAsTimelineCounter(memory);
+		walk(owner, song->paramManager);
+	}
+	for (Clip* clip : AllClips::everywhere(song)) {
+		// A MIDI or CV clip's manager holds a MIDIParamCollection, not param sets.
+		if (clip->output == nullptr || !clip->paramManager.containsAnyMainParamCollections()
+		    || (clip->output->type != OutputType::SYNTH && clip->output->type != OutputType::KIT
+		        && clip->output->type != OutputType::AUDIO)) {
+			continue;
+		}
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+		ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsButNoNoteRow(
+		    memory, song, clip->output->toModControllable(), clip, &clip->paramManager);
+		walk(owner, clip->paramManager);
+	}
+	// The render's direct reads never create a set's store: an unbound set reads the unheld lane and stays unbound; a
+	// bound one reads its store's lane.
+	{
+		ParamManagerForTimeline fresh;
+		if (fresh.setupWithPatching() == Error::NONE) {
+			PatchedParamSet* set = fresh.getPatchedParamSet();
+			check(set->findDocParamForId(0) == nullptr, "a fresh set starts unbound");
+			check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
+			check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
+
+			// The render's lookup of an unbound set's lane misses: it gets the unheld lane, writes nothing to it,
+			// and a write something else made there is found, counted and undone at the next miss.
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+			ModelStackWithThreeMainThings* owner = song->setupModelStackWithSongAsTimelineCounter(memory);
+			owner->paramManager = &fresh;
+			ModelStackWithAutoParam* lane = owner->getPatchedAutoParamFromId(0);
+			if (lane != nullptr && lane->autoParam != nullptr) {
+				deluge::memory::RenderBlock block;
+				deluge::project::DocAutoParam* missed = lane->doc();
+				check(missed != nullptr && isUnheldLane(*missed), "the render's miss reads the unheld lane");
+				check(set->findDocParamForId(0) == nullptr, "the render's miss creates no store");
+#if ALPHA_OR_BETA_VERSION
+				const uint32_t before = deluge::modulation::unheldLaneWrites;
+				deluge::project::set_base(*missed, 5);
+				missed = lane->doc();
+				check(deluge::modulation::unheldLaneWrites == before + 1, "a write to the unheld lane is counted");
+				check(missed->current_value == 0, "a write to the unheld lane is undone");
+				deluge::modulation::unheldLaneWrites = before;
+#endif
+			}
+			else {
+				check(false, "the fresh set's lane is reachable");
+			}
+			(void)set->docForParam(0);
+			check(&set->findDocForParam(0) == set->findDocParamForId(0), "a bound set reads its store's lane");
+		}
+	}
+	std::fprintf(io.out, "LH-AGREE checked=%d mismatches=%d\n", static_cast<int>(checked),
+	             static_cast<int>(mismatches));
+	check(mismatches == 0, "the collection's lane is the one its address resolves to");
 }
 
 // Script apply(SetParamValue) -> undo -> redo over one resolved param lane, asserting the invariants.
@@ -1893,6 +1991,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 
 	universalIdsTarget(song); // first, on the pristine loaded song (before any target mutates clip/drum membership)
 	exactAddressTarget(song);
+	laneAgreementTarget(song);
 
 	// Target 1 — song-global UNPATCHED_VOLUME (OwnerId::song()). Always present.
 	{
@@ -1986,6 +2085,14 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	recordExpressionTarget(song);
 	newShapesTarget(song);
 
+#if ALPHA_OR_BETA_VERSION
+	// Only the interaction tier changes a lane store, and each change excludes the render.
+	check(deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE) == 0,
+	      "the render changed no lane store");
+	// The interaction tier's lanes are the render's, after every target's mutations too.
+	laneAgreementTarget(song);
+	check(deluge::modulation::laneSplits == 0, "every lane the interaction tier resolved is the render's");
+#endif
 	std::free(xml);
 	return failures ? 3 : 0;
 }

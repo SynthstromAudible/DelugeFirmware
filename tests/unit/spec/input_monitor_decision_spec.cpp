@@ -138,7 +138,7 @@ describe input_monitor_decision("the engine's input monitoring", ${
 		                                    kEnd - 1, kEnd, kEnd + 1, std::numeric_limits<uint32_t>::max()};
 		InputMonitor monitor;
 		for (const uint32_t t : times) {
-			expect(monitor.gain(t)).to_equal(legacy_gain(false, t));
+			expect(monitor.gain(t).raw()).to_equal(legacy_gain(false, t));
 		}
 		monitor.advance_time(kEnd - 1);
 		expect(monitor.warmed_up()).to_be_false();
@@ -147,7 +147,7 @@ describe input_monitor_decision("the engine's input monitoring", ${
 		monitor.advance_time(0);
 		expect(monitor.warmed_up()).to_be_true();
 		for (const uint32_t t : times) {
-			expect(monitor.gain(t)).to_equal(legacy_gain(true, t));
+			expect(monitor.gain(t).raw()).to_equal(legacy_gain(true, t));
 		}
 	});
 });

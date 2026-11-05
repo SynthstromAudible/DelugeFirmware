@@ -35,6 +35,7 @@ struct SourcePorts {
 	SamplePlaybackPort* sample{};
 	DxVoicePort* dx{};
 	AudioInputPort* input{};
+	const LiveInputs* live_inputs{}; ///< the oscillator's live histories
 };
 
 /// @brief The phase state of one source slot that every synth mode shares, and the engines and the app read.

@@ -22,7 +22,7 @@
 /// kernel is checked against, and the response the bench's legacy analog case runs. Its arithmetic stays raw on
 /// purpose: a reference written independently of the code it checks.
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 
@@ -31,6 +31,9 @@
 #include <cstdint>
 
 namespace deluge::bench::reference {
+
+// A raw reference: the response multiplies are rounded high-word products of words.
+using deluge::dsp::detail::multiply_32x32_rshift32_rounded;
 
 using dsp::StereoSample;
 

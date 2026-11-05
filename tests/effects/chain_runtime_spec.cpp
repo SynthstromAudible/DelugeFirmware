@@ -88,8 +88,8 @@ std::string first_difference(std::string_view workload, int block, const Produce
 
 /// The filter scratch both sides use, as large as a stereo block.
 struct Scratch {
-	std::vector<q31_t> fade = std::vector<q31_t>(cw::kMaxFrames * 2);
-	std::vector<q31_t> parallel = std::vector<q31_t>(cw::kMaxFrames * 2);
+	std::vector<int32_t> fade = std::vector<int32_t>(cw::kMaxFrames * 2);
+	std::vector<int32_t> parallel = std::vector<int32_t>(cw::kMaxFrames * 2);
 	[[nodiscard]] deluge::dsp::fixed::FilterScratch view() {
 		return {.fade = deluge::dsp::typed_view(std::span{fade}),
 		        .parallel = deluge::dsp::typed_view(std::span{parallel})};

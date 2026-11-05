@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/detail/raw_ops.h"
 #include "effects/chain_core.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
@@ -38,6 +38,8 @@
 #include <span>
 
 namespace chain_reference {
+
+using deluge::dsp::detail::multiply_32x32_rshift32;
 
 using deluge::dsp::StereoSample;
 namespace fx = deluge::effects;
@@ -54,7 +56,7 @@ namespace fx = deluge::effects;
 /// @param verbAmount       The grain's reverb feed amount.
 /// @param reverbBuffer     The reverb send the grain feeds.
 inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::ModFXType modFXType,
-                       const fx::FxInputs& in, int32_t* postFXVolume, bool anySoundComingIn, q31_t verbAmount,
+                       const fx::FxInputs& in, int32_t* postFXVolume, bool anySoundComingIn, int32_t verbAmount,
                        fx::ReverbSend reverbBuffer) {
 	if (modFXType == fx::ModFXType::GRAIN) {
 		const fx::GranularInputs grain{
@@ -63,11 +65,13 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .density = in.mod_fx_offset,
 		    .randomness = in.mod_fx_feedback,
 		    // The volume times the send, shifted up by 5 in 64 bits and held at full scale.
-		    .send_amount = deluge::dsp::Q<31>::from_raw(static_cast<q31_t>(std::min<int64_t>(
+		    .send_amount = deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(std::min<int64_t>(
 		        int64_t{multiply_32x32_rshift32(*postFXVolume, verbAmount)} << 5, int64_t{INT32_MAX}))),
 		    .sound = anySoundComingIn,
 		};
-		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);
+		auto volume = deluge::dsp::Q<27>::from_raw(*postFXVolume);
+		c.granular().render(buffer, grain, volume, {reverbBuffer.data(), buffer.size()}, *in.noise);
+		*postFXVolume = volume.raw();
 	}
 	else {
 		const fx::ModFxInputs mod{
@@ -79,7 +83,9 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .stereo = in.stereo,
 		    .sound = anySoundComingIn,
 		};
-		c.mod_fx().render(buffer, mod, *postFXVolume, *in.noise);
+		auto volume = deluge::dsp::Q<27>::from_raw(*postFXVolume);
+		c.mod_fx().render(buffer, mod, volume, *in.noise);
+		*postFXVolume = volume.raw();
 	}
 	c.equalizer().process(buffer, in.eq);
 	c.delay().process(buffer, in.delay, in.stereo);
@@ -133,7 +139,7 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 	const bool sent = process_reverb_send_and_volume(c, sound_stereo, reverbBuffer, postFXVolume, postReverbVolume,
 	                                                 in.reverb_send.raw(), 0, true, in.fx.stereo);
 
-	q31_t compThreshold = in.compressor_threshold.raw();
+	int32_t compThreshold = in.compressor_threshold.raw();
 	c.compressor().configure(settings.compressor);
 	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 	if (compThreshold > 0) {
@@ -165,7 +171,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	int32_t volumePostFX = in.volume_post_fx.raw();
 
 	// The filters' settings, which compensate the post-FX volume.
-	volumePostFX = filter_.configure(settings.filter, in.filter, volumePostFX);
+	volumePostFX = filter_.configure(settings.filter, in.filter, deluge::dsp::Q<27>::from_raw(volumePostFX)).raw();
 
 	int32_t reverbSendAmount = in.reverb_send.raw();
 	int32_t pan = in.pan.raw();
@@ -184,7 +190,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	}
 
 	c.compressor().configure(settings.compressor);
-	const q31_t compThreshold = in.compressor_threshold.raw();
+	const int32_t compThreshold = in.compressor_threshold.raw();
 	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 
 	saturation_.process(global_effectable_audio, {.clipping_amount = settings.saturation.clipping_amount,
@@ -252,7 +258,8 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 
 	int32_t masterVolumeAdjustmentL = post->master_volume.raw();
 	int32_t masterVolumeAdjustmentR = post->master_volume.raw();
-	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
+	masterVolumeAdjustmentL =
+	    filter_.configure(settings.filter, post->filter, deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentL)).raw();
 	filter_.process(renderingBuffer, post->filter_scratch, *post->noise);
 	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
 

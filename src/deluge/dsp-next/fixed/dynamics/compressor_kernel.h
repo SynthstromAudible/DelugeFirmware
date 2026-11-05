@@ -20,7 +20,6 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h" // kOneQ31, kOneQ31f
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -294,9 +293,7 @@ struct Compressor {
 	/// @brief The threshold as a fraction of the final volume's level in nepers, from knob @p threshold.
 	/// @param threshold The knob position, Q31 of its travel.
 	/// @return The fraction: 1 at 0, 0.2 at 2^31.
-	[[nodiscard]] static float threshold_fraction(Q<31> threshold) {
-		return 1 - 0.8f * (static_cast<float>(threshold.raw()) / kOneQ31f);
-	}
+	[[nodiscard]] static float threshold_fraction(Q<31> threshold) { return 1 - 0.8f * to_float(threshold); }
 
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.
 	/// @details Inline: the owner calls it once per block, and its few instructions cost less than a call.

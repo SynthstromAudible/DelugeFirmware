@@ -107,7 +107,7 @@ struct LevelProbe {
 };
 
 /// @return |@p x| as an unsigned value: INT32_MIN gives 2^31.
-[[nodiscard]] uint32_t magnitude(q31_t x) {
+[[nodiscard]] uint32_t magnitude(int32_t x) {
 	return x < 0 ? 0u - static_cast<uint32_t>(x) : static_cast<uint32_t>(x);
 }
 
@@ -125,11 +125,11 @@ struct LevelProbe {
 			continue;
 		}
 		++probe.rendered;
-		const q31_t moveability = run.compressor().view().detector_moveability.raw();
+		const int32_t moveability = run.compressor().view().detector_moveability.raw();
 		uint64_t sum = 0;
 		for (const RawFrame frame : block) {
-			const q31_t l = deluge::dsp::wrapping_sub(frame.l, detector[0].lowPass(frame.l, moveability));
-			const q31_t r = deluge::dsp::wrapping_sub(frame.r, detector[1].lowPass(frame.r, moveability));
+			const int32_t l = deluge::dsp::wrapping_sub(frame.l, detector[0].lowPass(frame.l, moveability));
+			const int32_t r = deluge::dsp::wrapping_sub(frame.r, detector[1].lowPass(frame.r, moveability));
 			probe.min_frames += static_cast<size_t>(l == INT32_MIN && r != INT32_MIN);
 			const uint64_t s = std::max(magnitude(l), magnitude(r));
 			sum += (s * s) >> 32;

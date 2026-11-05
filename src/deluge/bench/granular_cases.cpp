@@ -25,7 +25,7 @@ namespace {
 /// after another, so they share it; each case's setup makes the component anew.
 struct GranularRig {
 	std::optional<effects::Granular> granular; ///< The component, as a Sound's.
-	int32_t volume{kOneQ31 >> 1};              ///< The post-effect volume the component scales, Q27: 8× unity.
+	dsp::Q<27> volume{kEffectStartVolume};     ///< The post-effect volume the component scales, Q27.
 	dsp::Buffer<StereoSample> work{};          ///< The lanes output's first n frames, processed in place.
 	std::span<const StereoSample> input{};     ///< The lanes input's first n frames, the sounding block.
 	std::array<dsp::Q<31>, kMaxBlock> send{};  ///< The reverb send the component adds its feed into.
@@ -39,14 +39,14 @@ constexpr uint32_t kNoiseSeed = 380116160;
 /// @brief One call as the owner makes it: a fresh post-effect volume and the reverb amount derived from it.
 /// @param config The case's knobs.
 void render_block(const GranularConfig& config) {
-	rig.volume = kOneQ31 >> 1;
+	rig.volume = kEffectStartVolume;
 	const effects::GranularInputs in{
 	    .rate = kGranularRate,
 	    .mix = kGranularMix,
 	    .density = config.density,
 	    .randomness = config.randomness,
 	    // As the owner's chain forms it
-	    .send_amount = effects::grain_send_amount(dsp::Q<27>::from_raw(rig.volume), kGranularVerbAmount),
+	    .send_amount = effects::grain_send_amount(rig.volume, kGranularVerbAmount),
 	    .sound = true,
 	};
 	rig.granular->render(rig.work, in, rig.volume, std::span{rig.send}.first(rig.work.size()), deluge::synth_noise);

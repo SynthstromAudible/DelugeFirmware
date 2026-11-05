@@ -44,6 +44,7 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
+#include <bit>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -100,7 +101,11 @@ void ParamSet::bindDomStore() {
 }
 
 void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
-	domStore_.reset();  // drop any lazily-created own store — we resolve against the external one now
+	// The render resolves this set's lanes through domStoreRef_: it sees the old store or the external one, never
+	// neither. A lazily-created own store is freed when this returns: after the section, or inside a caller's.
+	std::unique_ptr<deluge::project::DocParamSet> dropped;
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+	dropped = std::move(domStore_);
 	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
 }
 
@@ -134,9 +139,12 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
 	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
 	if (domStoreRef_ == nullptr) {
-		domStore_ = std::make_unique<deluge::project::DocParamSet>();
-		domStore_->first = deluge::bridge::firstParamId(getParamKind());
-		domStore_->params.resize(numParams_);
+		auto own = std::make_unique<deluge::project::DocParamSet>();
+		own->first = deluge::bridge::firstParamId(getParamKind());
+		own->params.resize(numParams_);
+		// The render reads an unbound set's lanes as the unheld lane, and a bound one's through domStoreRef_.
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+		domStore_ = std::move(own);
 		domStoreRef_ = domStore_.get();
 	}
 	return &domStoreRef_->params[p];
@@ -204,7 +212,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	for (int32_t i = topUintToRepParams; i >= 0; i--) {                                                                \
 		uint32_t whichParamsHere = whichParams[i];                                                                     \
 		while (whichParamsHere) {                                                                                      \
-			int32_t whichBit = 31 - clz(whichParamsHere);                                                              \
+			int32_t whichBit = 31 - std::countl_zero(whichParamsHere);                                                 \
 			whichParamsHere &= ~((uint32_t)1 << whichBit);                                                             \
 			int32_t p = whichBit + (i << 5);
 

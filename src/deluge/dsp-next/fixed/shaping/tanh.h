@@ -18,7 +18,6 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h" // lshift_and_saturate_unknown
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/shaping/tanh_small_table.h"
@@ -38,7 +37,8 @@ namespace detail {
 /// keeps the format: the level falls by 2^(drive + 2).
 [[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh_lookup(uint32_t position, uint32_t drive) {
 	constexpr const int16_t* kBase = kTanhSmallTable.data();
-	return Q<31>::from_raw(kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8) >> (drive + 2));
+	const auto level = Q<31>::from_raw(kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8));
+	return scale_shr_floor(level, static_cast<int>(drive + 2));
 }
 } // namespace detail
 
@@ -50,11 +50,9 @@ namespace detail {
 /// at 32 - drive bits for drives 1 to 20 and at 12 bits for drives past 20; see the compile-time overload for those.
 /// @return The saturated sample, Q31.
 [[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh(Q<31> sample, uint32_t drive) {
-	// Raw: a run-time saturating shift whose width stops narrowing past 20 has no typed form
-	const uint32_t position =
-	    drive != 0u ? static_cast<uint32_t>(lshift_and_saturate_unknown(sample.raw(), static_cast<uint8_t>(drive)))
-	                      + kTanhCentre
-	                : static_cast<uint32_t>(sample.raw()) + kTanhCentre;
+	// The table's position is the driven sample's word, unsigned, about the centre
+	const Q<31> driven = drive != 0u ? scale_shl_clamp_then_shift(sample, static_cast<int>(drive)) : sample;
+	const uint32_t position = static_cast<uint32_t>(driven.raw()) + kTanhCentre;
 	return detail::tanh_lookup(position, drive);
 }
 

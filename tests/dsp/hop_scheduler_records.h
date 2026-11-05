@@ -1,0 +1,58 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file
+/// @brief The hop scheduler's records over every workload (pitch_shift_workloads.h): each block's hop count, the hop's
+/// progress after it, the noise and the output, hashed, in WorkloadId order (0 for the shared workloads, which the
+/// scheduler spec skips).
+
+#pragma once
+
+#include "pitch_shift_workloads.h"
+
+#include <array>
+#include <cstdint>
+
+inline constexpr std::array<uint64_t, pitch_shift_workloads::kWorkloadCount> kSchedulerRecords{{
+    0x391d131e86033905ULL, // UP7_SAW_LEFT
+    0xcde607b2877be045ULL, // UP7_SAW_RIGHT
+    0x4a2b77bfe6fcccb6ULL, // UP7_SAW_STEREO
+    0x70806f30ce5fc209ULL, // UP7_PERC_LEFT
+    0xabc4b579a8b34b4dULL, // UP7_PERC_STEREO
+    0x5143ec6cfa4562edULL, // DOWN12_PERC_LEFT
+    0xd3abcdfd3e7925aaULL, // DOWN12_PERC_STEREO
+    0x2fa82a1be08f87c6ULL, // DOWN24_SAW_LEFT
+    0xb1795cad00ce49c4ULL, // DOWN5_SINE_LEFT
+    0xc068e019627c27bdULL, // DOWN1_SINE_LEFT
+    0x48f13c13dbdfcd15ULL, // UP_HALF_SINE_LEFT
+    0x55e06da1e10c2fa1ULL, // UP1_SINE_LEFT
+    0xefed5f879182edd1ULL, // UP5_PERC_LEFT
+    0x203909accaad716bULL, // UP12_SINE_STEREO
+    0x239701f0e9bcc0cULL,  // UP24_PERC_LEFT
+    0x400af2b7d8e6379bULL, // UP24_SAW_STEREO
+    0xc99ada97d7fb1fcfULL, // UP7_LINEAR_PERC_LEFT
+    0x4ebbb54cf8b8182bULL, // DOWN12_LINEAR_SINE_STEREO
+    0x49aaac308d0d3861ULL, // UP7_BLOCK1_PERC_LEFT
+    0x2a0d384d77d96012ULL, // DOWN12_BLOCK7_PERC_LEFT
+    0xc6ec117099e26d72ULL, // UP7_BLOCK32_SINE_STEREO
+    0x9e918e22770e820aULL, // GLIDE_PERC_LEFT
+    0x97cf342fb04570d8ULL, // GLIDE_SAW_STEREO
+    0x0ULL,                // SHARED_UP7_PERC_LEFT: skipped (shared)
+    0x0ULL,                // SHARED_DOWN5_PERC_STEREO: skipped (shared)
+    0x7623f813d9d7197cULL, // SILENCE_UP7_LEFT
+    0x85c13b6ef5bbc132ULL, // SILENCE_DOWN12_LEFT
+}};

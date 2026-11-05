@@ -6,13 +6,16 @@
 /// (src/deluge/CMakeLists.txt) and the cases time the delay's feedback as the delay runs it: in place.
 
 #include "bench/cases.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 
 #include <algorithm>
 #include <cstddef>
 
 namespace deluge::bench {
+
+// The raw feedback reference the typed kernel is benched against.
+using deluge::dsp::detail::multiply_32x32_rshift32;
 
 namespace {
 

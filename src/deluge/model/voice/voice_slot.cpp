@@ -48,8 +48,11 @@ VoiceClock engineClock() {
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			kernel.unison_parts[u].slots[s].bind(
-			    {.sample = &ports_[u][s].sample, .dx = &ports_[u][s].dx, .input = &ports_[u][s].input});
+			// The slots belong to the Sound, whose oscillators hold the histories: they outlive every slot bound here
+			kernel.unison_parts[u].slots[s].bind({.sample = &ports_[u][s].sample,
+			                                      .dx = &ports_[u][s].dx,
+			                                      .input = &ports_[u][s].input,
+			                                      .live_inputs = &sound.sources[s].liveInputs.inputs()});
 		}
 	}
 }
@@ -253,7 +256,7 @@ bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, 
 	// If none of this source still active, and no noise, see if the other source still has any...
 	if (!anyStillActive
 	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
+	        paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 
 		s = 1 - s;
 

@@ -30,6 +30,8 @@ namespace deluge::modulation {
 
 #if ALPHA_OR_BETA_VERSION
 uint32_t recordWritesWithoutAddress = 0;
+uint32_t unheldLaneWrites = 0;
+uint32_t laneSplits = 0;
 uint32_t recordRingFullFallbacks = 0;
 uint32_t renderUndoCalls = 0;
 uint32_t renderNodeGrowths = 0;

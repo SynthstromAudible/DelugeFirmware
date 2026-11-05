@@ -100,7 +100,7 @@ typedef struct DelugeTimestamp {
 } DelugeTimestamp;
 
 /// One stereo frame of audio. Layout-compatible with the application's
-/// `StereoSample` (`{ q31_t l; q31_t r; }`). Samples are signed Q31 fixed point.
+/// `StereoSample` (`{ int32_t l; int32_t r; }`). Samples are signed Q31 fixed point.
 typedef struct DelugeStereoSample {
 	int32_t l;
 	int32_t r;

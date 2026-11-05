@@ -344,7 +344,7 @@ fused frame kernel of stereo frames, rendered in place as
 - **The blend needs no scratch.** `BLEND` mixes the frame as it came in back at
   the dry level, `dry_wet_blend`'s arithmetic. The step reads its input frame
   before the wrapper stores the output, so the dry signal is the step's own
-  `x`, in place. The blend knob picks the mode per block: `WET` at `kOneQ31`,
+  `x`, in place. The blend knob picks the mode per block: `WET` at `Q<31>::max()`,
   since the blend there is not an identity.
 - **The measurement runs one frame behind.** Measured on the output it has just
   made, a frame is one dependency chain (the gain multiply, the table lookup and
@@ -603,6 +603,41 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
   hand-over.
 
+### A source over a shared history, hopped by a scheduler: the live pitch shifter
+
+The live pitch shifter (`fixed/pitch_shift/`, glued by `synth/sources/input/live/`) plays a voice's live input at
+another pitch by reading the input's recent history back at the shifted rate, through two play heads cross-faded at
+each hop. Its pieces split by rate:
+
+- **Per sample, kernels.** `SlopeFollower` (a processor kernel) follows the input's smoothed slope, and
+  `percussiveness()` reads an onset measure from it every 128 frames. `PlayHead<Frame>` (a processor kernel, mono
+  `Q<31>` or stereo `StereoSample`) adds one head into the voice's block in place: `DIRECT`, or repitching through the
+  windowed sinc or linearly, one mode per segment. Its window is the `Interpolator`, fed through its head and tail
+  feeds (`advance`, `fill_tail`), which the sample reader uses too; the taps are private.
+- **Per block, a component.** `InputHistory<Frame>` holds the last 8192 frames and the onset measures. The synth's
+  `LiveInput<Frame>` wraps it, ingesting each audio block once however many voices read it. The input oscillator
+  owns its histories (`LiveInputStore` on `::Source`: its channel's, and for stereo the stereo one and the left), made
+  and freed on the interaction tier as its type changes and handed to the render inside an audio-excluded section;
+  its voices read them through `LiveInputs`, bound with their ports.
+- **Per hop, objects.** `PitchShiftTuning` gives the pitch-dependent search ranges, threshold, crossfade and hop
+  lengths as coefficients of the shift. `HopPlanner` places each hop's new head: `PercussiveSearch` finds how far back
+  a pitched-up hop starts, `WaveformAligner` lines its window up with the old head's by moving averages, to a
+  sub-sample phase. `HopScheduler` is iterated over a block (`while (auto s = scheduler.next(...))`): it shortens hops
+  a head cannot last, cuts them on an onset, plans the hop when it ends, and gives each head's amplitude across each
+  segment of the linear crossfade.
+- **The component.** `LivePitchShifter<Frame>` is the scheduler, the two heads and the render loop: configure the
+  heads for the block's history and shift, then render each segment's heads in place. `PitchShifter` is the voice's
+  handle, one allocation of whichever instantiation the channel needs, owned explicitly by `InputSource`.
+- **Evidence.** `tests/dsp/reference_live_pitch_shifter.h` is the old three classes verbatim but for owning their
+  storage; it and the component equal the records the old classes made over 27 workloads
+  (`pitch_shift_workload_records.h`), and each piece has a spec against its verbatim reference
+  (`slope_follower_spec`, `input_history_spec`, `pitch_shift_tuning_spec`, `play_head_spec`, `percussive_search_spec`,
+  `waveform_aligner_spec`, `hop_planner_spec`, `hop_scheduler_spec`, `interpolator_feed_spec`). The goldens
+  `input_pitchshift_*` play it up and down, in stereo, with unison and linear interpolation, through unity, and on the
+  harness's percussive test signal (`RENDER_INPUT=2`).
+- **Quirks.** Everything bit-exactness kept is named in the code and listed, with what to try, in
+  `docs/dev/live_pitch_shifter_quirks.md` (Q1–Q13).
+
 ### A float kernel and a fixed one over one buffer, the model chosen per block: the reverb
 
 The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and
@@ -612,7 +647,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
 - **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
   `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
   float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
-  and its output stage is `to_q31` saturating then the rounded multiply-accumulate, both named in the kernel.
+  and its output stage is `to_q31_saturating` then the rounded multiply-accumulate, both named in the kernel.
 - **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
   end to end by `kLayout`, or the plate's 32,768-float ring. The State holds only indices, the combs' stores and the
   filter memories. Neither declares `kStateInPlace`: copying the State into registers for the block measures faster
@@ -1527,7 +1562,7 @@ These are the reference blocks that later rewrites compose rather than re-derive
   the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
 - **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade. The filters' fade runs it; the
   compressor's `BLEND` step writes the same arithmetic with the dry level taken once per configure, pointing at it.
-  `FULL_WET` returns the wet sample unchanged, because the blend at `kOneQ31` is not an identity.
+  `FULL_WET` returns the wet sample unchanged, because the blend at `Q<31>::max()` is not an identity.
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 - **The tables** (`tables/`): `kSineSmall` (one turn of sine, Q15, 257 entries with the wrap) and `kDecaySmall4` /
@@ -1575,9 +1610,9 @@ memory.
   `tanh<3>`. Modes BAND and NOTCH. Its gain compensation is the gain it was given.
 - **`FadeIn` and `FadeInMono`** (`fade_in.h`): the fade from a filter's dry input to its output after the filter is
   switched on, a mixer kernel of (dry, wet).
-  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is `kOneQ31 × (1 − dry)`
-    in float. Each sample is `dry_wet_blend` at the wet level, then the level steps. It is over once dry falls below
-    0.001.
+  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is 1 − dry in float,
+    converted truncating (`from_float<31>`). Each sample is `dry_wet_blend` at the wet level, then the level steps. It
+    is over once dry falls below 0.001.
   - **One level, stepped once per channel-sample.** In stereo the left channel blends at one level and the right at the
     next, so the two channels sit one step apart and a stereo fade ends in half the frames. That is why the fade is
     not a q31 kernel under `Stereo`, which would give each channel its own level.
@@ -1774,7 +1809,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in eleven lists, chosen by the CMake cache string
+The cases come in lists chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -1832,7 +1867,11 @@ it drops some:
 - `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
   transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
   block whatever the block size, so their figure is cycles per transform
-  (`cycles / k`), not cps.
+  (`cycles / k`), not cps;
+- `pitch_shift`: the sample reader's resampled read, windowed sinc and linear,
+  mono and stereo, and one voice's live pitch shifter up and down, in stereo
+  and on the percussive test signal, its input ingested each block (see
+  [a9_dsp_performance.md](a9_dsp_performance.md#live-pitch-shifter)).
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the

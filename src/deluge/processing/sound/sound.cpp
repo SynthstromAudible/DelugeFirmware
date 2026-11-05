@@ -833,7 +833,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (!((getSynthMode() == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	          *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648))))
+	          paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648))))
 	    [[unlikely]] {
 		return;
 	}
@@ -1314,7 +1314,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
 	if (getSynthMode() != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        *modelStack->paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
+	        modelStack->paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 		return true;
 	}
 
@@ -1480,7 +1480,7 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
-	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
+	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
 }
 
@@ -1493,7 +1493,7 @@ bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 	return (getSynthMode() != SynthMode::FM
 	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648));
+	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648));
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
@@ -1515,7 +1515,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
-	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_OSC_B_VOLUME), -2147483648)
+	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_B_VOLUME), -2147483648)
 	        || getSynthMode() == SynthMode::RINGMOD);
 }
 
@@ -1627,9 +1627,9 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
                                                       ParamManagerForTimeline& paramManager) {
 	PatchedParamSet* patchedParams = paramManager.getPatchedParamSet();
 	if (patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
-	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT))
+	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT))
 	    || !patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
-	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
+	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
 		return best;
 	}
 	// We deliberately don't use the LPF'ed param here
@@ -1912,7 +1912,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	    params.param_final_values[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
-		    std::min(delayWorkingState.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
+		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate = params.param_final_values[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
@@ -1940,18 +1940,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
-		q31_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager);
-		q31_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager);
-		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
-		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
+		int32_t lpfMorph = getSmoothedPatchedParamValue(params::LOCAL_LPF_MORPH, *paramManager);
+		int32_t lpfFreq = getSmoothedPatchedParamValue(params::LOCAL_LPF_FREQ, *paramManager);
+		int32_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
+		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
 		             && (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
-		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<q31_t>::min()));
-		bool doHPF =
-		    thisHasFilters
-		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
-		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
+		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<int32_t>::min()));
+		bool doHPF = thisHasFilters
+		             && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
+		                 || (hpfFreq != std::numeric_limits<int32_t>::min())
+		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
 		// The sound's render config for this block, the same for each of its voices.
 		std::array<OscType, kNumSources> oscTypes;
 		std::array<SampleRepeatMode, kNumSources> repeatModes;
@@ -2006,7 +2006,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .source_ever_active = sourceEverActives,
 		    .noise_volume_contains_something =
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-		            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648),
+		            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648),
 		    .local_sources_patched_to_anything =
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
@@ -3391,11 +3391,11 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(
-	            *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
+	            patchedParams->findDocForParam(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
 	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated(
-	            *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY + e))
+	            patchedParams->findDocForParam(params::LOCAL_ENV_0_DECAY + e))
 	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated(
-	            *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE + e))
+	            patchedParams->findDocForParam(params::LOCAL_ENV_0_RELEASE + e))
 	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
 	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
 }

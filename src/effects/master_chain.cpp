@@ -33,12 +33,12 @@ MasterChain::MasterChain(RingAllocator mod_fx_allocator, RingAllocator granular_
 }
 
 bool MasterChain::pre_reverb(std::span<dsp::StereoSample> block, const MasterChainInputs& in, ReverbSend send) {
-	// The mod FX and grain scale the volume in place, as a word
-	int32_t post_fx_volume = in.volume_post_fx.raw();
+	// The mod FX and grain scale the volume in place
+	dsp::Q<27> post_fx_volume = in.volume_post_fx;
 	core_.soft_off_grain(in.fx);
 	core_.render_fx(block, in.fx, post_fx_volume, true, send); // the master always has sound coming in
 	return core_.send_and_volume().process(block, send.first(block.size()),
-	                                       {.post_fx_volume = dsp::Q<27>::from_raw(post_fx_volume),
+	                                       {.post_fx_volume = post_fx_volume,
 	                                        .post_reverb_volume = in.post_reverb_volume,
 	                                        .reverb_send = in.reverb_send,
 	                                        .pan = dsp::Q<31>{},
@@ -49,12 +49,10 @@ bool MasterChain::pre_reverb(std::span<dsp::StereoSample> block, const MasterCha
 void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectStates& settings,
                               const MasterPostInputs& post) {
 	using dsp::Q;
-	// The master's volume is Q27, 2^27 unity; a bitcrush lowers it by a run-time shift, so raw.
-	int32_t volume = filter_.configure(settings.filter, post.filter, post.master_volume.raw());
+	// The master's volume is Q27, 2^27 unity; a bitcrush lowers it by a run-time shift.
+	const Q<27> volume = filter_.configure(settings.filter, post.filter, post.master_volume);
 	filter_.process(block, post.filter_scratch, *post.noise);
-	volume >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
-	// The shift done, the volume is Q27 from here.
-	Q<27> volume_l = Q<27>::from_raw(volume);
+	Q<27> volume_l = scale_shr_floor(volume, core_.bitcrush().process(block, post.bitcrush).volume_shift);
 	Q<27> volume_r = volume_l;
 
 	if (post.stutter != nullptr) {

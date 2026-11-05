@@ -29,7 +29,7 @@ SourceSlot::~SourceSlot() {
 void SourceSlot::bind(const SourcePorts& ports) {
 	sample_.bind_port(ports.sample);
 	dx7_.bind_port(ports.dx);
-	input_.bind_port(ports.input);
+	input_.bind_port(ports.input, ports.live_inputs);
 }
 
 bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint32_t osc_retrigger_phase,

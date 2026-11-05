@@ -19,9 +19,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kSampleRate
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/triangle.h"
 #include "dsp-next/core/types.h"
@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 /// @file
 /// @brief Granular: the granular effect as one processor kernel of stereo frames.
@@ -139,17 +140,21 @@ struct Granular {
 	/// @brief The State lives in its wrapper through the block: eight grains and the knob values, about 330 bytes.
 	static constexpr bool kStateInPlace = true;
 
-	/// @return The knobs, the randomness made positive.
+	/// @return The knobs, the randomness made positive: half of it, plus a half.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		return {.rate = s.rate,
 		        .mix = s.mix,
 		        .density = s.density,
-		        .randomness = Q<31>::from_raw(to_positive(s.randomness.raw()))};
+		        .randomness = add_wrap(halve_toward_zero(s.randomness), q<31>(0.5))};
 	}
 
+	/// @brief 1/√2, rounded to the nearest Q31 word.
+	static constexpr Q<31> kOneOverSqrt2 = q<31>(1.0 / std::numbers::sqrt2);
+	static_assert(kOneOverSqrt2.raw() == 1518500250);
+
 	/// @return @p volume (Q27, 2^27 unity) divided by √2: the owner's post-FX volume while the effect renders.
-	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(int32_t volume) {
-		return mul_as_wrap<Q<27>>(Q<27>::from_raw(volume), Q<31>::from_raw(kOneOverSqrt2Q31)).raw();
+	[[nodiscard]] [[gnu::always_inline]] static Q<27> post_fx_volume(Q<27> volume) {
+		return mul_as_wrap<Q<27>>(volume, kOneOverSqrt2);
 	}
 
 	/// @brief Frees the grains of the first pass when the block starts at the ring's end, updates the derived values of
@@ -174,7 +179,7 @@ struct Granular {
 			const Q<31> density = add_wrap(halve_toward_zero(c.density), q<31>(0.5));
 			// Grains up to 8 periods long; past that, grains are stolen for new ones.
 			// Raw: a whole number of frames scaled by the Q31 density, the product's high word doubled.
-			l.size = 1760 + q31_mult(l.period << 3, density.raw());
+			l.size = 1760 + dsp::detail::q31_mult(l.period << 3, density.raw());
 		}
 		if (s.knobs.mix != c.mix) {
 			s.knobs.mix = c.mix;

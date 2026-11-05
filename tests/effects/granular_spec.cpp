@@ -123,7 +123,8 @@ public:
 	void startSkippingRendering() { fx_.startSkippingRendering(); }
 
 	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
-	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
+	                    int32_t* volume, bool sound, int32_t reverb_amount, std::span<int32_t> send) {
+		auto typed_volume = deluge::dsp::Q<27>::from_raw(*volume);
 		fx_.render(deluge::dsp::test::typed_frames(frames),
 		           {.rate = rate,
 		            .mix = mix,
@@ -131,7 +132,8 @@ public:
 		            .randomness = randomness,
 		            .send_amount = deluge::dsp::Q<31>::from_raw(reverb_amount),
 		            .sound = sound},
-		           *volume, deluge::dsp::typed_view(send), deluge::synth_noise);
+		           typed_volume, deluge::dsp::typed_view(send), deluge::synth_noise);
+		*volume = typed_volume.raw();
 	}
 
 	void change(ModFXType type) {
@@ -241,7 +243,7 @@ template <typename Fx, typename Leave, typename Enter>
 	const auto render = [&](std::size_t from, std::size_t count) {
 		for (std::size_t b = from; b < from + count; ++b) {
 			std::vector<RawFrame> frames = gw::stereo_input(256, b);
-			std::vector<q31_t> send = gw::send_input(256, b, false);
+			std::vector<int32_t> send = gw::send_input(256, b, false);
 			int32_t volume = gw::kStartVolume;
 			fx.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, true,
 			                  gw::kSendAmount, send);
@@ -272,7 +274,7 @@ template <typename Fx>
 		if (!sound) {
 			std::ranges::fill(frames, RawFrame{0, 0});
 		}
-		std::vector<q31_t> send = gw::send_input(256, b, false);
+		std::vector<int32_t> send = gw::send_input(256, b, false);
 		int32_t volume = gw::kStartVolume;
 		if (b == silent) {
 			after_silence = deluge::synth_noise.state();
@@ -298,7 +300,7 @@ static_assert(kSilentBlocks * 256 > Granular::Kernel::kRingFrames / 2);
 class LateReference {
 public:
 	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
-	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
+	                    int32_t* volume, bool sound, int32_t reverb_amount, std::span<int32_t> send) {
 		if (!reference_) {
 			if (!sound) {
 				return;
@@ -376,8 +378,8 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 		expect(owner.fx().samplesToShutdown()).to_equal(0);
 		const std::vector<RawFrame> input = gw::stereo_input(128, 3);
 		std::vector<RawFrame> frames = input;
-		std::vector<q31_t> send = gw::send_input(128, 3, false);
-		const std::vector<q31_t> send_in = send;
+		std::vector<int32_t> send = gw::send_input(128, 3, false);
+		const std::vector<int32_t> send_in = send;
 		int32_t volume = gw::kStartVolume;
 		owner.processGrainFX(frames, gw::kRateMid, gw::kMixMid, gw::kDensityMid, gw::kRandomnessMid, &volume, true,
 		                     gw::kSendAmount, send);
@@ -587,9 +589,9 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 			for (std::size_t b = 0; b < 4; ++b) {
 				const std::vector<RawFrame> input = gw::stereo_input(256, b);
 				std::vector<RawFrame> frames = input;
-				std::vector<q31_t> send = gw::send_input(256, b, false);
-				const std::vector<q31_t> send_in = send;
-				int32_t volume = gw::kStartVolume;
+				std::vector<int32_t> send = gw::send_input(256, b, false);
+				const std::vector<int32_t> send_in = send;
+				auto volume = deluge::dsp::Q<27>::from_raw(gw::kStartVolume);
 				fx.render(deluge::dsp::test::typed_frames(std::span{frames}),
 				          {.rate = gw::kRateMid,
 				           .mix = gw::kMixMid,
@@ -603,7 +605,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 					expect(frames[i].r).to_equal(input[i].r);
 				}
 				expect(send).to_equal(send_in);
-				expect(volume).to_equal(gw::kStartVolume);
+				expect(volume.raw()).to_equal(gw::kStartVolume);
 			}
 			expect(state_words(fx)).to_equal(before);
 			expect(deluge::synth_noise.state()).to_equal(gw::kCongSeed);

@@ -69,7 +69,7 @@ public:
 	/// @param compressorThreshold Threshold (Q31) to write instead of the state's, if given.
 	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states, Song* knobsSong,
 	                     std::optional<deluge::project::ControlsAddress> knobsOwner,
-	                     std::optional<q31_t> compressorThreshold = std::nullopt);
+	                     std::optional<int32_t> compressorThreshold = std::nullopt);
 	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: the
 	/// knobs @p song's mapping table holds for @p owner, in table order. An owner @p song does not hold (a preset
 	/// loaded outside it) has no table, so its own knob list is written.
@@ -83,7 +83,7 @@ public:
 	[[nodiscard]] static deluge::plugin::CodecContext effectsCodecContext();
 	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
 	/// @return The threshold (Q31).
-	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold().raw(); }
+	[[nodiscard]] int32_t savedCompressorThreshold() const { return core().compressor().dsp().threshold().raw(); }
 
 	/// @brief This owner's effect settings, as its binding holds them: a bound record's, else the binding's own.
 	/// @return The effect settings.
@@ -164,12 +164,12 @@ public:
 	void setSidechainSyncType(SyncType value);
 	void setSidechainSyncLevel(SyncLevel value);
 	// The compressor's knob positions, each Q31 (the menu's 0-127 shifted up by 24).
-	void setCompressorAttack(q31_t value);
-	void setCompressorRelease(q31_t value);
-	void setCompressorThreshold(q31_t value);
-	void setCompressorRatio(q31_t value);
-	void setCompressorSidechainHpf(q31_t value);
-	void setCompressorBlend(q31_t value);
+	void setCompressorAttack(int32_t value);
+	void setCompressorRelease(int32_t value);
+	void setCompressorThreshold(int32_t value);
+	void setCompressorRatio(int32_t value);
+	void setCompressorSidechainHpf(int32_t value);
+	void setCompressorBlend(int32_t value);
 	/// @}
 	/// @brief Move the params of this owner's learned knobs that a CC moves, found through the mapping index.
 	/// @param owner        Whose knobs these are, as the mapping table names them.

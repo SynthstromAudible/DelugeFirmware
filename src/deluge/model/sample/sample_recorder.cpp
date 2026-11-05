@@ -19,7 +19,6 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -1939,7 +1938,7 @@ doFinishCapturing:
 			if (mode == AudioInputChannel::BALANCED) {
 				for (StereoSample sample : input.first(numSamplesThisCycle)) {
 					// The balanced difference of the halves toward zero, a word for the 24-bit write.
-					q31_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
+					int32_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
@@ -1949,42 +1948,39 @@ doFinishCapturing:
 			// Or, all other, non-balanced input types
 			else {
 				for (const StereoSample frame : input.first(numSamplesThisCycle)) {
-					// Raw: the gain, the stats and the 24-bit write all read the words.
-					q31_t rxL = frame.l.raw();
-					q31_t rxR = frame.r.raw();
-					if (applyGain) {
-						// The input gain: a run-time saturating shift, so raw
-						rxL = lshift_and_saturate_unknown(rxL, gainToApply);
-					}
+					// The input gain, then the words: the stats and the 24-bit write read them.
+					const auto gained = [&](deluge::dsp::Q<31> sample) {
+						return applyGain ? scale_shl_clamp_then_shift(sample, gainToApply) : sample;
+					};
+					const deluge::dsp::Q<31> l = gained(frame.l);
+					const int32_t rxL = l.raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
-					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxL)[1], 3, writePosNow);
+					writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxL)[1], 3, writePosNow);
 
 					recordMax = std::max(rxL, recordMax);
 					recordMin = std::min(rxL, recordMin);
 
-					q31_t absL = (rxL >= 0) ? rxL : -1 - rxL;
+					int32_t absL = (rxL >= 0) ? rxL : -1 - rxL;
 					recordSumL += absL;
 
 					if (rxL < recordPeakL) {
 						recordPeakL = rxL;
 					}
-					else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxL)).raw();
-					         negated < recordPeakL) {
+					else if (const int32_t negated = neg_sat(l).raw(); negated < recordPeakL) {
 						recordPeakL = negated; // saturating: a full-scale negative input's negation is INT32_MAX
 					}
-					if (rxL == std::numeric_limits<q31_t>::max() || rxL == std::numeric_limits<q31_t>::min()) {
+					if (rxL == std::numeric_limits<int32_t>::max() || rxL == std::numeric_limits<int32_t>::min()) {
 						recordingClippedRecently = true;
 					}
 
 					// recording stereo
 					if (recordingNumChannels == 2) {
-						if (applyGain) {
-							rxR = lshift_and_saturate_unknown(rxR, gainToApply);
-						}
+						const deluge::dsp::Q<31> r = gained(frame.r);
+						const int32_t rxR = r.raw();
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
-						writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxR)[1], 3, writePosNow);
+						writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxR)[1], 3, writePosNow);
 
 						recordMax = std::max(rxR, recordMax);
 						recordMin = std::min(rxR, recordMin);
@@ -2000,11 +1996,10 @@ doFinishCapturing:
 						if (rxR < recordPeakR) {
 							recordPeakR = rxR;
 						}
-						else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxR)).raw();
-						         negated < recordPeakR) {
+						else if (const int32_t negated = neg_sat(r).raw(); negated < recordPeakR) {
 							recordPeakR = negated;
 						}
-						if (rxR == std::numeric_limits<q31_t>::max() || rxR == std::numeric_limits<q31_t>::min()) {
+						if (rxR == std::numeric_limits<int32_t>::max() || rxR == std::numeric_limits<int32_t>::min()) {
 							recordingClippedRecently = true;
 						}
 

@@ -146,8 +146,8 @@ struct MkIFeedbackStack {
 	/// @brief One sample down the stack.
 	/// @return The last op's sample, which is also the next sample's feedback.
 	[[nodiscard]] [[gnu::always_inline]] static Q<24> step(const Coefficients& c, const Block& b, Loop& l) {
-		// The last two samples' sum, scaled down by a run-time shift, so raw.
-		const Phase scaled = Phase::from_raw(add_wrap(l.feedback.y0, l.feedback.y1).raw() >> (c.feedback_shift + 1));
+		// The last two samples' sum, scaled down by the feedback shift: a sample is a phase offset.
+		const Phase scaled = scale_shr_floor(add_wrap(l.feedback.y0, l.feedback.y1), c.feedback_shift + 1);
 		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]); // the attenuations are integer
 		l.feedback.y0 = l.feedback.y1;
 		auto y =

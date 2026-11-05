@@ -21,11 +21,11 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "raw_words.h"
 
 #include "loop_state_kernels.h"
 

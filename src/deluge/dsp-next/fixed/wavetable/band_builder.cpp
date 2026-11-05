@@ -17,7 +17,6 @@
 
 #include "dsp-next/fixed/wavetable/band_builder.h"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_dft.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
@@ -52,11 +51,12 @@ namespace {
 	}
 }
 
-/// @brief Each inverse transform value, shifted down by @p shift, saturated to 16 bits. The shift is the band's
-/// run-time normalisation, so it stays a raw shift: the formats name compile-time shifts only.
+/// @brief Each inverse transform value, an integer word, shifted down by @p shift (the band's run-time normalisation,
+/// flooring) and saturated to 16 bits.
 [[gnu::always_inline]] inline void narrow_rendered(int16_t* out, std::span<const int32_t> cycle, int32_t shift) {
 	for (std::size_t i = 0; i < cycle.size(); i++) {
-		out[i] = static_cast<int16_t>(signed_saturate<32 - 16>(cycle[i] >> shift));
+		const auto value = Q<0>::from_raw(cycle[i]);
+		out[i] = static_cast<int16_t>(clamp_bits<16>(scale_shr_floor(value, shift)).raw());
 	}
 }
 

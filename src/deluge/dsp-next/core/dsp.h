@@ -26,7 +26,7 @@
 //
 // Layout:
 //   core/   numeric-agnostic interfaces, std::span block types, strong numeric
-//           aliases, q31<->f32 conversion. Header-only. No globals, no upward
+//           aliases, the fixed-point formats and their float conversions. Header-only. No globals, no upward
 //           includes (enforced by scripts/check_dsp_boundary.py — no allowlist).
 //   fixed/  q31 backend   -> libdeluge-dsp-fixed   (namespace deluge::dsp::fixed)
 //   float/  f32 backend   -> libdeluge-dsp-float   (namespace deluge::dsp::fp;
@@ -35,13 +35,12 @@
 // Umbrella include for the numeric-agnostic core vocabulary. Backends include
 // this; app/migration sites can include the specific headers directly.
 //
-// Layering: sample.h is the scalar vocabulary (q31/f32 + SampleType + conversions);
+// Layering: sample.h is the scalar vocabulary (q31/f32 + SampleType);
 // types.h builds the block/aggregate vocabulary on it (Sample/Buffer/Signal/StereoSample
 // + the fixed::/fp:: backend aliases); concepts.h + generator/processor/mixer are the
 // component framework (static render() hot path, virtual render_block at block granularity).
 
 #include "dsp-next/core/concepts.h"
-#include "dsp-next/core/convert.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/mixer.h"
 #include "dsp-next/core/phasor.h"

@@ -38,10 +38,12 @@
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -812,6 +814,17 @@ void report() {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
+	printf("RS-STORE render_edits=%u\n", storeEdits);
+	printf("RS-LANES splits=%u\n", deluge::modulation::laneSplits);
+	if (deluge::modulation::laneSplits != 0) {
+		fail("RS-LANES", "the interaction tier resolved a lane the render does not read");
+	}
+	if (storeEdits != 0) {
+		fail("RS-STORE", "the render changed a lane store");
+	}
+#endif
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }

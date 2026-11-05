@@ -28,9 +28,9 @@ void Saturation::process(std::span<dsp::StereoSample> block, const SaturationPar
 	const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
 	const uint32_t up = shift(voice, amount);
 	for (dsp::StereoSample& sample : block) {
-		// The make-up gain is a run-time shift, so raw.
-		sample.l = dsp::Q<31>::from_raw(Curve::step(c, {}, left_, sample.l).raw() << up);
-		sample.r = dsp::Q<31>::from_raw(Curve::step(c, {}, right_, sample.r).raw() << up);
+		// The make-up gain: a shift by the amount's octaves, wrapping
+		sample.l = scale_shl_wrap(Curve::step(c, {}, left_, sample.l), static_cast<int>(up));
+		sample.r = scale_shl_wrap(Curve::step(c, {}, right_, sample.r), static_cast<int>(up));
 	}
 }
 

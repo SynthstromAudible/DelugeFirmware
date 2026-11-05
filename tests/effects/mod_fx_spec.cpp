@@ -113,6 +113,7 @@ public:
 			}
 			pending_ = Pending::NONE;
 		}
+		auto typed_volume = deluge::dsp::Q<27>::from_raw(*volume);
 		fx_.render(typed_frames(buffer),
 		           {.active = active,
 		            .rate = rate,
@@ -121,7 +122,8 @@ public:
 		            .feedback = feedback,
 		            .stereo = stereo,
 		            .sound = sound},
-		           *volume, deluge::synth_noise);
+		           typed_volume, deluge::synth_noise);
+		*volume = typed_volume.raw();
 	}
 
 	void change(ModFXType type) {
@@ -171,7 +173,7 @@ private:
 	std::vector<RawFrame> want = input;
 	std::vector<RawFrame> got = input;
 	int32_t want_volume = mw::kStartVolume;
-	int32_t got_volume = mw::kStartVolume;
+	auto got_volume = deluge::dsp::Q<27>::from_raw(mw::kStartVolume);
 	reference.processModFX(want, type, mw::kRate, mw::kDepth, &want_volume, mw::kOffset, mw::kFeedback, true, true);
 	owner.fx().render(typed_frames(std::span{got}),
 	                  {.active = type,
@@ -182,7 +184,7 @@ private:
 	                   .stereo = true,
 	                   .sound = true},
 	                  got_volume, deluge::synth_noise);
-	return words_of(want) == words_of(got) && want_volume == got_volume;
+	return words_of(want) == words_of(got) && want_volume == got_volume.raw();
 }
 
 } // namespace
@@ -217,7 +219,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		expect(owner.fx().holdsRing()).to_equal(false);
 		std::vector<RawFrame> frames = frames_of(128, 3);
 		const std::vector<RawFrame> input = frames;
-		int32_t volume = mw::kStartVolume;
+		auto volume = deluge::dsp::Q<27>::from_raw(mw::kStartVolume);
 		owner.fx().render(typed_frames(std::span{frames}), flanger_inputs(), volume, deluge::synth_noise);
 		expect(words_of(frames)).to_equal(words_of(input));
 
@@ -226,8 +228,8 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		int32_t ref_volume = mw::kStartVolume;
 		reference.processModFX(ref_frames, ModFXType::FLANGER, mw::kRate, mw::kDepth, &ref_volume, mw::kOffset,
 		                       mw::kFeedback, true, true);
-		expect(volume).to_equal(ref_volume);
-		expect(volume).not_().to_equal(mw::kStartVolume);
+		expect(volume.raw()).to_equal(ref_volume);
+		expect(volume.raw()).not_().to_equal(mw::kStartVolume);
 	});
 
 	it("keeps one ring across the ring types, releases it for the phaser and allocates a zeroed one after", _ {
@@ -307,7 +309,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		// The soft off: the knob at minimum. The reference has freed its ring; the component keeps its own.
 		reference.disableBuffer();
 		std::vector<RawFrame> idle = frames_of(16, 0);
-		int32_t volume = mw::kStartVolume;
+		auto volume = deluge::dsp::Q<27>::from_raw(mw::kStartVolume);
 		owner.fx().render(typed_frames(std::span{idle}), {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		reference.resetMemory();
 		owner.resetMemory();
@@ -328,7 +330,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		// again until the next render.
 		reference.disableBuffer();
 		std::vector<RawFrame> idle = frames_of(16, 0);
-		int32_t volume = mw::kStartVolume;
+		auto volume = deluge::dsp::Q<27>::from_raw(mw::kStartVolume);
 		owner.fx().render(typed_frames(std::span{idle}), {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		owner.change(ModFXType::FLANGER);
 		reference.resetMemory();
@@ -341,7 +343,7 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		Owner owner;
 		owner.change(ModFXType::PHASER);
 		std::vector<RawFrame> frames = frames_of(16, 4);
-		int32_t volume = mw::kStartVolume;
+		auto volume = deluge::dsp::Q<27>::from_raw(mw::kStartVolume);
 		ModFxInputs phaser = flanger_inputs();
 		phaser.active = ModFXType::PHASER;
 		owner.fx().render(typed_frames(std::span{frames}), phaser, volume, deluge::synth_noise);

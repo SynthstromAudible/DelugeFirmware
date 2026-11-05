@@ -770,11 +770,7 @@ enum PlayHead {
 };
 
 constexpr int32_t kInputRawBufferSize = 8192;
-constexpr int32_t kInputRepitchedBufferSize = 2048;
 constexpr int32_t kInputPercBufferSize = (kInputRawBufferSize >> kPercBufferReductionMagnitude);
-
-// Experimental, from when developing input pitch shifting. Probably won't actually work now, if it ever did!
-#define INPUT_ENABLE_REPITCHED_BUFFER 0
 
 // I think this was an experimental mode which allowed the pitch-change effect (i.e. windowed sinc interpolation) to be
 // stored and reused between the two time-stretch play-heads. Probably won't work anymore. From memory, wasn't very

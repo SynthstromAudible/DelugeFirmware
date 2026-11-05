@@ -130,7 +130,7 @@ private:
 	void ensureModFXParamIsValid();
 	/// @brief The compressor threshold the comp-edit knob shows: the render's.
 	/// @return The threshold (Q31).
-	[[nodiscard]] q31_t displayedCompressorThreshold();
+	[[nodiscard]] int32_t displayedCompressorThreshold();
 	void displayCompressorAndReverbSettings(bool on, const deluge::project::CompView& comp);
 	static char const* getCompressorModeDisplayName(const deluge::project::CompView& comp);
 	static char const* getCompressorParamDisplayName(const deluge::project::CompView& comp);

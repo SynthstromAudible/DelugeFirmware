@@ -25,19 +25,24 @@
 
 namespace deluge::dsp::fixed {
 
+namespace {
+/// @brief Q31's full scale as a float: 2^31, the float nearest 2^31 − 1. The mean and the rms are of the samples'
+/// words.
+constexpr float kFullScaleFloat = 0x1p31F;
+} // namespace
+
 float ratio_fraction(Q<31> ratio) {
-	return 0.5f + (static_cast<float>(ratio.raw()) / kOneQ31f) / 2;
+	return 0.5f + to_float(ratio) / 2;
 }
 
 float compressor_attack_ms(Q<31> attack) {
 	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return static_cast<float>(
-	    0.5 + static_cast<double>((std::exp(2 * static_cast<float>(attack.raw()) / kOneQ31f) - 1) * 10));
+	return static_cast<float>(0.5 + static_cast<double>((std::exp(2 * to_float(attack)) - 1) * 10));
 }
 
 float compressor_release_ms(Q<31> release) {
 	// The exp runs from 1 to about 7.4, about 2.7 at half the knob.
-	return 50 + (std::exp(2 * static_cast<float>(release.raw()) / kOneQ31f) - 1) * 50;
+	return 50 + (std::exp(2 * to_float(release)) - 1) * 50;
 }
 
 float compressor_ratio(Q<31> ratio) {
@@ -46,10 +51,7 @@ float compressor_ratio(Q<31> ratio) {
 
 float compressor_sidechain_hz(Q<31> sidechain_hpf) {
 	// The exp runs from 1 to about 4.5: about 33 Hz at half the knob, 104 Hz at the top.
-	return static_cast<float>(
-	    (std::exp(1.5 * static_cast<double>(static_cast<float>(sidechain_hpf.raw())) / static_cast<double>(kOneQ31f))
-	     - 1)
-	    * 30);
+	return static_cast<float>((std::exp(1.5 * static_cast<double>(to_float(sidechain_hpf))) - 1) * 30);
 }
 
 Compressor::Coefficients Compressor::coefficients(const Settings& s) {
@@ -65,8 +67,8 @@ Compressor::Coefficients Compressor::coefficients(const Settings& s) {
 	    .release_ms = release_ms,
 	    .fraction = ratio_fraction(k.ratio),
 	    .base_gain = s.base_gain,
-	    // Raw: the float moveability converted by the target's truncating cast
-	    .detector_moveability = Q<31>::from_raw(static_cast<int32_t>(wc * static_cast<float>(kOneQ31))),
+	    // The float moveability converted truncating, as the target's cast does
+	    .detector_moveability = from_float<31>(wc),
 	    // Q<31>::max() is fully wet: the blend is no modulated param, so it needs no headroom.
 	    .dry = sub_wrap(Q<31>::max(), k.blend),
 	    .wet = k.blend,
@@ -96,11 +98,11 @@ void Compressor::finish_level(const Coefficients& c, State& s) {
 	const auto sum = static_cast<uint64_t>(s.loop.sum);
 	const double exact = static_cast<double>(static_cast<uint32_t>(sum >> 32)) * 0x1p32
 	                     + static_cast<double>(static_cast<uint32_t>(sum));
-	s.mean = (static_cast<float>(exact) / kOneQ31f) / ns;
+	s.mean = (static_cast<float>(exact) / kFullScaleFloat) / ns;
 	// A one-pole IIR rather than a long FIR: close, and far cheaper. The more samples in the block, the more weight on
 	// its own mean, so the response keeps its speed when the blocks grow under load.
 	s.mean = (s.mean * ns + last_mean) / (1 + ns);
-	const float rms = static_cast<float>(kOneQ31) * std::sqrt(s.mean);
+	const float rms = kFullScaleFloat * std::sqrt(s.mean);
 
 	// 0 to about 21.5 (full scale); the DAC clips at about 16.
 	s.log_rms = std::log(std::max(rms, 1.0f));

@@ -107,7 +107,7 @@ public:
 	/// @param reverb_send The reverb feed, one sample per frame; the effect adds into it.
 	/// @param noise The synth's noise stream, which a starting grain draws from.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
-	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
+	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, dsp::Q<27>& post_fx_volume,
 	            std::span<dsp::Q<31>> reverb_send, dsp::fixed::Cong& noise);
 	/// @brief Stops the grains and begins the first pass again; no effect without a State.
 	void clear();

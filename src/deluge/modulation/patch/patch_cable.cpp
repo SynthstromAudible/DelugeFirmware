@@ -17,7 +17,6 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 
 #include <storage/flash_storage.h>
 

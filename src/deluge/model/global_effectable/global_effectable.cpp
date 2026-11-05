@@ -50,6 +50,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/notify.h"
+#include <limits>
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -475,7 +476,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	return false; // Some cases could lead here
 }
 
-q31_t GlobalEffectable::displayedCompressorThreshold() {
+int32_t GlobalEffectable::displayedCompressorThreshold() {
 	// The master's threshold is its setting; a track chain's render follows its threshold param, which the knob shows.
 	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold().raw();
 }
@@ -611,7 +612,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				q31_t level = current == 64 ? kOneQ31 : knob_level(current + 64);
+				int32_t level = current == 64 ? std::numeric_limits<int32_t>::max() : knob_level(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
 				// knob_level gives the blend setting's word, which the edit stores.
