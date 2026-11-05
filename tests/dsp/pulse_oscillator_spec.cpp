@@ -19,7 +19,9 @@
 // via CTest (every assertion is therefore an x86-vs-NEON cross-check). Bit-exact equivalence
 // with the legacy waveRenderingFunctionPulse on the real square tables is the golden's job.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
+#include "phase_words.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstddef>
@@ -154,10 +156,10 @@ std::size_t reference_mismatches() {
 		const uint32_t increment = xorshift(s) >> (k % 8);
 		const uint32_t random_offset = xorshift(s);
 		for (const uint32_t offset : {0U, 0x8000'0000U, random_offset}) {
-			PulseOscillator osc{Table{table, 8}, phase, increment, offset};
+			PulseOscillator osc{Table{table, 8}, uq(phase), uq(increment), uq(offset)};
 			reference::PulseOscillator expected{Table{table, 8}, phase, increment, offset};
 			for (int block = 0; block < 4; ++block) {
-				const auto got = osc.render().to_array();
+				const auto got = osc.render().raw().to_array();
 				const auto want = expected.render().to_array();
 				for (std::size_t i = 0; i < 4; ++i) {
 					bad += got[i] != want[i] ? 1 : 0;
@@ -169,9 +171,9 @@ std::size_t reference_mismatches() {
 	// lane there, on the table's adjacent INT16_MIN entries (index 200), with and without the fraction's top bit.
 	for (const uint32_t phase : {200U << 24, (200U << 24) | 0x0080'0000U}) {
 		for (const uint32_t offset : {0U, 0x8000'0000U}) {
-			PulseOscillator osc{Table{table, 8}, phase, 0, offset};
+			PulseOscillator osc{Table{table, 8}, uq(phase), uq(0), uq(offset)};
 			reference::PulseOscillator expected{Table{table, 8}, phase, 0, offset};
-			const auto got = osc.render().to_array();
+			const auto got = osc.render().raw().to_array();
 			const auto want = expected.render().to_array();
 			for (std::size_t i = 0; i < 4; ++i) {
 				bad += got[i] != want[i] ? 1 : 0;
@@ -182,9 +184,9 @@ std::size_t reference_mismatches() {
 }
 
 std::array<int32_t, 4> renderOnce(uint32_t offset) {
-	PulseOscillator osc{Table{kTable, kMag}, 0u, kInc, offset};
+	PulseOscillator osc{Table{kTable, kMag}, uq(0u), uq(kInc), uq(offset)};
 	std::array<int32_t, 4> out{};
-	osc.render().StoreTo(out.data());
+	osc.render().raw().StoreTo(out.data());
 	return out;
 }
 } // namespace
@@ -196,13 +198,13 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 	});
 	context("render_block", _ {
 		it("fills the buffer with the same samples render() produces", _ {
-			PulseOscillator a{Table{kTable, kMag}, 0u, kInc, 0x60000000u};
+			PulseOscillator a{Table{kTable, kMag}, uq(0u), uq(kInc), uq(0x60000000u)};
 			std::array<int32_t, 4> expected{};
-			a.render().StoreTo(expected.data());
+			a.render().raw().StoreTo(expected.data());
 
-			PulseOscillator b{Table{kTable, kMag}, 0u, kInc, 0x60000000u};
+			PulseOscillator b{Table{kTable, kMag}, uq(0u), uq(kInc), uq(0x60000000u)};
 			std::array<int32_t, 4> buf{};
-			b.render_block(deluge::dsp::fixed::Buffer{buf});
+			b.render_block(deluge::dsp::typed_view(std::span{buf}));
 
 			expect(buf).to_equal(expected);
 		});
@@ -219,14 +221,14 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 				for (uint32_t phase : {0U, 0x12345678U, 0xFFFF1234U}) {
 					for (uint32_t increment : {0x12345U, 0x1020304U}) {
 						for (uint32_t offset : {0U, 0x13579BDFU, 0xF0001234U}) {
-							PulseOscillator osc{Table{table, magnitude}, phase, increment, offset};
+							PulseOscillator osc{Table{table, magnitude}, uq(phase), uq(increment), uq(offset)};
 							std::array<int32_t, 4> actual{};
-							osc.render().StoreTo(actual.data());
+							osc.render().raw().StoreTo(actual.data());
 							for (uint32_t lane = 0; lane < 4; ++lane) {
 								expect(actual[lane]).to_equal(
 								    referencePulse(phase + increment * (lane + 1), offset, table.data(), magnitude));
 							}
-							expect(osc.phase()).to_equal(phase + increment * 4);
+							expect(osc.phase().raw()).to_equal(phase + increment * 4);
 						}
 					}
 				}

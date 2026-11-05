@@ -32,22 +32,22 @@ namespace deluge::dsp::fixed {
 /// the cubic 3x − 8x³ twice, which flips the wave around zero more times the harder it is driven.
 /// @details Stateless and per-sample, so it runs in place on a mono buffer or on an interleaved stereo one alike. The
 /// output is shifted down by 7 to compensate for the fold's gain.
-class Wavefolder : public Processor<Wavefolder, q31> {
+class Wavefolder : public Processor<Wavefolder, Q<31>> {
 public:
 	/// @brief Sets the fold amount.
 	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), kOneQ31 most. The voice
 	/// passes LOCAL_FOLD's final value, and renders the folder only when that is above 0.
-	explicit Wavefolder(q31 amount)
+	explicit Wavefolder(Q<31> amount)
 	    // The amount plus the floor saturates at 1 (Q31); its bits read as Q24 are the gain, 12.8 to 128
-	    : drive_(reinterpret_bits<Q<24>>(add_sat(Q<31>::from_raw(amount), Q<31>::from_raw(kMinimumDrive)))) {}
+	    : drive_(reinterpret_bits<Q<24>>(add_sat(amount, kMinimumDrive))) {}
 
 	/// @brief One sample through the fold.
 	/// @param sample Q31.
 	/// @return The folded sample, Q31, 7 bits down.
-	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) const {
+	[[nodiscard, gnu::always_inline]] Q<31> render(Q<31> sample) const {
 		// The sample times the gain, Q23, saturated as it is reformatted to Q31
-		const auto driven = as_clamp_then_shift<Q<31>>(mul(drive_, Q<31>::from_raw(sample)));
-		return scale_shr_floor<7>(fold(driven)).raw();
+		const auto driven = as_clamp_then_shift<Q<31>>(mul(drive_, sample));
+		return scale_shr_floor<7>(fold(driven));
 	}
 
 	/// @brief The fold curve: 3x − 8x³ applied twice, x in Q31 with kOneQ31 as 1.
@@ -61,12 +61,13 @@ private:
 		const auto x2 = mul_as_wrap<Q<31>>(x, x);
 		const auto x3 = mul_as_wrap<Q<31>>(x2, x);
 		// ¾x at Q30 less x³'s Q31 bits read as Q30 (2x³): ¾x − 2x³, which × 4 is the curve
-		const Q<30> quarter = sub_wrap(mul(Q<31>::from_raw(kThreeFourths), x), reinterpret_bits<Q<30>>(x3));
+		const Q<30> quarter = sub_wrap(mul(kThreeFourths, x), reinterpret_bits<Q<30>>(x3));
 		return as_wrap<Q<31>>(scale_shl_wrap<2>(quarter));
 	}
 
-	static constexpr q31 kMinimumDrive = static_cast<q31>(0.1 * kOneQ31);  ///< The drive floor, Q31 (0.1).
-	static constexpr q31 kThreeFourths = static_cast<q31>(0.75 * kOneQ31); ///< ¾, Q31.
+	static constexpr Q<31> kMinimumDrive =
+	    Q<31>::from_raw(static_cast<int32_t>(0.1 * kOneQ31)); ///< The drive floor, 0.1.
+	static constexpr Q<31> kThreeFourths = Q<31>::from_raw(static_cast<int32_t>(0.75 * kOneQ31)); ///< ¾.
 
 	Q<24> drive_; ///< The gain: the fold amount plus the floor, saturated at 1 as Q31, read as Q24.
 };

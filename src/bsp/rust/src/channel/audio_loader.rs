@@ -1122,6 +1122,12 @@ mod prod {
         }
     }
 
+    impl Default for ProdOps {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl LoadOps for ProdOps {
         async fn open(&self, path: &str) -> super::driver::OpenVerdict {
             use super::driver::OpenVerdict;

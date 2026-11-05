@@ -1057,7 +1057,7 @@ constexpr static size_t kNumBitsInTableSize = 8;
 constexpr static size_t kRshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - kNumBitsInTableSize + 1);
 
 // This stuff is in its own function here rather than in Voice because for some reason it's faster
-void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal,
+void SampleLowLevelReader::readSamplesResampled(deluge::dsp::Q<31>** __restrict__ oscBufferPos, int32_t numSamplesTotal,
                                                 Sample* sample, int32_t jumpAmount, int32_t numChannels,
                                                 int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
                                                 int32_t* amplitude, int32_t amplitudeIncrement,
@@ -1069,14 +1069,14 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 	uint32_t const bitMask = sample->bitMask;
 	int32_t const byteDepth = sample->byteDepth;
 
-	int32_t* __restrict__ oscBufferPosNow = *oscBufferPos;
+	deluge::dsp::Q<31>* __restrict__ oscBufferPosNow = *oscBufferPos;
 
 	// cacheWritePos is null unless writingCache; the value is only consumed under writingCache
 	// below (and written back under the same `if (cacheWritePos)` guard at the end). Dereferencing
 	// it unconditionally read mapped-but-unused garbage on the MCU but faults on the host.
 	char* __restrict__ cacheWritePosNow = cacheWritePos ? (char*)*cacheWritePos : nullptr;
 
-	int32_t const* const oscBufferEnd = oscBufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
+	deluge::dsp::Q<31> const* const oscBufferEnd = oscBufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
 
 	// Windowed sinc interpolation
 	if (interpolationBufferSize > 2) {
@@ -1143,7 +1143,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 skipFirstSmooth:
 			auto sampleRead = interpolator_.interpolate(numChannels, whichKernel, oscPos);
 
-			int32_t existingValueL = *oscBufferPosNow;
+			const deluge::dsp::Q<31> existingValueL = *oscBufferPosNow;
 
 			// If caching, do that now
 			if (writingCache) {
@@ -1162,19 +1162,22 @@ skipFirstSmooth:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead.l = ((sampleRead.l / 2) + (sampleRead.r / 2));
+				sampleRead.l = add_wrap(halve_toward_zero(sampleRead.l), halve_toward_zero(sampleRead.r));
 			}
 
+			// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow =
+			    deluge::audio::mixed_in(existingValueL, sampleRead.l, deluge::dsp::Q<31>::from_raw(*amplitude));
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
-				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
+				const deluge::dsp::Q<31> existingValueR = *oscBufferPosNow;
+				*oscBufferPosNow =
+				    deluge::audio::mixed_in(existingValueR, sampleRead.r, deluge::dsp::Q<31>::from_raw(*amplitude));
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1200,23 +1203,26 @@ skipFirstSmooth:
 skipFirstLinear:
 			auto sampleRead = interpolator_.interpolate_linear(numChannels, oscPos);
 
-			int32_t existingValueL = *oscBufferPosNow;
+			const deluge::dsp::Q<31> existingValueL = *oscBufferPosNow;
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead.l = ((sampleRead.l >> 1) + (sampleRead.r >> 1));
+				sampleRead.l = add_wrap(halve_floor(sampleRead.l), halve_floor(sampleRead.r));
 			}
 
+			// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow =
+			    deluge::audio::mixed_in(existingValueL, sampleRead.l, deluge::dsp::Q<31>::from_raw(*amplitude));
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
-				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
+				const deluge::dsp::Q<31> existingValueR = *oscBufferPosNow;
+				*oscBufferPosNow =
+				    deluge::audio::mixed_in(existingValueR, sampleRead.r, deluge::dsp::Q<31>::from_raw(*amplitude));
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1228,15 +1234,15 @@ skipFirstLinear:
 	}
 }
 
-void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, int32_t numSamplesTotal, Sample* sample,
-                                             int32_t jumpAmount, int32_t numChannels,
+void SampleLowLevelReader::readSamplesNative(deluge::dsp::Q<31>** __restrict__ bufferPos, int32_t numSamplesTotal,
+                                             Sample* sample, int32_t jumpAmount, int32_t numChannels,
                                              int32_t numChannelsAfterCondensing, int32_t* __restrict__ amplitude,
                                              int32_t amplitudeIncrement, TimeStretcher* timeStretcher,
                                              bool bufferingToTimeStretcher) {
 
 	char* __restrict__ currentPlayPosNow = currentPlayPos;
-	int32_t* __restrict__ bufferPosNow = *bufferPos;
-	int32_t const* const bufferEndNow = bufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
+	deluge::dsp::Q<31>* __restrict__ bufferPosNow = *bufferPos;
+	deluge::dsp::Q<31> const* const bufferEndNow = bufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
 
 	int32_t const byteDepth = sample->byteDepth;
 	uint32_t const bitMask = sample->bitMask;
@@ -1244,7 +1250,8 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 	do {
 		int32_t sampleReadL = *(int32_t*)currentPlayPosNow;
 
-		int32_t existingValueL = *bufferPosNow;
+		const deluge::dsp::Q<31> existingValueL = *bufferPosNow;
+		// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 		*amplitude += amplitudeIncrement;
 		sampleReadL &= bitMask;
 
@@ -1260,16 +1267,15 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 
 		currentPlayPosNow += jumpAmount;
 
-		// Mono / left channel (or stereo condensed to mono)
-		*bufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-		    existingValueL, sampleReadL,
-		    *amplitude); // *amplitude is modified above; using accumulate made no difference
+		// Mono / left channel (or stereo condensed to mono): the file's words are Q31 samples
+		const auto level = deluge::dsp::Q<31>::from_raw(*amplitude);
+		*bufferPosNow = deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleReadL), level);
 		bufferPosNow++;
 
 		// Right channel
 		if (numChannelsAfterCondensing == 2) {
-			int32_t existingValueR = *bufferPosNow;
-			*bufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleReadR, *amplitude);
+			const deluge::dsp::Q<31> existingValueR = *bufferPosNow;
+			*bufferPosNow = deluge::audio::mixed_in(existingValueR, deluge::dsp::Q<31>::from_raw(sampleReadR), level);
 			bufferPosNow++;
 		}
 	} while (bufferPosNow != bufferEndNow);
@@ -1280,11 +1286,14 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 
 // Returns false if actual error. Not if it just reached the end. In that case it just sets
 // timeStretcher->playHeadStillActive[whichPlayHead] to false
-bool SampleLowLevelReader::readSamplesForTimeStretching(
-    int32_t* outputBuffer, SamplePlaybackGuide* guide, Sample* sample, int32_t numSamples, int32_t numChannels,
-    int32_t numChannelsAfterCondensing, int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
-    bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize, TimeStretcher* timeStretcher,
-    bool bufferingToTimeStretcher, int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating) {
+bool SampleLowLevelReader::readSamplesForTimeStretching(deluge::dsp::Q<31>* outputBuffer, SamplePlaybackGuide* guide,
+                                                        Sample* sample, int32_t numSamples, int32_t numChannels,
+                                                        int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
+                                                        int32_t amplitude, int32_t amplitudeIncrement,
+                                                        bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
+                                                        TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
+                                                        int32_t whichPlayHead, int32_t whichKernel,
+                                                        int32_t priorityRating) {
 
 	do {
 		int32_t samplesNow = numSamples;

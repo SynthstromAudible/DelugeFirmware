@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "plugin-api/types/param_mapping.h"
 
@@ -47,20 +48,24 @@ struct EffectParam {
 	if (!param.curve) {
 		return word;
 	}
-	const int32_t combination = dsp::fixed::preset_combination(word);
+	// The neutral read at Q31: its units are the param's, and the curves' arithmetic is the same for every format
+	const auto typed_neutral = dsp::Q<31>::from_raw(neutral);
+	const dsp::Q<29> combination = dsp::fixed::preset_combination(dsp::Q<31>::from_raw(word));
 	switch (*param.curve) {
 	case dsp::fixed::ParamCurve::SQUARE:
-		return dsp::fixed::curve_square(neutral, combination);
+		return dsp::fixed::curve_square(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::LINEAR:
-		return dsp::fixed::curve_linear(neutral, combination);
+		return dsp::fixed::curve_linear(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::BIPOLAR:
-		return dsp::fixed::curve_bipolar(neutral, combination);
+		return dsp::fixed::curve_bipolar(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::EXPONENTIAL:
-		return dsp::fixed::curve_exponential(neutral, combination);
+		return dsp::fixed::curve_exponential(typed_neutral, combination).raw();
 	case dsp::fixed::ParamCurve::EXPONENTIAL_INVERTED:
-		return dsp::fixed::curve_exponential(neutral, -combination);
+		// A stored word's combination is a quarter of the word, so its negation can't wrap
+		return dsp::fixed::curve_exponential(typed_neutral, neg_wrap(combination)).raw();
 	case dsp::fixed::ParamCurve::RELEASE_TABLE:
-		return multiply_32x32_rshift32(neutral, dsp::fixed::release_rate(combination));
+		// The neutral times the rate, taking the high word: the result is in the neutral's units, times rate / 2.
+		return mul(typed_neutral, dsp::fixed::release_rate(combination)).raw();
 	}
 	return word;
 }

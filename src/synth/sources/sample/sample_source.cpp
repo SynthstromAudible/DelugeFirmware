@@ -17,11 +17,10 @@
 
 #include "synth/sources/sample/sample_source.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "synth/sources/sample/time_stretch_adjust.h"
+#include <algorithm> // std::fill_n
 #include <cstdint>
 #include <cstdlib> // std::abs
-#include <cstring> // memset
 #include <utility> // std::cmp_not_equal
 
 namespace deluge::synth {
@@ -29,16 +28,17 @@ namespace deluge::synth {
 // Late start, sync, caching and stereo unison, each a branch:
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 SourceRenderResult SampleSource::render(const SourceBlock& block) {
-	int32_t* __restrict__ osc_buffer = block.osc_buffer;
+	dsp::Q<31>* __restrict__ osc_buffer = block.osc_buffer;
 	const int32_t num_samples = block.num_samples;
-	const int32_t source_amplitude = block.source_amplitude;
-	const int32_t amplitude_increment = block.amplitude_increment;
-	uint32_t phase_increment = block.phase_increment; // mutated below by getPitchAndSpeedParams (taken by address)
-	const uint32_t phase_increment_stored_value = block.sample.phase_increment_stored_value;
+	const dsp::Q<31> source_amplitude = block.source_amplitude;
+	const dsp::Q<31> amplitude_increment = block.amplitude_increment;
+	// Raw: the playback's speed and time-stretch maths are integer products of the increments' words
+	uint32_t phase_increment = block.phase_increment.raw(); // mutated below by getPitchAndSpeedParams (by address)
+	const uint32_t phase_increment_stored_value = block.sample.phase_increment_stored_value.raw();
 	const bool stereo_unison = block.stereo_unison;
-	const int32_t amplitude_l = block.amplitude_l;
-	const int32_t amplitude_r = block.amplitude_r;
-	int32_t* stereo_unison_scratch = block.stereo_scratch;
+	const dsp::Q<30> amplitude_l = block.amplitude_l;
+	const dsp::Q<30> amplitude_r = block.amplitude_r;
+	dsp::Q<31>* stereo_unison_scratch = block.stereo_scratch;
 
 	const int32_t num_channels = port_->num_channels();
 
@@ -154,7 +154,7 @@ dontUseCache: {}
 		}
 	}
 
-	int32_t* render_buffer = osc_buffer;
+	dsp::Q<31>* render_buffer = osc_buffer;
 
 	if (stereo_unison) [[unlikely]] {
 		// TODO: I first wanted to integrate this with voiceSample->render()'s own
@@ -163,7 +163,7 @@ dontUseCache: {}
 		// for now settle for "don't pay what you don't use", i e no extra copies/maths
 		// if you don't use unison stereo on a sample - bfredl
 		render_buffer = stereo_unison_scratch; // note: spareRenderingBuffer[2] and [3] are used
-		memset(render_buffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+		std::fill_n(render_buffer, 2 * SSI_TX_BUFFER_NUM_SAMPLES, dsp::Q<31>{});
 	}
 
 	// We no longer do caching when there's just time stretching with no pitch adjustment, because the time
@@ -180,17 +180,14 @@ dontUseCache: {}
 
 	if (stereo_unison) {
 		if (num_channels == 2) {
-			// TODO: society if renderBasicSource() took a StereoSample[] buffer already
 			for (int32_t i = 0; i < num_samples; i++) {
-				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[(i << 1)], amplitude_l) << 2;
-				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[(i << 1) + 1], amplitude_r) << 2;
+				add_panned(&osc_buffer[i << 1], render_buffer[i << 1], render_buffer[(i << 1) + 1], amplitude_l,
+				           amplitude_r);
 			}
 		}
 		else {
-			// TODO: if render buffer was typed we could use addPannedMono()
 			for (int32_t i = 0; i < num_samples; i++) {
-				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], amplitude_l) << 2;
-				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], amplitude_r) << 2;
+				add_panned(&osc_buffer[i << 1], render_buffer[i], amplitude_l, amplitude_r);
 			}
 		}
 	}

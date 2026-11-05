@@ -36,10 +36,10 @@ int32_t rate_at(spec::SongFixture& f, int32_t knob_pos) {
 	UnpatchedParamSet* unpatched = f.clip->paramManager.getUnpatchedParamSet();
 	AutoParam& rate = unpatched->params[params::UNPATCHED_STUTTER_RATE];
 	const int32_t held = unpatched->getValue(params::UNPATCHED_STUTTER_RATE);
-	rate.setCurrentValueBasicForSetup(unpatched->knobPosToParamValue(knob_pos, nullptr));
+	rate.setPlayed(unpatched->knobPosToParamValue(knob_pos, nullptr));
 	const int32_t at = deluge::model::stutterRate(&f.clip->paramManager, 0, currentSong->getInputTickMagnitude(),
 	                                              playbackHandler.getTimePerInternalTickInverse());
-	rate.setCurrentValueBasicForSetup(held);
+	rate.setPlayed(held);
 	return at;
 }
 
@@ -58,7 +58,7 @@ describe stutter_automation("a quantized stutter's rate, with the stutter-rate p
 		UnpatchedParamSet* unpatched = f.clip->paramManager.getUnpatchedParamSet();
 		AutoParam& rate = unpatched->params[params::UNPATCHED_STUTTER_RATE];
 		const int32_t began_at = unpatched->knobPosToParamValue(20, nullptr); // snaps to 32nds: knob position 8
-		rate.setCurrentValueBasicForSetup(began_at);
+		rate.setPlayed(began_at);
 
 		enterUIMode(UI_MODE_AUDITIONING);
 		sound.beginStutter(&f.clip->paramManager);
@@ -66,10 +66,10 @@ describe stutter_automation("a quantized stutter's rate, with the stutter-rate p
 		expect(stutter_rate(f)).to_equal(rate_at(f, 8));
 
 		// Automation playing back sets the param to its recorded, absolute value: unchanged, the rate stays put.
-		rate.setCurrentValueBasicForSetup(began_at);
+		rate.setPlayed(began_at);
 		expect(stutter_rate(f)).to_equal(rate_at(f, 8));
 		// A turn of four knob positions moves the note length by four.
-		rate.setCurrentValueBasicForSetup(unpatched->knobPosToParamValue(24, nullptr));
+		rate.setPlayed(unpatched->knobPosToParamValue(24, nullptr));
 		expect(stutter_rate(f)).to_equal(rate_at(f, 12));
 
 		sound.endStutter(&f.clip->paramManager);

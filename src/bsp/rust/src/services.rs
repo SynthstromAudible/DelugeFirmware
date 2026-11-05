@@ -74,7 +74,7 @@ pub extern "C" fn ENTER_CRITICAL_SECTION() {
 #[unsafe(no_mangle)]
 pub extern "C" fn EXIT_CRITICAL_SECTION() {
     #[cfg(target_os = "none")]
-    match CS_DEPTH.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |d| d.checked_sub(1)) {
+    match CS_DEPTH.try_update(Ordering::Relaxed, Ordering::Relaxed, |d| d.checked_sub(1)) {
         Ok(1) if CS_IRQS_WERE_ENABLED.load(Ordering::Relaxed) => {
             // SAFETY: balanced with ENTER_CRITICAL_SECTION; IRQs were unmasked when it opened.
             unsafe { cortex_ar::interrupt::enable() };

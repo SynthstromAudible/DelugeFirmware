@@ -23,17 +23,17 @@ namespace {
 namespace va = deluge::synth::va_shape;
 
 /// @brief The VCA's amplitude: a quarter, steady.
-constexpr q31 kAmplitude = q31{1} << 29;
+constexpr dsp::Q<31> kAmplitude = dsp::q<31>(0.25);
 
 dsp::Phasor phasor(uint32_t increment) {
-	return dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(increment)};
+	return dsp::Phasor{dsp::UQ<32>{}, dsp::UQ<32>::from_raw(increment)};
 }
 
 struct VaShapeRig {
 	std::variant<va::Saw, va::Square, va::Triangle, va::AnalogSaw> shape{va::Saw{phasor(0)}};
 	dsp::Phasor master = phasor(0);
-	alignas(16) std::array<q31, kMaxBlock> output{};
-	alignas(16) std::array<q31, kMaxBlock> scratch{};
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> output{};
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> scratch{};
 };
 
 VaShapeRig rig{};
@@ -41,7 +41,7 @@ VaShapeRig rig{};
 } // namespace
 
 void VaShapeCase::setup(std::size_t /*n*/) {
-	rig.output.fill(0);
+	rig.output.fill(dsp::Q<31>{});
 	const dsp::Phasor audible = phasor(config_.increment);
 	switch (config_.wave) {
 	case VaWave::SAW:
@@ -61,16 +61,14 @@ void VaShapeCase::setup(std::size_t /*n*/) {
 }
 
 void VaShapeCase::block(std::size_t n) {
-	synth::BlockControls controls{.amplitude = dsp::Ramp{dsp::Q<31>::from_raw(kAmplitude), dsp::Q<31>::from_raw(0)},
-	                              .apply_amplitude = true};
+	synth::BlockControls controls{.amplitude = dsp::Ramp{kAmplitude, dsp::Q<31>{}}, .apply_amplitude = true};
 	if (config_.sync) {
 		controls.sync = rig.master;
 	}
-	const dsp::fixed::Buffer output{rig.output.data(), n};
-	const dsp::fixed::Buffer scratch{rig.scratch.data(), n};
+	const std::span<dsp::Q<31>> output{rig.output.data(), n};
+	const std::span<dsp::Q<31>> scratch{rig.scratch.data(), n};
 	std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, rig.shape);
-	rig.master.seek(
-	    dsp::UQ<32>::from_raw(rig.master.phase().raw() + (rig.master.increment().raw() * static_cast<uint32_t>(n))));
+	rig.master.seek(dsp::advanced(rig.master.phase(), rig.master.increment(), static_cast<uint32_t>(n)));
 }
 
 } // namespace deluge::bench

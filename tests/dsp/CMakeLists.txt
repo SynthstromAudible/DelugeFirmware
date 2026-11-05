@@ -34,6 +34,10 @@ set(mono_spec_DEPS)
 set(fixed_point_spec_DEPS)
 # The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
 set(fixed_point_lanes_spec_DEPS)
+# The typed-kernel spec needs no sources: the framework and its test kernels are header-only.
+set(typed_kernel_spec_DEPS)
+# The seam-view spec needs no sources: buffer_view.h is header-only.
+set(buffer_view_spec_DEPS)
 # The fixed-point NEON spec needs no sources: fixed_point_neon.h is header-only.
 set(fixed_point_neon_spec_DEPS)
 # The Ramp spec needs no sources: ramp.h is header-only.
@@ -107,6 +111,14 @@ set(matrix_rules_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/re
     ${CMAKE_CURRENT_LIST_DIR}/matrix_rules_model.cpp)
 # The engines played on the host, through the voice and on their own: the same closure as the voice spec.
 set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
+# A unison part's increment: the engines' closure, as the engine spec has it.
+set(unison_increment_spec_DEPS ${synth_voice_spec_DEPS})
+# The ring mod's level: the engines' closure, as the engine spec has it.
+set(ring_mod_level_spec_DEPS ${synth_voice_spec_DEPS})
+# An audio clip's phase increments: the note interval table they place.
+set(clip_increment_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# An envelope attack's final value: the param math alone.
+set(attack_param_spec_DEPS ${_repo_root}/src/deluge/util/param_functions.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
@@ -286,6 +298,9 @@ set(input_monitor_spec_DEPS)
 
 # The param curves and the matrix's neutral table are header-only.
 set(param_curve_spec_DEPS)
+
+# The params' formats are header-only.
+set(param_format_spec_DEPS)
 
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)

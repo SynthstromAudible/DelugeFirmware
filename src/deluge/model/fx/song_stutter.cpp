@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/song_stutter.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include "dsp-next/core/q31_ops.h"
 #include "libdeluge/system.h" // AudioExcludedSection
@@ -112,7 +113,8 @@ int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnit
 
 	int32_t rate = deluge::effects::final_value(deluge::effects::Stutter::kRate, paramValue);
 
-	rate = multiply_32x32_rshift32(rate, timePerTickInverse);
+	// The rate times the tick inverse read as Q31: the high word, which the sync level's run-time shift places
+	rate = mul(deluge::dsp::Q<31>::from_raw(rate), deluge::dsp::Q<31>::from_raw(timePerTickInverse)).raw();
 
 	// Limit to the biggest number we can store...
 	const int32_t lShiftAmount = kStutterSync + 6 - magnitude;

@@ -45,12 +45,12 @@ enum class EnterGrain : uint8_t {
 
 /// @brief What the owner hands render each block.
 struct GranularInputs {
-	int32_t rate;         ///< The rate knob, Q31 signed.
-	int32_t mix;          ///< The mix knob, Q31 signed.
-	int32_t density;      ///< The density knob, Q31 signed.
-	int32_t randomness;   ///< The pitch-randomness knob, Q31 signed.
-	dsp::q31 send_amount; ///< The reverb send amount, Q31.
-	bool sound;           ///< Whether any sound came in this block.
+	int32_t rate;           ///< The rate knob, Q31 signed.
+	int32_t mix;            ///< The mix knob, Q31 signed.
+	int32_t density;        ///< The density knob, Q31 signed.
+	int32_t randomness;     ///< The pitch-randomness knob, Q31 signed.
+	dsp::Q<31> send_amount; ///< The reverb send amount.
+	bool sound;             ///< Whether any sound came in this block.
 };
 
 /// @brief An owner's granular effect: the dsp-next Granular kernel's State, which lives as long as the owner once it
@@ -97,18 +97,18 @@ public:
 	void finish(GranularBlockChange& change);
 
 	/// @brief Render: the granular effect over @p block in place while sound comes in or the shutdown countdown runs.
-	/// Scales @p post_fx_volume (Q31) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
+	/// Scales @p post_fx_volume (Q27) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
 	/// @details The owner's chain calls this every rendered block while the type in effect is GRAIN, with all four
 	/// knobs (ChainCore::render_fx).
 	/// @param block The stereo block, processed in place.
 	/// @param in The knobs and sound flag for this block.
-	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
-	/// @param reverb_send The reverb feed, one value per frame; the effect adds into it.
+	/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity; scaled in place.
+	/// @param reverb_send The reverb feed, one sample per frame; the effect adds into it.
 	/// @param noise The synth's noise stream, which a starting grain draws from.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
-	            std::span<dsp::q31> reverb_send, dsp::fixed::Cong& noise);
+	            std::span<dsp::Q<31>> reverb_send, dsp::fixed::Cong& noise);
 	/// @brief Stops the grains and begins the first pass again; no effect without a State.
 	void clear();
 	/// @brief The owner has gone idle or soft off: the ring is taken up afresh and grains wait until it is half full

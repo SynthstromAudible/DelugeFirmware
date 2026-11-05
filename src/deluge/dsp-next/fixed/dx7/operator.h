@@ -77,6 +77,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
@@ -112,16 +113,20 @@ enum class Output : uint8_t {
 	ADD, ///< Adds to it.
 };
 
+/// @brief A phase: 2^24 per cycle, wrapping modulo 2^32, so 1.0 in Q24 is one cycle. A frequency is a phase step, and
+/// a modulation or a sample added to a phase is in the same format.
+using Phase = Q<24>;
+
 /// @brief An operator's state carried across blocks, and across changes of engine and input.
 struct OperatorState {
-	q31 phase = 0;    ///< The phase at the next block's start, 2^24 per cycle, wrapping.
-	q31 gain_out = 0; ///< The gain the last block ended at: linear (modern) or attenuation (MkI).
+	Phase phase{};        ///< The phase at the next block's start.
+	int32_t gain_out = 0; ///< The gain the last block ended at: linear Q24 (modern) or attenuation (MkI), integer.
 };
 
 /// @brief The voice's one feedback history: the feedback op's last two outputs.
 struct FeedbackHistory {
-	q31 y0 = 0; ///< The output before last.
-	q31 y1 = 0; ///< The last output.
+	Q<24> y0{}; ///< The output before last.
+	Q<24> y1{}; ///< The last output.
 };
 
 /// @brief A block's gain ramp: a linear gain in Q24 (modern), or an attenuation in 1/1024 octave, 0 loudest and
@@ -149,8 +154,8 @@ struct Gains {
 /// - *MkI's gain is 16 bits.* The ramped attenuation is passed to the log-sine as a uint16_t, wrapping.
 /// - *The feedback history holds the scaled output:* modern's output after the gain, MkI's log-sine output.
 struct Operator {
-	using value_type = q31; ///< A sample, Q24.
-	using step_type = q31;  ///< One sample per step.
+	using value_type = Q<24>; ///< A sample.
+	using step_type = Q<24>;  ///< One sample per step.
 
 	/// @brief The engine, input and output, one mode each.
 	enum class Mode : uint8_t {
@@ -190,8 +195,8 @@ struct Operator {
 		Engine engine = Engine::MODERN; ///< The engine.
 		Input input = Input::NONE;      ///< What the phase adds.
 		Output output = Output::SET;    ///< Set or add.
-		int32_t level_in = 0;           ///< The level, Q24 doublings, from the envelope and modulation.
-		int32_t freq = 0;               ///< The phase increment, 2^24 per cycle.
+		Q<24> level_in{};               ///< The level in doublings, from the envelope and modulation.
+		Phase freq{};                   ///< The phase increment.
 		int32_t feedback_shift = 16;    ///< The scaled feedback is (y0 + y1) >> (feedback_shift + 1).
 		const Tables* tables = nullptr; ///< The engine's tables.
 	};
@@ -199,16 +204,16 @@ struct Operator {
 	/// @brief Settings with the routing folded into the mode.
 	struct Coefficients {
 		Mode mode = Mode::MODERN_NONE_SET; ///< The engine, input and output.
-		int32_t level_in = 0;              ///< As Settings::level_in.
-		int32_t freq = 0;                  ///< As Settings::freq.
+		Q<24> level_in{};                  ///< As Settings::level_in.
+		Phase freq{};                      ///< As Settings::freq.
 		int32_t feedback_shift = 16;       ///< As Settings::feedback_shift.
 		const Tables* tables = nullptr;    ///< As Settings::tables.
 	};
 
 	/// @brief What the sample loop steps: the phase and gain within the block, and the feedback history.
 	struct Loop {
-		q31 phase = 0;              ///< The phase at the next sample.
-		q31 gain = 0;               ///< The gain at the last sample.
+		Phase phase{};              ///< The phase at the next sample.
+		int32_t gain = 0;           ///< The gain at the last sample, in the engine's integer unit.
 		FeedbackHistory feedback{}; ///< The voice's feedback history; read and written in the FEEDBACK modes only.
 	};
 
@@ -241,13 +246,16 @@ struct Operator {
 		int32_t gain1 = 0;
 		int32_t gain2 = 0;
 		if (engine_of(c.mode) == Engine::MODERN) {
+			// The level in Q24 doublings, 14 doublings down, is the exp2's input: a linear Q24 gain.
 			gain1 = op.gain_out;
-			gain2 = exp2_lookup(*c.tables, wrapping_sub(c.level_in, 14 * (1 << 24)));
+			gain2 = exp2_lookup(*c.tables, sub_wrap(c.level_in, q<24>(14.0)).raw());
 		}
 		else {
+			// The level in 1/1024 doublings, below kEnvMax: an attenuation, integer.
 			gain1 = op.gain_out == 0 ? kEnvMax - 1 : op.gain_out;
-			gain2 = kEnvMax - (c.level_in >> (28 - 14));
+			gain2 = kEnvMax - as_floor<Q<10>>(c.level_in).raw();
 		}
+		// The rounded per-sample step, (gain2 − gain1 + n/2) / n by the block's reciprocal: integer in either unit.
 		return {gain1, gain2, div_n(wrapping_add(wrapping_sub(gain2, gain1), len >> 1), inv_n)};
 	}
 
@@ -280,30 +288,32 @@ struct Operator {
 	/// @param accumulator What the output holds; read in the ADD modes only.
 	/// @return The op's sample, or the accumulator plus it.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, Loop& l, q31 modulation,
-	                                                     q31 accumulator) {
-		l.gain = wrapping_add(l.gain, b.dgain);
-		q31 at = l.phase;
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> step(const Coefficients& c, const Block& b, Loop& l,
+	                                                       Q<24> modulation, Q<24> accumulator) {
+		l.gain = wrapping_add(l.gain, b.dgain); // a Q24 gain or an attenuation, by the engine: integer either way
+		Phase at = l.phase;
 		if constexpr (input_of(M) == Input::BUS) {
-			at = wrapping_add(at, modulation);
+			at = add_wrap(at, modulation); // a sample is a phase offset
 		}
 		else if constexpr (input_of(M) == Input::FEEDBACK) {
-			at = wrapping_add(at, wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1));
+			// The last two samples' sum, scaled down by a run-time shift, so raw.
+			at = add_wrap(at, Phase::from_raw(add_wrap(l.feedback.y0, l.feedback.y1).raw() >> (c.feedback_shift + 1)));
 			l.feedback.y0 = l.feedback.y1;
 		}
-		q31 y = 0;
+		Q<24> y{};
 		if constexpr (engine_of(M) == Engine::MODERN) {
-			y = static_cast<q31>((static_cast<int64_t>(sin_lookup(*c.tables, at)) * l.gain) >> 24);
+			const Q<24> sine = Q<24>::from_raw(sin_lookup(*c.tables, at.raw()));
+			y = narrow_floor_wrap<Q<24>>(mul_wide(sine, Q<24>::from_raw(l.gain)));
 		}
 		else {
-			y = mki_sin(*c.tables, at, static_cast<uint16_t>(l.gain));
+			y = Q<24>::from_raw(mki_sin(*c.tables, at.raw(), static_cast<uint16_t>(l.gain)));
 		}
 		if constexpr (input_of(M) == Input::FEEDBACK) {
 			l.feedback.y1 = y;
 		}
-		l.phase = wrapping_add(l.phase, c.freq);
+		l.phase = add_wrap(l.phase, c.freq);
 		if constexpr (output_of(M) == Output::ADD) {
-			return wrapping_add(accumulator, y);
+			return add_wrap(accumulator, y);
 		}
 		return y;
 	}
@@ -321,9 +331,10 @@ struct Operator {
 	}
 
 	/// @brief @p phase + @p freq × @p n, wrapping at 2^32 as the phase accumulator does.
-	[[nodiscard]] [[gnu::always_inline]] static q31 advance_phase(q31 phase, int32_t freq, std::size_t n) {
-		return static_cast<q31>(static_cast<uint32_t>(phase)
-		                        + (static_cast<uint32_t>(freq) * static_cast<uint32_t>(n)));
+	[[nodiscard]] [[gnu::always_inline]] static Phase advance_phase(Phase phase, Phase freq, std::size_t n) {
+		// The block's step is an integer product: freq times the samples, wrapping.
+		const auto step = static_cast<int32_t>(static_cast<uint32_t>(freq.raw()) * static_cast<uint32_t>(n));
+		return add_wrap(phase, Phase::from_raw(step));
 	}
 };
 

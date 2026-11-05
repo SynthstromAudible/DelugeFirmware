@@ -34,10 +34,14 @@ namespace deluge::effects {
 /// had rendered.
 struct MasterChainInputs {
 	FxInputs fx;
-	int32_t volume_post_fx;     ///< The song's post-FX volume, Q31.
-	int32_t post_reverb_volume; ///< Q31.
-	int32_t reverb_send;        ///< The reverb send amount the send and volume adds, Q31.
+	dsp::Q<27> volume_post_fx;     ///< The song's post-FX volume, Q27: 2^27 unity.
+	dsp::Q<27> post_reverb_volume; ///< Q27: 2^27 unity.
+	dsp::Q<31> reverb_send;        ///< The reverb send amount the send and volume adds, Q31.
 };
+
+/// @brief The master's volume before its filter: unity made a bit bigger, so the filters' default resonance doesn't
+/// reduce the volume overall.
+inline constexpr dsp::Q<27> kMasterVolume = dsp::q<27>(1.24993896484375);
 
 /// @brief What the master's half after the reverb reads, resolved once the reverb has rendered.
 struct MasterPostInputs {
@@ -45,13 +49,14 @@ struct MasterPostInputs {
 	dsp::fixed::FilterScratch filter_scratch; ///< The audio tier's filter scratch.
 	dsp::fixed::Cong* noise = nullptr; ///< The synth's noise stream the filter draws from. Never null once built.
 	BitcrushParams bitcrush;
-	int32_t master_volume; ///< The volume before the filter's compensation, Q31.
-	bool do_pan;           ///< Whether the pan applies: off the centre, in stereo, and not a no-op.
-	int32_t pan_l;         ///< The left gain when it does, Q29.
-	int32_t pan_r;         ///< The right gain when it does, Q29.
-	int32_t song_volume;   ///< The song volume's final, Q31; the compressor's makeup takes it >> 3.
-	Stutter* stutter;      ///< The song's stutter while the master is the one stuttering, else null.
-	uint32_t stutter_rate; ///< The stutter's rate on the delay's rate scale (16777216 neutral).
+	dsp::Q<27> master_volume; ///< The volume before the filter's compensation, Q27: 2^27 unity.
+	bool do_pan;              ///< Whether the pan applies: off the centre, in stereo, and not a no-op.
+	dsp::Q<30> pan_l;         ///< The left gain when it does, Q30: 2^30 unity (pan_amplitudes).
+	dsp::Q<30> pan_r;         ///< The right gain when it does, Q30: 2^30 unity (pan_amplitudes).
+	dsp::Q<27> song_volume; ///< The song volume's final, Q27 (the curve's 2^27, halved); the compressor reads an eighth
+	                        ///< of it as its 3.29 final volume.
+	Stutter* stutter;       ///< The song's stutter while the master is the one stuttering, else null.
+	uint32_t stutter_rate;  ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };
 
 /// @brief The song's master: mod FX or grain, EQ, delay, reverb send and volume; then whatever the engine mixes in

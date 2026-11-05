@@ -25,7 +25,7 @@ namespace deluge::dsp::fp {
 namespace {
 
 /// |x|, wrapping at INT32_MIN as the target's negate does.
-[[nodiscard]] q31 wrapping_abs(q31 x) {
+[[nodiscard]] int32_t wrapping_abs(int32_t x) {
 	return x < 0 ? wrapping_sub(0, x) : x;
 }
 
@@ -42,11 +42,12 @@ float LevelDetector::follow(float current, float target, float num_samples) cons
 }
 
 StereoLevel LevelDetector::measure(std::span<const StereoSample> block) {
-	q31 sum_l = 0;
-	q31 sum_r = 0;
+	int32_t sum_l = 0;
+	int32_t sum_r = 0;
+	// The magnitudes summed as words, wrapping: the float means read the sums.
 	for (const StereoSample frame : block) {
-		sum_l = wrapping_add(sum_l, wrapping_abs(frame.l));
-		sum_r = wrapping_add(sum_r, wrapping_abs(frame.r));
+		sum_l = wrapping_add(sum_l, wrapping_abs(frame.l.raw()));
+		sum_r = wrapping_add(sum_r, wrapping_abs(frame.r.raw()));
 	}
 	const auto n = static_cast<float>(block.size());
 	// Each mean is rounded to float before the smoothing weighs the block by its length against the last level.

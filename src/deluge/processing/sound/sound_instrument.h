@@ -35,7 +35,7 @@ public:
 	void cutAllSound() override;
 	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
-	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
+	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 

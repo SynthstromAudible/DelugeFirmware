@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
@@ -1937,7 +1938,8 @@ doFinishCapturing:
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
 				for (StereoSample sample : input.first(numSamplesThisCycle)) {
-					q31_t rxBalanced = (sample.l / 2) - (sample.r / 2);
+					// The balanced difference of the halves toward zero, a word for the 24-bit write.
+					q31_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
@@ -1946,8 +1948,12 @@ doFinishCapturing:
 
 			// Or, all other, non-balanced input types
 			else {
-				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
+				for (const StereoSample frame : input.first(numSamplesThisCycle)) {
+					// Raw: the gain, the stats and the 24-bit write all read the words.
+					q31_t rxL = frame.l.raw();
+					q31_t rxR = frame.r.raw();
 					if (applyGain) {
+						// The input gain: a run-time saturating shift, so raw
 						rxL = lshift_and_saturate_unknown(rxL, gainToApply);
 					}
 
@@ -1963,8 +1969,9 @@ doFinishCapturing:
 					if (rxL < recordPeakL) {
 						recordPeakL = rxL;
 					}
-					else if (-rxL < recordPeakL) {
-						recordPeakL = -rxL;
+					else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxL)).raw();
+					         negated < recordPeakL) {
+						recordPeakL = negated; // saturating: a full-scale negative input's negation is INT32_MAX
 					}
 					if (rxL == std::numeric_limits<q31_t>::max() || rxL == std::numeric_limits<q31_t>::min()) {
 						recordingClippedRecently = true;
@@ -1993,8 +2000,9 @@ doFinishCapturing:
 						if (rxR < recordPeakR) {
 							recordPeakR = rxR;
 						}
-						else if (-rxR < recordPeakR) {
-							recordPeakR = -rxR;
+						else if (const q31_t negated = neg_sat(deluge::dsp::Q<31>::from_raw(rxR)).raw();
+						         negated < recordPeakR) {
+							recordPeakR = negated;
 						}
 						if (rxR == std::numeric_limits<q31_t>::max() || rxR == std::numeric_limits<q31_t>::min()) {
 							recordingClippedRecently = true;

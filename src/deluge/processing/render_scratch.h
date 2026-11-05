@@ -34,14 +34,14 @@
 
 namespace deluge::render {
 
-/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES int32s: the voices' working rows.
+/// @brief The rows of the spare rendering buffer, each SSI_TX_BUFFER_NUM_SAMPLES samples: the voices' working rows.
 inline constexpr std::size_t kSpareRenderingRows = 4;
 
 /// @brief The scratch every filter set shares (the voices' and the host chains'): room for a stereo block of
 /// SSI_TX_BUFFER_NUM_SAMPLES frames each for the fades and for the parallel route's copy.
 [[nodiscard]] dsp::fixed::FilterScratch filter_scratch();
 
-/// @brief The hard-sync scratch the voice's sources and the ring-mod engine share: one block of int32s plus 4.
-[[nodiscard]] std::span<int32_t> osc_sync_scratch();
+/// @brief The hard-sync scratch the voice's sources and the ring-mod engine share: one block of samples plus 4.
+[[nodiscard]] std::span<dsp::Q<31>> osc_sync_scratch();
 
 } // namespace deluge::render

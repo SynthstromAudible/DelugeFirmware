@@ -37,6 +37,8 @@
 
 using namespace deluge::effects;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
+using deluge::dsp::test::typed_frames;
 
 namespace {
 
@@ -99,8 +101,8 @@ public:
 	void setupBuffer() { pending_ = Pending::SETUP; }
 	void disableBuffer() { pending_ = Pending::DISABLE; }
 
-	void processModFX(std::span<StereoSample> buffer, const ModFXType& type, int32_t rate, int32_t depth,
-	                  int32_t* volume, int32_t offset, int32_t feedback, bool stereo, bool sound) {
+	void processModFX(std::span<RawFrame> buffer, const ModFXType& type, int32_t rate, int32_t depth, int32_t* volume,
+	                  int32_t offset, int32_t feedback, bool stereo, bool sound) {
 		ModFXType active = type;
 		if (pending_ != Pending::NONE) {
 			if (type == ModFXType::NONE) {
@@ -111,7 +113,7 @@ public:
 			}
 			pending_ = Pending::NONE;
 		}
-		fx_.render(buffer,
+		fx_.render(typed_frames(buffer),
 		           {.active = active,
 		            .rate = rate,
 		            .depth = depth,
@@ -137,9 +139,9 @@ private:
 };
 
 /// @return The words of @p frames, left then right per frame.
-[[nodiscard]] std::vector<int32_t> words_of(std::span<const StereoSample> frames) {
+[[nodiscard]] std::vector<int32_t> words_of(std::span<const RawFrame> frames) {
 	std::vector<int32_t> words;
-	for (const StereoSample frame : frames) {
+	for (const RawFrame frame : frames) {
 		words.push_back(frame.l);
 		words.push_back(frame.r);
 	}
@@ -147,7 +149,7 @@ private:
 }
 
 /// @return A block of frames different for each @p seed.
-[[nodiscard]] std::vector<StereoSample> frames_of(std::size_t n, std::size_t seed) {
+[[nodiscard]] std::vector<RawFrame> frames_of(std::size_t n, std::size_t seed) {
 	return mw::stereo_input(n, seed);
 }
 
@@ -165,13 +167,13 @@ private:
 /// does when a sound comes in.
 /// @return Whether the two blocks and their post-FX volumes came out equal.
 [[nodiscard]] bool same_block(ReferenceModFx& reference, Owner& owner, ModFXType type, std::size_t seed) {
-	const std::vector<StereoSample> input = frames_of(128, seed);
-	std::vector<StereoSample> want = input;
-	std::vector<StereoSample> got = input;
+	const std::vector<RawFrame> input = frames_of(128, seed);
+	std::vector<RawFrame> want = input;
+	std::vector<RawFrame> got = input;
 	int32_t want_volume = mw::kStartVolume;
 	int32_t got_volume = mw::kStartVolume;
 	reference.processModFX(want, type, mw::kRate, mw::kDepth, &want_volume, mw::kOffset, mw::kFeedback, true, true);
-	owner.fx().render(got,
+	owner.fx().render(typed_frames(std::span{got}),
 	                  {.active = type,
 	                   .rate = mw::kRate,
 	                   .depth = mw::kDepth,
@@ -213,14 +215,14 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		Owner owner;
 		owner.change(ModFXType::FLANGER);
 		expect(owner.fx().holdsRing()).to_equal(false);
-		std::vector<StereoSample> frames = frames_of(128, 3);
-		const std::vector<StereoSample> input = frames;
+		std::vector<RawFrame> frames = frames_of(128, 3);
+		const std::vector<RawFrame> input = frames;
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(frames, flanger_inputs(), volume, deluge::synth_noise);
+		owner.fx().render(typed_frames(std::span{frames}), flanger_inputs(), volume, deluge::synth_noise);
 		expect(words_of(frames)).to_equal(words_of(input));
 
 		ReferenceModFx reference;
-		std::vector<StereoSample> ref_frames = input;
+		std::vector<RawFrame> ref_frames = input;
 		int32_t ref_volume = mw::kStartVolume;
 		reference.processModFX(ref_frames, ModFXType::FLANGER, mw::kRate, mw::kDepth, &ref_volume, mw::kOffset,
 		                       mw::kFeedback, true, true);
@@ -304,9 +306,9 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		expect(same_block(reference, owner, ModFXType::PHASER, 2)).to_equal(true);
 		// The soft off: the knob at minimum. The reference has freed its ring; the component keeps its own.
 		reference.disableBuffer();
-		std::vector<StereoSample> idle = frames_of(16, 0);
+		std::vector<RawFrame> idle = frames_of(16, 0);
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
+		owner.fx().render(typed_frames(std::span{idle}), {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		reference.resetMemory();
 		owner.resetMemory();
 		expect(same_block(reference, owner, ModFXType::PHASER, 3)).to_equal(true);
@@ -325,9 +327,9 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		// The soft off frees the old buffer in the render; the type then changes, and the old buffer is not taken
 		// again until the next render.
 		reference.disableBuffer();
-		std::vector<StereoSample> idle = frames_of(16, 0);
+		std::vector<RawFrame> idle = frames_of(16, 0);
 		int32_t volume = mw::kStartVolume;
-		owner.fx().render(idle, {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
+		owner.fx().render(typed_frames(std::span{idle}), {.active = ModFXType::NONE, .sound = false}, volume, deluge::synth_noise);
 		owner.change(ModFXType::FLANGER);
 		reference.resetMemory();
 		owner.resetMemory();
@@ -338,18 +340,18 @@ describe mod_fx("an owner's mod FX on the dsp-next kernel", ${
 		heap.reset();
 		Owner owner;
 		owner.change(ModFXType::PHASER);
-		std::vector<StereoSample> frames = frames_of(16, 4);
+		std::vector<RawFrame> frames = frames_of(16, 4);
 		int32_t volume = mw::kStartVolume;
 		ModFxInputs phaser = flanger_inputs();
 		phaser.active = ModFXType::PHASER;
-		owner.fx().render(frames, phaser, volume, deluge::synth_noise);
+		owner.fx().render(typed_frames(std::span{frames}), phaser, volume, deluge::synth_noise);
 		owner.change(ModFXType::CHORUS);
 		std::byte* ring = heap.in_use[0] ? heap.blocks[0].data() : heap.blocks[1].data();
 		std::memset(ring, 0x5A, 16); // a marker where a second zeroing would erase it
 		ModFxInputs chorus = flanger_inputs();
 		chorus.active = ModFXType::CHORUS;
 		chorus.sound = false;
-		owner.fx().render(frames, chorus, volume, deluge::synth_noise);
+		owner.fx().render(typed_frames(std::span{frames}), chorus, volume, deluge::synth_noise);
 		expect(static_cast<int>(ring[0])).to_equal(0x5A);
 	});
 

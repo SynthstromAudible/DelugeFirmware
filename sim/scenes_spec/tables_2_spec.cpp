@@ -1894,9 +1894,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		if (row_b != nullptr) {
 			PatchedParamSet* params_b = row_b->paramManager.getPatchedParamSet();
 			namespace mp = deluge::modulation::params;
-			params_b->params[mp::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(-2147483648);
-			params_b->params[mp::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(-2147483648);
-			params_b->params[mp::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(2147483647);
+			params_b->params[mp::LOCAL_ENV_0_SUSTAIN].setPlayed(-2147483648);
+			params_b->params[mp::LOCAL_ENV_0_DECAY].setPlayed(-2147483648);
+			params_b->params[mp::LOCAL_ENV_0_RELEASE].setPlayed(2147483647);
 		}
 
 		const MenuContext ctx_a = select_drum(k, k.drum_a);

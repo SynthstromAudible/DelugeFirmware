@@ -38,45 +38,44 @@ namespace deluge::dsp::fixed {
 /// block-level, so there is no per-sample `render()`.
 class WavetableSyncOscillator {
 public:
-	using value_type = q31; ///< q31 wave samples.
+	using value_type = Q<31>; ///< Wave samples.
 
-	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
-	                        uint32_t retrigger_phase, int32_t wave_index, int32_t wave_index_increment)
-	    : table_{table}, phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, resetter_{resetter},
-	      retrigger_phase_{retrigger_phase}, wave_index_{wave_index}, wave_index_increment_{wave_index_increment} {}
+	WavetableSyncOscillator(WaveTableData table, UQ<32> phase, UQ<32> increment, Resetter resetter,
+	                        UQ<32> retrigger_phase, int32_t wave_index, int32_t wave_index_increment)
+	    : table_{table}, phasor_{phase, increment}, resetter_{resetter}, retrigger_phase_{retrigger_phase},
+	      wave_index_{wave_index}, wave_index_increment_{wave_index_increment} {}
 
 	/// The audible phase after rendering — what the voice stores back to continue next block.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
-	void render_block(Buffer output) {
-		uint32_t phase = phasor_.phase().raw();
-		uint32_t phase_increment = phasor_.increment().raw();
-		uint32_t resetter_phase = resetter_.phase;
-		uint32_t resetter_increment = resetter_.phase_increment;
+	void render_block(dsp::Buffer<Q<31>> output) {
+		UQ<32> phase = phasor_.phase();
+		const UQ<32> phase_increment = phasor_.increment();
+		Resetter resetter = resetter_;
 
-		WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
+		WavetableCycleChunker chunker{table_, output, phase_increment.raw(), wave_index_, wave_index_increment_};
 		while (std::optional<CycleChunk> chunk = chunker.next()) {
 			if (chunk->band != nullptr) {
-				SyncWindower windower{chunk->output, Resetter{resetter_phase, resetter_increment}, phase,
-				                      phase_increment, retrigger_phase_};
+				SyncWindower windower{chunk->output, resetter, phase, phase_increment, retrigger_phase_};
 				while (std::optional<SyncWindower::Window> window = windower.next()) {
 					chunk->render(window->output, window->phasor, window->offset);
 				}
 				phase = windower.phase();
 			}
 			// The resetter advances past the whole chunk whether or not it had data.
-			resetter_phase += resetter_increment * static_cast<uint32_t>(chunk->output.size());
+			resetter.phase =
+			    dsp::advanced(resetter.phase, resetter.phase_increment, static_cast<uint32_t>(chunk->output.size()));
 		}
 
-		phasor_.seek(UQ<32>::from_raw(phase));
+		phasor_.seek(phase);
 	}
 
 private:
 	WaveTableData table_;
 	Phasor phasor_;
 	Resetter resetter_;
-	uint32_t retrigger_phase_;
+	UQ<32> retrigger_phase_;
 	int32_t wave_index_;
 	int32_t wave_index_increment_;
 };

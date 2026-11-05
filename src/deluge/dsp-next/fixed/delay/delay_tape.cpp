@@ -57,7 +57,7 @@ void DelayTape::make_native_rate_precise_relative_to(const DelayTape& other) {
 }
 
 void DelayTape::clear() {
-	std::fill_n(start_, kWriteLag + 2, StereoSample{.l = 0, .r = 0});
+	std::fill_n(start_, kWriteLag + 2, StereoSample{});
 	current_ = start_ + kWriteLag;
 	resample_ = std::nullopt;
 }
@@ -70,9 +70,9 @@ void DelayTape::setup_resample() {
 	// belongs one sample on.
 	StereoSample* written = write_position(0);
 	StereoSample* next = write_position(1);
-	*next = {.l = written->l >> 2, .r = written->r >> 2};
-	written->l -= next->l;
-	written->r -= next->r;
+	*next = {.l = scale_shr_floor<2>(written->l), .r = scale_shr_floor<2>(written->r)};
+	written->l = sub_wrap(written->l, next->l);
+	written->r = sub_wrap(written->r, next->r);
 }
 
 void DelayTape::setup_for_render(int32_t rate) {

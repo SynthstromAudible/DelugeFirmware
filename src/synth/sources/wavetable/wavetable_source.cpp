@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/vca/amplitude.h"
+#include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {
 
-void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-                                   deluge::dsp::fixed::Buffer scratch) {
+void WavetableSource::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
+                                   std::span<dsp::Q<31>> scratch) {
+	// Raw: the pulse rewrite works on the phases' words
 	const uint32_t orig_phase = phasor_.phase().raw();
 	const uint32_t orig_inc = phasor_.increment().raw();
 
@@ -38,62 +39,51 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 
 	if (do_pulse_wave) {
 		do_osc_sync = true;
-		const uint32_t pulse_width_absolute =
-		    (static_cast<int32_t>(controls.pulse_width) >= 0) ? controls.pulse_width : -controls.pulse_width;
 		resetter_phase = orig_phase;
 		resetter_inc = orig_inc;
-
-		auto resetter_phase_to_multiply = static_cast<int32_t>(resetter_phase >> 1);
-		if (resetter_phase >= -(resetter_inc >> 1)) {
-			// Count the last little bit of the cycle as actually a negative-number bit of the next one: half a cycle
-			// subtracted in unsigned arithmetic, the int32 wrapping two's-complement.
-			resetter_phase_to_multiply =
-			    static_cast<int32_t>(static_cast<uint32_t>(resetter_phase_to_multiply) - (uint32_t{1} << 31));
-		}
-
-		const auto half_width = static_cast<q31_t>((pulse_width_absolute >> 1) + 1073741824);
-		render_phase =
-		    (static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, resetter_phase_to_multiply)) << 3)
-		    + controls.retrigger_phase;
-		render_inc =
-		    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, static_cast<q31_t>(orig_inc >> 1))) << 3;
+		const va_shape::PulseRewrite rewrite =
+		    va_shape::multiply_pulse_rewrite(controls.pulse_width, resetter_phase, resetter_inc);
+		render_phase = rewrite.phase + controls.retrigger_phase;
+		render_inc = rewrite.increment;
 	}
 
 	const int32_t wave_index = wave_index_last_ + 1073741824;
-	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
+	dsp::Q<31>* dst = controls.apply_amplitude ? scratch.data() : output.data();
 
 	// Render through the dsp-next view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
 	// now driven directly over our band-data view (no storage reach).
-	uint32_t rendered_phase = 0;
+	dsp::UQ<32> rendered_phase{};
 	if (!do_osc_sync) {
-		deluge::dsp::fixed::WavetableOscillator osc{table_, render_phase, render_inc, wave_index,
+		deluge::dsp::fixed::WavetableOscillator osc{table_, dsp::UQ<32>::from_raw(render_phase),
+		                                            dsp::UQ<32>::from_raw(render_inc), wave_index,
 		                                            wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
 		rendered_phase = osc.phase();
 	}
 	else {
 		deluge::dsp::fixed::WavetableSyncOscillator osc{
 		    table_,
-		    render_phase,
-		    render_inc,
-		    deluge::dsp::fixed::Resetter{.phase = resetter_phase, .phase_increment = resetter_inc},
-		    controls.retrigger_phase,
+		    dsp::UQ<32>::from_raw(render_phase),
+		    dsp::UQ<32>::from_raw(render_inc),
+		    deluge::dsp::fixed::Resetter{.phase = dsp::UQ<32>::from_raw(resetter_phase),
+		                                 .phase_increment = dsp::UQ<32>::from_raw(resetter_inc)},
+		    dsp::UQ<32>::from_raw(controls.retrigger_phase), // the controls' retrigger phase is a word
 		    wave_index,
 		    wave_index_increment_};
-		osc.render_block(deluge::dsp::fixed::Buffer{dst, output.size()});
+		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
 		rendered_phase = osc.phase();
 	}
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
+		vca.render_block(scratch, output, output);
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance
 	// (the rewritten render phase is discarded), otherwise the rendered (possibly hard-synced) phase persists.
 	if (do_pulse_wave) {
-		seek(orig_phase + orig_inc * static_cast<uint32_t>(output.size()));
+		seek(dsp::advanced(phasor_.phase(), phasor_.increment(), static_cast<uint32_t>(output.size())));
 	}
 	else {
 		seek(rendered_phase);

@@ -20,8 +20,10 @@
 // table and a TableOscillator as the wrapped generator; bit-exact equivalence with the legacy
 // renderOscSync on the real band-limited tables is the golden harness's job.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
 #include "dsp-next/fixed/sync/synced_oscillator.h"
+#include "phase_words.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
@@ -39,9 +41,9 @@ constexpr std::array<int16_t, 8> kTable{0, 1000, 2000, 3000, 4000, 5000, 6000, 7
 
 // A plain (un-synced) render of the wrapped oscillator, for comparison.
 std::array<int32_t, kBlock> plainRender() {
-	TableOscillator osc{Table{kTable, kMag}, 0u, kInc};
+	TableOscillator osc{Table{kTable, kMag}, uq(0u), uq(kInc)};
 	std::array<int32_t, kBlock> out{};
-	osc.render_block(deluge::dsp::fixed::Buffer{out});
+	osc.render_block(deluge::dsp::typed_view(std::span{out}));
 	return out;
 }
 } // namespace
@@ -51,29 +53,29 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 	context("a resetter too slow to cross over within the block", _ {
 		// ~4096 samples per resetter cycle, so no crossover in 16 samples: pure passthrough.
 		it("renders the wrapped oscillator unchanged", _ {
-			Resetter slow{0u, 0x00100000u};
-			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, slow, 0u};
+			Resetter slow{uq(0u), uq(0x00100000u)};
+			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, uq(0u), uq(kInc)}, uq(0u), uq(kInc), slow, uq(0u)};
 			std::array<int32_t, kBlock> out{};
-			osc.render_block(deluge::dsp::fixed::Buffer{out});
+			osc.render_block(deluge::dsp::typed_view(std::span{out}));
 			expect(out).to_equal(plainRender());
 		});
 
 		it("advances the phase by the whole block", _ {
-			Resetter slow{0u, 0x00100000u};
-			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, slow, 0u};
+			Resetter slow{uq(0u), uq(0x00100000u)};
+			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, uq(0u), uq(kInc)}, uq(0u), uq(kInc), slow, uq(0u)};
 			std::array<int32_t, kBlock> out{};
-			osc.render_block(deluge::dsp::fixed::Buffer{out});
-			expect(osc.phase()).to_equal(static_cast<uint32_t>(kInc * kBlock));
+			osc.render_block(deluge::dsp::typed_view(std::span{out}));
+			expect(osc.phase().raw()).to_equal(static_cast<uint32_t>(kInc * kBlock));
 		});
 	});
 
 	context("a resetter that crosses over mid-block", _ {
 		// 8 samples per resetter cycle: the first crossover lands at sample 8 within the block.
 		it("matches the un-synced wave up to the first crossover, then restarts", _ {
-			Resetter fast{0u, 0x20000000u};
-			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, 0u, kInc}, 0u, kInc, fast, 0u};
+			Resetter fast{uq(0u), uq(0x20000000u)};
+			SyncedOscillator osc{TableOscillator{Table{kTable, kMag}, uq(0u), uq(kInc)}, uq(0u), uq(kInc), fast, uq(0u)};
 			std::array<int32_t, kBlock> out{};
-			osc.render_block(deluge::dsp::fixed::Buffer{out});
+			osc.render_block(deluge::dsp::typed_view(std::span{out}));
 
 			std::array<int32_t, kBlock> plain = plainRender();
 			// Before the crossover sample (index 7) nothing has reset, so the wave is identical.

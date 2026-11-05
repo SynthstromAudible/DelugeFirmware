@@ -18,15 +18,15 @@
 
 #include "dsp-next/core/sample.h"
 
-// q31 <-> f32 edge conversions. The core stays q31 (decision 1); float-world
+// q31 <-> f32 edge conversions. The core stays Q<31> (decision 1); float-world
 // engines and the CLAP boundary convert here. Scalar + constexpr for now;
 // vectorised span overloads land when a float-edge primitive needs them (the
 // hardware does this in one NEON op per vector).
 namespace deluge::dsp {
 
-// q31 (kOneQ31 == +1.0) -> f32 in [-1, 1].
+// q31 (Q<31>::max() == +1.0) -> f32 in [-1, 1].
 [[nodiscard]] constexpr f32 to_f32(q31 x) noexcept {
-	return static_cast<f32>(x) * (1.0f / kOneQ31f);
+	return static_cast<f32>(x.raw()) * (1.0f / kOneQ31f);
 }
 
 // f32 -> q31, saturating to [-1, 1] and rounding to nearest.
@@ -37,22 +37,23 @@ namespace deluge::dsp {
 // returns keep the cast argument strictly inside the int32 range.
 [[nodiscard]] constexpr q31 to_q31(f32 x) noexcept {
 	if (x >= 1.0f) {
-		return kOneQ31;
+		return q31::max();
 	}
 	if (x <= -1.0f) {
-		return -kOneQ31;
+		return q31::from_raw(-kOneQ31);
 	}
-	return static_cast<q31>((x * kOneQ31f) + (x >= 0.0f ? 0.5f : -0.5f));
+	// The scaled float rounded to the nearest word, so raw.
+	return q31::from_raw(static_cast<int32_t>((x * kOneQ31f) + (x >= 0.0f ? 0.5f : -0.5f)));
 }
 
 // Compile-time self-tests for the edges that matter (saturation + zero).
-static_assert(to_q31(1.0f) == kOneQ31);
-static_assert(to_q31(-1.0f) == -kOneQ31);
-static_assert(to_q31(2.0f) == kOneQ31);   // saturates
-static_assert(to_q31(-2.0f) == -kOneQ31); // saturates
-static_assert(to_q31(0.0f) == 0);
-static_assert(to_f32(0) == 0.0f);
-static_assert(to_f32(kOneQ31) > 0.999f && to_f32(kOneQ31) <= 1.0f);
-static_assert(to_f32(-kOneQ31) < -0.999f && to_f32(-kOneQ31) >= -1.0f);
+static_assert(to_q31(1.0f) == q31::max());
+static_assert(to_q31(-1.0f).raw() == -kOneQ31);
+static_assert(to_q31(2.0f) == q31::max());      // saturates
+static_assert(to_q31(-2.0f).raw() == -kOneQ31); // saturates
+static_assert(to_q31(0.0f) == q31{});
+static_assert(to_f32(q31{}) == 0.0f);
+static_assert(to_f32(q31::max()) > 0.999f && to_f32(q31::max()) <= 1.0f);
+static_assert(to_f32(q31::from_raw(-kOneQ31)) < -0.999f && to_f32(q31::from_raw(-kOneQ31)) >= -1.0f);
 
 } // namespace deluge::dsp

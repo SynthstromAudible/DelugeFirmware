@@ -29,22 +29,23 @@ class SupersawSource : public OscillatorSource {
 public:
 	using SidePhases = deluge::dsp::fixed::Supersaw::SidePhases;
 
-	/// @param centrePhase the centre saw's phase (UQ0.32), which is the source's phase
-	/// @param sidePhases the six side saws' phases
-	SupersawSource(uint32_t centre_phase, const SidePhases& side_phases)
-	    : centre_phase_{centre_phase}, side_phases_{side_phases} {}
+	/// The phases are held as words: dsp::fixed::Supersaw steps them by reference.
+	/// @param centre_phase the centre saw's phase, which is the source's phase
+	/// @param side_phases the six side saws' phases
+	SupersawSource(dsp::UQ<32> centre_phase, const SidePhases& side_phases)
+	    : centre_phase_{centre_phase.raw()}, side_phases_{side_phases} {}
 
-	/// The centre saw's phase (UQ0.32). Voice reads it to seed osc sync from this source as master.
-	[[nodiscard]] uint32_t phase() const { return centre_phase_; }
+	/// The centre saw's phase. Voice reads it to seed osc sync from this source as master.
+	[[nodiscard]] dsp::UQ<32> phase() const { return dsp::UQ<32>::from_raw(centre_phase_); }
 
-	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
-	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
+	[[nodiscard]] std::optional<dsp::UQ<32>> current_phase() const override { return phase(); }
+	void advance_phase(dsp::UQ<32> delta) override { seek(add_wrap(phase(), delta)); }
 
 	/// Jump the centre saw's phase, moving the side saws by the same amount so they keep their offsets (a skipped
 	/// osc-sync master still progresses).
-	void seek(uint32_t phase) {
-		const uint32_t delta = phase - centre_phase_;
-		centre_phase_ = phase;
+	void seek(dsp::UQ<32> phase) {
+		const uint32_t delta = phase.raw() - centre_phase_;
+		centre_phase_ = phase.raw();
 		for (uint32_t& side : side_phases_) {
 			side += delta;
 		}
@@ -54,18 +55,17 @@ public:
 	/// (raw render) and by @ref renderOscBlock.
 	/// @param waveIndexLast the wave index param's previous block value, which sets the spread
 	/// @param waveIndexIncrement its per-sample slope; spread is taken where the block ends
-	void render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
-	                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
-	                 deluge::dsp::fixed::Buffer scratch);
+	void render_into(const BlockControls& controls, dsp::UQ<32> phase_increment, int32_t wave_index_last,
+	                 int32_t wave_index_increment, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                      deluge::dsp::fixed::Buffer out) override {
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<dsp::Q<31>> out) override {
 		render_into(controls, block.phase_increment, block.wavetable.index_last, block.wavetable.index_increment, out,
-		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
+		            std::span<dsp::Q<31>>{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 
 private:
+	// The saws' phases as the supersaw kernel steps them: raw words, one cycle at 2^32
 	uint32_t centre_phase_;
 	SidePhases side_phases_;
 };

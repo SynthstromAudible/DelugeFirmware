@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 
 namespace deluge::synth {
@@ -41,9 +42,10 @@ struct ReleaseInfo;
 /// per-type blocks, voice and controls) and instantiates the same contracts; the Deluge instrument instantiates them
 /// over this one only.
 struct Fixed {
-	using Sample = int32_t;  ///< q31
-	using Control = int32_t; ///< q31 levels and amplitudes
-	using Phase = uint32_t;  ///< UQ0.32
+	using Sample = dsp::Q<31>; ///< A sample
+	using Level = dsp::Q<31>;  ///< A level or amplitude, or its per-sample increment
+	using Pan = dsp::Q<30>;    ///< A pan gain: unity at 2^30
+	using Phase = dsp::UQ<32>; ///< A phase or phase increment, one cycle at 2^32
 
 	// A source's per-block inputs beyond the common ones
 	using OscillatorControls = synth::BlockControls;

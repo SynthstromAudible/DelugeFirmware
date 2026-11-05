@@ -21,7 +21,7 @@
 // pair) and its sums and absolutes, written as the wrapping operations the target computes so the spec's
 // signed-overflow sanitizer sees the same two's-complement result.
 
-#include "dsp-next/core/stereo_sample.h"
+#include "raw_frame.h"
 
 #include <cmath>
 #include <cstdint>
@@ -34,12 +34,12 @@ public:
 		float r;
 	};
 
-	Level calcApproxRMS(std::span<deluge::dsp::StereoSample> buffer) {
+	Level calcApproxRMS(std::span<deluge::dsp::test::RawFrame> buffer) {
 		int32_t l = 0;
 		int32_t r = 0;
 		Level logMean;
 
-		for (deluge::dsp::StereoSample sample : buffer) {
+		for (deluge::dsp::test::RawFrame sample : buffer) {
 			l = wrap_add(l, wrap_abs(sample.l));
 			r = wrap_add(r, wrap_abs(sample.r));
 		}

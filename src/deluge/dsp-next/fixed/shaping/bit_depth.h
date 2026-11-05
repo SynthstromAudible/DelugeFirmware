@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
@@ -37,9 +38,9 @@ struct BitDepth {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
 
-	static constexpr q31 kOnFrom = -2113929216;           ///< The param's lowest value that crushes.
-	static constexpr int kPresetShift = 29;               ///< (param + 2^31) ≫ this is the preset.
-	static constexpr int kMaskBase = 19;                  ///< Low bits cleared at preset 0, alone.
+	static constexpr Q<31> kOnFrom = Q<31>::from_raw(-2113929216); ///< The param's lowest value that crushes.
+	static constexpr int kPresetShift = 29;                        ///< (param + 2^31) ≫ this is the preset.
+	static constexpr int kMaskBase = 19;                           ///< Low bits cleared at preset 0, alone.
 	static constexpr int kGrabMaskBase = 18;              ///< Low bits cleared at preset 0 on the reducer's grabs.
 	static constexpr uint32_t kLoudestPreset = 4;         ///< The highest preset that leaves the volume alone.
 	static constexpr int64_t kParamOffset = 2147483648LL; ///< 2^31: lifts the param to [0, 2^32) for its preset.
@@ -47,7 +48,7 @@ struct BitDepth {
 
 	/// @brief The param.
 	struct Settings {
-		q31 bitcrush = std::numeric_limits<q31>::min(); ///< The bitcrush param, Q31.
+		Q<31> bitcrush = Q<31>::min(); ///< The bitcrush param.
 	};
 	/// @brief The mask.
 	struct Coefficients {
@@ -57,20 +58,20 @@ struct BitDepth {
 	struct State {};
 
 	/// @brief Whether @p bitcrush crushes.
-	[[nodiscard]] static constexpr bool on(q31 bitcrush) { return bitcrush >= kOnFrom; }
+	[[nodiscard]] static constexpr bool on(Q<31> bitcrush) { return bitcrush >= kOnFrom; }
 
 	/// @brief The preset of @p bitcrush, 0 to 7.
-	[[nodiscard]] static constexpr uint32_t preset(q31 bitcrush) {
-		return static_cast<uint32_t>((static_cast<int64_t>(bitcrush) + kParamOffset) >> kPresetShift);
+	[[nodiscard]] static constexpr uint32_t preset(Q<31> bitcrush) {
+		return static_cast<uint32_t>((static_cast<int64_t>(bitcrush.raw()) + kParamOffset) >> kPresetShift);
 	}
 
 	/// @brief The mask for @p bitcrush at @p base low bits cleared at preset 0; every bit while off.
-	[[nodiscard]] static constexpr uint32_t mask(q31 bitcrush, int base) {
+	[[nodiscard]] static constexpr uint32_t mask(Q<31> bitcrush, int base) {
 		return on(bitcrush) ? kAllBits << (base + static_cast<int>(preset(bitcrush))) : kAllBits;
 	}
 
 	/// @brief How far the owner's post-FX volume is shifted down: preset − 4 above preset 4, else 0.
-	[[nodiscard]] static constexpr int volume_shift(q31 bitcrush) {
+	[[nodiscard]] static constexpr int volume_shift(Q<31> bitcrush) {
 		return on(bitcrush) && preset(bitcrush) > kLoudestPreset ? static_cast<int>(preset(bitcrush) - kLoudestPreset)
 		                                                         : 0;
 	}
@@ -83,8 +84,9 @@ struct BitDepth {
 	/// @brief One frame, masked.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& /*s*/, StereoSample x) {
-		return {.l = static_cast<q31>(static_cast<uint32_t>(x.l) & c.mask),
-		        .r = static_cast<q31>(static_cast<uint32_t>(x.r) & c.mask)};
+		// The mask is a bit operation on each sample, so raw.
+		return {.l = Q<31>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(x.l.raw()) & c.mask)),
+		        .r = Q<31>::from_raw(static_cast<int32_t>(static_cast<uint32_t>(x.r.raw()) & c.mask))};
 	}
 };
 

@@ -13,14 +13,15 @@ using deluge::dsp::StereoSample;
 
 namespace {
 
-constexpr int32_t kInput = 1 << 28;
+constexpr deluge::dsp::Q<31> kInput = deluge::dsp::q<31>(0.125);
 
 /// kInput through the antialiased tanh at @p drive, from silence: the first sample a fresh curve gives.
 int32_t first_sample(uint32_t drive) {
 	using deluge::dsp::fixed::AntialiasedTanh;
 	AntialiasedTanh::State state{};
 	return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = drive}), deluge::dsp::EmptyBlock{}, state,
-	                             kInput);
+	                             kInput)
+	    .raw();
 }
 
 /// The voice variant of one first sample, by hand: tanh at 5 + amount, shifted from amount 2.
@@ -36,7 +37,8 @@ int32_t chain_by_hand(uint8_t amount) {
 std::vector<StereoSample> ramp() {
 	std::vector<StereoSample> block;
 	for (int32_t i = 0; i < 16; i++) {
-		block.push_back({.l = i * (1 << 25), .r = -i * (1 << 24)});
+		block.push_back(
+		    {.l = deluge::dsp::Q<31>::from_raw(i * (1 << 25)), .r = deluge::dsp::Q<31>::from_raw(-i * (1 << 24))});
 	}
 	return block;
 }
@@ -53,14 +55,14 @@ describe saturation("tanh saturation per voice and per chain", ${
 	it("saturates a voice's sample harder, shifting from amount 2", _ {
 		for (uint8_t amount = 1; amount <= 4; amount++) {
 			Saturation s;
-			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::VOICE}))
+			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::VOICE}).raw())
 			    .to_equal(voice_by_hand(amount));
 		}
 	});
 	it("saturates a chain's sample from amount 1, shifting from amount 3", _ {
 		for (uint8_t amount = 1; amount <= 4; amount++) {
 			Saturation s;
-			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::CHAIN}))
+			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::CHAIN}).raw())
 			    .to_equal(chain_by_hand(amount));
 		}
 	});

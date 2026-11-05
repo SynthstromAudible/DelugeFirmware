@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "effects/bitcrush.h"
@@ -34,8 +35,8 @@
 
 namespace deluge::effects {
 
-/// @brief The reverb send a chain adds into: one value per frame of the block, Q31; the engine's reverb reads it.
-using ReverbSend = std::span<int32_t>;
+/// @brief The reverb send a chain adds into: one sample per frame of the block; the engine's reverb reads it.
+using ReverbSend = std::span<dsp::Q<31>>;
 
 /// @brief What every home's mod FX, EQ and delay read for one block, as the owner resolved them from its params.
 struct FxInputs {
@@ -49,13 +50,21 @@ struct FxInputs {
 	int32_t mod_fx_offset;   ///< The offset knob, Q31 signed.
 	int32_t mod_fx_feedback; ///< The feedback knob, Q31 signed.
 	EqualizerParams eq;
-	Delay::State delay; ///< The block's working state, which the owner set up on the chain's delay.
-	bool stereo;        ///< Whether the engine renders in stereo.
-	int32_t grain_send; ///< The granular's reverb send before the post-FX volume scales it, Q31.
+	Delay::State delay;    ///< The block's working state, which the owner set up on the chain's delay.
+	bool stereo;           ///< Whether the engine renders in stereo.
+	dsp::Q<31> grain_send; ///< The granular's reverb send before the post-FX volume scales it, Q31.
 	/// The synth's noise stream: the filters, mod FX and grain draw from it, written back after each block. Never null
 	/// once built.
 	dsp::fixed::Cong* noise = nullptr;
 };
+
+/// @brief The granular's reverb send: the post-FX volume times the send knob.
+/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity.
+/// @param send The send knob, Q31.
+/// @return The Q26 product moved to the Q31 send, holding at full scale where volume × send reaches 1.0.
+[[nodiscard]] inline dsp::Q<31> grain_send_amount(dsp::Q<27> post_fx_volume, dsp::Q<31> send) {
+	return mul_as_sat<dsp::Q<31>>(post_fx_volume, send);
+}
 
 /// @brief The effect components every home has, and the mod FX, EQ and delay stage they share.
 ///
@@ -67,7 +76,7 @@ public:
 	/// @param granular_allocator Where the granular's State and ring come from.
 	/// @param enter What entering GRAIN does to the granular: CLEAR for a sound, KEEP for a host chain.
 	/// @param arena Where the delay's tapes come from.
-	/// @param last_post_reverb_volume The send and volume's first ramp start, Q31; -1 leaves it for the first block.
+	/// @param last_post_reverb_volume The send and volume's first ramp start, Q27; -1 leaves it for the first block.
 	ChainCore(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, EnterGrain enter, DelayArena& arena,
 	          int32_t last_post_reverb_volume);
 	ChainCore(const ChainCore&) = delete;
@@ -92,7 +101,7 @@ public:
 
 	/// @brief The mod FX (or the granular, when the type in effect is GRAIN), the EQ, then the delay, over @p block in
 	/// place.
-	/// @param post_fx_volume The post-FX volume, Q31: the mod FX and the granular scale it.
+	/// @param post_fx_volume The post-FX volume, Q27 (2^27 unity): the mod FX and the granular scale it.
 	/// @param sound Whether any sound came in this block.
 	/// @param block The audio to process in place.
 	/// @param in The block's resolved effect inputs.

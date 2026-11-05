@@ -44,7 +44,7 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 	int32_t numParams = paramSet.getNumParams();
 	doc.params.reserve(numParams);
 	for (int32_t p = 0; p < numParams; p++) {
-		doc.params.push_back(toDocAutoParam(paramSet.params[p].currentValue, paramSet.docForParam(p)->nodes));
+		doc.params.push_back(toDocAutoParam(paramSet.params[p].played(), paramSet.docForParam(p)->nodes));
 	}
 	return doc;
 }
@@ -69,7 +69,9 @@ void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
 	// (where the engine reads it) rather than the AutoParam's inline storage.
 	int32_t count = std::min(static_cast<int32_t>(doc.params.size()), paramSet.getNumParams());
 	for (int32_t p = 0; p < count; p++) {
-		fromDocAutoParam(doc.params[p], paramSet.params[p].currentValue, paramSet.docForParam(p)->nodes);
+		int32_t value = 0;
+		fromDocAutoParam(doc.params[p], value, paramSet.docForParam(p)->nodes);
+		paramSet.params[p].setPlayed(value);
 	}
 }
 
@@ -199,7 +201,9 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			const deluge::plugin::ParamId id = cable_depth(pcs->patchCables[i].from, pcs->patchCables[i].destination);
 			for (const DocCableDepth& lane : doc.cable_depths) {
 				if (lane.depth == id) {
-					fromDocAutoParam(lane.amount, pcs->patchCables[i].param.currentValue, pcs->docForParam(i)->nodes);
+					int32_t value = 0;
+					fromDocAutoParam(lane.amount, value, pcs->docForParam(i)->nodes);
+					pcs->patchCables[i].param.setPlayed(value);
 				}
 			}
 		}
@@ -211,10 +215,9 @@ bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value,
 	if (!unpatched || p < 0 || p >= static_cast<int32_t>(unpatched->params.size())) {
 		return false;
 	}
-	unpatched->params[p].current_value = value; // authoritative write (params[p] is the runtime's index p)
-	// Only the value changed (not nodes, which the engine owner-resolves from this same store); sync the engine's
-	// RT cursor. There is no AutoParam storage to project into.
-	engineParam.currentValue = value;
+	// The base (params[p] is the runtime's index p) and what plays. Only the value changed, not the nodes, which the
+	// engine owner-resolves from this same store.
+	engineParam.setBase(unpatched->params[p], value);
 	return true;
 }
 

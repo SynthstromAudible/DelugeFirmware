@@ -18,9 +18,9 @@ namespace deluge::bench {
 namespace {
 
 /// @brief The dry copy a filter fades against: a block's samples, two per frame in stereo.
-alignas(16) std::array<q31, 2 * kMaxBlock> fade_scratch{};
+alignas(16) std::array<dsp::Q<31>, 2 * kMaxBlock> fade_scratch{};
 /// @brief The parallel route's copy of the block.
-alignas(16) std::array<q31, 2 * kMaxBlock> parallel_scratch{};
+alignas(16) std::array<dsp::Q<31>, 2 * kMaxBlock> parallel_scratch{};
 
 /// @brief The rig every filter case renders with, in on-chip SRAM.
 FilterRig rig{};

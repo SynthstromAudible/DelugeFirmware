@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -70,30 +71,30 @@ namespace deluge::dsp::fixed::dx7 {
 template <std::size_t N>
 requires(N == 2 || N == 3)
 struct MkIFeedbackStack {
-	using value_type = q31; ///< A sample, Q24.
-	using step_type = q31;  ///< One sample per step.
+	using value_type = Q<24>; ///< A sample.
+	using step_type = Q<24>;  ///< One sample per step.
 
 	/// @brief Each op's level and pitch, and the voice's feedback setting.
 	struct Settings {
-		std::array<int32_t, N> level_in{}; ///< Each op's level, Q24 doublings.
-		std::array<int32_t, N> freq{};     ///< Each op's phase increment, 2^24 per cycle.
-		int32_t feedback_shift = 16;       ///< The voice's feedback shift, before the stack's two extra steps.
-		const Tables* tables = nullptr;    ///< The engine's tables.
+		std::array<Q<24>, N> level_in{}; ///< Each op's level in doublings.
+		std::array<Phase, N> freq{};     ///< Each op's phase increment.
+		int32_t feedback_shift = 16;     ///< The voice's feedback shift, before the stack's two extra steps.
+		const Tables* tables = nullptr;  ///< The engine's tables.
 	};
 
 	/// @brief Settings with the stack's feedback shift applied.
 	struct Coefficients {
-		std::array<int32_t, N> level_in{}; ///< As Settings::level_in.
-		std::array<int32_t, N> freq{};     ///< As Settings::freq.
-		int32_t feedback_shift = 16;       ///< The shift the history is read at: the voice's plus 2, at most 16.
-		const Tables* tables = nullptr;    ///< As Settings::tables.
+		std::array<Q<24>, N> level_in{}; ///< As Settings::level_in.
+		std::array<Phase, N> freq{};     ///< As Settings::freq.
+		int32_t feedback_shift = 16;     ///< The shift the history is read at: the voice's plus 2, at most 16.
+		const Tables* tables = nullptr;  ///< As Settings::tables.
 	};
 
 	/// @brief What the sample loop steps: each op's phase and attenuation, and the feedback history.
 	struct Loop {
-		std::array<q31, N> phase{}; ///< Each op's phase at the next sample.
-		std::array<q31, N> gain{};  ///< Each op's attenuation at the last sample, 1/1024 octave (16 bits used).
-		FeedbackHistory feedback{}; ///< The voice's feedback history.
+		std::array<Phase, N> phase{};  ///< Each op's phase at the next sample.
+		std::array<int32_t, N> gain{}; ///< Each op's attenuation at the last sample, 1/1024 octave (16 bits used).
+		FeedbackHistory feedback{};    ///< The voice's feedback history.
 	};
 
 	/// @brief The stack between blocks, and the loop within one.
@@ -129,7 +130,7 @@ struct MkIFeedbackStack {
 		b.dgain[0] = g.dgain;
 		s.op[0].gain_out = g.gain2;
 		for (std::size_t k = 1; k < N; ++k) {
-			const int32_t gain_out = kEnvMax - (c.level_in[k] >> (28 - 14));
+			const int32_t gain_out = kEnvMax - as_floor<Q<10>>(c.level_in[k]).raw();
 			const int32_t start = gain_out == 0 ? kEnvMax - 1 : gain_out;
 			s.op[k].gain_out = gain_out;
 			s.loop.gain[k] = start;
@@ -144,17 +145,21 @@ struct MkIFeedbackStack {
 
 	/// @brief One sample down the stack.
 	/// @return The last op's sample, which is also the next sample's feedback.
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, Loop& l) {
-		const q31 scaled = wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1);
-		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]);
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> step(const Coefficients& c, const Block& b, Loop& l) {
+		// The last two samples' sum, scaled down by a run-time shift, so raw.
+		const Phase scaled = Phase::from_raw(add_wrap(l.feedback.y0, l.feedback.y1).raw() >> (c.feedback_shift + 1));
+		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]); // the attenuations are integer
 		l.feedback.y0 = l.feedback.y1;
-		q31 y = mki_sin(*c.tables, wrapping_add(l.phase[0], scaled), static_cast<uint16_t>(l.gain[0]));
-		l.phase[0] = wrapping_add(l.phase[0], c.freq[0]);
+		auto y =
+		    Q<24>::from_raw(mki_sin(*c.tables, add_wrap(l.phase[0], scaled).raw(), static_cast<uint16_t>(l.gain[0])));
+		l.phase[0] = add_wrap(l.phase[0], c.freq[0]);
 		util::constexpr_for<1, N, 1>([&]<std::size_t K> [[gnu::always_inline]] () {
 			l.gain[K] = wrapping_add(l.gain[K], b.dgain[K]);
-			y = mki_sin(*c.tables, wrapping_add(l.phase[K], y), static_cast<uint16_t>(l.gain[K]));
-			l.phase[K] = wrapping_add(l.phase[K], c.freq[K]);
+			const Phase at = add_wrap(l.phase[K], y); // a sample is a phase offset
+			y = Q<24>::from_raw(mki_sin(*c.tables, at.raw(), static_cast<uint16_t>(l.gain[K])));
+			l.phase[K] = add_wrap(l.phase[K], c.freq[K]);
 		});
+
 		l.feedback.y1 = y;
 		return y;
 	}

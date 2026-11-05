@@ -25,8 +25,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/q31_ops.h" // q31_t
 #include "granular_ring.h"
+#include "raw_frame.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -91,7 +92,7 @@ inline constexpr int32_t kRandomnessNone = 0;
 inline constexpr int32_t kRandomnessMid = 0x40000000; ///< @copydoc kRandomnessNone
 inline constexpr int32_t kRandomnessMax = INT32_MAX;  ///< @copydoc kRandomnessNone
 
-/// @brief The post-FX volume a run starts each block's chain from, Q31.
+/// @brief The post-FX volume a run starts each block's chain from, Q27.
 inline constexpr int32_t kStartVolume = 0x30000000;
 
 /// @brief The frames an extremes block holds each extreme: a square wave low enough to pass the wet low-pass.
@@ -102,11 +103,11 @@ inline constexpr uint16_t kBlock = 128;
 
 /// @return @p n frames of a full-range sequence, a linear congruential generator per channel, different for each
 /// @p block.
-[[nodiscard]] inline std::vector<StereoSample> stereo_input(std::size_t n, std::size_t block) {
-	std::vector<StereoSample> v(n);
+[[nodiscard]] inline std::vector<RawFrame> stereo_input(std::size_t n, std::size_t block) {
+	std::vector<RawFrame> v(n);
 	uint32_t l = 0x9e3779b9U * static_cast<uint32_t>(block + 1);
 	uint32_t r = 0x85ebca6bU * static_cast<uint32_t>(block + 1) + 1;
-	for (StereoSample& frame : v) {
+	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
 		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
@@ -305,7 +306,7 @@ template <typename Fx>
 			fx.startSkippingRendering();
 			break;
 		}
-		std::vector<StereoSample> frames = stereo_input(block.n, b);
+		std::vector<RawFrame> frames = stereo_input(block.n, b);
 		if (block.extremes) {
 			for (std::size_t i = 0; i < frames.size(); ++i) {
 				const bool even = (i / kExtremesRun) % 2 == 0;
@@ -314,9 +315,9 @@ template <typename Fx>
 			}
 		}
 		if (!block.sound) {
-			std::ranges::fill(frames, StereoSample{0, 0});
+			std::ranges::fill(frames, RawFrame{0, 0});
 		}
-		for (const StereoSample frame : frames) {
+		for (const RawFrame frame : frames) {
 			trace.inputs.push_back(frame.l);
 			trace.inputs.push_back(frame.r);
 		}
@@ -324,7 +325,7 @@ template <typename Fx>
 		int32_t volume = kStartVolume;
 		fx.processGrainFX(frames, block.rate, block.mix, block.density, block.randomness, &volume, block.sound,
 		                  block.send_amount, send);
-		for (const StereoSample frame : frames) {
+		for (const RawFrame frame : frames) {
 			trace.samples.push_back(frame.l);
 			trace.samples.push_back(frame.r);
 		}

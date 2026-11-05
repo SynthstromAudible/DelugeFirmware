@@ -35,6 +35,8 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
@@ -74,8 +76,9 @@ namespace deluge::dsp::fixed::dx7 {
 /// No denormal arises, so flushing them (NEON) or not (SSE) changes nothing: x is 0 or at least 2^-22, u at least
 /// 2^-44, the gain a multiple of 2^-24 or 0, and every product stays above 2^-126.
 struct ModernVectorOperator {
-	using value_type = q31;       ///< A sample, Q24.
-	using step_type = Argon<q31>; ///< Four samples per step.
+	using value_type = Q<24>;   ///< A sample.
+	using step_type = QVec<24>; ///< Four samples per step.
+	using Phases = QVec<24>;    ///< Four phases, as Phase.
 
 	/// @brief The input and output, one mode each.
 	enum class Mode : uint8_t { NONE_SET, NONE_ADD, BUS_SET, BUS_ADD };
@@ -85,23 +88,23 @@ struct ModernVectorOperator {
 	struct Settings {
 		Input input = Input::NONE;      ///< NONE or BUS; a feedback op renders through Operator.
 		Output output = Output::SET;    ///< Set or add.
-		int32_t level_in = 0;           ///< The level, Q24 doublings.
-		int32_t freq = 0;               ///< The phase increment, 2^24 per cycle.
+		Q<24> level_in{};               ///< The level in doublings.
+		Phase freq{};                   ///< The phase increment.
 		const Tables* tables = nullptr; ///< The engine's tables, for the gain's exp2.
 	};
 
 	/// @brief Settings with the routing folded into the mode.
 	struct Coefficients {
 		Mode mode = Mode::NONE_SET;     ///< The input and output.
-		int32_t level_in = 0;           ///< As Settings::level_in.
-		int32_t freq = 0;               ///< As Settings::freq.
+		Q<24> level_in{};               ///< As Settings::level_in.
+		Phase freq{};                   ///< As Settings::freq.
 		const Tables* tables = nullptr; ///< As Settings::tables.
 	};
 
 	/// @brief What the loop steps: four lanes of phase and gain.
 	struct Loop {
-		Argon<int32_t> phase{}; ///< Each lane's phase.
-		Argon<float> gain{};    ///< Each lane's gain, 1.0 = 2^24.
+		Phases phase{};    ///< Each lane's phase.
+		Argon<float> gain; ///< Each lane's gain, 1.0 = 2^24.
 	};
 
 	/// @brief The op between blocks, and the loop within one.
@@ -113,13 +116,13 @@ struct ModernVectorOperator {
 
 	/// @brief What a step adds to every lane.
 	struct Block {
-		Argon<int32_t> phase_step{}; ///< freq << 2, wrapping.
-		Argon<float> gain_step{};    ///< float(dgain) · 2^-22: four samples' gain.
+		Phases phase_step{};    ///< freq << 2, wrapping.
+		Argon<float> gain_step; ///< float(dgain) · 2^-22: four samples' gain.
 	};
 
 	/// @brief Three chains per chained step: twelve samples, as the device's NEON kernel computes them.
 	static constexpr std::size_t kChains = 3;
-	using Vectors = ChainVectors<Argon<q31>, kChains>; ///< One vector per chain.
+	using Vectors = ChainVectors<QVec<24>, kChains>; ///< One vector per chain.
 
 	static constexpr float kPoly0 = -0.01880853017455781F; ///< The sine polynomial's u^3 coefficient (0xbc9a1459).
 	static constexpr float kPoly1 = 0.25215252666796095F;  ///< Its u^2 coefficient (0x3e811a23).
@@ -143,37 +146,39 @@ struct ModernVectorOperator {
 		const Gains g = Operator::gains(
 		    {.mode = Operator::Mode::MODERN_NONE_SET, .level_in = c.level_in, .freq = c.freq, .tables = c.tables}, held,
 		    n);
+		// Lane i starts i samples on: the phase and the Q24 gain plus i steps, integer products by the lane's index.
 		const Argon<int32_t> lanes = Argon<int32_t>::Load(kLanes);
-		s.loop.phase = Argon<int32_t>{held.phase}.MultiplyAdd(lanes, Argon<int32_t>{c.freq});
-		s.loop.gain = Argon<int32_t>{g.gain1}.MultiplyAdd(lanes, Argon<int32_t>{g.dgain}).ConvertTo<float, 24>();
+		s.loop.phase =
+		    Phases::from_raw(Argon<int32_t>{held.phase.raw()}.MultiplyAdd(lanes, Argon<int32_t>{c.freq.raw()}));
+		s.loop.gain = to_float(QVec<24>::from_raw(Argon<int32_t>{g.gain1}.MultiplyAdd(lanes, Argon<int32_t>{g.dgain})));
 		s.op.gain_out = g.gain2;
 		s.op.phase = Operator::advance_phase(held.phase, c.freq, n);
-		return {.phase_step = Argon<int32_t>{c.freq}.ShiftLeft(2),
-		        .gain_step = Argon<int32_t>{g.dgain}.ConvertTo<float, 22>()};
+		// A step is four samples: four Q24 gain steps are dgain read as Q22.
+		return {.phase_step = scale_shl_wrap<2>(Phases::splat(c.freq)),
+		        .gain_step = to_float(QVec<22>::from_raw(Argon<int32_t>{g.dgain}))};
 	}
 
 	/// @brief Four samples at mode @p M.
 	/// @param modulation The modulation bus's samples; read in the BUS modes only.
 	/// @param accumulator What the output holds; read in the ADD modes only.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const Block& b, Loop& l,
-	                                                            Argon<q31> modulation, Argon<q31> accumulator) {
-		Argon<int32_t> at = l.phase;
+	[[nodiscard]] [[gnu::always_inline]] static QVec<24> step(const Coefficients& /*c*/, const Block& b, Loop& l,
+	                                                          QVec<24> modulation, QVec<24> accumulator) {
+		Phases at = l.phase;
 		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
-			at = at + modulation;
+			at = add_wrap(at, modulation); // a sample is a phase offset
 		}
-		const Argon<int32_t> sign = at.CompareTestNonzero(Argon<int32_t>{0x800000}).ToMask().template As<int32_t>();
-		const Argon<float> x =
-		    ((at & Argon<int32_t>{0x7fffff}) - Argon<int32_t>{0x400000}).template ConvertTo<float, 22>();
+		const Argon<int32_t> sign = half_cycle_sign(at);
+		const Argon<float> x = to_float(position(at));
 		const Argon<float> u = x * x;
 		Argon<float> p = Argon<float>{kPoly1}.MultiplyAdd(u, kPoly0);
 		p = Argon<float>{kPoly2}.MultiplyAdd(u, p);
 		p = Argon<float>{kPoly3}.MultiplyAdd(u, p);
-		const Argon<int32_t> y = (p * l.gain).template ConvertTo<int32_t, 24>() ^ sign;
-		l.phase = l.phase + b.phase_step;
+		const QVec<24> y = invert_where(from_float<24>(p * l.gain), sign);
+		l.phase = add_wrap(l.phase, b.phase_step);
 		l.gain = in_order(l.gain + b.gain_step);
 		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
-			return y + accumulator;
+			return add_wrap(y, accumulator);
 		}
 		return y;
 	}
@@ -186,26 +191,24 @@ struct ModernVectorOperator {
 	[[nodiscard]] [[gnu::always_inline]] static Vectors step_chains(const Coefficients& /*c*/, const Block& b, Loop& l,
 	                                                                const Vectors& modulation,
 	                                                                const Vectors& accumulator) {
-		const Argon<int32_t> mask{0x7fffff};
-		const Argon<int32_t> half{0x400000};
-		const Argon<int32_t> sign_bit{0x800000};
-		const Argon<int32_t> p0 = l.phase;
-		const Argon<int32_t> p1 = p0 + b.phase_step;
-		const Argon<int32_t> p2 = p1 + b.phase_step;
-		Argon<int32_t> a0 = p0;
-		Argon<int32_t> a1 = p1;
-		Argon<int32_t> a2 = p2;
+		const Phases step = b.phase_step;
+		const Phases p0 = l.phase;
+		const Phases p1 = add_wrap(p0, step);
+		const Phases p2 = add_wrap(p1, step);
+		Phases a0 = p0;
+		Phases a1 = p1;
+		Phases a2 = p2;
 		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
-			a0 = a0 + modulation.v[0];
-			a1 = a1 + modulation.v[1];
-			a2 = a2 + modulation.v[2];
+			a0 = add_wrap(a0, modulation.v[0]);
+			a1 = add_wrap(a1, modulation.v[1]);
+			a2 = add_wrap(a2, modulation.v[2]);
 		}
-		const Argon<int32_t> s0 = a0.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
-		const Argon<int32_t> s1 = a1.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
-		const Argon<int32_t> s2 = a2.CompareTestNonzero(sign_bit).ToMask().template As<int32_t>();
-		const Argon<float> x0 = ((a0 & mask) - half).template ConvertTo<float, 22>();
-		const Argon<float> x1 = ((a1 & mask) - half).template ConvertTo<float, 22>();
-		const Argon<float> x2 = ((a2 & mask) - half).template ConvertTo<float, 22>();
+		const Argon<int32_t> s0 = half_cycle_sign(a0);
+		const Argon<int32_t> s1 = half_cycle_sign(a1);
+		const Argon<int32_t> s2 = half_cycle_sign(a2);
+		const Argon<float> x0 = to_float(position(a0));
+		const Argon<float> x1 = to_float(position(a1));
+		const Argon<float> x2 = to_float(position(a2));
 		const Argon<float> u0 = x0 * x0;
 		const Argon<float> u1 = x1 * x1;
 		const Argon<float> u2 = x2 * x2;
@@ -221,14 +224,14 @@ struct ModernVectorOperator {
 		const Argon<float> g0 = l.gain;
 		const Argon<float> g1 = in_order(g0 + b.gain_step);
 		const Argon<float> g2 = in_order(g1 + b.gain_step);
-		Vectors y{{(q0 * g0).template ConvertTo<int32_t, 24>() ^ s0, (q1 * g1).template ConvertTo<int32_t, 24>() ^ s1,
-		           (q2 * g2).template ConvertTo<int32_t, 24>() ^ s2}};
+		Vectors y{{invert_where(from_float<24>(q0 * g0), s0), invert_where(from_float<24>(q1 * g1), s1),
+		           invert_where(from_float<24>(q2 * g2), s2)}};
 		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
-			y.v[0] = y.v[0] + accumulator.v[0];
-			y.v[1] = y.v[1] + accumulator.v[1];
-			y.v[2] = y.v[2] + accumulator.v[2];
+			y.v[0] = add_wrap(y.v[0], accumulator.v[0]);
+			y.v[1] = add_wrap(y.v[1], accumulator.v[1]);
+			y.v[2] = add_wrap(y.v[2], accumulator.v[2]);
 		}
-		l.phase = p2 + b.phase_step;
+		l.phase = add_wrap(p2, step);
 		l.gain = in_order(g2 + b.gain_step);
 		return y;
 	}
@@ -237,6 +240,24 @@ struct ModernVectorOperator {
 	[[gnu::always_inline]] static void resume(State& s, OperatorState op) { s.op = op; }
 
 private:
+	/// @brief All ones in each lane whose phase is in its cycle's second half (bit 23 set), else zero: the sign the
+	/// output is inverted by.
+	[[nodiscard]] [[gnu::always_inline]] static Argon<int32_t> half_cycle_sign(Phases at) {
+		return Argon<int32_t>{at.raw()}.CompareTestNonzero(Argon<int32_t>{0x800000}).ToMask().template As<int32_t>();
+	}
+
+	/// @brief @p y inverted bitwise (−y − 1) in each lane whose @p sign is all ones: a bit operation, so raw.
+	[[nodiscard]] [[gnu::always_inline]] static QVec<24> invert_where(QVec<24> y, Argon<int32_t> sign) {
+		return QVec<24>::from_raw(y.raw() ^ sign);
+	}
+
+	/// @brief Each lane's position in its half cycle, in [-1, 1): the phase's low 23 bits, [0, 2) read as Q22, less
+	/// one. The mask is a bit operation on the phase, so it stays raw.
+	[[nodiscard]] [[gnu::always_inline]] static QVec<22> position(Phases at) {
+		const QVec<22> in_half = QVec<22>::from_raw(Argon<int32_t>{at.raw()} & Argon<int32_t>{0x7fffff});
+		return sub_wrap(in_half, QVec<22>::splat(q<22>(1.0)));
+	}
+
 	/// @brief @p v as it is, hidden from the optimiser, so a sum of it is not reassociated with what made it.
 	/// @details The gain ramp adds the step once per vector, each sum rounding, and every update goes through this.
 	/// Within one chained step the three sums are visible together, and an unrolled or rotated loop can show two

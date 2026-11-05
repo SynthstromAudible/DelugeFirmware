@@ -38,6 +38,12 @@ struct DocAutoParam {
 	ParamNodeVector nodes; // OrderedPosVector<ParamNode>: the single runtime store the engine borrows
 };
 
+/// @brief Set @p lane's base value: what the param plays where it has no automation, and what files save. The
+/// model's one writer of `current_value`; the engine's played value is the AutoParam's.
+constexpr void set_base(DocAutoParam& lane, int32_t value) {
+	lane.current_value = value;
+}
+
 /// @brief Copy a value and its automation nodes into a DocAutoParam; works on the raw pieces so the model needs no
 /// engine AutoParam.
 /// @param current_value The parameter's current value.
@@ -45,7 +51,7 @@ struct DocAutoParam {
 /// @return The document form. If allocation fails part-way, it holds the nodes copied so far.
 inline DocAutoParam toDocAutoParam(int32_t current_value, const ParamNodeVector& nodes) {
 	DocAutoParam doc;
-	doc.current_value = current_value;
+	set_base(doc, current_value);
 	(void)doc.nodes.reserveExtra(static_cast<int32_t>(nodes.size()));
 	for (const ParamNode& node : nodes) {
 		// nodes are ascending by pos (copied from an ordered source), so each is the new last node.

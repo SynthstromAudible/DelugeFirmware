@@ -20,12 +20,14 @@
 // foundation the persistent voice model relies on; the band-reselect-on-set_increment case is the key hazard.
 // Run on x86 (SIMDe) + ARM/QEMU via CTest.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/bandlimited/saw.h"
 #include "dsp-next/fixed/bandlimited/square.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
+#include "phase_words.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
@@ -47,7 +49,7 @@ constexpr std::size_t kN = 16; // a render block
 template <typename Osc>
 std::array<int32_t, kN> block(Osc& osc) {
 	std::array<int32_t, kN> out{};
-	osc.render_block(Buffer{out});
+	osc.render_block(deluge::dsp::typed_view(std::span{out}));
 	return out;
 }
 } // namespace
@@ -61,40 +63,40 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 	context("TableOscillator", _ {
 		it("persisting across two blocks equals reseeding a fresh oscillator", _ {
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
-			TableOscillator persistent{Table{table, kMag}, 0u, kInc};
+			TableOscillator persistent{Table{table, kMag}, uq(0u), uq(kInc)};
 			block(persistent);                       // block 1
 			auto cont = block(persistent);           // block 2 (continues)
 
-			TableOscillator first{Table{table, kMag}, 0u, kInc};
+			TableOscillator first{Table{table, kMag}, uq(0u), uq(kInc)};
 			block(first);
-			TableOscillator reseeded{Table{table, kMag}, first.phase(), kInc};
+			TableOscillator reseeded{Table{table, kMag}, first.phase(), uq(kInc)};
 			expect(cont).to_equal(block(reseeded));
 		});
 
 		it("set_increment then render equals constructing fresh at the new increment + phase", _ {
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
-			TableOscillator a{Table{table, kMag}, 0u, kInc};
+			TableOscillator a{Table{table, kMag}, uq(0u), uq(kInc)};
 			block(a);
-			a.set_increment(kInc2);
+			a.set_increment(uq(kInc2));
 			auto got = block(a);
 
-			TableOscillator b{Table{table, kMag}, 0u, kInc};
+			TableOscillator b{Table{table, kMag}, uq(0u), uq(kInc)};
 			block(b);
-			TableOscillator fresh{Table{table, kMag}, b.phase(), kInc2};
+			TableOscillator fresh{Table{table, kMag}, b.phase(), uq(kInc2)};
 			expect(got).to_equal(block(fresh));
 		});
 
 		it("setTable swaps the band, keeping the phase", _ {
 			std::array<int16_t, 8> tableA{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 			std::array<int16_t, 8> tableB{7000, 6000, 5000, 4000, 3000, 2000, 1000, 0};
-			TableOscillator a{Table{tableA, kMag}, 0u, kInc};
+			TableOscillator a{Table{tableA, kMag}, uq(0u), uq(kInc)};
 			block(a);
 			a.setTable(Table{tableB, kMag});
 			auto got = block(a);
 
-			TableOscillator b{Table{tableA, kMag}, 0u, kInc};
+			TableOscillator b{Table{tableA, kMag}, uq(0u), uq(kInc)};
 			block(b);
-			TableOscillator fresh{Table{tableB, kMag}, b.phase(), kInc};
+			TableOscillator fresh{Table{tableB, kMag}, b.phase(), uq(kInc)};
 			expect(got).to_equal(block(fresh));
 		});
 	});
@@ -105,14 +107,14 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 		it("set_increment re-selects the band, equalling a fresh oscillator at the new pitch", _ {
 			constexpr uint32_t kLow = 0x00200000u;
 			constexpr uint32_t kHigh = 0x30000000u;
-			BandLimitedTableOscillator a{saw_bandlimited_table(), 0u, kLow};
+			BandLimitedTableOscillator a{saw_bandlimited_table(), uq(0u), uq(kLow)};
 			block(a);
-			a.set_increment(kHigh);
+			a.set_increment(uq(kHigh));
 			auto got = block(a);
 
-			BandLimitedTableOscillator b{saw_bandlimited_table(), 0u, kLow};
+			BandLimitedTableOscillator b{saw_bandlimited_table(), uq(0u), uq(kLow)};
 			block(b);
-			BandLimitedTableOscillator fresh{saw_bandlimited_table(), b.phase(), kHigh};
+			BandLimitedTableOscillator fresh{saw_bandlimited_table(), b.phase(), uq(kHigh)};
 			expect(got).to_equal(block(fresh));
 		});
 	});
@@ -121,13 +123,13 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 		it("persisting across two blocks equals reseeding a fresh oscillator", _ {
 			Table band = square_bandlimited_table().select(kInc);
 			constexpr uint32_t kOffset = 0x40000000u;
-			PulseOscillator persistent{band, 0u, kInc, kOffset};
+			PulseOscillator persistent{band, uq(0u), uq(kInc), uq(kOffset)};
 			block(persistent);
 			auto cont = block(persistent);
 
-			PulseOscillator first{band, 0u, kInc, kOffset};
+			PulseOscillator first{band, uq(0u), uq(kInc), uq(kOffset)};
 			block(first);
-			PulseOscillator reseeded{band, first.phase(), kInc, kOffset};
+			PulseOscillator reseeded{band, first.phase(), uq(kInc), uq(kOffset)};
 			expect(cont).to_equal(block(reseeded));
 		});
 	});

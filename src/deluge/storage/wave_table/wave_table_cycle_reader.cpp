@@ -16,6 +16,7 @@
  */
 
 #include "storage/wave_table/wave_table_cycle_reader.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/wavetable/band_builder.h"
 #include "memory/general_memory_allocator.h"
@@ -93,7 +94,7 @@ Error WaveTableCycleReader::open() {
 void WaveTableCycleReader::store(uint32_t raw, int32_t*& destination) const {
 	int32_t value32;
 	if (format_.raw_data_format == RawDataFormat::FLOAT) {
-		value32 = q31_from_float(std::bit_cast<float>(raw));
+		value32 = deluge::dsp::from_float<31>(std::bit_cast<float>(raw)).raw();
 	}
 	else {
 		if (swapping_endianness_) {

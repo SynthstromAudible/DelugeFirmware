@@ -46,15 +46,15 @@ public:
 	/// @param seed the engine's phase state (increment set per block via @ref set_increment).
 	explicit WavetableSource(deluge::dsp::Phasor seed) : phasor_{seed} {}
 
-	/// The current render phase (UQ0.32). Persists across blocks — Voice reads it for osc-sync / skip.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
-	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
+	/// The current render phase. Persists across blocks — Voice reads it for osc-sync / skip.
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] std::optional<dsp::UQ<32>> current_phase() const override { return phase(); }
+	void advance_phase(dsp::UQ<32> delta) override { seek(add_wrap(phase(), delta)); }
 
 	/// Jump the phase (a skipped source still advances, or an external reseed). Leaves the increment.
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block.
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	/// Set the per-block pitch. Voice calls this each block before @ref render_block.
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
 
 	/// The wavetable band-data **view** to render (built app-side from the source's loaded `WaveTable`) — set per
 	/// block by Voice. The storage seam is now this view, not a `WaveTable` pointer, so the source is App-free.
@@ -66,15 +66,14 @@ public:
 		wave_index_increment_ = increment;
 	}
 
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 
 	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
 	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
 	/// @ref renderOscBlock. The engine owns its phase across blocks.
 	void render_into(const BlockControls& controls, const deluge::dsp::fixed::WaveTableData& table,
-	                 int32_t last_wave_index, int32_t wave_index_increment, uint32_t phase_increment,
-	                 deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
+	                 int32_t last_wave_index, int32_t wave_index_increment, dsp::UQ<32> phase_increment,
+	                 std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 		set_wave_data(table);
 		set_increment(phase_increment);
 		set_wave_index(last_wave_index, wave_index_increment);
@@ -82,11 +81,10 @@ public:
 	}
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                      deluge::dsp::fixed::Buffer out) override {
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<dsp::Q<31>> out) override {
 		render_into(controls, block.wavetable.data, block.wavetable.index_last, block.wavetable.index_increment,
 		            block.phase_increment, out,
-		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
+		            std::span<dsp::Q<31>>{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 };
 

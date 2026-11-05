@@ -17,6 +17,7 @@
 
 // The reverb component (effects/reverb.h) against the reverb reference: every workload, the model hand-over,
 // settings publication, and which model renders.
+#include "dsp-next/core/buffer_view.h"
 #include "effects/reverb.h"
 
 #include "dsp-next/core/stereo_sample.h"
@@ -39,7 +40,7 @@
 
 namespace {
 namespace rw = reverb_workloads;
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using deluge::dsp::test::ReferenceRunner;
 using deluge::effects::Reverb;
 using deluge::effects::ReverbModel;
@@ -60,13 +61,15 @@ struct ComponentRunner {
 		reverb->commit();
 	}
 	void set_knobs(const rw::Knobs& k) { reverb->publish(settings_of(k)); }
-	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
-		reverb->render(out, send, l, r);
+	// The workload's return levels are the reference's Q31 words
+	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
+		reverb->render(deluge::dsp::test::typed_frames(out), deluge::dsp::typed_view(send),
+		               deluge::dsp::Q<31>::from_raw(l), deluge::dsp::Q<31>::from_raw(r));
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
-			rw::digest_freeverb(d,
-			                    deluge::dsp::test::freeverb_view(reverb->freeverb_state(), reverb->freeverb_memory()));
+			rw::digest_freeverb(d, deluge::dsp::test::freeverb_view(reverb->freeverb_state(),
+			                                                        deluge::dsp::raw_view(reverb->freeverb_memory())));
 		}
 		else {
 			rw::digest_plate(d, deluge::dsp::test::plate_view(reverb->plate_state(), reverb->plate_memory()));
@@ -78,21 +81,21 @@ static_assert(rw::ReverbRunner<ComponentRunner>);
 /// @brief One block of 128 frames of tone, numbered from 0: its send and the dry frames it is rendered over.
 struct Block {
 	std::vector<int32_t> send;
-	std::vector<StereoSample> out;
+	std::vector<RawFrame> out;
 	explicit Block(std::size_t b)
 	    : send(rw::send(128, rw::Send::TONE, b, b * 128)), out(rw::dry(128, rw::Send::TONE, b, b * 128)) {}
 };
 
 /// @return Whether two blocks hold the same frames.
-bool same(std::span<const StereoSample> a, std::span<const StereoSample> b) {
-	return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](StereoSample x, StereoSample y) {
+bool same(std::span<const RawFrame> a, std::span<const RawFrame> b) {
+	return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](RawFrame x, RawFrame y) {
 		       return x.l == y.l && x.r == y.r;
 	       });
 }
 
 /// @return Block @p b rendered by @p runner at centred levels.
 template <class R>
-std::vector<StereoSample> render_block(R& runner, std::size_t b) {
+std::vector<RawFrame> render_block(R& runner, std::size_t b) {
 	Block block(b);
 	runner.render(block.send, block.out, rw::kCentred, rw::kCentred);
 	return block.out;
@@ -123,7 +126,7 @@ describe reverb("the reverb component", ${
 
 			Block dry(1);
 			runner.reverb->begin_change();
-			std::vector<StereoSample> out = render_block(runner, 1);
+			std::vector<RawFrame> out = render_block(runner, 1);
 			expect(same(out, dry.out)).to_be_true();
 			runner.reverb->prepare(static_cast<ReverbModel>(m));
 			out = render_block(runner, 1);
@@ -176,7 +179,7 @@ describe reverb("the reverb component", ${
 
 			runner.set_knobs(rw::kMidpointB);
 			switched.set_knobs(rw::kMidpointB);
-			const std::vector<StereoSample> got = render_block(runner, kWarm);
+			const std::vector<RawFrame> got = render_block(runner, kWarm);
 			expect(same(got, render_block(switched, kWarm))).to_be_true();
 			expect(same(got, render_block(kept, kWarm))).to_be_false(); // B landed at this block, not later
 		}
@@ -194,7 +197,7 @@ describe reverb("the reverb component", ${
 		reverb->prepare(ReverbModel::MUTABLE);
 		reverb->commit();
 		Block mine(0);
-		reverb->render(mine.out, mine.send, rw::kCentred, rw::kCentred);
+		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), deluge::dsp::typed_view(std::span{mine.send}), deluge::dsp::Q<31>::from_raw(rw::kCentred), deluge::dsp::Q<31>::from_raw(rw::kCentred));
 
 		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceReverb>();
 		reference->setModel(deluge::dsp::test::reverb_ref::ReferenceReverb::Model::MUTABLE);
@@ -240,7 +243,7 @@ describe reverb("the reverb component", ${
 			ringing.set_model(m);
 			ringing.set_knobs(kOpen);
 			const double seconds = deluge::dsp::test::rt60(
-			    [&ringing](std::span<int32_t> in, std::span<StereoSample> out) { ringing.render(in, out, 1 << 30, 1 << 30); },
+			    [&ringing](std::span<int32_t> in, std::span<RawFrame> out) { ringing.render(in, out, 1 << 30, 1 << 30); },
 			    5.0);
 			expect(seconds).to_be_greater_than(0.05);
 		}
@@ -307,18 +310,18 @@ describe reverb("the reverb component", ${
 
 		// At depth 0 the return is unducked, and a hit neither registers nor advances the envelope.
 		expect(reverb->return_ducks()).to_be_false();
-		expect(reverb->return_level(128, kHit, rates, kInverse)).to_equal(1 << 29);
+		expect(reverb->return_level(128, kHit, rates, kInverse).raw()).to_equal(1 << 29);
 
-		reverb->set_return_duck(ReturnDuck{.depth = 0x20000000, .shape = kShape});
+		reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(0x20000000), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 		expect(reverb->return_ducks()).to_be_true();
 		for (int block = 0; block < 40; block++) {
 			const int32_t hit = block == 2 || block == 25 ? kHit : 0;
 			if (hit != 0) {
-				alongside.registerHit(hit);
+				alongside.register_hit(hit);
 			}
-			const int32_t duck = alongside.render(128, kShape, rates, kInverse);
-			expect(reverb->return_level(128, hit, rates, kInverse))
-			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+			const int32_t duck = alongside.render(128, deluge::dsp::Q<31>::from_raw(kShape), rates, kInverse);
+			expect(reverb->return_level(128, hit, rates, kInverse).raw())
+			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 		}
 	});
 
@@ -338,16 +341,16 @@ describe reverb("the reverb component", ${
 		for (int block = 0; block < 36; block++) {
 			const int32_t depth = block < 10 ? 0x20000000 : (block < 20 ? 0 : 0x30000000);
 			const int32_t hit = block == 2 || block == 12 || block == 25 ? kHit : 0;
-			reverb->set_return_duck(ReturnDuck{.depth = depth, .shape = kShape});
+			reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(depth), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 			int32_t duck = 0;
 			if (depth != 0) {
 				if (hit != 0) {
-					by_hand.registerHit(hit);
+					by_hand.register_hit(hit);
 				}
-				duck = by_hand.render(128, kShape, rates, kInverse);
+				duck = by_hand.render(128, deluge::dsp::Q<31>::from_raw(kShape), rates, kInverse);
 			}
-			expect(reverb->return_level(128, hit, rates, kInverse))
-			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, depth));
+			expect(reverb->return_level(128, hit, rates, kInverse).raw())
+			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(depth)));
 		}
 	});
 });

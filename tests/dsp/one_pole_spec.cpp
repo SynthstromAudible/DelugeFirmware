@@ -19,10 +19,11 @@
 // samples of a ramp at moveability 0x20000000. The OnePole kernel is pinned against the class, sample by sample from
 // equal memories: LOW_PASS against lowPass, ALL_PASS against allPass, HIGH_PASS against the input less lowPass, as the
 // high-pass ladder and the compressor write it, and the feedback reads against the class's. Full-scale and extreme
-// inputs, whose arithmetic overflows q31 in every mode's own operations, and the feedback reads at the memories they
+// inputs, whose arithmetic overflows Q31 in every mode's own operations, and the feedback reads at the memories they
 // leave and at the extremes, are pinned against the class's expressions computed through uint32_t, wrapping as the
 // hardware does. Then Mono<OnePole> against a hand loop over the kernel, across a mode switch.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 
 #include "dsp-next/core/concepts.h"
@@ -53,10 +54,12 @@ static_assert(processor_kernel<OnePole>);
 static_assert(moded_kernel<OnePole>);
 static_assert(!std::is_polymorphic_v<OnePole>);
 static_assert(processor<Mono<OnePole>>);
-static_assert(OnePole::coefficients({.moveability = 1 << 29, .mode = Mode::ALL_PASS}).m == 1 << 29);
-static_assert(OnePole::coefficients({.moveability = 1 << 29, .mode = Mode::ALL_PASS}).mode == Mode::ALL_PASS);
+static_assert(OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 29), .mode = Mode::ALL_PASS}).m.raw()
+              == 1 << 29);
+static_assert(OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 29), .mode = Mode::ALL_PASS}).mode
+              == Mode::ALL_PASS);
 static_assert(OnePole::coefficients({}).mode == Mode::LOW_PASS);
-static_assert(OnePole::State{}.z == 0);
+static_assert(OnePole::State{}.z == Q<31>{});
 
 /// The legacy pins' moveability.
 constexpr int32_t kRampMoveability = 0x20000000;
@@ -67,16 +70,16 @@ constexpr int32_t ramp(int32_t i) {
 }
 
 /// The moveabilities the comparisons run, Q31: the granular kernel's, one mid, and one near 2^31.
-constexpr std::array<q31, 3> kMoveabilities{1 << 29, 1 << 30, 0x7800'0000};
+constexpr std::array<q31_t, 3> kMoveabilities{1 << 29, 1 << 30, 0x7800'0000};
 /// The samples the long comparisons run.
 constexpr std::size_t kLongRun = 10'000;
 /// The seed of every noise input.
 constexpr uint32_t kSeed = 0x0E90'1E5D;
-/// The extremes of q31.
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+/// The extremes of Q31.
+constexpr q31_t kMin = std::numeric_limits<q31_t>::min();
+constexpr q31_t kMax = std::numeric_limits<q31_t>::max();
 /// The feedback amounts the feedback reads run, Q31: the extremes, silence, and three between.
-constexpr std::array<q31, 6> kAmounts{kMin, -(1 << 29), 0, 1 << 29, 0x5A82'7999, kMax};
+constexpr std::array<q31_t, 6> kAmounts{kMin, -(1 << 29), 0, 1 << 29, 0x5A82'7999, kMax};
 
 /// The shift that quietens the comparisons' noise, so that none of the class's signed operations can overflow.
 /// @details With μ the moveability as a fraction (m / 2^31), each step sets z ← (1 − 2μ)z + 2μx, so a bounded input
@@ -87,18 +90,18 @@ constexpr std::array<q31, 6> kAmounts{kMin, -(1 << 29), 0, 1 << 29, 0x5A82'7999,
 constexpr int kQuietShift = 5;
 
 /// @p n samples of seeded noise at 2^-kQuietShift of full scale.
-std::vector<q31> quiet_noise(std::size_t n, uint32_t seed) {
+std::vector<q31_t> quiet_noise(std::size_t n, uint32_t seed) {
 	SeededNoise noise{seed};
-	std::vector<q31> v(n);
-	for (q31& x : v) {
+	std::vector<q31_t> v(n);
+	for (q31_t& x : v) {
 		x = noise.render() >> kQuietShift;
 	}
 	return v;
 }
 
 /// 64 samples alternating between INT32_MIN and INT32_MAX, then @p n samples of full-scale seeded noise.
-std::vector<q31> extreme_then_full_scale(std::size_t n, uint32_t seed) {
-	std::vector<q31> v;
+std::vector<q31_t> extreme_then_full_scale(std::size_t n, uint32_t seed) {
+	std::vector<q31_t> v;
 	for (std::size_t i = 0; i < 64; ++i) {
 		v.push_back(i % 2 == 0 ? kMin : kMax);
 	}
@@ -110,44 +113,44 @@ std::vector<q31> extreme_then_full_scale(std::size_t n, uint32_t seed) {
 }
 
 /// @p a - @p b through uint32_t: two's complement, wrapping modulo 2^32.
-q31 sub_mod(q31 a, q31 b) {
-	return static_cast<q31>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
+q31_t sub_mod(q31_t a, q31_t b) {
+	return static_cast<q31_t>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
 }
 
 /// @p a + @p b through uint32_t: two's complement, wrapping modulo 2^32.
-q31 add_mod(q31 a, q31 b) {
-	return static_cast<q31>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
+q31_t add_mod(q31_t a, q31_t b) {
+	return static_cast<q31_t>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
 }
 
-/// Whether @p a - @p b leaves q31.
-bool difference_overflows(q31 a, q31 b) {
+/// Whether @p a - @p b leaves Q31.
+bool difference_overflows(q31_t a, q31_t b) {
 	const int64_t d = int64_t{a} - int64_t{b};
 	return d < int64_t{kMin} || d > int64_t{kMax};
 }
 
-/// Whether @p a + @p b leaves q31.
-bool sum_overflows(q31 a, q31 b) {
+/// Whether @p a + @p b leaves Q31.
+bool sum_overflows(q31_t a, q31_t b) {
 	const int64_t t = int64_t{a} + int64_t{b};
 	return t < int64_t{kMin} || t > int64_t{kMax};
 }
 
 /// The class's feedbackOutput on @p memory, its shift written through uint32_t so that it wraps as the class's does.
 /// OnePole::feedback at the amount's bits read as Q30, as raw bits.
-q31 feedback_bits(const OnePole::State& s, q31 amount) {
+q31_t feedback_bits(const OnePole::State& s, q31_t amount) {
 	return OnePole::feedback(s, deluge::dsp::Q<30>::from_raw(amount)).raw();
 }
 
 /// OnePole::feedback_unshifted at the amount's bits read as Q30, as raw bits.
-q31 feedback_unshifted_bits(const OnePole::State& s, q31 amount) {
+q31_t feedback_unshifted_bits(const OnePole::State& s, q31_t amount) {
 	return OnePole::feedback_unshifted(s, deluge::dsp::Q<30>::from_raw(amount)).raw();
 }
 
-q31 wrapped_feedback(q31 memory, q31 amount) {
-	return static_cast<q31>(static_cast<uint32_t>(multiply_32x32_rshift32_rounded(memory, amount)) << 2);
+q31_t wrapped_feedback(q31_t memory, q31_t amount) {
+	return static_cast<q31_t>(static_cast<uint32_t>(multiply_32x32_rshift32_rounded(memory, amount)) << 2);
 }
 
-/// Whether the class's feedbackOutput on @p memory leaves q31 in its shift.
-bool feedback_overflows(q31 memory, q31 amount) {
+/// Whether the class's feedbackOutput on @p memory leaves Q31 in its shift.
+bool feedback_overflows(q31_t memory, q31_t amount) {
 	const int64_t shifted = int64_t{multiply_32x32_rshift32_rounded(memory, amount)} * 4;
 	return shifted < int64_t{kMin} || shifted > int64_t{kMax};
 }
@@ -165,46 +168,46 @@ struct Wraps {
 /// The class's lowPass and allPass, and the high-pass its callers write, on one memory, written through uint32_t so
 /// that they wrap as the hardware does.
 struct WrappingReference {
-	q31 memory = 0;
+	q31_t memory = 0;
 	Wraps wraps{};
 
 	/// One sample: the low-pass output, with the memory advanced.
-	q31 low_pass(q31 input, q31 moveability) {
+	q31_t low_pass(q31_t input, q31_t moveability) {
 		wraps.input_less_memory += difference_overflows(input, memory) ? 1 : 0;
-		const q31 step = multiply_32x32_rshift32_rounded(sub_mod(input, memory), moveability) << 1;
+		const q31_t step = multiply_32x32_rshift32_rounded(sub_mod(input, memory), moveability) << 1;
 		wraps.step_plus_memory += sum_overflows(step, memory) ? 1 : 0;
-		const q31 output = add_mod(step, memory);
+		const q31_t output = add_mod(step, memory);
 		wraps.output_plus_step += sum_overflows(output, step) ? 1 : 0;
 		memory = add_mod(output, step);
 		return output;
 	}
 
 	/// One sample: the input less the low-pass output.
-	q31 high_pass(q31 input, q31 moveability) {
-		const q31 output = low_pass(input, moveability);
+	q31_t high_pass(q31_t input, q31_t moveability) {
+		const q31_t output = low_pass(input, moveability);
 		wraps.input_less_output += difference_overflows(input, output) ? 1 : 0;
 		return sub_mod(input, output);
 	}
 
 	/// One sample: twice the low-pass output less the input.
-	q31 all_pass(q31 input, q31 moveability) {
-		const q31 output = low_pass(input, moveability);
+	q31_t all_pass(q31_t input, q31_t moveability) {
+		const q31_t output = low_pass(input, moveability);
 		wraps.doubled_output += sum_overflows(output, output) ? 1 : 0;
-		const q31 doubled = add_mod(output, output);
+		const q31_t doubled = add_mod(output, output);
 		wraps.doubled_less_input += difference_overflows(doubled, input) ? 1 : 0;
 		return sub_mod(doubled, input);
 	}
 };
 
 /// One kernel step in @p mode, dispatched here as the wrapper does once per block.
-q31 step_in(Mode mode, const OnePole::Coefficients& c, OnePole::State& s, q31 x) {
+q31_t step_in(Mode mode, const OnePole::Coefficients& c, OnePole::State& s, q31_t x) {
 	switch (mode) {
 	case Mode::LOW_PASS:
-		return OnePole::step<Mode::LOW_PASS>(c, {}, s, x);
+		return OnePole::step<Mode::LOW_PASS>(c, {}, s, Q<31>::from_raw(x)).raw();
 	case Mode::HIGH_PASS:
-		return OnePole::step<Mode::HIGH_PASS>(c, {}, s, x);
+		return OnePole::step<Mode::HIGH_PASS>(c, {}, s, Q<31>::from_raw(x)).raw();
 	case Mode::ALL_PASS:
-		return OnePole::step<Mode::ALL_PASS>(c, {}, s, x);
+		return OnePole::step<Mode::ALL_PASS>(c, {}, s, Q<31>::from_raw(x)).raw();
 	}
 	return 0;
 }
@@ -252,60 +255,60 @@ describe one_pole_spec("OnePole", ${
 
 	context("the kernel", _ {
 		it("low-passes exactly as the class's lowPass", _ {
-			for (const q31 m : kMoveabilities) {
-				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
-				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::LOW_PASS});
+			for (const q31_t m : kMoveabilities) {
+				const std::vector<q31_t> in = quiet_noise(kLongRun, kSeed);
+				const OnePole::Coefficients c = OnePole::coefficients({.moveability = Q<31>::from_raw(m), .mode = Mode::LOW_PASS});
 				OnePole::State s{};
 				filters_reference::ReferenceOnePole pole;
-				for (const q31 x : in) {
-					expect(OnePole::step<Mode::LOW_PASS>(c, {}, s, x)).to_equal(pole.lowPass(x, m));
+				for (const q31_t x : in) {
+					expect(OnePole::step<Mode::LOW_PASS>(c, {}, s, Q<31>::from_raw(x)).raw()).to_equal(pole.lowPass(x, m));
 				}
-				expect(s.z).to_equal(pole.memory());
-				expect(s.z).not_().to_equal(q31{0});
+				expect(s.z.raw()).to_equal(pole.memory());
+				expect(s.z.raw()).not_().to_equal(q31_t{0});
 			}
 		});
 
 		it("high-passes exactly as the high-pass ladder and the compressor subtract the class's lowPass", _ {
-			for (const q31 m : kMoveabilities) {
-				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
-				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::HIGH_PASS});
+			for (const q31_t m : kMoveabilities) {
+				const std::vector<q31_t> in = quiet_noise(kLongRun, kSeed);
+				const OnePole::Coefficients c = OnePole::coefficients({.moveability = Q<31>::from_raw(m), .mode = Mode::HIGH_PASS});
 				OnePole::State s{};
 				filters_reference::ReferenceOnePole pole;
-				for (const q31 input : in) {
+				for (const q31_t input : in) {
 					// The legacy high-pass ladder and compressor detector: the input less the section's lowPass.
-					const q31 first_output = input - pole.lowPass(input, m);
-					expect(OnePole::step<Mode::HIGH_PASS>(c, {}, s, input)).to_equal(first_output);
+					const q31_t first_output = input - pole.lowPass(input, m);
+					expect(OnePole::step<Mode::HIGH_PASS>(c, {}, s, Q<31>::from_raw(input)).raw()).to_equal(first_output);
 				}
-				expect(s.z).to_equal(pole.memory());
-				expect(s.z).not_().to_equal(q31{0});
+				expect(s.z.raw()).to_equal(pole.memory());
+				expect(s.z.raw()).not_().to_equal(q31_t{0});
 			}
 		});
 
 		it("all-passes exactly as the class's allPass", _ {
-			for (const q31 m : kMoveabilities) {
-				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
-				const OnePole::Coefficients c = OnePole::coefficients({.moveability = m, .mode = Mode::ALL_PASS});
+			for (const q31_t m : kMoveabilities) {
+				const std::vector<q31_t> in = quiet_noise(kLongRun, kSeed);
+				const OnePole::Coefficients c = OnePole::coefficients({.moveability = Q<31>::from_raw(m), .mode = Mode::ALL_PASS});
 				OnePole::State s{};
 				filters_reference::ReferenceOnePole pole;
-				for (const q31 x : in) {
-					expect(OnePole::step<Mode::ALL_PASS>(c, {}, s, x)).to_equal(pole.allPass(x, m));
+				for (const q31_t x : in) {
+					expect(OnePole::step<Mode::ALL_PASS>(c, {}, s, Q<31>::from_raw(x)).raw()).to_equal(pole.allPass(x, m));
 				}
-				expect(s.z).to_equal(pole.memory());
-				expect(s.z).not_().to_equal(q31{0});
+				expect(s.z.raw()).to_equal(pole.memory());
+				expect(s.z.raw()).not_().to_equal(q31_t{0});
 			}
 		});
 
 		it("reads the feedback exactly as the class does, at the same memory", _ {
-			for (const q31 m : kMoveabilities) {
-				const std::vector<q31> in = quiet_noise(kLongRun, kSeed);
+			for (const q31_t m : kMoveabilities) {
+				const std::vector<q31_t> in = quiet_noise(kLongRun, kSeed);
 				OnePole::State s{};
 				filters_reference::ReferenceOnePole pole;
-				for (const q31 x : in) {
-					std::ignore = OnePole::step<Mode::LOW_PASS>({.m = m}, {}, s, x);
+				for (const q31_t x : in) {
+					std::ignore = OnePole::step<Mode::LOW_PASS>({.m = Q<31>::from_raw(m)}, {}, s, Q<31>::from_raw(x)).raw();
 					std::ignore = pole.lowPass(x, m);
 				}
-				expect(s.z).to_equal(pole.memory());
-				for (const q31 amount : kAmounts) {
+				expect(s.z.raw()).to_equal(pole.memory());
+				for (const q31_t amount : kAmounts) {
 					expect(feedback_bits(s, amount)).to_equal(pole.feedbackOutput(amount));
 					expect(feedback_unshifted_bits(s, amount)).to_equal(pole.feedbackOutputUnshifted(amount));
 				}
@@ -313,32 +316,32 @@ describe one_pole_spec("OnePole", ${
 		});
 
 		it("reads the feedback from the memory alone, without stepping it", _ {
-			const OnePole::State s{.z = 805326848};
+			const OnePole::State s{.z = Q<31>::from_raw(805326848)};
 			expect(feedback_bits(s, kRampMoveability)).to_equal(402663424);
 			expect(feedback_unshifted_bits(s, kRampMoveability)).to_equal(100665856);
-			expect(s.z).to_equal(805326848);
+			expect(s.z.raw()).to_equal(805326848);
 		});
 
 		it("reads the feedback at full-scale memories, its shift wrapping as the class's does", _ {
-			// z * amount at full scale is 2^30 - 1 or 2^30, which the shift by 2 carries out of q31.
-			expect(feedback_bits({.z = kMin}, kMin)).to_equal(q31{0});
-			expect(feedback_bits({.z = kMax}, kMax)).to_equal(q31{-4});
-			expect(feedback_bits({.z = kMin + 1}, kMin + 1)).to_equal(q31{-4});
-			expect(feedback_unshifted_bits({.z = kMin}, kMin)).to_equal(q31{1 << 30});
-			expect(feedback_unshifted_bits({.z = kMax}, kMax)).to_equal(q31{(1 << 30) - 1});
-			for (const q31 z : {kMin, kMax, kMin + 1}) {
-				const OnePole::State s{.z = z};
-				for (const q31 amount : kAmounts) {
+			// z * amount at full scale is 2^30 - 1 or 2^30, which the shift by 2 carries out of Q31.
+			expect(feedback_bits({.z = Q<31>::from_raw(kMin)}, kMin)).to_equal(q31_t{0});
+			expect(feedback_bits({.z = Q<31>::from_raw(kMax)}, kMax)).to_equal(q31_t{-4});
+			expect(feedback_bits({.z = Q<31>::from_raw(kMin + 1)}, kMin + 1)).to_equal(q31_t{-4});
+			expect(feedback_unshifted_bits({.z = Q<31>::from_raw(kMin)}, kMin)).to_equal(q31_t{1 << 30});
+			expect(feedback_unshifted_bits({.z = Q<31>::from_raw(kMax)}, kMax)).to_equal(q31_t{(1 << 30) - 1});
+			for (const q31_t z : {kMin, kMax, kMin + 1}) {
+				const OnePole::State s{.z = Q<31>::from_raw(z)};
+				for (const q31_t amount : kAmounts) {
 					expect(feedback_bits(s, amount)).to_equal(wrapped_feedback(z, amount));
 					expect(feedback_unshifted_bits(s, amount)).to_equal(multiply_32x32_rshift32_rounded(z, amount));
 				}
-				expect(s.z).to_equal(z);
+				expect(s.z.raw()).to_equal(z);
 			}
 		});
 
 		it("wraps as two's complement at full scale and at the extremes, in every mode", _ {
-			const std::vector<q31> in = extreme_then_full_scale(kLongRun, kSeed);
-			for (const q31 m : kMoveabilities) {
+			const std::vector<q31_t> in = extreme_then_full_scale(kLongRun, kSeed);
+			for (const q31_t m : kMoveabilities) {
 				OnePole::State low{};
 				OnePole::State high{};
 				OnePole::State all{};
@@ -346,13 +349,13 @@ describe one_pole_spec("OnePole", ${
 				WrappingReference high_ref;
 				WrappingReference all_ref;
 				std::size_t feedback_wraps = 0;
-				for (const q31 x : in) {
-					expect(OnePole::step<Mode::LOW_PASS>({.m = m}, {}, low, x)).to_equal(low_ref.low_pass(x, m));
-					expect(OnePole::step<Mode::HIGH_PASS>({.m = m}, {}, high, x)).to_equal(high_ref.high_pass(x, m));
-					expect(OnePole::step<Mode::ALL_PASS>({.m = m}, {}, all, x)).to_equal(all_ref.all_pass(x, m));
+				for (const q31_t x : in) {
+					expect(OnePole::step<Mode::LOW_PASS>({.m = Q<31>::from_raw(m)}, {}, low, Q<31>::from_raw(x)).raw()).to_equal(low_ref.low_pass(x, m));
+					expect(OnePole::step<Mode::HIGH_PASS>({.m = Q<31>::from_raw(m)}, {}, high, Q<31>::from_raw(x)).raw()).to_equal(high_ref.high_pass(x, m));
+					expect(OnePole::step<Mode::ALL_PASS>({.m = Q<31>::from_raw(m)}, {}, all, Q<31>::from_raw(x)).raw()).to_equal(all_ref.all_pass(x, m));
 
 					for (const auto& [state, ref] : {std::pair{&low, &low_ref}, {&high, &high_ref}, {&all, &all_ref}}) {
-						for (const q31 amount : kAmounts) {
+						for (const q31_t amount : kAmounts) {
 							feedback_wraps += feedback_overflows(ref->memory, amount) ? 1 : 0;
 							expect(feedback_bits(*state, amount)).to_equal(wrapped_feedback(ref->memory, amount));
 							expect(feedback_unshifted_bits(*state, amount))
@@ -360,9 +363,9 @@ describe one_pole_spec("OnePole", ${
 						}
 					}
 				}
-				expect(low.z).to_equal(low_ref.memory);
-				expect(high.z).to_equal(high_ref.memory);
-				expect(all.z).to_equal(all_ref.memory);
+				expect(low.z.raw()).to_equal(low_ref.memory);
+				expect(high.z.raw()).to_equal(high_ref.memory);
+				expect(all.z.raw()).to_equal(all_ref.memory);
 				// Each mode's own output arithmetic wraps, not only the x - z the modes share.
 				expect(low_ref.wraps.input_less_memory).to_be_greater_than(std::size_t{100});
 				expect(high_ref.wraps.input_less_output).to_be_greater_than(std::size_t{100});
@@ -374,39 +377,39 @@ describe one_pole_spec("OnePole", ${
 
 		it("runs in Mono as a hand loop over the kernel, its state carried from block to block", _ {
 			for (const Mode mode : kModes) {
-				Mono<OnePole> mono{{.moveability = 1 << 29, .mode = mode}};
-				const OnePole::Coefficients c = OnePole::coefficients({.moveability = 1 << 29, .mode = mode});
+				Mono<OnePole> mono{{.moveability = Q<31>::from_raw(1 << 29), .mode = mode}};
+				const OnePole::Coefficients c = OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 29), .mode = mode});
 				OnePole::State s{};
 				uint32_t seed = kSeed;
 				for (const std::size_t n : kLengths) {
-					const std::vector<q31> in = quiet_noise(n, seed++);
-					std::vector<q31> got(n);
-					mono.render_block(in, got);
+					const std::vector<q31_t> in = quiet_noise(n, seed++);
+					std::vector<q31_t> got(n);
+					mono.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
 					for (std::size_t i = 0; i < n; ++i) {
 						expect(got[i]).to_equal(step_in(mode, c, s, in[i]));
 					}
-					expect(mono.state().z).to_equal(s.z);
+					expect(mono.state().z.raw()).to_equal(s.z.raw());
 				}
 			}
 		});
 
 		it("keeps its memory across a mode switch between blocks", _ {
-			Mono<OnePole> mono{{.moveability = 1 << 30, .mode = Mode::LOW_PASS}};
+			Mono<OnePole> mono{{.moveability = Q<31>::from_raw(1 << 30), .mode = Mode::LOW_PASS}};
 			OnePole::State s{};
 			uint32_t seed = kSeed;
 			for (const Mode mode : {Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_PASS, Mode::LOW_PASS}) {
-				const q31 before = mono.state().z;
-				mono.configure({.moveability = 1 << 30, .mode = mode});
-				expect(mono.state().z).to_equal(before);
-				const OnePole::Coefficients c = OnePole::coefficients({.moveability = 1 << 30, .mode = mode});
-				const std::vector<q31> in = quiet_noise(64, seed++);
-				std::vector<q31> got(64);
-				mono.render_block(in, got);
+				const q31_t before = mono.state().z.raw();
+				mono.configure({.moveability = Q<31>::from_raw(1 << 30), .mode = mode});
+				expect(mono.state().z.raw()).to_equal(before);
+				const OnePole::Coefficients c = OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 30), .mode = mode});
+				const std::vector<q31_t> in = quiet_noise(64, seed++);
+				std::vector<q31_t> got(64);
+				mono.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
 				for (std::size_t i = 0; i < 64; ++i) {
 					expect(got[i]).to_equal(step_in(mode, c, s, in[i]));
 				}
-				expect(mono.state().z).to_equal(s.z);
-				expect(s.z).not_().to_equal(q31{0});
+				expect(mono.state().z.raw()).to_equal(s.z.raw());
+				expect(s.z.raw()).not_().to_equal(q31_t{0});
 			}
 		});
 	});

@@ -25,7 +25,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/q31_ops.h" // q31_t
+#include "raw_frame.h"
 #include "util/synth_noise.h"
 
 #include <array>
@@ -78,7 +79,7 @@ inline constexpr int32_t kDepth = 0x40000000;
 inline constexpr int32_t kOffset = 0x20000000;
 inline constexpr int32_t kFeedback = 0x20000000;
 
-/// @brief The post-FX volume a run starts each block's chain from, Q31.
+/// @brief The post-FX volume a run starts each block's chain from, Q27.
 inline constexpr int32_t kStartVolume = 0x30000000;
 
 /// @brief The block lengths a workload cycles through: 1 to 9, then 128.
@@ -86,11 +87,11 @@ inline constexpr std::array<uint16_t, 10> kLengths{1, 2, 3, 4, 5, 6, 7, 8, 9, 12
 
 /// @return @p n frames of a full-range sequence, a linear congruential generator per channel, different for each
 /// @p block.
-[[nodiscard]] inline std::vector<StereoSample> stereo_input(std::size_t n, std::size_t block) {
-	std::vector<StereoSample> v(n);
+[[nodiscard]] inline std::vector<RawFrame> stereo_input(std::size_t n, std::size_t block) {
+	std::vector<RawFrame> v(n);
 	uint32_t l = 0x9e3779b9U * static_cast<uint32_t>(block + 1);
 	uint32_t r = 0x85ebca6bU * static_cast<uint32_t>(block + 1) + 1;
-	for (StereoSample& frame : v) {
+	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
 		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
@@ -255,21 +256,21 @@ template <typename Fx>
 			fx.disableBuffer();
 			break;
 		}
-		std::vector<StereoSample> frames = stereo_input(block.n, b);
+		std::vector<RawFrame> frames = stereo_input(block.n, b);
 		if (block.extremes) {
 			for (std::size_t i = 0; i < frames.size(); ++i) {
 				const bool even = i % 2 == 0;
 				frames[i] = {even ? INT32_MAX : INT32_MIN, even ? INT32_MIN : INT32_MAX};
 			}
 		}
-		for (const StereoSample frame : frames) {
+		for (const RawFrame frame : frames) {
 			trace.inputs.push_back(frame.l);
 			trace.inputs.push_back(frame.r);
 		}
 		int32_t volume = kStartVolume;
 		fx.processModFX(frames, block.type, block.rate, block.depth, &volume, block.offset, block.feedback,
 		                block.stereo, block.sound);
-		for (const StereoSample frame : frames) {
+		for (const RawFrame frame : frames) {
 			trace.samples.push_back(frame.l);
 			trace.samples.push_back(frame.r);
 		}

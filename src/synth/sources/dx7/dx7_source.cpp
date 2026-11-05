@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/dx7/dx7_source.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo_sample.h"
 #include <span>
 
 namespace deluge::synth {
@@ -23,25 +24,33 @@ namespace deluge::synth {
 SourceRenderResult DX7Source::render(const SourceBlock& block) {
 	// The port renders the FM block (a pooled dx7::Voice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
-	std::span<const int32_t> fm = dx_->render(block.num_samples, block.phase_increment, block.dx7.amp_mod_param,
-	                                          block.dx7.patch_changed, block.dx7.note_code);
+	// The port derives the voice's log pitch from the increment's word
+	std::span<const dsp::Q<24>> fm = dx_->render(block.num_samples, block.phase_increment.raw(),
+	                                             block.dx7.amp_mod_param, block.dx7.patch_changed, block.dx7.note_code);
 	if (fm.empty()) {
 		return SourceRenderResult::UNASSIGN;
 	}
 
-	int32_t source_amplitude_now = block.source_amplitude;
+	using dsp::Q;
+	// The DX7's sample is Q24, full scale 2^24, and mixes in at a quarter of the buffer's Q31 full scale: its word is
+	// read as Q26. The source amplitude is a Q31 gain, stepped before each sample; the buffer's sums wrap.
+	Q<31> amplitude = block.source_amplitude;
+	const Q<31> step = block.amplitude_increment;
 	if (block.stereo_unison) {
+		// Held here: the buffer's stores could otherwise alias the block's pans
+		const Q<30> amplitude_l = block.amplitude_l;
+		const Q<30> amplitude_r = block.amplitude_r;
 		for (int i = 0; i < block.num_samples; i++) {
-			source_amplitude_now += block.amplitude_increment;
-			int amplified = multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
-			block.osc_buffer[(i << 1)] += multiply_32x32_rshift32(amplified, block.amplitude_l) << 2;
-			block.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, block.amplitude_r) << 2;
+			amplitude = add_wrap(amplitude, step);
+			const auto amplified = mul_as_wrap<Q<31>>(dsp::reinterpret_bits<Q<26>>(fm[i]), amplitude);
+			add_panned(&block.osc_buffer[i << 1], amplified, amplitude_l, amplitude_r);
 		}
 	}
 	else {
 		for (int i = 0; i < block.num_samples; i++) {
-			source_amplitude_now += block.amplitude_increment;
-			block.osc_buffer[i] += multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
+			amplitude = add_wrap(amplitude, step);
+			const auto amplified = mul_as_wrap<Q<31>>(dsp::reinterpret_bits<Q<26>>(fm[i]), amplitude);
+			add_into(&block.osc_buffer[i], amplified);
 		}
 	}
 	return SourceRenderResult::ACTIVE;

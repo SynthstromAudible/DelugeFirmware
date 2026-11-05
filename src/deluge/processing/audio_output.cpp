@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/curves/param_curve.h"
@@ -171,7 +172,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	}
 }
 
-void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, deluge::dsp::Q<31>* reverbBuffer,
                                int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                                bool isClipActive) {
 
@@ -191,8 +192,8 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	                [&](const deluge::model::ContentBlock& c) {
 		                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
 		                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
-		                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust, 134217728,
-		                                     134217728);
+		                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust,
+		                                     deluge::dsp::q<30>(0.125), deluge::dsp::q<30>(0.125));
 	                });
 }
 
@@ -201,9 +202,9 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
-		envelope.note_on(directlyToDecay, 2147483647);
+		envelope.note_on(directlyToDecay, deluge::dsp::Q<31>::max());
 	}
-	amplitudeLastTime = 0;
+	amplitudeLastTime = {};
 	overrideAmplitudeEnvelopeReleaseRate = 0;
 }
 
@@ -228,9 +229,10 @@ bool AudioOutput::modeAllowsMonitoring() const {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
-                                int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-                                int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+                                int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
+                                int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
+                                bool isClipActive, deluge::dsp::Q<24> pitchAdjust, deluge::dsp::Q<30> amplitudeAtStart,
+                                deluge::dsp::Q<30> amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
@@ -238,13 +240,19 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = deluge::dsp::fixed::exp_curve(attackNeutralValue, -(activeAudioClip.attack() / 4));
+			// The attack's neutral read at Q31 (its units are the envelope's rate); the negated knob, a quarter, is
+			// its octaves at Q26
+			int32_t attack =
+			    deluge::dsp::fixed::exp_curve(deluge::dsp::Q<31>::from_raw(attackNeutralValue),
+			                                  deluge::dsp::Q<26>::from_raw(-(activeAudioClip.attack() / 4)))
+			        .raw();
 
 renderEnvelope:
-			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
-			                                          deluge::dsp::fixed::tables::kDecaySmall4.data())
-			                          >> 1)
-			                         + 1073741824;
+			// The centred envelope made unipolar: halved, plus a half
+			const deluge::dsp::Q<31> amplitudeLocal =
+			    add_wrap(halve_floor(envelope.render(render.size(), attack, 8388608, deluge::dsp::Q<31>::max(), 0,
+			                                         deluge::dsp::fixed::tables::kDecaySmall4.data())),
+			             deluge::dsp::q<31>(0.5));
 
 			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {
@@ -260,20 +268,20 @@ renderEnvelope:
 
 			else {
 
-				if (!amplitudeLastTime && attack > 245632) {
+				if (amplitudeLastTime == deluge::dsp::Q<31>{} && attack > 245632) {
 					amplitudeLastTime = amplitudeLocal;
 				}
 
-				int32_t amplitudeEffectiveStart =
-				    multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
-				int32_t amplitudeEffectiveEnd =
-				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
+				// Each Q31 envelope amplitude times the clip's Q30 amplitude, the high word: the sample reader's
+				// amplitude word
+				int32_t amplitudeEffectiveStart = mul(amplitudeLastTime, amplitudeAtStart).raw();
+				int32_t amplitudeEffectiveEnd = mul(amplitudeLocal, amplitudeAtEnd).raw();
 
 				int32_t amplitudeIncrementEffective =
 				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
 				                         / static_cast<double>(render.size()));
 
-				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
+				std::span render_mono{reinterpret_cast<deluge::dsp::Q<31>*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
 				                       pitchAdjust);
 				rendered = true;
@@ -320,13 +328,14 @@ renderEnvelope:
 			input_channel = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitude_start = amplitudeAtStart;
-		int32_t amplitude_end = amplitudeAtEnd;
+		deluge::dsp::Q<30> amplitude_start = amplitudeAtStart;
+		deluge::dsp::Q<30> amplitude_end = amplitudeAtEnd;
 		if (!AudioEngine::inputMonitor.warmed_up()) {
-			amplitude_start =
-			    multiply_32x32_rshift32(amplitude_start, AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer))
-			    << 1;
-			amplitude_end = multiply_32x32_rshift32(amplitude_end, monitoring_gain_end) << 1;
+			// The amplitude times the warming monitor's gain (InputMonitor::gain's Q31 word), moved back to Q30
+			using deluge::dsp::Q;
+			amplitude_start = mul_as_wrap<Q<30>>(
+			    amplitude_start, Q<31>::from_raw(AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer)));
+			amplitude_end = mul_as_wrap<Q<30>>(amplitude_end, Q<31>::from_raw(monitoring_gain_end));
 		}
 
 		using deluge::dsp::fixed::TrackMonitor;

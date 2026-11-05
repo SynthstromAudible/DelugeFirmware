@@ -19,7 +19,7 @@
 
 namespace deluge::effects {
 
-bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
+bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<dsp::Q<31>> reverb,
                             const SendAndVolumeParams& params) {
 	gains_.on<&dsp::fixed::SendAndVolume::set_send>(reverb.data());
 	gains_.configure({
@@ -31,7 +31,7 @@ bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_
 	    .stereo = params.stereo,
 	});
 	gains_.render_block(block, block);
-	return params.reverb_send != 0;
+	return params.reverb_send != dsp::Q<31>{};
 }
 
 } // namespace deluge::effects

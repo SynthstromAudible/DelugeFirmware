@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources, kNumModulators
+#include "dsp-next/core/fixed_point.h"
 #include <array>
 #include <cstdint>
 
@@ -25,38 +26,38 @@ namespace deluge::synth {
 
 /// @brief What the voice derives each block for a dual-source engine from its params; the engine reads no param plane.
 struct DualSourceControls {
-	std::array<int32_t, kNumSources> volume{};       ///< Each source's volume param
-	std::array<int32_t, kNumSources> pitch_adjust{}; ///< Each source's pitch adjust (2^24 is unity)
-	std::array<int32_t, kNumSources> phase_width{};  ///< Each source's pulse width param (a DX7's amplitude modulation)
-	std::array<int32_t, kNumSources> wave_index{};   ///< Each source's wavetable index param
+	std::array<dsp::Q<31>, kNumSources> volume{};       ///< Each source's volume param
+	std::array<dsp::Q<24>, kNumSources> pitch_adjust{}; ///< Each source's pitch adjust
+	std::array<int32_t, kNumSources> phase_width{}; ///< Each source's pulse width param (a DX7's amplitude modulation)
+	std::array<int32_t, kNumSources> wave_index{};  ///< Each source's wavetable index param
 	/// Per source: a source that can change during the note modulates a sample's pitch, so it is not cached.
 	std::array<bool, kNumSources> pitch_mod_disallows_cache{};
-	int32_t noise_volume{};         ///< The noise volume param
-	int32_t env0_attack{};          ///< The amplitude envelope's attack param (a slow attack holds the levels still)
-	int32_t filter_gain{};          ///< The gain the filters' configuration asks of what goes in
-	int32_t overall_pitch_adjust{}; ///< The voice's pitch adjust, bend and portamento (2^24 is unity)
-	uint32_t porta_envelope_pos{};  ///< The voice's portamento position; kNoPorta when not gliding
-	int32_t priority_rating{};      ///< The voice's cull rating
-	int32_t note_code{};            ///< The note after arpeggiation
-	bool first_render{};            ///< The voice's first block since its note started
-	bool stereo_unison{};           ///< The unison parts are spread across the stereo field
+	dsp::Q<31> noise_volume{};         ///< The noise volume param
+	int32_t env0_attack{};             ///< The amplitude envelope's attack param (a slow attack holds the levels still)
+	dsp::Q<28> filter_gain{};          ///< The gain the filters' configuration asks of what goes in (2^28 is unity)
+	dsp::Q<24> overall_pitch_adjust{}; ///< The voice's pitch adjust, bend and portamento
+	uint32_t porta_envelope_pos{};     ///< The voice's portamento position; kNoPorta when not gliding
+	int32_t priority_rating{};         ///< The voice's cull rating
+	int32_t note_code{};               ///< The note after arpeggiation
+	bool first_render{};               ///< The voice's first block since its note started
+	bool stereo_unison{};              ///< The unison parts are spread across the stereo field
 };
 
 /// @brief What the voice derives each block for FM from its params; the engine reads no param plane.
 struct FmControls {
-	std::array<int32_t, kNumSources> carrier_volume{};       ///< Each carrier's (source's) volume param
-	std::array<int32_t, kNumSources> carrier_pitch_adjust{}; ///< Each carrier's pitch adjust (2^24 is unity)
-	std::array<int32_t, kNumSources> carrier_feedback{};     ///< Each carrier's feedback param
-	std::array<int32_t, kNumSources> wave_index{};           ///< Each source's wavetable index (kept for the levels)
-	std::array<int32_t, kNumModulators> modulator_volume{};  ///< Each modulator's volume param
-	std::array<int32_t, kNumModulators> modulator_pitch_adjust{}; ///< Each modulator's pitch adjust (2^24 is unity)
-	std::array<int32_t, kNumModulators> modulator_feedback{};     ///< Each modulator's feedback param
-	int32_t overall_osc_amplitude{}; ///< The voice's amplitude, compensated for unison, worked into the carriers'
-	int32_t env0_attack{};           ///< The amplitude envelope's attack param (a slow attack holds the levels still)
-	int32_t filter_gain{};           ///< The gain the filters' configuration asks of what goes in
-	int32_t overall_pitch_adjust{};  ///< The voice's pitch adjust, bend and portamento (2^24 is unity)
-	bool first_render{};             ///< The voice's first block since its note started
-	bool stereo_unison{};            ///< The unison parts are spread across the stereo field
+	std::array<dsp::Q<31>, kNumSources> carrier_volume{};       ///< Each carrier's (source's) volume param
+	std::array<dsp::Q<24>, kNumSources> carrier_pitch_adjust{}; ///< Each carrier's pitch adjust
+	std::array<dsp::Q<31>, kNumSources> carrier_feedback{};     ///< Each carrier's feedback param
+	std::array<int32_t, kNumSources> wave_index{};              ///< Each source's wavetable index (kept for the levels)
+	std::array<dsp::Q<31>, kNumModulators> modulator_volume{};  ///< Each modulator's volume param
+	std::array<dsp::Q<24>, kNumModulators> modulator_pitch_adjust{}; ///< Each modulator's pitch adjust
+	std::array<dsp::Q<31>, kNumModulators> modulator_feedback{};     ///< Each modulator's feedback param
+	dsp::Q<31> overall_osc_amplitude{}; ///< The voice's amplitude, compensated for unison, worked into the carriers'
+	int32_t env0_attack{};             ///< The amplitude envelope's attack param (a slow attack holds the levels still)
+	dsp::Q<28> filter_gain{};          ///< The gain the filters' configuration asks of what goes in (2^28 is unity)
+	dsp::Q<24> overall_pitch_adjust{}; ///< The voice's pitch adjust, bend and portamento
+	bool first_render{};               ///< The voice's first block since its note started
+	bool stereo_unison{};              ///< The unison parts are spread across the stereo field
 };
 
 } // namespace deluge::synth

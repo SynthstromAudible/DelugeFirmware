@@ -143,6 +143,12 @@ impl<K, V: Answer> AnswerSlot<K, V> {
     }
 }
 
+impl<K, V: Answer> Default for AnswerSlot<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub mod audio_loader;
 pub mod file_bytes;
 pub mod file_directory;

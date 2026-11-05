@@ -36,8 +36,8 @@ namespace deluge::effects {
 /// @brief The duck the reverb's return takes: the depth and shape in effect, the song's own or those of the owner with
 /// the most reverb, as the engine chooses them.
 struct ReturnDuck {
-	int32_t depth{0}; ///< The sidechain volume as a patch cable's depth, Q29; 0 leaves the envelope still.
-	int32_t shape{0}; ///< The shape param, Q31.
+	dsp::Q<29> depth{}; ///< The sidechain volume as a patch cable's depth; 0 leaves the envelope still.
+	dsp::Q<31> shape{}; ///< The shape param.
 };
 
 /// @brief The song's reverb: Freeverb or the plate (Mutable or Digital) over one buffer of the larger's size, the model
@@ -104,7 +104,8 @@ public:
 	/// @param send The reverb send, one sample per frame, Q31.
 	/// @param pan_l The left return level, Q31.
 	/// @param pan_r The right return level, Q31.
-	void render(std::span<dsp::StereoSample> block, std::span<const int32_t> send, int32_t pan_l, int32_t pan_r);
+	void render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, dsp::Q<31> pan_l,
+	            dsp::Q<31> pan_r);
 
 	/// @brief Sets the duck the return takes from the next block.
 	/// @param duck The depth and shape in effect.
@@ -112,7 +113,7 @@ public:
 
 	/// @brief Whether the return's duck is in effect (a non-zero depth): only then does @ref return_level read its
 	/// rates and tick inverse.
-	[[nodiscard]] bool return_ducks() const { return return_duck_.depth != 0; }
+	[[nodiscard]] bool return_ducks() const { return return_duck_.depth != dsp::Q<29>{}; }
 
 	/// @brief The return's level for a block of @p frames: while the depth is non-zero the duck takes @p hit and
 	/// advances, whether or not the reverb then renders; at depth 0 it holds still and the level is 2^29.
@@ -121,9 +122,9 @@ public:
 	/// @param state The attack, release and sync in effect, read at every block so a menu's edit takes effect at the
 	/// next.
 	/// @param tick_inverse The playback handler's getTimePerInternalTickInverse(); read only while @ref return_ducks.
-	/// @return The return's level, 2^29 unducked.
-	[[nodiscard]] int32_t return_level(uint32_t frames, int32_t hit, const SidechainState& state,
-	                                   uint32_t tick_inverse);
+	/// @return The return's level, 2^29 (a quarter) unducked.
+	[[nodiscard]] dsp::Q<31> return_level(uint32_t frames, int32_t hit, const SidechainState& state,
+	                                      uint32_t tick_inverse);
 
 	/// @brief The return's sidechain.
 	[[nodiscard]] Sidechain& sidechain() { return return_sidechain_; }
@@ -131,7 +132,7 @@ public:
 	/// @brief The models' states and memories, for specs: only the held model's memory may be read.
 	[[nodiscard]] const dsp::fixed::Freeverb::State& freeverb_state() const { return freeverb_.state(); }
 	[[nodiscard]] const dsp::fp::Plate::State& plate_state() const { return plate_.state(); }
-	[[nodiscard]] std::span<const int32_t> freeverb_memory() const { return memory_.freeverb; }
+	[[nodiscard]] std::span<const dsp::Q<31>> freeverb_memory() const { return memory_.freeverb; }
 	[[nodiscard]] std::span<const float> plate_memory() const { return memory_.plate; }
 
 private:
@@ -140,7 +141,7 @@ private:
 	/// @brief One buffer for whichever model is held: Freeverb's 25,450 words or the plate's 32,768-float ring.
 	union Memory {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): the kernels index it per frame
-		int32_t freeverb[Freeverb::kMemoryWords];
+		dsp::Q<31> freeverb[Freeverb::kMemoryWords];
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): as freeverb
 		float plate[Plate::kMemoryFloats];
 	};

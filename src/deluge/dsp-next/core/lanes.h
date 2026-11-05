@@ -34,14 +34,14 @@ namespace deluge::dsp {
 
 namespace detail {
 
-/// @brief How a block's frame type @p F holds its lanes: the lane type, the lane count, and the conversions to and
-/// from a @ref Frame that the loop steps.
-template <class F>
+/// @brief How a block's frame type @p F holds lanes of @p Lane, a kernel's value type: the lane count, and the
+/// conversions to and from a @ref Frame that the loop steps.
+template <class F, class Lane>
 struct frame_lanes;
 
 /// @brief A @ref Frame is its own lanes.
 template <class T, std::size_t N>
-struct frame_lanes<Frame<T, N>> {
+struct frame_lanes<Frame<T, N>, T> {
 	using lane_type = T;                     ///< One lane's sample.
 	static constexpr std::size_t kLanes = N; ///< The lane count.
 
@@ -51,16 +51,19 @@ struct frame_lanes<Frame<T, N>> {
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<T, N> from_lanes(Frame<T, N> f) { return f; }
 };
 
-/// @brief A @ref StereoSample is two q31 lanes, left in lane 0, converted by bit cast (@ref to_frame).
-template <>
-struct frame_lanes<StereoSample> {
-	using lane_type = q31;                   ///< One channel's sample, Q31.
+/// @brief A @ref StereoSample is two Q<31> lanes, left in lane 0, converted by @ref to_frame and @ref to_stereo.
+template <class Lane>
+requires std::same_as<Lane, Q<31>>
+struct frame_lanes<StereoSample, Lane> {
+	using lane_type = Lane;                  ///< One channel's sample, Q31.
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 
 	/// @brief @p s as two lanes: left in lane 0, right in lane 1.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<q31, 2> to_lanes(StereoSample s) { return to_frame(s); }
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<Lane, 2> to_lanes(StereoSample s) {
+		return to_frame(s);
+	}
 	/// @brief Two lanes as a stereo frame: lane 0 to left, lane 1 to right.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr StereoSample from_lanes(Frame<q31, 2> f) {
+	[[nodiscard]] [[gnu::always_inline]] static constexpr StereoSample from_lanes(Frame<Lane, 2> f) {
 		return to_stereo(f);
 	}
 };
@@ -72,12 +75,13 @@ struct packed_state {
 	using type = void; ///< No packed state.
 };
 
-/// @brief K's state over `LanePack<q31, N>`: lane i of each member is lane i's State.
+/// @brief K's state over `LanePack<value_type, N>`: lane i of each member is lane i's State.
 template <lane_packable K, std::size_t N>
 struct packed_state<K, N> {
-	using type = typename K::template StateT<LanePack<q31, N>>; ///< Every lane's State, member by member.
+	/// Every lane's State, member by member.
+	using type = K::template StateT<LanePack<typename K::value_type, N>>;
 	static_assert(sizeof(type) == N * sizeof(typename K::State) && std::is_trivially_copyable_v<type>,
-	              "a packed state is N States, member by member, each member N lanes of q31");
+	              "a packed state is N States, member by member, each member N 32-bit lanes");
 };
 
 } // namespace detail
@@ -89,7 +93,7 @@ struct packed_state<K, N> {
 /// rejected at the class.
 /// @tparam N The number of lanes. At least 1.
 /// @tparam F The frame type: N samples of K's `value_type`, lane 0 first. `Frame<value_type, N>` by default; a
-/// @ref StereoSample holds two q31 lanes, left in lane 0. @ref detail::frame_lanes maps it to the lanes the loop
+/// @ref StereoSample holds two Q31 lanes, left in lane 0. @ref detail::frame_lanes maps it to the lanes the loop
 /// steps.
 /// @details
 /// **Shared coefficients.** `configure` calls `K::coefficients` once; every lane steps with the result.
@@ -117,8 +121,8 @@ struct packed_state<K, N> {
 /// dispatch and loop, which costs several `std::span` constructions per call. It is a convenience for tests and for
 /// control-rate values, not for per-frame use in shipping code.
 ///
-/// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<q31, N>` and steps each frame
-/// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
+/// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<value_type, N>` and steps each
+/// frame with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
 /// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
 /// lane-by-lane one. Such a K has no `prepare` and no Block, and its step draws no noise, so the order rules above hold
 /// trivially.
@@ -148,12 +152,12 @@ class Lanes {
 	using LoopState = loop_state_t<K>;             ///< The part of K's State the loop steps, one per lane.
 	static constexpr bool kInPlace = detail::state_in_place_v<K>;       ///< Whether the loop steps the members.
 	static constexpr bool kSplitsLoop = detail::declares_loop_state<K>; ///< Whether the loop state is a member.
-	using Block = kernel_block_t<K>;                        ///< K's per-block values, one per lane, or EmptyBlock.
-	using Context = typename detail::context_of<K>::type;   ///< K's per-block context, shared by the lanes.
-	using Access = detail::frame_lanes<F>;                  ///< How F holds its lanes.
-	using LaneFrame = Frame<typename Access::lane_type, N>; ///< The lanes the loop steps.
-	static constexpr bool kOpMajor = lane_packable<K>;      ///< Whether each frame is one step over a LanePack.
-	using Pack = LanePack<q31, N>;                          ///< A frame's lanes as one value, for the op-major step.
+	using Block = kernel_block_t<K>;             ///< K's per-block values, one per lane, or EmptyBlock.
+	using Context = detail::context_of<K>::type; ///< K's per-block context, shared by the lanes.
+	using Access = detail::frame_lanes<F, typename K::value_type>; ///< How F holds its lanes.
+	using LaneFrame = Frame<typename Access::lane_type, N>;        ///< The lanes the loop steps.
+	static constexpr bool kOpMajor = lane_packable<K>;             ///< Whether each frame is one step over a LanePack.
+	using Pack = LanePack<typename K::value_type, N>; ///< A frame's lanes as one value, for the op-major step.
 	using PackedState = typename detail::packed_state<K, N>::type; ///< Every lane's State in one, when op-major.
 
 	/// @brief One State per lane, lane 0 first.
@@ -220,7 +224,8 @@ public:
 
 	/// @brief A snapshot of lane @p lane's state between blocks. @p lane is less than N.
 	/// @details By value in both forms, so a caller never holds a view into state the next block rewrites. Op-major,
-	/// it is read out of the packed state: member m is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
+	/// it is read out of the packed state: member m is N 32-bit lanes, so lane @p lane's word m sits at m × N + @p
+	/// lane.
 	/// @param lane The lane, less than N.
 	/// @return A copy of the lane's State.
 	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const {
@@ -441,19 +446,19 @@ public:
 	}
 
 private:
-	/// @brief The q31 words in one State. Member m of a packed state is N q31 lanes, so lane i's word m sits at
+	/// @brief The 32-bit words in one State. Member m of a packed state is N 32-bit lanes, so lane i's word m sits at
 	/// m × N + i.
-	static constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
+	static constexpr std::size_t kWords = sizeof(State) / sizeof(std::int32_t);
 	static_assert(!kOpMajor || kWords > 0,
-	              "an op-major State is whole q31 words, at least one, so a packed lane never forms Words<0>");
+	              "an op-major State is whole 32-bit words, at least one, so a packed lane never forms Words<0>");
 
-	/// @brief @p W q31 words, for reading a trivially copyable value as words. Named only on the op-major paths, whose
-	/// State is at least one word: @ref lane_packable requires a State made of whole q31 words, and an empty struct
-	/// is one byte.
+	/// @brief @p W 32-bit words, for reading a trivially copyable value as words. Named only on the op-major paths,
+	/// whose State is at least one word: @ref lane_packable requires a State made of whole 32-bit words, and an empty
+	/// struct is one byte.
 	template <std::size_t W>
 	struct Words {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		q31 word[W]; ///< The words.
+		std::int32_t word[W]; ///< The words.
 	};
 
 	/// @brief Lane @p lane's State, read out of the packed state. Op-major only.

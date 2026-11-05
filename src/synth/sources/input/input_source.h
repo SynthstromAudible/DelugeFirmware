@@ -61,10 +61,10 @@ private:
 	/// the pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
 	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's mono input
 	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
-	void render_input(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
-	                  int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
-	                  int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise,
-	                  int32_t* mono_scratch);
+	void render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint32_t phase_increment,
+	                  dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment, bool stereo_buffer,
+	                  bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r,
+	                  int32_t interpolation_buffer_size, dsp::fixed::Cong& noise, dsp::Q<31>* mono_scratch);
 };
 
 } // namespace deluge::synth

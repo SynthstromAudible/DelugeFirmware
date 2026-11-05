@@ -37,11 +37,11 @@ namespace deluge::model {
 
 /// @brief What a track hands its channel for one block, beside its params and output.
 struct ChannelBlock {
-	int32_t* reverb_buffer{nullptr};      ///< The song's reverb send buffer.
-	int32_t reverb_amount_adjust{};       ///< The song's reverb send scaling for this output, Q31.
-	int32_t side_chain_hit_pending{};     ///< The sidechain hit pending this block, Q31; 0 for none.
-	bool should_limit_delay_feedback{};   ///< Whether the delay's feedback is capped below self-oscillation.
-	bool is_clip_active{};                ///< Whether the track's active clip plays (its automation ticks).
+	deluge::dsp::Q<31>* reverb_buffer{nullptr}; ///< The song's reverb send buffer.
+	int32_t reverb_amount_adjust{};             ///< The song's reverb send scaling for this output, Q27 (2^27 is 1).
+	int32_t side_chain_hit_pending{};           ///< The sidechain hit pending this block, Q31; 0 for none.
+	bool should_limit_delay_feedback{};         ///< Whether the delay's feedback is capped below self-oscillation.
+	bool is_clip_active{};                      ///< Whether the track's active clip plays (its automation ticks).
 	OutputType output_type{};             ///< KIT or AUDIO: the volume headroom factor and the delay's saturation.
 	SampleRecorder* recorder{nullptr};    ///< The recorder taking the track's audio, or null.
 	ModControllable* tick_owner{nullptr}; ///< The track, which the param tick's model stack names.
@@ -49,13 +49,13 @@ struct ChannelBlock {
 
 /// @brief What a channel hands the track's content for one block.
 struct ContentBlock {
-	std::span<dsp::StereoSample> buffer{}; ///< The channel's buffer, zeroed: the content renders into it.
-	int32_t* reverb_buffer{nullptr};       ///< The song's reverb send buffer.
-	int32_t reverb_amount_adjust{};        ///< The reverb send scaling, already scaled by the channel's volume, Q31.
-	int32_t side_chain_hit_pending{};      ///< The sidechain hit pending this block, Q31; 0 for none.
-	bool should_limit_delay_feedback{};    ///< Whether a delay's feedback is capped below self-oscillation.
-	bool is_clip_active{};                 ///< Whether the track's active clip plays.
-	int32_t pitch_adjust{};                ///< The channel's pitch adjust, as its param gives it.
+	std::span<dsp::StereoSample> buffer{};      ///< The channel's buffer, zeroed: the content renders into it.
+	deluge::dsp::Q<31>* reverb_buffer{nullptr}; ///< The song's reverb send buffer.
+	int32_t reverb_amount_adjust{};     ///< The reverb send scaling, already scaled by the channel's volume, Q27.
+	int32_t side_chain_hit_pending{};   ///< The sidechain hit pending this block, Q31; 0 for none.
+	bool should_limit_delay_feedback{}; ///< Whether a delay's feedback is capped below self-oscillation.
+	bool is_clip_active{};              ///< Whether the track's active clip plays.
+	dsp::Q<24> pitch_adjust{};          ///< The channel's pitch adjust (pitch_adjust_from_knob).
 };
 
 /// @brief A track's content render: returns whether anything rendered.

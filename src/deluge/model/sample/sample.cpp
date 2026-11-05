@@ -17,6 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
@@ -776,7 +777,8 @@ doLoading:
 				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
 				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-				percussiveness = deluge::dsp::fixed::tanh<23>(percussiveness);
+				// The integer slope ratio read as Q31; the curve's word is stored as the perc cache's byte.
+				percussiveness = deluge::dsp::fixed::tanh<23>(deluge::dsp::Q<31>::from_raw(percussiveness)).raw();
 
 				percCacheNow[startPosSamples >> kPercBufferReductionMagnitude] = percussiveness;
 			}
@@ -1633,8 +1635,8 @@ int32_t Sample::getMaxPeakFromZero() {
 	// Comes out one >> of the value we actually want
 	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
 
-	// Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
-	return lshift_and_saturate<1>(halfValue);
+	// Doubled, held to 31 bits first: a clipped recording's peak would otherwise overflow
+	return scale_shl_clamp_then_shift<1>(deluge::dsp::Q<31>::from_raw(halfValue)).raw();
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

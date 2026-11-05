@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The hard-sync arithmetic in raw q31 (resetter_reciprocal, SyncedPhasor's reset and SyncWindower), copied verbatim as
+// The hard-sync arithmetic in raw Q31 (resetter_reciprocal, SyncedPhasor's reset and SyncWindower), copied verbatim as
 // the oracle for their typed forms in dsp-next/fixed/sync. The reciprocal here is the unfixed one: it is the oracle
 // only for increments of 0 and 65537 to 0xFFFF0000, and negative outside them. SyncWindower takes its reciprocal as a
 // parameter, so that with the fixed one it is the oracle for every increment.
@@ -30,15 +30,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 
 namespace sync_reference {
 
 using deluge::dsp::Phasor;
-using deluge::dsp::q31;
 using deluge::dsp::UQ;
-using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::kSineTable;
-using deluge::dsp::fixed::Resetter;
+/// @brief The hard-sync master as the reference keeps it: raw phase words.
+struct Resetter {
+	uint32_t phase;
+	uint32_t phase_increment;
+};
 
 inline int32_t resetter_reciprocal(uint32_t resetter_increment) {
 	if (resetter_increment == 0) {
@@ -78,7 +81,7 @@ public:
 	/// fills with position-indexed state (e.g. the wavetable cross-cycle morph, which advances with
 	/// output position and so reuses the same value when the crossover sample is redone).
 	struct Window {
-		Buffer output;
+		std::span<q31_t> output;
 		Phasor phasor; ///< the (reset) phasor to fill this window from; pre-increment per sample.
 		int32_t offset;
 	};
@@ -88,7 +91,8 @@ public:
 	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
 	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment, uint32_t retrigger_phase)
+	SyncWindower(std::span<q31_t> output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
+	             uint32_t retrigger_phase)
 	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
 	      resetter_{resetter}, resetter_divide_{Reciprocal(resetter.phase_increment)}, phase_{phase},
 	      phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
@@ -155,7 +159,7 @@ public:
 		}
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;
-		return Window{.output = Buffer{window_, static_cast<std::size_t>(length_)},
+		return Window{.output = std::span<q31_t>{window_, static_cast<std::size_t>(length_)},
 		              .phasor = Phasor{UQ<32>::from_raw(phase_), UQ<32>::from_raw(phase_increment_)},
 		              .offset = static_cast<int32_t>(window_ - block_start_)};
 	}
@@ -165,8 +169,8 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phase_; }
 
 private:
-	q31* const block_start_;
-	q31* window_;
+	q31_t* const block_start_;
+	q31_t* window_;
 	int32_t samples_remaining_;
 	Resetter resetter_;
 	const int32_t resetter_divide_;

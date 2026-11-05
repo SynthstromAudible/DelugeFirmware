@@ -22,6 +22,7 @@
 // draws compared word for word. And each runtime's order against chain.h's, and the master's between: once per block,
 // after the send and volume, before the filter.
 
+#include "dsp-next/core/buffer_view.h"
 #include "effects/chain.h"
 #include "effects/master_chain.h"
 #include "effects/sound_chain.h"
@@ -54,8 +55,8 @@ std::vector<int32_t> words(std::span<const StereoSample> block) {
 	std::vector<int32_t> out;
 	out.reserve(block.size() * 2);
 	for (const StereoSample s : block) {
-		out.push_back(s.l);
-		out.push_back(s.r);
+		out.push_back(s.l.raw());
+		out.push_back(s.r.raw());
 	}
 	return out;
 }
@@ -89,7 +90,10 @@ std::string first_difference(std::string_view workload, int block, const Produce
 struct Scratch {
 	std::vector<q31_t> fade = std::vector<q31_t>(cw::kMaxFrames * 2);
 	std::vector<q31_t> parallel = std::vector<q31_t>(cw::kMaxFrames * 2);
-	[[nodiscard]] deluge::dsp::fixed::FilterScratch view() { return {.fade = fade, .parallel = parallel}; }
+	[[nodiscard]] deluge::dsp::fixed::FilterScratch view() {
+		return {.fade = deluge::dsp::typed_view(std::span{fade}),
+		        .parallel = deluge::dsp::typed_view(std::span{parallel})};
+	}
 };
 
 /// @return The first difference between SoundChain and the reference over every workload, or empty.
@@ -116,11 +120,11 @@ std::string sound_difference() {
 				SoundChainInputs in{
 				    .fx = cw::fx_inputs(w, s),
 				    .bitcrush = cw::kBitcrush,
-				    .post_fx_volume = 0x0A000000,
-				    .post_reverb_volume = 134217728,
-				    .reverb_send = 0x08000000,
+				    .post_fx_volume = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .post_reverb_volume = deluge::dsp::Q<27>::one(),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x08000000),
 				    .sound = sound,
-				    .compressor_threshold = w.threshold,
+				    .compressor_threshold = deluge::dsp::Q<31>::from_raw(w.threshold),
 				    .stutter = nullptr,
 				    .stutter_rate = cw::kStutterRate,
 				};
@@ -137,8 +141,9 @@ std::string sound_difference() {
 					mine.stutter = w.stutter ? stutter : nullptr;
 					std::vector<StereoSample> block = cw::input(w, b, frames);
 					std::vector<int32_t> send(frames, 0);
-					side->sent = chain == &run ? run.process(block, mine, send)
-					                           : chain_reference::sound(ref.core(), mine, block, send);
+					side->sent = chain == &run ? run.process(block, mine, deluge::dsp::typed_view(std::span{send}))
+					                           : chain_reference::sound(ref.core(), mine, block,
+					                                                    deluge::dsp::typed_view(std::span{send}));
 					side->output = words(block);
 					side->send = send;
 					side->noise = deluge::synth_noise.state();
@@ -163,8 +168,8 @@ std::string clip_difference() {
 		DelayArena arena_b{cw::kArenaMemory};
 		std::string found;
 		{
-			TrackChain run{cw::kAllocator, cw::kAllocator, arena_a, 134217728};
-			TrackChain ref{cw::kAllocator, cw::kAllocator, arena_b, 134217728};
+			TrackChain run{cw::kAllocator, cw::kAllocator, arena_a, deluge::dsp::Q<27>::one()};
+			TrackChain ref{cw::kAllocator, cw::kAllocator, arena_b, deluge::dsp::Q<27>::one()};
 			cw::hand_over(run.core(), s);
 			cw::hand_over(ref.core(), s);
 			Stutter stutter_a{cw::kAllocator};
@@ -183,16 +188,16 @@ std::string clip_difference() {
 				    .bitcrush = cw::kBitcrush,
 				    .filter = cw::kFilter,
 				    .filter_scratch = {},
-				    .volume_post_fx = 0x0A000000,
-				    .reverb_send = 0x08000000,
-				    .pan = w.stereo ? 0x10000000 : 0,
+				    .volume_post_fx = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x08000000),
+				    .pan = deluge::dsp::Q<31>::from_raw(w.stereo ? 0x10000000 : 0),
 				    .sidechain_on = w.sidechain,
-				    .sidechain_hit = w.sidechain && b % 7 == 0 ? 0x40000000 : 0,
-				    .sidechain_shape = -601295438,
-				    .sidechain_depth = (0x40000000 >> 2) + 536870912,
+				    .sidechain_hit = deluge::dsp::Q<31>::from_raw(w.sidechain && b % 7 == 0 ? 0x40000000 : 0),
+				    .sidechain_shape = deluge::dsp::Q<31>::from_raw(-601295438),
+				    .sidechain_depth = deluge::dsp::Q<29>::from_raw((0x40000000 >> 2) + 536870912),
 				    .tick_inverse = 0x00800000,
-				    .post_reverb_volume_neutral = 134217728,
-				    .compressor_threshold = w.threshold,
+				    .post_reverb_volume_neutral = deluge::dsp::Q<27>::one(),
+				    .compressor_threshold = deluge::dsp::Q<31>::from_raw(w.threshold),
 				    .stutter = nullptr,
 				    .stutter_rate = cw::kStutterRate,
 				};
@@ -215,11 +220,12 @@ std::string clip_difference() {
 					};
 					if (chain == &run) {
 						TrackBlock levels = run.begin_block(mine, frames);
-						side->sent = run.process(block, mine, levels, rendered, send, tap);
+						side->sent =
+						    run.process(block, mine, levels, rendered, deluge::dsp::typed_view(std::span{send}), tap);
 					}
 					else {
 						side->sent = chain_reference::clip(ref.core(), ref.filter(), ref.saturation(), mine, block,
-						                                   rendered, send, tap);
+						                                   rendered, deluge::dsp::typed_view(std::span{send}), tap);
 					}
 					side->output = words(block);
 					side->send = send;
@@ -261,9 +267,9 @@ std::string master_difference() {
 				const std::size_t frames = cw::kBlockFrames[b % cw::kBlockFrames.size()];
 				const MasterChainInputs in{
 				    .fx = cw::fx_inputs(w, s),
-				    .volume_post_fx = 0x0A000000,
-				    .post_reverb_volume = 134217728,
-				    .reverb_send = 0x04000000,
+				    .volume_post_fx = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .post_reverb_volume = deluge::dsp::Q<27>::one(),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x04000000),
 				};
 				Produced a;
 				Produced r;
@@ -279,11 +285,11 @@ std::string master_difference() {
 					    .filter_scratch = scratch->view(),
 					    .noise = &deluge::synth_noise,
 					    .bitcrush = cw::kBitcrush,
-					    .master_volume = 167763968,
+					    .master_volume = deluge::effects::kMasterVolume,
 					    .do_pan = w.stereo,
-					    .pan_l = 0x30000000,
-					    .pan_r = 0x10000000,
-					    .song_volume = 0x40000000,
+					    .pan_l = deluge::dsp::Q<30>::from_raw(0x30000000),
+					    .pan_r = deluge::dsp::Q<30>::from_raw(0x10000000),
+					    .song_volume = deluge::dsp::Q<27>::from_raw(0x40000000),
 					    .stutter = w.stutter ? stutter : nullptr,
 					    .stutter_rate = cw::kStutterRate,
 					};
@@ -296,8 +302,9 @@ std::string master_difference() {
 						return w.post ? std::optional{post} : std::nullopt;
 					};
 					side->sent = chain == &run
-					                 ? run.render(block, mine, send, between)
-					                 : chain_reference::master(ref.core(), ref.filter(), mine, block, send, between);
+					                 ? run.render(block, mine, deluge::dsp::typed_view(std::span{send}), between)
+					                 : chain_reference::master(ref.core(), ref.filter(), mine, block,
+					                                           deluge::dsp::typed_view(std::span{send}), between);
 					side->output = words(block);
 					side->send = send;
 					side->noise = deluge::synth_noise.state();

@@ -157,7 +157,7 @@ void expectSameDoc(const deluge::project::DocAutoParam& a, const deluge::project
 // Compare a param at index `idx` across two ParamSets — the RT cursor (currentValue) plus the owner-resolved
 // node store. Replaces expectSameNodes for params that live in a set.
 void expectSameParamInSet(ParamSet* a, ParamSet* b, int32_t idx, const char* name) {
-	check(a->params[idx].currentValue == b->params[idx].currentValue, name);
+	check(a->params[idx].played() == b->params[idx].played(), name);
 	expectSameDoc(*a->docForParam(idx), *b->docForParam(idx), name);
 }
 
@@ -185,11 +185,11 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 }
 
 // The engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) read
-// the DOM store's scalar, not the engine cursor. A test that authors state via params[p].currentValue must seed
+// the DOM store's scalar, not the engine cursor. A test that authors state via params[p].played() must seed
 // the store to match — exactly as a real read/edit does. (docForParam resolves the set's own store here.)
 void authorStoreFromEngine(ParamSet& s) {
 	for (int32_t p = 0; p < s.getNumParams(); p++) {
-		s.docForParam(p)->current_value = s.params[p].currentValue;
+		s.docForParam(p)->current_value = s.params[p].played();
 	}
 }
 void authorStoreFromEngine(ParamManagerForTimeline& pm) {
@@ -456,7 +456,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			for (int32_t offset : shiftValueOffsets) {
 				AutoParam ap;
 				deluge::project::DocAutoParam apDoc;
-				ap.currentValue = vc.currentValue;
+				ap.setPlayed(vc.currentValue);
 				DocAutoParam doc{};
 				doc.current_value = vc.currentValue;
 				for (const N& n : vc.cfg) {
@@ -465,7 +465,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				}
 				ap.shiftValues(*(&apDoc), offset);
 				deluge::project::shiftValues(doc, offset);
-				check(ap.currentValue == doc.current_value, "shiftValues: current_value matches engine oracle");
+				check(ap.played() == doc.current_value, "shiftValues: current_value matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "shiftValues: nodes match engine oracle");
 			}
 		}
@@ -484,7 +484,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			for (const auto& tc : transposeCases) {
 				AutoParam ap;
 				deluge::project::DocAutoParam apDoc;
-				ap.currentValue = tc.currentValue;
+				ap.setPlayed(tc.currentValue);
 				DocAutoParam doc{};
 				doc.current_value = tc.currentValue;
 				for (const N& n : tc.cfg) {
@@ -493,7 +493,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				}
 				ap.transposeCCValuesToChannelPressureValues(*(&apDoc));
 				deluge::project::transposeCCValuesToChannelPressure(doc);
-				check(ap.currentValue == doc.current_value, "transposeCC: current_value matches engine oracle");
+				check(ap.played() == doc.current_value, "transposeCC: current_value matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "transposeCC: nodes match engine oracle");
 			}
 		}
@@ -820,16 +820,16 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
-		pm.getPatchedParamSet()->params[5].currentValue = 12345;
+		pm.getPatchedParamSet()->params[5].setPlayed(12345);
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 32, -500, false);
-		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		pm.getUnpatchedParamSet()->params[2].setPlayed(678);
 
 		// A patch cable: source -> destination param, with an automatable amount.
 		PatchCableSet* pcs = pm.getPatchCableSet();
 		pcs->appendCable(
 		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
-		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range (engine cursor)
+		pcs->patchCables[0].param.setPlayed(536870912);       // amount, patch-cable range (engine cursor)
 		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
 
@@ -843,17 +843,16 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// The topology is the instrument's records; the projection carries the depths into the cables it has.
 		pm2.getPatchCableSet()->appendCable(pcs->records()[0]);
 		deluge::bridge::fromDocParamManager(doc, pm2);
-		check(pm2.getPatchedParamSet()->params[5].currentValue == 12345, "pm patched currentValue");
+		check(pm2.getPatchedParamSet()->params[5].played() == 12345, "pm patched currentValue");
 		expectSameParamInSet(pm2.getPatchedParamSet(), pm.getPatchedParamSet(), 5, "pm patched nodes");
-		check(pm2.getUnpatchedParamSet()->params[2].currentValue == 678, "pm unpatched currentValue");
+		check(pm2.getUnpatchedParamSet()->params[2].played() == 678, "pm unpatched currentValue");
 
 		PatchCableSet* pcs2 = pm2.getPatchCableSet();
 		check(pcs2->numPatchCables == 1, "pm2 patch cable count");
 		check(pcs2->patchCables[0].from == PatchSource::ENVELOPE_0, "pm2 cable source");
 		check(pcs2->patchCables[0].destination.word == pcs->patchCables[0].destination.word, "pm2 cable destination");
 		check(pcs2->patchCables[0].polarity == Polarity::BIPOLAR, "pm2 cable polarity");
-		check(pcs2->patchCables[0].param.currentValue == pcs->patchCables[0].param.currentValue,
-		      "pm2 cable amount value");
+		check(pcs2->patchCables[0].param.played() == pcs->patchCables[0].param.played(), "pm2 cable amount value");
 		{
 			const auto& n2 = pcs2->docForParam(0)->nodes;
 			const auto& n1 = pcs->docForParam(0)->nodes;
@@ -871,10 +870,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	{
 		ParamManagerForTimeline src;
 		check(src.setupWithPatching() == Error::NONE, "5c1 src setup");
-		src.getPatchedParamSet()->params[5].currentValue = 999;
+		src.getPatchedParamSet()->params[5].setPlayed(999);
 		setNodeIn(*src.getPatchedParamSet()->docForParam(5), 0, 100, true); // automated in src
 		setNodeIn(*src.getPatchedParamSet()->docForParam(5), 48, -200, false);
-		src.getUnpatchedParamSet()->params[3].currentValue = 4242; // not automated in src
+		src.getUnpatchedParamSet()->params[3].setPlayed(4242); // not automated in src
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(src);
 
@@ -883,7 +882,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(dst.setupWithPatching() == Error::NONE, "5c1 dst setup");
 		setNodeIn(*dst.getPatchedParamSet()->docForParam(9), 0, 7, true);
 		dst.getPatchedParamSet()->paramHasAutomationNow(dst.getPatchedParamSetSummary(), 9);
-		dst.getPatchedParamSet()->params[5].currentValue = -1; // stale value
+		dst.getPatchedParamSet()->params[5].setPlayed(-1); // stale value
 
 		deluge::bridge::fromDocParamManager(doc, dst);
 
@@ -895,7 +894,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(dst.getPatchedParamSet()->docForParam(9)->nodes.empty(), "5c1 param9 nodes cleared");
 		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
 		// unpatched value restored
-		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
+		check(dst.getUnpatchedParamSet()->params[3].played() == 4242, "5c1 unpatched restored");
 	}
 
 	// The generic patch-cable serializer must be byte-identical to the engine's
@@ -914,12 +913,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// its own polarity, not the outer cable's
 		pcs->appendCable({PatchSource::LFO_LOCAL_2, deluge::synth::CableTarget::depth_of(7, PatchSource::ENVELOPE_0),
 		                  deluge::synth::CablePolarity::UNIPOLAR});
-		pcs->patchCables[0].param.currentValue = 536870912;
+		pcs->patchCables[0].param.setPlayed(536870912);
 		pcs->docForParam(0)->current_value = 536870912;       // store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // cable nodes live in the cable's own store
-		pcs->patchCables[1].param.currentValue = -100000;
+		pcs->patchCables[1].param.setPlayed(-100000);
 		pcs->docForParam(1)->current_value = -100000;
-		pcs->patchCables[2].param.currentValue = 12345;
+		pcs->patchCables[2].param.setPlayed(12345);
 		pcs->docForParam(2)->current_value = 12345;
 
 		static char engineBuf[16384];
@@ -993,11 +992,11 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "attr setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[2].currentValue = 424242; // automated
+		unp->params[2].setPlayed(424242); // automated
 		setNodeIn(*unp->docForParam(2), 0, 10, true);
 		setNodeIn(*unp->docForParam(2), 40, -20, false);
-		unp->params[5].currentValue = -7; // plain, non-empty
-		unp->params[8].currentValue = 0;  // empty
+		unp->params[5].setPlayed(-7); // plain, non-empty
+		unp->params[8].setPlayed(0);  // empty
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
 
@@ -1029,10 +1028,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "mca setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
-		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
+		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
 		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true);
-		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
+		unp->params[params::UNPATCHED_BASS].setPlayed(-333); // equalizer group
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 
@@ -1069,12 +1068,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "mca-rt setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
-		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
+		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
 		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true); // automated
 		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 48, -99, false);
-		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
-		unp->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].currentValue = 444;
+		unp->params[params::UNPATCHED_BASS].setPlayed(-333); // equalizer group
+		unp->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setPlayed(444);
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
 
@@ -1121,14 +1120,14 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "ge setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
-		unp->params[params::UNPATCHED_VOLUME].currentValue = 456;
-		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789; // exercises the conditional attr
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setPlayed(123);
+		unp->params[params::UNPATCHED_VOLUME].setPlayed(456);
+		unp->params[params::UNPATCHED_PITCH_ADJUST].setPlayed(789); // exercises the conditional attr
 		setNodeIn(*unp->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), 0, 99, false); // automated ⇒ conditional fires
-		unp->params[params::UNPATCHED_LPF_FREQ].currentValue = -111;                    // <lpf> group
-		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;                   // <delay> group
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;                 // shared block
-		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;                    // community attr
+		unp->params[params::UNPATCHED_LPF_FREQ].setPlayed(-111);                        // <lpf> group
+		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);                       // <delay> group
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);                     // shared block
+		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);                        // community attr
 		authorStoreFromEngine(pm); // the save wrapper reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
@@ -1165,14 +1164,14 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "ge-rt setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
-		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;          // conditional attr
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setPlayed(123);
+		unp->params[params::UNPATCHED_PITCH_ADJUST].setPlayed(789);              // conditional attr
 		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 0, -111, true); // <lpf> group, automated
-		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;            // <delay> group
-		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;               // <hpf> group
-		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;             // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;          // shared MCA attr
-		unp->params[params::UNPATCHED_BASS].currentValue = -333;                 // equalizer group
+		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);                // <delay> group
+		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);                   // <hpf> group
+		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);                 // flat community attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);              // shared MCA attr
+		unp->params[params::UNPATCHED_BASS].setPlayed(-333);                     // equalizer group
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
 
@@ -1234,7 +1233,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				legacyReader.exitTag();
 			}
 		}
-		check(unp3->params[params::UNPATCHED_LPF_MORPH].currentValue != 0x5A5A, "ge-rt nested <lpf morph> is not read");
+		check(unp3->params[params::UNPATCHED_LPF_MORPH].played() != 0x5A5A, "ge-rt nested <lpf morph> is not read");
 	}
 
 	// The ExpressionParamSet (MPE) block serializes byte-identical to the engine's
@@ -1244,7 +1243,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm.setupWithPatching() == Error::NONE, "expr setup");
 		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
 		check(e != nullptr, "expr param set created");
-		e->params[0].currentValue = 12345;            // pitchBend
+		e->params[0].setPlayed(12345);                // pitchBend
 		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 		// yExpression (index 1) left neutral ⇒ exercises the per-dimension skip.
 		authorStoreFromEngine(*e); // the ExpressionParamSet::writeToFile reads the store
@@ -1274,7 +1273,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm.setupWithPatching() == Error::NONE, "expr-rt setup");
 		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
 		check(e != nullptr, "expr-rt set created");
-		e->params[0].currentValue = 12345;            // pitchBend
+		e->params[0].setPlayed(12345);                // pitchBend
 		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*e);
@@ -1327,7 +1326,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		XMLDeserializer legacyReader(reinterpret_cast<uint8_t*>(legacyBuf), legacyLen);
 		legacyReader.openXMLFile("expressionData");
 		e3->readFromFile(legacyReader, esum3, 2147483647);
-		check(e3->params[2].currentValue == 0x00001A2B, "expr-rt legacy channelPressure loads");
+		check(e3->params[2].played() == 0x00001A2B, "expr-rt legacy channelPressure loads");
 	}
 
 	// The Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
@@ -1338,19 +1337,19 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm.setupWithPatching() == Error::NONE, "sound setup");
 		PatchedParamSet* pp = pm.getPatchedParamSet();
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
-		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
-		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;              // conditional attr — written
+		pp->params[params::LOCAL_OSC_A_VOLUME].setPlayed(12345);
+		pp->params[params::LOCAL_PITCH_ADJUST].setPlayed(678);                  // conditional attr — written
 		setNodeIn(*pp->docForParam(params::LOCAL_ENV_0_ATTACK), 0, 4242, true); // envelope group, automated
-		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
-		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
-		up->params[params::UNPATCHED_PORTAMENTO].currentValue = 222;
-		up->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared block
+		pp->params[params::GLOBAL_REVERB_AMOUNT].setPlayed(-999);
+		pp->params[params::LOCAL_LPF_MORPH].setPlayed(111); // community attr
+		up->params[params::UNPATCHED_PORTAMENTO].setPlayed(222);
+		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared block
 
 		// A patch cable so the <patchCables> block is exercised within the Sound layout.
 		PatchCableSet* pcs = pm.getPatchCableSet();
 		pcs->appendCable({PatchSource::LFO_GLOBAL_1, deluge::synth::CableTarget::param(params::LOCAL_LPF_FREQ),
 		                  deluge::synth::CablePolarity::BIPOLAR});
-		pcs->patchCables[0].param.currentValue = 268435456;
+		pcs->patchCables[0].param.setPlayed(268435456);
 		// The Sound::writeParamsToFile reads the store for params AND the cable amount.
 		authorStoreFromEngine(pm);
 		pcs->docForParam(0)->current_value = 268435456;
@@ -1383,13 +1382,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm.setupWithPatching() == Error::NONE, "sound-rt setup");
 		PatchedParamSet* pp = pm.getPatchedParamSet();
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
-		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
+		pp->params[params::LOCAL_OSC_A_VOLUME].setPlayed(12345);
 		setNodeIn(*pp->docForParam(params::LOCAL_ENV_0_ATTACK), 0, 4242, true); // envelope group, automated
-		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
-		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
-		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;
-		up->params[params::UNPATCHED_PORTAMENTO].currentValue = 222;
-		up->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared MCA attr
+		pp->params[params::GLOBAL_REVERB_AMOUNT].setPlayed(-999);
+		pp->params[params::LOCAL_LPF_MORPH].setPlayed(111); // community attr
+		pp->params[params::LOCAL_PITCH_ADJUST].setPlayed(678);
+		up->params[params::UNPATCHED_PORTAMENTO].setPlayed(222);
+		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 
@@ -1439,7 +1438,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(pm.setupWithPatching() == Error::NONE, "override setup");
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
 		setNodeIn(*up->docForParam(params::UNPATCHED_VOLUME), 0, 4242, true); // automated ⇒ override applies
-		up->params[params::UNPATCHED_PAN].currentValue = 555;                 // not automated ⇒ override ignored
+		up->params[params::UNPATCHED_PAN].setPlayed(555);                     // not automated ⇒ override ignored
 		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
 		// An automated ModControllableAudio arp attr: the engine writes it WITHOUT the override (only the
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
@@ -1496,15 +1495,15 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "5cB setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
-		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;
+		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setPlayed(123);
+		unp->params[params::UNPATCHED_PITCH_ADJUST].setPlayed(789);
 		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 0, -111, true); // <lpf> group, automated
 		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 48, 222, false);
-		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;   // <delay> group
-		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;      // <hpf> group
-		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;    // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333; // shared MCA attr
-		unp->params[params::UNPATCHED_BASS].currentValue = -333;        // equalizer group
+		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);   // <delay> group
+		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);      // <hpf> group
+		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);    // flat community attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
+		unp->params[params::UNPATCHED_BASS].setPlayed(-333);        // equalizer group
 
 		deluge::project::DocParamSet src = deluge::bridge::toDocParamSet(*unp);
 		static char rtBuf[16384];
@@ -1598,7 +1597,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// First owner-resolved access lazily binds the store; edits land there.
 		setNodeIn(*unp->docForParam(2), 0, 111, false);
 		setNodeIn(*unp->docForParam(2), 48, -222, true);
-		unp->params[5].currentValue = 4242; // unautomated
+		unp->params[5].setPlayed(4242); // unautomated
 
 		deluge::project::DocParamSet* store = unp->domStore();
 		check(store != nullptr, "lazy: store bound on first docForParam");
@@ -1767,7 +1766,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			for (int32_t length : reverseLengths) {
 				AutoParam ap;
 				deluge::project::DocAutoParam apDoc;
-				ap.currentValue = 42;
+				ap.setPlayed(42);
 				DocAutoParam doc{};
 				doc.current_value = 42;
 				for (const N& n : cfg) {
@@ -1776,7 +1775,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				}
 				ap.flattenReverse(*(&apDoc), length);
 				deluge::project::flattenReverse(doc, length);
-				check(ap.currentValue == doc.current_value,
+				check(ap.played() == doc.current_value,
 				      "flattenReverse: current_value untouched, matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "flattenReverse: matches engine oracle");
 			}
@@ -1786,14 +1785,14 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		{
 			AutoParam ap;
 			deluge::project::DocAutoParam apDoc;
-			ap.currentValue = 7;
+			ap.setPlayed(7);
 			DocAutoParam doc{};
 			doc.current_value = 7;
 			setNodeIn(apDoc, 8, 5, true);
 			deluge::project::setNodeAtPos(doc, 8, 5, true);
 			ap.flattenReverse(*(&apDoc), 0);
 			deluge::project::flattenReverse(doc, 0);
-			check(ap.currentValue == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
+			check(ap.played() == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
 			expectDocMatchesEngine(apDoc, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
 		}
 
@@ -1911,7 +1910,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 						ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong);
 						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
 
-						check(ap.currentValue == doc.current_value,
+						check(ap.played() == doc.current_value,
 						      "appendParam: current_value untouched, matches engine oracle");
 						expectDocMatchesEngine(apDoc, doc, "appendParam: matches engine oracle");
 					}
@@ -2019,7 +2018,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			}
 			if (length == static_cast<uint32_t>(effLen)) {
 				(&apDoc)->nodes.erase((&apDoc)->nodes.begin(), (&apDoc)->nodes.end());
-				ap.currentValue = value;
+				ap.setPlayed(value);
 				return RegionCurrentValueEffect::Set;
 			}
 			int32_t firstI = ap.homogenizeRegion(ms, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
@@ -2028,7 +2027,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				return std::nullopt;
 			}
 			if (!clockActive) {
-				ap.currentValue = value;
+				ap.setPlayed(value);
 				return RegionCurrentValueEffect::Set;
 			}
 			int32_t mostRecentI = (&apDoc)->nodes.firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
@@ -2036,7 +2035,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				mostRecentI = static_cast<int32_t>((&apDoc)->nodes.size()) - 1;
 			}
 			if (mostRecentI == firstI) {
-				ap.currentValue = value;
+				ap.setPlayed(value);
 				return RegionCurrentValueEffect::SetAndResetInterp;
 			}
 			return RegionCurrentValueEffect::NotifyOnly;
@@ -2108,7 +2107,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 							      "setValueForRegion: has_value matches engine oracle");
 							check(!domRet.has_value() || domRet->currentValueEffect == *expectedEffect,
 							      "setValueForRegion: currentValueEffect matches engine branch");
-							check(ap.currentValue == doc.current_value,
+							check(ap.played() == doc.current_value,
 							      "setValueForRegion: current_value matches engine oracle");
 							expectDocMatchesEngine(apDoc, doc, "setValueForRegion: nodes match engine oracle");
 						}
@@ -2388,7 +2387,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				// --- insertStolenNodes: splice the stolen record back in at a (possibly different) destination.
 				engineInsertStolen(ap, apDoc, ms, c.dstPos, c.dstLen, loopLen, &engineRecord);
 				deluge::project::insertStolenNodes(doc, c.dstPos, c.dstLen, loopLen, domRecord);
-				check(ap.currentValue == doc.current_value,
+				check(ap.played() == doc.current_value,
 				      "insertStolenNodes: current_value untouched, matches engine oracle");
 				expectDocMatchesEngine(apDoc, doc, "insertStolenNodes: matches engine oracle");
 			}
@@ -2474,7 +2473,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 					(&apDoc)->nodes[iFurtherRight].interpolated = true;
 				}
 			}
-			ap.currentValue = value;
+			ap.setPlayed(value);
 			return leftI;
 		};
 
@@ -2528,7 +2527,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 				                                                  c.interpL, effLen, c.reversed,
 				                                                  /*recordingLinearly=*/false, c.cut);
 				check(engRet == domRet, "recordLiveValue: return index matches engine oracle");
-				check(ap.currentValue == doc.current_value, "recordLiveValue: current_value matches engine");
+				check(ap.played() == doc.current_value, "recordLiveValue: current_value matches engine");
 				expectDocMatchesEngine(apDoc, doc, "recordLiveValue: nodes match engine oracle");
 			}
 		}

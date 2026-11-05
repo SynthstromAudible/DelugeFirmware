@@ -40,10 +40,10 @@ struct SourcePorts {
 /// @brief The phase state of one source slot that every synth mode shares, and the engines and the app read.
 struct SlotPhase {
 	/// The phase of a source no oscillator holds (FM's carriers, noise); a free-running oscillator's first phase.
-	uint32_t osc_pos{};
-	uint32_t phase_increment_stored_value{}; ///< The source's pitch before modulation (UQ0.32)
-	int32_t carrier_feedback{};              ///< FM's carrier feedback memory
-	bool active{};                           ///< The slot sounds in this unison part
+	dsp::UQ<32> osc_pos{};
+	dsp::UQ<32> phase_increment_stored_value{}; ///< The source's pitch before modulation
+	dsp::Q<31> carrier_feedback{};              ///< FM's carrier feedback memory
+	bool active{};                              ///< The slot sounds in this unison part
 };
 
 /// @brief One source slot of one unison part: the note's oscillator source held in place, the port-backed sources
@@ -81,9 +81,9 @@ public:
 	/// The held oscillator, for an engine that renders it directly (ring-mod renders the raw wave).
 	[[nodiscard]] Oscillator& oscillator() { return oscillator_; }
 	/// The held oscillator's phase, else @ref osc_pos. (Osc sync seeds the slave from the master at block start.)
-	[[nodiscard]] uint32_t current_osc_phase() const;
+	[[nodiscard]] dsp::UQ<32> current_osc_phase() const;
 	/// Advances the held oscillator's phase by @p delta, else @ref osc_pos (a skipped osc-sync master still runs).
-	void advance_osc_phase(uint32_t delta);
+	void advance_osc_phase(dsp::UQ<32> delta);
 
 	[[nodiscard]] SampleSource& sample() { return sample_; }
 	[[nodiscard]] DX7Source& dx7() { return dx7_; }

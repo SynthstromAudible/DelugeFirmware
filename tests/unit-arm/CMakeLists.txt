@@ -5,6 +5,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-linux-clang.cmake)
 endif()
 project(DelugeTestsArm)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/ccache.cmake)
 # The DX7 asm pin links a test-local copy of the device's NEON FM kernel.
 enable_language(ASM)
 

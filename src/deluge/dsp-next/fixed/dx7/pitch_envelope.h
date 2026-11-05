@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dx7/envelope_params.h"
@@ -58,8 +59,8 @@ namespace deluge::dsp::fixed::dx7 {
 /// **A block.** The level moves by the whole block's samples times the stage's increment at once; a stage whose
 /// target is reached or passed lands on the target and enters the next stage, and the rest of the block is dropped.
 struct PitchEnvelope {
-	using value_type = q31; ///< The pitch offset, Q24 octaves.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The pitch offset in octaves.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The patch's pitch envelope bytes (126 to 133).
 	struct Settings {
@@ -70,8 +71,8 @@ struct PitchEnvelope {
 
 	/// @brief The envelope between blocks.
 	struct State {
-		int32_t level = 0;     ///< The pitch offset, Q24 octaves.
-		int32_t target = 0;    ///< The stage's target level, Q24 octaves.
+		Q<24> level{};         ///< The pitch offset in octaves.
+		Q<24> target{};        ///< The stage's target level in octaves.
 		int32_t stage = 0;     ///< The stage, 0 to 3; 4 once release has finished.
 		int32_t increment = 0; ///< The stage's level step per sample, Q24 octaves.
 		bool rising = false;   ///< The stage moves up to its target.
@@ -89,7 +90,7 @@ struct PitchEnvelope {
 	    58,  60,  62,  64,  66,  68,  70,  72,  74,  76,  79,  82,  85,  88,  91,  94,  98,  102, 106, 110,
 	    115, 120, 125, 130, 135, 141, 147, 153, 159, 165, 171, 178, 185, 193, 202, 211, 232, 243, 254, 255};
 
-	/// @brief A level byte (0 to 99) as a pitch offset in 1/32 octave, so a level shifted up by 19 is Q24 octaves.
+	/// @brief A level byte (0 to 99) as a pitch offset in 1/32 octave, Q5 octaves.
 	static constexpr std::array<int8_t, 100> kLevel{
 	    -128, -116, -104, -95, -85, -76, -68, -61, -56, -52, -49, -46, -43, -41, -39, -37, -35, -33, -32, -31,
 	    -30,  -29,  -28,  -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11,
@@ -103,18 +104,20 @@ struct PitchEnvelope {
 	/// @brief Moves the envelope on by a block of @p n samples.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The pitch offset after the block, Q24 octaves.
-	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n) {
 		const auto count = static_cast<int32_t>(n);
 		if (s.stage < 3 || (s.stage < 4 && !s.down)) {
+			// A block's step is an integer product, well inside the word: at most 255 kUnit a sample.
+			const Q<24> step = Q<24>::from_raw(count * s.increment);
 			if (s.rising) {
-				s.level += count * s.increment;
+				s.level = add_wrap(s.level, step);
 				if (s.level >= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
 				}
 			}
 			else {
-				s.level -= count * s.increment;
+				s.level = sub_wrap(s.level, step);
 				if (s.level <= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
@@ -126,7 +129,7 @@ struct PitchEnvelope {
 
 	/// @brief Key down: the level jumps to level 4 and stage 0 starts.
 	[[gnu::always_inline]] static void start(const Coefficients& c, State& s) {
-		s.level = kLevel[c.params.levels[3]] << 19;
+		s.level = level_of(c.params.levels[3]);
 		s.down = true;
 		enter_stage(c, s, 0);
 	}
@@ -140,11 +143,16 @@ struct PitchEnvelope {
 	}
 
 private:
+	/// @brief A level byte as Q24 octaves: kLevel's 1/32 octave is Q5.
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Q<24> level_of(uint8_t level) {
+		return as_wrap<Q<24>>(Q<5>::from_raw(kLevel[level]));
+	}
+
 	/// @brief Enters @p stage, reading its rate and level; past stage 3 nothing is read and the level holds.
 	[[gnu::always_inline]] static void enter_stage(const Coefficients& c, State& s, int32_t stage) {
 		s.stage = stage;
 		if (stage < 4) {
-			s.target = kLevel[c.params.levels[stage]] << 19;
+			s.target = level_of(c.params.levels[stage]);
 			s.rising = s.target > s.level;
 			s.increment = kRate[c.params.rates[stage]] * kUnit;
 		}

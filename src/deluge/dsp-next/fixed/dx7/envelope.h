@@ -63,14 +63,14 @@ namespace deluge::dsp::fixed::dx7 {
 /// **A block.** The level moves by the whole block at once; a stage whose target is reached or passed lands on the
 /// target and enters the next stage, and the rest of the block is dropped.
 struct Envelope {
-	using value_type = q31; ///< The level, Q24 doublings.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The level in doublings.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The operator's envelope bytes and the voice's scaling of them.
 	struct Settings {
 		EnvelopeParams params{}; ///< The op's rates and levels, read live.
-		/// The voice's scaled output level, in microsteps (1/32 of a step on the 0 to 127 output scale, about
-		/// 0.023 dB): 127 × 32 at full level, plus the velocity's up to 224.
+		/// The voice's scaled output level, in microsteps (Q8 doublings: 1/32 of a step on the 0 to 127 output scale,
+		/// about 0.023 dB): 127 × 32 at full level, plus the velocity's up to 224.
 		int32_t output_level = 0;
 		int32_t rate_scaling = 0; ///< Added to every stage's rate, in qRate units, 0 to 63.
 		int32_t extra_rate = 0;   ///< Added to a stage's rate when a block enters it; 0 for the events.
@@ -80,10 +80,10 @@ struct Envelope {
 
 	/// @brief The envelope between blocks.
 	struct State {
-		int32_t level = 0;     ///< The level, Q24 doublings: 2^24 is one doubling.
-		int32_t target = 0;    ///< The stage's target level, Q24 doublings.
+		Q<24> level{};         ///< The level in doublings.
+		Q<24> target{};        ///< The stage's target level in doublings.
 		int32_t stage = 0;     ///< The stage, 0 to 3; 4 once release has finished.
-		int32_t increment = 0; ///< The stage's step per sample, 2^-16 of a Q24 doubling (rising: times the slope).
+		int32_t increment = 0; ///< The stage's step per sample, in the level's Q24 units (rising: times the slope).
 		int32_t hold = 0;      ///< Samples left before a held stage enters the next; 0 when not held.
 		bool down = false;     ///< The key is held.
 		bool rising = false;   ///< The stage moves up to its target.
@@ -103,7 +103,7 @@ struct Envelope {
 	    5512,    5512,    4410,    3969,    3969,    3439,    2866,   2690,   2249,   1984,   1896,   1808,   1411,
 	    1367,    1234,    1146,    926,     837,     837,     705,    573,    573,    529,    441,    441};
 
-	/// @brief The level a rising stage starts from, in 1/65536 of a Q24 doubling: below it the level jumps to it.
+	/// @brief The level a rising stage starts from, in microsteps (Q8 doublings): below it the level jumps to it.
 	static constexpr int32_t kJumpTarget = 1716;
 	/// @brief The microsteps taken off a stage's level plus output level: the DX7's level zero.
 	static constexpr int32_t kLevelOffset = 4256;
@@ -114,11 +114,11 @@ struct Envelope {
 	/// @brief Moves the envelope on by a block of @p n samples, entering a stage with the configured extra rate.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The level after the block, Q24 doublings.
-	[[nodiscard]] static q31 advance(const Coefficients& c, State& s, std::size_t n);
+	[[nodiscard]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n);
 
 	/// @brief Key down: the level to 0 and stage 0 entered.
 	[[gnu::always_inline]] static void start(const Coefficients& c, State& s) {
-		s.level = 0;
+		s.level = Q<24>{};
 		s.down = true;
 		enter_stage(c, s, 0, 0);
 	}
@@ -148,9 +148,9 @@ struct Envelope {
 
 private:
 	/// @brief The target for a stage level byte @p level at @p output_level microsteps: no lower than 16 microsteps.
-	/// @details The microsteps are at most 63 × 64 plus the output level, under 2^15, so shifting them into the level's
-	/// 2^16 units stays inside the word.
-	[[nodiscard]] static int32_t stage_target(int32_t level, int32_t output_level);
+	/// @details The microsteps are at most 63 × 64 plus the output level, under 2^15, so moving them from Q8 to the
+	/// level's Q24 stays inside the word.
+	[[nodiscard]] static Q<24> stage_target(int32_t level, int32_t output_level);
 
 	/// @brief Enters @p stage: its target, direction, hold and increment from its level and rate plus @p extra_rate.
 	/// Past stage 3 nothing is read and the level holds.

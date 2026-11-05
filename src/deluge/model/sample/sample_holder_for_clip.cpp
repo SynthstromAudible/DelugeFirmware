@@ -16,9 +16,12 @@
  */
 
 #include "model/sample/sample_holder_for_clip.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "model/sample/clip_increment.h"
 #include "model/sample/sample.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/phase_increment_fine_tuner.h"
 
 using deluge::dsp::fixed::kLinearTableInterpolator;
 
@@ -42,19 +45,12 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 	if (audioFile) {
 
-		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
-		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
-
-		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
-
-		if (((Sample*)audioFile)->sampleRate != kSampleRate) {
-			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;
-		}
+		neutralPhaseIncrement = transposed_neutral(transpose, ((Sample*)audioFile)->sampleRate, kSampleRate);
 
 		if (cents) {
-			int32_t multiplier =
-			    kLinearTableInterpolator.interpolate(2147483648u + (int32_t)cents * 42949672, 32, centAdjustTableSmall);
-			neutralPhaseIncrement = multiply_32x32_rshift32(neutralPhaseIncrement, multiplier) << 2;
+			int32_t multiplier = kLinearTableInterpolator.interpolate(
+			    2147483648u + PhaseIncrementFineTuner::cents_step(cents), 32, centAdjustTableSmall);
+			neutralPhaseIncrement = cents_scaled(neutralPhaseIncrement, multiplier);
 		}
 	}
 }

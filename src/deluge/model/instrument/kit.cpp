@@ -18,7 +18,6 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -37,6 +36,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
 #include "model/edits/bend_range_for.h"
+#include "model/fx/chain_inputs.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
@@ -53,8 +53,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
-#include "util/functions.h"           // stringToInt (id-first drum peek)
+#include "util/functions.h" // stringToInt (id-first drum peek)
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
@@ -654,9 +653,9 @@ void Kit::cutAllSound() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
-                        int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                        int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
                         int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-                        int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+                        deluge::dsp::Q<24> pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
 	// render removes the next (see RenderingDrums::walk).
@@ -789,7 +788,7 @@ yesTickParamManager:
 	return rendered;
 }
 
-void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
+void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, deluge::dsp::Q<31>* reverbBuffer,
                        int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
                        bool isClipActive) {
 
@@ -807,8 +806,8 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	    && !stemExport.includeKitFX) [[unlikely]] {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
-		    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+		const deluge::dsp::Q<24> pitchAdjust =
+		    deluge::model::pitch_adjust_from_knob(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST));
 
 		channel_.rendered_last_time = renderContent(modelStackWithTimelineCounter, output, nullptr, reverbBuffer,
 		                                            reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
@@ -852,9 +851,8 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 
 	if (arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
-		    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
-		    deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
+		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
+		    ArpeggiatorSettings::rate_from_knob(unpatchedParams->getKnob(params::UNPATCHED_ARP_RATE)));
 
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
@@ -944,9 +942,9 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
-			    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
-			    deluge::dsp::fixed::preset_combination(nonAudioDrum->arpSettings.rate)));
+			// The arp's stored rate word is the knob, Q31.
+			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
+			    ArpeggiatorSettings::rate_from_knob(deluge::dsp::Q<31>::from_raw(nonAudioDrum->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,

@@ -18,6 +18,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
+#include "dsp-next/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
@@ -323,8 +324,10 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 
 	switch (expressionDimension) {
 	case X_PITCH_BEND: {
-		int32_t new_value =
-		    add_saturate(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension]);
+		// The stored Q31 poly and mono expression, summed saturating; the pitch bend is its top 14 bits.
+		int32_t new_value = add_sat(deluge::dsp::Q<31>::from_raw(lastCombinedPolyExpression[expressionDimension]),
+		                            deluge::dsp::Q<31>::from_raw(lastMonoExpression[expressionDimension]))
+		                        .raw();
 		int32_t value_small = (new_value >> 18) + 8192;
 		midiEngine.sendPitchBend(this, masterChannel, value_small, getChannel());
 		break;
@@ -344,9 +347,11 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		break;
 	}
 	case Z_PRESSURE: {
-		int32_t new_value =
-		    add_saturate(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension])
-		    >> 24;
+		// The stored Q31 poly and mono expression, summed saturating; the aftertouch is its top 7 bits.
+		int32_t new_value = add_sat(deluge::dsp::Q<31>::from_raw(lastCombinedPolyExpression[expressionDimension]),
+		                            deluge::dsp::Q<31>::from_raw(lastMonoExpression[expressionDimension]))
+		                        .raw()
+		                    >> 24;
 		midiEngine.sendChannelAftertouch(this, masterChannel, new_value, getChannel());
 		break;
 	}
@@ -917,7 +922,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 		// Zero the store slot too (it's the persisted source), not just the engine cursor.
 		auto* eps = (ExpressionParamSet*)modelStackWithAutoParam->paramCollection;
 		int32_t pid = modelStackWithAutoParam->paramId;
-		eps->params[pid].setCurrentValueBasicForSetup(*eps->docForParam(pid), 0);
+		eps->params[pid].setBase(*eps->docForParam(pid), 0);
 	}
 
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);

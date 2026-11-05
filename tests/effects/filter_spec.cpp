@@ -19,7 +19,9 @@
 // modes reaching the set, the parallel route with the high-pass fading in, and the volume compensation, each case from
 // a fresh filter with the synth-wide noise generator seeded the same.
 
+#include "dsp-next/core/buffer_view.h"
 #include "effects/filter.h"
+#include "effects/master_chain.h"
 
 #include "dsp-next/core/q31_ops.h"
 #include "util/synth_noise.h"
@@ -39,7 +41,8 @@ namespace {
 
 constexpr uint32_t kSeed = 123456789;
 /// A track chain's post-FX volume at neutral (Q31), as the master starts from.
-constexpr int32_t kVolume = 167763968;
+constexpr int32_t kVolume =
+    deluge::effects::kMasterVolume.raw(); // the master's volume word, as filter.configure takes it
 constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMaximum = std::numeric_limits<int32_t>::max();
 
@@ -179,7 +182,8 @@ constexpr FilterParams kLowOnlyParams{
 std::vector<StereoSample> frames(const std::vector<int32_t>& samples) {
 	std::vector<StereoSample> block;
 	for (std::size_t i = 0; i < samples.size(); i += 2) {
-		block.push_back({.l = samples[i], .r = samples[i + 1]});
+		block.push_back(
+		    {.l = deluge::dsp::Q<31>::from_raw(samples[i]), .r = deluge::dsp::Q<31>::from_raw(samples[i + 1])});
 	}
 	return block;
 }
@@ -188,8 +192,8 @@ std::vector<StereoSample> frames(const std::vector<int32_t>& samples) {
 std::vector<int32_t> samples(const std::vector<StereoSample>& block) {
 	std::vector<int32_t> out;
 	for (const StereoSample& frame : block) {
-		out.push_back(frame.l);
-		out.push_back(frame.r);
+		out.push_back(frame.l.raw());
+		out.push_back(frame.r.raw());
 	}
 	return out;
 }
@@ -205,7 +209,10 @@ struct Rig {
 	std::vector<int32_t> run(const FilterState& state, const FilterParams& params) {
 		volume = filter.configure(state, params, kVolume);
 		std::vector<StereoSample> block = frames(kInput);
-		filter.process(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		filter.process(block,
+		               {.fade = deluge::dsp::typed_view(std::span{fade}),
+		                .parallel = deluge::dsp::typed_view(std::span{parallel})},
+		               deluge::synth_noise);
 		return samples(block);
 	}
 };

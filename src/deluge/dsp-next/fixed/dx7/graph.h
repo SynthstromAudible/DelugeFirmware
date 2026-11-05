@@ -84,7 +84,7 @@ inline constexpr std::size_t kMaxBlock = 132;
 /// @brief The two intermediate buses operators render into. One instance, owned by the app and lent to every voice's
 /// graph per block: voices render one at a time, so no two hold the buses at once.
 struct Buses {
-	alignas(16) std::array<std::array<q31, kMaxBlock>, 2> bus{}; ///< Bus one and bus two.
+	alignas(16) std::array<std::array<Q<24>, kMaxBlock>, 2> bus{}; ///< Bus one and bus two.
 };
 
 /// @brief A DX7 voice's six operators, walked through its algorithm once per block.
@@ -112,12 +112,12 @@ class Graph {
 public:
 	/// @brief One block's settings: the patch's routing and the six operators' levels and pitches.
 	struct Settings {
-		Engine engine = Engine::MODERN;    ///< The engine.
-		uint8_t algorithm = 0;             ///< The algorithm, 0 to 31.
-		uint8_t feedback = 0;              ///< The feedback, 0 (off) to 7.
-		std::array<int32_t, 6> level_in{}; ///< Each op's level, Q24 doublings.
-		std::array<int32_t, 6> freq{};     ///< Each op's phase increment, 2^24 per cycle.
-		const Tables* tables = nullptr;    ///< The engine's tables.
+		Engine engine = Engine::MODERN;  ///< The engine.
+		uint8_t algorithm = 0;           ///< The algorithm, 0 to 31.
+		uint8_t feedback = 0;            ///< The feedback, 0 (off) to 7.
+		std::array<Q<24>, 6> level_in{}; ///< Each op's level in doublings.
+		std::array<Phase, 6> freq{};     ///< Each op's phase increment.
+		const Tables* tables = nullptr;  ///< The engine's tables.
 	};
 
 	/// @brief The graph's state as the owner sees it.
@@ -136,11 +136,11 @@ public:
 	/// @param out The block, 1 to kMaxBlock samples. In a build given the device's NEON kernel, kMaxBlock samples must
 	/// be writable from its start, 16-byte aligned: the kernel pads the block and writes past it.
 	/// @param buses The intermediate buses, lent by the owner.
-	void render_block(const Settings& settings, Buffer out, Buses& buses);
+	void render_block(const Settings& settings, dsp::Buffer<Q<24>> out, Buses& buses);
 
 	/// @brief Restarts every op: gain 0 and the given phases (zeros for oscillator key sync, drawn otherwise). The
 	/// feedback history carries over.
-	void restart(std::span<const q31, 6> phases) {
+	void restart(std::span<const Phase, 6> phases) {
 		for (std::size_t op = 0; op < 6; ++op) {
 			ops_[op] = {.phase = phases[op], .gain_out = 0};
 		}
@@ -156,7 +156,7 @@ private:
 	/// @brief Op @p op's held state after a block it did not step itself (gated, or rendered by the device's kernel):
 	/// its phase moves on by the block and its gain to the block's end, as Operator::skip moves them.
 	/// @param gains The block's gains, taken once for the gate.
-	[[gnu::always_inline]] void hold_op(std::size_t op, const Gains& gains, int32_t freq, std::size_t n) {
+	[[gnu::always_inline]] void hold_op(std::size_t op, const Gains& gains, Phase freq, std::size_t n) {
 		ops_[op] = {.phase = Operator::advance_phase(ops_[op].phase, freq, n), .gain_out = gains.gain2};
 	}
 
@@ -166,11 +166,13 @@ private:
 	/// gate; the kernel ramps by them. Defined in graph.cpp, the one place the kernel's build switch is read, and
 	/// inlined into render_block there, where each call's routing is known.
 	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, const Gains& gains, std::size_t op,
-	                                             Signal modulation, Buffer target);
+	                                             dsp::Signal<Q<24>> modulation, dsp::Buffer<Q<24>> target);
 
 	/// @brief MkI's fused stack of @p N ops from op @p op into @p target.
 	template <std::size_t N>
-	[[gnu::always_inline]] void render_stack(const Settings& s, std::size_t op, int32_t shift, Buffer target) {
+	[[gnu::always_inline]] void render_stack(const Settings& s, std::size_t op, int32_t shift,
+	                                         dsp::Buffer<Q<24>> target) {
+
 		typename MkIFeedbackStack<N>::Settings stack_settings{.feedback_shift = shift, .tables = s.tables};
 		std::array<OperatorState, N> held{};
 		for (std::size_t k = 0; k < N; ++k) {

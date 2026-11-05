@@ -68,7 +68,7 @@ void RmsFeedbackCompressor::set_base_gain(float base_gain) {
 	dsp_.configure(settings());
 }
 
-void RmsFeedbackCompressor::render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
+void RmsFeedbackCompressor::render(std::span<StereoSample> block, Q<27> volume_l, Q<27> volume_r, Q<29> final_volume) {
 	// The kernel's block arithmetic divides by the block's length.
 	if (block.empty()) {
 		return;

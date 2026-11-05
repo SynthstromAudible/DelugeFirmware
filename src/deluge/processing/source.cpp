@@ -186,7 +186,7 @@ void Source::setCents(int32_t newCents) {
 }
 
 void Source::recalculateFineTuner() {
-	fineTuner.setup((int32_t)cents * 42949672);
+	fineTuner.setup_cents(cents);
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.

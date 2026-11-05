@@ -17,6 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // LoopType
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 
 namespace deluge::synth {
@@ -110,9 +111,10 @@ public:
 	virtual bool possibly_set_up_cache(int32_t phase_increment, int32_t time_stretch_ratio, int32_t priority_rating,
 	                                   LoopType looping_type) = 0;
 	/// Render @p numSamples of sample playback (resample / time-stretch / cache) into @p buffer at the given pitch
-	/// and stretch. @return false ⇒ the sample ended ⇒ unassign this source.
-	virtual bool render(int32_t* buffer, int32_t num_samples, LoopType looping_type, int32_t phase_increment,
-	                    int32_t time_stretch_ratio, int32_t source_amplitude, int32_t amplitude_increment,
+	/// and stretch, adding it in at @p source_amplitude, stepped by @p amplitude_increment each sample. A stereo
+	/// sample renders interleaved frames. @return false ⇒ the sample ended ⇒ unassign this source.
+	virtual bool render(dsp::Q<31>* buffer, int32_t num_samples, LoopType looping_type, int32_t phase_increment,
+	                    int32_t time_stretch_ratio, dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
 	                    int32_t interpolation_buffer_size, int32_t priority_rating) = 0;
 };
 

@@ -30,6 +30,7 @@ from pathlib import Path
 
 import sdram_pack
 import util
+import zero_sections
 
 # The C++ targets the Rust build script archives + links (mirrors its panic message).
 CPP_TARGETS = [
@@ -236,6 +237,12 @@ def stage_artifacts(root: Path, config: str) -> int:
     gcc_bin = toolchain_dir(root) / "arm-none-eabi-gcc/bin"
     objcopy = gcc_bin / "arm-none-eabi-objcopy"
     nm = gcc_bin / "arm-none-eabi-nm"
+
+    try:
+        zero_sections.check(staging, gcc_bin / "arm-none-eabi-readelf", objcopy, nm)
+    except zero_sections.NonZeroObjects as e:
+        print(f"stage: {e}", file=sys.stderr)
+        return 1
 
     # The SDRAM content's load copy is written here, after the link (sdram_pack.py); the image
     # derived below carries it, and the boot cannot start without it.

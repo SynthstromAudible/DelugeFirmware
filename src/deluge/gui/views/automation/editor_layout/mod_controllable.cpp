@@ -95,7 +95,7 @@ const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1
 // y = 1 ::  17 <  18 <  32
 // y = 0 ::  0  <   0 <  16
 
-PLACE_SDRAM_BSS AutomationEditorLayoutModControllable automationEditorLayoutModControllable{};
+PLACE_SDRAM_DATA AutomationEditorLayoutModControllable automationEditorLayoutModControllable{};
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
 // clip length renders the undefined area of the clip that the user can't interact with

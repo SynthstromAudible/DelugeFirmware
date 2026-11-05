@@ -17,6 +17,7 @@
 
 #include "model/instrument/cv_instrument.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
+#include "dsp-next/core/fixed_point.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
@@ -189,7 +190,11 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	monophonicPitchBendValue = 0;
 }
 void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
-	int32_t new_value = add_saturate(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
+	// The poly and mono Q31 expression summed saturating, at the CV's 16 bits (Q15)
+	int32_t new_value =
+	    as_floor<deluge::dsp::Q<15>>(add_sat(deluge::dsp::Q<31>::from_raw(lastCombinedPolyExpression[dimension]),
+	                                         deluge::dsp::Q<31>::from_raw(lastMonoExpression[dimension])))
+	        .raw();
 	switch (cvmode[1]) {
 
 	case CVMode::OFF:

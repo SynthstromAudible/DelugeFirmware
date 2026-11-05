@@ -45,6 +45,7 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
+#include "raw_frame.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -147,7 +148,7 @@ public:
 		return {lpf_state_l_, lpf_state_r_};
 	}
 	/// @return The ring.
-	[[nodiscard]] std::span<const StereoSample> ring_frames() const { return ring; }
+	[[nodiscard]] std::span<const RawFrame> ring_frames() const { return ring; }
 
 	/// allows the buffer to be stolen
 	void startSkippingRendering() {
@@ -156,7 +157,7 @@ public:
 	}
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(std::span<StereoSample> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	void processGrainFX(std::span<RawFrame> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
 	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, q31_t reverbAmount,
 	                    std::span<q31_t> send) {
 		if (anySoundComingIn || wrapsToShutdown >= 0) {
@@ -168,13 +169,17 @@ public:
 			}
 			setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume);
 			int i = 0;
-			for (StereoSample& sample : buffer) {
-				StereoSample grainWet = processOneGrainSample(sample);
+			for (RawFrame& sample : buffer) {
+				RawFrame grainWet = processOneGrainSample(sample);
 				auto wetl = q31_mult(grainWet.l, _grainVol);
 				auto wetr = q31_mult(grainWet.r, _grainVol);
 
-				wetl = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_l_, wetl);
-				wetr = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_r_, wetr);
+				wetl = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_l_,
+				                                              deluge::dsp::Q<31>::from_raw(wetl))
+				           .raw();
+				wetr = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_r_,
+				                                              deluge::dsp::Q<31>::from_raw(wetr))
+				           .raw();
 
 				// WET and DRY Vol
 				sample.l = add_saturate(q31_mult(sample.l, _grainDryVol), wetl);
@@ -311,7 +316,7 @@ private:
 		}
 	}
 
-	StereoSample processOneGrainSample(StereoSample currentSample) {
+	RawFrame processOneGrainSample(RawFrame currentSample) {
 		if (bufferWriteIndex >= kModFXGrainBufferSize) {
 			bufferWriteIndex = 0;
 			wrapsToShutdown -= 1;
@@ -356,7 +361,7 @@ private:
 		written_.set(static_cast<std::size_t>(writeIndex));
 
 		bufferWriteIndex++;
-		return StereoSample{grains_l, grains_r};
+		return RawFrame{grains_l, grains_r};
 	}
 
 	void setupGrainsIfNeeded(int32_t writeIndex) {
@@ -460,9 +465,9 @@ private:
 					grains[i].volScale = (2147483647 / (grains[i].length >> 1));
 					grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
 					const deluge::dsp::fixed::PanAmplitudes pan =
-					    deluge::dsp::fixed::pan_amplitudes((getRandom255() - 128) << 23); // Pan Law 0
-					grains[i].panVolL = pan.left;
-					grains[i].panVolR = pan.right;
+					    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw((getRandom255() - 128) << 23));
+					grains[i].panVolL = pan.left.raw();
+					grains[i].panVolR = pan.right.raw();
 				}
 				break;
 			}
@@ -478,7 +483,7 @@ private:
 	void getBuffer() {
 		if (!held) {
 			// Every allocation reads zero on the host: the ring is zeroed whenever it is acquired afresh.
-			ring.fill(StereoSample{0, 0});
+			ring.fill(RawFrame{0, 0});
 			written_.reset();
 			held = true;
 			acquisitions_ += 1;
@@ -503,7 +508,7 @@ private:
 	Grain grains[8]{};
 
 	int32_t wrapsToShutdown;
-	std::array<StereoSample, kModFXGrainBufferSize> ring{};
+	std::array<RawFrame, kModFXGrainBufferSize> ring{};
 	bool held{false};
 	std::bitset<kModFXGrainBufferSize> written_{};
 	std::size_t acquisitions_ = 0;
@@ -511,7 +516,8 @@ private:
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
 	/// @brief The wet signal's low-pass, one pole at about 4.5 kHz: a moveability of 1/4, Q31 (tan(f) = 1/3).
-	static constexpr OnePole::Coefficients kWetLowPass = OnePole::coefficients({.moveability = 1 << 29});
+	static constexpr OnePole::Coefficients kWetLowPass =
+	    OnePole::coefficients({.moveability = deluge::dsp::Q<31>::from_raw(1 << 29)});
 	/// @brief The wet low-pass memories, kept across blocks and grain changes.
 	OnePole::State lpf_state_l_{};
 	OnePole::State lpf_state_r_{}; ///< @copydoc lpf_state_l_

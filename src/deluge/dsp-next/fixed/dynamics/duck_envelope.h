@@ -51,8 +51,8 @@ namespace deluge::dsp::fixed {
 /// - *`hit_at` and `stop` keep the level* the last block returned, so a hit pending at the next block is weighed
 ///   against it (see @ref hit_at and @ref stop).
 struct DuckEnvelope {
-	using value_type = q31; ///< The level less kOneQ31, Q31: 0 is no duck, negative ducks.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<31>; ///< The level less Q<31>::max(): 0 is no duck, negative ducks.
+	using step_type = Q<31>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief Where the envelope is: off (no duck), falling into a hit, or recovering from it.
 	enum class Stage : uint8_t { OFF, ATTACK, RELEASE };
@@ -71,7 +71,7 @@ struct DuckEnvelope {
 	struct Settings {
 		int32_t attack{0};  ///< The attack's position steps per sample, on the 2^23 stage scale.
 		int32_t release{0}; ///< The release's position steps per sample, on the 2^23 stage scale.
-		q31 shape{0};       ///< The release's curve, Q31: INT32_MIN releases straight, higher curves more.
+		Q<31> shape{};      ///< The release's curve: Q<31>::min() releases straight, higher curves more.
 		/// The attack is at its minimum: a hit starts the release at once, at its floor, with no attack.
 		bool instant_attack{false};
 	};
@@ -86,13 +86,13 @@ struct DuckEnvelope {
 
 	/// @brief The duck between blocks. State{} is no duck: off, at kOneQ31, nothing pending.
 	struct State {
-		Stage stage{Stage::OFF}; ///< The stage the duck is in.
-		uint32_t pos{0};         ///< The position in the stage, 0 to 2^23.
-		q31 level{kOneQ31};      ///< The level the last block returned (plus kOneQ31), Q31; kOneQ31 is no duck.
-		q31 floor{0};            ///< The duck's bottom: kOneQ31 less the hit's strength, Q31.
+		Stage stage{Stage::OFF};    ///< The stage the duck is in.
+		uint32_t pos{0};            ///< The position in the stage, 0 to 2^23.
+		Q<31> level = Q<31>::max(); ///< The level the last block returned (plus Q<31>::max()); max() is no duck.
+		Q<31> floor{};              ///< The duck's bottom: Q<31>::max() less the hit's strength.
 		/// How far the stage travels, Q31: from the level at the hit down to the floor in the attack, from the floor
 		/// up to kOneQ31 in the release.
-		q31 depth{0};
+		Q<31> depth{};
 		PendingHit pending{}; ///< The hit waiting for the next block.
 	};
 
@@ -103,7 +103,7 @@ struct DuckEnvelope {
 		    .release_step = static_cast<uint32_t>(s.release),
 		    .instant_attack = s.instant_attack,
 		    .curve_extent16 =
-		        static_cast<int32_t>((static_cast<uint32_t>(s.shape) + kShapeBias) >> kShapeToCurvednessShift),
+		        static_cast<int32_t>((static_cast<uint32_t>(s.shape.raw()) + kShapeBias) >> kShapeToCurvednessShift),
 		};
 	}
 
@@ -120,10 +120,10 @@ struct DuckEnvelope {
 	/// ended stage are dropped, not carried. Off is no duck: the level returns to kOneQ31.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The level at the block's end less kOneQ31, Q31: 0 is no duck, negative ducks.
-	[[nodiscard]] static q31 advance(const Coefficients& c, State& s, std::size_t n);
+	[[nodiscard]] static Q<31> advance(const Coefficients& c, State& s, std::size_t n);
 
 	/// @brief Records a hit of @p strength (Q31) for the next block, combined with any already pending.
-	static void hit(State& s, q31 strength);
+	static void hit(State& s, Q<31> strength);
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, dropping any pending
 	/// hit. A seek: the level is left for the next block to recompute.
@@ -132,10 +132,11 @@ struct DuckEnvelope {
 	///
 	/// The hit's attack starts from no duck, travelling the hit's whole strength, wherever the level stood.
 	/// Each stage lasts its length over its step in whole samples, rounded down: a hit landing in a stage's last,
-	/// partial sample is placed at the next stage's start. The attack is placed by its step even when the attack is
-	/// instant. A zero step is a stage that never ends, so a hit at a zero rate stays in that stage, at position 0.
-	/// The owner's settings give a zero rate: a song file's rate of 0, or a long synced rate at a slow tempo.
-	static void hit_at(const Coefficients& c, State& s, q31 strength, uint32_t samples_ago);
+	/// partial sample is placed at the next stage's start. An instant attack places the hit in its release, as a live
+	/// hit starts there. A zero step is a stage that never ends, so a hit at a zero rate stays in that stage, at
+	/// position 0. The owner's settings give a zero rate: a song file's rate of 0, or a long synced rate at a slow
+	/// tempo.
+	static void hit_at(const Coefficients& c, State& s, Q<31> strength, uint32_t samples_ago);
 
 	/// @brief Ends the duck: the next block returns no duck unless a hit arrives.
 	/// @details The level is kept, not reset to kOneQ31, so a hit pending at the next block is weighed against the
@@ -152,7 +153,7 @@ static_assert(!std::is_polymorphic_v<DuckEnvelope>);
 /// @param floor The level it falls to, Q31.
 /// @param pos The position in the stage, 0 to 2^23.
 /// @return The level, Q31.
-[[nodiscard]] q31 attack_level(q31 depth, q31 floor, uint32_t pos);
+[[nodiscard]] Q<31> attack_level(Q<31> depth, Q<31> floor, uint32_t pos);
 
 /// @brief The release's level at position @p pos: from kOneQ31 less @p depth at 0 back up to kOneQ31 at the stage's
 /// end.
@@ -168,6 +169,6 @@ static_assert(!std::is_polymorphic_v<DuckEnvelope>);
 /// @param pos The position in the stage, 0 to 2^23.
 /// @param curve_extent16 The shape's curve extent, at 2^16 per curvedness unit (Coefficients::curve_extent16).
 /// @return The level, Q31.
-[[nodiscard]] q31 release_level(q31 depth, uint32_t pos, int32_t curve_extent16);
+[[nodiscard]] Q<31> release_level(Q<31> depth, uint32_t pos, int32_t curve_extent16);
 
 } // namespace deluge::dsp::fixed

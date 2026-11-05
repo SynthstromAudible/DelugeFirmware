@@ -129,35 +129,63 @@ const LOWEST_PRIORITY: u32 = 0xFFFF_FFFF;
 ///
 /// `chunk` values are opaque `StreamedChunk*` backing pointers from [`FillOps::next`], passed back
 /// unchanged; [`fill_once`] never interprets them.
+///
+/// A chunk is *live* from the [`next`](FillOps::next) that returned it until it is released
+/// ([`release_owned`](FillOps::release_owned)) or handed back to the queue
+/// ([`enqueue_lowest`](FillOps::enqueue_lowest)).
 pub trait FillOps {
     /// Pops the most urgent queued, still-leased chunk; null when the queue is empty.
     fn next(&self) -> *mut c_void;
     /// Returns whether `chunk` has been marked unloadable since it was enqueued.
-    fn is_unloadable(&self, chunk: *mut c_void) -> bool;
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn is_unloadable(&self, chunk: *mut c_void) -> bool;
     /// Resolves `chunk`'s destination buffer and sector range.
     ///
     /// `ok == false` means skip the chunk (unloadable or a geometry error): no read, no `finish`.
     /// When `ok`, `dest` must be valid and exclusive for `num_sectors * 512` bytes.
-    fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor;
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor;
     /// Reads the data for `d` into `buf`, returning whether it succeeded.
     async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool;
     /// Runs the convert/stitch/publish tail, which marks the chunk ready; called only after a
     /// successful read.
-    fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool;
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool;
     /// Returns `chunk`'s hard-lease count excluding the load queue's own.
     ///
     /// Consulted after a failed read to choose drop or requeue. The queue's lease must be excluded:
     /// otherwise an abandoned owned-enqueue chunk never reaches 0 and is retried, and pinned,
     /// forever.
-    fn external_lease_count(&self, chunk: *mut c_void) -> u32;
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn external_lease_count(&self, chunk: *mut c_void) -> u32;
     /// Releases the queue-owned lease on `chunk`, if any.
     ///
     /// Must be called on every path that stops caring about `chunk`, or the lease pins it against
     /// eviction for good.
-    fn release_owned(&self, chunk: *mut c_void);
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn release_owned(&self, chunk: *mut c_void);
     /// Re-enqueues `chunk` at `LOWEST_PRIORITY` after a failed read; any queue-owned lease stays
     /// held with the entry.
-    fn enqueue_lowest(&self, chunk: *mut c_void);
+    ///
+    /// # Safety
+    ///
+    /// `chunk` must be live (see [`FillOps`]).
+    unsafe fn enqueue_lowest(&self, chunk: *mut c_void);
 }
 
 /// Drains the loader queue, reading and publishing each queued chunk.
@@ -179,17 +207,19 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
             crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
             return;
         }
+        // SAFETY (every `ops` call on `chunk` below): `chunk` is live. It is this iteration's
+        // `next()`, and each path ends at its one `release_owned` or `enqueue_lowest`.
 
-        if ops.is_unloadable(chunk) {
+        if unsafe { ops.is_unloadable(chunk) } {
             // Already de-queued by `next()`, so skipping cannot loop.
-            ops.release_owned(chunk);
+            unsafe { ops.release_owned(chunk) };
             continue;
         }
 
-        let d = ops.begin(chunk);
+        let d = unsafe { ops.begin(chunk) };
         if !d.ok {
             // Unloadable or a geometry error; already de-queued, so skip it.
-            ops.release_owned(chunk);
+            unsafe { ops.release_owned(chunk) };
             continue;
         }
 
@@ -209,18 +239,20 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
         if read_ok {
             // For a fire-and-forget enqueuer the chunk is now ready but unleased: a cache hit for
             // whoever asked, and evictable again (a requester that loses that race re-requests).
-            ops.finish(chunk, true);
-            ops.release_owned(chunk);
+            unsafe {
+                ops.finish(chunk, true);
+                ops.release_owned(chunk);
+            }
             continue;
         }
 
         // Read failed. Dropping a chunk nobody else leases also bounds retries of a permanently
         // failing read (a pulled card).
-        if ops.external_lease_count(chunk) == 0 {
-            ops.release_owned(chunk);
+        if unsafe { ops.external_lease_count(chunk) } == 0 {
+            unsafe { ops.release_owned(chunk) };
             continue;
         }
-        ops.enqueue_lowest(chunk);
+        unsafe { ops.enqueue_lowest(chunk) };
         return;
     }
 }
@@ -253,6 +285,8 @@ mod prod {
         /// Creates the ops over the resource-manager singleton.
         ///
         /// Call only after `deluge_app_init` has set the cluster size (see `streaming_fill_task`).
+        // No `Default`: a default would hide that precondition.
+        #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             let mgr = super::resource_manager();
             Self { mgr }
@@ -270,12 +304,12 @@ mod prod {
             chunk
         }
 
-        fn is_unloadable(&self, chunk: *mut c_void) -> bool {
+        unsafe fn is_unloadable(&self, chunk: *mut c_void) -> bool {
             // SAFETY: `chunk` was just returned by `next()`.
             unsafe { deluge_sample_fill::chunk::unloadable(chunk) }
         }
 
-        fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
+        unsafe fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
             let start = embassy_time::Instant::now();
             // SAFETY: `chunk` was just returned by `next()`: queued, resident and still leased.
             let d = unsafe { deluge_sample_fill::native_begin(chunk) };
@@ -297,7 +331,7 @@ mod prod {
             read.filled
         }
 
-        fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
+        unsafe fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
             let start = embassy_time::Instant::now();
             // SAFETY: the same leased chunk `begin` was given.
             let done = unsafe { deluge_sample_fill::native_finish(chunk, read_ok) };
@@ -305,14 +339,14 @@ mod prod {
             done
         }
 
-        fn external_lease_count(&self, chunk: *mut c_void) -> u32 {
+        unsafe fn external_lease_count(&self, chunk: *mut c_void) -> u32 {
             // SAFETY: `mgr`/`chunk` are both still valid (the chunk hasn't been
             // freed — it's still leased, just its read failed).
             let slot = unsafe { deluge_resource_slot_of(self.mgr, chunk) };
             unsafe { deluge_resource_external_lease_count_by_slot(self.mgr, slot) }
         }
 
-        fn release_owned(&self, chunk: *mut c_void) {
+        unsafe fn release_owned(&self, chunk: *mut c_void) {
             // SAFETY: `mgr`/`chunk` are both still valid — the chunk is still resident here (this
             // runs before anything can free it), and a release on a chunk the queue holds no lease
             // on is a checked no-op inside the manager.
@@ -320,7 +354,7 @@ mod prod {
             unsafe { deluge_resource_loader_release_owned(self.mgr, slot) };
         }
 
-        fn enqueue_lowest(&self, chunk: *mut c_void) {
+        unsafe fn enqueue_lowest(&self, chunk: *mut c_void) {
             // SAFETY: `mgr`/`chunk` are both still valid (the chunk hasn't been
             // freed — it's still leased, just its read failed).
             let slot = unsafe { deluge_resource_slot_of(self.mgr, chunk) };

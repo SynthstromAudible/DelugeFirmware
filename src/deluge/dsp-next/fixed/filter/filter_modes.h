@@ -68,13 +68,13 @@ struct HighPassSlot {
 
 /// @brief One block's settings of a filter (each as the param's final value).
 struct FilterConfig {
-	/// The cutoff, Q31: lifted by 2^5 (saturating) onto @ref instant_tan's angle, so 2^26 and above reach the top of
-	/// its table.
-	q31 frequency;
-	/// The resonance, Q29 at most (0 to 536870911: four times it is the full Q31 range).
-	q31 resonance;
-	/// The morph, Q29: each filter lifts it to Q31 (by 2^2, saturating) before use.
-	q31 morph;
+	/// The cutoff: lifted by 2^5 (saturating) onto @ref instant_tan's angle, so 2^26 and above reach the top of its
+	/// table.
+	Q<31> frequency;
+	/// The resonance, 0 to just under one (536870911: four times it is the full Q31 range).
+	Q<29> resonance;
+	/// The morph: each filter lifts it to Q31 (by 2^2, saturating) before use.
+	Q<29> morph;
 	/// Whether the drive ladder may oversample: false under CPU load. Filters that never oversample have no use for it.
 	bool allow_oversampling;
 };
@@ -91,15 +91,15 @@ struct CurvedFrequency {
 
 /// @brief Warps @p frequency (Q31, see @ref FilterConfig::frequency) through tan, and derives 1 / (1 + tan) and the
 /// moveability from it.
-[[nodiscard]] inline CurvedFrequency curve_frequency(q31 frequency) {
+[[nodiscard]] inline CurvedFrequency curve_frequency(Q<31> frequency) {
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const auto tanned = Q<28>::from_raw(instant_tan(scale_shl_clamp_then_shift<5>(Q<31>::from_raw(frequency)).raw()));
+	const Q<28> tanned = instant_tan(scale_shl_clamp_then_shift<5>(frequency));
 	const Q<27> one_plus_tanned = add_wrap(Q<27>::one(), as_floor<Q<27>>(tanned));
 	// Raw: a double reciprocal. At cutoff 0 it is 2^31, one past q31's top, so it saturates to one at Q31 first, as the
 	// A9's VCVT would: the cast of 2^31 itself is undefined.
 	const auto divide_by_one_plus_tanned = Q<31>::from_raw(
-	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(one_plus_tanned.raw()), double{INT32_MAX})));
+	    static_cast<int32_t>(std::min(kOneQ58 / static_cast<double>(one_plus_tanned.raw()), double{INT32_MAX})));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,

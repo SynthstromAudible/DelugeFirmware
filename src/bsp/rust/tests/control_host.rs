@@ -30,8 +30,10 @@ async fn batch_two_rows() {
     loop {
         TRIGGER.wait().await;
         let colours = columns();
-        control::deluge_control_set_pad_columns(0, colours.as_ptr(), 16);
-        control::deluge_control_set_pad_columns(1, colours.as_ptr(), 16);
+        unsafe {
+            control::deluge_control_set_pad_columns(0, colours.as_ptr(), 16);
+            control::deluge_control_set_pad_columns(1, colours.as_ptr(), 16);
+        }
     }
 }
 

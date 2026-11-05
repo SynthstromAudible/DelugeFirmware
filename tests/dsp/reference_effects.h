@@ -40,8 +40,9 @@
 
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
+#include "raw_curves.h"
+#include "raw_frame.h"
 
 #include <algorithm>
 #include <cmath>
@@ -57,7 +58,7 @@
 
 namespace reference {
 
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 // ---- effects::Bitcrush ----
 
@@ -76,7 +77,7 @@ constexpr uint32_t kBelowOne = kOne - 1;
 
 class Bitcrush {
 public:
-	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void process(std::span<StereoSample> block, const BitcrushParams& params,
+	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void process(std::span<RawFrame> block, const BitcrushParams& params,
 	                                                        int32_t& post_fx_volume) {
 		using bitcrush_detail::kBelowOne;
 		using bitcrush_detail::kOne;
@@ -94,7 +95,7 @@ public:
 			}
 			else {
 				const uint32_t mask = 0xFFFFFFFFu << (19 + preset);
-				for (StereoSample& sample : block) {
+				for (RawFrame& sample : block) {
 					sample.l = masked(sample.l, mask);
 					sample.r = masked(sample.r, mask);
 				}
@@ -115,11 +116,11 @@ public:
 
 		const uint32_t preset = static_cast<uint32_t>(params.sample_rate_reduction) + 2147483648u;
 		const int32_t low_rate_increment =
-		    deluge::dsp::fixed::exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> 3));
+		    deluge::dsp::test::raw_curves::exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> 3));
 		const auto high_rate_increment =
 		    static_cast<int32_t>((0xFFFFFFFFu / static_cast<uint32_t>(low_rate_increment >> 6)) << 6);
 
-		for (StereoSample& sample : block) {
+		for (RawFrame& sample : block) {
 			if (low_rate_pos_ < kOne) {
 				const auto toward_this = static_cast<int32_t>(low_rate_pos_);
 				const int32_t toward_last = static_cast<int32_t>(kBelowOne) - toward_this;
@@ -159,9 +160,9 @@ private:
 	bool srr_on_last_time_{false};
 	uint32_t low_rate_pos_{0};
 	uint32_t high_rate_pos_{0};
-	StereoSample last_sample_{};
-	StereoSample grabbed_{};
-	StereoSample last_grabbed_{};
+	RawFrame last_sample_{};
+	RawFrame grabbed_{};
+	RawFrame last_grabbed_{};
 };
 
 // ---- effects::Equalizer ----
@@ -175,8 +176,7 @@ struct EqualizerParams {
 
 class Equalizer {
 public:
-	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void process(std::span<StereoSample> block,
-	                                                        const EqualizerParams& params) {
+	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void process(std::span<RawFrame> block, const EqualizerParams& params) {
 		const bool do_bass = params.bass != 0;
 		const bool do_treble = params.treble != 0;
 		if (!do_bass && !do_treble) {
@@ -189,13 +189,14 @@ public:
 		const int32_t treble_gain = multiply_32x32_rshift32_rounded(positive, positive) << 1;
 
 		if (do_bass) {
-			bass_coefficient_ = deluge::dsp::fixed::exp_curve(120000000, (params.bass_frequency >> 5) * 6);
+			bass_coefficient_ = deluge::dsp::test::raw_curves::exp_curve(120000000, (params.bass_frequency >> 5) * 6);
 		}
 		if (do_treble) {
-			treble_coefficient_ = deluge::dsp::fixed::exp_curve(700000000, (params.treble_frequency >> 5) * 6);
+			treble_coefficient_ =
+			    deluge::dsp::test::raw_curves::exp_curve(700000000, (params.treble_frequency >> 5) * 6);
 		}
 
-		for (StereoSample& sample : block) {
+		for (RawFrame& sample : block) {
 			int32_t treble_l = 0;
 			int32_t treble_r = 0;
 			if (do_treble) {
@@ -229,8 +230,8 @@ public:
 private:
 	int32_t bass_coefficient_{0};
 	int32_t treble_coefficient_{0};
-	StereoSample without_treble_{};
-	StereoSample bass_only_{};
+	RawFrame without_treble_{};
+	RawFrame bass_only_{};
 };
 
 // ---- effects::SendAndVolume ----
@@ -250,7 +251,7 @@ public:
 	    : last_post_reverb_volume_{last_post_reverb_volume} {}
 
 	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC [[nodiscard]] bool
-	process(std::span<StereoSample> block, std::span<int32_t> reverb, const SendAndVolumeParams& params) {
+	process(std::span<RawFrame> block, std::span<int32_t> reverb, const SendAndVolumeParams& params) {
 		const int32_t send_gain = multiply_32x32_rshift32(params.post_fx_volume, params.reverb_send) << 5;
 
 		int32_t gain_l = multiply_32x32_rshift32(params.post_reverb_volume, params.post_fx_volume) << 5;
@@ -266,15 +267,18 @@ public:
 		}
 
 		if (params.pan != 0 && params.stereo) {
-			const deluge::dsp::fixed::PanAmplitudes pan = deluge::dsp::fixed::pan_amplitudes(params.pan);
-			gain_l = multiply_32x32_rshift32(gain_l, pan.left) << 2;
-			gain_r = multiply_32x32_rshift32(gain_r, pan.right) << 2;
-			step_l = multiply_32x32_rshift32(step_l, pan.left) << 2;
-			step_r = multiply_32x32_rshift32(step_r, pan.right) << 2;
+			const deluge::dsp::fixed::PanAmplitudes pan =
+			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(params.pan));
+			const int32_t pan_l = pan.left.raw();
+			const int32_t pan_r = pan.right.raw();
+			gain_l = multiply_32x32_rshift32(gain_l, pan_l) << 2;
+			gain_r = multiply_32x32_rshift32(gain_r, pan_r) << 2;
+			step_l = multiply_32x32_rshift32(step_l, pan_l) << 2;
+			step_r = multiply_32x32_rshift32(step_r, pan_r) << 2;
 		}
 
 		auto reverb_out = reverb.begin();
-		for (StereoSample& sample : block) {
+		for (RawFrame& sample : block) {
 			if (params.reverb_send != 0) {
 				*(reverb_out++) += multiply_32x32_rshift32(sample.l + sample.r, send_gain) << 1;
 			}
@@ -329,7 +333,7 @@ public:
 		timeSinceTrigger = 0;
 	}
 
-	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void render(std::span<StereoSample> buffer, uint32_t metronomeVolume,
+	DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC void render(std::span<RawFrame> buffer, uint32_t metronomeVolume,
 	                                                       int32_t volumePostFX) {
 		if (!sounding) {
 			return;
@@ -337,7 +341,7 @@ public:
 
 		q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
 
-		for (StereoSample& sample : buffer) {
+		for (RawFrame& sample : buffer) {
 			q31_t value = (phase <= kOneQ31) ? high : -high;
 			phase += phaseIncrement;
 
@@ -391,16 +395,16 @@ enum class AudioInputChannel { NONE, LEFT, RIGHT, STEREO, BALANCED };
 /// AudioOutput::render's monitoring loop over a ring of @p ring_frames stereo frames ending at @p input_end, starting
 /// at @p input_ptr.
 DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC inline void
-track_monitor(AudioInputChannel input_channel, std::span<StereoSample> output, const int32_t* input_ptr,
+track_monitor(AudioInputChannel input_channel, std::span<RawFrame> output, const int32_t* input_ptr,
               const int32_t* input_end, int32_t ring_frames, int32_t amplitude_start, int32_t amplitude_end) {
 	auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitude_end - amplitude_start) //
 	                                                 / static_cast<double>(output.size())));
 	int32_t amplitude = amplitude_start;
 
-	for (StereoSample& output_sample : output) {
+	for (RawFrame& output_sample : output) {
 		amplitude += amplitude_increment;
 
-		StereoSample input = {
+		RawFrame input = {
 		    .l = multiply_32x32_rshift32(input_ptr[0], amplitude) << 2,
 		    .r = multiply_32x32_rshift32(input_ptr[1], amplitude) << 2,
 		};

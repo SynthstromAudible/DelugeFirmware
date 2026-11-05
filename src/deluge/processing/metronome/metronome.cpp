@@ -16,16 +16,20 @@
  */
 
 #include "processing/metronome/metronome.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include "dsp-next/core/q31_ops.h"
 
 #include <cmath>
 
-void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, int32_t volume_post_fx) {
+void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, deluge::dsp::Q<27> volume_post_fx) {
 	if (!sounding()) {
 		return;
 	}
-	click_.configure({.level = multiply_32x32_rshift32(static_cast<int32_t>(volume_), volume_post_fx)});
+	// The metronome's volume ((e^(v/200) − 1) at Q27) times the song's Q27 post-FX volume: the high word, the click's
+	// level
+	click_.configure({.level = deluge::dsp::reinterpret_bits<deluge::dsp::Q<31>>(
+	                      mul(deluge::dsp::Q<27>::from_raw(static_cast<int32_t>(volume_)), volume_post_fx))});
 	click_.render_block(buffer, buffer);
 }
 

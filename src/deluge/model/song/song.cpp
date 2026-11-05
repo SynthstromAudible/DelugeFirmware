@@ -75,6 +75,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
@@ -308,6 +309,7 @@ int32_t Song::retiredPendingAtLastConstruction() {
 }
 
 Song::~Song() {
+	deluge::modulation::forgetRecordEvents(*this);
 	if (currentSong == this || anySoundRegistered(live.media.first_output)
 	    || anySoundRegistered(live.media.first_hibernating_instrument)) {
 		g_songsDestroyedWhileReachable.fetch_add(1, std::memory_order_relaxed);
@@ -2597,14 +2599,13 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
-                                                     int32_t sideChainHitPending) {
+deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
+                                                     deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
-	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	int32_t volumePostFX = deluge::dsp::fixed::curve_square(
-	                           134217728, deluge::dsp::fixed::preset_combination(
-	                                          paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	                       >> 1;
+	const deluge::dsp::Q<27> volumePostFX =
+	    deluge::model::volume_from_knob(paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME));
+	// The outputs take the halved volume's word as their reverb adjust
+	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
@@ -2622,7 +2623,7 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+			output->renderOutput(modelStack, outputBuffer, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
 		EXIT_CRITICAL_SECTION();
@@ -4880,7 +4881,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated(*unpatchedParams->docForParam(p))) {
-				unpatchedParams->params[p].currentValue = live.unautomated_param_values[p];
+				unpatchedParams->params[p].setPlayed(live.unautomated_param_values[p]);
 			}
 		}
 	}

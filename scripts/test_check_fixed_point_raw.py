@@ -2,7 +2,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for check_fixed_point_raw.py: what it counts, what it exempts, and that its raw counts only shrink."""
+"""Tests for check_fixed_point_raw.py: what it counts, what it exempts, and that its raw and view counts only shrink."""
 
 from __future__ import annotations
 
@@ -81,6 +81,20 @@ class CountTest(unittest.TestCase):
         self.assertEqual((counted.raw, counted.boundary), (0, 3))
         self.assertEqual(count("auto s = reinterpret_bits<Q<31>>(u);\n").boundary, 1)
 
+    def test_counts_the_seam_views_apart(self):
+        counted = count(
+            "auto t = typed_view(std::span{buf});\nauto r = deluge::dsp::raw_view(t);\n"
+        )
+        self.assertEqual(counted, Counts(0, 0, 2))
+        self.assertEqual(
+            count("auto n = my_typed_view(x);\nauto m = v.raw_view(x);\n").view, 0
+        )
+        self.assertEqual(count("// typed_view(x)\n").view, 0)
+
+    def test_counts_a_view_with_template_arguments(self):
+        code = "auto a = typed_view<Q<24>>(std::span<int32_t>{p, n});\nauto b = deluge::dsp::raw_view<24>(t);\n"
+        self.assertEqual(count(code).view, 2)
+
     def test_ignores_comments_but_not_strings(self):
         self.assertEqual(count("// multiply_32x32_rshift32(a, b)\n").raw, 0)
         self.assertEqual(
@@ -124,6 +138,21 @@ class ScanTest(unittest.TestCase):
 
 
 class RatchetTest(unittest.TestCase):
+    def test_views_in_a_file_not_on_the_list_fail(self):
+        errors, _ = check({"src/new.cpp": Counts(0, 0, 1)}, {})
+        self.assertEqual(len(errors), 1)
+
+    def test_a_view_count_that_grew_fails_and_one_that_fell_is_stale(self):
+        errors, _ = check(
+            {"src/k.cpp": Counts(1, 0, 3)}, {"src/k.cpp": Counts(1, 0, 2)}
+        )
+        self.assertEqual(len(errors), 1)
+        errors, stale = check(
+            {"src/k.cpp": Counts(1, 0, 1)}, {"src/k.cpp": Counts(1, 0, 2)}
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(stale, ["src/k.cpp"])
+
     def test_raw_sites_in_a_file_not_on_the_list_fail(self):
         errors, _ = check({"src/new.cpp": Counts(1, 0)}, {})
         self.assertEqual(len(errors), 1)
@@ -176,6 +205,22 @@ class RatchetTest(unittest.TestCase):
                 allow_growth=False,
             )
             self.assertEqual(load_allowlist(path), {"src/k.cpp": Counts(1, 5)})
+
+    def test_writing_records_views_and_refuses_their_growth(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "allowlist.txt"
+            write_allowlist(
+                path, {"src/k.cpp": Counts(0, 1, 2)}, previous={}, allow_growth=True
+            )
+            self.assertIn("src/k.cpp raw=0 view=2 boundary=1", path.read_text())
+            self.assertEqual(load_allowlist(path), {"src/k.cpp": Counts(0, 1, 2)})
+            with self.assertRaises(ValueError):
+                write_allowlist(
+                    path,
+                    {"src/k.cpp": Counts(0, 1, 3)},
+                    previous=load_allowlist(path),
+                    allow_growth=False,
+                )
 
 
 if __name__ == "__main__":

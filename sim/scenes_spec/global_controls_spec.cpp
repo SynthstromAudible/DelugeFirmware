@@ -118,10 +118,10 @@ using deluge::ui::shell::SceneStack;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// `playback/playback_handler.cpp:94` defines this with no declaration in the header, exactly as
+/// `playback/playback_handler.cpp:113` defines this with no declaration in the header, exactly as
 /// `View::buttonAction` itself has to declare it (`gui/views/view.cpp:101`).
 extern GlobalMIDICommand pendingGlobalMIDICommand;
-/// The `int32_t` twin at `playback/playback_handler.cpp:95`, which `view.cpp` mis-declares as a
+/// The `int32_t` twin at `playback/playback_handler.cpp:114`, which `view.cpp` mis-declares as a
 /// `GlobalMIDICommand`. Declared with the defining type here; see `global_controls.cpp`'s note.
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
@@ -1061,9 +1061,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		const std::vector<std::pair<uint8_t, bool>> got = led_pairs(f, 0);
 		const std::vector<std::pair<uint8_t, bool>> want{
-		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2501`
-		    {static_cast<uint8_t>(ButtonId::Record), false},      // `:2505`
-		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2511`
+		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2581`
+		    {static_cast<uint8_t>(ButtonId::Record), false},      // `:2585`
+		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2591`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
 		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:324`

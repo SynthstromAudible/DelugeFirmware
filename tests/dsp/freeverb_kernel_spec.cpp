@@ -1,4 +1,5 @@
 // The Freeverb kernel (dsp-next/fixed/reverb/freeverb.h) against the reverb reference over every Freeverb workload.
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/reverb/freeverb.h"
 #include "reference_reverb.h"
@@ -16,40 +17,44 @@
 
 namespace {
 namespace rw = reverb_workloads;
-using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::Freeverb;
+using deluge::dsp::test::RawFrame;
 
 /// @brief Mono<Freeverb> over memory it owns, as effects::Reverb holds it: a model change zeroes the memory and resets
 /// the State.
 struct KernelRunner {
 	/// Model changes asked for that are not Freeverb, across every runner; the spec asserts it stays 0.
 	static inline std::size_t foreign_models = 0;
-	std::vector<int32_t> memory = std::vector<int32_t>(Freeverb::kMemoryWords);
+	std::vector<deluge::dsp::Q<31>> memory = std::vector<deluge::dsp::Q<31>>(Freeverb::kMemoryWords);
 	deluge::dsp::Mono<Freeverb> mono;
 	KernelRunner() { mono.on<&Freeverb::set_memory>(memory.data()); }
 	void set_model(rw::Model m) {
 		if (m != rw::Model::FREEVERB) {
 			++foreign_models;
 		}
-		std::ranges::fill(memory, 0);
+		std::ranges::fill(memory, deluge::dsp::Q<31>{});
 		mono.reset();
 		mono.on<&Freeverb::set_memory>(memory.data());
 	}
 	void set_knobs(const rw::Knobs& k) {
 		mono.configure({.room_size = k.room_size, .damping = k.damping, .width = k.width});
 	}
-	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
-		mono.on<&Freeverb::set_send>(send.data(), l, r);
-		mono.render_block(out, out);
+	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
+		mono.on<&Freeverb::set_send>(deluge::dsp::typed_view(send).data(), deluge::dsp::Q<31>::from_raw(l),
+		                             deluge::dsp::Q<31>::from_raw(r));
+		const std::span<deluge::dsp::StereoSample> frames = deluge::dsp::test::typed_frames(out);
+		mono.render_block(frames, frames);
 	}
 	/// @brief The same block rendered from @p in into a separate @p out.
-	void render_out_of_place(std::span<int32_t> send, std::span<const StereoSample> in, std::span<StereoSample> out,
-	                         int32_t l, int32_t r) {
-		mono.on<&Freeverb::set_send>(send.data(), l, r);
-		mono.render_block(in, out);
+	void render_out_of_place(std::span<int32_t> send, std::span<const RawFrame> in, std::span<RawFrame> out, int32_t l,
+	                         int32_t r) {
+		mono.on<&Freeverb::set_send>(deluge::dsp::typed_view(send).data(), deluge::dsp::Q<31>::from_raw(l),
+		                             deluge::dsp::Q<31>::from_raw(r));
+		mono.render_block(deluge::dsp::test::typed_frames(in), deluge::dsp::test::typed_frames(out));
 	}
 	void digest_state(rw::Digest& d) const {
-		rw::digest_freeverb(d, deluge::dsp::test::freeverb_view(mono.state(), memory));
+		rw::digest_freeverb(d,
+		                    deluge::dsp::test::freeverb_view(mono.state(), deluge::dsp::raw_view(std::span{memory})));
 	}
 };
 [[nodiscard]] bool is_freeverb(const rw::Workload& w) {
@@ -111,11 +116,11 @@ describe freeverb_kernel("the Freeverb kernel", ${
 		const Freeverb::Settings settings{.room_size = 0.5f, .damping = 0.5f, .width = 0.5f};
 		runner.mono.configure(settings);
 		for (std::size_t i = 0; i < Freeverb::kCombs; ++i) {
-			runner.memory[Freeverb::kLayout.comb[0][i].base] = kLeftTail;
-			runner.memory[Freeverb::kLayout.comb[1][i].base] = kRightTail;
+			runner.memory[Freeverb::kLayout.comb[0][i].base] = deluge::dsp::Q<31>::from_raw(kLeftTail);
+			runner.memory[Freeverb::kLayout.comb[1][i].base] = deluge::dsp::Q<31>::from_raw(kRightTail);
 		}
 		std::vector<int32_t> send(1, 0);
-		std::vector<StereoSample> frame(1, StereoSample{.l = 0, .r = 0});
+		std::vector<RawFrame> frame(1, RawFrame{.l = 0, .r = 0});
 		runner.render(send, frame, kLevel, kLevel);
 
 		const int32_t wet2 = Freeverb::coefficients(settings).wet2.raw();
@@ -138,9 +143,9 @@ describe freeverb_kernel("the Freeverb kernel", ${
 		Lcg lcg;
 		std::vector<int32_t> send_a(128);
 		std::vector<int32_t> send_b(128);
-		std::vector<StereoSample> dry(128);
-		std::vector<StereoSample> in_place(128);
-		std::vector<StereoSample> out(128);
+		std::vector<RawFrame> dry(128);
+		std::vector<RawFrame> in_place(128);
+		std::vector<RawFrame> out(128);
 		std::size_t mismatches = 0;
 		for (int32_t block = 0; block < 60; ++block) {
 			for (std::size_t i = 0; i < dry.size(); ++i) {

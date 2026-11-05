@@ -16,7 +16,7 @@
  */
 
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "dsp-next/core/wrapping.h"
+#include "dsp-next/core/buffer_view.h"
 
 #include "dsp-next/core/fixed_point.h"
 
@@ -44,9 +44,9 @@ void fade_in_if(Fade& fade, bool from_off) {
 /// @brief @p filter over a mono @p block, its left channel alone; @p fade blended in over it while active.
 /// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
 template <typename Filter, typename Fade, typename... Context>
-void render_slot_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScratch scratch, Context&... context) {
+void render_slot_mono(Filter& filter, Fade& fade, std::span<Q<31>> block, FadeScratch scratch, Context&... context) {
 	const bool fading = FadeIn::active(fade.state());
-	std::span<q31> dry;
+	std::span<Q<31>> dry;
 	if (fading) {
 		dry = scratch.first(block.size());
 		std::ranges::copy(block, dry.begin());
@@ -61,10 +61,10 @@ void render_slot_mono(Filter& filter, Fade& fade, std::span<q31> block, FadeScra
 /// active.
 /// @param context The filter's per-block context when it takes one (the low-pass ladder's noise), else none.
 template <typename Filter, typename Fade, typename... Context>
-void render_slot_stereo(Filter& filter, Fade& fade, std::span<q31> interleaved, FadeScratch scratch,
+void render_slot_stereo(Filter& filter, Fade& fade, std::span<Q<31>> interleaved, FadeScratch scratch,
                         Context&... context) {
 	const bool fading = FadeIn::active(fade.state());
-	std::span<q31> dry;
+	std::span<Q<31>> dry;
 	if (fading) {
 		dry = scratch.first(interleaved.size());
 		std::ranges::copy(interleaved, dry.begin());
@@ -138,8 +138,8 @@ void FilterSet::hold_high_pass(HighPassSlot::Kind kind) {
 	high_held_ = kind;
 }
 
-q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
-                         HighPassSlot high_slot, FilterRoute route) {
+int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
+                             HighPassSlot high_slot, FilterRoute route) {
 	low_slot_ = low_slot;
 	high_slot_ = high_slot;
 	route_ = route;
@@ -169,13 +169,14 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 	low_last_ = low_slot.kind;
 
 	// At 50% resonance this keeps the level the filters had before their resonance compensation.
+	// The gain is read as Q31 only to scale it: the Q31 factor moved back gives the same bits in any format.
 	gain = mul_as_wrap<Q<31>>(Q<31>::from_raw(gain), Q<31>::from_raw(1720000000)).raw();
 
 	if (high_slot.kind != HighPassSlot::Kind::OFF) {
 		hold_high_pass(high_slot.kind);
 		FilterConfig config = high;
 		// Changes in the resonance's low bits, made too often, rustle.
-		config.resonance = (high.resonance >> 21) << 21;
+		config.resonance = Q<29>::from_raw((high.resonance.raw() >> 21) << 21);
 		const bool mode_changed = !same_mode(high_last_, high_slot);
 		const bool from_off = high_last_.kind == HighPassSlot::Kind::OFF;
 		if (high_slot.kind == HighPassSlot::Kind::LADDER) {
@@ -187,7 +188,7 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 		}
 		else {
 			// The morph inverted, so the high-pass SVF sweeps high → band or notch → low.
-			config.morph = ((1 << 29) - 1) - high.morph;
+			config.morph = sub_wrap(Q<29>::from_raw((1 << 29) - 1), high.morph);
 			high_pass_.svf.configure({.gain = gain, .config = config, .mode = high_slot.svf});
 			gain = Svf::gain(high_pass_.svf.coefficients());
 			if (mode_changed) {
@@ -203,7 +204,7 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 	return gain;
 }
 
-void FilterSet::render_low_pass_mono(std::span<q31> block, FadeScratch scratch, Cong& noise) {
+void FilterSet::render_low_pass_mono(std::span<Q<31>> block, FadeScratch scratch, Cong& noise) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
 		render_slot_mono(low_pass_.ladder, low_fade_, block, scratch, noise);
@@ -216,7 +217,7 @@ void FilterSet::render_low_pass_mono(std::span<q31> block, FadeScratch scratch, 
 	}
 }
 
-void FilterSet::render_high_pass_mono(std::span<q31> block, FadeScratch scratch) {
+void FilterSet::render_high_pass_mono(std::span<Q<31>> block, FadeScratch scratch) {
 	switch (high_slot_.kind) {
 	case HighPassSlot::Kind::LADDER:
 		render_slot_mono(high_pass_.ladder, high_fade_, block, scratch);
@@ -229,7 +230,7 @@ void FilterSet::render_high_pass_mono(std::span<q31> block, FadeScratch scratch)
 	}
 }
 
-void FilterSet::render_low_pass_stereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise) {
+void FilterSet::render_low_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch, Cong& noise) {
 	switch (low_slot_.kind) {
 	case LowPassSlot::Kind::LADDER:
 		render_slot_stereo(low_pass_.ladder, low_fade_, interleaved, scratch, noise);
@@ -242,7 +243,7 @@ void FilterSet::render_low_pass_stereo(std::span<q31> interleaved, FadeScratch s
 	}
 }
 
-void FilterSet::render_high_pass_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+void FilterSet::render_high_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch) {
 	switch (high_slot_.kind) {
 	case HighPassSlot::Kind::LADDER:
 		render_slot_stereo(high_pass_.ladder, high_fade_, interleaved, scratch);
@@ -258,15 +259,15 @@ void FilterSet::render_high_pass_stereo(std::span<q31> interleaved, FadeScratch 
 namespace {
 
 /// @brief @p block += @p other, sample by sample, wrapping on overflow (two's complement, as the hardware adds).
-void add_wrapping(std::span<q31> block, std::span<const q31> other) {
+void add_wrapping(std::span<Q<31>> block, std::span<const Q<31>> other) {
 	for (std::size_t i = 0; i < block.size(); i++) {
-		block[i] = wrapping_add(block[i], other[i]);
+		block[i] = add_wrap(block[i], other[i]);
 	}
 }
 
 } // namespace
 
-[[gnu::hot]] void FilterSet::render_mono(std::span<q31> block, FilterScratch scratch, Cong& noise) {
+[[gnu::hot]] void FilterSet::render_mono(std::span<Q<31>> block, FilterScratch scratch, Cong& noise) {
 	switch (route_) {
 	case FilterRoute::HIGH_TO_LOW:
 		render_high_pass_mono(block, scratch.fade);
@@ -277,7 +278,7 @@ void add_wrapping(std::span<q31> block, std::span<const q31> other) {
 		render_high_pass_mono(block, scratch.fade);
 		break;
 	case FilterRoute::PARALLEL: {
-		const std::span<q31> copy = scratch.parallel.first(block.size());
+		const std::span<Q<31>> copy = scratch.parallel.first(block.size());
 		std::ranges::copy(block, copy.begin());
 		render_high_pass_mono(copy, scratch.fade);
 		render_low_pass_mono(block, scratch.fade, noise);
@@ -287,7 +288,7 @@ void add_wrapping(std::span<q31> block, std::span<const q31> other) {
 	}
 }
 
-[[gnu::hot]] void FilterSet::render_stereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise) {
+[[gnu::hot]] void FilterSet::render_stereo(std::span<Q<31>> interleaved, FilterScratch scratch, Cong& noise) {
 	switch (route_) {
 	case FilterRoute::HIGH_TO_LOW:
 		render_high_pass_stereo(interleaved, scratch.fade);
@@ -298,7 +299,7 @@ void add_wrapping(std::span<q31> block, std::span<const q31> other) {
 		render_high_pass_stereo(interleaved, scratch.fade);
 		break;
 	case FilterRoute::PARALLEL: {
-		const std::span<q31> copy = scratch.parallel.first(interleaved.size());
+		const std::span<Q<31>> copy = scratch.parallel.first(interleaved.size());
 		std::ranges::copy(interleaved, copy.begin());
 		render_high_pass_stereo(copy, scratch.fade);
 		render_low_pass_stereo(interleaved, scratch.fade, noise);

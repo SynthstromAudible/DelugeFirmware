@@ -67,7 +67,7 @@ static bool scalarOk(ParamSet* s) {
 		return false;
 	}
 	for (int32_t p = 0; p < s->getNumParams() && p < (int32_t)s->domStore()->params.size(); p++) {
-		if (s->domStore()->params[p].current_value != s->params[p].currentValue) {
+		if (s->domStore()->params[p].current_value != s->params[p].played()) {
 			return false;
 		}
 	}

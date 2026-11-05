@@ -448,6 +448,7 @@ async fn bench_park() {
 /// Follows `oled::send_frame`'s bus discipline: RSPI0 is held from before the PIC asserts the
 /// OLED's chip-select until it confirms the deselect, so no CV write can clock into the panel.
 /// DC goes low for the command and back high, the data mode `oled::send_frame` expects.
+#[cfg(dsp_bench)]
 async fn oled_display_off() {
     use deluge_bsp::{bus, pic};
 

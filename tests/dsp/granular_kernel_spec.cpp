@@ -21,6 +21,7 @@
 // (reference_granular.h) bit for bit on every workload (granular_workloads.h): each
 // block's output, post-FX volume and reverb send, and at the end the State and the ring as the kernel reads it.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -40,7 +41,9 @@
 #include <vector>
 
 using deluge::dsp::Mono;
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 using Granular = deluge::dsp::fixed::Granular<>;
 
 static_assert(deluge::dsp::processor_kernel<Granular>);
@@ -52,8 +55,8 @@ namespace gw = deluge::dsp::test::granular_workloads;
 using deluge::dsp::test::ReferenceGranular;
 
 /// @return The words of @p frames, left then right per frame.
-[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const StereoSample> frames) {
-	static_assert(sizeof(StereoSample) == 2 * sizeof(uint32_t));
+[[nodiscard]] std::vector<uint32_t> frame_words(std::span<const RawFrame> frames) {
+	static_assert(sizeof(RawFrame) == 2 * sizeof(uint32_t));
 	std::vector<uint32_t> words(frames.size() * 2);
 	std::memcpy(words.data(), frames.data(), frames.size_bytes());
 	return words;
@@ -79,8 +82,8 @@ public:
 	void startSkippingRendering() { mono_.on<&Granular::restart>(); }
 
 	/// @brief The reference's processGrainFX: renders @p frames in place while there is sound or the countdown runs,
-	/// adding the reverb feed into @p send and scaling @p volume (Q31).
-	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
+	/// adding the reverb feed into @p send and scaling @p volume (Q27).
+	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
 		if (sound || mono_.state().wraps_to_shutdown >= 0) {
 			if (mono_.state().ring == nullptr) {
@@ -89,10 +92,15 @@ public:
 			if (sound) {
 				mono_.on<&Granular::arm_shutdown>();
 			}
-			mono_.configure({.rate = rate, .mix = mix, .density = density, .randomness = randomness});
+			mono_.configure({.rate = Q<31>::from_raw(rate),
+			                 .mix = Q<31>::from_raw(mix),
+			                 .density = Q<31>::from_raw(density),
+			                 .randomness = Q<31>::from_raw(randomness)});
 			*volume = Granular::post_fx_volume(*volume);
-			mono_.on<&Granular::set_send>(send.data(), reverb_amount);
-			mono_.render_block(frames, frames, deluge::synth_noise);
+			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
+			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
+			const std::span<StereoSample> block = deluge::dsp::test::typed_frames(frames);
+			mono_.render_block(block, block, deluge::synth_noise);
 			if (mono_.state().wraps_to_shutdown < 0) {
 				mono_.on<&Granular::restart>();
 			}
@@ -104,9 +112,9 @@ public:
 	[[nodiscard]] std::vector<uint32_t> ring_words() const {
 		std::vector<StereoSample> read(ring_.begin(), ring_.end());
 		for (std::size_t i = mono_.state().written; i < read.size(); ++i) {
-			read[i] = {0, 0};
+			read[i] = StereoSample{};
 		}
-		return frame_words(read);
+		return frame_words(deluge::dsp::test::raw_frames(std::span<const StereoSample>{read}));
 	}
 
 	/// @return The State the output depends on, as words (see @ref reference_state_words for the order).
@@ -115,11 +123,12 @@ public:
 		std::vector<uint32_t> words{s.write, static_cast<uint32_t>(s.full), static_cast<uint32_t>(s.initialized),
 		                            static_cast<uint32_t>(s.wraps_to_shutdown)};
 		for (const Granular::Grain& g : s.grains) {
-			push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse, g.pan_l,
-			           g.pan_r);
+			push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse,
+			           g.pan_l.raw(), g.pan_r.raw());
 		}
-		for (const int32_t w : {s.lpf_l.z, s.lpf_r.z, s.levels.size, s.levels.period, s.levels.wet, s.levels.dry,
-		                        s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
+		for (const int32_t w :
+		     {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet.raw(), s.levels.dry.raw(),
+		      s.levels.feedback.raw(), s.knobs.rate.raw(), s.knobs.mix.raw(), s.knobs.density.raw()}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 		return words;
@@ -142,7 +151,8 @@ private:
 	}
 	const auto lpf = fx.low_pass();
 	const ReferenceGranular::Cache c = fx.cache();
-	for (const int32_t w : {lpf[0].z, lpf[1].z, c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
+	for (const int32_t w :
+	     {lpf[0].z.raw(), lpf[1].z.raw(), c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
 		words.push_back(static_cast<uint32_t>(w));
 	}
 	return words;

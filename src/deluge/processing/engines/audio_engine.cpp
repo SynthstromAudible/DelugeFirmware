@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
@@ -67,6 +68,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_slot.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
@@ -115,13 +117,27 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using deluge::synth::LiveInputBuffer;
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 // #define REPORT_CPU_USAGE 1
 
 #define NUM_SAMPLES_FOR_CPU_USAGE_REPORT 32
 
 #define AUDIO_OUTPUT_GAIN_DOUBLINGS 8
+
+namespace {
+/// @brief An output sample at the output's gain: held to 24 bits, then doubled AUDIO_OUTPUT_GAIN_DOUBLINGS times.
+[[gnu::always_inline]] inline int32_t output_gain(int32_t sample) {
+	return scale_shl_clamp_then_shift<AUDIO_OUTPUT_GAIN_DOUBLINGS>(deluge::dsp::Q<31>::from_raw(sample)).raw();
+}
+
+/// @brief @p sample plus the USB input it monitors, brought down to the output stage's level before its gain,
+/// saturating.
+[[gnu::always_inline]] inline int32_t with_usb_monitor(int32_t sample, int32_t usb) {
+	using deluge::dsp::Q;
+	return add_sat(Q<31>::from_raw(sample), scale_shr_floor<AUDIO_OUTPUT_GAIN_DOUBLINGS>(Q<31>::from_raw(usb))).raw();
+}
+} // namespace
 
 #ifdef REPORT_CPU_USAGE
 #define REPORT_AVERAGE_NUM 10
@@ -485,7 +501,7 @@ LiveInputBuffer* liveInputBuffers[3];
 double lastRoutineTime;
 
 alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
-alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
+alignas(CACHE_LINE_SIZE) std::array<deluge::dsp::Q<31>, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
 
 StereoSample* renderingBufferOutputPos = renderingMemory.begin();
 StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
@@ -1027,8 +1043,8 @@ void midiGateOutputTimerFired() {
 }
 
 void scheduleMidiGateOutISR(size_t numSamples);
-/// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
-constexpr int32_t kMasterVolumeWithoutSong = 167763968;
+/// The output stage's volume while no song is current, Q27: the master's, as a song master's filters start.
+constexpr int32_t kMasterVolumeWithoutSong = deluge::effects::kMasterVolume.raw();
 
 /// @brief The current song's master over @p renderingBuffer: its half before the reverb with @p master (noting a send
 /// to the reverb), then @p between (which renders the reverb, and the sample preview, and returns the half after's
@@ -1185,6 +1201,9 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 		voices_started_this_render = 0;
 
 		size_t numSamples = frames - produced;
+		if (currentSong != nullptr) {
+			deluge::modulation::applyRecordEvents(*currentSong);
+		}
 		tickSongFinalizeWindows(numSamples);
 
 		numSamplesLastTime = numSamples;
@@ -1292,16 +1311,14 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 
 namespace {
 
-/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; kOneQ31 with no
+/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; unity with no
 /// song.
-int32_t metronomeVolumePostFx() {
+deluge::dsp::Q<27> metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
-		return kOneQ31;
+		return deluge::dsp::q<27>(1.0); // playback triggers the click only with a song, so this is defensive
 	}
-	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
-	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                                                           deluge::modulation::params::UNPATCHED_VOLUME)))
-	       >> 1;
+	return deluge::model::volume_from_knob(
+	    currentSong->paramManager.getUnpatchedParamSet()->getKnob(deluge::modulation::params::UNPATCHED_VOLUME));
 }
 
 } // namespace
@@ -1311,7 +1328,7 @@ void renderAudio(size_t numSamples) {
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
 	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
-	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
+	std::ranges::fill(reverbBuffer, deluge::dsp::Q<31>{});
 
 	if (sideChainHitPending != 0) {
 		timeLastSideChainHit = audioSampleTimer;
@@ -1353,7 +1370,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
 	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
-	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
+	std::ranges::fill(reverbBuffer, deluge::dsp::Q<31>{});
 
 	if (sideChainHitPending) {
 		timeLastSideChainHit = audioSampleTimer;
@@ -1518,11 +1535,8 @@ void renderReverb(size_t numSamples) {
 	// The return's duck advances whether or not the reverb renders this block. The tick inverse is read only while it
 	// ducks: between songs there is no tempo to read.
 	const uint32_t tickInverse = reverb.return_ducks() ? playbackHandler.getTimePerInternalTickInverse() : 0;
-	const int32_t reverbOutputVolume =
+	const deluge::dsp::Q<31> reverbOutputVolume =
 	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse);
-
-	int32_t reverbAmplitudeL;
-	int32_t reverbAmplitudeR;
 
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
@@ -1530,21 +1544,16 @@ void renderReverb(size_t numSamples) {
 	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
-		// Reverb panning
-		bool thisDoPanning = false;
-		if (renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(reverbPan);
-			reverbAmplitudeL = amplitudes.left;
-			reverbAmplitudeR = amplitudes.right;
-			thisDoPanning = reverbPan != 0;
-		}
-
-		if (thisDoPanning) {
-			reverbAmplitudeL = multiply_32x32_rshift32(reverbAmplitudeL, reverbOutputVolume) << 2;
-			reverbAmplitudeR = multiply_32x32_rshift32(reverbAmplitudeR, reverbOutputVolume) << 2;
-		}
-		else {
-			reverbAmplitudeL = reverbAmplitudeR = reverbOutputVolume;
+		deluge::dsp::Q<31> reverbAmplitudeL = reverbOutputVolume;
+		deluge::dsp::Q<31> reverbAmplitudeR = reverbOutputVolume;
+		if (renderInStereo && reverbPan != 0) {
+			// The song's reverb pan setting is a Q31 word. The Q30 pan amplitudes times the output volume, Q29, moved
+			// to Q31
+			using deluge::dsp::Q;
+			const deluge::dsp::fixed::PanAmplitudes amplitudes =
+			    deluge::dsp::fixed::pan_amplitudes(Q<31>::from_raw(reverbPan));
+			reverbAmplitudeL = mul_as_wrap<Q<31>>(amplitudes.left, reverbOutputVolume);
+			reverbAmplitudeR = mul_as_wrap<Q<31>>(amplitudes.right, reverbOutputVolume);
 		}
 
 		// Mix reverb into main render
@@ -1753,6 +1762,9 @@ uint32_t routine() {
 		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
 		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
 			size_t numSamples = kOfflineFramesPerBlock;
+			if (currentSong != nullptr) {
+				deluge::modulation::applyRecordEvents(*currentSong);
+			}
 			tickSongFinalizeWindows(numSamples);
 			sendWindowOutputsNow();
 
@@ -1860,19 +1872,24 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 		// number of keep-alive samples — so sharing the stream let that count perturb every synth random draw, making
 		// the offline render depend on heap layout (and coupling musical randomness to output-sample count). See
 		// docs/dev/overread_hunt.md.
+		// Raw: the dithered 64-bit product of the Q31 words and the volumes.
 		int64_t lAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
+		    (int64_t)renderingBufferOutputPosNow->l.raw() * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
 		int64_t rAdjustedBig =
-		    (int64_t)renderingBufferOutputPosNow->r * (int64_t)masterVolumeAdjustmentR + (int64_t)outputDither();
+		    (int64_t)renderingBufferOutputPosNow->r.raw() * (int64_t)masterVolumeAdjustmentR + (int64_t)outputDither();
 
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
 		if (monitorInput) {
-			const StereoSample monitored = deluge::dsp::fixed::output_monitor_fold(
-			    monitorFold, {.l = inputReadPos[0], .r = inputReadPos[1]}, AUDIO_OUTPUT_GAIN_DOUBLINGS);
-			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l);
-			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r);
+			// The codec's input ring holds raw Q31 words
+			const StereoSample monitored =
+			    deluge::dsp::fixed::output_monitor_fold(monitorFold,
+			                                            {.l = deluge::dsp::Q<31>::from_raw(inputReadPos[0]),
+			                                             .r = deluge::dsp::Q<31>::from_raw(inputReadPos[1])},
+			                                            AUDIO_OUTPUT_GAIN_DOUBLINGS);
+			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l.raw()); // the output words, raw
+			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r.raw());
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (inputReadPos >= inputBufferEnd) {
@@ -1882,33 +1899,37 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 
 		if (doSendToUSB) {
 			if (sendLineInToUSB) {
-				toUSB[numSamplesOutputted].l = lineInReadPos[0];
-				toUSB[numSamplesOutputted].r = lineInReadPos[lineInIsMono ? 0 : 1];
+				// The codec's raw Q31 input words.
+				toUSB[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(lineInReadPos[0]);
+				toUSB[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(lineInReadPos[lineInIsMono ? 0 : 1]);
 				lineInReadPos += NUM_MONO_INPUT_CHANNELS;
 				if (lineInReadPos >= lineInEnd) {
 					lineInReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
 			}
 			else {
-				toUSB[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-				toUSB[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+				toUSB[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(output_gain(lAdjusted)); // raw output words
+				toUSB[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(output_gain(rAdjusted));
 			}
 		}
 
 		if (doUSBDirectMonitoring) {
-			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+			lAdjusted = with_usb_monitor(lAdjusted, usbReadPos[0]);
+			rAdjusted = with_usb_monitor(rAdjusted, usbReadPos[1]);
 			usbReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (usbReadPos >= usbInputEnd) {
 				usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
 
-		outputBufferForResampling[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-		outputBufferForResampling[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+		// The output words, raw.
+		outputBufferForResampling[numSamplesOutputted].l = deluge::dsp::Q<31>::from_raw(output_gain(lAdjusted));
+		outputBufferForResampling[numSamplesOutputted].r = deluge::dsp::Q<31>::from_raw(output_gain(rAdjusted));
 		if (outputRealAudio) {
-			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
-			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;
+			out[produced + numSamplesOutputted].l =
+			    outputBufferForResampling[numSamplesOutputted].l.raw(); // the codec frame is raw
+			out[produced + numSamplesOutputted].r =
+			    outputBufferForResampling[numSamplesOutputted].r.raw(); // the codec frame is raw
 		}
 		// otherwise output 0 or 1 for silence, the DAC doesn't like all zeroes
 		else {
@@ -2039,12 +2060,16 @@ void updateReverbParams() {
 		return;
 	}
 
-	// Otherwise, use manually set params for reverb sidechain
-	reverb.set_return_duck({.depth = reverbSidechainVolume, .shape = reverbSidechainShape});
+	// Otherwise, use manually set params for reverb sidechain: the settings' words are the depth (Q29) and shape (Q31)
+	reverb.set_return_duck({.depth = deluge::dsp::Q<29>::from_raw(reverbSidechainVolume),
+	                        .shape = deluge::dsp::Q<31>::from_raw(reverbSidechainShape)});
 }
 
 void registerSideChainHit(int32_t strength) {
-	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(strength, sideChainHitPending);
+	// The hit strengths are Q31 words: Reverb::return_level and Song::renderAudio read the pending hit as one
+	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(deluge::dsp::Q<31>::from_raw(strength),
+	                                                                deluge::dsp::Q<31>::from_raw(sideChainHitPending))
+	                          .raw();
 }
 
 PreviewVolume PreviewVolume::neutral() {
@@ -2062,13 +2087,13 @@ void soundPreview(PreviewVolume const& volume) {
 	// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
 	// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
 	PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
-	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
-	previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setPlayed(volume.volumePostFX);
+	previewParams->params[params::LOCAL_VOLUME].setPlayed(volume.localVolume);
 
 	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
-		previewCables->patchCables[0].param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		previewCables->patchCables[0].param.setPlayed(volume.velocityCableDepth);
 		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 

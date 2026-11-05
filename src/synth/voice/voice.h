@@ -26,6 +26,7 @@
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"
 #include "synth/matrix/matrix_fixed.h"
+#include "synth/matrix/param_format.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
@@ -77,8 +78,8 @@ public:
 		Evaluator::run_uncabled_param(matrix_pass(), control_block, param);
 	}
 
-	uint32_t get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
-	                                       uint32_t synced_phase_increment);
+	dsp::UQ<32> get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
+	                                          dsp::UQ<32> synced_phase_increment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
@@ -170,9 +171,9 @@ private:
 	int32_t note_code_after_arpeggiation_{};
 
 	uint32_t porta_envelope_pos_{};
-	int32_t porta_envelope_max_amplitude_{};
+	dsp::Q<24> porta_envelope_max_amplitude_{}; ///< The glide's depth: the interval's pitch factor less one
 
-	int32_t overall_osc_amplitude_last_time_{};
+	dsp::Q<31> overall_osc_amplitude_last_time_{};
 
 	bool done_first_render_{};
 	bool previously_ignored_note_off_{};
@@ -187,8 +188,8 @@ private:
 
 	// The shared render scratch the render arguments carry, set at the top of render() for the render helpers. Each
 	// entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
-	std::array<int32_t*, 4> spare_buffers_{};
-	std::span<int32_t> sync_scratch_; ///< Set with the spare buffers at the top of render()
+	std::array<dsp::Q<31>*, 4> spare_buffers_{};
+	std::span<dsp::Q<31>> sync_scratch_; ///< Set with the spare buffers at the top of render()
 	/// The noise stream of the call in progress (render, note-on, phase randomizing), set at its top: the synth's one
 	/// stream, which each call is handed.
 	dsp::fixed::Cong* noise_{};
@@ -198,25 +199,25 @@ private:
 	/// The controls a dual-source engine renders this block from, derived from the voice's params.
 	[[nodiscard]] DualSourceControls dual_source_controls(const matrix::MatrixBlock& control_block,
 	                                                      const VoiceConfig& cfg, const VoiceBlock& block,
-	                                                      int32_t filter_gain, int32_t overall_pitch_adjust,
+	                                                      dsp::Q<28> filter_gain, dsp::Q<24> overall_pitch_adjust,
 	                                                      bool first_render, bool stereo_unison) const;
 	/// The controls FM renders this block from, derived from the voice's params.
-	[[nodiscard]] FmControls fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain,
-	                                     int32_t overall_pitch_adjust, bool first_render, bool stereo_unison) const;
+	[[nodiscard]] FmControls fm_controls(dsp::Q<31> overall_osc_amplitude, dsp::Q<28> filter_gain,
+	                                     dsp::Q<24> overall_pitch_adjust, bool first_render, bool stereo_unison) const;
 	/// The voice-level pan: whether to pan, and the gains (none when the sound pans, or renders the engine in mono).
 	struct VoicePan {
 		bool do_panning{};
-		int32_t amplitude_l{};
-		int32_t amplitude_r{};
+		dsp::Q<30> amplitude_l{};
+		dsp::Q<30> amplitude_r{};
 	};
 	/// What the output stage writes from: the voice's filtered buffer, into the sound's.
 	struct VoiceOutput {
-		const int32_t* buffer{}; ///< The voice's buffer, stereo pairs when the engine rendered stereo
+		const dsp::Q<31>* buffer{}; ///< The voice's buffer, stereo pairs when the engine rendered stereo
 		int32_t num_samples{};
-		int32_t* sound_buffer{};       ///< The sound's buffer, stereo pairs when @ref sound_in_stereo
-		int32_t amplitude_start{};     ///< The overall amplitude at block start (q31)
-		int32_t amplitude_increment{}; ///< Its per-sample increment
-		bool fm{};                     ///< FM worked the overall amplitude into its carriers already
+		dsp::Q<31>* sound_buffer{};       ///< The sound's buffer, stereo pairs when @ref sound_in_stereo
+		dsp::Q<31> amplitude_start{};     ///< The overall amplitude at block start
+		dsp::Q<31> amplitude_increment{}; ///< Its per-sample increment
+		bool fm{};                        ///< FM worked the overall amplitude into its carriers already
 		VoicePan pan;
 		bool sound_in_stereo{};
 		uint8_t clipping_amount{};
@@ -234,7 +235,7 @@ private:
 	/// Every unison part's sources ended. @return true to unassign at once; with filters on, it fast-releases instead.
 	[[nodiscard]] bool end_with_parts();
 	/// The voice's pitch adjust this block: the patched one, the kit's, bend and MPE, and portamento (which advances).
-	int32_t pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t external_pitch_adjust);
+	dsp::Q<24> pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, dsp::Q<24> external_pitch_adjust);
 	[[nodiscard]] VoicePan voice_pan(const VoiceConfig& cfg, bool applying_pan_at_voice_level) const;
 	/// Adds the voice's stereo buffer into the sound's, with the overall amplitude, saturation and pan.
 	template <bool kClipping>
@@ -243,13 +244,13 @@ private:
 	template <bool kClipping>
 	void write_mono(const VoiceOutput& output);
 	/// Each FM modulator's volume param this block.
-	[[nodiscard]] std::array<int32_t, kNumModulators> modulator_volumes() const {
-		return {params_.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME],
-		        params_.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME]};
+	[[nodiscard]] std::array<dsp::Q<31>, kNumModulators> modulator_volumes() const {
+		return {matrix::param_value<deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME>(params_.param_final_values),
+		        matrix::param_value<deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME>(params_.param_final_values)};
 	}
 	void setup_porta(int32_t last_note_code);
 	/// Starts the release of a voice of play-once samples so that it ends with them.
-	void auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, int32_t overall_pitch_adjust);
+	void auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, dsp::Q<24> overall_pitch_adjust);
 	[[nodiscard]] int32_t combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const;
 };
 

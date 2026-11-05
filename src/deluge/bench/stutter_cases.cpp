@@ -43,8 +43,8 @@ effects::Stutter fx{model::kStutterAllocator};
 /// @brief Sets the rig's stutter-rate param to @p value, as a knob turn leaves it.
 void set_rate(int32_t value) {
 	UnpatchedParamSet* unpatched = rig.params.getUnpatchedParamSet();
-	unpatched->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
-	    *unpatched->docForParam(params::UNPATCHED_STUTTER_RATE), value);
+	unpatched->params[params::UNPATCHED_STUTTER_RATE].setBase(*unpatched->docForParam(params::UNPATCHED_STUTTER_RATE),
+	                                                          value);
 }
 
 /// @brief One block as the owner renders it.

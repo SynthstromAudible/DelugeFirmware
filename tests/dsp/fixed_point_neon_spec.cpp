@@ -16,9 +16,11 @@
  */
 #include "dsp-next/core/fixed_point_neon.h"
 #include <array>
+#include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -30,8 +32,12 @@ static_assert(std::is_same_v<decltype(mul_doubling_sat(QVec<31>{}, QVec<30>{})),
 static_assert(std::is_same_v<decltype(mul_doubling_sat(QVec<31>{}, Q<29>{})), QVec<29>>);
 static_assert(std::is_same_v<decltype(mul_doubling_sat(Q16Vec<15>{}, Q16<15>{})), Q16Vec<15>>);
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, Q<30>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
+static_assert(std::is_same_v<decltype(as_wrap<QVec<31>>(QVec<26>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(clamp_bits<27>(QVec<26>{})), QVec<26>>);
 static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<31>>(UQVec<32>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(sum_wrap(QVec<30>{})), Q<30>>);
 static_assert(std::is_same_v<decltype(add_scale_shr_floor<4>(QVec<31>{}, QVec<31>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(mul_doubling_sat_lane<1>(QVec<31>{}, QVec<29>{})), QVec<29>>);
@@ -128,6 +134,8 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto, auto c) { return mul_doubling_sat(q<31>(a), q<29>(c)).raw(); });
 	bad += mismatches32([](auto a, auto b, auto) { return out(mul_doubling_r_sat(vec<31>(a), vec<31>(b))); },
 	                    [](auto a, auto b, auto) { return mul_doubling_r_sat(q<31>(a), q<31>(b)).raw(); });
+	bad += mismatches32([](auto a, auto, auto c) { return out(mul_doubling_r_sat(vec<31>(a), q<30>(c))); },
+	                    [](auto a, auto, auto c) { return mul_doubling_r_sat(q<31>(a), q<30>(c)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shl_wrap<3>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return scale_shl_wrap<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shr_floor<3>(vec<31>(a))); },
@@ -136,6 +144,10 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto b, auto) { return wrap32(std::int64_t{a} + (b >> 4)); });
 	bad += mismatches32([](auto a, auto, auto) { return out(as_floor<QVec<28>>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return as_floor<Q<28>>(q<31>(a)).raw(); });
+	bad += mismatches32([](auto a, auto, auto) { return out(as_wrap<QVec<31>>(vec<26>(a))); },
+	                    [](auto a, auto, auto) { return as_wrap<Q<31>>(Q<26>::from_raw(a)).raw(); });
+	bad += mismatches32([](auto a, auto, auto) { return out(clamp_bits<27>(vec<26>(a))); },
+	                    [](auto a, auto, auto) { return clamp_bits<27>(Q<26>::from_raw(a)).raw(); });
 	bad += mismatches32(
 	    [](auto a, auto, auto) {
 		    const auto phase = UQVec<32>::from_raw(vreinterpretq_u32_s32(a));
@@ -262,6 +274,33 @@ std::size_t half_mismatches() {
 	}
 	return bad;
 }
+
+/// A float's bits, so NaN and −0 compare as themselves.
+std::uint32_t bits(float x) {
+	return std::bit_cast<std::uint32_t>(x);
+}
+
+/// Mismatches between the vector fixed↔float conversions at Q<F> and the scalar ones, over edge values and floats
+/// out of range, NaN and below the format's LSB.
+template <int F>
+std::size_t float_mismatches() {
+	constexpr std::array<std::int32_t, 8> kRaw{0, 1, -1, 1 << 22, -(1 << 23), INT32_MAX, INT32_MIN, 3 << 20};
+	const std::array<float, 8> floats{1.5F,       200.F,       -4.5e9F, std::numeric_limits<float>::quiet_NaN(),
+	                                  0x1.8p-25F, -0x1.8p-25F, -0.F,    4.5e9F};
+	std::size_t bad = 0;
+	for (std::size_t base = 0; base < 8; base += 4) {
+		const Argon<float> as_float = to_float(vec<F>(Argon<std::int32_t>::Load(kRaw.data() + base)));
+		const auto back = from_float<F>(as_float);
+		const auto from = from_float<F>(Argon<float>::Load(floats.data() + base));
+		for (std::size_t i = 0; i < 4; ++i) {
+			const auto lane = static_cast<float>(as_float[i]);
+			bad += bits(lane) != bits(to_float(q<F>(kRaw[base + i]))) ? 1 : 0;
+			bad += back.lane(i).raw() != from_float<F>(lane).raw() ? 1 : 0;
+			bad += from.lane(i).raw() != from_float<F>(floats[base + i]).raw() ? 1 : 0;
+		}
+	}
+	return bad;
+}
 } // namespace
 
 // clang-format off
@@ -306,6 +345,7 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const auto min = QVec<31>::splat(Q<31>::min());
 		expect(mul_doubling_sat(min, min).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_r_sat(min, min).lane(3).raw()).to_equal(INT32_MAX);
+		expect(mul_doubling_r_sat(min, Q<31>::min()).lane(1).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat(min, Q<31>::min()).lane(2).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat_lane<0>(min, min).lane(1).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat_lane<3>(min, min).lane(0).raw()).to_equal(INT32_MAX);
@@ -314,6 +354,45 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const auto min16 = Q16Half<15>::splat(Q16<15>::min());
 		expect(mul_doubling_wide_sat(min16, min16).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mla_doubling_wide_sat(QVec<31>::splat(Q<31>::min()), min16, min16).lane(1).raw()).to_equal(-1);
+	});
+	it("convert to and from float lane by lane, as the scalar conversions", _ {
+		expect(float_mismatches<22>()).to_equal(std::size_t{0});
+		expect(float_mismatches<24>()).to_equal(std::size_t{0});
+	});
+	it("convert a float to fixed point truncating toward zero, saturating, NaN to 0", _ {
+		const std::array<float, 4> edges{0x1.8p-24F, -0x1.8p-24F, 200.F, std::numeric_limits<float>::quiet_NaN()};
+		const auto x = from_float<24>(Argon<float>::Load(edges.data()));
+		expect(out(x)).to_equal(std::array<std::int32_t, 4>{1, -1, INT32_MAX, 0});
+		expect(from_float<24>(Argon<float>{-200.F}).lane(0).raw()).to_equal(INT32_MIN);
+	});
+	it("load and store four lanes from an array of the lane type", _ {
+		const std::array<Q<31>, 4> in{Q<31>::min(), Q<31>::from_raw(-1), Q<31>::from_raw(7), Q<31>::max()};
+		std::array<Q<31>, 4> back{};
+		QVec<31>::load(in.data()).store(back.data());
+		expect(back == in).to_be_true();
+		expect(QVec<31>::load(in.data()).lane(2).raw()).to_equal(7);
+	});
+	it("load the first lanes only, zeroing the rest", _ {
+		// The fourth element is past the lanes asked for: it must not reach lane 3.
+		const std::array<Q<31>, 4> in{Q<31>::from_raw(1), Q<31>::from_raw(-2), Q<31>::max(), Q<31>::from_raw(99)};
+		const auto v = QVec<31>::load(in.data(), 3);
+		expect(out(v)).to_equal(std::array<std::int32_t, 4>{1, -2, INT32_MAX, 0});
+		const auto one = UQVec<32>::load(std::array<UQ<32>, 1>{UQ<32>::from_raw(5u)}.data(), 1);
+		expect(one.lane(0).raw()).to_equal(5u);
+		expect(one.lane(1).raw()).to_equal(0u);
+	});
+	it("store the first lanes only, leaving the rest unwritten", _ {
+		std::array<Q<31>, 4> back;
+		back.fill(Q<31>::from_raw(99));
+		QVec<31>::splat(Q<31>::from_raw(-5)).store(back.data(), 3);
+		expect(back[0].raw()).to_equal(-5);
+		expect(back[2].raw()).to_equal(-5);
+		expect(back[3].raw()).to_equal(99);
+		std::array<Q<31>, 4> two;
+		two.fill(Q<31>::from_raw(99));
+		QVec<31>::splat(Q<31>::from_raw(3)).store(two.data(), 2);
+		expect(two[1].raw()).to_equal(3);
+		expect(two[2].raw()).to_equal(99);
 	});
 	it("splat a lane into every lane", _ {
 		const auto x = Q16x2Vec<15>::splat(Q16x2<15>::from_raw(0x8000'7fffu));

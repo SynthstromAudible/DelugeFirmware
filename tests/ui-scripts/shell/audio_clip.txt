@@ -81,14 +81,14 @@
                                   # (`hid/buttons.cpp:193-194`, ported through
                                   # `InputLowering::was_short_press`), and `GlobalControls::leds`
                                   # declares RECORD lit from `playbackHandler.recording == NORMAL`
-                                  # (`playback_handler.cpp:2505`). `.state` gains `led Record on`
+                                  # (`playback_handler.cpp:2585`). `.state` gains `led Record on`
 1800  button Play down
 1900  button Play up
 2000  snapshot after_play         # `playbackHandler.playButtonPressed` really runs -- the fixture
                                   # holds `spec::QuietAudio`, which is the disarm for
                                   # `AudioEngine::routineWithClusterLoading` in a spec process, not
                                   # a stub of the transport. `.state` gains `led Play on`
-                                  # (`playback_handler.cpp:2501`). RECORD is still lit, and the
+                                  # (`playback_handler.cpp:2581`). RECORD is still lit, and the
                                   # playhead appears at column 0: the booted app's clock runs, so
                                   # `AudioClipView::graphicsRoutine`'s `getTickSquare()` arm draws it
                                   # (`audio_clip_view.cpp:293-313`), as it does through the clear below

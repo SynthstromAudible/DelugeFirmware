@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/track_chain.h"
@@ -33,6 +35,23 @@ namespace deluge::model {
 
 class TrackChannel;
 
+/// @brief An output's pitch adjust knob as the factor its content's pitch takes: its exponential curve around unison,
+/// the knob's ±1 being ±4 octaves.
+/// @param knob The pitch adjust param's stored word.
+/// @return The pitch factor, Q24: 2^24 unison.
+[[nodiscard]] inline dsp::Q<24> pitch_adjust_from_knob(dsp::Q<31> knob) {
+	// The knob's word ≫ 3 is its octaves at Q26
+	return dsp::fixed::exp_curve(dsp::Q<24>::one(), dsp::reinterpret_bits<dsp::Q<26>>(scale_shr_floor<3>(knob)));
+}
+
+/// @brief An output's volume knob as the volume its chain renders at: the knob's square curve around unity, halved, as
+/// the curve's neutral doubles already (its maximum is 4).
+/// @param knob The volume param's stored word.
+/// @return The volume, Q27: 2^27 unity.
+[[nodiscard]] inline dsp::Q<27> volume_from_knob(dsp::Q<31> knob) {
+	return halve_floor(dsp::fixed::curve_square(dsp::Q<27>::one(), dsp::fixed::preset_combination(knob)));
+}
+
 /// @brief A host chain's filter params for one block: each filter's final values from its unpatched params, the
 /// params' own values, and whether the CPU allows the drive ladder to oversample.
 /// @param unpatched The owner's unpatched param set.
@@ -45,11 +64,11 @@ class TrackChannel;
 /// @param activeType The mod FX type in effect this block (see activeModFXType).
 /// @param paramManager The owner's param manager.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
-/// @param grainSend The granular's reverb send, Q31.
+/// @param grainSend The granular's reverb send.
 /// @return The block's mod FX, EQ and delay inputs.
 [[nodiscard]] effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
                                              ParamManager& paramManager, const effects::Delay::State& delay,
-                                             int32_t grainSend);
+                                             dsp::Q<31> grainSend);
 
 /// @brief The mod FX type a host chain runs this block: NONE while its selected mod FX knob is at its minimum (the soft
 /// off), else its setting.
@@ -71,29 +90,29 @@ class TrackChannel;
 
 /// @brief A track chain's sidechain volume param as a patch cable's depth.
 /// @param paramManager The owner's param manager.
-/// @return The depth, Q29.
-[[nodiscard]] int32_t sidechainDepth(ParamManager& paramManager);
+/// @return The depth: the knob plus one.
+[[nodiscard]] dsp::Q<29> sidechainDepth(ParamManager& paramManager);
 
 /// @brief A kit's or an audio track's chain inputs for one block, from its unpatched params.
 /// @param channel The kit's or audio track's channel.
 /// @param paramManager The owner's param manager.
-/// @param volumeAdjustment The output's volume param's final, halved (Q31), as the drums are rendered at.
+/// @param volumeAdjustment The output's volume, as the drums are rendered at (volume_from_knob).
 /// @param reverbAmountAdjust The song's reverb send scaling for this output, Q31.
 /// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
 /// @return The block's track-chain inputs.
 [[nodiscard]] effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
-                                                         int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                                         dsp::Q<27> volumeAdjustment, int32_t reverbAmountAdjust,
                                                          int32_t sideChainHitPending,
                                                          const effects::Delay::State& delay, OutputType outputType);
 
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the
 /// block's delay working state on the master's delay.
 /// @param song The song whose master chain is read.
-/// @param volumePostFX The song's post-FX volume, Q31, as its outputs were rendered at.
+/// @param volumePostFX The song's post-FX volume, as its outputs were rendered at.
 /// @return The master chain's pre-reverb inputs.
-[[nodiscard]] effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX);
+[[nodiscard]] effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX);
 
 /// @brief The song master's half after the reverb, from the song's params once the reverb has rendered.
 /// @param song The song whose master chain is read.

@@ -16,7 +16,7 @@
  */
 
 #include "synth/engines/slot_engine.h"
-#include "dsp-next/core/q31_ops.h"          // multiply_32x32_rshift32
+#include "dsp-next/core/fixed_point.h"
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable, noteIntervalTable
 #include <optional>
 #include <utility>
@@ -36,8 +36,12 @@ std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMod
 		int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240) % 12;
 		int32_t octave = static_cast<uint16_t>(transposed_note_code + 120) / 12;
 
-		uint32_t phase_increment =
-		    multiply_32x32_rshift32(noteIntervalTable[note_within_octave], source.neutral_phase_increment);
+		// The neutral increment (under 2^31, so read as Q31 its bits agree) times the Q30 interval: the high word, a
+		// quarter of it, which the octave's run-time shift places
+		const auto phase_increment =
+		    static_cast<uint32_t>(mul(dsp::Q<30>::from_raw(noteIntervalTable[note_within_octave]),
+		                              dsp::Q<31>::from_raw(static_cast<int32_t>(source.neutral_phase_increment)))
+		                              .raw());
 
 		int32_t shift_right_amount = 13 - octave;
 		if (shift_right_amount >= 0) {
@@ -45,7 +49,8 @@ std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMod
 		}
 
 		int32_t shift_left_amount = 0 - shift_right_amount;
-		// Too high a semitone below the limit, because osc cents and unison could push it up a semitone
+		// The limit is the top semitone's interval: for a 44.1 kHz sample it leaves two semitones under 2^31, more than
+		// osc cents, master cents and the unison detune (up to 125 cents) add; a sample at another rate keeps less
 		if (std::cmp_greater_equal(phase_increment, 2026954652 >> shift_left_amount)) {
 			return std::nullopt;
 		}
@@ -90,6 +95,15 @@ bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 	return true;
 }
 
+std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const PhaseIncrementFineTuner& detuner) {
+	// The tuner works on signed increments: below 2^31 the bits are the same
+	const auto detuned = static_cast<uint32_t>(detuner.detune(static_cast<int32_t>(phase_increment)));
+	if (detuned >= (uint32_t{1} << 31)) {
+		return std::nullopt;
+	}
+	return detuned;
+}
+
 void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
 	const SoundSnapshot& snapshot = *note.snapshot;
@@ -115,12 +129,17 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 		phase_increment = static_cast<uint32_t>(snapshot.fine_tuner.detune(static_cast<int32_t>(phase_increment)));
 
 		if (snapshot.num_unison == 1) {
-			note.parts[0].slots[s].phase_increment_stored_value = phase_increment;
+			note.parts[0].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(phase_increment);
 		}
 		else {
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				note.parts[u].slots[s].phase_increment_stored_value =
-				    static_cast<uint32_t>(snapshot.unison_detuners[u].detune(static_cast<int32_t>(phase_increment)));
+				const std::optional<uint32_t> part = detuned_increment(phase_increment, snapshot.unison_detuners[u]);
+				if (part.has_value()) {
+					note.parts[u].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(*part);
+				}
+				else {
+					note.parts[u].slots[s].active = false;
+				}
 			}
 		}
 	}

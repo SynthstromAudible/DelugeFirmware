@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp-next/fixed/osc/supersaw.h"
+
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point_neon.h"
 #include <algorithm>
 #include <argon.hpp>
@@ -242,7 +244,9 @@ template <size_t kSaws>
 void Supersaw::render(Buffer out, uint32_t phase_increment, int32_t spread, int32_t num_saws, uint32_t& centre_phase,
                       SidePhases& side_phases, bool band_limit) {
 	using namespace supersaw_internal;
-	int32_t* __restrict__ buffer = out.data();
+	// The renderer's NEON passes convert floats to Q31 words and add BLEP corrections in place, so they run on the
+	// raw words.
+	int32_t* __restrict__ buffer = raw_view(out).data();
 	const auto num_samples = static_cast<int32_t>(out.size());
 	num_saws = std::clamp<int32_t>(num_saws, 1, kNumSaws);
 

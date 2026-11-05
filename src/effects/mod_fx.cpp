@@ -83,18 +83,20 @@ void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, in
 	if (!in.sound || in.active == ModFXType::NONE || in.active == ModFXType::GRAIN) {
 		return;
 	}
+	// The knobs arrive as final_value's words: the rate UQ0.32 per frame, the rest Q31.
 	const Kernel::Settings settings{
 	    .mode = mod_fx_mode(in.active, in.stereo),
-	    .rate = in.rate,
-	    .depth = in.depth,
-	    .offset = in.offset,
-	    .feedback = in.feedback,
+	    .rate = dsp::UQ<32>::from_raw(static_cast<uint32_t>(in.rate)),
+	    .depth = dsp::Q<31>::from_raw(in.depth),
+	    .offset = dsp::Q<31>::from_raw(in.offset),
+	    .feedback = dsp::Q<31>::from_raw(in.feedback),
 	};
 	if (!settings_ || *settings_ != settings) {
 		mono_.configure(settings);
 		settings_ = settings;
 	}
-	post_fx_volume = Kernel::post_fx_volume(mono_.coefficients(), post_fx_volume);
+	// The owner's post-FX volume is a Q27 word (the bitcrush shifts it), scaled in place.
+	post_fx_volume = Kernel::post_fx_volume(mono_.coefficients(), dsp::Q<27>::from_raw(post_fx_volume)).raw();
 	if (ring_type && !holdsRing()) {
 		return;
 	}

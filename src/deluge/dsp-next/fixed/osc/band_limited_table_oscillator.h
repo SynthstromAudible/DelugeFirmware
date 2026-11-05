@@ -39,13 +39,14 @@ namespace deluge::dsp::fixed {
 /// Band selection and render rate are usually the same increment, but pulse-width waves render at
 /// a rewritten (faster) increment while their band-limiting must still target the perceived pitch;
 /// the four-argument constructor decouples the two (see @p selection_increment).
-class BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, q31> {
+/// The band ladder picks a band from an increment's word (its magnitude), so it takes the increments raw.
+class BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, Q<31>> {
 	const BandlimitedTable* bands_; ///< the wave's band set, retained so the band can be re-selected per block
 	TableOscillator oscillator_;
 
 public:
-	BandLimitedTableOscillator(const BandlimitedTable& bands, uint32_t phase, uint32_t increment)
-	    : bands_{&bands}, oscillator_{bands.select(increment), phase, increment} {}
+	BandLimitedTableOscillator(const BandlimitedTable& bands, UQ<32> phase, UQ<32> increment)
+	    : bands_{&bands}, oscillator_{bands.select(increment.raw()), phase, increment} {}
 
 	/// @param selection_increment the pitch used to pick the band, when it differs from the render
 	/// increment (pulse-width waves: the band tracks the note, the phase advances at the pulse rate).
@@ -56,30 +57,30 @@ public:
 	/// This matches the original `get_table_number(phaseIncrementForCalculations)` behavior (which
 	/// carried the same TODO) and is bit-exact; selecting on `increment` instead is arguably more
 	/// correct but audibly changes every PW patch, so it must wait for a deliberate re-baseline.
-	BandLimitedTableOscillator(const BandlimitedTable& bands, uint32_t phase, uint32_t increment,
-	                           uint32_t selection_increment)
-	    : bands_{&bands}, oscillator_{bands.select(selection_increment), phase, increment} {}
+	BandLimitedTableOscillator(const BandlimitedTable& bands, UQ<32> phase, UQ<32> increment,
+	                           UQ<32> selection_increment)
+	    : bands_{&bands}, oscillator_{bands.select(selection_increment.raw()), phase, increment} {}
 
-	void seek(uint32_t phase) { oscillator_.seek(phase); }
+	void seek(UQ<32> phase) { oscillator_.seek(phase); }
 
 	/// The live phase — for persisting/reading a persistent oscillator's phase across blocks.
-	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
+	[[nodiscard]] UQ<32> phase() const { return oscillator_.phase(); }
 
 	/// Set the per-block pitch, **re-selecting the band** for the new increment (bit-identical to constructing a
 	/// fresh oscillator at that increment). Keeps the accumulated phase.
-	void set_increment(uint32_t increment) {
+	void set_increment(UQ<32> increment) {
 		oscillator_.set_increment(increment);
-		oscillator_.setTable(bands_->select(increment));
+		oscillator_.setTable(bands_->select(increment.raw()));
 	}
 
 	/// As above but with a separate band-selection pitch (pulse-width waves render faster than the note they
 	/// band-limit for; see the four-argument constructor).
-	void set_increment(uint32_t increment, uint32_t selection_increment) {
+	void set_increment(UQ<32> increment, UQ<32> selection_increment) {
 		oscillator_.set_increment(increment);
-		oscillator_.setTable(bands_->select(selection_increment));
+		oscillator_.setTable(bands_->select(selection_increment.raw()));
 	}
 
-	[[gnu::always_inline]] Argon<q31> render() { return oscillator_.render(); }
+	[[gnu::always_inline]] QVec<31> render() { return oscillator_.render(); }
 };
 static_assert(block_generator<BandLimitedTableOscillator>, "a band-limited oscillator fills a block");
 static_assert(!std::is_polymorphic_v<BandLimitedTableOscillator>,

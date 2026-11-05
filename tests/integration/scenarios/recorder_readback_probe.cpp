@@ -120,8 +120,8 @@ uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames) {
 
 	std::vector<StereoSample> input(numFrames);
 	for (uint32_t i = 0; i < numFrames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = (numChannels == 2) ? rampSample(i, 1) : 0;
+		input[i].l = deluge::dsp::Q<31>::from_raw(rampSample(i, 0)); // a raw ramp
+		input[i].r = deluge::dsp::Q<31>::from_raw((numChannels == 2) ? rampSample(i, 1) : 0);
 	}
 	g_recorder->feedAudio(std::span<StereoSample>(input));
 
@@ -230,8 +230,8 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels
 	g_finalizedExpectedAudioBytes.assign(static_cast<size_t>(numFrames) * frameBytes, std::byte{0});
 	std::vector<StereoSample> input(numFrames);
 	for (uint32_t i = 0; i < numFrames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = (numChannels == 2) ? rampSample(i, 1) : 0;
+		input[i].l = deluge::dsp::Q<31>::from_raw(rampSample(i, 0)); // a raw ramp
+		input[i].r = deluge::dsp::Q<31>::from_raw((numChannels == 2) ? rampSample(i, 1) : 0);
 		for (uint32_t ch = 0; ch < numChannels; ch++) {
 			uint32_t v24u = static_cast<uint32_t>(expected24(i, ch)) & 0xFFFFFFu;
 			size_t off = static_cast<size_t>(i) * frameBytes + static_cast<size_t>(ch) * 3u;

@@ -1,29 +1,33 @@
 #include "synth/modulation/lfo.h"
 
-uint32_t get_lfo_initial_phase_for_negative_extreme(LFOType wave_type) {
+namespace {
+using deluge::dsp::UQ;
+
+UQ<32> get_lfo_initial_phase_for_negative_extreme(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::SAW:
-		return 2147483648u;
+		return deluge::dsp::uq<32>(0.5); // half a cycle
 
 	case LFOType::SINE:
-		return 3221225472u;
+		return deluge::dsp::uq<32>(0.75); // three quarters of a cycle
 
 	default:
 		// This is actually positive extreme for square wave.
 		// It is not entirely clear if that should be changed.
-		return 0;
+		return UQ<32>{};
 	}
 }
 
-uint32_t get_lfo_initial_phase_for_zero(LFOType wave_type) {
+UQ<32> get_lfo_initial_phase_for_zero(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::TRIANGLE:
-		return 1073741824;
+		return deluge::dsp::uq<32>(0.25); // a quarter of a cycle
 
 	default:
-		return 0;
+		return UQ<32>{};
 	}
 }
+} // namespace
 
 void LFO::emplace_wave(LFOType type) {
 	// Force a fresh wave of the requested type — its accumulators (hold/target/speed) start zeroed.

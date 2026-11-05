@@ -23,6 +23,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/triangle.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -64,40 +65,41 @@ struct Granular {
 	static constexpr std::size_t kGrains = 8;             ///< Grains sounding at once.
 	static constexpr int32_t kShift = 44 * 300;           ///< How far behind the write index a grain starts: 300 ms.
 	/// @brief The wet signal's low-pass, one pole at about 4.5 kHz: a moveability of 1/4, Q31 (tan(f) = 1/3).
-	static constexpr OnePole::Coefficients kWetLowPass = OnePole::coefficients({.moveability = 1 << 29});
+	static constexpr OnePole::Coefficients kWetLowPass =
+	    OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 29)});
 
 	/// @brief The knobs, set each block.
 	struct Settings {
-		int32_t rate = 0;       ///< The rate knob, Q31 signed.
-		int32_t mix = 0;        ///< The mix knob, Q31 signed.
-		int32_t density = 0;    ///< The density knob, Q31 signed.
-		int32_t randomness = 0; ///< The pitch-randomness knob, Q31 signed.
+		Q<31> rate{};       ///< The rate knob, signed.
+		Q<31> mix{};        ///< The mix knob, signed.
+		Q<31> density{};    ///< The density knob, signed.
+		Q<31> randomness{}; ///< The pitch-randomness knob, signed.
 		bool operator==(const Settings&) const = default;
 	};
 
 	/// @brief The knobs as @ref prepare reads them.
 	struct Coefficients {
-		int32_t rate = 0;       ///< The rate knob, Q31 signed.
-		int32_t mix = 0;        ///< The mix knob, Q31 signed.
-		int32_t density = 0;    ///< The density knob, Q31 signed.
-		int32_t randomness = 0; ///< The pitch-randomness knob made positive, Q31 from 0 to 1.
+		Q<31> rate{};       ///< The rate knob, signed.
+		Q<31> mix{};        ///< The mix knob, signed.
+		Q<31> density{};    ///< The density knob, signed.
+		Q<31> randomness{}; ///< The pitch-randomness knob made positive, 0 to 1.
 	};
 
 	/// @brief What a block's steps share: the knobs' derived values.
 	struct Block {
-		int32_t size = 13230;         ///< Grain length, frames.
-		int32_t period = 1260;        ///< Frames between grain starts.
-		int32_t wet = 0;              ///< The wet volume, Q31.
-		int32_t dry = 2147483647;     ///< The dry volume, Q31.
-		int32_t feedback = 161061273; ///< The grains' feedback into the ring, Q31.
-		int32_t randomness = 0;       ///< The pitch randomness, Q31 from 0 to 1.
+		int32_t size = 13230;                        ///< Grain length, frames.
+		int32_t period = 1260;                       ///< Frames between grain starts.
+		Q<31> wet{};                                 ///< The wet volume.
+		Q<31> dry = Q<31>::max();                    ///< The dry volume.
+		Q<31> feedback = Q<31>::from_raw(161061273); ///< The grains' feedback into the ring, about 0.075.
+		Q<31> randomness{};                          ///< The pitch randomness, 0 to 1.
 	};
 
 	/// @brief The knob positions the derived values were last computed from.
 	struct Knobs {
-		int32_t rate = 0;    ///< The rate knob, Q31 signed.
-		int32_t mix = 0;     ///< The mix knob, Q31 signed.
-		int32_t density = 0; ///< The density knob, Q31 signed.
+		Q<31> rate{};    ///< The rate knob, signed.
+		Q<31> mix{};     ///< The mix knob, signed.
+		Q<31> density{}; ///< The density knob, signed.
 	};
 
 	/// @brief One grain: where it reads, how far it has gone, and its window, pitch and pan.
@@ -106,11 +108,11 @@ struct Granular {
 		int32_t start = 0;         ///< The ring index of its first read.
 		int32_t counter = 0;       ///< Frames read so far.
 		uint16_t pitch = 1024;     ///< The read speed, 1024 = unity (UQ6.10).
-		int32_t vol_scale = 0;     ///< The window's rise per frame, Q31.
-		int32_t vol_scale_max = 0; ///< The window's peak, Q31.
+		int32_t vol_scale = 0;     ///< The window's rise per frame, Q31: an integer reciprocal of the half length.
+		int32_t vol_scale_max = 0; ///< The window's peak, Q31: the rise times the half length, an integer product.
 		bool reverse = false;      ///< Whether it reads backwards.
-		int32_t pan_l = 0;         ///< Left amplitude, Q30 (1073741823 is unity).
-		int32_t pan_r = 0;         ///< Right amplitude, Q30.
+		Q<30> pan_l{};             ///< Left amplitude (Q<30>::max() is unity).
+		Q<30> pan_r{};             ///< Right amplitude.
 	};
 
 	/// @brief The ring's cursor, the grains, the wet low-pass and the knobs' derived values.
@@ -128,8 +130,8 @@ struct Granular {
 		Grain grains[kGrains]{}; ///< The grains.
 		OnePole::State lpf_l{};  ///< The left wet low-pass memory, Q31.
 		OnePole::State lpf_r{};  ///< The right wet low-pass memory, Q31.
-		q31* send = nullptr;     ///< This block's reverb send cursor, set by set_send; advanced per frame.
-		q31 send_amount = 0;     ///< The reverb send amount, Q31.
+		Q<31>* send = nullptr;   ///< This block's reverb send cursor, set by set_send; advanced per frame.
+		Q<31> send_amount{};     ///< The reverb send amount.
 		Block levels{};          ///< The knobs' derived values; the randomness is refreshed each block.
 		Knobs knobs{};           ///< The knob positions @ref levels came from.
 	};
@@ -139,12 +141,15 @@ struct Granular {
 
 	/// @return The knobs, the randomness made positive.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		return {.rate = s.rate, .mix = s.mix, .density = s.density, .randomness = to_positive(s.randomness)};
+		return {.rate = s.rate,
+		        .mix = s.mix,
+		        .density = s.density,
+		        .randomness = Q<31>::from_raw(to_positive(s.randomness.raw()))};
 	}
 
-	/// @return @p volume (Q31) divided by √2: the owner's post-FX volume while the effect renders.
+	/// @return @p volume (Q27, 2^27 unity) divided by √2: the owner's post-FX volume while the effect renders.
 	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(int32_t volume) {
-		return mul_as_wrap<Q<31>>(Q<31>::from_raw(volume), Q<31>::from_raw(kOneOverSqrt2Q31)).raw();
+		return mul_as_wrap<Q<27>>(Q<27>::from_raw(volume), Q<31>::from_raw(kOneOverSqrt2Q31)).raw();
 	}
 
 	/// @brief Frees the grains of the first pass when the block starts at the ring's end, updates the derived values of
@@ -159,13 +164,14 @@ struct Granular {
 		const bool size_changed = s.knobs.density != c.density || s.knobs.rate != c.rate;
 		if (s.knobs.rate != c.rate) {
 			s.knobs.rate = c.rate;
-			const int32_t raw = std::clamp<int32_t>((quick_log(c.rate) - 364249088) >> 21, 0, 256);
+			// Raw: quick_log's integer octaves of the knob's word.
+			const int32_t raw = std::clamp<int32_t>((quick_log(c.rate.raw()) - 364249088) >> 21, 0, 256);
 			const int32_t hz = std::max<int32_t>(1, ((360 * raw >> 8) * raw >> 8)); // 0 - 180 Hz, half-Hz units
 			l.period = (kSampleRate << 1) / hz;
 		}
 		if (size_changed) {
 			s.knobs.density = c.density;
-			const Q<31> density = add_wrap(halve_toward_zero(Q<31>::from_raw(c.density)), Q<31>::from_raw(1 << 30));
+			const Q<31> density = add_wrap(halve_toward_zero(c.density), q<31>(0.5));
 			// Grains up to 8 periods long; past that, grains are stolen for new ones.
 			// Raw: a whole number of frames scaled by the Q31 density, the product's high word doubled.
 			l.size = 1760 + q31_mult(l.period << 3, density.raw());
@@ -173,15 +179,16 @@ struct Granular {
 		if (s.knobs.mix != c.mix) {
 			s.knobs.mix = c.mix;
 			// The knob offset by one, wrapping (min is −1 and +1 alike).
-			const Q<31> centred = add_wrap(Q<31>::from_raw(c.mix), Q<31>::min());
+			const Q<31> centred = add_wrap(c.mix, Q<31>::min());
 			// A cubic: the cube is Q30 × Q31, Q29, lifted to Q31; at the top of the knob the offset back leaves 2^31,
 			// which wraps to -2^31 and clamps to dry.
 			const auto cubed = as_wrap<Q<31>>(mul_r(mul_r(centred, centred), centred));
 			const Q<31> cubic = add_wrap(cubed, Q<31>::min());
-			l.wet = std::max<int32_t>(0, cubic.raw());
+			l.wet = std::max(Q<31>{}, cubic);
 			// Raw: 8 × (1 − wet), clamped to [0, 1], in 64 bits, where 1 − wet reaches 2^31 at wet 0.
-			l.dry = static_cast<int32_t>(std::clamp<int64_t>((2147483648LL - l.wet) << 3, 0, 2147483647));
-			l.feedback = halve_floor(Q<31>::from_raw(l.wet)).raw();
+			l.dry = Q<31>::from_raw(
+			    static_cast<int32_t>(std::clamp<int64_t>((2147483648LL - l.wet.raw()) << 3, 0, 2147483647)));
+			l.feedback = halve_floor(l.wet);
 		}
 		l.randomness = c.randomness;
 		const uint32_t into_period = s.write % static_cast<uint32_t>(l.period);
@@ -226,11 +233,10 @@ struct Granular {
 					delta = (delta * g.pitch) >> 10;
 				}
 				const int32_t pos = (g.start + delta + kRingFrames) & kRingMask;
-				const StereoSample tap =
-				    static_cast<uint32_t>(pos) < written ? ring[pos] : StereoSample{.l = 0, .r = 0};
+				const StereoSample tap = static_cast<uint32_t>(pos) < written ? ring[pos] : StereoSample{};
 				const auto window = Q<31>::from_raw(vol);
-				grains_l = mla_r(grains_l, mul(Q<31>::from_raw(tap.l), window), Q<30>::from_raw(g.pan_l));
-				grains_r = mla_r(grains_r, mul(Q<31>::from_raw(tap.r), window), Q<30>::from_raw(g.pan_r));
+				grains_l = mla_r(grains_l, mul(tap.l, window), g.pan_l);
+				grains_r = mla_r(grains_r, mul(tap.r, window), g.pan_r);
 				g.counter++;
 				if (g.counter >= g.length) {
 					g.length = 0;
@@ -243,27 +249,22 @@ struct Granular {
 		// The grains fed back over the input: the input's bits taken as the Q30 accumulator of the Q31 × Q31
 		// product, so the ring takes half the grains at the feedback level.
 		StereoSample& slot = s.ring[write_index];
-		const auto feedback = Q<31>::from_raw(b.feedback);
-		slot.l =
-		    reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(Q<31>::from_raw(x.l)), wet_sum_l, feedback)).raw();
-		slot.r =
-		    reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(Q<31>::from_raw(x.r)), wet_sum_r, feedback)).raw();
+		const Q<31> feedback = b.feedback;
+		slot.l = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(x.l), wet_sum_l, feedback));
+		slot.r = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(x.r), wet_sum_r, feedback));
 		s.write += 1;
 		s.written = std::max(s.write, written);
 
-		const auto wet = Q<31>::from_raw(b.wet);
-		const auto wet_l = Q<31>::from_raw(
-		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, mul_as_wrap<Q<31>>(wet_sum_l, wet).raw()));
-		const auto wet_r = Q<31>::from_raw(
-		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_r, mul_as_wrap<Q<31>>(wet_sum_r, wet).raw()));
+		const Q<31> wet = b.wet;
+		const Q<31> wet_l =
+		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, mul_as_wrap<Q<31>>(wet_sum_l, wet));
+		const Q<31> wet_r =
+		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_r, mul_as_wrap<Q<31>>(wet_sum_r, wet));
 		// A little reverb covers much of the granular artifacts.
-		*s.send = add_wrap(Q<31>::from_raw(*s.send),
-		                   mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), Q<31>::from_raw(s.send_amount)))
-		              .raw();
+		*s.send = add_wrap(*s.send, mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), s.send_amount));
 		++s.send;
-		const auto dry = Q<31>::from_raw(b.dry);
-		return {.l = add_sat(mul_as_wrap<Q<31>>(Q<31>::from_raw(x.l), dry), wet_l).raw(),
-		        .r = add_sat(mul_as_wrap<Q<31>>(Q<31>::from_raw(x.r), dry), wet_r).raw()};
+		const Q<31> dry = b.dry;
+		return {.l = add_sat(mul_as_wrap<Q<31>>(x.l, dry), wet_l), .r = add_sat(mul_as_wrap<Q<31>>(x.r, dry), wet_r)};
 	}
 
 	/// @brief Event: the owner's ring, kRingFrames frames, taken up afresh: none of it reads until written.
@@ -274,7 +275,7 @@ struct Granular {
 	/// @brief Event: the owner takes the ring back.
 	static void clear_ring(State& s) { s.ring = nullptr; }
 	/// @brief Event: this block's reverb send, a frame per frame rendered, and its amount (Q31).
-	static void set_send(State& s, q31* send, q31 amount) {
+	static void set_send(State& s, Q<31>* send, Q<31> amount) {
 		s.send = send;
 		s.send_amount = amount;
 	}
@@ -298,14 +299,14 @@ struct Granular {
 	/// @brief Event: sound is coming in; the effect runs on for as many ring laps as the last block's feedback takes
 	/// to die away.
 	static void arm_shutdown(State& s) {
-		const int32_t feedback = s.levels.feedback;
-		if (feedback < 33554432) {
+		const Q<31> feedback = s.levels.feedback;
+		if (feedback < Q<31>::from_raw(33554432)) {
 			s.wraps_to_shutdown = 1;
 		}
-		else if (feedback <= 100663296) {
+		else if (feedback <= Q<31>::from_raw(100663296)) {
 			s.wraps_to_shutdown = 2;
 		}
-		else if (feedback <= 218103808) {
+		else if (feedback <= Q<31>::from_raw(218103808)) {
 			s.wraps_to_shutdown = 3;
 		}
 		else {
@@ -330,10 +331,10 @@ private:
 		return static_cast<uint16_t>(noise.next() >> 16) % (upper + 1);
 	}
 	/// @return A triangle distribution from -1 to 1, Q31: the mean of two full-range draws (Irwin–Hall of two).
-	[[nodiscard]] [[gnu::always_inline]] static q31 triangle(Noise& noise) {
-		const auto u1 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		const auto u2 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		return add_wrap(halve_floor(u1), halve_floor(u2)).raw();
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> triangle(Noise& noise) {
+		const auto u1 = Q<31>::from_raw(static_cast<int32_t>(noise.next()));
+		const auto u2 = Q<31>::from_raw(static_cast<int32_t>(noise.next()));
+		return dsp::triangle(u1, u2);
 	}
 
 	/// @brief Starts the first silent grain, if any, at @p write_index: its spray, direction, pitch, length, window and
@@ -352,7 +353,7 @@ private:
 
 			// The pitch class: more randomness reaches further from unison.
 			// The draw times the randomness, Q31, times 3.5 (7 at Q1), floored: -4 to 3.
-			const Q<31> spread = mul_as_wrap<Q<31>>(Q<31>::from_raw(triangle(noise)), Q<31>::from_raw(b.randomness));
+			const Q<31> spread = mul_as_wrap<Q<31>>(triangle(noise), b.randomness);
 			const auto pitch_class = static_cast<int8_t>(mul(spread, Q<1>::from_raw(7)).raw());
 			switch (pitch_class) {
 			case -3:
@@ -428,7 +429,7 @@ private:
 			if (g.length > 0) {
 				g.vol_scale = 2147483647 / (g.length >> 1);
 				g.vol_scale_max = g.vol_scale * (g.length >> 1);
-				const PanAmplitudes pan = pan_amplitudes((random255(noise) - 128) << 23);
+				const PanAmplitudes pan = pan_amplitudes(Q<31>::from_raw((random255(noise) - 128) << 23));
 				g.pan_l = pan.left;
 				g.pan_r = pan.right;
 			}

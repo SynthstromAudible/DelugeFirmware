@@ -54,7 +54,7 @@ void Reverb::prepare(ReverbModel model) {
 void Reverb::zero_freeverb() {
 	// Assigning each element through the member starts its lifetime as the union's active member.
 	for (std::size_t i = 0; i < Freeverb::kMemoryWords; ++i) {
-		memory_.freeverb[i] = 0;
+		memory_.freeverb[i] = dsp::Q<31>{};
 	}
 }
 
@@ -90,7 +90,8 @@ void Reverb::configure() {
 	settings_dirty_ = false;
 }
 
-void Reverb::render(std::span<dsp::StereoSample> block, std::span<const int32_t> send, int32_t pan_l, int32_t pan_r) {
+void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, dsp::Q<31> pan_l,
+                    dsp::Q<31> pan_r) {
 	if (rebuilding_) {
 		return; // a model change is under way: the render adds no reverb until commit
 	}
@@ -110,18 +111,20 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const int32_t>
 	}
 }
 
-int32_t Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
-	if (return_duck_.depth == 0) {
-		return dsp::fixed::kDuckGainNeutral;
+dsp::Q<31> Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
+	if (return_duck_.depth == dsp::Q<29>{}) {
+		// The duck gain's neutral word, 2^29, is the unducked return level, read as the Q31 volume the engine applies
+		return dsp::reinterpret_bits<dsp::Q<31>>(dsp::fixed::kDuckGainNeutral);
 	}
-	return return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
+	// The hit is the engine's pending sidechain hit word, Q31; the level at the return's scale is read as Q31 too
+	return dsp::Q<31>::from_raw(return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
 	    .frames = frames,
-	    .hit = hit,
+	    .hit = dsp::Q<31>::from_raw(hit),
 	    .shape = return_duck_.shape,
 	    .depth = return_duck_.depth,
 	    .state = state,
 	    .tick_inverse = tick_inverse,
-	});
+	}));
 }
 
 } // namespace deluge::effects

@@ -5,6 +5,7 @@
 // firmware builds it, its modern ops through the device's NEON kernel (the test-local copy of the asm), and is held to
 // the same references and to the reference core taking that kernel, block by block and voice by voice.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dx7_asm_pin_workloads.h"
@@ -15,8 +16,11 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace dx7 = deluge::dsp::fixed::dx7;
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 namespace dw = dx7_workloads;
 
 namespace {
@@ -47,17 +51,17 @@ G::Settings settings_of(dx7::Engine engine, int algorithm, int32_t feedback_shif
 	              .feedback = static_cast<uint8_t>(feedback_shift < 16 ? 8 - feedback_shift : 0),
 	              .tables = &tables()};
 	for (std::size_t op = 0; op < 6; ++op) {
-		s.level_in[op] = params[op].level_in;
-		s.freq[op] = params[op].freq;
+		s.level_in[op] = Q<24>::from_raw(params[op].level_in);
+		s.freq[op] = dx7::Phase::from_raw(params[op].freq);
 	}
 	return s;
 }
 
 /// @brief The reference core's six ops and history as the graph's view.
 G::View view_of(const dx7_reference::FmOpParams* params, const int32_t* fb_buf) {
-	G::View v{.feedback = {.y0 = fb_buf[0], .y1 = fb_buf[1]}};
+	G::View v{.feedback = {.y0 = Q<24>::from_raw(fb_buf[0]), .y1 = Q<24>::from_raw(fb_buf[1])}};
 	for (std::size_t op = 0; op < 6; ++op) {
-		v.ops[op] = {.phase = params[op].phase, .gain_out = params[op].gain_out};
+		v.ops[op] = {.phase = dx7::Phase::from_raw(params[op].phase), .gain_out = params[op].gain_out};
 	}
 	return v;
 }
@@ -68,15 +72,15 @@ struct GraphCore {
 	void render(const dx7_reference::Tables& /*t*/, int32_t* output, int n, dx7_reference::FmOpParams* params,
 	            int algorithm, int32_t* fb_buf, int32_t feedback_shift) {
 		G graph{view_of(params, fb_buf)};
-		graph.render_block(settings_of(E, algorithm, feedback_shift, params), {output, static_cast<std::size_t>(n)},
-		                   buses());
+		graph.render_block(settings_of(E, algorithm, feedback_shift, params),
+		                   typed_view<Q<24>>(std::span{output, static_cast<std::size_t>(n)}), buses());
 		const G::View v = graph.view();
 		for (std::size_t op = 0; op < 6; ++op) {
-			params[op].phase = v.ops[op].phase;
+			params[op].phase = v.ops[op].phase.raw();
 			params[op].gain_out = v.ops[op].gain_out;
 		}
-		fb_buf[0] = v.feedback.y0;
-		fb_buf[1] = v.feedback.y1;
+		fb_buf[0] = v.feedback.y0.raw();
+		fb_buf[1] = v.feedback.y1.raw();
 	}
 };
 
@@ -103,16 +107,17 @@ struct ComparingCore {
 		std::copy_n(output, dx7::kMaxBlock, graph_out.begin());
 		G graph{view_of(params, fb_buf)};
 		graph.render_block(settings_of(E, algorithm, feedback_shift, params),
-		                   {graph_out.data(), static_cast<std::size_t>(n)}, buses());
+		                   typed_view<Q<24>>(std::span{graph_out.data(), static_cast<std::size_t>(n)}), buses());
 
 		reference.render(t, output, n, params, algorithm, fb_buf, feedback_shift);
 
 		const G::View v = graph.view();
 		bool same = std::equal(output, output + n, graph_out.begin());
 		for (std::size_t op = 0; op < 6; ++op) {
-			same = same && v.ops[op].phase == params[op].phase && v.ops[op].gain_out == params[op].gain_out;
+			same = same && v.ops[op].phase.raw() == params[op].phase && v.ops[op].gain_out == params[op].gain_out;
 		}
-		same = same && v.feedback.y0 == fb_buf[0] && v.feedback.y1 == fb_buf[1];
+		same = same && v.feedback.y0.raw() == fb_buf[0] && v.feedback.y1.raw() == fb_buf[1];
+
 		mismatches() += same ? 0 : 1;
 	}
 };

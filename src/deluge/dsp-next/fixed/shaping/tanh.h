@@ -34,52 +34,46 @@ inline constexpr uint32_t kTanhCentre = 2147483648u;
 namespace detail {
 /// @brief A position on the curve (unsigned, the full table across 32 bits) looked up and shifted down by drive + 2.
 /// @details The table's base is a constant, so the lookup makes no call to `std::array::data` where the app
-/// instantiates it.
-[[nodiscard]] [[gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
+/// instantiates it. The table holds Q15 tanh values; the interpolation lifts them to Q31, and the run-time shift
+/// keeps the format: the level falls by 2^(drive + 2).
+[[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh_lookup(uint32_t position, uint32_t drive) {
 	constexpr const int16_t* kBase = kTanhSmallTable.data();
-	return kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8) >> (drive + 2);
+	return Q<31>::from_raw(kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8) >> (drive + 2));
 }
 } // namespace detail
 
-/// @brief Tanh saturation without antialiasing memory: the input (Q31) driven by 2^@p drive (saturating), looked up
-/// in @ref kTanhSmallTable, and shifted down by drive + 2 — so the output's level falls as the drive rises (Q31 at a
-/// quarter of full scale undriven), and callers scale it back as their home needs.
+/// @brief Tanh saturation without antialiasing memory: the input driven by 2^@p drive (saturating), looked up in
+/// @ref kTanhSmallTable, and shifted down by drive + 2 — so the output's level falls as the drive rises (a quarter of
+/// full scale undriven), and callers scale it back as their home needs.
+/// @param sample The input, Q31.
 /// @param drive The drive as a power of two, 0 to 29: the output shift, drive + 2, must stay below 32. Saturation is
 /// at 32 - drive bits for drives 1 to 20 and at 12 bits for drives past 20; see the compile-time overload for those.
-[[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
+/// @return The saturated sample, Q31.
+[[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh(Q<31> sample, uint32_t drive) {
 	// Raw: a run-time saturating shift whose width stops narrowing past 20 has no typed form
 	const uint32_t position =
-	    drive != 0u
-	        ? static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
-	        : static_cast<uint32_t>(sample) + kTanhCentre;
+	    drive != 0u ? static_cast<uint32_t>(lshift_and_saturate_unknown(sample.raw(), static_cast<uint8_t>(drive)))
+	                      + kTanhCentre
+	                : static_cast<uint32_t>(sample.raw()) + kTanhCentre;
 	return detail::tanh_lookup(position, drive);
 }
 
 /// @brief @ref tanh with the drive fixed at compile time: saturation is at exactly 32 - @p Drive bits for every drive
 /// (the runtime form's saturation stops narrowing at 12 bits, so the two differ past a drive of 20).
 /// @tparam Drive The drive as a power of two, 0 to 29: the output shift, Drive + 2, must stay below 32.
-template <uint32_t Drive>
-requires(Drive <= 29)
-[[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample) {
-	uint32_t position{};
-	if constexpr (Drive != 0u) {
-		position =
-		    static_cast<uint32_t>(scale_shl_clamp_then_shift<Drive>(Q<31>::from_raw(sample)).raw()) + kTanhCentre;
-	}
-	else {
-		position = static_cast<uint32_t>(sample) + kTanhCentre;
-	}
-	return detail::tanh_lookup(position, Drive);
-}
-
-/// @brief @ref tanh on a typed sample: the same lookup, for a kernel whose arithmetic is typed.
-/// @tparam Drive The drive as a power of two, 0 to 29.
 /// @param sample The input, Q31.
-/// @return The saturated sample, Q31 at a quarter of full scale undriven, shifted down by Drive + 2 as the raw form's.
+/// @return The saturated sample, Q31, shifted down by Drive + 2.
 template <uint32_t Drive>
 requires(Drive <= 29)
 [[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh(Q<31> sample) {
-	return Q<31>::from_raw(tanh<Drive>(sample.raw()));
+	uint32_t position{};
+	if constexpr (Drive != 0u) {
+		position = static_cast<uint32_t>(scale_shl_clamp_then_shift<Drive>(sample).raw()) + kTanhCentre;
+	}
+	else {
+		position = static_cast<uint32_t>(sample.raw()) + kTanhCentre;
+	}
+	return detail::tanh_lookup(position, Drive);
 }
 
 } // namespace deluge::dsp::fixed

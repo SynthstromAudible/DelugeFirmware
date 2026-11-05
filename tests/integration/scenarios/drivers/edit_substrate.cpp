@@ -511,7 +511,7 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	// Seed a CONSISTENT scalar baseline (engine cursor AND store, as they'd be on-device) so the region's far-edge
 	// node value and the undo target are predictable.
 	store->nodes.erase(store->nodes.begin(), store->nodes.end());
-	ms->autoParam->setCurrentValueBasicForSetup(*store, 0x40000000);
+	ms->autoParam->setBase(*store, 0x40000000);
 
 	{
 		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, deluge::edits::SetParamValue::Resolve::EXACT};
@@ -1460,7 +1460,8 @@ void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
 	}
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
-	sound.core().compressor().dsp().set_threshold(sound.effects().compressor.threshold + (123 << 16));
+	sound.core().compressor().dsp().set_threshold(
+	    deluge::dsp::Q<31>::from_raw(sound.effects().compressor.threshold + (123 << 16)));
 	const deluge::instrument::SoundState before = *sound.boundState();
 	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
 	{

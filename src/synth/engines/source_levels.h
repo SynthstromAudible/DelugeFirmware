@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources
+#include "dsp-next/core/fixed_point.h"
 #include <array>
 #include <cstdint>
 
@@ -27,10 +28,10 @@ namespace deluge::synth {
 /// it to whichever engine plays the block, so after a mode change under a live voice the new engine ramps from the
 /// levels the last one left.
 struct SourceLevels {
-	std::array<int32_t, kNumSources> amplitudes_last_time{}; ///< Each source's amplitude at the last block's end
+	std::array<dsp::Q<31>, kNumSources> amplitudes_last_time{}; ///< Each source's amplitude at the last block's end
 	std::array<uint32_t, kNumSources>
-	    wave_indexes_last_time{};    ///< Each source's wavetable index at the last block's end
-	int32_t filter_gain_last_time{}; ///< The filter gain the source amplitudes were last folded with
+	    wave_indexes_last_time{};       ///< Each source's wavetable index at the last block's end
+	dsp::Q<28> filter_gain_last_time{}; ///< The filter gain the source amplitudes were last folded with
 };
 
 } // namespace deluge::synth

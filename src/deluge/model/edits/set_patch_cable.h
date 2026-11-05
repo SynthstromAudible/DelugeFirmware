@@ -21,7 +21,7 @@ public:
 	/// @brief How the strength is written.
 	enum class Write : uint8_t {
 		USER,  ///< a knob turn: SetParamValue, undone and recorded as any param write
-		SETUP, ///< a default set up for the user: the value alone, as legacy's setCurrentValueBasicForSetup
+		SETUP, ///< a default set up for the user: the value alone, as AutoParam::setBase
 	};
 
 	/// @param cable    The cable's depth address on a synth or a sound drum (with its clip).

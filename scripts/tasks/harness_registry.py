@@ -34,7 +34,9 @@ GROUPS = {
     "storage": None,
     "unit": None,
     # The C++ ctest trees, apart from `unit`: built cold, they and the cargo builds overran one job's time limit.
+    # tests/unit alone is most of that compile, so it has a job to itself.
     "unit-cpp": None,
+    "unit-cpp-variants": None,
     "tooling": None,
 }
 

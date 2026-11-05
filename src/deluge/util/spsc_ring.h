@@ -12,10 +12,10 @@
 //
 // Concurrency contract: SPSC-shaped, exactly. Exactly one [task] producer
 // thread calls try_push(); exactly one [audio] consumer thread calls
-// try_pop()/drain(). No multi-producer, no multi-consumer support -- callers
-// may rely on that; it is not re-checked at runtime (no <thread> dependency is
-// taken here so this header stays compilable on the bare-metal/no-OS device
-// build, not just the host sim, matching `published.h`'s discipline).
+// try_pop()/drain() -- or the producer itself, while it has the consumer
+// excluded (an AudioExcludedSection), so that only one consumes at a time. No multi-producer, no multi-consumer support
+// -- callers may rely on that; it is not re-checked at runtime (no <thread> dependency is taken here so this header
+// stays compilable on the bare-metal/no-OS device build, not just the host sim, matching `published.h`'s discipline).
 //
 // Overflow policy: try_push() fails (returns false) when the ring is full. It
 // does not block, does not allocate, and does not overwrite. Deciding what to
@@ -162,6 +162,12 @@ public:
 		return head_.load(std::memory_order_relaxed) == tail_.load(std::memory_order_acquire);
 	}
 
+	/// @brief [task] [audio] How many elements are queued as of this call. Like `empty()`, it can go stale the
+	///        instant the other side pushes or pops; exact while that side cannot run.
+	[[nodiscard]] std::size_t size() const noexcept {
+		return tail_.load(std::memory_order_acquire) - head_.load(std::memory_order_acquire);
+	}
+
 	/// @brief Compile-time capacity (the `N` template parameter).
 	[[nodiscard]] static constexpr std::size_t capacity() noexcept { return N; }
 
@@ -181,7 +187,7 @@ private:
 	}
 
 	std::array<E, N> slots_{};
-	std::atomic<std::size_t> head_{0}; ///< [audio]-owned; producer only acquire-reads it.
+	std::atomic<std::size_t> head_{0}; ///< The consumer's ([audio]); producer only acquire-reads it.
 	std::atomic<std::size_t> tail_{0}; ///< [task]-owned; consumer only acquire-reads it.
 };
 

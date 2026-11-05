@@ -19,7 +19,8 @@
 #include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
-#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/types.h" // std::span<dsp::Q<31>>
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"
@@ -37,6 +38,30 @@ namespace deluge::synth {
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
 
+/// @brief Adds @p value into the buffer sample at @p sample, wrapping.
+[[gnu::always_inline]] inline void add_into(dsp::Q<31>* sample, dsp::Q<31> value) {
+	*sample = add_wrap(*sample, value);
+}
+
+/// @brief Adds @p frame_in into the interleaved stereo frame at @p frame, each channel wrapping.
+[[gnu::always_inline]] inline void add_frame(dsp::Q<31>* frame, dsp::StereoSample frame_in) {
+	add_into(&frame[0], frame_in.l);
+	add_into(&frame[1], frame_in.r);
+}
+
+/// @brief Adds @p sample, panned by the amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,
+/// wrapping.
+[[gnu::always_inline]] inline void add_panned(dsp::Q<31>* frame, dsp::Q<31> sample, dsp::Q<30> amplitude_l,
+                                              dsp::Q<30> amplitude_r) {
+	add_frame(frame, dsp::panned_mono(sample, amplitude_l, amplitude_r));
+}
+
+/// @brief Adds the two channels, each by its amplitude, into the interleaved stereo frame at @p frame, wrapping.
+[[gnu::always_inline]] inline void add_panned(dsp::Q<31>* frame, dsp::Q<31> left, dsp::Q<31> right,
+                                              dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
+	add_frame(frame, dsp::panned_stereo(left, right, amplitude_l, amplitude_r));
+}
+
 /// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.
 inline constexpr uint32_t kNoRetrigger = 0xFFFFFFFF;
 /// A voice's portamento position when it is not gliding.
@@ -49,8 +74,8 @@ inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
 /// is created/seeded, not passed here.
 struct BlockControls {
 	deluge::dsp::Ramp amplitude{
-	    deluge::dsp::Q<31>::from_raw(0),
-	    deluge::dsp::Q<31>::from_raw(0)}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
+	    deluge::dsp::Q<31>{},
+	    deluge::dsp::Q<31>{}}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
 	/// When true, VCA-scale the wave and mix it into @c output's prior contents (the normal voice path). When
 	/// false, write the raw "standalone" wave straight out (e.g. the ring-mod carrier, which is multiplied later).
 	bool apply_amplitude{};
@@ -115,10 +140,10 @@ struct Dx7Block {
 
 /// @brief A sample source's block inputs.
 struct SampleBlock {
-	uint32_t porta_envelope_pos{kNoPorta};   ///< The voice's portamento position; kNoPorta when not gliding
-	int32_t priority_rating{};               ///< The voice's cull rating (the cache and the reader rank by it)
-	uint32_t phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
-	bool pitch_mod_disallows_cache{};        ///< A source that can change during the note modulates its pitch
+	uint32_t porta_envelope_pos{kNoPorta};      ///< The voice's portamento position; kNoPorta when not gliding
+	int32_t priority_rating{};                  ///< The voice's cull rating (the cache and the reader rank by it)
+	dsp::UQ<32> phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
+	bool pitch_mod_disallows_cache{};           ///< A source that can change during the note modulates its pitch
 };
 
 /// @brief A live-input source's block inputs.
@@ -134,10 +159,10 @@ struct BasicSourceBlock {
 	int32_t num_samples{};                  ///< Samples to render
 	bool stereo_buffer{};                   ///< @ref osc_buffer is interleaved stereo: render mono, then pan
 	bool stereo_unison{};                   ///< This unison part is panned
-	B::Control amplitude_l{};               ///< The unison part's left pan gain
-	B::Control amplitude_r{};               ///< The unison part's right pan gain
-	B::Control source_amplitude{};          ///< The VCA amplitude at block start
-	B::Control amplitude_increment{};       ///< The VCA amplitude's per-sample increment
+	B::Pan amplitude_l{};                   ///< The unison part's left pan gain
+	B::Pan amplitude_r{};                   ///< The unison part's right pan gain
+	B::Level source_amplitude{};            ///< The VCA amplitude at block start
+	B::Level amplitude_increment{};         ///< The VCA amplitude's per-sample increment
 	B::Phase phase_increment{};             ///< The source's pitch
 	std::optional<BasicSyncMaster<B>> sync; ///< Present: hard-sync to this master this block (oscillators only)
 	B::OscillatorControls controls{};       ///< The oscillator controls (amplitude, pulse width, sync, cpu direness)

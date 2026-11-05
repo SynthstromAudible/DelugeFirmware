@@ -160,9 +160,9 @@ describe arp_targets("the arp menus edit the arp their root names", ${
 		auto* drum = spec::add_drum<SoundDrum>(f);
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		PatchedParamSet* patched = getModelStackFromSoundDrum(memory, drum)->paramManager->getPatchedParamSet();
-		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
+		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setBase(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN), std::numeric_limits<int32_t>::min());
-		patched->params[deluge::modulation::params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+		patched->params[deluge::modulation::params::LOCAL_ENV_0_RELEASE].setBase(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_RELEASE), std::numeric_limits<int32_t>::max());
 		const MenuContext ctx = at(*f.song, f.clip);
 		const SettingAddress lane{SettingGroupId::LANE_ARP, *ctx.addresses.lane};

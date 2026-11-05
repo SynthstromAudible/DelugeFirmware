@@ -22,26 +22,27 @@
 #include <cstdint>
 
 /// @file
-/// @brief Wrapping q31 addition and subtraction: two's complement, as the hardware's `add` and `sub` compute.
+/// @brief Wrapping addition and subtraction of raw 32-bit words: two's complement, as the hardware's `add` and `sub`
+/// compute.
 ///
 /// A signed overflow is undefined in C++, and once a kernel's step is inlined into a loop the compiler may assume it
 /// never happens. These compute through uint32_t, whose arithmetic is defined modulo 2^32, so an out-of-range result
 /// wraps exactly as the target's instruction does, and they compile to that one instruction.
 namespace deluge::dsp {
 
-/// @brief @p a + @p b, Q31, wrapping modulo 2^32 on overflow.
-/// @param a,b The addends, Q31.
-/// @return The sum, Q31.
-[[nodiscard]] [[gnu::always_inline]] constexpr q31 wrapping_add(q31 a, q31 b) {
-	return static_cast<q31>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
+/// @brief @p a + @p b, wrapping modulo 2^32 on overflow.
+/// @param a,b The addends, raw words of one format.
+/// @return The sum, in their format.
+[[nodiscard]] [[gnu::always_inline]] constexpr int32_t wrapping_add(int32_t a, int32_t b) {
+	return static_cast<int32_t>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
 }
 
-/// @brief @p a − @p b, Q31, wrapping modulo 2^32 on overflow.
-/// @param a The minuend, Q31.
-/// @param b The subtrahend, Q31.
-/// @return The difference, Q31.
-[[nodiscard]] [[gnu::always_inline]] constexpr q31 wrapping_sub(q31 a, q31 b) {
-	return static_cast<q31>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
+/// @brief @p a − @p b, wrapping modulo 2^32 on overflow.
+/// @param a The minuend, a raw word.
+/// @param b The subtrahend, a raw word of the same format.
+/// @return The difference, in their format.
+[[nodiscard]] [[gnu::always_inline]] constexpr int32_t wrapping_sub(int32_t a, int32_t b) {
+	return static_cast<int32_t>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
 }
 
 } // namespace deluge::dsp

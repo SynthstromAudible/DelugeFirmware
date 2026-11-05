@@ -26,10 +26,10 @@
 
 #pragma once
 
-#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h" // CompressorKnobs
 #include "filter_workloads.h"
+#include "raw_frame.h"
 #include "reference_compressor.h"
 
 #include <algorithm>
@@ -44,9 +44,8 @@
 
 namespace compressor_workloads {
 
-using deluge::dsp::q31;
-using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::CompressorKnobs;
+using deluge::dsp::test::RawFrame;
 using filter_workloads::Digest;
 using filter_workloads::kMaxFrames;
 using filter_workloads::Parting;
@@ -66,11 +65,11 @@ struct CompressorStep {
 	Signal signal = Signal::VOICE;
 	bool render = true; ///< Whether the owner renders; else it resets, as an owner does with its threshold at 0.
 	CompressorKnobs knobs{};
-	q31 threshold = 0; ///< The threshold param, Q31 of the knob's travel (SOUND and CLIP); MASTER takes the knobs'.
-	q31 volume_l = 1 << 27;     ///< MASTER's left channel gain, 4.27 signed.
-	q31 volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
-	q31 final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before the
-	                            ///< neutral render's >> 3.
+	q31_t threshold = 0; ///< The threshold param, Q31 of the knob's travel (SOUND and CLIP); MASTER takes the knobs'.
+	q31_t volume_l = 1 << 27;     ///< MASTER's left channel gain, 4.27 signed.
+	q31_t volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
+	q31_t final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before the
+	                              ///< neutral render's >> 3.
 	bool min_left = false; ///< Whether the block's middle frame (frames / 2) is replaced: left INT32_MIN, right -2^30.
 };
 
@@ -142,11 +141,22 @@ using filter_workloads::detail::kBlocks;
 [[nodiscard]] inline CompressorKnobs owner_knobs(Owner owner) {
 	switch (owner) {
 	case Owner::MASTER:
-		return {.attack = 5 << 24, .release = 5 << 24, .threshold = 1 << 30, .ratio = 64 << 24};
+		return {.attack = deluge::dsp::Q<31>::from_raw(5 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(5 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(1 << 30),
+		        .ratio = deluge::dsp::Q<31>::from_raw(64 << 24)};
 	case Owner::SOUND:
-		return {.attack = 3 << 24, .release = 20 << 24, .threshold = 0, .ratio = 100 << 24, .sidechain_hpf = 1 << 30};
+		return {.attack = deluge::dsp::Q<31>::from_raw(3 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(20 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(0),
+		        .ratio = deluge::dsp::Q<31>::from_raw(100 << 24),
+		        .sidechain_hpf = deluge::dsp::Q<31>::from_raw(1 << 30)};
 	case Owner::CLIP:
-		return {.attack = 40 << 24, .release = 2 << 24, .threshold = 0, .ratio = 20 << 24, .sidechain_hpf = 1 << 28};
+		return {.attack = deluge::dsp::Q<31>::from_raw(40 << 24),
+		        .release = deluge::dsp::Q<31>::from_raw(2 << 24),
+		        .threshold = deluge::dsp::Q<31>::from_raw(0),
+		        .ratio = deluge::dsp::Q<31>::from_raw(20 << 24),
+		        .sidechain_hpf = deluge::dsp::Q<31>::from_raw(1 << 28)};
 	}
 	return {};
 }
@@ -173,7 +183,7 @@ using filter_workloads::detail::kBlocks;
 }
 
 /// The wet level of the partial-wet workloads: about 60%.
-inline constexpr q31 kPartialWet = 1288490188;
+inline constexpr q31_t kPartialWet = 1288490188;
 
 [[nodiscard]] inline std::vector<CompressorWorkload> make_compressor_workloads() {
 	std::vector<CompressorWorkload> w;
@@ -198,10 +208,10 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             .blocks = kBlocks,
 		             .step = [owner](size_t b) {
 			             CompressorStep s = owner_step(owner, b);
-			             s.knobs.blend = kPartialWet;
+			             s.knobs.blend = deluge::dsp::Q<31>::from_raw(kPartialWet);
 			             if (b >= 25) {
-				             s.knobs.attack = 10 << 24;
-				             s.knobs.release = 60 << 24;
+				             s.knobs.attack = deluge::dsp::Q<31>::from_raw(10 << 24);
+				             s.knobs.release = deluge::dsp::Q<31>::from_raw(60 << 24);
 			             }
 			             s.signal = b < 3 ? Signal::SILENCE : b % 5 == 4 ? Signal::LOUD : Signal::VOICE;
 			             s.render = !(b < 3 || b == 16 || b == 17);
@@ -228,7 +238,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 	             .blocks = kBlocks,
 	             .step = [](size_t b) {
 		             CompressorStep s = owner_step(Owner::SOUND, b);
-		             s.knobs.blend = (b / 3) % 2 == 0 ? kOneQ31 : kPartialWet;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw((b / 3) % 2 == 0 ? kOneQ31 : kPartialWet);
 		             s.signal = b < 2 ? Signal::SILENCE : Signal::VOICE;
 		             return s;
 	             }});
@@ -260,7 +270,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 	             .blocks = kBlocks,
 	             .step = [](size_t b) {
 		             CompressorStep s = owner_step(Owner::CLIP, b);
-		             s.knobs.blend = 1 << 30;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw(1 << 30);
 		             s.signal = Signal::FULL_SCALE;
 		             return s;
 	             }});
@@ -273,8 +283,8 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             // Wet at 2^-31: a frame of INT32_MIN comes out as -2^31 when its saturated wet part, scaled by the
 		             // blend, rounds to -1. With the detector's high-pass at 0 its low-pass stays at 0, so the detector
 		             // passes the frame as it is. The other frames are quiet, so no block's sum wraps.
-		             s.knobs.blend = 1;
-		             s.knobs.sidechain_hpf = 0;
+		             s.knobs.blend = deluge::dsp::Q<31>::from_raw(1);
+		             s.knobs.sidechain_hpf = deluge::dsp::Q<31>::from_raw(0);
 		             s.min_left = true;
 		             return s;
 	             }});
@@ -286,7 +296,7 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             CompressorStep s = owner_step(Owner::MASTER, b);
 		             // The threshold knob at its top and the final volume at full scale drive the makeup, and so the
 		             // gain, to its cap of 31; at a channel gain of ±2 the targets ask for ±62.
-		             s.knobs.threshold = INT32_MAX;
+		             s.knobs.threshold = deluge::dsp::Q<31>::from_raw(INT32_MAX);
 		             s.final_volume = INT32_MAX;
 		             s.volume_l = 1 << 28;
 		             s.volume_r = -(1 << 28);
@@ -304,9 +314,9 @@ inline constexpr q31 kPartialWet = 1288490188;
 }
 
 /// @return Block @p b's input.
-[[nodiscard]] inline std::vector<StereoSample> compressor_input(const CompressorWorkload& workload, size_t b) {
+[[nodiscard]] inline std::vector<RawFrame> compressor_input(const CompressorWorkload& workload, size_t b) {
 	const CompressorStep s = workload.step(b);
-	std::vector<StereoSample> block(s.frames);
+	std::vector<RawFrame> block(s.frames);
 	for (size_t i = 0; i < block.size(); ++i) {
 		const auto k = static_cast<uint32_t>((b * 1024) + (2 * i));
 		block[i] = {.l = filter_workloads::detail::signal_sample(s.signal, k),
@@ -331,25 +341,42 @@ public:
 	/// @brief Renders block @p b into @p out (resized to the block); a block the owner does not render is left as
 	/// its input.
 	/// @return The gain reduction the compressor reports after the block.
-	uint8_t block(size_t b, std::vector<StereoSample>& out) {
+	uint8_t block(size_t b, std::vector<RawFrame>& out) {
 		const CompressorStep s = workload_.step(b);
 		out = compressor_input(workload_, b);
 		compressor_.configure(s.knobs);
 		if (workload_.owner != Owner::MASTER) {
-			compressor_.set_threshold(s.threshold);
+			if constexpr (kTyped) {
+				compressor_.set_threshold(deluge::dsp::Q<31>::from_raw(s.threshold));
+			}
+			else {
+				compressor_.set_threshold(s.threshold);
+			}
 		}
 		if (!s.render) {
 			compressor_.reset();
 			return compressor_.gain_reduction();
 		}
-		const std::span<StereoSample> block{out};
+		const std::span<RawFrame> block{out};
 		if constexpr (kTakesScratch) {
-			const std::span<StereoSample> scratch{scratch_.data(), out.size()};
+			const std::span<RawFrame> scratch{scratch_.data(), out.size()};
 			if (workload_.owner == Owner::MASTER) {
 				compressor_.render(block, s.volume_l, s.volume_r, s.final_volume, scratch);
 			}
 			else {
 				compressor_.render_volume_neutral(block, s.final_volume, scratch);
+			}
+		}
+		else if constexpr (kTyped) {
+			// The levels as the firmware's compressor takes them: the gains Q27, the final volume Q29
+			if (workload_.owner == Owner::MASTER) {
+				compressor_.render(deluge::dsp::test::typed_frames(block), deluge::dsp::Q<27>::from_raw(s.volume_l),
+				                   deluge::dsp::Q<27>::from_raw(s.volume_r),
+				                   deluge::dsp::Q<29>::from_raw(s.final_volume));
+			}
+			else {
+				compressor_.render_volume_neutral(deluge::dsp::test::typed_frames(block),
+				                                  deluge::dsp::Q<29>::from_raw(s.final_volume));
 			}
 		}
 		else {
@@ -372,11 +399,14 @@ public:
 private:
 	/// Whether @p C blends from a caller's scratch, as the references do; the firmware's compressor blends in place.
 	static constexpr bool kTakesScratch =
-	    requires(C& c, std::span<StereoSample> b) { c.render(b, q31{}, q31{}, q31{}, b); };
+	    requires(C& c, std::span<RawFrame> b) { c.render(b, q31_t{}, q31_t{}, q31_t{}, b); };
+	/// Whether @p C takes its threshold and levels typed, as the firmware's compressor does; the references take raw
+	/// words.
+	static constexpr bool kTyped = requires(C& c) { c.set_threshold(deluge::dsp::Q<31>{}); };
 
 	const CompressorWorkload& workload_;
 	C compressor_{};
-	std::array<StereoSample, kMaxFrames> scratch_{};
+	std::array<RawFrame, kMaxFrames> scratch_{};
 };
 
 /// @return Where @p workload, played through compressor @p A and through compressor @p B, first parts.
@@ -384,13 +414,12 @@ template <typename A, typename B>
 [[nodiscard]] std::optional<Parting> first_parting(const CompressorWorkload& workload) {
 	CompressorRun<A> a{workload};
 	CompressorRun<B> b{workload};
-	std::vector<StereoSample> out_a;
-	std::vector<StereoSample> out_b;
+	std::vector<RawFrame> out_a;
+	std::vector<RawFrame> out_b;
 	for (size_t block = 0; block < workload.blocks; ++block) {
 		const uint8_t ra = a.block(block, out_a);
 		const uint8_t rb = b.block(block, out_b);
-		if (!std::ranges::equal(out_a, out_b,
-		                        [](StereoSample x, StereoSample y) { return x.l == y.l && x.r == y.r; })) {
+		if (!std::ranges::equal(out_a, out_b, [](RawFrame x, RawFrame y) { return x.l == y.l && x.r == y.r; })) {
 			return Parting{.block = block, .what = "output"};
 		}
 		if (ra != rb) {
@@ -409,11 +438,11 @@ template <typename C>
 [[nodiscard]] WorkloadRecord record(const CompressorWorkload& workload) {
 	CompressorRun<C> run{workload};
 	WorkloadRecord out;
-	std::vector<StereoSample> block;
+	std::vector<RawFrame> block;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		const uint8_t reduction = run.block(b, block);
 		Digest output;
-		output.add(std::span<const StereoSample>{block});
+		output.add(std::span<const RawFrame>{block});
 		output.add(reduction);
 		out.outputs.push_back(output.value);
 	}

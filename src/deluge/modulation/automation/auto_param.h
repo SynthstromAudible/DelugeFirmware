@@ -42,15 +42,25 @@ class CopiedParamAutomation;
 class TimelineCounter;
 class Clip;
 class ModelStackWithAutoParam;
+class Song;
+namespace deluge::modulation {
+struct RecordEvent;
+void applyRecordEvents(::Song& song);
+} // namespace deluge::modulation
 
 // For backing up a snapshot
 class AutoParamState {
 public:
 	ParamNodeVector nodes{};
-	int32_t value{};
+	int32_t value{}; ///< the played value
+	int32_t base{};  ///< the lane's base (DocAutoParam::current_value)
 };
 
 struct StolenParamNodes;
+
+/// @brief Whether @p lane is the stand-in the render reads for a lane nothing holds yet: it reads as unautomated, and
+/// nothing may be written into it.
+[[nodiscard]] bool isUnheldLane(const deluge::project::DocAutoParam& lane);
 
 class AutoParam {
 public:
@@ -160,22 +170,24 @@ public:
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 
-	inline int32_t getCurrentValue() { return currentValue; }
+	/// @brief The value the param plays now: its lane at the playhead, else its base, as the cursor last left it.
+	[[nodiscard]] int32_t played() const { return played_; }
+	inline int32_t getCurrentValue() const { return played_; }
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
-	/// Engine-only setter for runtime re-setters (transient FX like stutter/slice): the store holds the pre-FX base
-	/// value, not the live FX value.
-	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
-
-	/// Default/setup setter: write the persisted scalar into the owner's store @p doc and the RT cursor from the same
-	/// literal. Used by initParams so param defaults live in the DOM store directly.
-	/// @param doc   The owner-resolved store slot, e.g. `set->docForParam(p)`.
-	/// @param value The value to store.
-	inline void setCurrentValueBasicForSetup(deluge::project::DocAutoParam& doc, int32_t value) {
-		currentValue = value;
-		doc.current_value = value;
+	/// @brief Write @p lane's base (the model's value) and play it: edits, file reads, setup defaults.
+	void setBase(deluge::project::DocAutoParam& lane, int32_t value) {
+		deluge::project::set_base(lane, value);
+		played_ = value;
 	}
+	/// @brief Play @p lane's base: the cursor projected from the model after a read or a rebuild.
+	void playBase(const deluge::project::DocAutoParam& lane) { played_ = lane.current_value; }
+	/// @brief The legacy instrument's rule before a value-touching kernel: the played value becomes the base.
+	void adoptPlayedAsBase(deluge::project::DocAutoParam& lane) const { deluge::project::set_base(lane, played_); }
+	/// @brief Play @p value without touching the base: a transient effect (stutter, a sample preview's adopted
+	/// volume), or what a lane played carried across a rebuild of its owner.
+	void setPlayed(int32_t value) { played_ = value; }
 
 	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
 
@@ -185,11 +197,14 @@ public:
 
 	// The AutoParam is a pure interpolation cursor: it holds no node storage. Every node operation receives a
 	// `DocAutoParam&` resolved by the owner (ModelStackWithAutoParam::doc(), or a per-owner docForParam). The DOM owns
-	// all automation node data. If a param has no nodes, currentValue is used.
+	// all automation node data. If a param has no nodes, its base value is played.
 
-	/// Current value of the AutoParam. Updated by several functions.
-	int32_t currentValue;
+private:
+	/// The played value: written by the executor (playback, interpolation, the latch), by projections from the model
+	/// (setBase, playBase) and by setPlayed; the base lives in the lane's `current_value`.
+	int32_t played_;
 
+public:
 	// interpolation to calculate current value
 	bool hasInterpolationIncrement();
 	void resetInterpolationIncrement();
@@ -203,6 +218,12 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	friend void deluge::modulation::applyRecordEvents(::Song& song);
+
+	/// @brief Write a value recorded while playing into @p lane: the live-record kernel, with what it decides from the
+	/// lane's own nodes (whether the region's start interpolates, which node of a straight run to drop). The render's
+	/// apply of a queued event; the interaction tier runs it only with the render excluded.
+	void writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event);
 	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
 	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,

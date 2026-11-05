@@ -17,7 +17,7 @@
 
 #include "effects/master_chain.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include <array>
 
@@ -33,36 +33,45 @@ MasterChain::MasterChain(RingAllocator mod_fx_allocator, RingAllocator granular_
 }
 
 bool MasterChain::pre_reverb(std::span<dsp::StereoSample> block, const MasterChainInputs& in, ReverbSend send) {
-	int32_t post_fx_volume = in.volume_post_fx;
+	// The mod FX and grain scale the volume in place, as a word
+	int32_t post_fx_volume = in.volume_post_fx.raw();
 	core_.soft_off_grain(in.fx);
 	core_.render_fx(block, in.fx, post_fx_volume, true, send); // the master always has sound coming in
 	return core_.send_and_volume().process(block, send.first(block.size()),
-	                                       {.post_fx_volume = post_fx_volume,
+	                                       {.post_fx_volume = dsp::Q<27>::from_raw(post_fx_volume),
 	                                        .post_reverb_volume = in.post_reverb_volume,
 	                                        .reverb_send = in.reverb_send,
-	                                        .pan = 0,
+	                                        .pan = dsp::Q<31>{},
 	                                        .ramp = false,
 	                                        .stereo = in.fx.stereo});
 }
 
 void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectStates& settings,
                               const MasterPostInputs& post) {
-	int32_t volume_l = filter_.configure(settings.filter, post.filter, post.master_volume);
+	using dsp::Q;
+	// The master's volume is Q27, 2^27 unity; a bitcrush lowers it by a run-time shift, so raw.
+	int32_t volume = filter_.configure(settings.filter, post.filter, post.master_volume.raw());
 	filter_.process(block, post.filter_scratch, *post.noise);
-	volume_l >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
-	int32_t volume_r = volume_l;
+	volume >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
+	// The shift done, the volume is Q27 from here.
+	Q<27> volume_l = Q<27>::from_raw(volume);
+	Q<27> volume_r = volume_l;
 
 	if (post.stutter != nullptr) {
 		post.stutter->render(block, post.stutter_rate);
 	}
 	if (post.do_pan) {
-		volume_l = multiply_32x32_rshift32(volume_l, post.pan_l) << 2;
-		volume_r = multiply_32x32_rshift32(volume_r, post.pan_r) << 2;
+		// The Q27 volume times a Q30 pan amplitude is Q25, moved back to Q27.
+		volume_l = mul_as_wrap<Q<27>>(volume_l, post.pan_l);
+		volume_r = mul_as_wrap<Q<27>>(volume_r, post.pan_r);
 	}
 
 	Compressor& compressor = core_.compressor();
 	compressor.configure(settings.compressor); // the master's threshold is its knob
-	compressor.dsp().render(block, volume_l >> 1, volume_r >> 1, post.song_volume >> 3);
+	// The compressor's channel gains are 4.27 and its final volume 3.29: the master halves its Q27 volume into the
+	// gains, and reads an eighth of the song's Q27 volume as the final volume, as it is tuned.
+	compressor.dsp().render(block, scale_shr_floor<1>(volume_l), scale_shr_floor<1>(volume_r),
+	                        reinterpret_bits<Q<29>>(scale_shr_floor<3>(post.song_volume)));
 }
 
 std::span<const std::string_view> MasterChain::order() {

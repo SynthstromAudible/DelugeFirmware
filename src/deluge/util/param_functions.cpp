@@ -16,6 +16,7 @@
  */
 
 #include "util/param_functions.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "modulation/params/param.h"
 #include <cstdint>
@@ -23,12 +24,16 @@
 namespace params = deluge::modulation::params;
 namespace curves = deluge::dsp::fixed;
 
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
+int32_t getFinalParameterValueExpWithDumbEnvelopeHack(deluge::dsp::Q<31> neutral, deluge::dsp::Q<29> combination,
+                                                      int32_t p) {
 	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
-		return multiply_32x32_rshift32(paramNeutralValue, curves::release_rate(patchedValue));
+		// The neutral times the release rate: the high word, in the neutral's units
+		return mul(neutral, curves::release_rate(combination)).raw();
 	}
 	if (params::LOCAL_ENV_0_ATTACK <= p && p <= params::LOCAL_ENV_3_ATTACK) {
-		patchedValue = -patchedValue;
+		// An attack is the exponential of the negated combination; saturating, so the most negative patching is the
+		// fastest attack
+		combination = neg_sat(combination);
 	}
-	return curves::curve_exponential(paramNeutralValue, patchedValue);
+	return curves::curve_exponential(neutral, combination).raw();
 }

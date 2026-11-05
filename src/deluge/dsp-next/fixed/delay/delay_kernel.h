@@ -132,7 +132,7 @@ struct Delay {
 		/// The tape speed, 8.24 on the delay's rate scale: 16777216 (1.0) plays the neutral 16384-sample tape at its
 		/// native rate. Unsigned, as the tape sizes for it; the tape's setup takes its int32_t image.
 		uint32_t rate = 0;
-		q31 feedback = 0;               ///< The feedback amount, Q31.
+		Q<31> feedback{};               ///< The feedback amount.
 		bool analog = false;            ///< The impulse response then a tanh; else a digital clip.
 		int32_t analog_saturation = 8;  ///< The tanh drive, as a power of two: 8 on a sound, 5 on a host chain.
 		bool ping_pong = false;         ///< The feedback crosses between the channels when rendering in stereo.
@@ -242,7 +242,7 @@ struct Delay {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, State& s,
 	                                                              StereoSample dry) {
-		StereoSample delayed{.l = 0, .r = 0};
+		StereoSample delayed{};
 		bool wrapped = false;
 		// The native write's sample, and the resampled write's strengths (16.16): where this frame's read leaves them.
 		StereoSample* native_write = nullptr;
@@ -272,12 +272,8 @@ struct Delay {
 				// The 16.16 strengths at Q30, so each tap's product is Q29 and their sum is lifted to Q31.
 				const auto weight1 = as_wrap<Q<30>>(Q<16>::from_raw(strength1));
 				const auto weight2 = as_wrap<Q<30>>(Q<16>::from_raw(strength2));
-				delayed.l = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.l), weight1),
-				                                    mul(Q<31>::from_raw(from2.l), weight2)))
-				                .raw();
-				delayed.r = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.r), weight1),
-				                                    mul(Q<31>::from_raw(from2.r), weight2)))
-				                .raw();
+				delayed.l = as_wrap<Q<31>>(add_wrap(mul(from1.l, weight1), mul(from2.l, weight2)));
+				delayed.r = as_wrap<Q<31>>(add_wrap(mul(from1.r, weight1), mul(from2.r, weight2)));
 			}
 		}
 
@@ -303,9 +299,7 @@ struct Delay {
 		StereoSample to_tape = feedback;
 		if constexpr (M.mix == Mix::CROSS) {
 			to_tape.l = feedback.r;
-			to_tape.r = add_wrap(halve_floor(add_wrap(Q<31>::from_raw(dry.l), Q<31>::from_raw(dry.r))),
-			                     Q<31>::from_raw(feedback.l))
-			                .raw();
+			to_tape.r = add_wrap(halve_floor(add_wrap(dry.l, dry.r)), feedback.l);
 		}
 		else {
 			to_tape += dry;
@@ -343,7 +337,8 @@ struct Delay {
 	}
 
 	/// @brief The feedback chain's second part, its high-pass, on @p x for one channel's chain State @p s.
-	[[nodiscard]] [[gnu::always_inline]] static q31 high_pass(const Coefficients& c, FeedbackChain::State& s, q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> high_pass(const Coefficients& c, FeedbackChain::State& s,
+	                                                            Q<31> x) {
 		using HighPass = FeedbackChain::part_t<1>;
 		return kernel_ops::step_at<HighPass, kernel_ops::NoMode::NONE>(get<1>(c.feedback), kernel_block_t<HighPass>{},
 		                                                               kernel_ops::loop_state<HighPass>(get<1>(s)), x);

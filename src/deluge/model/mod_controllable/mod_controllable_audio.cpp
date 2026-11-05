@@ -855,14 +855,13 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 			UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 			if (stutter.playing.quantized) {
 				// Set back the value it had just before stuttering so orange LEDs are redrawn.
-				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
-				    stutter.valueBeforeStuttering);
+				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setPlayed(stutter.valueBeforeStuttering);
 			}
 			else {
 				// Regular Stutter FX (if below middle value, reset it back to middle). Not an Edit: like the quantized
 				// restore above, it puts the knob back where the gesture expects it, and records nothing
 				if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
-					unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+					unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setPlayed(0);
 				}
 			}
 		}

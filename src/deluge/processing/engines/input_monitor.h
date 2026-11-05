@@ -118,19 +118,19 @@ public:
 	/// @brief A track's monitoring gain at sample time @p time: 0 during the warm-up, then a linear fade to full.
 	/// @param time The engine's sample timer, plus an offset into the block.
 	/// @return The gain, Q31.
-	[[nodiscard]] dsp::q31 gain(uint32_t time) const {
+	[[nodiscard]] q31_t gain(uint32_t time) const {
 		if (warmed_up_) {
-			return std::numeric_limits<dsp::q31>::max();
+			return std::numeric_limits<q31_t>::max();
 		}
 		if (time <= kWarmupSamples) {
 			return 0;
 		}
 		const uint32_t elapsed = time - kWarmupSamples;
 		if (elapsed >= kFadeInSamples) {
-			return std::numeric_limits<dsp::q31>::max();
+			return std::numeric_limits<q31_t>::max();
 		}
-		return static_cast<dsp::q31>((static_cast<uint64_t>(elapsed) * std::numeric_limits<dsp::q31>::max())
-		                             / kFadeInSamples);
+		return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
+		                          / kFadeInSamples);
 	}
 
 private:

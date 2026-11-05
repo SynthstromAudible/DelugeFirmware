@@ -33,7 +33,7 @@ namespace deluge::dsp::fixed {
 
 /// @brief The scratch a filter needs while it fades between dry and wet: the caller's, at least the block's samples
 /// (two per frame in stereo). A block neither filter fades does not touch it, so it may be shorter, or empty, then.
-using FadeScratch = std::span<q31>;
+using FadeScratch = std::span<Q<31>>;
 
 /// @brief The scratch a set needs, each at least the block's samples (two per frame in stereo): the fades' (only on
 /// a block a filter fades, see @ref FadeScratch), and the parallel route's second copy of the block.
@@ -41,7 +41,7 @@ struct FilterScratch {
 	/// The dry copy a filter blends with while it fades in; the two filters use it one after the other.
 	FadeScratch fade;
 	/// The parallel route's copy of the block, which the high-pass runs over before it is added back.
-	std::span<q31> parallel;
+	std::span<Q<31>> parallel;
 };
 
 /// @brief A low-pass and a high-pass filter in series either way or in parallel.
@@ -65,8 +65,9 @@ public:
 	FilterSet() { reset(); }
 
 	/// @brief Takes one block's settings.
-	/// @param gain The volume going into the set, Q31. The low-pass compensates it, the set scales it, and the
-	/// high-pass compensates the result.
+	/// @param gain The volume going into the set, in the owner's format (an effect's Q27 volume, a voice's amplitude).
+	/// The low-pass compensates it, the set scales it, and the high-pass compensates the result, each by a factor
+	/// whose product is moved back to the gain's format, so the bits are the same in any format.
 	/// @param low The low-pass's settings.
 	/// @param low_slot What the low-pass slot runs: a ladder mode, an SVF mode, or OFF. A change of family resets the
 	/// slot's filter; a change from OFF fades it in from dry.
@@ -75,19 +76,19 @@ public:
 	/// slot's filter; a change from OFF fades it in from dry.
 	/// @param route The order the two filters run in, or PARALLEL to run each over its own copy of the block and sum
 	/// the two.
-	/// @return The gain going out of the set (Q31): compensated for each filter that is on, and scaled so that at 50%
-	/// resonance the level is unchanged.
-	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
-	                            HighPassSlot high_slot, FilterRoute route);
+	/// @return The gain going out of the set, in its format: compensated for each filter that is on, and scaled so that
+	/// at 50% resonance the level is unchanged.
+	[[nodiscard]] int32_t configure(int32_t gain, const FilterConfig& low, LowPassSlot low_slot,
+	                                const FilterConfig& high, HighPassSlot high_slot, FilterRoute route);
 
 	/// @brief Filters a mono @p block in place.
 	/// @param noise The noise stream the low-pass ladder draws from, written back after the block.
-	void render_mono(std::span<q31> block, FilterScratch scratch, Cong& noise);
+	void render_mono(std::span<Q<31>> block, FilterScratch scratch, Cong& noise);
 
 	/// @brief Filters an interleaved L/R block in place.
 	/// @param noise The noise stream the low-pass ladder draws from, left then right in every frame, written back
 	/// after the block.
-	void render_stereo(std::span<q31> interleaved, FilterScratch scratch, Cong& noise);
+	void render_stereo(std::span<Q<31>> interleaved, FilterScratch scratch, Cong& noise);
 
 	/// @brief Back to a new set's state: both filters off and every filter's state zero, the fades included (so the
 	/// next configure fades nothing in). Both slots read as holding a ladder, so neither the low-pass ladder nor the
@@ -152,13 +153,13 @@ private:
 	void hold_high_pass(HighPassSlot::Kind kind);
 
 	/// @brief The low-pass over a mono block, if on.
-	void render_low_pass_mono(std::span<q31> block, FadeScratch scratch, Cong& noise);
+	void render_low_pass_mono(std::span<Q<31>> block, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over a mono block, if on.
-	void render_high_pass_mono(std::span<q31> block, FadeScratch scratch);
+	void render_high_pass_mono(std::span<Q<31>> block, FadeScratch scratch);
 	/// @brief The low-pass over an interleaved block, if on.
-	void render_low_pass_stereo(std::span<q31> interleaved, FadeScratch scratch, Cong& noise);
+	void render_low_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch, Cong& noise);
 	/// @brief The high-pass over an interleaved block, if on.
-	void render_high_pass_stereo(std::span<q31> interleaved, FadeScratch scratch);
+	void render_high_pass_stereo(std::span<Q<31>> interleaved, FadeScratch scratch);
 
 	LowPass low_pass_;
 	HighPass high_pass_;

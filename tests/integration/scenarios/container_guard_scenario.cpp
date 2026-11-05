@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "dsp-next/core/buffer_view.h"
 #include "effects/delay.h"
 #include "effects/granular.h"
 #include "effects/mod_fx.h"
@@ -399,12 +400,12 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			block[i] = {v, -v};
+			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
 		owner.core().mod_fx().render(block, in, volume, deluge::synth_noise);
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			changed = changed || block[i].l != v || block[i].r != -v;
+			changed = changed || block[i].l.raw() != v || block[i].r.raw() != -v;
 		}
 	}
 	return changed;
@@ -435,17 +436,17 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	const deluge::snapshot::ModControllableSnapshot& snapshot = master.modControllableSnapshot();
 	const deluge::effects::Delay::State delayState =
 	    deluge::model::delayWorkingState(params, master.core().delay(), snapshot.effects.delay, false, true);
-	const deluge::effects::FxInputs fx =
-	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState, 0);
+	const deluge::effects::FxInputs fx = deluge::model::hostFxInputs(
+	    snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState, deluge::dsp::Q<31>{});
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
-			block[i] = {v, -v};
+			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
 		int32_t volume = kOneQ31 >> 1;
 		master.core().soft_off_grain(fx);
-		master.core().render_fx(block, fx, volume, true, send);
+		master.core().render_fx(block, fx, volume, true, deluge::dsp::typed_view(std::span{send}));
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));
 	}
 	return made;
@@ -739,9 +740,8 @@ bool setupLeg() {
 		clip->activeIfNoSolo = true;
 		g_audio = static_cast<AudioClip*>(clip);
 		auto* output = static_cast<AudioOutput*>(clip->output);
-		clip->paramManager.getUnpatchedParamSet()
-		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
-		    .setCurrentValueBasicForSetup(0);
+		clip->paramManager.getUnpatchedParamSet()->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH].setPlayed(
+		    0);
 		deluge::edits::changeView(*output, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		deluge::edits::changeEffect(
 		    *output, "modFXType",
@@ -1395,7 +1395,7 @@ void editLeg() {
 		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
-		    .setCurrentValueBasicForSetup(0);
+		    .setPlayed(0);
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
 		const ModFXParam paramBefore = fx.modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
@@ -1474,7 +1474,7 @@ void editLeg() {
 		auto& fx = currentSong->live.global_effectable;
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
-		    .setCurrentValueBasicForSetup(0);
+		    .setPlayed(0);
 		const ModFXParam paramBefore = fx.modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		if (fx.effects().mod_fx.type != ModFXType::NONE) {
@@ -1703,11 +1703,11 @@ void editLeg() {
 		auto& rateParam = unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE];
 		// A knob position of 20 snaps to 32nds: the rate of knob position 8.
 		const int32_t before = unpatched->knobPosToParamValue(20, nullptr);
-		rateParam.setCurrentValueBasicForSetup(0);
+		rateParam.setPlayed(0);
 		const auto rate = static_cast<uint32_t>(
 		    deluge::model::stutterRate(&g_clip->paramManager, 8, currentSong->getInputTickMagnitude(),
 		                               playbackHandler.getTimePerInternalTickInverse()));
-		rateParam.setCurrentValueBasicForSetup(before);
+		rateParam.setPlayed(before);
 		const bool quantized = currentSong->live.global_effectable.effects().stutter.quantized
 		                       && g_kit->effects().stutter.use_song_stutter;
 		deluge::memory::failNextAllocationOfSize(deluge::effects::tape_shape(rate, true).frames
@@ -1738,7 +1738,7 @@ void editLeg() {
 		}
 		UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 		// A knob position of 20 snaps to 32nds, knob position 8: the snap's offset from the param is -12.
-		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setPlayed(
 		    unpatched->knobPosToParamValue(20, nullptr));
 		lone->beginStutter(&paramManager);
 		const bool began = stutter.isStuttering(lone->core()) && stutter.lastQuantizedKnobDiff == 8 - 20;

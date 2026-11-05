@@ -29,6 +29,7 @@
 ///     compared here.
 
 #include "gui/ui/menu_view_of.h"
+#include "modulation/automation/record_events.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -219,12 +220,12 @@ int32_t differences(const std::vector<int32_t>& a, const std::vector<int32_t>& b
 void seed_params(ParamManager& pm, int32_t value) {
 	if (PatchedParamSet* patched = pm.getPatchedParamSet(); patched != nullptr) {
 		for (int32_t i = 0; i < patched->getNumParams(); i++) {
-			patched->params[i].setCurrentValueBasicForSetup(value);
+			patched->params[i].setPlayed(value);
 		}
 	}
 	if (UnpatchedParamSet* unpatched = pm.getUnpatchedParamSet(); unpatched != nullptr) {
 		for (int32_t i = 0; i < unpatched->getNumParams(); i++) {
-			unpatched->params[i].setCurrentValueBasicForSetup(value);
+			unpatched->params[i].setPlayed(value);
 		}
 	}
 }
@@ -997,6 +998,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.song->setCurrentClip(f.clip);
 		DirectCtx c{1000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), c.ctx);
+		deluge::modulation::applyRecordEvents(*f.song); // the render's next block writes the recorded value
 		playbackHandler.recording = recording;
 		playbackHandler.playbackState = state;
 		f.clip->armedForRecording = armed;

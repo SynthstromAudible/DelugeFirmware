@@ -31,15 +31,15 @@ namespace deluge::dsp::fixed {
 /// @brief A private noise stream with the synth's step, as a generator: for specs and components that want their own.
 class SeededNoise {
 public:
-	using value_type = q31; ///< q31 noise samples.
+	using value_type = int32_t; ///< Raw noise words: the stream's states, for specs' and benches' inputs.
 
 	/// @brief Starts the stream at a state.
 	/// @param seed The initial state; the first sample is the step applied to it.
 	constexpr explicit SeededNoise(uint32_t seed) : cong_(seed) {}
 
 	/// @brief Advances the stream.
-	/// @return The new state, reinterpreted as a q31 sample.
-	[[nodiscard, gnu::always_inline]] constexpr q31 render() { return static_cast<q31>(cong_.next()); }
+	/// @return The new state, reinterpreted as a signed word.
+	[[nodiscard, gnu::always_inline]] constexpr int32_t render() { return static_cast<int32_t>(cong_.next()); }
 
 	/// @brief The current state.
 	[[nodiscard]] constexpr uint32_t state() const { return cong_.state(); }

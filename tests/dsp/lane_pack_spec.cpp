@@ -15,15 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// LanePack<q31, N>: every operation is its scalar counterpart applied lane by lane. Each is pinned against that
-// counterpart at N = 1, 2, 3, 4 and 8, over every pairing (and, for the accumulate, every triple) of q31's extremes,
-// with each lane given a different pairing, and over full-scale seeded noise. The extremes include the pairs whose sum
-// or difference leaves q31, and the products at INT32_MIN. Then one generic expression each of OnePole's step,
-// ShiftTracker's step and AntialiasedTanh's clamp, written once over V, compiles for q31 and for the pack and gives
-// each lane the scalar result.
+// LanePack<T, N>: every operation is its scalar counterpart applied lane by lane: LanePack's own on raw int32_t lanes,
+// and fixed_point_lanes.h's Q31 arithmetic on LanePack<Q<31>, N> against the raw Q31 functions. Each is pinned against
+// that counterpart at N = 1, 2, 3, 4 and 8, over every pairing (and, for the accumulate, every triple) of Q31's
+// extremes, with each lane given a different pairing, and over full-scale seeded noise. The extremes include the pairs
+// whose sum or difference leaves Q31, and the products at INT32_MIN. Then one generic expression each of OnePole's
+// step and ShiftTracker's step, written once over V, compiles for Q<31> and for the pack, and AntialiasedTanh's clamp
+// does for a raw word and for the pack of them, each lane given the scalar result.
 
 #include "dsp-next/core/lane_pack.h"
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/wrapping.h"
@@ -50,29 +53,29 @@ namespace deluge::dsp::fixed::lane_pack_probe {
 
 /// OnePole's ALL_PASS step: every operation its three modes use.
 template <class V>
-[[nodiscard]] V one_pole_step(q31 m, V& z, V x) {
-	const V v = multiply_32x32_rshift32_rounded(wrapping_sub(x, z), m) << 1;
-	const V y = wrapping_add(v, z);
-	z = wrapping_add(y, v);
-	return wrapping_sub(wrapping_add(y, y), x);
+[[nodiscard]] V one_pole_step(Q<31> m, V& z, V x) {
+	const V v = mul_r_as_wrap<Q<31>>(sub_wrap(x, z), m);
+	const V y = add_wrap(v, z);
+	z = add_wrap(y, v);
+	return sub_wrap(add_wrap(y, y), x);
 }
 
 /// ShiftTracker<11>'s REMOVE step.
 template <class V>
 [[nodiscard]] V shift_tracker_step(V& y, V x) {
-	y = wrapping_add(y, wrapping_sub(x, y) >> 11);
-	return wrapping_sub(x, y);
+	y = add_wrap(y, scale_shr_floor<11>(sub_wrap(x, y)));
+	return sub_wrap(x, y);
 }
 
 /// AntialiasedTanh's clamp: below the floor to the floor, then above the ceiling to the ceiling.
 template <class V>
-[[nodiscard]] V clamp(V x, q31 floor, q31 ceiling) {
+[[nodiscard]] V clamp(V x, int32_t floor, int32_t ceiling) {
 	return min(max(x, floor), ceiling);
 }
 
 /// The same clamp through the comparisons and select.
 template <class V>
-[[nodiscard]] V clamp_by_select(V x, q31 floor, q31 ceiling) {
+[[nodiscard]] V clamp_by_select(V x, int32_t floor, int32_t ceiling) {
 	const V low_clamped = select(x < floor, V{floor}, x);
 	return select(low_clamped > ceiling, V{ceiling}, low_clamped);
 }
@@ -86,10 +89,10 @@ using deluge::dsp::fixed::OnePole;
 using deluge::dsp::fixed::SeededNoise;
 namespace probe = deluge::dsp::fixed::lane_pack_probe;
 
-static_assert(std::is_trivially_copyable_v<LanePack<q31, 1>>);
-static_assert(std::is_trivially_copyable_v<LanePack<q31, 8>>);
-static_assert(sizeof(LanePack<q31, 4>) == 4 * sizeof(q31));
-static_assert(sizeof(LanePack<q31, 2>) == sizeof(Frame<q31, 2>));
+static_assert(std::is_trivially_copyable_v<LanePack<Q<31>, 1>>);
+static_assert(std::is_trivially_copyable_v<LanePack<Q<31>, 8>>);
+static_assert(sizeof(LanePack<Q<31>, 4>) == 4 * sizeof(Q<31>));
+static_assert(sizeof(LanePack<Q<31>, 2>) == sizeof(Frame<Q<31>, 2>));
 
 // A lane holds what the scalar operation gives, so + and - exist only where that is a T: a narrower T promotes to int.
 template <typename P>
@@ -100,17 +103,19 @@ template <typename P>
 concept subtracts = requires(P a, P b) {
 	{ a - b } -> std::same_as<P>;
 };
-static_assert(adds<LanePack<q31, 2>> && subtracts<LanePack<q31, 2>>);
+static_assert(adds<LanePack<int32_t, 2>> && subtracts<LanePack<int32_t, 2>>);
 static_assert(adds<LanePack<float, 2>> && subtracts<LanePack<float, 2>>);
 static_assert(!adds<LanePack<int16_t, 2>> && !subtracts<LanePack<int16_t, 2>>);
 static_assert(!adds<LanePack<uint8_t, 2>> && !subtracts<LanePack<uint8_t, 2>>);
 static_assert(!adds<LanePack<bool, 2>> && !subtracts<LanePack<bool, 2>>);
+static_assert(!adds<LanePack<Q<31>, 2>> && !subtracts<LanePack<Q<31>, 2>>,
+              "a pack of Fixed adds as a Fixed does, by name");
 
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
-/// q31's extremes and the values next to them: every pairing overflows a sum or a difference somewhere.
-constexpr std::array<q31, 9> kExtremes{kMin, kMin + 1, kMin / 2, -1, 0, 1, kMax / 2, kMax - 1, kMax};
+/// Q31's extremes and the values next to them: every pairing overflows a sum or a difference somewhere.
+constexpr std::array<int32_t, 9> kExtremes{kMin, kMin + 1, kMin / 2, -1, 0, 1, kMax / 2, kMax - 1, kMax};
 /// The full-scale noise trials after the extremes.
 constexpr std::size_t kNoiseTrials = 2'000;
 /// The seed of the noise trials.
@@ -119,9 +124,9 @@ constexpr uint32_t kSeed = 0x1A4E'5EED;
 /// Three packs an operation takes: a and b for a binary operation, c as the accumulate's sum or a select's sign.
 template <std::size_t N>
 struct Trial {
-	LanePack<q31, N> a;
-	LanePack<q31, N> b;
-	LanePack<q31, N> c;
+	LanePack<int32_t, N> a;
+	LanePack<int32_t, N> b;
+	LanePack<int32_t, N> c;
 };
 
 /// Every triple of extremes, lane i offset by i in each operand so the lanes of one trial differ; then full-scale
@@ -202,15 +207,15 @@ Tally over_widths(F f) {
 	return t;
 }
 
-/// Whether @p a + @p b, or @p a - @p b when @p subtract, stays inside q31.
-bool in_range(q31 a, q31 b, bool subtract) {
+/// Whether @p a + @p b, or @p a - @p b when @p subtract, stays inside Q31.
+bool in_range(int32_t a, int32_t b, bool subtract) {
 	const int64_t r = subtract ? int64_t{a} - int64_t{b} : int64_t{a} + int64_t{b};
 	return r >= int64_t{kMin} && r <= int64_t{kMax};
 }
 
-/// Whether every lane of @p a op @p b stays inside q31, for the unwrapped + and -, whose overflow is undefined.
+/// Whether every lane of @p a op @p b stays inside Q31, for the unwrapped + and -, whose overflow is undefined.
 template <std::size_t N>
-bool lanes_in_range(const LanePack<q31, N>& a, const LanePack<q31, N>& b, bool subtract) {
+bool lanes_in_range(const LanePack<int32_t, N>& a, const LanePack<int32_t, N>& b, bool subtract) {
 	for (std::size_t i = 0; i < N; ++i) {
 		if (!in_range(a.lane[i], b.lane[i], subtract)) {
 			return false;
@@ -227,30 +232,30 @@ constexpr std::size_t kLanesPerWidthSum = (kExtremes.size() * kExtremes.size() *
 // clang-format off
 describe lane_pack_spec("LanePack", ${
 	it("broadcasts a scalar to every lane, and loads and stores a frame lane for lane", _ {
-		const LanePack<q31, 3> b = LanePack<q31, 3>::broadcast(kMin);
-		for (const q31 x : b.lane) {
+		const LanePack<int32_t, 3> b = LanePack<int32_t, 3>::broadcast(kMin);
+		for (const int32_t x : b.lane) {
 			expect(x).to_equal(kMin);
 		}
-		const LanePack<q31, 3> implicit = q31{-9};
-		for (const q31 x : implicit.lane) {
-			expect(x).to_equal(q31{-9});
+		const LanePack<int32_t, 3> implicit = int32_t{-9};
+		for (const int32_t x : implicit.lane) {
+			expect(x).to_equal(int32_t{-9});
 		}
 
-		const Frame<q31, 3> f{{kMin, 0, kMax}};
-		const LanePack<q31, 3> p = LanePack<q31, 3>::load(f);
+		const Frame<int32_t, 3> f{{kMin, 0, kMax}};
+		const LanePack<int32_t, 3> p = LanePack<int32_t, 3>::load(f);
 		expect(p.lane[0]).to_equal(kMin);
-		expect(p.lane[1]).to_equal(q31{0});
+		expect(p.lane[1]).to_equal(int32_t{0});
 		expect(p.lane[2]).to_equal(kMax);
 
-		Frame<q31, 3> out{{1, 2, 3}};
+		Frame<int32_t, 3> out{{1, 2, 3}};
 		(p >> 1).store(out);
 		expect(out[0]).to_equal(kMin >> 1);
-		expect(out[1]).to_equal(q31{0});
+		expect(out[1]).to_equal(int32_t{0});
 		expect(out[2]).to_equal(kMax >> 1);
 
-		const LanePack<q31, 2> zero{};
-		expect(zero.lane[0]).to_equal(q31{0});
-		expect(zero.lane[1]).to_equal(q31{0});
+		const LanePack<int32_t, 2> zero{};
+		expect(zero.lane[0]).to_equal(int32_t{0});
+		expect(zero.lane[1]).to_equal(int32_t{0});
 	});
 
 	it("adds and subtracts lane by lane, wherever the scalar result is defined", _ {
@@ -271,26 +276,26 @@ describe lane_pack_spec("LanePack", ${
 
 	it("wraps its sums and differences lane by lane, as the scalar wrapping_add and wrapping_sub do", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
-			Tally s = tally<N>([](const Trial<N>& x) { return wrapping_add(x.a, x.b); },
+			Tally s = tally<N>([](const Trial<N>& x) { return add_wrap(from_raw<Q<31>>(x.a), from_raw<Q<31>>(x.b)); },
 			                   [](const Trial<N>& x, std::size_t i) {
-				                   return deluge::dsp::wrapping_add(x.a.lane[i], x.b.lane[i]);
+				                   return Q<31>::from_raw(deluge::dsp::wrapping_add(x.a.lane[i], x.b.lane[i]));
 			                   });
-			s += tally<N>([](const Trial<N>& x) { return wrapping_sub(x.a, x.b); },
+			s += tally<N>([](const Trial<N>& x) { return sub_wrap(from_raw<Q<31>>(x.a), from_raw<Q<31>>(x.b)); },
 			              [](const Trial<N>& x, std::size_t i) {
-				              return deluge::dsp::wrapping_sub(x.a.lane[i], x.b.lane[i]);
+				              return Q<31>::from_raw(deluge::dsp::wrapping_sub(x.a.lane[i], x.b.lane[i]));
 			              });
 			return s;
 		});
 		expect(t.mismatched).to_equal(std::size_t{0});
 		expect(t.compared).to_equal(2 * kLanesPerWidthSum);
 
-		// The pairs that leave q31 are among them, and wrap.
-		const auto top = LanePack<q31, 2>::load(Frame<q31, 2>{{kMax, kMin}});
-		const auto one = LanePack<q31, 2>::load(Frame<q31, 2>{{1, 1}});
-		const LanePack<q31, 2> sum = wrapping_add(top, one);
-		const LanePack<q31, 2> difference = wrapping_sub(top, one);
-		expect(sum.lane[0]).to_equal(kMin);
-		expect(difference.lane[1]).to_equal(kMax);
+		// The pairs that leave Q31 are among them, and wrap.
+		const auto top = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{kMax, kMin}}));
+		const auto one = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{1, 1}}));
+		const LanePack<Q<31>, 2> sum = add_wrap(top, one);
+		const LanePack<Q<31>, 2> difference = sub_wrap(top, one);
+		expect(sum.lane[0].raw()).to_equal(kMin);
+		expect(difference.lane[1].raw()).to_equal(kMax);
 	});
 
 	it("shifts each lane by every amount, arithmetic right and left", _ {
@@ -310,14 +315,14 @@ describe lane_pack_spec("LanePack", ${
 
 	it("takes each lane's high word of the product exactly as multiply_32x32_rshift32 does", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
-			Tally s = tally<N>([](const Trial<N>& x) { return multiply_32x32_rshift32(x.a, x.b); },
+			Tally s = tally<N>([](const Trial<N>& x) { return mul(from_raw<Q<31>>(x.a), from_raw<Q<31>>(x.b)); },
 			                   [](const Trial<N>& x, std::size_t i) {
-				                   return ::multiply_32x32_rshift32(x.a.lane[i], x.b.lane[i]);
+				                   return Q<30>::from_raw(::multiply_32x32_rshift32(x.a.lane[i], x.b.lane[i]));
 			                   });
 			// A scalar second operand multiplies every lane, as a kernel's shared coefficient does.
-			s += tally<N>([](const Trial<N>& x) { return multiply_32x32_rshift32(x.a, x.b.lane[0]); },
+			s += tally<N>([](const Trial<N>& x) { return mul(from_raw<Q<31>>(x.a), Q<31>::from_raw(x.b.lane[0])); },
 			              [](const Trial<N>& x, std::size_t i) {
-				              return ::multiply_32x32_rshift32(x.a.lane[i], x.b.lane[0]);
+				              return Q<30>::from_raw(::multiply_32x32_rshift32(x.a.lane[i], x.b.lane[0]));
 			              });
 			return s;
 		});
@@ -327,13 +332,13 @@ describe lane_pack_spec("LanePack", ${
 
 	it("rounds each lane's high word exactly as multiply_32x32_rshift32_rounded does", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
-			Tally s = tally<N>([](const Trial<N>& x) { return multiply_32x32_rshift32_rounded(x.a, x.b); },
+			Tally s = tally<N>([](const Trial<N>& x) { return mul_r(from_raw<Q<31>>(x.a), from_raw<Q<31>>(x.b)); },
 			                   [](const Trial<N>& x, std::size_t i) {
-				                   return ::multiply_32x32_rshift32_rounded(x.a.lane[i], x.b.lane[i]);
+				                   return Q<30>::from_raw(::multiply_32x32_rshift32_rounded(x.a.lane[i], x.b.lane[i]));
 			                   });
-			s += tally<N>([](const Trial<N>& x) { return multiply_32x32_rshift32_rounded(x.a, x.b.lane[0]); },
+			s += tally<N>([](const Trial<N>& x) { return mul_r(from_raw<Q<31>>(x.a), Q<31>::from_raw(x.b.lane[0])); },
 			              [](const Trial<N>& x, std::size_t i) {
-				              return ::multiply_32x32_rshift32_rounded(x.a.lane[i], x.b.lane[0]);
+				              return Q<30>::from_raw(::multiply_32x32_rshift32_rounded(x.a.lane[i], x.b.lane[0]));
 			              });
 			return s;
 		});
@@ -342,25 +347,31 @@ describe lane_pack_spec("LanePack", ${
 
 		// The rounding is there: 3 × 2^31 is 1.5 × 2^32, which the truncating multiply takes to 1 and this to 2. At
 		// INT32_MIN squared, 2^62, neither saturates: the high word is 2^30.
-		const auto a = LanePack<q31, 2>::load(Frame<q31, 2>{{3, kMin}});
-		const auto b = LanePack<q31, 2>::load(Frame<q31, 2>{{q31{1} << 30, kMin}});
-		const LanePack<q31, 2> doubled = multiply_32x32_rshift32_rounded(a << 1, b);
-		expect(doubled.lane[0]).to_equal(q31{2});
-		expect(multiply_32x32_rshift32(a << 1, b).lane[0]).to_equal(q31{1});
-		expect(multiply_32x32_rshift32_rounded(a, b).lane[1]).to_equal(q31{1} << 30);
+		const auto a = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{3, kMin}}));
+		const auto b = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{int32_t{1} << 30, kMin}}));
+		const LanePack<Q<30>, 2> doubled = mul_r(scale_shl_wrap<1>(a), b);
+		expect(doubled.lane[0].raw()).to_equal(int32_t{2});
+		expect(mul(scale_shl_wrap<1>(a), b).lane[0].raw()).to_equal(int32_t{1});
+		expect(mul_r(a, b).lane[1].raw()).to_equal(int32_t{1} << 30);
 	});
 
 	it("accumulates each lane's rounded high word exactly as multiply_accumulate_32x32_rshift32_rounded does", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s = tally<N>(
-			    [](const Trial<N>& x) { return multiply_accumulate_32x32_rshift32_rounded(x.c, x.a, x.b); },
+			    [](const Trial<N>& x) {
+				    return mla_r(from_raw<Q<30>>(x.c), from_raw<Q<31>>(x.a), from_raw<Q<31>>(x.b));
+			    },
 			    [](const Trial<N>& x, std::size_t i) {
-				    return ::multiply_accumulate_32x32_rshift32_rounded(x.c.lane[i], x.a.lane[i], x.b.lane[i]);
+				    return Q<30>::from_raw(
+				        ::multiply_accumulate_32x32_rshift32_rounded(x.c.lane[i], x.a.lane[i], x.b.lane[i]));
 			    });
 			s += tally<N>(
-			    [](const Trial<N>& x) { return multiply_accumulate_32x32_rshift32_rounded(x.c, x.a, x.b.lane[0]); },
+			    [](const Trial<N>& x) {
+				    return mla_r(from_raw<Q<30>>(x.c), from_raw<Q<31>>(x.a), Q<31>::from_raw(x.b.lane[0]));
+			    },
 			    [](const Trial<N>& x, std::size_t i) {
-				    return ::multiply_accumulate_32x32_rshift32_rounded(x.c.lane[i], x.a.lane[i], x.b.lane[0]);
+				    return Q<30>::from_raw(
+				        ::multiply_accumulate_32x32_rshift32_rounded(x.c.lane[i], x.a.lane[i], x.b.lane[0]));
 			    });
 			return s;
 		});
@@ -374,7 +385,7 @@ describe lane_pack_spec("LanePack", ${
 			                   [](const Trial<N>& x, std::size_t i) { return x.a.lane[i] < x.b.lane[i]; });
 			s += tally<N>([](const Trial<N>& x) { return x.a > x.b; },
 			              [](const Trial<N>& x, std::size_t i) { return x.a.lane[i] > x.b.lane[i]; });
-			s += tally<N>([](const Trial<N>& x) { return select(x.c < q31{0}, x.a, x.b); },
+			s += tally<N>([](const Trial<N>& x) { return select(x.c < int32_t{0}, x.a, x.b); },
 			              [](const Trial<N>& x, std::size_t i) { return x.c.lane[i] < 0 ? x.a.lane[i] : x.b.lane[i]; });
 			return s;
 		});
@@ -405,22 +416,23 @@ describe lane_pack_spec("LanePack", ${
 		expect(t.mismatched).to_equal(std::size_t{0});
 		expect(t.compared).to_equal(3 * kLanesPerWidthSum);
 
-		expect(max(q31{-3}, q31{2})).to_equal(q31{2});
-		expect(min(q31{-3}, q31{2})).to_equal(q31{-3});
+		expect(max(int32_t{-3}, int32_t{2})).to_equal(int32_t{2});
+		expect(min(int32_t{-3}, int32_t{2})).to_equal(int32_t{-3});
 	});
 
-	it("runs OnePole's step written once over V, for q31 and per lane of the pack, alike", _ {
+	it("runs OnePole's step written once over V, for Q<31> and per lane of the pack, alike", _ {
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s;
-			for (const q31 m : {q31{0}, q31{1} << 24, kOneQ31 / 3, kMax}) {
-				std::array<q31, N> z{};
-				LanePack<q31, N> zp{};
+			for (const int32_t m_raw : {int32_t{0}, int32_t{1} << 24, kOneQ31 / 3, kMax}) {
+				const Q<31> m = Q<31>::from_raw(m_raw);
+				std::array<Q<31>, N> z{};
+				LanePack<Q<31>, N> zp{};
 				for (const Trial<N>& x : trials<N>()) {
-					const LanePack<q31, N> got = probe::one_pole_step(m, zp, x.a);
+					const LanePack<Q<31>, N> got = probe::one_pole_step(m, zp, from_raw<Q<31>>(x.a));
 					for (std::size_t i = 0; i < N; ++i) {
 						OnePole::State st{.z = z[i]};
-						const q31 kernel = OnePole::step<OnePole::Mode::ALL_PASS>({.m = m}, {}, st, x.a.lane[i]);
-						const q31 scalar = probe::one_pole_step(m, z[i], x.a.lane[i]);
+						const Q<31> kernel = OnePole::step<OnePole::Mode::ALL_PASS>({.m = m}, {}, st, Q<31>::from_raw(x.a.lane[i]));
+						const Q<31> scalar = probe::one_pole_step(m, z[i], Q<31>::from_raw(x.a.lane[i]));
 						++s.compared;
 						s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.z == z[i]
 						                 && zp.lane[i] == z[i]) ? 0 : 1;
@@ -433,19 +445,18 @@ describe lane_pack_spec("LanePack", ${
 		expect(t.compared).to_equal(4 * kLanesPerWidthSum);
 	});
 
-	it("runs ShiftTracker's step written once over V, for q31 and per lane of the pack, alike", _ {
+	it("runs ShiftTracker's step written once over V, for Q<31> and per lane of the pack, alike", _ {
 		using Blocker = fixed::ShiftTracker<11>;
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s;
-			std::array<q31, N> y{};
-			LanePack<q31, N> yp{};
+			std::array<Q<31>, N> y{};
+			LanePack<Q<31>, N> yp{};
 			for (const Trial<N>& x : trials<N>()) {
-				const LanePack<q31, N> got = probe::shift_tracker_step(yp, x.a);
+				const LanePack<Q<31>, N> got = probe::shift_tracker_step(yp, from_raw<Q<31>>(x.a));
 				for (std::size_t i = 0; i < N; ++i) {
 					Blocker::State st{.y = y[i]};
-					const q31 kernel = Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, st,
-					                                                        x.a.lane[i]);
-					const q31 scalar = probe::shift_tracker_step(y[i], x.a.lane[i]);
+					const Q<31> kernel = Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, st, Q<31>::from_raw(x.a.lane[i]));
+					const Q<31> scalar = probe::shift_tracker_step(y[i], Q<31>::from_raw(x.a.lane[i]));
 					++s.compared;
 					s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.y == y[i]
 					                 && yp.lane[i] == y[i]) ? 0 : 1;
@@ -462,27 +473,30 @@ describe lane_pack_spec("LanePack", ${
 			Tally s;
 			for (uint32_t drive = 0; drive <= 30; ++drive) {
 				const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
-				const auto ternaries = [&c](const Trial<N>& x, std::size_t i) {
-					const q31 low_clamped = x.a.lane[i] < c.floor ? c.floor : x.a.lane[i];
-					return low_clamped > c.ceiling ? c.ceiling : low_clamped;
+				// The bounds as raw words, the lanes' format here
+				const int32_t floor = c.floor.raw();
+				const int32_t ceiling = c.ceiling.raw();
+				const auto ternaries = [&](const Trial<N>& x, std::size_t i) {
+					const int32_t low_clamped = x.a.lane[i] < floor ? floor : x.a.lane[i];
+					return low_clamped > ceiling ? ceiling : low_clamped;
 				};
-				s += tally<N>([&c](const Trial<N>& x) { return probe::clamp(x.a, c.floor, c.ceiling); }, ternaries);
-				s += tally<N>([&c](const Trial<N>& x) { return probe::clamp_by_select(x.a, c.floor, c.ceiling); },
+				s += tally<N>([&](const Trial<N>& x) { return probe::clamp(x.a, floor, ceiling); }, ternaries);
+				s += tally<N>([&](const Trial<N>& x) { return probe::clamp_by_select(x.a, floor, ceiling); },
 				              ternaries);
 				s += tally<N>(
-				    [&c](const Trial<N>& x) {
-					    LanePack<q31, N> scalar{};
+				    [&](const Trial<N>& x) {
+					    LanePack<int32_t, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
-						    scalar.lane[i] = probe::clamp(x.a.lane[i], c.floor, c.ceiling);
+						    scalar.lane[i] = probe::clamp(x.a.lane[i], floor, ceiling);
 					    }
 					    return scalar;
 				    },
 				    ternaries);
 				s += tally<N>(
-				    [&c](const Trial<N>& x) {
-					    LanePack<q31, N> scalar{};
+				    [&](const Trial<N>& x) {
+					    LanePack<int32_t, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
-						    scalar.lane[i] = probe::clamp_by_select(x.a.lane[i], c.floor, c.ceiling);
+						    scalar.lane[i] = probe::clamp_by_select(x.a.lane[i], floor, ceiling);
 					    }
 					    return scalar;
 				    },

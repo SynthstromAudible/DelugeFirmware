@@ -37,7 +37,7 @@ ParamSnapshot::applyPatch(deluge::project::Song& model, const deluge::project::P
 		// Scalar path (the length==0 / no-timeline route in setValuePossiblyForRegion): the effect is a plain
 		// current_value sync. Nodes are untouched for an unautomated param, and an automated param's node array
 		// is likewise not rewritten by the scalar path.
-		doc->current_value = value;
+		deluge::project::set_base(*doc, value);
 		return std::nullopt;
 	}
 

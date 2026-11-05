@@ -17,30 +17,33 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include <algorithm>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
 
-/// @brief The amplitudes of the two channels at a pan position, Q30 (1073741823 is unity).
+/// @brief The amplitudes of the two channels at a pan position (1073741823 is unity).
 struct PanAmplitudes {
-	int32_t left;
-	int32_t right;
+	Q<30> left;
+	Q<30> right;
 };
 
 /// @brief The amplitudes at @p pan: the channel the pan moves away from falls linearly to silence; the other stays
 /// at unity.
 ///
-/// @param pan Pan position, Q31: 0 is the centre; +2^30 and beyond is fully right, -2^30 and beyond fully left.
-/// @return The left and right channel amplitudes, Q30.
-[[nodiscard]] constexpr PanAmplitudes pan_amplitudes(int32_t pan) {
+/// @param pan Pan position: 0 is the centre; +2^30 (a half) and beyond is fully right, -2^30 and beyond fully left.
+/// @return The left and right channel amplitudes.
+[[nodiscard]] constexpr PanAmplitudes pan_amplitudes(Q<31> pan) {
 	constexpr int32_t kUnity = 1073741823;
 	constexpr int32_t kHalfRange = 1073741824;
-	if (pan == 0) {
-		return {.left = kUnity, .right = kUnity};
+	if (pan == Q<31>{}) {
+		return {.left = Q<30>::from_raw(kUnity), .right = Q<30>::from_raw(kUnity)};
 	}
-	const int32_t offset = std::clamp(pan, -kHalfRange, kHalfRange);
-	return {.left = pan <= 0 ? kUnity : kHalfRange - offset, .right = pan >= 0 ? kUnity : kHalfRange + offset};
+	// Raw: the Q31 offset from the centre is the Q30 amplitude's distance from one, bit for bit
+	const int32_t offset = std::clamp(pan.raw(), -kHalfRange, kHalfRange);
+	return {.left = Q<30>::from_raw(pan.raw() <= 0 ? kUnity : kHalfRange - offset),
+	        .right = Q<30>::from_raw(pan.raw() >= 0 ? kUnity : kHalfRange + offset)};
 }
 
 } // namespace deluge::dsp::fixed

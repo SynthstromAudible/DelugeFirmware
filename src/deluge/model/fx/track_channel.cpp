@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/track_channel.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "memory/stack_guard.h"
 #include "model/fx/chain_inputs.h"
@@ -28,7 +29,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral
+#include "synth/matrix/param_format.h" // param_neutral
 #include "util/functions.h"
 #include <algorithm>
 #include <cstring>
@@ -40,7 +41,7 @@ namespace deluge::model {
 
 TrackChannel::TrackChannel()
     : chain_{kModFxRingAllocator, kGranularAllocator, delayArena(),
-             synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+             synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>()} {
 	initChannelSettings(binding_, view_, chain_.core(), chain_.filter());
 }
 
@@ -53,16 +54,13 @@ TrackChannel::~TrackChannel() {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
-	// maximum multiplication would be 4)
-	int32_t a = dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = dsp::fixed::curve_square(134217728, a) >> 1;
+	const dsp::Q<27> volumeAdjustment = volume_from_knob(unpatchedParams->getKnob(params::UNPATCHED_VOLUME));
 
-	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(block.reverb_amount_adjust, volumeAdjustment)
-	                                     << 5;
+	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
+	int32_t reverbAmountAdjustForDrums =
+	    mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust), volumeAdjustment).raw();
 
-	int32_t pitchAdjust =
-	    dsp::fixed::curve_exponential(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	const dsp::Q<24> pitchAdjust = pitch_adjust_from_knob(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST));
 
 	// The delay starts or stops on whether the content rendered last block.
 	effects::Delay::State delay = delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,
@@ -137,7 +135,7 @@ ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManager
 	    .amount = reverbHere,
 	    .found = true,
 	    .duck_depth = sidechainDepth(paramManager),
-	    .duck_shape = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .duck_shape = unpatchedParams->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .rates = binding_.snapshot().effects.sidechain,
 	};
 }

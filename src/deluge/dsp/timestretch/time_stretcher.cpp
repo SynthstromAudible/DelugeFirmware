@@ -18,6 +18,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/sample/sample_low_level_reader.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
@@ -393,8 +394,13 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	// Apply random element
 #if !MEASURE_HOP_END_PERFORMANCE
-	minBeamWidth +=
-	    (multiply_32x32_rshift32(minBeamWidth, multiply_32x32_rshift32(getNoise(), randomElement << 8)) << 2);
+	// A random fraction of the beam width: the Q31 noise times the random element moved up 8, Q30, times the width's
+	// word read as Q31 (an integer count, so the product is its fraction at Q29), ×4
+	{
+		using deluge::dsp::Q;
+		const auto fraction = mul(Q<31>::from_raw(getNoise()), Q<31>::from_raw(randomElement << 8));
+		minBeamWidth += scale_shl_wrap<2>(mul(Q<31>::from_raw(minBeamWidth), fraction)).raw();
+	}
 #endif
 
 	int32_t newHeadBytePos;
@@ -594,7 +600,10 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		crossfadeLengthSamples =
-		    multiply_32x32_rshift32_rounded(samplesTilHopEnd, crossfadeProportional) + crossfadeAbsolute * 4;
+		    // The sample count's word read as Q31 times the Q31 proportion: its fraction, rounded, in samples / 2
+		    mul_r(deluge::dsp::Q<31>::from_raw(samplesTilHopEnd), deluge::dsp::Q<31>::from_raw(crossfadeProportional))
+		        .raw()
+		    + crossfadeAbsolute * 4;
 		if (crossfadeLengthSamples >= (samplesTilHopEnd >> 1)) {
 			crossfadeLengthSamples = (samplesTilHopEnd >> 1);
 		}
@@ -1089,11 +1098,24 @@ bool TimeStretcher::allocateBuffer(int32_t numChannels) {
 	return (buffer != nullptr);
 }
 
-void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t numSamples, int32_t numChannels,
-                                   int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
+namespace {
+/// @brief @p mix plus @p sample times @p amplitude, the high word, summed wrapping: @ref deluge::audio::mixed_in
+/// without its rounding. @p sample is a time-stretch buffer word, Q31; @p amplitude is the sample reader's amplitude
+/// word, read as Q31.
+[[gnu::always_inline]] inline deluge::dsp::Q<31> mixed_in_floor(deluge::dsp::Q<31> mix, int32_t sample,
+                                                                int32_t amplitude) {
+	using deluge::dsp::Q;
+	using deluge::dsp::reinterpret_bits;
+	return reinterpret_bits<Q<31>>(
+	    mla(reinterpret_bits<Q<30>>(mix), Q<31>::from_raw(sample), Q<31>::from_raw(amplitude)));
+}
+} // namespace
+
+void TimeStretcher::readFromBuffer(deluge::dsp::Q<31>* __restrict__ oscBufferPos, int32_t numSamples,
+                                   int32_t numChannels, int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow,
                                    int32_t amplitudeIncrementNow, int32_t* __restrict__ bufferReadPos) {
 
-	int32_t* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
+	deluge::dsp::Q<31>* oscBufferEndNow = oscBufferPos + numSamples * numChannels;
 
 	do {
 		int32_t sampleRead[2];
@@ -1116,13 +1138,13 @@ void TimeStretcher::readFromBuffer(int32_t* __restrict__ oscBufferPos, int32_t n
 		sourceAmplitudeNow += amplitudeIncrementNow;
 
 		// Mono / left channel (or stereo condensed to mono)
-		*oscBufferPos +=
-		    multiply_32x32_rshift32(sampleRead[0], sourceAmplitudeNow); // sourceAmplitude is modified above
+		// The sample times the amplitude, the high word, added into the half-scale mix (@ref deluge::audio::mixed_in)
+		*oscBufferPos = mixed_in_floor(*oscBufferPos, sampleRead[0], sourceAmplitudeNow);
 		oscBufferPos++;
 
 		// Right channel
 		if (numChannelsAfterCondensing == 2) {
-			*oscBufferPos += multiply_32x32_rshift32(sampleRead[1], sourceAmplitudeNow);
+			*oscBufferPos = mixed_in_floor(*oscBufferPos, sampleRead[1], sourceAmplitudeNow);
 			oscBufferPos++;
 		}
 	} while (oscBufferPos != oscBufferEndNow);

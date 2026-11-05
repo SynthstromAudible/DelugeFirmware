@@ -36,7 +36,7 @@ MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int32_t cc, int32_t defaultVa
 		param->cc = cc;
 		// Write the store (the CC's inline nodes_) too, so a learned-then-saved CC persists this value from the
 		// store, not the engine cursor.
-		param->param.setCurrentValueBasicForSetup(param->nodes_, defaultValue);
+		param->param.setBase(param->nodes_, defaultValue);
 	}
 	return param;
 }

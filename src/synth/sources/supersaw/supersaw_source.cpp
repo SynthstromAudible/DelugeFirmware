@@ -20,26 +20,27 @@
 
 namespace deluge::synth {
 
-void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
-                                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
-                                 deluge::dsp::fixed::Buffer scratch) {
+void SupersawSource::render_into(const BlockControls& controls, dsp::UQ<32> phase_increment, int32_t wave_index_last,
+                                 int32_t wave_index_increment, std::span<dsp::Q<31>> output,
+                                 std::span<dsp::Q<31>> scratch) {
 	using deluge::dsp::fixed::Supersaw;
 	const size_t num_samples = output.size();
 
 	// The plain saw's dire-CPU fallback: skip the band limiting for lower notes
-	const bool band_limit = deluge::dsp::fixed::get_table_number(phase_increment).first >= controls.cpu_direness + 6;
+	// The band ladder and the kernel step the increment as a raw word
+	const bool band_limit =
+	    deluge::dsp::fixed::get_table_number(phase_increment.raw()).first >= controls.cpu_direness + 6;
 	const int32_t spread = wave_index_last + wave_index_increment * static_cast<int32_t>(num_samples);
 
-	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
-	Supersaw::render(deluge::dsp::fixed::Buffer{dst, num_samples}, phase_increment, spread,
+	dsp::Q<31>* dst = controls.apply_amplitude ? scratch.data() : output.data();
+	Supersaw::render(std::span<dsp::Q<31>>{dst, num_samples}, phase_increment.raw(), spread,
 	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_,
 	                 band_limit);
 
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<2>(controls.amplitude)};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), num_samples}, deluge::dsp::fixed::Signal{output},
-		                 output);
+		vca.render_block(std::span<const dsp::Q<31>>{scratch.data(), num_samples}, output, output);
 	}
 }
 

@@ -57,16 +57,16 @@ struct VoiceBlock {
 
 /// @brief One voice render's buffer and the sound-level scalars that go with it.
 struct VoiceRenderArgs {
-	int32_t* buffer{};      ///< The sound's buffer, which the voice adds into (stereo pairs when @ref sound_in_stereo)
+	dsp::Q<31>* buffer{};   ///< The sound's buffer, which the voice adds into (stereo pairs when @ref sound_in_stereo)
 	int32_t num_samples{};  ///< Frames to render
 	bool sound_in_stereo{}; ///< The sound renders its voices in stereo
 	bool pan_at_voice_level{};  ///< Each voice pans itself (pan is patched), rather than the sound panning the sum
 	uint32_t sources_changed{}; ///< Bit per patch source whose value changed since the last block
-	int32_t pitch_adjust{};     ///< The sound's pitch adjust, 2^24 for none
+	dsp::Q<24> pitch_adjust{dsp::Q<24>::one()}; ///< The sound's pitch adjust
 	/// Shared scratch, each SSI_TX_BUFFER_NUM_SAMPLES wide: the render's stereo, ring-mod and osc-sync work buffers.
-	std::array<int32_t*, 4> spare_buffers{};
+	std::array<dsp::Q<31>*, 4> spare_buffers{};
 	dsp::fixed::FilterScratch filter_scratch{}; ///< The filters' fade and parallel-route buffers
-	std::span<int32_t> sync_scratch{};          ///< A synced oscillator's work buffer, a block and four samples long
+	std::span<dsp::Q<31>> sync_scratch;         ///< A synced oscillator's work buffer, a block and four samples long
 	dsp::fixed::Cong* noise{};                  ///< The synth's one noise stream
 };
 

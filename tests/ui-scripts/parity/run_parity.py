@@ -95,21 +95,32 @@ def advance(dz, seconds):
 
 
 class AbortWatch:
-    """Reads QEMU's interrupt log through a FIFO and keeps only the count of data and prefetch aborts: the log itself
-    runs to gigabytes over a long script."""
+    """Reads QEMU's interrupt log through a FIFO and keeps the count of data and prefetch aborts, and the first one's
+    lines (the exception and the fault status and address QEMU prints after it): the log itself runs to gigabytes over
+    a long script."""
+
+    DETAIL_LINES = 4
 
     def __init__(self, path):
         os.mkfifo(path)
         self.path = path
         self.aborts = 0
+        self.first = []
         self.thread = threading.Thread(target=self._read, daemon=True)
         self.thread.start()
 
     def _read(self):
+        keep = 0
         with open(self.path, "rb") as fifo:
             for line in fifo:
+                if keep:
+                    self.first.append(line.decode(errors="replace").rstrip())
+                    keep -= 1
                 if b"Taking exception 4 [" in line or b"Taking exception 3 [" in line:
                     self.aborts += 1
+                    if self.aborts == 1:
+                        self.first.append(line.decode(errors="replace").rstrip())
+                        keep = self.DETAIL_LINES
 
 
 def launch(session_cls, qmp_client_cls, emu, elf, card, extra, workdir, midi):
@@ -257,8 +268,15 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
                 raise RunError(f"{where}: unknown verb {verb!r}")
             advance(dz, SETTLE)
         if watch.aborts:
+            console = ""
+            run_log = getattr(dz, "run_log", None)
+            if run_log and os.path.exists(run_log):
+                with open(run_log, errors="replace") as fh:
+                    console = "".join(fh.readlines()[-20:])
             raise RunError(
-                f"{os.path.basename(script)}: the image took {watch.aborts} data or prefetch abort(s)"
+                f"{os.path.basename(script)}: the image took {watch.aborts} data or prefetch abort(s); the first:\n"
+                + "\n".join(watch.first)
+                + f"\nthe image's console, last lines:\n{console}"
             )
     finally:
         dz.close()

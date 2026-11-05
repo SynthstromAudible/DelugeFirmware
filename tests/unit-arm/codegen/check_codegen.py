@@ -89,6 +89,9 @@ EXACT = {
     "probe_vec_mul_doubling_sat_scalar": ["vdup.32", "vqdmulh.s32"],
     "probe_vec_mul_doubling_sat_q16": ["vdup.16", "vqdmulh.s16"],
     "probe_vec_mul_doubling_r_sat": ["vqrdmulh.s32"],
+    "probe_vec_mul_doubling_r_sat_scalar": ["vdup.32", "vqrdmulh.s32"],
+    "probe_vec_to_float_24": ["vcvt.f32.s32"],
+    "probe_vec_from_float_24": ["vcvt.s32.f32"],
     "probe_vec_scale_shl_wrap_3": ["vshl.i32"],
     "probe_vec_scale_shr_floor_3": ["vshr.s32"],
     "probe_vec_add_scale_shr_floor_4": ["vsra.s32"],
@@ -107,6 +110,8 @@ EXACT = {
 # Operand text that must appear in the body: the immediates a wrong width or shift would change.
 OPERANDS = {
     "probe_vec_scale_shl_wrap_3": ["#0x3"],
+    "probe_vec_to_float_24": ["#0x18"],
+    "probe_vec_from_float_24": ["#0x18"],
     "probe_vec_scale_shr_floor_3": ["#0x3"],
     "probe_vec_as_floor_3": ["#0x3"],
     "probe_vec_add_scale_shr_floor_4": ["#0x4"],

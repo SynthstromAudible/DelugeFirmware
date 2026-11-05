@@ -52,6 +52,7 @@
 #include "argon.hpp"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/q31_ops.h"
+#include "raw_frame.h"
 #include "reverb_views.h"
 #include "reverb_workloads.h"
 #include "util/misc.h"
@@ -113,7 +114,7 @@ inline ReverbCounts counts;
 
 namespace deluge::dsp::test::reverb_ref {
 
-using deluge::dsp::StereoSample;
+using deluge::dsp::test::RawFrame;
 
 // ---- freeverb/tuning.h ----
 
@@ -360,8 +361,7 @@ public:
 	[[nodiscard]] constexpr int32_t getPanLeft() const { return amplitude_left_; }
 	[[nodiscard]] constexpr int32_t getPanRight() const { return amplitude_right_; }
 
-	[[gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC void ProcessOne(int32_t input,
-	                                                                          StereoSample& output_sample) {
+	[[gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC void ProcessOne(int32_t input, RawFrame& output_sample) {
 		int64_t comb_sum_l = 0;
 		int64_t comb_sum_r = 0;
 		for (int32_t i = 0; i < numcombs; i++) {
@@ -402,7 +402,7 @@ public:
 	}
 
 	[[gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<int32_t> input,
-	                                                                       std::span<StereoSample> output) {
+	                                                                       std::span<RawFrame> output) {
 		++counts.freeverb_blocks;
 		if (wet2 != 0) {
 			++counts.freeverb_wet2_blocks;
@@ -910,7 +910,7 @@ public:
 
 	~ReferenceMutable() = default;
 
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<int32_t> in, std::span<StereoSample> output) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<int32_t> in, std::span<RawFrame> output) {
 		++counts.mutable_blocks;
 		if (hp_cutoff_val_ != 0 || lp_cutoff_val_ != 1) {
 			++counts.plate_filtered_blocks;
@@ -949,7 +949,7 @@ public:
 		float lp_2 = lp_decay_2_;
 
 		for (size_t frame = 0; frame < in.size(); frame++) {
-			StereoSample& s = output[frame];
+			RawFrame& s = output[frame];
 			float wet = 0;
 			float apout = 0.0f;
 			engine_.Advance();
@@ -1141,7 +1141,7 @@ class ReferenceDigital : public ReferenceMutable {
 	constexpr static float kDecayMax = 0.9f;
 
 public:
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<q31_t> in, std::span<StereoSample> output) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<q31_t> in, std::span<RawFrame> output) {
 		++counts.digital_blocks;
 		if (hp_cutoff_val_ != 0 || lp_cutoff_val_ != 1) {
 			++counts.plate_filtered_blocks;
@@ -1361,7 +1361,7 @@ public:
 	///
 	/// @param input  Dry signal to feed the reverb.
 	/// @param output Buffer the reverb is mixed into.
-	void process(std::span<int32_t> input, std::span<StereoSample> output) {
+	void process(std::span<int32_t> input, std::span<RawFrame> output) {
 		// Mid-rebuild there is no reverb to render. `process` mixes into `output`, so contributing
 		// nothing leaves the dry signal intact.
 		if (rebuilding_.load(std::memory_order_acquire)) {
@@ -1481,7 +1481,7 @@ struct ReferenceRunner {
 		reverb->setDamping(k.damping);
 		reverb->setWidth(k.width);
 	}
-	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
+	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
 		reverb->setPanLevels(l, r);
 		reverb->process(send, out);
 	}

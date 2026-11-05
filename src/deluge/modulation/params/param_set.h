@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
@@ -109,6 +110,8 @@ public:
 	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
+	/// @brief Param @p p's stored word, a knob position: −1 to just under 1.
+	[[nodiscard]] deluge::dsp::Q<31> getKnob(int32_t p) { return deluge::dsp::Q<31>::from_raw(getValue(p)); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;

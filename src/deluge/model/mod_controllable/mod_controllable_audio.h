@@ -83,7 +83,7 @@ public:
 	[[nodiscard]] static deluge::plugin::CodecContext effectsCodecContext();
 	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
 	/// @return The threshold (Q31).
-	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
+	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold().raw(); }
 
 	/// @brief This owner's effect settings, as its binding holds them: a bound record's, else the binding's own.
 	/// @return The effect settings.

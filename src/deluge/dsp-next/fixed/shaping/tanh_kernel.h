@@ -36,8 +36,8 @@ namespace deluge::dsp::fixed {
 template <uint32_t Drive>
 requires(Drive <= 29)
 struct Tanh {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief Nothing to set: the drive is the template's.
 	struct Settings {};
@@ -52,10 +52,10 @@ struct Tanh {
 	}
 
 	/// @brief One sample through the curve.
-	/// @param x The input, Q31.
-	/// @return @ref tanh<Drive> of @p x, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
-	                                                     State& /*s*/, q31 x) {
+	/// @param x The input.
+	/// @return @ref tanh<Drive> of @p x.
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
+	                                                       State& /*s*/, Q<31> x) {
 		return tanh<Drive>(x);
 	}
 };

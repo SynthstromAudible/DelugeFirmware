@@ -56,7 +56,7 @@ const int32_t maxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112
 // y = 1 ::  17 <  18 <  32
 // y = 0 ::  0  <   0 <  16
 
-PLACE_SDRAM_BSS AutomationEditorLayoutNoteVelocity automationEditorLayoutNoteVelocity{};
+PLACE_SDRAM_DATA AutomationEditorLayoutNoteVelocity automationEditorLayoutNoteVelocity{};
 
 /// render each square in each column of the note editor grid
 void AutomationEditorLayoutNoteVelocity::renderNoteColumn(ModelStackWithNoteRow* modelStackWithNoteRow,

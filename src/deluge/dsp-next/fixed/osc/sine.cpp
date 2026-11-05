@@ -100,11 +100,11 @@ namespace deluge::dsp::fixed {
 	return mla_doubling_wide_sat(from_q16(entry), Q16Half<15>::from_raw(diff), Q16Half<15>::from_raw(fraction)).raw();
 }
 
-[[gnu::hot]] int32_t sine_fm_operator(uint32_t carrier_phase, uint32_t phase_shift) {
+[[gnu::hot]] Q<31> sine_fm_operator(UQ<32> carrier_phase, uint32_t phase_shift) {
 	// The operator works in a 24-bit phase: drop the carrier's low 8 bits and add the
 	// (already 24-bit) modulation.
 	constexpr int kOperatorPhaseBits = 24;
-	const uint32_t phase = (carrier_phase >> (kPhaseBits - kOperatorPhaseBits)) + phase_shift;
+	const uint32_t phase = (carrier_phase.raw() >> (kPhaseBits - kOperatorPhaseBits)) + phase_shift;
 
 	// Interpolation weight: the low 16 bits of the 24-bit phase, a Q16 fraction.
 	const int32_t fraction = phase & 0xFFFF;
@@ -118,7 +118,7 @@ namespace deluge::dsp::fixed {
 	const uint32_t pair = *reinterpret_cast<uint32_t*>(&sine_wave_diff[entry_offset]);
 	const int32_t value = pair << 16;                      // sine value promoted to the q31 high half
 	const int32_t diff = static_cast<int32_t>(pair) >> 16; // sign-extended diff
-	return value + (diff * fraction);
+	return Q<31>::from_raw(value + (diff * fraction));
 }
 
 } // namespace deluge::dsp::fixed

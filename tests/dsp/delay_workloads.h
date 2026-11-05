@@ -53,6 +53,7 @@
 
 namespace delay_workloads {
 
+using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayBlockResult;
@@ -133,7 +134,7 @@ struct Workload {
 inline constexpr size_t kMaxFrames = 128;
 
 /// @brief The impulse a lap workload plays, Q31: 2^28 on both channels.
-inline constexpr StereoSample kImpulse{.l = 1 << 28, .r = 1 << 28};
+inline constexpr StereoSample kImpulse = StereoSample::from_mono(Q<31>::from_raw(1 << 28));
 
 /// @brief Digital feedback gains, Q31 amounts the shaper scales by 2^-30: 0.75 and 0.99.
 inline constexpr int32_t kFeedback075 = 3 << 28;
@@ -167,7 +168,7 @@ struct Mode {
 	return {.frames = frames,
 	        .rate = rate,
 	        .settings = {.rate = static_cast<int32_t>(rate),
-	                     .feedback = mode.feedback,
+	                     .feedback = deluge::dsp::Q<31>::from_raw(mode.feedback),
 	                     .analog = mode.analog,
 	                     .analog_saturation = mode.saturation,
 	                     .ping_pong = mode.ping_pong,
@@ -485,8 +486,8 @@ struct Digest {
 	void add(int32_t word) { add(static_cast<uint32_t>(word)); }
 	void add(std::span<const StereoSample> samples) {
 		for (const StereoSample s : samples) {
-			add(s.l);
-			add(s.r);
+			add(s.l.raw());
+			add(s.r.raw());
 		}
 	}
 };
@@ -500,7 +501,7 @@ struct Digest {
 [[nodiscard]] inline StereoSample input(uint32_t k) {
 	const uint32_t a = (k + 1) * 2654435761u;
 	const uint32_t b = (k + 7) * 2246822519u;
-	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a) >> 3), .r = Q<31>::from_raw(static_cast<int32_t>(b) >> 3)};
 }
 
 /// @return Sample @p k of a loud workload's input: @ref input's channels at full scale, so the cross mix's l + r and
@@ -508,14 +509,14 @@ struct Digest {
 [[nodiscard]] inline StereoSample loud_input(uint32_t k) {
 	const uint32_t a = (k + 1) * 2654435761u;
 	const uint32_t b = (k + 7) * 2246822519u;
-	return {.l = static_cast<int32_t>(a), .r = static_cast<int32_t>(b)};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a)), .r = Q<31>::from_raw(static_cast<int32_t>(b))};
 }
 
 /// @return Sample @p k of a lap of noise on a tape already playing, 26 bits of magnitude.
 [[nodiscard]] inline StereoSample tape_noise(uint32_t k) {
 	const uint32_t a = (k + 3) * 2246822519u;
 	const uint32_t b = (k + 5) * 3266489917u;
-	return {.l = static_cast<int32_t>(a) >> 5, .r = static_cast<int32_t>(b) >> 5};
+	return {.l = Q<31>::from_raw(static_cast<int32_t>(a) >> 5), .r = Q<31>::from_raw(static_cast<int32_t>(b) >> 5)};
 }
 
 /// @brief What a fresh tape's storage holds before the tape writes it: sample @p i of the storage.
@@ -523,7 +524,7 @@ using Fill = std::function<StereoSample(size_t)>;
 
 /// @return Sample @p i of a fresh allocation: the allocator's fill.
 [[nodiscard]] inline StereoSample allocator_sample(size_t i) {
-	return StereoSample{.l = allocator_fill(2 * i), .r = allocator_fill((2 * i) + 1)};
+	return StereoSample{.l = Q<31>::from_raw(allocator_fill(2 * i)), .r = Q<31>::from_raw(allocator_fill((2 * i) + 1))};
 }
 
 /// @brief A tape and the storage it plays, as the delay takes it: the ideal size for its rate plus kWriteLag.
@@ -588,9 +589,7 @@ public:
 		const std::span<StereoSample> buffer = out.first(s.frames);
 		for (StereoSample& sample : buffer) {
 			const bool impulse = !s.input && s.impulse == &sample - buffer.data();
-			sample = s.input   ? (s.loud ? loud_input(k_) : input(k_))
-			         : impulse ? kImpulse
-			                   : StereoSample{.l = 0, .r = 0};
+			sample = s.input ? (s.loud ? loud_input(k_) : input(k_)) : impulse ? kImpulse : StereoSample{};
 			++k_;
 		}
 

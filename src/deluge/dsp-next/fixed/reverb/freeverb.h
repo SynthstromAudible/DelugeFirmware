@@ -113,15 +113,15 @@ struct Freeverb {
 	/// @brief One channel's indices into its lines and its combs' filter stores.
 	struct Channel {
 		int32_t comb_index[kCombs]{};        // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		q31 comb_store[kCombs]{};            // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+		Q<31> comb_store[kCombs]{};          // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 		int32_t allpass_index[kAllpasses]{}; // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 	};
 	/// @brief The owner's memory, this block's send cursor and return levels, the DC blocker and both channels.
 	struct State {
-		q31* memory = nullptr;     ///< kMemoryWords words, laid out by kLayout.
-		const q31* send = nullptr; ///< The next send sample; set by set_send, advanced per frame.
-		q31 pan_l = 0;             ///< The left return level, Q31.
-		q31 pan_r = 0;             ///< The right return level, Q31.
+		Q<31>* memory = nullptr;     ///< kMemoryWords words, laid out by kLayout.
+		const Q<31>* send = nullptr; ///< The next send sample; set by set_send, advanced per frame.
+		Q<31> pan_l{};               ///< The left return level.
+		Q<31> pan_r{};               ///< The right return level.
 		DcBlocker::State dc{};
 		Channel left{};
 		Channel right{};
@@ -149,8 +149,7 @@ struct Freeverb {
 	/// @brief One frame: the send's next sample, DC-blocked, through both channels, added to @p x.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
-		const auto input = Q<31>::from_raw(
-		    kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc, *s.send));
+		const Q<31> input = kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc, *s.send);
 		++s.send;
 		Q<31> out_l{};
 		Q<31> out_r{};
@@ -162,15 +161,14 @@ struct Freeverb {
 		out_l = cross_mix(out_l, out_r, c.wet2);
 		out_r = cross_mix(out_r, out_l, c.wet2);
 		// The return adds the Q30 product's bits to the Q31 frame: half the output at the return level.
-		return {
-		    .l = add_wrap(Q<31>::from_raw(x.l), reinterpret_bits<Q<31>>(mul_r(out_l, Q<31>::from_raw(s.pan_l)))).raw(),
-		    .r = add_wrap(Q<31>::from_raw(x.r), reinterpret_bits<Q<31>>(mul_r(out_r, Q<31>::from_raw(s.pan_r)))).raw()};
+		return {.l = add_wrap(x.l, reinterpret_bits<Q<31>>(mul_r(out_l, s.pan_l))),
+		        .r = add_wrap(x.r, reinterpret_bits<Q<31>>(mul_r(out_r, s.pan_r)))};
 	}
 
 	/// @brief Event: the owner's memory, kMemoryWords words, zeroed by the owner.
-	static void set_memory(State& s, q31* memory) { s.memory = memory; }
-	/// @brief Event: this block's send, a sample per frame rendered, and the two return levels (Q31).
-	static void set_send(State& s, const q31* send, q31 pan_l, q31 pan_r) {
+	static void set_memory(State& s, Q<31>* memory) { s.memory = memory; }
+	/// @brief Event: this block's send, a sample per frame rendered, and the two return levels.
+	static void set_send(State& s, const Q<31>* send, Q<31> pan_l, Q<31> pan_r) {
 		s.send = send;
 		s.pan_l = pan_l;
 		s.pan_r = pan_r;
@@ -202,14 +200,14 @@ private:
 		 ...);
 	}
 	/// @brief One comb: the line's tail out; its low-passed tail fed back with the input at its head.
-	[[nodiscard]] [[gnu::always_inline]] static Q<31> comb(const Coefficients& c, q31* memory, Line line,
-	                                                       int32_t& index, q31& store, Q<31> input) {
-		q31* const slot = memory + line.base + index;
-		const auto output = Q<31>::from_raw(*slot);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> comb(const Coefficients& c, Q<31>* memory, Line line,
+	                                                       int32_t& index, Q<31>& store, Q<31> input) {
+		Q<31>* const slot = memory + line.base + index;
+		const Q<31> output = *slot;
 		// The low-pass: two Q30 products, their sum lifted to the Q31 store; the feedback's product lifted likewise.
-		const auto stored = as_wrap<Q<31>>(add_wrap(mul_r(output, c.damp2), mul_r(Q<31>::from_raw(store), c.damp1)));
-		store = stored.raw();
-		*slot = add_wrap(input, mul_r_as_wrap<Q<31>>(stored, c.feedback)).raw();
+		const auto stored = as_wrap<Q<31>>(add_wrap(mul_r(output, c.damp2), mul_r(store, c.damp1)));
+		store = stored;
+		*slot = add_wrap(input, mul_r_as_wrap<Q<31>>(stored, c.feedback));
 		if (++index >= static_cast<int32_t>(line.length)) {
 			index = 0;
 		}
@@ -217,11 +215,11 @@ private:
 	}
 	/// @brief One allpass: the tail less the input out; the input plus half the tail in (a feedback of one half, as a
 	/// shift).
-	[[nodiscard]] [[gnu::always_inline]] static Q<31> allpass(q31* memory, Line line, int32_t& index, Q<31> input) {
-		q31* const slot = memory + line.base + index;
-		const auto bufout = Q<31>::from_raw(*slot);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> allpass(Q<31>* memory, Line line, int32_t& index, Q<31> input) {
+		Q<31>* const slot = memory + line.base + index;
+		const Q<31> bufout = *slot;
 		const Q<31> output = sub_wrap(bufout, input);
-		*slot = add_wrap(input, halve_floor(bufout)).raw();
+		*slot = add_wrap(input, halve_floor(bufout));
 		if (++index >= static_cast<int32_t>(line.length)) {
 			index = 0;
 		}

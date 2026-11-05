@@ -101,9 +101,9 @@ void SoundInstrument::cutAllSound() {
 	Sound::killAllVoices();
 }
 
-void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                   bool shouldLimitDelayFeedback, bool isClipActive) {
+void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output,
+                                   deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
+                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
 	// have been cleared
 	if (!activeClip) [[unlikely]] {
@@ -119,7 +119,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSampl
 	}
 	else {
 		Sound::render(modelStackWithThreeMainThings, output, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
-		              shouldLimitDelayFeedback, kMaxSampleValue, recorder);
+		              shouldLimitDelayFeedback, deluge::dsp::Q<24>::one(), recorder);
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {

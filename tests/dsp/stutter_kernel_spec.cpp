@@ -37,15 +37,17 @@ using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayTape;
 using deluge::dsp::fixed::Stutter;
+using deluge::dsp::test::RawFrame;
 using deluge::dsp::test::ReferenceStutter;
 
 /// @brief Mono<Stutter> over an owned tape, driven as effects::Stutter drives it: configured each block with the
 /// rate, the tape and whether it plays, rendered in place, and finished after a recording block whose frames ran out.
 class KernelStutter {
 public:
-	void begin(uint32_t rate, const deluge::effects::StutterState& settings, StereoSample fill = {.l = 0, .r = 0}) {
+	void begin(uint32_t rate, const deluge::effects::StutterState& settings, RawFrame fill = {}) {
 		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
-		storage_.assign(static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag), fill);
+		storage_.assign(static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag),
+		                deluge::dsp::test::typed_frame(fill));
 		tape_ = DelayTape{std::span<StereoSample>{storage_}, static_cast<std::size_t>(size), rate};
 		if (clamped) {
 			tape_.make_native_rate_precise();
@@ -54,9 +56,10 @@ public:
 		mono_.on<&Stutter::start>(static_cast<int32_t>(tape_.size()), settings.reversed, settings.ping_pong);
 	}
 
-	void process(std::span<StereoSample> audio, uint32_t rate) {
+	void process(std::span<RawFrame> audio, uint32_t rate) {
 		mono_.configure({.rate = rate, .tape = &tape_, .playing = mono_.state().playing});
-		mono_.render_block(audio, audio);
+		const std::span<StereoSample> block = deluge::dsp::test::typed_frames(audio);
+		mono_.render_block(block, block);
 		if (!mono_.state().playing && mono_.state().frames_left < 0) {
 			mono_.on<&Stutter::finish_block>(tape_);
 		}
@@ -78,9 +81,9 @@ template <typename Fx>
 [[nodiscard]] std::vector<std::vector<int32_t>> blocks(const sw::Workload& workload) {
 	Fx fx;
 	std::vector<std::vector<int32_t>> out;
-	sw::play(workload, fx, [&](std::size_t, std::span<const StereoSample> block) {
+	sw::play(workload, fx, [&](std::size_t, std::span<const RawFrame> block) {
 		std::vector<int32_t>& words = out.emplace_back();
-		for (const StereoSample frame : block) {
+		for (const RawFrame frame : block) {
 			words.push_back(frame.l);
 			words.push_back(frame.r);
 		}
@@ -118,7 +121,7 @@ describe stutter_kernel("the Stutter kernel", ${
 		const std::vector<std::vector<int32_t>> out = blocks<KernelStutter>(workload);
 		for (std::size_t b = 0; b < 16; ++b) {
 			std::vector<int32_t> in;
-			for (const StereoSample frame : sw::input(128, b, false, b * 128)) {
+			for (const RawFrame frame : sw::input(128, b, false, b * 128)) {
 				in.push_back(frame.l);
 				in.push_back(frame.r);
 			}

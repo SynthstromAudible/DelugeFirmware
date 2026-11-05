@@ -58,7 +58,7 @@ void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCab
 		PatchCable& cable = *added;
 		deluge::project::DocAutoParam amount = amountOf(*state.amount, readAutomationUpToPos);
 		cable.param = AutoParam();
-		cable.param.currentValue = amount.current_value;
+		cable.param.playBase(amount);
 		*set.docForParam(set.numPatchCables - 1) = std::move(amount);
 	}
 }

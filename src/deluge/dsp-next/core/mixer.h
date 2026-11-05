@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <concepts>
@@ -41,11 +42,12 @@ struct BlockMixer {
 
 namespace detail {
 
-/// @brief @p D combines two vectors of arithmetic @p T per call.
+/// @brief @p D combines two vectors of @p T per call: `Argon<T>` for a float T, `QVec<31>` for Q<31>.
 template <typename D, typename T>
-concept simd_mixer_render = std::is_arithmetic_v<T> && requires(D d, Argon<T> a, Argon<T> b) {
-	{ d.render(a, b) } -> std::same_as<Argon<T>>;
-};
+concept simd_mixer_render =
+    (std::floating_point<T> || std::same_as<T, Q<31>>) && requires(D d, vector_t<T> a, vector_t<T> b) {
+	    { d.render(a, b) } -> std::same_as<vector_t<T>>;
+    };
 
 /// @brief @p D combines two vectors of stereo frames per call.
 template <typename D, typename T>
@@ -63,10 +65,11 @@ concept scalar_mixer_render = requires(D d, T a, T b) {
 
 /// @brief CRTP mixin: builds a mixer's `render_block` from its `render(a, b)`.
 /// @tparam Derived the component, which defines `render(a, b)`.
-/// @tparam T the sample type of the blocks (`q31`, `f32` or @ref StereoSample).
+/// @tparam T the sample type of the blocks (`Q<31>`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
 /// `Derived::render`:
-/// - SIMD, when it takes and returns `Argon<T>`: one `render` per vector, through `argon::vectorize::for_each`.
+/// - SIMD, when it takes and returns `Argon<T>` (or `QVec<31>` over Q<31>): one `render` per vector, through
+///   `argon::vectorize::for_each`.
 /// - SIMD stereo, when `T` is @ref StereoSample and it takes and returns @ref StereoVector: one `render` per
 ///   vector of frames, de-interleaved on load and re-interleaved on store through
 ///   `argon::vectorize::for_each_interleaved`.
@@ -94,19 +97,21 @@ struct Mixer {
 			const T* a = input_a.data();
 			const T* b = input_b.data();
 			T* out = output.data();
-			argon::vectorize::for_each<T>(size, [&] [[gnu::always_inline]] (auto step) {
-				step.Store(out, self.render(step.Load(a), step.Load(b)));
+			argon::vectorize::for_each<detail::loop_lane_t<T>>(size, [&] [[gnu::always_inline]] (auto step) {
+				detail::store_step(
+				    step, out,
+				    self.render(detail::load_step<vector_t<T>>(step, a), detail::load_step<vector_t<T>>(step, b)));
 			});
 		}
 		else if constexpr (detail::simd_stereo_mixer_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
-			const q31* a = detail::interleaved(input_a);
-			const q31* b = detail::interleaved(input_b);
-			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
+			const std::int32_t* a = detail::interleaved(input_a);
+			const std::int32_t* b = detail::interleaved(input_b);
+			std::int32_t* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<std::int32_t, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames =
 				    self.render(detail::to_stereo(step.Load(a)), detail::to_stereo(step.Load(b)));
-				step.Store(out, {frames.l, frames.r});
+				step.Store(out, {frames.l.raw(), frames.r.raw()});
 			});
 		}
 		else {

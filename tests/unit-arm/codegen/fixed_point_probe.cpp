@@ -259,8 +259,17 @@ int32x4_t probe_vec_mul_doubling_sat_scalar(int32x4_t a, std::int32_t b) {
 int16x8_t probe_vec_mul_doubling_sat_q16(int16x8_t a, std::int16_t b) {
 	return mul_doubling_sat(Q16Vec<15>::from_raw(a), Q16<15>::from_raw(b)).raw();
 }
+int32x4_t probe_vec_mul_doubling_r_sat_scalar(int32x4_t a, std::int32_t b) {
+	return mul_doubling_r_sat(QVec<31>::from_raw(a), Q<30>::from_raw(b)).raw();
+}
 int32x4_t probe_vec_mul_doubling_r_sat(int32x4_t a, int32x4_t b) {
 	return mul_doubling_r_sat(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
+float32x4_t probe_vec_to_float_24(int32x4_t a) {
+	return to_float(QVec<24>::from_raw(a));
+}
+int32x4_t probe_vec_from_float_24(float32x4_t a) {
+	return from_float<24>(Argon<float>{a}).raw();
 }
 int32x4_t probe_vec_scale_shl_wrap_3(int32x4_t a) {
 	return scale_shl_wrap<3>(QVec<31>::from_raw(a)).raw();

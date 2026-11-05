@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include <argon.hpp>
+#include <argon/vectorize/first_n.hpp>
 #include <arm_neon.h>
 #include <cstddef>
 #include <cstdint>
@@ -31,7 +32,8 @@
 /// with the scalars, there are no arithmetic operators: each operation has the name of the scalar operation with the
 /// same per-lane meaning, and compiles to the NEON instructions its comment names, mostly one (tests/unit-arm/codegen
 /// checks them). Kernels keep `Argon` at their interfaces and convert with from_raw() and raw(); helpers private to one
-/// family of kernels, such as the windowed sinc's SincWindow, may pass the vectors between themselves.
+/// family of kernels, such as the windowed sinc's SincWindow, may pass the vectors between themselves. load() and
+/// store() move lanes between a vector and an array of its lane type.
 
 namespace deluge::dsp {
 
@@ -104,11 +106,20 @@ inline constexpr bool kIsQ16<Q16<F>> = true;
 /// @tparam N the lane count.
 template <class Lane, std::size_t N>
 class FixedVec {
+	using storage_type = Lane::storage_type;
+	static_assert(std::is_standard_layout_v<Lane> && sizeof(Lane) == sizeof(storage_type)
+	              && alignof(Lane) == alignof(storage_type));
+
 public:
 	using lane_type = Lane;
 	using register_type = detail::neon_register<Lane, N>::type; ///< The Argon register.
 	static constexpr std::size_t kLanes = N;
 
+private:
+	/// Whether the register is a full Argon of the storage, which the partial loads and stores need.
+	static constexpr bool kFullRegister = std::is_same_v<register_type, Argon<storage_type>>;
+
+public:
 	FixedVec() = default;
 
 	/// @brief Wraps a register; the only way in.
@@ -125,6 +136,30 @@ public:
 	}
 	/// @brief Lane @p i, through memory: for tests, not audio paths.
 	[[nodiscard]] Lane lane(std::size_t i) const noexcept { return Lane::from_raw(raw_.to_array()[i]); }
+
+	/// @brief Lanes 0…N−1 from the array at @p p (`vld1`).
+	/// @details load() and store() are the one place an array of Lane is read and written as its storage. Lane is
+	/// standard layout with its storage as its only member, so a Lane and its storage are pointer-interconvertible,
+	/// and an array of Lane is laid out as an array of its storage (the static_asserts below pin both).
+	[[gnu::always_inline, nodiscard]] static FixedVec load(const Lane* p) noexcept {
+		return from_raw(register_type::Load(storage(p)));
+	}
+	/// @brief Lanes 0…active−1 from the array at @p p; the rest are zero and not read.
+	/// @param active the lanes to load, 0 < active < N: a loop's last, partial step.
+	[[gnu::always_inline, nodiscard]] static FixedVec load(const Lane* p, std::ptrdiff_t active) noexcept
+	requires kFullRegister
+	{
+		return from_raw(argon::vectorize::detail::load_first_n(storage(p), static_cast<std::size_t>(active)));
+	}
+	/// @brief Lanes 0…N−1 to the array at @p p (`vst1`).
+	[[gnu::always_inline]] void store(Lane* p) const noexcept { raw_.StoreTo(storage(p)); }
+	/// @brief Lanes 0…active−1 to the array at @p p; the rest of the array is not written.
+	/// @param active the lanes to store, 0 < active < N: a loop's last, partial step.
+	[[gnu::always_inline]] void store(Lane* p, std::ptrdiff_t active) const noexcept
+	requires kFullRegister
+	{
+		argon::vectorize::detail::store_first_n(storage(p), raw_, static_cast<std::size_t>(active));
+	}
 
 	/// @brief Each pair's low half: Q16x2Vec<F> → Q16Half<F> (`vmovn.i32`).
 	[[gnu::always_inline, nodiscard]] auto lo() const noexcept
@@ -154,6 +189,11 @@ public:
 	}
 
 private:
+	[[gnu::always_inline]] static const storage_type* storage(const Lane* p) noexcept {
+		return reinterpret_cast<const storage_type*>(p);
+	}
+	[[gnu::always_inline]] static storage_type* storage(Lane* p) noexcept { return reinterpret_cast<storage_type*>(p); }
+
 	register_type raw_;
 };
 
@@ -220,6 +260,13 @@ requires(A + B >= 31 && A + B - 31 <= 31)
 [[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_r_sat(QVec<A> a, QVec<B> b) noexcept {
 	return QVec<A + B - 31>::from_raw(vqrdmulhq_s32(a.raw(), b.raw()));
 }
+/// @brief sat((2 × a × b + 2^31) >> 32) per lane, by one scalar: Q<A> × Q<B> → Q<A+B−31> (`vdup.32`,
+/// `vqrdmulh.s32`; a loop hoists the `vdup`).
+template <int A, int B>
+requires(A + B >= 31 && A + B - 31 <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_r_sat(QVec<A> a, Q<B> b) noexcept {
+	return QVec<A + B - 31>::from_raw(vqrdmulhq_n_s32(a.raw(), b.raw()));
+}
 
 /// @brief x × 2^N per lane in the same format, wrapping (`vshl.i32 #N`).
 template <int N, int F>
@@ -248,11 +295,32 @@ requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>> && (To::lane_t
 	return To::from_raw(vshrq_n_s32(x.raw(), F - To::lane_type::kFractionalBits));
 }
 
+/// @brief Same value per lane, more fractional bits, wrapping: QVec<F> → QVec<T> (`vshl.i32 #(T−F)`).
+template <class To, int F>
+requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>> && (To::lane_type::kFractionalBits > F)
+[[gnu::always_inline, nodiscard]] inline To as_wrap(QVec<F> x) noexcept {
+	return To::from_raw(vshlq_n_s32(x.raw(), To::lane_type::kFractionalBits - F));
+}
+
+/// @brief Each lane held to an N-bit signed word, [−2^(N−1), 2^(N−1)), in the same format (`vmax.s32`, `vmin.s32`).
+template <int N, int F>
+requires(N >= 1 && N <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<F> clamp_bits(QVec<F> x) noexcept {
+	return QVec<F>::from_raw(vminq_s32(vmaxq_s32(x.raw(), vdupq_n_s32(-(std::int32_t{1} << (N - 1)))),
+	                                   vdupq_n_s32((std::int32_t{1} << (N - 1)) - 1)));
+}
+
 /// @brief The same bits read as signed: UQVec<F> → QVec<T> (no instruction). A saw is its phase read as Q31.
 template <class To, int F>
 requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>
 [[gnu::always_inline, nodiscard]] inline To reinterpret_bits(UQVec<F> x) noexcept {
 	return To::from_raw(vreinterpretq_s32_u32(x.raw()));
+}
+/// @brief The same bits read in another format: QVec<F> → QVec<T> (no instruction), as the scalar reinterpret_bits.
+template <class To, int F>
+requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>
+[[gnu::always_inline, nodiscard]] inline To reinterpret_bits(QVec<F> x) noexcept {
+	return To::from_raw(x.raw());
 }
 
 /// @brief A 16-bit value per lane in the top half of 32 bits: Q16Half<F> → QVec<F+16>; exact (`vshll.i16 #16`, the
@@ -289,6 +357,32 @@ template <int F>
 	const int32x4_t v = x.raw();
 	const int32x2_t halves = vadd_s32(vget_low_s32(v), vget_high_s32(v));
 	return Q<F>::from_raw(vget_lane_s32(vpadd_s32(halves, halves), 0));
+}
+
+/// @brief Each lane as a float, rounded to nearest once, as the scalar to_float (`vcvt.f32.s32 #F`; plain `vcvt` for
+/// F = 0).
+template <int F>
+requires(F >= 0 && F <= 32)
+[[gnu::always_inline, nodiscard]] inline Argon<float> to_float(QVec<F> x) noexcept {
+	const Argon<std::int32_t> lanes{x.raw()};
+	if constexpr (F == 0) {
+		return lanes.ConvertTo<float>();
+	}
+	else {
+		return lanes.ConvertTo<float, F>();
+	}
+}
+/// @brief Each float lane as Q<F>, as the scalar from_float: truncating toward zero, saturating, NaN to 0
+/// (`vcvt.s32.f32 #F`; plain `vcvt` for F = 0).
+template <int F>
+requires(F >= 0 && F <= 32)
+[[gnu::always_inline, nodiscard]] inline QVec<F> from_float(Argon<float> x) noexcept {
+	if constexpr (F == 0) {
+		return QVec<F>::from_raw(x.ConvertTo<std::int32_t>());
+	}
+	else {
+		return QVec<F>::from_raw(x.ConvertTo<std::int32_t, F>());
+	}
 }
 
 } // namespace deluge::dsp

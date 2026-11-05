@@ -13,7 +13,10 @@ set(CMAKE_ASM_COMPILER clang)
 set(CMAKE_C_COMPILER_TARGET arm-linux-gnueabihf)
 set(CMAKE_CXX_COMPILER_TARGET arm-linux-gnueabihf)
 set(CMAKE_ASM_COMPILER_TARGET arm-linux-gnueabihf)
-set(CMAKE_SYSROOT /usr/arm-linux-gnueabihf)
+# No --sysroot: clang finds the cross headers and libraries through --gcc-toolchain, and the linker resolves libc.so's
+# script itself. Ubuntu's script names its libraries by full path (/usr/arm-linux-gnueabihf/lib/libc.so.6), which
+# binutils 2.46 looks for inside a sysroot given on the command line, and so never finds.
+set(CMAKE_FIND_ROOT_PATH /usr/arm-linux-gnueabihf)
 
 set(_armflags "-mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard --gcc-toolchain=/usr")
 set(CMAKE_C_FLAGS_INIT "${_armflags}")

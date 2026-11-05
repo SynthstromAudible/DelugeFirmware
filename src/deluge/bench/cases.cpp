@@ -35,17 +35,17 @@ constexpr std::size_t kBlockGap = 64;
 /// partial addresses), which costs a mono case about 1 cycle per sample whenever its output sits a multiple of 1 KB
 /// from its input.
 struct SharedBlocks {
-	alignas(16) std::array<q31, kMaxBlock> input_a;                  ///< The first input.
-	std::array<q31, kBlockGap> after_a;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> input_b;                  ///< The second input.
-	std::array<q31, kBlockGap> after_b;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> output;                   ///< The output.
-	std::array<q31, kBlockGap> after_output;                         ///< Padding, never read or written.
-	alignas(16) std::array<StereoSample, kMaxBlock> stereo;          ///< The stereo block, read and written in place.
-	std::array<q31, kBlockGap / 2> after_stereo;                     ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
-	std::array<q31, kBlockGap> after_lanes_input;                    ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> input_a;  ///< The first input.
+	std::array<q31_t, kBlockGap> after_a;                   ///< Padding, never read or written.
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> input_b;  ///< The second input.
+	std::array<q31_t, kBlockGap> after_b;                   ///< Padding, never read or written.
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> output;   ///< The output.
+	std::array<q31_t, kBlockGap> after_output;              ///< Padding, never read or written.
+	alignas(16) std::array<StereoSample, kMaxBlock> stereo; ///< The stereo block, read and written in place.
+	std::array<q31_t, kBlockGap / 2> after_stereo;          ///< Padding, never read or written.
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
+	std::array<q31_t, kBlockGap> after_lanes_input;                         ///< Padding, never read or written.
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
 };
 
 /// @brief Whether the blocks at byte offsets @p a and @p b of SharedBlocks sit a multiple of 1 KB apart.
@@ -90,10 +90,11 @@ const dsp::fixed::WaveTableBand wavetable_band{
 };
 
 /// @brief Fills @p block from a fresh stream at @p seed.
-void fill(std::span<q31> block, uint32_t seed) {
+void fill(std::span<dsp::Q<31>> block, uint32_t seed) {
 	dsp::fixed::SeededNoise noise{seed};
-	for (q31& sample : block) {
-		sample = noise.render();
+	for (dsp::Q<31>& sample : block) {
+		// The noise's word is a full-scale sample
+		sample = dsp::Q<31>::from_raw(noise.render());
 	}
 }
 
@@ -106,7 +107,7 @@ void fill_inputs() {
 /// @brief The lanes blocks' first @p n frames of type F: the q31 storage viewed as frames of interleaved lanes.
 template <class F>
 [[nodiscard]] FrameSpans<F> frame_spans(std::size_t n) {
-	static_assert(sizeof(F) % sizeof(q31) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31)
+	static_assert(sizeof(F) % sizeof(q31_t) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31_t)
 	              && std::is_trivially_copyable_v<F>);
 	return FrameSpans<F>{
 	    .in = dsp::Signal<F>{reinterpret_cast<const F*>(shared.lanes_input.data()), n},
@@ -117,23 +118,23 @@ template <class F>
 /// @return The first @p n samples of each shared q31 block.
 [[nodiscard]] BlockSpans spans(std::size_t n) {
 	return BlockSpans{
-	    .a = dsp::fixed::Signal{shared.input_a.data(), n},
-	    .b = dsp::fixed::Signal{shared.input_b.data(), n},
-	    .out = dsp::fixed::Buffer{shared.output.data(), n},
+	    .a = std::span<const dsp::Q<31>>{shared.input_a.data(), n},
+	    .b = std::span<const dsp::Q<31>>{shared.input_b.data(), n},
+	    .out = std::span<dsp::Q<31>>{shared.output.data(), n},
 	};
 }
 
 } // namespace
 
-std::span<const q31, kMaxBlock> input_a() {
+std::span<const dsp::Q<31>, kMaxBlock> input_a() {
 	return shared.input_a;
 }
 
-std::span<const q31, kMaxBlock> input_b() {
+std::span<const dsp::Q<31>, kMaxBlock> input_b() {
 	return shared.input_b;
 }
 
-std::span<const q31, kMaxBlock> output() {
+std::span<const dsp::Q<31>, kMaxBlock> output() {
 	return shared.output;
 }
 
@@ -141,11 +142,11 @@ std::span<const StereoSample, kMaxBlock> stereo() {
 	return shared.stereo;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_input() {
+std::span<const dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_input() {
 	return shared.lanes_input;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_output() {
+std::span<const dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_output() {
 	return shared.lanes_output;
 }
 
@@ -203,8 +204,8 @@ void CrudeAmplitudeCase::block(std::size_t /*n*/) {
 dsp::fixed::PulseOscillator PulseCase::make() {
 	// The voice picks a pulse's band for 0.6 times the note's increment.
 	const auto band_select = static_cast<uint32_t>(uint64_t{kA4Increment} * 3 / 5);
-	return dsp::fixed::PulseOscillator{dsp::fixed::square_bandlimited_table().select(band_select), 0, kIncrement,
-	                                   kPhaseOffset};
+	return dsp::fixed::PulseOscillator{dsp::fixed::square_bandlimited_table().select(band_select), dsp::UQ<32>{},
+	                                   kIncrement, kPhaseOffset};
 }
 
 void PulseCase::setup(std::size_t n) {
@@ -217,7 +218,7 @@ void PulseCase::block(std::size_t /*n*/) {
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
-	return dsp::fixed::BandLimitedTableOscillator{dsp::fixed::saw_bandlimited_table(), 0, kIncrement};
+	return dsp::fixed::BandLimitedTableOscillator{dsp::fixed::saw_bandlimited_table(), dsp::UQ<32>{}, kIncrement};
 }
 
 void BandLimitedTableCase::setup(std::size_t n) {
@@ -231,7 +232,7 @@ void BandLimitedTableCase::block(std::size_t /*n*/) {
 
 void CrudeSawCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
+	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{dsp::UQ<32>{}, kIncrement}};
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
@@ -240,8 +241,7 @@ void CrudeSawCase::block(std::size_t /*n*/) {
 
 void CrudeSquareCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	square_ =
-	    dsp::fixed::CrudeSquare{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
+	square_ = dsp::fixed::CrudeSquare{dsp::Phasor{dsp::UQ<32>{}, kIncrement}, kPulseWidth};
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
@@ -250,7 +250,7 @@ void CrudeSquareCase::block(std::size_t /*n*/) {
 
 void CrudeTriangleCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
+	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{dsp::UQ<32>{}, kIncrement}};
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
@@ -259,23 +259,24 @@ void CrudeTriangleCase::block(std::size_t /*n*/) {
 
 void SyncedPulseCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	master_ = dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
-	audible_phase_ = 0;
+	master_ = dsp::Phasor{dsp::UQ<32>{}, dsp::UQ<32>::from_raw(kMasterIncrement)};
+	audible_phase_ = dsp::UQ<32>{};
 }
 
 void SyncedPulseCase::block(std::size_t n) {
 	// As the voice's synced pulse: the pulse runs at half the audible phase and increment, its band picked for 0.6
 	// times the audible increment, and the phase it ends on is stored back doubled.
-	const uint32_t phase = audible_phase_ >> 1;
-	constexpr uint32_t kIncrement = kAudibleIncrement >> 1;
+	const dsp::UQ<32> phase = scale_shr_floor<1>(audible_phase_);
+	constexpr auto kIncrement = dsp::UQ<32>::from_raw(kAudibleIncrement >> 1);
 	constexpr auto kBandSelect = static_cast<uint32_t>(uint64_t{kAudibleIncrement} * 3 / 5);
 	const dsp::fixed::PulseOscillator pulse{dsp::fixed::square_bandlimited_table().select(kBandSelect), phase,
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
-	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
+	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, dsp::UQ<32>{}};
 	synced.render_block(spans_.out);
-	audible_phase_ = synced.phase() << 1;
-	master_.seek(dsp::UQ<32>::from_raw(master_.phase().raw() + (master_.increment().raw() * static_cast<uint32_t>(n))));
+	audible_phase_ = scale_shl_wrap<1>(synced.phase());
+	// The master advances by the block, as the pulse's resetter does within it.
+	master_.seek(dsp::advanced(master_.phase(), master_.increment(), static_cast<uint32_t>(n)));
 }
 
 dsp::fixed::WavetableOscillator WavetableCase::make() {
@@ -289,7 +290,7 @@ dsp::fixed::WavetableOscillator WavetableCase::make() {
 	                                      &wavetable_band,
 	                                      sizeof(dsp::fixed::WaveTableBand),
 	                                      1};
-	return dsp::fixed::WavetableOscillator{table, 0, kIncrement, kWaveIndex, 0};
+	return dsp::fixed::WavetableOscillator{table, dsp::UQ<32>{}, kIncrement, kWaveIndex, 0};
 }
 
 void WavetableCase::setup(std::size_t n) {
@@ -334,8 +335,8 @@ void StereoGainCase::setup(std::size_t n) {
 	in_ = out_;
 	dsp::fixed::SeededNoise noise{kSeed};
 	for (StereoSample& frame : shared.stereo) {
-		frame.l = noise.render();
-		frame.r = noise.render();
+		frame.l = dsp::Q<31>::from_raw(noise.render()); // the noise's raw words
+		frame.r = dsp::Q<31>::from_raw(noise.render());
 	}
 	stereo_.configure({.gain = kGain});
 }
@@ -420,7 +421,7 @@ void ReleaseRateCase::setup(std::size_t n) {
 
 void ReleaseRateCase::block(std::size_t n) {
 	for (std::size_t i = 0; i < n; ++i) {
-		spans_.out[i] = dsp::fixed::release_rate(spans_.a[i] >> 2);
+		spans_.out[i] = dsp::fixed::release_rate(dsp::fixed::preset_combination(spans_.a[i]));
 	}
 }
 
@@ -440,8 +441,9 @@ void SampleInterpolateCase::setup(std::size_t n) {
 void SampleInterpolateCase::block(std::size_t n) {
 	for (std::size_t i = 0; i < n; ++i) {
 		position_ += kRate;
-		interpolator_.push_l(static_cast<int16_t>(spans_.a[i] >> 16));
-		interpolator_.push_r(static_cast<int16_t>(spans_.b[i] >> 16));
+		// Raw: each word's top half is the reader's 16-bit sample
+		interpolator_.push_l(static_cast<int16_t>(spans_.a[i].raw() >> 16));
+		interpolator_.push_r(static_cast<int16_t>(spans_.b[i].raw() >> 16));
 		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l;
 	}
 }
@@ -453,7 +455,7 @@ void SupersawCase::block(std::size_t /*n*/) {
 
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.moveability = kMoveability, .mode = OnePole::Mode::LOW_PASS});
 	lanes_.reset();
@@ -469,7 +471,7 @@ template class LanesOnePoleCase<4>;
 
 template <std::size_t N>
 void LanesShiftTrackerCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.mode = ShiftTrackerCase::Tracker::Mode::REMOVE});
 	lanes_.reset();
@@ -496,28 +498,28 @@ void StereoAntialiasedTanhCase::block(std::size_t /*n*/) {
 
 void fill_delay_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
-		sample >>= 1;
+	for (dsp::Q<31>& sample : shared.lanes_input) {
+		sample = scale_shr_floor<1>(sample);
 	}
 }
 
 void fill_filter_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
-		sample >>= 4;
+	for (dsp::Q<31>& sample : shared.lanes_input) {
+		sample = scale_shr_floor<4>(sample);
 	}
 }
 
 void fill_compressor_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
-		sample >>= 3;
+	for (dsp::Q<31>& sample : shared.lanes_input) {
+		sample = scale_shr_floor<3>(sample);
 	}
 }
 
-std::span<q31> in_place_filter_block(std::size_t samples) {
+std::span<dsp::Q<31>> in_place_filter_block(std::size_t samples) {
 	fill_filter_input();
-	const std::span<q31> work{shared.lanes_output.data(), samples};
+	const std::span<dsp::Q<31>> work{shared.lanes_output.data(), samples};
 	std::ranges::copy(std::span{shared.lanes_input}.first(samples), work.begin());
 	return work;
 }

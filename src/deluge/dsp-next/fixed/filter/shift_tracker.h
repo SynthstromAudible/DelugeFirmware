@@ -45,8 +45,8 @@ namespace deluge::dsp::fixed {
 template <int N>
 requires(N >= 1 && N <= 31)
 struct ShiftTracker {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief What a step returns: the slow part, or the input without it.
 	enum class Mode : uint8_t {
@@ -65,13 +65,13 @@ struct ShiftTracker {
 		Mode mode = Mode::TRACK; ///< What a step returns.
 	};
 
-	/// @brief The memory, over the value type V: q31 for one stream, a LanePack of q31 for one per lane. StateT{} is
-	/// silence: y at 0 in every lane.
+	/// @brief The memory, over the value type V: Q<31> for one stream, a LanePack of Q<31> for one per lane. StateT{}
+	/// is silence: y at 0 in every lane.
 	template <class V>
 	struct StateT {
 		V y{}; ///< The slow part after the last step, Q31.
 	};
-	using State = StateT<q31>; ///< One stream's memory.
+	using State = StateT<Q<31>>; ///< One stream's memory.
 
 	/// @brief The step is written once over its value type, so `Lanes` steps a whole frame as one LanePack.
 	static constexpr bool kLanePackable = true;
@@ -82,26 +82,24 @@ struct ShiftTracker {
 	}
 
 	/// @brief One sample: y += (x − y) >> N, wrapping, then the new y (TRACK) or x less the new y (REMOVE).
-	/// @details Written over V: on q31 it steps one stream; on a LanePack every operation runs across the lanes, each
-	/// lane exactly the q31 step. The operations are called unqualified, so a pack's are found by argument-dependent
+	/// @details Written over V: on Q<31> it steps one stream; on a LanePack every operation runs across the lanes, each
+	/// lane exactly the scalar step. The operations are called unqualified, so a pack's are found by argument-dependent
 	/// lookup.
 	/// @tparam M The block's mode.
-	/// @tparam V The value type: q31, or a LanePack of q31. Deduced from @p s.
+	/// @tparam V The value type: Q<31>, or a LanePack of Q<31>. Deduced from @p s.
 	/// @param s The memory, updated before the return value is taken from it.
 	/// @param x The input, Q31.
 	/// @return The new y, or x less the new y, Q31.
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                                   std::type_identity_t<V> x) {
-		const auto x_q = from_raw<Q<31>>(x);
-		const auto y_last = from_raw<Q<31>>(s.y);
-		const auto y = add_wrap(y_last, scale_shr_floor<N>(sub_wrap(x_q, y_last)));
-		s.y = to_raw(y);
+		const V y = add_wrap(s.y, scale_shr_floor<N>(sub_wrap(x, s.y)));
+		s.y = y;
 		if constexpr (M == Mode::TRACK) {
-			return s.y;
+			return y;
 		}
 		else {
-			return to_raw(sub_wrap(x_q, y));
+			return sub_wrap(x, y);
 		}
 	}
 };

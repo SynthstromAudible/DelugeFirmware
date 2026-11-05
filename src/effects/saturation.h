@@ -65,13 +65,14 @@ public:
 	/// @param channel 0 for the left channel, 1 for the right.
 	/// @param params The amount and variant, which set the drive for this sample.
 	/// @return The saturated sample, Q31.
-	[[nodiscard, gnu::always_inline]] int32_t saturate(int32_t sample, uint32_t channel,
-	                                                   const SaturationParams& params) {
+	[[nodiscard, gnu::always_inline]] dsp::Q<31> saturate(dsp::Q<31> sample, uint32_t channel,
+	                                                      const SaturationParams& params) {
 		const uint32_t amount = params.clipping_amount;
 		Curve::State& position = channel == 0 ? left_ : right_;
 		const bool voice = params.variant == SaturationVariant::VOICE;
 		const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
-		return Curve::step(c, {}, position, sample) << shift(voice, amount);
+		// The make-up gain is a run-time shift, so raw.
+		return dsp::Q<31>::from_raw(Curve::step(c, {}, position, sample).raw() << shift(voice, amount));
 	}
 
 	/// @brief A stereo block, in place; a CHAIN variant at amount 0 leaves it untouched.

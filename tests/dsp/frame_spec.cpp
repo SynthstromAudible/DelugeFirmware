@@ -45,56 +45,59 @@ static_assert(alignof(Frame<q31, 8>) == alignof(q31));
 static_assert(sizeof(Frame<q31, 2>) == sizeof(StereoSample));
 static_assert(alignof(Frame<q31, 2>) == alignof(StereoSample));
 
-/// A block of three 4-lane frames is twelve q31 in frame order, lane order within each frame.
+/// A block of three 4-lane frames is twelve samples in frame order, lane order within each frame.
 static_assert(sizeof(std::array<Frame<q31, 4>, 3>) == 12 * sizeof(q31));
 
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
 /// The frame round trip, at compile time.
-static_assert(to_frame(StereoSample{.l = 5, .r = -7})[0] == 5);
-static_assert(to_frame(StereoSample{.l = 5, .r = -7})[1] == -7);
-static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).l == kMin);
-static_assert(to_stereo(Frame<q31, 2>{{kMin, kMax}}).r == kMax);
+static_assert(to_frame(StereoSample{.l = Q<31>::from_raw(5), .r = Q<31>::from_raw(-7)})[0].raw() == 5);
+static_assert(to_frame(StereoSample{.l = Q<31>::from_raw(5), .r = Q<31>::from_raw(-7)})[1].raw() == -7);
+static_assert(to_stereo(Frame<q31, 2>{{q31::min(), q31::max()}}).l.raw() == kMin);
+static_assert(to_stereo(Frame<q31, 2>{{q31::min(), q31::max()}}).r.raw() == kMax);
 
 } // namespace
 
 // clang-format off
 describe frame_spec("Frame", ${
 	it("indexes its lanes in order, for reading and for writing", _ {
-		Frame<q31, 4> f{{10, -20, 30, -40}};
-		expect(f[0]).to_equal(q31{10});
-		expect(f[1]).to_equal(q31{-20});
-		expect(f[2]).to_equal(q31{30});
-		expect(f[3]).to_equal(q31{-40});
+		Frame<q31, 4> f{{q31::from_raw(10), q31::from_raw(-20), q31::from_raw(30), q31::from_raw(-40)}};
+		expect(f[0].raw()).to_equal(10);
+		expect(f[1].raw()).to_equal(-20);
+		expect(f[2].raw()).to_equal(30);
+		expect(f[3].raw()).to_equal(-40);
 
-		f[2] = kMin;
-		expect(f.lane[2]).to_equal(kMin);
-		expect(f[1]).to_equal(q31{-20});
-		expect(f[3]).to_equal(q31{-40});
+		f[2] = q31::from_raw(kMin);
+		expect(f.lane[2].raw()).to_equal(kMin);
+		expect(f[1].raw()).to_equal(-20);
+		expect(f[3].raw()).to_equal(-40);
 
 		const Frame<q31, 4>& view = f;
-		expect(view[2]).to_equal(kMin);
+		expect(view[2].raw()).to_equal(kMin);
 	});
 
 	it("lays out a block of frames as N interleaved streams", _ {
-		std::array<Frame<q31, 3>, 2> block{{{{1, 2, 3}}, {{4, 5, 6}}}};
-		const auto flat = std::bit_cast<std::array<q31, 6>>(block);
+		std::array<Frame<q31, 3>, 2> block{};
 		for (std::size_t i = 0; i < 6; ++i) {
-			expect(flat[i]).to_equal(static_cast<q31>(i + 1));
+			block[i / 3][i % 3] = q31::from_raw(static_cast<int32_t>(i + 1));
+		}
+		const auto flat = std::bit_cast<std::array<int32_t, 6>>(block);
+		for (std::size_t i = 0; i < 6; ++i) {
+			expect(flat[i]).to_equal(static_cast<int32_t>(i + 1));
 		}
 	});
 
 	it("takes a stereo frame's left to lane 0 and its right to lane 1, and back, at the extremes", _ {
-		for (const q31 l : {kMin, q31{-1}, q31{0}, q31{1}, kMax}) {
-			for (const q31 r : {kMin, q31{-1}, q31{0}, q31{1}, kMax}) {
-				const StereoSample s{.l = l, .r = r};
+		for (const int32_t l : {kMin, int32_t{-1}, int32_t{0}, int32_t{1}, kMax}) {
+			for (const int32_t r : {kMin, int32_t{-1}, int32_t{0}, int32_t{1}, kMax}) {
+				const StereoSample s{.l = Q<31>::from_raw(l), .r = Q<31>::from_raw(r)};
 				const Frame<q31, 2> f = to_frame(s);
-				expect(f[0]).to_equal(l);
-				expect(f[1]).to_equal(r);
+				expect(f[0].raw()).to_equal(l);
+				expect(f[1].raw()).to_equal(r);
 				const StereoSample back = to_stereo(f);
-				expect(back.l).to_equal(l);
-				expect(back.r).to_equal(r);
+				expect(back.l.raw()).to_equal(l);
+				expect(back.r.raw()).to_equal(r);
 			}
 		}
 	});

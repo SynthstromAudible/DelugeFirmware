@@ -64,7 +64,7 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	}
 
 	if (reset_everything) {
-		carrier_feedback = 0;
+		carrier_feedback = dsp::Q<31>{};
 	}
 
 	return true;
@@ -77,33 +77,32 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 // Building one class drops whichever the slot held: the sound's type may have changed since the voice's last note.
 void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t osc_retrigger_phase,
                                   bool reset_everything, dsp::fixed::Cong& noise) {
-	const uint32_t seed_phase = va_shape::initial_phase_for_zero(osc_type) + osc_retrigger_phase;
+	// The retrigger phase's word is the phase it adds; kNoRetrigger marks none
+	const auto seed_phase = dsp::UQ<32>::from_raw(va_shape::initial_phase_for_zero(osc_type) + osc_retrigger_phase);
 	const bool retrigger = osc_retrigger_phase != kNoRetrigger;
 	if (engine_mode && va_shape::is_virtual_analog(osc_type)) {
 		const va_shape::Wave wave = va_shape::wave_for(osc_type);
 		if (retrigger) {
-			oscillator_.emplace<VirtualAnalogSource>(
-			    wave, dsp::Phasor{dsp::UQ<32>::from_raw(seed_phase), dsp::UQ<32>::from_raw(0)});
+			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{seed_phase, dsp::UQ<32>{}});
 		}
 		else if (reset_everything || !std::holds_alternative<VirtualAnalogSource>(oscillator_)) {
-			oscillator_.emplace<VirtualAnalogSource>(
-			    wave, dsp::Phasor{dsp::UQ<32>::from_raw(osc_pos), dsp::UQ<32>::from_raw(0)});
+			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{osc_pos, dsp::UQ<32>{}});
 		}
 	}
 	else if (engine_mode && osc_type == OscType::WAVETABLE) {
 		if (retrigger) {
-			oscillator_.emplace<WavetableSource>(
-			    dsp::Phasor{dsp::UQ<32>::from_raw(seed_phase), dsp::UQ<32>::from_raw(0)});
+			oscillator_.emplace<WavetableSource>(dsp::Phasor{seed_phase, dsp::UQ<32>{}});
 		}
 		else if (reset_everything || !std::holds_alternative<WavetableSource>(oscillator_)) {
-			oscillator_.emplace<WavetableSource>(dsp::Phasor{dsp::UQ<32>::from_raw(osc_pos), dsp::UQ<32>::from_raw(0)});
+			oscillator_.emplace<WavetableSource>(dsp::Phasor{osc_pos, dsp::UQ<32>{}});
 		}
 	}
 	else if (engine_mode && osc_type == OscType::SUPERSAW) {
 		using dsp::fixed::Supersaw;
 		if (retrigger) {
-			// The side saws start at fixed offsets from the centre one, so every note starts the same way
-			oscillator_.emplace<SupersawSource>(seed_phase, Supersaw::side_phases_from(seed_phase));
+			// The side saws start at fixed offsets from the centre one, so every note starts the same way (the supersaw
+			// keeps its phases as words)
+			oscillator_.emplace<SupersawSource>(seed_phase, Supersaw::side_phases_from(seed_phase.raw()));
 		}
 		else if (reset_everything || !std::holds_alternative<SupersawSource>(oscillator_)) {
 			// Free-running on a new voice: random side saws like the centre one, otherwise every note's side saws
@@ -154,9 +153,9 @@ Source* SourceSlot::source_for(OscType type) {
 	}
 }
 
-uint32_t SourceSlot::current_osc_phase() const {
+dsp::UQ<32> SourceSlot::current_osc_phase() const {
 	return std::visit(
-	    [this]<class Held>(const Held& held) -> uint32_t {
+	    [this]<class Held>(const Held& held) -> dsp::UQ<32> {
 		    if constexpr (std::is_same_v<Held, std::monostate>) {
 			    return osc_pos;
 		    }
@@ -167,11 +166,11 @@ uint32_t SourceSlot::current_osc_phase() const {
 	    oscillator_);
 }
 
-void SourceSlot::advance_osc_phase(uint32_t delta) {
+void SourceSlot::advance_osc_phase(dsp::UQ<32> delta) {
 	std::visit(
 	    [this, delta]<class Held>(Held& held) {
 		    if constexpr (std::is_same_v<Held, std::monostate>) {
-			    osc_pos += delta;
+			    osc_pos = add_wrap(osc_pos, delta);
 		    }
 		    else {
 			    held.advance_phase(delta);

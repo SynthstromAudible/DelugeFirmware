@@ -20,8 +20,9 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "model/sample/clip_increment.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
-// `model/sample/` (E3 task 4): `AudioClip::renderAsSingleRow` below really does call
+// `model/sample/`: `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
 // side. The inversion is this method, not the include -- a `model/` class that renders. Its
 // extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
@@ -608,8 +609,8 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	return loopTime - AudioEngine::audioSampleTimer;
 }
 
-void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_t> outputBuffer, int32_t amplitude,
-                       int32_t amplitudeIncrement, int32_t pitchAdjust) {
+void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<deluge::dsp::Q<31>> outputBuffer,
+                       int32_t amplitude, int32_t amplitudeIncrement, deluge::dsp::Q<24> pitchAdjust) {
 
 	if (!voiceSample) {
 		return;
@@ -642,9 +643,9 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 	int32_t timeStretchRatio = kMaxSampleValue;
 	int32_t phaseIncrement = sampleHolder.neutralPhaseIncrement;
 
-	if (pitchAdjust != kMaxSampleValue) {
-		uint64_t newPhaseIncrement = ((uint64_t)phaseIncrement * (uint64_t)pitchAdjust) >> 24;
-		phaseIncrement = (newPhaseIncrement > 2147483647) ? 2147483647 : newPhaseIncrement;
+	if (pitchAdjust != deluge::dsp::Q<24>::one()) {
+		// The pitch adjust's word is the Q24 ratio the increment scales by
+		phaseIncrement = scaled_increment(phaseIncrement, pitchAdjust.raw());
 	}
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
@@ -670,7 +671,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 		// If only the file's sample rate is changing phaseIncrement, playing it back at that speed already keeps it in
 		// time, so like an unadjusted 44100kHz file, it doesn't need time-stretching unless it's drifted out of sync.
 		// Otherwise every non-44100kHz file would always be time-stretched, even at its original tempo.
-		bool pitchManuallyAdjusted = pitchAdjust != kMaxSampleValue || sampleHolder.transpose || sampleHolder.cents;
+		bool pitchManuallyAdjusted =
+		    pitchAdjust != deluge::dsp::Q<24>::one() || sampleHolder.transpose || sampleHolder.cents;
 
 		// Or if no manual pitch adjustment...
 		if (phaseIncrement == kMaxSampleValue || !pitchManuallyAdjusted) {
@@ -711,8 +713,7 @@ justDontTimeStretch:
 		// If no prior pitch adjustment, we play back 100% natively, with no pitch shifting / time stretching. Just with
 		// pitch / speed changed like speeding/slowing a record
 		if (!sampleHolder.transpose && !sampleHolder.cents) {
-			uint64_t phaseIncrementNew = ((uint64_t)(uint32_t)phaseIncrement * requiredSpeedAdjustment) >> 24;
-			phaseIncrement = (phaseIncrementNew >= 2147483648) ? 2147483647 : (uint32_t)phaseIncrementNew;
+			phaseIncrement = scaled_increment(phaseIncrement, requiredSpeedAdjustment);
 
 			if (playbackHandler.isEitherClockActive() && !doingLateStart) {
 				phaseIncrement = guide.adjustPitchToCorrectDriftFromSync(voiceSample, phaseIncrement);
@@ -722,7 +723,7 @@ justDontTimeStretch:
 		// Or if yes prior pitch adjustment, then we'll be pitch shifting / time stretching
 		else {
 			timeStretchRatio = ((uint64_t)1 << 48) / (uint32_t)phaseIncrement;
-			phaseIncrement = ((uint64_t)phaseIncrement * requiredSpeedAdjustment) >> 24;
+			phaseIncrement = scaled_increment(phaseIncrement, requiredSpeedAdjustment);
 		}
 	}
 

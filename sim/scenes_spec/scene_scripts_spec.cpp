@@ -186,8 +186,9 @@ namespace nodes = deluge::scenes::menu::nodes;
 /// `audio_clip.txt` starts real playback, and `AudioClipScene::compute_tick_square` then asks
 /// `Clip::getLivePos()` where the clip is -- which, on a song whose transport a spec started but
 /// whose audio thread never runs, reaches `getActualSwungTickCount`'s external-clock swing branch
-/// and divides by `(uint32_t)(50 + currentSong->swingAmount)` (`playback_handler.cpp:1263`): a
-/// **SIGFPE**, not a failure. Holding the latch takes legacy's own early return (`:1209-1214`).
+/// and divides by `(uint32_t)(50 + currentSong->project.groove.swing_amount)`
+/// (`playback_handler.cpp:1266`): a **SIGFPE**, not a failure. Holding the latch takes legacy's
+/// own early return (`:1211-1216`).
 extern bool currentlyActioningSwungTickOrResettingPlayPos;
 
 namespace {

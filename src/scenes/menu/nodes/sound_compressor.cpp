@@ -61,22 +61,23 @@ ValueText compressor_text(CompressorShown which, const MenuContext& ctx, int32_t
 	const char* unit = "MS";
 	switch (which) {
 	case CompressorShown::Attack:
-		display = fx::compressor_attack_ms(shown_q31(comp_attack, ctx, value, false));
+		display = fx::compressor_attack_ms(deluge::dsp::Q<31>::from_raw(shown_q31(comp_attack, ctx, value, false)));
 		break;
 	case CompressorShown::Release:
-		display = fx::compressor_release_ms(shown_q31(comp_release, ctx, value, false));
+		display = fx::compressor_release_ms(deluge::dsp::Q<31>::from_raw(shown_q31(comp_release, ctx, value, false)));
 		places = 1;
 		break;
 	case CompressorShown::Ratio:
-		display = fx::compressor_ratio(shown_q31(comp_ratio, ctx, value, false));
+		display = fx::compressor_ratio(deluge::dsp::Q<31>::from_raw(shown_q31(comp_ratio, ctx, value, false)));
 		unit = " : 1";
 		break;
 	case CompressorShown::SidechainHpf:
-		display = fx::compressor_sidechain_hz(shown_q31(comp_hpf, ctx, value, false));
+		display = fx::compressor_sidechain_hz(deluge::dsp::Q<31>::from_raw(shown_q31(comp_hpf, ctx, value, false)));
 		unit = "HZ";
 		break;
 	case CompressorShown::Blend:
-		display = static_cast<float>(fx::compressor_blend_percent(shown_q31(comp_blend, ctx, value, true)));
+		display = static_cast<float>(
+		    fx::compressor_blend_percent(deluge::dsp::Q<31>::from_raw(shown_q31(comp_blend, ctx, value, true))));
 		places = 0;
 		unit = " %";
 		break;

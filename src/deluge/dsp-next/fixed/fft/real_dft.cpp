@@ -16,7 +16,7 @@
  */
 
 #include "dsp-next/fixed/fft/real_dft.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/tables/sine_small.h"
 
@@ -38,8 +38,8 @@ void real_dft(std::span<const int32_t> in, std::span<Complex> out) {
 	const auto n = static_cast<uint32_t>(in.size());
 	assert(out.size() >= (n >> 1) + 1);
 	for (uint32_t i = 0; i <= (n >> 1); i++) {
-		int32_t sum_real = 0;
-		int32_t sum_imaginary = 0;
+		Q<30> sum_real{};
+		Q<30> sum_imaginary{};
 		const uint32_t angle_increment = -((i << kAngleBits) / n);
 		uint32_t angle = 0;
 
@@ -60,15 +60,15 @@ void real_dft(std::span<const int32_t> in, std::span<Complex> out) {
 			const int32_t sine = wrapping_add(sine1 << 16, (sine2 - sine1) * fraction);
 			const int32_t cosine = wrapping_add(cosine1 << 16, (cosine2 - cosine1) * fraction);
 
-			// Each product loses one bit of magnitude, made up for below.
-			sum_real = multiply_accumulate_32x32_rshift32_rounded(sum_real, sample, cosine);
-			sum_imaginary = multiply_accumulate_32x32_rshift32_rounded(sum_imaginary, sample, sine);
+			// Q31 × Q31 accumulates in Q30, the products' rounded high words, wrapping.
+			sum_real = mla_r(sum_real, Q<31>::from_raw(sample), Q<31>::from_raw(cosine));
+			sum_imaginary = mla_r(sum_imaginary, Q<31>::from_raw(sample), Q<31>::from_raw(sine));
 
 			angle += angle_increment;
 		}
 
-		out[i].r = sum_real << 1;
-		out[i].i = sum_imaginary << 1;
+		out[i].r = as_wrap<Q<31>>(sum_real).raw();
+		out[i].i = as_wrap<Q<31>>(sum_imaginary).raw();
 	}
 }
 

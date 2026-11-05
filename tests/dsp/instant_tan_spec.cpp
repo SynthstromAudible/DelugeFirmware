@@ -20,15 +20,20 @@
 
 #include "curves_reference.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
+#include "raw_curves.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
 
-using deluge::dsp::fixed::instant_tan;
+using deluge::dsp::Q;
 using deluge::dsp::fixed::kTanTable;
+using deluge::dsp::test::raw_curves::instant_tan;
 
 // clang-format off
 describe instant_tan_spec("instant_tan", ${
+	it("gives a Q28 tangent of a Q31 angle", _ {
+		expect(deluge::dsp::fixed::instant_tan(Q<31>::from_raw(1 << 29)).raw()).to_equal(101039870);
+	});
 	it("is zero at zero", _ {
 		expect(instant_tan(0)).to_equal(0);
 	});

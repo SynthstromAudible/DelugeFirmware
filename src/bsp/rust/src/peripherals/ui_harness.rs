@@ -99,12 +99,14 @@ pub fn reset_for_test() {
     s.pads = [0; PAD_COLS * PAD_ROWS * 3];
     s.leds = [0; LED_COUNT];
     s.ring_written = [false; RINGS];
-    while control::deluge_control_poll_event(&mut DelugeInputEvent {
+    let mut ev = DelugeInputEvent {
         kind: 0,
         x: 0,
         y: 0,
         value: 0,
-    }) {}
+    };
+    // SAFETY: `ev` is a valid DelugeInputEvent.
+    while unsafe { control::deluge_control_poll_event(&mut ev) } {}
     for d in &encoder::ENCODER_DELTAS {
         d.store(0, Ordering::Relaxed);
     }

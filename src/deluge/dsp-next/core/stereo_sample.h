@@ -17,62 +17,59 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h" // q31_t, multiply_32x32_rshift32
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 namespace deluge::dsp {
 
-/// @brief One interleaved stereo audio frame: a left/right pair of q31 samples.
+/// @brief One interleaved stereo audio frame: a left/right pair of Q31 samples.
 ///
-/// A trivial value type (an aggregate of two @ref q31_t). It deliberately carries only value semantics — a named
+/// A trivial value type (an aggregate of two Q<31>). It deliberately carries only value semantics — a named
 /// mono constructor and frame addition; everything that *operates on* frames (panning, VCA, mixing) is a free
 /// function or a dedicated component, not a member, so the data frame stays decoupled from the DSP. (Successor to
 /// the legacy app `::StereoSample`, which had accumulate/pan helpers bolted on; those become the free functions
 /// below + plain `+=`.)
 struct StereoSample {
-	q31_t l;
-	q31_t r;
+	Q<31> l; ///< The left channel.
+	Q<31> r; ///< The right channel.
 
 	/// A frame with both channels set to @p mono.
-	[[nodiscard]] static constexpr StereoSample from_mono(q31_t mono) { return {.l = mono, .r = mono}; }
+	[[nodiscard]] static constexpr StereoSample from_mono(Q<31> mono) { return {.l = mono, .r = mono}; }
 
-	/// @brief @p a + @p b in each channel, wrapping modulo 2^32 (an `add` per channel, with defined overflow).
+	/// @brief @p a + @p b in each channel: add_wrap per channel, a frame's mix.
 	/// @param a,b The frames to add.
 	/// @return Their sum.
 	[[nodiscard]] friend constexpr StereoSample operator+(StereoSample a, StereoSample b) {
-		return {.l = detail::wrap_add(a.l, b.l), .r = detail::wrap_add(a.r, b.r)};
+		return {.l = add_wrap(a.l, b.l), .r = add_wrap(a.r, b.r)};
 	}
-	/// @brief Adds @p rhs in each channel, wrapping modulo 2^32.
+	/// @brief Adds @p rhs in each channel: add_wrap per channel.
 	/// @param rhs The frame to add.
 	/// @return This frame.
 	constexpr StereoSample& operator+=(StereoSample rhs) {
-		l = detail::wrap_add(l, rhs.l);
-		r = detail::wrap_add(r, rhs.r);
+		l = add_wrap(l, rhs.l);
+		r = add_wrap(r, rhs.r);
 		return *this;
 	}
 };
 
-static_assert(std::is_standard_layout_v<StereoSample> && sizeof(StereoSample) == 2 * sizeof(q31_t)
-                  && offsetof(StereoSample, l) == 0 && offsetof(StereoSample, r) == sizeof(q31_t),
+static_assert(std::is_standard_layout_v<StereoSample> && sizeof(StereoSample) == 2 * sizeof(std::int32_t)
+                  && offsetof(StereoSample, l) == 0 && offsetof(StereoSample, r) == sizeof(std::int32_t),
               "a block of StereoSample frames is an interleaved array of q31, left first");
 
 /// @brief A mono sample panned to a stereo frame: each channel is @p mono scaled by its amplitude.
-/// @details Q31 × Q30 is Q29 (`smmul`), reformatted to Q31 by `<< 2`, wrapping. Accumulate with `+=`. The multiply
-/// is q31_ops.h's inline asm, not fixed_point.h's `mul`: in the voice's per-sample loops the typed form folds the
-/// shift into the accumulate but reallocates their registers, so it moves with the voice kernel, benched.
-/// @param mono the sample, Q31.
-/// @param amp_l,amp_r per-channel amplitudes, Q30: unity is 2^30.
-[[nodiscard, gnu::always_inline]] inline StereoSample panned_mono(q31_t mono, Q<30> amp_l, Q<30> amp_r) {
-	return {.l = multiply_32x32_rshift32(mono, amp_l.raw()) << 2, .r = multiply_32x32_rshift32(mono, amp_r.raw()) << 2};
+/// @details Q31 × Q30 is Q29 (`smmul`), reformatted to Q31 by `<< 2`, wrapping. Accumulate with `+=`.
+/// @param mono the sample.
+/// @param amp_l,amp_r per-channel amplitudes: unity is 1.0.
+[[nodiscard, gnu::always_inline]] inline StereoSample panned_mono(Q<31> mono, Q<30> amp_l, Q<30> amp_r) {
+	return {.l = mul_as_wrap<Q<31>>(mono, amp_l), .r = mul_as_wrap<Q<31>>(mono, amp_r)};
 }
 
 /// @brief A stereo sample with each channel scaled by its amplitude, as @ref panned_mono. Accumulate with `+=`.
-/// @param left,right the channels, Q31.
-/// @param amp_l,amp_r per-channel amplitudes, Q30: unity is 2^30.
-[[nodiscard, gnu::always_inline]] inline StereoSample panned_stereo(q31_t left, q31_t right, Q<30> amp_l, Q<30> amp_r) {
-	return {.l = multiply_32x32_rshift32(left, amp_l.raw()) << 2,
-	        .r = multiply_32x32_rshift32(right, amp_r.raw()) << 2};
+/// @param left,right the channels.
+/// @param amp_l,amp_r per-channel amplitudes: unity is 1.0.
+[[nodiscard, gnu::always_inline]] inline StereoSample panned_stereo(Q<31> left, Q<31> right, Q<30> amp_l, Q<30> amp_r) {
+	return {.l = mul_as_wrap<Q<31>>(left, amp_l), .r = mul_as_wrap<Q<31>>(right, amp_r)};
 }
 
 } // namespace deluge::dsp

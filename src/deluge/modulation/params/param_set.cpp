@@ -66,7 +66,7 @@ int32_t ParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* 
 
 void setParamsToDefaults(ParamSet& set, params::Kind kind, std::initializer_list<int32_t> paramIds) {
 	for (int32_t p : paramIds) {
-		set.params[p].setCurrentValueBasicForSetup(*set.docForParam(p), params::paramInfoFor(kind, p)->default_value);
+		set.params[p].setBase(*set.docForParam(p), params::paramInfoFor(kind, p)->default_value);
 	}
 }
 
@@ -122,7 +122,7 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
 	deluge::project::DocParamSet* store = domStoreRef_;
 	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
-		params[p].currentValue = store->params[p].current_value;
+		params[p].playBase(store->params[p]);
 		if (params[p].isAutomated(store->params[p])) {
 			paramHasAutomationNow(summary, p);
 		}

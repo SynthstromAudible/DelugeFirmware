@@ -348,6 +348,10 @@ ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddre
 	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, false);
 }
 
+ModelStackWithAutoParam* paramStackOnRender(::Song& song, const project::ParamAddress& address, void* memory) {
+	return paramInOwner(ownerStackAt(song, address, memory), address, false, false);
+}
+
 ModelStackWithThreeMainThings* soundStackExact(::Song& song, const project::ParamAddress& owner, void* memory) {
 	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
 	return found.holder == Holder::SOUND ? found.stack : nullptr;

@@ -17,7 +17,7 @@
 
 #include "effects/delay.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include <algorithm>
 #include <atomic>
@@ -41,7 +41,11 @@ int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings, uin
 	if (syncLevel == plugin::SyncLevel::NONE) {
 		return userDelayRate;
 	}
-	int64_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
+	// The Q24 rate times the tick inverse read as signed Q31, rounded: Q23, widened for the sync type's 3/2 or 2/3. The
+	// clamp and the level's shift are integer: a run-time shift.
+	int64_t rate = mul_r(dsp::Q<24>::from_raw(userDelayRate),
+	                     dsp::Q<31>::from_raw(static_cast<int32_t>(timePerInternalTickInverse)))
+	                   .raw();
 	if (settings.sync_type == plugin::SyncType::TRIPLET) {
 		rate = rate * 3 / 2;
 	}
@@ -287,10 +291,11 @@ void Delay::process(std::span<dsp::StereoSample> buffer, const State& delayWorki
 	}
 
 	DelayTape* const growing = secondary_.is_active() ? &secondary_ : nullptr;
+	// The working state's feedback is final_value's word, Q31.
 	const dsp::fixed::DelayBlockResult result =
 	    processor_.process(buffer, &primary_, growing,
 	                       {.rate = delayWorkingState.userDelayRate,
-	                        .feedback = delayWorkingState.delayFeedbackAmount,
+	                        .feedback = dsp::Q<31>::from_raw(delayWorkingState.delayFeedbackAmount),
 	                        .analog = delayWorkingState.analog,
 	                        .analog_saturation = delayWorkingState.analog_saturation,
 	                        .ping_pong = delayWorkingState.ping_pong,

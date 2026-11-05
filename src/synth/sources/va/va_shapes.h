@@ -18,7 +18,7 @@
 
 #include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // BlockControls
 #include <cstdint>
 
@@ -46,12 +46,11 @@ class Sine {
 
 public:
 	explicit Sine(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Triangle: crude (half-scale, doubled VCA) at low pitch / dire CPU, else band-limited.
@@ -60,12 +59,11 @@ class Triangle {
 
 public:
 	explicit Triangle(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Sawtooth: crude (phase ramp) at low table number / dire CPU, else band-limited.
@@ -74,12 +72,11 @@ class Saw {
 
 public:
 	explicit Saw(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Square / pulse: crude switch at low table number / dire CPU; the perfect band-limited pulse (two
@@ -89,12 +86,11 @@ class Square {
 
 public:
 	explicit Square(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Analog sawtooth — band-limited, but downgrades internally to the crude digital saw at a high band
@@ -105,12 +101,11 @@ class AnalogSaw {
 
 public:
 	explicit AnalogSaw(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Analog square — always band-limited.
@@ -119,12 +114,11 @@ class AnalogSquare {
 
 public:
 	explicit AnalogSquare(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Whether @p type is one of the six virtual-analog waves (the first OscType entries, up to ANALOG_SAW_2);
@@ -136,5 +130,19 @@ public:
 
 /// @brief The phase at which @p type's wave crosses zero rising, UQ0.32: a quarter turn for the triangle, 0 otherwise.
 [[nodiscard]] uint32_t initial_phase_for_zero(OscType type);
+
+/// @brief A render phase and increment rewritten for pulse-width-as-sync.
+struct PulseRewrite {
+	uint32_t phase;     ///< The render phase, before the retrigger is added, UQ<32>.
+	uint32_t increment; ///< The render increment, UQ<32>.
+};
+
+/// @brief Pulse-width-as-sync's multiply rewrite: the self-sync master's phase and increment scaled up so one rewritten
+/// cycle spans the pulse width.
+/// @param pulse_width The pulse width, UQ<32> (its magnitude is used).
+/// @param resetter_phase The self-sync master's phase, UQ<32>.
+/// @param resetter_increment The master's increment, UQ<32>.
+[[nodiscard]] PulseRewrite multiply_pulse_rewrite(uint32_t pulse_width, uint32_t resetter_phase,
+                                                  uint32_t resetter_increment);
 
 } // namespace deluge::synth::va_shape

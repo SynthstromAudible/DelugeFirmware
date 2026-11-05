@@ -7,9 +7,9 @@
 
 #include <cppspec.hpp>
 #include <cstdint>
-#include <limits>
 #include <vector>
 
+using deluge::dsp::Q;
 using namespace deluge::effects;
 using deluge::dsp::Control;
 using deluge::dsp::fixed::DuckEnvelope;
@@ -26,7 +26,7 @@ constexpr uint32_t kFastInverse = 6492772;
 constexpr uint32_t kSlowInverse = 2597109;
 constexpr int32_t kHit = 0x60000000;
 /// The straightest release shape.
-constexpr int32_t kStraightShape = std::numeric_limits<int32_t>::min();
+constexpr deluge::dsp::Q<31> kStraightShape = deluge::dsp::Q<31>::min();
 /// A late hit's age that lands it in the release at the eighth level and the fast inverse, where the shape bends the
 /// level: the attack lasts 575 samples there.
 constexpr uint32_t kReleaseAge = 1000;
@@ -65,7 +65,7 @@ std::vector<int32_t> attackAndRelease(const DuckEnvelope::Settings& settings) {
 }
 
 /// Three blocks of 128 at @p shape, a hit kReleaseAge samples ago, three more at @p shape: through a Sidechain.
-std::vector<int32_t> lateHitBetweenBlocks(int32_t shape) {
+std::vector<int32_t> lateHitBetweenBlocks(deluge::dsp::Q<31> shape) {
 	const SidechainState synced = state(SyncLevel::EIGHTH);
 	Sidechain sidechain;
 	std::vector<int32_t> out;
@@ -84,51 +84,51 @@ std::vector<int32_t> lateHitBetweenBlocks(int32_t shape) {
 // clang-format off
 describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 	it("passes the attack and release through unsynced, whatever the tempo", _ {
-		const DuckEnvelope::Settings settings = Sidechain::settings(state(SyncLevel::NONE), kFastInverse, 0);
+		const DuckEnvelope::Settings settings = Sidechain::settings(state(SyncLevel::NONE), kFastInverse, deluge::dsp::Q<31>{});
 		expect(settings.attack).to_equal(kAttack);
 		expect(settings.release).to_equal(kRelease);
 		expect(settings.instant_attack).to_be_false();
-		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::NONE), kSlowInverse, 0)))
+		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::NONE), kSlowInverse, deluge::dsp::Q<31>{})))
 		    .to_equal(std::vector<int32_t>{kAttack, kRelease});
 	});
 
 	it("follows the tempo synced, the attack shifted right at the eighth level", _ {
-		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, 0))).to_equal(kFastEighth);
-		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::EIGHTH), kSlowInverse, 0))).to_equal(kSlowEighth);
+		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, deluge::dsp::Q<31>{}))).to_equal(kFastEighth);
+		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::EIGHTH), kSlowInverse, deluge::dsp::Q<31>{}))).to_equal(kSlowEighth);
 	});
 
 	it("follows the tempo synced, the attack shifted left at the 1/256 level", _ {
-		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH), kFastInverse, 0)))
+		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH), kFastInverse, deluge::dsp::Q<31>{})))
 		    .to_equal(kFastTwoFiftySixth);
-		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH), kSlowInverse, 0)))
+		expect(attackAndRelease(Sidechain::settings(state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH), kSlowInverse, deluge::dsp::Q<31>{})))
 		    .to_equal(kSlowTwoFiftySixth);
 	});
 
 	it("skips the attack exactly at the attack param's minimum", _ {
 		expect(Sidechain::kInstantAttack).to_equal(attackRateTable[0] << 2);
-		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack), kFastInverse, 0).instant_attack)
+		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack), kFastInverse, deluge::dsp::Q<31>{}).instant_attack)
 		    .to_be_true();
-		expect(Sidechain::settings(state(SyncLevel::EIGHTH, Sidechain::kInstantAttack), kFastInverse, 0).instant_attack)
+		expect(Sidechain::settings(state(SyncLevel::EIGHTH, Sidechain::kInstantAttack), kFastInverse, deluge::dsp::Q<31>{}).instant_attack)
 		    .to_be_true();
-		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack + 1), kFastInverse, 0)
+		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack + 1), kFastInverse, deluge::dsp::Q<31>{})
 		           .instant_attack)
 		    .to_be_false();
-		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack - 1), kFastInverse, 0)
+		expect(Sidechain::settings(state(SyncLevel::NONE, Sidechain::kInstantAttack - 1), kFastInverse, deluge::dsp::Q<31>{})
 		           .instant_attack)
 		    .to_be_false();
 	});
 
 	it("passes the shape through to the duck's settings", _ {
-		expect(Sidechain::settings(state(SyncLevel::NONE), kFastInverse, kStraightShape).shape).to_equal(kStraightShape);
-		expect(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, 0x40000000).shape).to_equal(0x40000000);
+		expect(Sidechain::settings(state(SyncLevel::NONE), kFastInverse, kStraightShape).shape.raw()).to_equal(kStraightShape.raw());
+		expect(Sidechain::settings(state(SyncLevel::EIGHTH), kFastInverse, deluge::dsp::q<31>(0.5)).shape.raw()).to_equal(0x40000000);
 	});
 
 	it("renders a synced duck exactly", _ {
 		Sidechain sidechain;
-		sidechain.registerHit(kHit);
+		sidechain.register_hit(kHit);
 		std::vector<int32_t> out;
 		for (int i = 0; i < 50; i++) {
-			out.push_back(sidechain.render(128, 0, state(SyncLevel::EIGHTH), kFastInverse));
+			out.push_back(sidechain.render(128, deluge::dsp::Q<31>{}, state(SyncLevel::EIGHTH), kFastInverse));
 		}
 		expect(out).to_equal(kSyncedRender);
 	});
@@ -137,14 +137,14 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		const SidechainState synced = state(SyncLevel::TWO_HUNDRED_FIFTY_SIXTH);
 		Sidechain sidechain;
 		Control<DuckEnvelope> duck;
-		sidechain.registerHit(kHit);
-		duck.on<&DuckEnvelope::hit>(kHit);
+		sidechain.register_hit(kHit);
+		duck.on<&DuckEnvelope::hit>(Q<31>::from_raw(kHit));
 		std::vector<int32_t> through_sidechain;
 		std::vector<int32_t> through_duck;
 		for (int i = 0; i < 20; i++) {
-			through_sidechain.push_back(sidechain.render(16, 0x40000000, synced, kSlowInverse));
-			duck.configure(Sidechain::settings(synced, kSlowInverse, 0x40000000));
-			through_duck.push_back(duck.advance(16));
+			through_sidechain.push_back(sidechain.render(16, deluge::dsp::q<31>(0.5), synced, kSlowInverse));
+			duck.configure(Sidechain::settings(synced, kSlowInverse, deluge::dsp::q<31>(0.5)));
+			through_duck.push_back(duck.advance(16).raw());
 		}
 		expect(through_sidechain).to_equal(through_duck);
 		expect(through_sidechain.front()).not_().to_equal(0);
@@ -156,18 +156,18 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		std::vector<int32_t> through_duck;
 		for (int i = 0; i < 3; i++) {
 			duck.configure(Sidechain::settings(synced, kFastInverse, kStraightShape));
-			through_duck.push_back(duck.advance(128));
+			through_duck.push_back(duck.advance(128).raw());
 		}
-		duck.on<&DuckEnvelope::hit_at>(kHit, kReleaseAge);
+		duck.on<&DuckEnvelope::hit_at>(Q<31>::from_raw(kHit), kReleaseAge);
 		for (int i = 0; i < 3; i++) {
 			duck.configure(Sidechain::settings(synced, kFastInverse, kStraightShape));
-			through_duck.push_back(duck.advance(128));
+			through_duck.push_back(duck.advance(128).raw());
 		}
 
 		const std::vector<int32_t> straight = lateHitBetweenBlocks(kStraightShape);
 		expect(straight).to_equal(through_duck);
 		// The late hit lands in the release, where the shape bends the level, so the rendered shape shows.
-		expect(straight).not_().to_equal(lateHitBetweenBlocks(0));
+		expect(straight).not_().to_equal(lateHitBetweenBlocks(deluge::dsp::Q<31>{}));
 	});
 
 	it("reduces the longest synced attack and release to zero at the whole level and a slow enough tempo", _ {
@@ -176,9 +176,9 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		const SidechainState longest{.attack = attackRateTable[50] << 2,
 		                             .release = releaseRateTable[50] << 3,
 		                             .sync_level = SyncLevel::WHOLE};
-		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse, 0)))
+		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse, deluge::dsp::Q<31>{})))
 		    .to_equal(std::vector<int32_t>{0, 0});
-		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse + 1, 0)))
+		expect(attackAndRelease(Sidechain::settings(longest, kZeroRateInverse + 1, deluge::dsp::Q<31>{})))
 		    .to_equal(std::vector<int32_t>{1, 1});
 	});
 
@@ -187,23 +187,23 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		// level is two LSBs under no duck.
 		const SidechainState zero_attack = state(SyncLevel::NONE, 0);
 		Sidechain sidechain;
-		sidechain.registerHit(kHit);
+		sidechain.register_hit(kHit);
 		std::vector<int32_t> out;
 		for (int i = 0; i < 8; i++) {
-			out.push_back(sidechain.render(128, 0, zero_attack, kFastInverse));
+			out.push_back(sidechain.render(128, deluge::dsp::Q<31>{}, zero_attack, kFastInverse));
 		}
 		expect(out).to_equal(std::vector<int32_t>(8, kAttackStart));
 		// Still in the attack, at its start: with a rate again, the next block is a fresh hit's first.
-		expect(sidechain.render(128, 0, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
+		expect(sidechain.render(128, deluge::dsp::Q<31>{}, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
 
 		Sidechain late;
 		late.registerHitRetrospectively(kHit, kReleaseAge, zero_attack, kFastInverse);
 		std::vector<int32_t> late_out;
 		for (int i = 0; i < 4; i++) {
-			late_out.push_back(late.render(128, 0, zero_attack, kFastInverse));
+			late_out.push_back(late.render(128, deluge::dsp::Q<31>{}, zero_attack, kFastInverse));
 		}
 		expect(late_out).to_equal(std::vector<int32_t>(4, kAttackStart));
-		expect(late.render(128, 0, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
+		expect(late.render(128, deluge::dsp::Q<31>{}, state(SyncLevel::NONE), kFastInverse)).to_equal(kUnsyncedFirstBlock);
 	});
 
 	it("places a late hit at the synced rates", _ {
@@ -211,7 +211,7 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 		sidechain.registerHitRetrospectively(kHit, 300, state(SyncLevel::EIGHTH), kFastInverse);
 		std::vector<int32_t> out;
 		for (int i = 0; i < 4; i++) {
-			out.push_back(sidechain.render(128, 0, state(SyncLevel::EIGHTH), kFastInverse));
+			out.push_back(sidechain.render(128, deluge::dsp::Q<31>{}, state(SyncLevel::EIGHTH), kFastInverse));
 		}
 		expect(out).to_equal(kSyncedLate);
 	});
@@ -226,21 +226,21 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 			for (uint32_t block = 0; block < 50; block++) {
 				const int32_t hit = block == 3 || block == 20 ? kHit : 0;
 				if (hit != 0) {
-					by_hand.registerHit(hit);
+					by_hand.register_hit(hit);
 				}
 				const int32_t duck = by_hand.render(128, kStraightShape, s, kFastInverse);
 				const DuckBlock b{.frames = 128,
-				                  .hit = hit,
+				                  .hit = deluge::dsp::Q<31>::from_raw(hit),
 				                  .shape = kStraightShape,
-				                  .depth = 0x20000000,
+				                  .depth = deluge::dsp::Q<29>::from_raw(0x20000000),
 				                  .state = s,
 				                  .tick_inverse = kFastInverse};
 				if (block % 2 == 0) {
-					expect(by_level.level<DuckScale::CLIP>(b)).to_equal(duck_gain<DuckScale::CLIP>(duck, 0x20000000));
+					expect(by_level.level<DuckScale::CLIP>(b)).to_equal(duck_gain<DuckScale::CLIP>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 				}
 				else {
 					expect(by_level.level<DuckScale::REVERB_RETURN>(b))
-					    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(duck, 0x20000000));
+					    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 				}
 			}
 		}

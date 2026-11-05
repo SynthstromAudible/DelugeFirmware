@@ -30,7 +30,10 @@ SECTIONS {
      * them outright means they always describe the region, so `nm` can be trusted
      * and a future disappearance of the zeroing shows up as dead code rather than
      * as a missing symbol nobody looks for. */
-    .sdram_bss (NOLOAD) : {
+    /* Not NOLOAD: an object with a non-zero initial value (a constructor the compiler evaluated) then
+     * makes the section PROGBITS, which the build's post-link check (scripts/tasks/zero_sections.py)
+     * rejects, naming it; NOLOAD would drop the value silently and the object would start as zeros. */
+    .sdram_bss : {
         __sdram_bss_start = .;
         *(.sdram_bss .sdram_bss*)
         /* The storage channels' state (request queues, results, and the embassy task pools,
@@ -56,7 +59,7 @@ SECTIONS {
     /* The app's small-alloc "frunk" arena (PLACE_INTERNAL_FRUNK): the allocator
      * metadata arrays live in .frunk_bss; the trailing slack is the
      * "small internal" allocation heap [__frunk_bss_end, __frunk_slack_end). */
-    .frunk_bss (NOLOAD) : ALIGN(16) {
+    .frunk_bss : ALIGN(16) { /* not NOLOAD, as .sdram_bss above */
         __frunk_bss_start = .; /* unconditional, as for .sdram_bss above */
         *(.frunk_bss .frunk_bss*)
         __frunk_bss_end = .;

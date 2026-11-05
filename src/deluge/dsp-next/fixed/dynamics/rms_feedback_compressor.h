@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -31,8 +32,8 @@
 namespace deluge::dsp::fixed {
 
 /// @return The wet level @p blend (Q31, kOneQ31 fully wet) gives, as a whole percentage.
-[[nodiscard]] constexpr int32_t compressor_blend_percent(q31 blend) {
-	return blend > (127 << 24) ? 100 : 100 * (blend >> 24) >> 7;
+[[nodiscard]] constexpr int32_t compressor_blend_percent(Q<31> blend) {
+	return blend.raw() > (127 << 24) ? 100 : 100 * (blend.raw() >> 24) >> 7;
 }
 
 /// @brief A feedback compressor: the gain for each block follows the RMS level, in log space, of the block before it.
@@ -57,10 +58,10 @@ public:
 	void configure(const CompressorKnobs& knobs);
 
 	/// @brief The threshold the next block renders with, from a knob position (Q31 of the knob's travel).
-	void set_threshold(q31 threshold) { threshold_knob_ = threshold; }
+	void set_threshold(Q<31> threshold) { threshold_knob_ = threshold; }
 
 	/// @return The threshold the next block renders with, as a knob position (Q31 of the knob's travel).
-	[[nodiscard]] q31 threshold() const { return threshold_knob_; }
+	[[nodiscard]] Q<31> threshold() const { return threshold_knob_; }
 
 	/// @brief Makeup gain in nepers at no reduction: 1.35 by default, 0.85 for the song's master. Applies from the
 	/// next block; the rest carries on.
@@ -76,12 +77,12 @@ public:
 	/// @brief Compresses @p block in place; an empty block renders nothing and changes nothing.
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume);
+	void render(std::span<StereoSample> block, Q<27> volume_l, Q<27> volume_r, Q<29> final_volume);
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled so threshold zero leaves the level
 	/// unchanged: for an owner whose volume is applied elsewhere.
-	void render_volume_neutral(std::span<StereoSample> block, q31 final_volume) {
-		render(block, 1 << 27, 1 << 27, final_volume >> 3);
+	void render_volume_neutral(std::span<StereoSample> block, Q<29> final_volume) {
+		render(block, Q<27>::one(), Q<27>::one(), scale_shr_floor<3>(final_volume));
 	}
 
 	/// @return The last block's gain reduction for the LEDs, 0 to 127 (6.2 fixed-point dB, quadrupled).
@@ -105,10 +106,10 @@ public:
 		float makeup;                        ///< The makeup envelope, nepers.
 		float threshold;                     ///< The threshold the next block renders with, as a fraction of the
 		                                     ///< final volume's level.
-		q31 detector_moveability;            ///< The detector's high-pass moveability, Q31.
+		Q<31> detector_moveability;          ///< The detector's high-pass moveability.
 		float reduction_envelope;            ///< The reduction envelope, nepers past the threshold.
-		q31 current_volume_l;                ///< The left channel's gain, 5.26 signed.
-		q31 current_volume_r;                ///< The right channel's gain, 5.26 signed.
+		Q<26> current_volume_l;              ///< The left channel's gain.
+		Q<26> current_volume_r;              ///< The right channel's gain.
 		float log_rms;                       ///< The log (nepers) of the last block's RMS level.
 		float mean;                          ///< The last block's mean square level, 1 at full scale.
 		uint32_t saturation_drive;           ///< The output saturation's drive, as a power of two.
@@ -120,9 +121,9 @@ public:
 		float attack_ms;                     ///< The attack time in ms for a 3 dB change.
 		float release_ms;                    ///< The release time in ms for a 3 dB change.
 		float base_gain;                     ///< The makeup gain in nepers at no reduction.
-		q31 threshold_knob;                  ///< The threshold, Q31 of the knob's travel.
-		q31 dry;                             ///< The dry level in the blend, Q31.
-		q31 wet;                             ///< The wet level in the blend, Q31.
+		Q<31> threshold_knob;                ///< The threshold, the knob's travel.
+		Q<31> dry;                           ///< The dry level in the blend.
+		Q<31> wet;                           ///< The wet level in the blend.
 		uint8_t gain_reduction;              ///< The last block's gain reduction for the LEDs.
 	};
 
@@ -141,7 +142,7 @@ private:
 	/// The makeup gain in nepers at no reduction.
 	float base_gain_ = 1.35f;
 	/// The threshold the next block renders with, Q31 of the knob's travel.
-	q31 threshold_knob_ = 0;
+	Q<31> threshold_knob_{};
 	/// The kernel: its coefficients from @ref settings, and everything that carries from block to block.
 	Mono<Compressor> dsp_;
 };

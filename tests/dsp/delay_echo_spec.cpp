@@ -63,7 +63,7 @@ struct EchoTrain {
 /// high-pass's tail).
 template <typename Processor>
 EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, size_t echoes) {
-	std::vector<StereoSample> storage(size + static_cast<size_t>(DelayTape::kWriteLag), StereoSample{.l = 0, .r = 0});
+	std::vector<StereoSample> storage(size + static_cast<size_t>(DelayTape::kWriteLag), StereoSample{});
 	DelayTape tape{std::span{storage}, size, native};
 	const double spin = static_cast<double>(rate) / static_cast<double>(native);
 	const double delay = rate == native ? static_cast<double>(size) - 1 : static_cast<double>(size) / spin;
@@ -71,7 +71,7 @@ EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, siz
 	Processor processor;
 	processor.reset_high_pass();
 	const DelayBlock settings{.rate = static_cast<int32_t>(rate),
-	                          .feedback = delay_workloads::kFeedback099,
+	                          .feedback = deluge::dsp::Q<31>::from_raw(delay_workloads::kFeedback099),
 	                          .analog = false,
 	                          .analog_saturation = 8,
 	                          .ping_pong = false,
@@ -80,18 +80,18 @@ EchoTrain echoes(size_t size, uint32_t native, uint32_t rate, int32_t frame, siz
 	std::vector<double> out;
 	std::array<StereoSample, 128> block{};
 	for (size_t start = 0; start < length; start += block.size()) {
-		block.fill({.l = 0, .r = 0});
+		block.fill(StereoSample{});
 		if (start == 0) {
 			block.at(static_cast<size_t>(frame)) = delay_workloads::kImpulse;
 		}
 		std::ignore = processor.process(block, &tape, nullptr, settings);
 		for (const StereoSample s : block) {
-			out.push_back(static_cast<double>(s.l));
+			out.push_back(static_cast<double>(s.l.raw()));
 		}
 	}
 
 	EchoTrain train{.delay = delay, .positions = {}, .amplitudes = {}};
-	double expected = static_cast<double>(delay_workloads::kImpulse.l);
+	double expected = static_cast<double>(delay_workloads::kImpulse.l.raw());
 	for (size_t k = 1; k <= echoes; ++k) {
 		expected *= static_cast<double>(delay_workloads::kFeedback099) / static_cast<double>(1 << 30);
 		const double centre = static_cast<double>(frame) + (static_cast<double>(k) * delay);

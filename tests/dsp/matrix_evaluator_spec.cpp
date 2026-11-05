@@ -38,7 +38,7 @@ describe matrix_evaluator_spec("the matrix evaluator", ${
 		std::array<int32_t, kMaxCables> ranges{};
 		ReferencePatcher reference{kVoiceConfig, sources, reference_finals, ranges};
 		MatrixBlock block{};
-		block.preset_values = c.presets;
+		block.preset_values = deluge::synth::test::raw_matrix::typed_words<deluge::dsp::Q<31>>(c.presets);
 		const ScopePass pass{.scope = 0, .sources = sources, .final_values = finals};
 		int32_t differing = 0;
 		for (int32_t p = 0; p < params::FIRST_GLOBAL; ++p) {
