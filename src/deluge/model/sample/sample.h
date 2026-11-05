@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample_length_sentinel.h"
 #include "model/sample/sample_perc_cache_zone.h"

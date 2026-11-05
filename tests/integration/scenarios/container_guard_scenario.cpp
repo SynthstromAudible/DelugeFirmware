@@ -396,7 +396,7 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 	    .sound = true,
 	};
 	bool changed = false;
-	auto volume = deluge::dsp::Q<27>::from_raw(kOneQ31 >> 1);
+	auto volume = scale_shr_floor<1>(deluge::dsp::Q<27>::max());
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
@@ -431,7 +431,7 @@ struct MasterFxRender {
 /// master's current type: its chain's soft off and mod FX, EQ and delay, as its chain renders the master's mix each
 /// block before the reverb, over kModFxBlocks blocks.
 MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
-	static q31_t send[kRenderBlockFrames]{};
+	static int32_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
 	const deluge::snapshot::ModControllableSnapshot& snapshot = master.modControllableSnapshot();
 	const deluge::effects::Delay::State delayState =
@@ -444,7 +444,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
-		auto volume = deluge::dsp::Q<27>::from_raw(kOneQ31 >> 1);
+		auto volume = scale_shr_floor<1>(deluge::dsp::Q<27>::max());
 		master.core().soft_off_grain(fx);
 		master.core().render_fx(block, fx, volume, true, deluge::dsp::typed_view(std::span{send}));
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));

@@ -19,7 +19,7 @@
 #include <cstdint>
 
 /// @file
-/// @brief The A9's high-word multiplies as inline asm: the one implementation behind q31_ops.h's helpers and
+/// @brief The A9's high-word multiplies as inline asm: the one implementation behind detail/raw_ops.h's helpers and
 /// fixed_point.h's mul family at run time.
 ///
 /// Clang has no intrinsic for them. The plain-C idiom compiles to the same instructions, but the loop vectorizer then

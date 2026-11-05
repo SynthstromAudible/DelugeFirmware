@@ -20,7 +20,6 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported

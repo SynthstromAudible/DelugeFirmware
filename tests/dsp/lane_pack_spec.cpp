@@ -28,12 +28,12 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/core/frame.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "raw_words.h"
 
 #include <array>
 #include <concepts>

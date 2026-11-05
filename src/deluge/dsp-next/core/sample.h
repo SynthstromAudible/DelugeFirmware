@@ -17,7 +17,6 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h" // the raw word helpers (standard-headers-only, L0-clean)
 #include <concepts>
 
 // Numeric vocabulary for dsp-next. The library is numeric-agnostic at the

@@ -65,11 +65,11 @@ struct CompressorStep {
 	Signal signal = Signal::VOICE;
 	bool render = true; ///< Whether the owner renders; else it resets, as an owner does with its threshold at 0.
 	CompressorKnobs knobs{};
-	q31_t threshold = 0; ///< The threshold param, Q31 of the knob's travel (SOUND and CLIP); MASTER takes the knobs'.
-	q31_t volume_l = 1 << 27;     ///< MASTER's left channel gain, 4.27 signed.
-	q31_t volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
-	q31_t final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before the
-	                              ///< neutral render's >> 3.
+	int32_t threshold = 0; ///< The threshold param, Q31 of the knob's travel (SOUND and CLIP); MASTER takes the knobs'.
+	int32_t volume_l = 1 << 27;     ///< MASTER's left channel gain, 4.27 signed.
+	int32_t volume_r = 1 << 27;     ///< MASTER's right channel gain, 4.27 signed.
+	int32_t final_volume = 1 << 27; ///< The final volume: 3.29 as MASTER passes it; as SOUND and CLIP pass it, before
+	                                ///< the neutral render's >> 3.
 	bool min_left = false; ///< Whether the block's middle frame (frames / 2) is replaced: left INT32_MIN, right -2^30.
 };
 
@@ -183,7 +183,7 @@ using filter_workloads::detail::kBlocks;
 }
 
 /// The wet level of the partial-wet workloads: about 60%.
-inline constexpr q31_t kPartialWet = 1288490188;
+inline constexpr int32_t kPartialWet = 1288490188;
 
 [[nodiscard]] inline std::vector<CompressorWorkload> make_compressor_workloads() {
 	std::vector<CompressorWorkload> w;
@@ -399,7 +399,7 @@ public:
 private:
 	/// Whether @p C blends from a caller's scratch, as the references do; the firmware's compressor blends in place.
 	static constexpr bool kTakesScratch =
-	    requires(C& c, std::span<RawFrame> b) { c.render(b, q31_t{}, q31_t{}, q31_t{}, b); };
+	    requires(C& c, std::span<RawFrame> b) { c.render(b, int32_t{}, int32_t{}, int32_t{}, b); };
 	/// Whether @p C takes its threshold and levels typed, as the firmware's compressor does; the references take raw
 	/// words.
 	static constexpr bool kTyped = requires(C& c) { c.set_threshold(deluge::dsp::Q<31>{}); };

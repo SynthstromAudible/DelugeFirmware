@@ -22,6 +22,7 @@
 
 #include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
+#include "raw_words.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstddef>
@@ -69,7 +70,7 @@ std::uint32_t xorshift(std::uint32_t& s) {
 	return s;
 }
 
-/// The morph on q31_ops.h's rounded multiply-accumulate, value1 halved, the blend halved: the typed morph must match it
+/// The morph on raw_ops.h's rounded multiply-accumulate, value1 halved, the blend halved: the typed morph must match it
 /// bit for bit. The difference is taken through uint32_t, so it wraps where the plain subtraction would overflow.
 int32_t raw_morph(int32_t value1, int32_t value2, uint32_t blend) {
 	const auto difference = static_cast<int32_t>(static_cast<uint32_t>(value2) - static_cast<uint32_t>(value1));

@@ -18,9 +18,9 @@
 #include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "raw_words.h"
 
 #include "loop_state_kernels.h"
 

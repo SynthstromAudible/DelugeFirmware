@@ -134,7 +134,7 @@ constexpr std::size_t kBlocks = 3;
 /// Samples past the end of each block, holding kSentinel: a load reading them changes the output, and a store
 /// writing them is seen.
 constexpr std::size_t kTail = 4;
-constexpr q31_t kSentinel = 0x5a5a'5a5a;
+constexpr int32_t kSentinel = 0x5a5a'5a5a;
 
 std::uint32_t xorshift(std::uint32_t& s) {
 	s ^= s << 13;
@@ -144,15 +144,15 @@ std::uint32_t xorshift(std::uint32_t& s) {
 }
 
 /// @p n raw samples, random from @p seed, with the extremes first.
-std::vector<q31_t> raw_input(std::size_t n, std::uint32_t seed) {
-	std::vector<q31_t> v(n);
+std::vector<int32_t> raw_input(std::size_t n, std::uint32_t seed) {
+	std::vector<int32_t> v(n);
 	for (std::size_t i = 0; i < n; ++i) {
-		v[i] = i == 0 ? INT32_MIN : i == 1 ? INT32_MAX : static_cast<q31_t>(xorshift(seed));
+		v[i] = i == 0 ? INT32_MIN : i == 1 ? INT32_MAX : static_cast<int32_t>(xorshift(seed));
 	}
 	return v;
 }
 
-std::vector<Q<31>> typed(const std::vector<q31_t>& raw) {
+std::vector<Q<31>> typed(const std::vector<int32_t>& raw) {
 	std::vector<Q<31>> v(raw.size());
 	for (std::size_t i = 0; i < raw.size(); ++i) {
 		v[i] = Q<31>::from_raw(raw[i]);
@@ -160,8 +160,8 @@ std::vector<Q<31>> typed(const std::vector<q31_t>& raw) {
 	return v;
 }
 
-std::vector<q31_t> raw(const std::vector<Q<31>>& typed) {
-	std::vector<q31_t> v(typed.size());
+std::vector<int32_t> raw(const std::vector<Q<31>>& typed) {
+	std::vector<int32_t> v(typed.size());
 	for (std::size_t i = 0; i < typed.size(); ++i) {
 		v[i] = typed[i].raw();
 	}
@@ -174,11 +174,11 @@ struct AccumulateByHand {
 	Q<31> gain;                 ///< The gain each input is scaled by.
 	std::array<Q<31>, 2> acc{}; ///< Each lane's running sum.
 
-	q31_t step(std::size_t lane, q31_t x) {
+	int32_t step(std::size_t lane, int32_t x) {
 		acc[lane] = add_wrap(acc[lane], mul_doubling_sat(Q<31>::from_raw(x), gain));
 		return acc[lane].raw();
 	}
-	void render_block(std::span<const q31_t> in, std::span<q31_t> out) {
+	void render_block(std::span<const int32_t> in, std::span<int32_t> out) {
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			out[i] = step(0, in[i]);
 		}
@@ -191,7 +191,7 @@ struct VecOffsetByHand {
 	Q<31> by;                          ///< What the offset grows by each step, beyond the lanes' sum.
 	Q<31> offset = Q<31>::from_raw(0); ///< The next step's offset, the same in every lane.
 
-	void render_block(std::span<const q31_t> in, std::span<q31_t> out) {
+	void render_block(std::span<const int32_t> in, std::span<int32_t> out) {
 		const std::size_t n = in.size();
 		for (std::size_t at = 0; at < n; at += 4) {
 			Q<31> sum = Q<31>::from_raw(0);
@@ -214,7 +214,7 @@ std::size_t mono_mismatches(T typed_wrapper, R raw_wrapper, std::size_t n) {
 	std::size_t bad = 0;
 	for (std::size_t block = 0; block < kBlocks; ++block) {
 		auto in = raw_input(n, 0x9e37'79b9u + static_cast<std::uint32_t>((n * 7) + block));
-		std::vector<q31_t> raw_out(n);
+		std::vector<int32_t> raw_out(n);
 		raw_wrapper.render_block(in, raw_out);
 		in.resize(n + kTail, kSentinel);
 		const auto typed_in = typed(in);
@@ -240,8 +240,8 @@ std::size_t lanes_mismatches(T typed_wrapper, AccumulateByHand by_hand, std::siz
 		}
 		typed_wrapper.render_block(typed_in, typed_out);
 		for (std::size_t i = 0; i < n; ++i) {
-			const q31_t want0 = by_hand.step(0, in[2 * i]);
-			const q31_t want1 = by_hand.step(1, in[(2 * i) + 1]);
+			const int32_t want0 = by_hand.step(0, in[2 * i]);
+			const int32_t want1 = by_hand.step(1, in[(2 * i) + 1]);
 			bad += static_cast<std::size_t>(typed_out[i].lane[0].raw() != want0 || typed_out[i].lane[1].raw() != want1);
 		}
 	}
@@ -260,8 +260,8 @@ std::size_t stereo_mismatches(T typed_wrapper, AccumulateByHand by_hand, std::si
 		}
 		typed_wrapper.render_block(frames, typed_out);
 		for (std::size_t i = 0; i < n; ++i) {
-			const q31_t want_l = by_hand.step(0, in[2 * i]);
-			const q31_t want_r = by_hand.step(1, in[(2 * i) + 1]);
+			const int32_t want_l = by_hand.step(0, in[2 * i]);
+			const int32_t want_r = by_hand.step(1, in[(2 * i) + 1]);
 			bad += static_cast<std::size_t>(typed_out[i].l.raw() != want_l || typed_out[i].r.raw() != want_r);
 		}
 	}
@@ -284,7 +284,7 @@ describe typed_kernel("kernels written over Q<31>", ${
 	it("step a Q24 vector kernel as its arithmetic on the raw words, partial last vectors included", _ {
 		for (std::size_t n : kLengths) {
 			Mono<TypedVecOffset24> mono;
-			std::vector<q31_t> offset(4, 0);
+			std::vector<int32_t> offset(4, 0);
 			std::size_t bad = 0;
 			for (std::size_t block = 0; block < kBlocks; ++block) {
 				const auto in = raw_input(n, 0x1b87'3593u + static_cast<std::uint32_t>((n * 7) + block));
@@ -298,16 +298,16 @@ describe typed_kernel("kernels written over Q<31>", ${
 				for (std::size_t at = 0; at < n; at += 4) {
 					std::uint32_t sum = 0;
 					for (std::size_t lane = 0; lane < 4; ++lane) {
-						const q31_t x = at + lane < n ? in[at + lane] : 0;
+						const int32_t x = at + lane < n ? in[at + lane] : 0;
 						if (at + lane < n) {
 							bad += static_cast<std::size_t>(
 							    out[at + lane].raw()
-							    != static_cast<q31_t>(static_cast<std::uint32_t>(x) + static_cast<std::uint32_t>(offset[lane])));
+							    != static_cast<int32_t>(static_cast<std::uint32_t>(x) + static_cast<std::uint32_t>(offset[lane])));
 						}
 						sum += static_cast<std::uint32_t>(x);
 					}
-					for (q31_t& o : offset) {
-						o = static_cast<q31_t>(static_cast<std::uint32_t>(o) + sum);
+					for (int32_t& o : offset) {
+						o = static_cast<int32_t>(static_cast<std::uint32_t>(o) + sum);
 					}
 				}
 			}

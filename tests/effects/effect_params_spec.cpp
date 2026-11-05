@@ -27,6 +27,7 @@
 #include "effects/mod_fx.h"
 #include "effects/reverb.h"
 #include "effects/stutter.h"
+#include "raw_words.h"
 
 #include "raw_curves.h"
 

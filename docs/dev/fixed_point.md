@@ -96,7 +96,7 @@ they compile to their instruction under any inliner, the probes' included.
 ### The high-word multiplies are asm
 
 `src/deluge/dsp-next/core/high_word_asm.h` holds `smmul`, `smmulr`, `smmla`, `smmlar`, `smmls` and `smmlsr` as inline
-asm, the one implementation behind both `q31_ops.h`'s raw helpers and, at run time on ARM, `fixed_point.h`'s `mul`
+asm, the one implementation behind both `detail/raw_ops.h`'s raw helpers and, at run time on ARM, `fixed_point.h`'s `mul`
 family. Moving a kernel from the helpers to the types therefore leaves its instructions as they were. The portable C
 bodies are the constant-evaluated and host forms.
 
@@ -223,7 +223,7 @@ instructions.
   fc × 1.125 (an eighth as a `UQ<32>` multiplier), its passes run on the Q30 scaled input read as Q31, and the blend
   is three times its Q30 sum read as Q31. The shelf pair's gains are Q29 (the treble's one at a flat knob, the bass's the excess over one); its bass step is the
   Q30 product read as Q31, half the treble's. The reciprocals are double divisions and stay raw, as do `quick_log`'s
-  octaves and the table positions. The high-pass ladder places its saturator with `q31_ops.h`'s asm saturate: the
+  octaves and the table positions. The high-pass ladder places its saturator with `detail/raw_ops.h`'s asm saturate: the
   builtin a typed saturate compiles to is sunk out of the loop, and the rescheduled loop ran slower on the A9.
 - **Delay:** the analog impulse response's taps are Q31 and its sums Q30 (`mul_r`, `mla_r`), the output their bits
   read as Q31; the feedback shaper's products are Q30, the digital clip `clamp_bits<29>` then `scale_shl_wrap<2>`
@@ -337,7 +337,7 @@ any source change, so an empty result is not the gate. Each changed function is 
   its `int32_t` as its only member). Raw machine code takes it: the DX7 graph's call into the device's NEON kernel and
   the supersaw's hand-written NEON passes, the only views outside the specs. The specs view their raw references'
   buffers with it.
-- **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `q31_ops.h`:
+- **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `detail/raw_ops.h`:
   - raw sites, meaning raw helper calls and DSP-instruction asm;
   - seam views, meaning `typed_view` and `raw_view` calls;
   - boundary crossings, meaning `from_raw`, `.raw()`, `->raw()` and `reinterpret_bits`.

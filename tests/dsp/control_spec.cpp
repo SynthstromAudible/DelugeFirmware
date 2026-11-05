@@ -18,8 +18,8 @@
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
+#include "raw_words.h"
 
 #include <concepts>
 #include <cppspec.hpp>
@@ -61,7 +61,7 @@ struct Countdown {
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
 		const int64_t next = int64_t{s.level.raw()} - (int64_t{c.rate.raw()} * static_cast<int64_t>(n));
-		s.level = q31::from_raw(next < 0 ? 0 : static_cast<q31_t>(next));
+		s.level = q31::from_raw(next < 0 ? 0 : static_cast<int32_t>(next));
 		++s.calls;
 		return s.level;
 	}
@@ -107,7 +107,7 @@ struct SignedCountdown {
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate, .mode = s.dir}; }
 	template <Dir M>
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const auto change = q31::from_raw(c.rate.raw() * static_cast<q31_t>(n));
+		const auto change = q31::from_raw(c.rate.raw() * static_cast<int32_t>(n));
 		if constexpr (M == Dir::DOWN) {
 			s.level = sub_wrap(s.level, change);
 		}
@@ -134,7 +134,7 @@ struct RestartsAtSeven {
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static void reset(State& s) { s.level = q31::from_raw(7); }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<q31_t>(n)));
+		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<int32_t>(n)));
 		return s.level;
 	}
 };
@@ -155,7 +155,7 @@ struct ConstAdvance {
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<q31_t>(n)));
+		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<int32_t>(n)));
 		return s.level;
 	}
 	static q31 advance(Coefficients& c, State& s, std::size_t n) = delete;
@@ -181,7 +181,7 @@ struct ModedConstAdvance {
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate, .mode = s.dir}; }
 	template <Dir M>
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const auto change = q31::from_raw(c.rate.raw() * static_cast<q31_t>(n));
+		const auto change = q31::from_raw(c.rate.raw() * static_cast<int32_t>(n));
 		s.level = M == Dir::UP ? add_wrap(s.level, change) : sub_wrap(s.level, change);
 		return s.level;
 	}
@@ -190,7 +190,7 @@ struct ModedConstAdvance {
 };
 
 /// A fall per sample of 2^-11 of full scale, Q1.31.
-constexpr q31_t kRate = 1 << 20;
+constexpr int32_t kRate = 1 << 20;
 
 static_assert(control_kernel<Countdown>);
 static_assert(control_kernel<SignedCountdown> && moded_kernel<SignedCountdown>);

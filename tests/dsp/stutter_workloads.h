@@ -24,11 +24,11 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h" // q31_t
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/state.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 
 #include <array>
 #include <climits>
@@ -97,7 +97,7 @@ struct Workload {
 	std::vector<RawFrame> v(n);
 	if (full_scale) {
 		for (std::size_t i = 0; i < n; ++i) {
-			const q31_t extreme = ((first_frame + i) / 512) % 2 == 0 ? INT32_MAX : INT32_MIN;
+			const int32_t extreme = ((first_frame + i) / 512) % 2 == 0 ? INT32_MAX : INT32_MIN;
 			v[i] = {extreme, extreme};
 		}
 		return v;
@@ -107,7 +107,7 @@ struct Workload {
 	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
-		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
+		frame = {static_cast<int32_t>(l), static_cast<int32_t>(r)};
 	}
 	return v;
 }

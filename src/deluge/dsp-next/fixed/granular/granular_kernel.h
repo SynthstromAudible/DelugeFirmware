@@ -19,9 +19,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kSampleRate
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/triangle.h"
 #include "dsp-next/core/types.h"
@@ -179,7 +179,7 @@ struct Granular {
 			const Q<31> density = add_wrap(halve_toward_zero(c.density), q<31>(0.5));
 			// Grains up to 8 periods long; past that, grains are stolen for new ones.
 			// Raw: a whole number of frames scaled by the Q31 density, the product's high word doubled.
-			l.size = 1760 + q31_mult(l.period << 3, density.raw());
+			l.size = 1760 + dsp::detail::q31_mult(l.period << 3, density.raw());
 		}
 		if (s.knobs.mix != c.mix) {
 			s.knobs.mix = c.mix;

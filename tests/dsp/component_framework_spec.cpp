@@ -87,9 +87,9 @@ struct SimdCount : Generator<SimdCount, q31> {
 };
 /// Stereo generators: frame i is {i + 1, -(i + 1)}, scalar and SIMD.
 struct ScalarStereoCount : Generator<ScalarStereoCount, StereoSample> {
-	q31_t next = 1;
+	int32_t next = 1;
 	[[nodiscard]] StereoSample render() {
-		q31_t v = next++;
+		int32_t v = next++;
 		return {.l = Q<31>::from_raw(v), .r = Q<31>::from_raw(-v)};
 	}
 };
@@ -149,14 +149,14 @@ std::vector<q31> ramp(std::size_t n) {
 std::vector<StereoSample> stereo_ramp(std::size_t frames) {
 	std::vector<StereoSample> v(frames);
 	for (std::size_t i = 0; i < frames; i++) {
-		v[i] = {.l = Q<31>::from_raw(static_cast<q31_t>(i + 1)), .r = Q<31>::from_raw(-static_cast<q31_t>(i + 1))};
+		v[i] = {.l = Q<31>::from_raw(static_cast<int32_t>(i + 1)), .r = Q<31>::from_raw(-static_cast<int32_t>(i + 1))};
 	}
 	return v;
 }
 
 /// @return @p block's raw words, which CppSpec compares and prints.
-std::vector<q31_t> words(std::span<const q31> block) {
-	std::vector<q31_t> v(block.size());
+std::vector<int32_t> words(std::span<const q31> block) {
+	std::vector<int32_t> v(block.size());
 	for (std::size_t i = 0; i < block.size(); i++) {
 		v[i] = block[i].raw();
 	}
@@ -166,7 +166,7 @@ std::vector<q31_t> words(std::span<const q31> block) {
 /// Samples past a block's end, holding kSentinel: a load reading them changes nothing stored, a store writing them is
 /// seen.
 constexpr std::size_t kTail = 4;
-constexpr q31_t kSentinel = 0x5a5a'5a5a;
+constexpr int32_t kSentinel = 0x5a5a'5a5a;
 
 /// The SIMD mixins against their scalar twins at @p n samples: whether every sample agrees and the tail is untouched.
 bool simd_mixins_agree(std::size_t n) {
@@ -227,7 +227,7 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t frames : {1u, 2u, 3u, 4u, 5u, 6u, 9u, 10u}) {
 			std::vector<StereoSample> in(frames);
 			for (std::size_t i = 0; i < frames; i++) {
-				in[i] = {.l = Q<31>::from_raw(static_cast<q31_t>(i + 1)), .r = Q<31>::from_raw(-static_cast<q31_t>(i + 1))};
+				in[i] = {.l = Q<31>::from_raw(static_cast<int32_t>(i + 1)), .r = Q<31>::from_raw(-static_cast<int32_t>(i + 1))};
 			}
 			std::vector<StereoSample> scalar(frames), simd(frames);
 			ScalarStereoDouble{}.render_block(in, scalar);
@@ -236,7 +236,7 @@ describe component_framework("the component mixins, AsBlock and control_generato
 				expect(simd[i].l.raw()).to_equal(scalar[i].l.raw());
 				expect(simd[i].r.raw()).to_equal(scalar[i].r.raw());
 			}
-			expect(scalar.back().r.raw()).to_equal(-2 * static_cast<q31_t>(frames));
+			expect(scalar.back().r.raw()).to_equal(-2 * static_cast<int32_t>(frames));
 		}
 	});
 	it("mixes every sample on both paths, tails included", _ {
@@ -252,7 +252,7 @@ describe component_framework("the component mixins, AsBlock and control_generato
 	it("generates each sample once, in order", _ {
 		std::vector<q31> out(5);
 		ScalarCount{}.render_block(out);
-		expect(words(out)).to_equal(std::vector<q31_t>{1, 2, 3, 4, 5});
+		expect(words(out)).to_equal(std::vector<int32_t>{1, 2, 3, 4, 5});
 	});
 	it("mixes in place into either input as out of place, on both paths", _ {
 		for (std::size_t n : {2u, 3u, 4u, 6u, 7u}) {
@@ -317,8 +317,8 @@ describe component_framework("the component mixins, AsBlock and control_generato
 				expect(simd_mix[i].l.raw()).to_equal(scalar_mix[i].l.raw());
 				expect(simd_mix[i].r.raw()).to_equal(scalar_mix[i].r.raw());
 			}
-			expect(scalar.back().r.raw()).to_equal(-static_cast<q31_t>(frames));
-			expect(scalar_mix.back().l.raw()).to_equal(2 * static_cast<q31_t>(frames));
+			expect(scalar.back().r.raw()).to_equal(-static_cast<int32_t>(frames));
+			expect(scalar_mix.back().l.raw()).to_equal(2 * static_cast<int32_t>(frames));
 		}
 	});
 	it("keeps each channel its own on the scalar and interleaved SIMD paths, in place and out", _ {
@@ -330,8 +330,8 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto inplace = stereo_ramp(frames);
 			SimdLeftDouble{}.render_block(inplace, inplace);
 			for (std::size_t i = 0; i < frames; i++) {
-				const auto expected_l = 2 * static_cast<q31_t>(i + 1);
-				const auto expected_r = -static_cast<q31_t>(i + 1);
+				const auto expected_l = 2 * static_cast<int32_t>(i + 1);
+				const auto expected_r = -static_cast<int32_t>(i + 1);
 				expect(scalar[i].l.raw()).to_equal(expected_l);
 				expect(scalar[i].r.raw()).to_equal(expected_r);
 				expect(simd[i].l.raw()).to_equal(expected_l);

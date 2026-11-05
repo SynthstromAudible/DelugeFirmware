@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/detail/raw_ops.h"
 #include "effects/chain_core.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
@@ -38,6 +38,8 @@
 #include <span>
 
 namespace chain_reference {
+
+using deluge::dsp::detail::multiply_32x32_rshift32;
 
 using deluge::dsp::StereoSample;
 namespace fx = deluge::effects;

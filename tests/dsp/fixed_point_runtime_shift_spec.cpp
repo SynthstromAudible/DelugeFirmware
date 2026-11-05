@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>

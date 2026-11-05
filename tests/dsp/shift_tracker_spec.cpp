@@ -57,22 +57,22 @@ constexpr std::size_t kLongRun = 10'000;
 /// The seed of every noise input.
 constexpr uint32_t kSeed = 0x0DC0'B10C;
 /// The extremes of Q31.
-constexpr q31_t kMin = std::numeric_limits<q31_t>::min();
-constexpr q31_t kMax = std::numeric_limits<q31_t>::max();
+constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
 /// @p n samples of seeded noise at half scale, so that x - y, for y tracking x, stays inside Q31.
-std::vector<q31_t> half_scale_noise(std::size_t n, uint32_t seed) {
+std::vector<int32_t> half_scale_noise(std::size_t n, uint32_t seed) {
 	SeededNoise noise{seed};
-	std::vector<q31_t> v(n);
-	for (q31_t& x : v) {
+	std::vector<int32_t> v(n);
+	for (int32_t& x : v) {
 		x = noise.render() >> 1;
 	}
 	return v;
 }
 
 /// 64 samples alternating between INT32_MIN and INT32_MAX, then @p n samples of full-scale seeded noise.
-std::vector<q31_t> extreme_then_full_scale(std::size_t n, uint32_t seed) {
-	std::vector<q31_t> v;
+std::vector<int32_t> extreme_then_full_scale(std::size_t n, uint32_t seed) {
+	std::vector<int32_t> v;
 	for (std::size_t i = 0; i < 64; ++i) {
 		v.push_back(i % 2 == 0 ? kMin : kMax);
 	}
@@ -84,17 +84,17 @@ std::vector<q31_t> extreme_then_full_scale(std::size_t n, uint32_t seed) {
 }
 
 /// @p a - @p b through uint32_t: two's complement, wrapping modulo 2^32.
-q31_t sub_mod(q31_t a, q31_t b) {
-	return static_cast<q31_t>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
+int32_t sub_mod(int32_t a, int32_t b) {
+	return static_cast<int32_t>(static_cast<uint32_t>(a) - static_cast<uint32_t>(b));
 }
 
 /// @p a + @p b through uint32_t: two's complement, wrapping modulo 2^32.
-q31_t add_mod(q31_t a, q31_t b) {
-	return static_cast<q31_t>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
+int32_t add_mod(int32_t a, int32_t b) {
+	return static_cast<int32_t>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
 }
 
 /// Whether @p a - @p b leaves Q31.
-bool difference_overflows(q31_t a, q31_t b) {
+bool difference_overflows(int32_t a, int32_t b) {
 	const int64_t d = int64_t{a} - int64_t{b};
 	return d < int64_t{kMin} || d > int64_t{kMax};
 }
@@ -107,61 +107,61 @@ constexpr std::array<std::size_t, 6> kLengths{1, 2, 3, 7, 64, 129};
 // clang-format off
 describe shift_tracker_spec("ShiftTracker", ${
 	it("takes the difference after the update", _ {
-		constexpr q31_t x = q31_t{1} << 20;
+		constexpr int32_t x = int32_t{1} << 20;
 		Blocker::State track{};
-		expect(Blocker::step<Blocker::Mode::TRACK>({}, {}, track, Q<31>::from_raw(x)).raw()).to_equal(q31_t{512});
-		expect(track.y.raw()).to_equal(q31_t{512});
+		expect(Blocker::step<Blocker::Mode::TRACK>({}, {}, track, Q<31>::from_raw(x)).raw()).to_equal(int32_t{512});
+		expect(track.y.raw()).to_equal(int32_t{512});
 
 		Blocker::State remove{};
 		expect(Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, remove, Q<31>::from_raw(x)).raw())
-		    .to_equal(x - q31_t{512});
-		expect(remove.y.raw()).to_equal(q31_t{512});
+		    .to_equal(x - int32_t{512});
+		expect(remove.y.raw()).to_equal(int32_t{512});
 	});
 
 	it("removes the slow part at N = 11 exactly as the delay's DC blocker does", _ {
-		const std::vector<q31_t> in = half_scale_noise(kLongRun, kSeed);
+		const std::vector<int32_t> in = half_scale_noise(kLongRun, kSeed);
 		const Blocker::Coefficients c = Blocker::coefficients({.mode = Blocker::Mode::REMOVE});
 		Blocker::State s{};
-		q31_t hp = 0;
-		for (const q31_t sample : in) {
-			q31_t x = sample;
+		int32_t hp = 0;
+		for (const int32_t sample : in) {
+			int32_t x = sample;
 			hp += (x - hp) >> 11;
 			x -= hp;
 			expect(Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, Q<31>::from_raw(sample)).raw()).to_equal(x);
 		}
 		expect(s.y.raw()).to_equal(hp);
-		expect(hp).not_().to_equal(q31_t{0});
+		expect(hp).not_().to_equal(int32_t{0});
 	});
 
 	it("tracks at N = 7 exactly as the low-pass ladder's noise follower does", _ {
 		SeededNoise noise{kSeed};
 		const Follower::Coefficients c = Follower::coefficients({.mode = Follower::Mode::TRACK});
 		Follower::State s{};
-		q31_t noise_last = 0;
+		int32_t noise_last = 0;
 		for (std::size_t i = 0; i < kLongRun; ++i) {
-			const q31_t drawn = noise.render() >> 2;
-			const q31_t distance_to_go = drawn - noise_last;
+			const int32_t drawn = noise.render() >> 2;
+			const int32_t distance_to_go = drawn - noise_last;
 			noise_last += distance_to_go >> 7;
 			expect(Follower::step<Follower::Mode::TRACK>(c, {}, s, Q<31>::from_raw(drawn)).raw()).to_equal(noise_last);
 		}
 		expect(s.y.raw()).to_equal(noise_last);
-		expect(noise_last).not_().to_equal(q31_t{0});
+		expect(noise_last).not_().to_equal(int32_t{0});
 	});
 
 	it("wraps as two's complement at full scale and at the extremes, in both modes", _ {
-		const std::vector<q31_t> in = extreme_then_full_scale(kLongRun, kSeed);
+		const std::vector<int32_t> in = extreme_then_full_scale(kLongRun, kSeed);
 		const Blocker::Coefficients remove_c = Blocker::coefficients({.mode = Blocker::Mode::REMOVE});
 		const Follower::Coefficients track_c = Follower::coefficients({.mode = Follower::Mode::TRACK});
 		Blocker::State remove{};
 		Follower::State track{};
-		q31_t hp = 0;
-		q31_t noise_last = 0;
+		int32_t hp = 0;
+		int32_t noise_last = 0;
 		std::size_t remove_wraps = 0;
 		std::size_t track_wraps = 0;
-		for (const q31_t x : in) {
+		for (const int32_t x : in) {
 			remove_wraps += difference_overflows(x, hp) ? 1 : 0;
 			hp = add_mod(hp, sub_mod(x, hp) >> 11);
-			const q31_t removed = sub_mod(x, hp);
+			const int32_t removed = sub_mod(x, hp);
 			remove_wraps += difference_overflows(x, hp) ? 1 : 0;
 			expect(Blocker::step<Blocker::Mode::REMOVE>(remove_c, {}, remove, Q<31>::from_raw(x)).raw()).to_equal(removed);
 
@@ -182,11 +182,11 @@ describe shift_tracker_spec("ShiftTracker", ${
 			Blocker::State s{};
 			uint32_t seed = kSeed;
 			for (const std::size_t n : kLengths) {
-				const std::vector<q31_t> in = half_scale_noise(n, seed++);
-				std::vector<q31_t> got(n);
+				const std::vector<int32_t> in = half_scale_noise(n, seed++);
+				std::vector<int32_t> got(n);
 				mono.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
 				for (std::size_t i = 0; i < n; ++i) {
-					const q31_t want = mode == Blocker::Mode::TRACK
+					const int32_t want = mode == Blocker::Mode::TRACK
 					                     ? Blocker::step<Blocker::Mode::TRACK>(c, {}, s, Q<31>::from_raw(in[i])).raw()
 					                     : Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, Q<31>::from_raw(in[i])).raw();
 					expect(got[i]).to_equal(want);

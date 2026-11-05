@@ -23,7 +23,7 @@
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>

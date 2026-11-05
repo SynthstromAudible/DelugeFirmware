@@ -9,8 +9,8 @@
 // and every param the four-lane curves compute, with corner and random presets, on the host and on ARM.
 
 #include "alloc_seams.h"
-#include "dsp-next/core/q31_ops.h"
 #include "param_regions.h"
+#include "raw_words.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "synth/matrix/matrix_fixed.h"

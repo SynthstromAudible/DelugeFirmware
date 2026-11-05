@@ -37,7 +37,7 @@
 ///  - every function holding a plain signed sum that can overflow at full scale is marked
 ///    @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: `Comb::process`, `Allpass::process`, `ProcessOne`, Freeverb's `process`
 ///    (the DC loop) and both plates' `process` (the q31 mix);
-///  - `util/functions.h` is not included: the copies use only `dsp-next/core/q31_ops.h`'s multiplies, so the
+///  - `util/functions.h` is not included: the copies use only `dsp-next/core/detail/raw_ops.h`'s multiplies, so the
 ///    header builds without the libdeluge include path;
 ///  - names the app qualifies with `dsp::` (`OnePole`, `Interpolate`, `toQ31Saturating`) are qualified with
 ///    `reverb_ref::`, and `util::map` with `::util::`, so each resolves to the same function from this namespace;
@@ -51,8 +51,8 @@
 
 #include "argon.hpp"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 #include "reverb_views.h"
 #include "reverb_workloads.h"
 #include "util/misc.h"
@@ -537,7 +537,7 @@ private:
  * tail clips to full-scale positive, while x86 yields INT32_MIN, flipping the same sample to
  * full-scale negative. Anything specced on the host would misreport what the hardware does.
  */
-inline q31_t toQ31Saturating(float scaled) {
+inline int32_t toQ31Saturating(float scaled) {
 	// (float)INT32_MAX rounds up to 2^31, which is itself out of range, so the ceiling has to
 	// be the largest float below it.
 	constexpr float kMax = 2147483520.f; // 0x7FFFFF80
@@ -548,7 +548,7 @@ inline q31_t toQ31Saturating(float scaled) {
 	if (scaled < kMin) {
 		++counts.saturated_low;
 	}
-	return static_cast<q31_t>(std::clamp(scaled, kMin, kMax));
+	return static_cast<int32_t>(std::clamp(scaled, kMin, kMax));
 }
 
 // ---- fx_engine.hpp ----
@@ -1141,7 +1141,7 @@ class ReferenceDigital : public ReferenceMutable {
 	constexpr static float kDecayMax = 0.9f;
 
 public:
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<q31_t> in, std::span<RawFrame> output) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void process(std::span<int32_t> in, std::span<RawFrame> output) {
 		++counts.digital_blocks;
 		if (hp_cutoff_val_ != 0 || lp_cutoff_val_ != 1) {
 			++counts.plate_filtered_blocks;
@@ -1239,8 +1239,8 @@ public:
 			right_sum = right_sum - reverb_ref::OnePole(hp_r_, right_sum, hp_cutoff_);
 			right_sum = reverb_ref::OnePole(lp_r_, right_sum, lp_cutoff_);
 
-			q31_t output_left = reverb_ref::toQ31Saturating(left_sum * kOutputGain);
-			q31_t output_right = reverb_ref::toQ31Saturating(right_sum * kOutputGain);
+			int32_t output_left = reverb_ref::toQ31Saturating(left_sum * kOutputGain);
+			int32_t output_right = reverb_ref::toQ31Saturating(right_sum * kOutputGain);
 
 			// Mix
 			output[frame].l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());

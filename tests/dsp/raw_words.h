@@ -1,0 +1,43 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ * Licensed under the GNU General Public License v3 or later; see LICENSE.
+ */
+
+// The raw references' vocabulary: the raw word helpers, by their own names, and the full-scale words the references
+// were written with. The typed operations are checked against these; new specs use fixed_point.h's operations.
+
+#pragma once
+
+#include "dsp-next/core/detail/raw_ops.h"
+
+#include <cstdint>
+
+using deluge::dsp::detail::add_saturate;
+using deluge::dsp::detail::clz;
+using deluge::dsp::detail::increase_magnitude_and_saturate;
+using deluge::dsp::detail::lshift_and_saturate;
+using deluge::dsp::detail::lshift_and_saturate_unknown;
+using deluge::dsp::detail::multiply_32x32_rshift32;
+using deluge::dsp::detail::multiply_32x32_rshift32_rounded;
+using deluge::dsp::detail::multiply_accumulate_32x32_rshift32;
+using deluge::dsp::detail::multiply_accumulate_32x32_rshift32_rounded;
+using deluge::dsp::detail::multiply_subtract_32x32_rshift32_rounded;
+using deluge::dsp::detail::q31_from_float;
+using deluge::dsp::detail::q31_mult;
+using deluge::dsp::detail::q31_to_float;
+using deluge::dsp::detail::q31t_rescale;
+using deluge::dsp::detail::signed_saturate;
+using deluge::dsp::detail::signed_saturate_operand_unknown;
+using deluge::dsp::detail::subtract_saturate;
+
+inline constexpr int32_t kOneQ31 = INT32_MAX;           ///< Full scale, 2^31 − 1.
+inline constexpr float kOneQ31f = 2147483647.0F;        ///< Full scale as a float: 2^31, the float nearest.
+inline constexpr int32_t kOneQ15 = 65536;               ///< 1.0 in the references' 16.16 words.
+inline constexpr int32_t kOneOverSqrt2Q31 = 1518500250; ///< 1/√2, Q31.
+
+/// @brief A Q31 word mapped from [−1, 1) onto [0, 1): half of it, plus a half.
+inline int32_t to_positive(int32_t a) {
+	return (a / 2) + 1073741824;
+}

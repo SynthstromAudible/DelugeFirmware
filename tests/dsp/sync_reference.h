@@ -22,9 +22,9 @@
 
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/osc/sine_table.h"
 #include "dsp-next/fixed/sync/sync_windower.h"
+#include "raw_words.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -81,7 +81,7 @@ public:
 	/// fills with position-indexed state (e.g. the wavetable cross-cycle morph, which advances with
 	/// output position and so reuses the same value when the crossover sample is redone).
 	struct Window {
-		std::span<q31_t> output;
+		std::span<int32_t> output;
 		Phasor phasor; ///< the (reset) phasor to fill this window from; pre-increment per sample.
 		int32_t offset;
 	};
@@ -91,7 +91,7 @@ public:
 	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
 	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-	SyncWindower(std::span<q31_t> output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
+	SyncWindower(std::span<int32_t> output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
 	             uint32_t retrigger_phase)
 	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
 	      resetter_{resetter}, resetter_divide_{Reciprocal(resetter.phase_increment)}, phase_{phase},
@@ -159,7 +159,7 @@ public:
 		}
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;
-		return Window{.output = std::span<q31_t>{window_, static_cast<std::size_t>(length_)},
+		return Window{.output = std::span<int32_t>{window_, static_cast<std::size_t>(length_)},
 		              .phasor = Phasor{UQ<32>::from_raw(phase_), UQ<32>::from_raw(phase_increment_)},
 		              .offset = static_cast<int32_t>(window_ - block_start_)};
 	}
@@ -169,8 +169,8 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phase_; }
 
 private:
-	q31_t* const block_start_;
-	q31_t* window_;
+	int32_t* const block_start_;
+	int32_t* window_;
 	int32_t samples_remaining_;
 	Resetter resetter_;
 	const int32_t resetter_divide_;

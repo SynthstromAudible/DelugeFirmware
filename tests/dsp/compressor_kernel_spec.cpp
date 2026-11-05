@@ -358,10 +358,10 @@ describe compressor_kernel("the Compressor kernel", ${
 	it("holds a gain ramp at the 5.26 rail at a volume just above unity", _ {
 		// The gain at its cap of 31 and a volume of about 1.03 (4.27): the 13.18 target, 31 × (volume >> 9) =
 		// 8394800, is past 32 and held at the rail, 2^23 − 1.
-		constexpr q31_t kVolume = 270800 << 9;
-		constexpr q31_t kRail = 8388607 << 8;
+		constexpr int32_t kVolume = 270800 << 9;
+		constexpr int32_t kRail = 8388607 << 8;
 		const Compressor::Coefficients c = Compressor::coefficients({});
-		const auto prepared = [&](q31_t current) {
+		const auto prepared = [&](int32_t current) {
 			Compressor::State s{};
 			Compressor::set_levels(s, {.volume_l = Q<27>::from_raw(kVolume), .volume_r = Q<27>::from_raw(-kVolume), .final_volume = Q<29>::from_raw(1 << 29)});
 			s.makeup = 50;

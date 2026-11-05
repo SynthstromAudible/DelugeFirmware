@@ -38,7 +38,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/curves/quick_log.h"
@@ -46,6 +45,7 @@
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -158,8 +158,8 @@ public:
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
 	void processGrainFX(std::span<RawFrame> buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
-	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, q31_t reverbAmount,
-	                    std::span<q31_t> send) {
+	                    int32_t pitchRandomness, int32_t* postFXVolume, bool anySoundComingIn, int32_t reverbAmount,
+	                    std::span<int32_t> send) {
 		if (anySoundComingIn || wrapsToShutdown >= 0) {
 			if (!held) {
 				getBuffer();
@@ -230,7 +230,7 @@ private:
 	[[nodiscard]] static int32_t getNoise() { return static_cast<int32_t>(Noise::next()); }
 
 	/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
-	[[nodiscard]] static q31_t sampleTriangleDistribution() {
+	[[nodiscard]] static int32_t sampleTriangleDistribution() {
 		auto u1 = getNoise();
 		auto u2 = getNoise();
 		// Fixed: the mean of the two draws, the triangle the doc names; the legacy saturating sum clipped a quarter of
@@ -244,12 +244,12 @@ private:
 	}
 
 	/// @return @p a + @p b, wrapping, counted in @p counter when it wraps.
-	[[nodiscard]] static q31_t add(std::size_t& counter, q31_t a, q31_t b) {
+	[[nodiscard]] static int32_t add(std::size_t& counter, int32_t a, int32_t b) {
 		counter += static_cast<std::size_t>(static_cast<int64_t>(a) + b != static_cast<int64_t>(wrapping_add(a, b)));
 		return wrapping_add(a, b);
 	}
 
-	static void feedReverbBackdoorForGrain(std::span<q31_t> send, int index, q31_t value) {
+	static void feedReverbBackdoorForGrain(std::span<int32_t> send, int index, int32_t value) {
 		const auto i = static_cast<std::size_t>(index);
 		send[i] = add(wraps.send, send[i], value);
 	}
@@ -295,7 +295,7 @@ private:
 		// if grain size changed, calculate density and re-calculate grain size
 		if (grain_size_changed) {
 			_densityKnobPos = grainDensity;
-			q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
+			int32_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
 			// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent
 			// proportion of grain sound as you increase the rate
 			_grainSize = 1760 + q31_mult(_grainRate << 3, density);

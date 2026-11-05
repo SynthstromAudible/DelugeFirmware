@@ -6,19 +6,18 @@
 """Ratchet on raw fixed-point arithmetic outside the format types (dsp-next/core/fixed_point.h).
 
 Counts three things per C/C++ file under src/, comments excluded:
-- raw sites: calls to q31_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
+- raw sites: calls to detail/raw_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
   asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
   vmlal_s16, vshrq_n_s32, ...) and Argon's fixed-point methods (MultiplyFixedQMax, ShiftRightAccumulate, ...);
 - seam views: calls to buffer_view.h's typed_view() and raw_view(), where a raw int32_t buffer is viewed as a Q<F>
   format or back;
 - boundary crossings: from_raw(), .raw() / ->raw() and reinterpret_bits<>, where typed and raw code meet.
-fixed_point.h, fixed_point_neon.h, buffer_view.h and q31_ops.h, which define them, are exempt.
+fixed_point.h, fixed_point_neon.h, buffer_view.h, high_word_asm.h and detail/raw_ops.h, which define them, are exempt.
 
 The raw and view counts are pinned in scripts/fixed_point_raw_allowlist.txt and may only SHRINK: a raw site or a view
 in a file not on the list, a count above its entry, and an entry with headroom left (a count below it) all fail;
 rewrite the list with --write after moving code onto the typed operations or typing a caller's buffers. Boundary
-crossings are recorded but not gated: while the app's interfaces still take raw q31_t words, moving a helper call onto
-the typed operations adds them. Bare int32_t audio arithmetic (`+`, `<<` on samples) cannot be told apart from other
+crossings are recorded but not gated. Bare int32_t audio arithmetic (`+`, `<<` on samples) cannot be told apart from other
 integer code lexically, so reviews cover it, not this check.
 
 Usage:
@@ -45,7 +44,7 @@ EXEMPT = frozenset(
         "src/deluge/dsp-next/core/fixed_point.h",
         "src/deluge/dsp-next/core/fixed_point_neon.h",
         "src/deluge/dsp-next/core/high_word_asm.h",
-        "src/deluge/dsp-next/core/q31_ops.h",
+        "src/deluge/dsp-next/core/detail/raw_ops.h",
     }
 )
 
@@ -87,7 +86,7 @@ DSP_INSTRUCTION = re.compile(
 
 HEADER = """\
 # Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp-next/core/fixed_point.h and
-# q31_ops.h. `raw`: q31_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
+# detail/raw_ops.h. `raw`: raw_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
 # fixed-point methods. `view`: buffer_view.h's typed_view()/raw_view() calls, written only where there are any.
 # `boundary`: from_raw()/.raw()/reinterpret_bits<> crossings, recorded but not gated.
 #

@@ -25,95 +25,82 @@
 #include "dsp-next/core/high_word_asm.h"
 
 /// @file
-/// @brief The scalar Q31 primitives every layer uses: the Q31 type and constants, the A9's high-word multiplies,
-/// multiply-accumulates and saturating ops (one instruction each on ARM, with exact portable twins elsewhere), and the
-/// shift-and-saturate helpers built on them. They stay in the global namespace so that a vector type's same-named
-/// overloads (@ref deluge::dsp::LanePack) never hide them from a kernel's ordinary lookup.
+/// @brief The raw word arithmetic the typed operations are checked against, and the few raw sites that say why they
+/// are raw: the A9's high-word multiplies, multiply-accumulates and saturating ops (one instruction each on ARM, with
+/// exact portable twins elsewhere), and the shift-and-saturate helpers built on them. Not for new code: use
+/// fixed_point.h's operations.
 
-// signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
-using q31_t = int32_t;
-
-constexpr q31_t kOneQ31{2147483647};
-constexpr float kOneQ31f{2147483647.0f};
-constexpr q31_t kOneQ15{65536};
-constexpr q31_t kNegativeOneQ31{-2147483648};
-constexpr q31_t kOneOverSqrt2Q31{1518500250};
-
-// This converts the range -2^31 to 2^31 to the range 0-2^31
-static inline q31_t to_positive(q31_t a) __attribute__((always_inline, unused));
-static inline q31_t to_positive(q31_t a) {
-	return ((a / 2) + (1073741824));
-}
+namespace deluge::dsp::detail {
 
 // this is only defined for 32 bit arm
 #if defined(__arm__)
 // This multiplies two numbers in signed Q31 fixed point as if they were q32, so the return value is half what it should
 // be. Use this when several corrective shifts can be accumulated and then combined
-static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
+inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmul(a, b);
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
-static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
+inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmulr(a, b);
 }
 
 // This multiplies two numbers in signed Q31 fixed point, returning the result in q31. This is more useful for readable
 // multiplies
-static inline q31_t q31_mult(q31_t a, q31_t b) __attribute__((always_inline, unused));
-static inline q31_t q31_mult(q31_t a, q31_t b) {
+inline int32_t q31_mult(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t q31_mult(int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmul(a, b) * 2;
 }
 
 // This multiplies a number in q31 by a number in q32 (e.g. unsigned, 2^32 representing one), returning a scaled value a
-static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) __attribute__((always_inline, unused));
-static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) {
+inline int32_t q31t_rescale(int32_t a, uint32_t proportion) __attribute__((always_inline, unused));
+inline int32_t q31t_rescale(int32_t a, uint32_t proportion) {
 	// The same bits as the uint32: smmul reads them as signed
 	return deluge::dsp::detail::arm::smmul(a, static_cast<int32_t>(proportion));
 }
 
 // Multiplies A and B, adds to sum, and returns output
-static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
+inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmlar(sum, a, b);
 }
 
 // Multiplies A and B, adds to sum, and returns output
-static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b)
+inline int32_t multiply_accumulate_32x32_rshift32(int32_t sum, int32_t a, int32_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
+inline int32_t multiply_accumulate_32x32_rshift32(int32_t sum, int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmla(sum, a, b);
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
-static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
+inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b)
     __attribute__((always_inline, unused));
-static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
 	return deluge::dsp::detail::arm::smmlsr(sum, a, b);
 }
 
 // computes limit((val >> rshift), 2**bits)
 template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
+inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
 template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) {
+inline int32_t signed_saturate(int32_t val) {
 	int32_t out;
 	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
 	return out;
 }
 
-static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturate(int32_t a, int32_t b) {
+inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t add_saturate(int32_t a, int32_t b) {
 	int32_t out;
 	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out;
 }
 
-static inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t subtract_saturate(int32_t a, int32_t b) {
+inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	int32_t out;
 	asm("qsub %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
 	return out;
@@ -128,81 +115,76 @@ inline int32_t clz(uint32_t input) {
 ///@brief Convert from a float to a q31 value, saturating above 1.0
 ///@note VFP instruction - 1 cycle for issue, 4 cycles result latency. Inline asm: clang does not form the
 /// fixed-point `vcvt` by itself.
-static inline q31_t q31_from_float(float value) {
+inline int32_t q31_from_float(float value) {
 	asm("vcvt.s32.f32 %0, %0, #31" : "+t"(value));
-	return __builtin_bit_cast(q31_t, value);
+	return __builtin_bit_cast(int32_t, value);
 }
 
 ///@brief Convert from a q31 to a float
 ///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
-static inline float q31_to_float(q31_t value) {
+inline float q31_to_float(int32_t value) {
 	asm("vcvt.f32.s32 %0, %0, #31" : "+t"(value));
 	return __builtin_bit_cast(float, value);
 }
 #else
 
-static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
+inline int32_t multiply_32x32_rshift32(int32_t a, int32_t b) {
 	return (int32_t)(((int64_t)a * b) >> 32);
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
-static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
+inline int32_t multiply_32x32_rshift32_rounded(int32_t a, int32_t b) {
 	return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
 }
 
 // This multiplies two numbers in signed Q31 fixed point, returning the result in q31. Matches the ARM
 // `smmul`-then-`* 2` of the hardware path (smmul = multiply_32x32_rshift32).
-static inline q31_t q31_mult(q31_t a, q31_t b) {
+inline int32_t q31_mult(int32_t a, int32_t b) {
 	return multiply_32x32_rshift32(a, b) * 2;
 }
 
 // This multiplies a number in q31 by a number in q32, returning a scaled value. The ARM path is `smmul`
 // (a signed multiply) even though proportion is unsigned, so match that by treating proportion as signed.
-static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) {
-	return multiply_32x32_rshift32(a, (q31_t)proportion);
+inline int32_t q31t_rescale(int32_t a, uint32_t proportion) {
+	return multiply_32x32_rshift32(a, (int32_t)proportion);
 }
 
 // Multiplies A and B, adds to sum, and returns output.
 // The 64-bit product stays separate and `sum` is added last, wrapping in 32 bits as the ARM smmla does:
 // floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32), with no int64 overflow for Q31-scale operands.
-static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (q31_t)(sum + (((int64_t)a * b) >> 32));
+inline int32_t multiply_accumulate_32x32_rshift32(int32_t sum, int32_t a, int32_t b) {
+	return (int32_t)(sum + (((int64_t)a * b) >> 32));
 }
 
 // Multiplies A and B, adds to sum, and returns output, rounding
-static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (q31_t)(sum + (((int64_t)a * b + 0x80000000) >> 32));
-}
-
-// Multiplies A and B, subtracts from sum, and returns output
-static inline q31_t multiply_subtract_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	return (q31_t)(sum + ((-((int64_t)a * b)) >> 32));
+inline int32_t multiply_accumulate_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
+	return (int32_t)(sum + (((int64_t)a * b + 0x80000000) >> 32));
 }
 
 // Multiplies A and B, subtracts from sum, and returns output, rounding
-static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return (q31_t)(sum + ((0x80000000LL - (int64_t)a * b) >> 32));
+inline int32_t multiply_subtract_32x32_rshift32_rounded(int32_t sum, int32_t a, int32_t b) {
+	return (int32_t)(sum + ((0x80000000LL - (int64_t)a * b) >> 32));
 }
 
 // Matches ARM `ssat %0, %1, #bits`: clamp to the signed range representable in `bits` bits,
 // i.e. [-2^(bits-1), 2^(bits-1)-1].
 template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) {
+inline int32_t signed_saturate(int32_t val) {
 	constexpr int32_t hi = static_cast<int32_t>((static_cast<uint32_t>(1) << (bits - 1)) - 1);
 	constexpr int32_t lo = -hi - 1;
 	return val > hi ? hi : (val < lo ? lo : val);
 }
 
 // Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range.
-static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturate(int32_t a, int32_t b) {
+inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t add_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) + b;
 	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
 }
 
 // Matches ARM `qsub`: saturating subtract, clamped to the signed 32-bit range.
-static inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t subtract_saturate(int32_t a, int32_t b) {
+inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
+inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) - b;
 	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
 }
@@ -212,7 +194,7 @@ inline int32_t clz(uint32_t input) {
 	return input ? __builtin_clz(input) : 32;
 }
 
-[[gnu::always_inline]] constexpr q31_t q31_from_float(float value) {
+[[gnu::always_inline]] constexpr int32_t q31_from_float(float value) {
 	// NaN converts to 0, as vcvt.s32.f32 gives it.
 	if (value != value) {
 		return 0;
@@ -231,7 +213,7 @@ inline int32_t clz(uint32_t input) {
 
 	// saturate if |value| >= 1.f (vcvt.s32.f32 #31 saturates to INT32_MIN / INT32_MAX)
 	if (exponent >= 0) {
-		return negative ? std::numeric_limits<q31_t>::min() : std::numeric_limits<q31_t>::max();
+		return negative ? std::numeric_limits<int32_t>::min() : std::numeric_limits<int32_t>::max();
 	}
 
 	// |value| < 2^-31 truncates to 0; the shift would be >= the operand width.
@@ -242,12 +224,12 @@ inline int32_t clz(uint32_t input) {
 
 	// extract mantissa (truncating toward zero, matching VCVT's rounding mode)
 	uint32_t mantissa = (bits << 8) | 0x80000000;
-	q31_t output_value = static_cast<q31_t>(mantissa >> shift);
+	int32_t output_value = static_cast<int32_t>(mantissa >> shift);
 	return (negative) ? -output_value : output_value;
 }
 
 ///@brief Convert from a q31 to a float. Matches the ARM `vcvt.f32.s32 #31` (divide by 2^31).
-static inline float q31_to_float(q31_t value) {
+inline float q31_to_float(int32_t value) {
 	return static_cast<float>(value) / 2147483648.0f;
 }
 #endif
@@ -318,3 +300,5 @@ template <uint8_t lshift>
 	}
 	return number >> (-magnitude);
 }
+
+} // namespace deluge::dsp::detail

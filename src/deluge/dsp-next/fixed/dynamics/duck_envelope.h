@@ -18,7 +18,6 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h"
 

@@ -36,7 +36,6 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"

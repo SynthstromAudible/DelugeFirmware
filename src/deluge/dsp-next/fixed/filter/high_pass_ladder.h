@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h" // lshift_and_saturate
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -240,7 +240,8 @@ struct HighPassLadder {
 			// saturate holds the loop's schedule; the builtin a typed saturate compiles to is sunk out of the loop,
 			// and the A9 ran the rescheduled loop 5–22% slower (filter_hp_*).
 			AntialiasedTanh::place(s.saturator,
-			                       static_cast<uint32_t>(lshift_and_saturate<kPlaceShift>(a.raw())) + kTanhCentre);
+			                       static_cast<uint32_t>(dsp::detail::lshift_and_saturate<kPlaceShift>(a.raw()))
+			                           + kTanhCentre);
 			if constexpr (kSaturation == Saturation::TANH) {
 				a = tanh<kTanhDrive>(a);
 			}

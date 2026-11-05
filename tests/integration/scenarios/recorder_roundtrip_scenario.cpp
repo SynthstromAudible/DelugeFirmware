@@ -71,7 +71,7 @@ int g_cases = 0;
 
 /// Deterministic 24-bit ramp, distinct per channel, spanning near the full signed 24-bit range —
 /// pseudo-random-looking (so it can't pass by coincidence, e.g. all-zero bytes) but perfectly
-/// reproducible. Returned already left-shifted into a q31_t's top 24 bits (bits 31..8), because
+/// reproducible. Returned already left-shifted into a int32_t's top 24 bits (bits 31..8), because
 /// SampleRecorder::feedAudio() writes exactly bytes [1,2,3] of the little-endian int32 sample (i.e.
 /// bits 8..31) to the file, discarding the low byte — pre-zeroing that low byte makes the stored
 /// 3-byte value byte-identical to `expected24`, with no truncation ambiguity to account for.

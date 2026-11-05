@@ -25,9 +25,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h" // q31_t
 #include "granular_ring.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -49,18 +49,18 @@ enum class Event : uint8_t {
 };
 
 /// @brief The reverb amount a block passes unless its workload varies it, Q31.
-inline constexpr q31_t kSendAmount = 0x10000000;
+inline constexpr int32_t kSendAmount = 0x10000000;
 
 /// @brief One block of a workload.
 struct GranularBlock {
-	int32_t rate;                    ///< The rate knob, Q31.
-	int32_t mix;                     ///< The mix knob, Q31.
-	int32_t density;                 ///< The density knob, Q31.
-	int32_t randomness;              ///< The pitch randomness knob, Q31.
-	uint16_t n;                      ///< Frames in the block.
-	bool sound;                      ///< Whether anything rendered into the block; else its input is silence.
-	Event event;                     ///< Applied before the block.
-	q31_t send_amount = kSendAmount; ///< The reverb amount, Q31.
+	int32_t rate;                      ///< The rate knob, Q31.
+	int32_t mix;                       ///< The mix knob, Q31.
+	int32_t density;                   ///< The density knob, Q31.
+	int32_t randomness;                ///< The pitch randomness knob, Q31.
+	uint16_t n;                        ///< Frames in the block.
+	bool sound;                        ///< Whether anything rendered into the block; else its input is silence.
+	Event event;                       ///< Applied before the block.
+	int32_t send_amount = kSendAmount; ///< The reverb amount, Q31.
 	bool extremes = false; ///< The input is INT32_MAX and INT32_MIN alternating every @ref kExtremesRun frames, both
 	                       ///< channels alike so that the wet sum is full scale, rather than @ref stereo_input; the
 	                       ///< reverb feed starts full scale.
@@ -110,20 +110,20 @@ inline constexpr uint16_t kBlock = 128;
 	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
-		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
+		frame = {static_cast<int32_t>(l), static_cast<int32_t>(r)};
 	}
 	return v;
 }
 
 /// @return @p n values of the reverb feed a block starts from: full scale for an extremes block, so the effect's add
 /// wraps; else a quarter-scale sequence.
-[[nodiscard]] inline std::vector<q31_t> send_input(std::size_t n, std::size_t block, bool extremes) {
-	std::vector<q31_t> v(n, INT32_MAX);
+[[nodiscard]] inline std::vector<int32_t> send_input(std::size_t n, std::size_t block, bool extremes) {
+	std::vector<int32_t> v(n, INT32_MAX);
 	if (!extremes) {
 		uint32_t x = 0x7f4a7c15U * static_cast<uint32_t>(block + 1);
-		for (q31_t& value : v) {
+		for (int32_t& value : v) {
 			x = (x * 1664525U) + 1013904223U;
-			value = static_cast<q31_t>(x) >> 2;
+			value = static_cast<int32_t>(x) >> 2;
 		}
 	}
 	return v;
@@ -214,7 +214,7 @@ inline constexpr std::size_t kShortPhaseFrames = 140'000;
 			GranularWorkload sweep = b.build("KNOB_SWEEP");
 			// The reverb amount steps each block through eight values, so the send's amount path sees more than one.
 			for (std::size_t i = 0; i < sweep.blocks.size(); ++i) {
-				sweep.blocks[i].send_amount = static_cast<q31_t>(((i % 8) + 1) * 0x04000000);
+				sweep.blocks[i].send_amount = static_cast<int32_t>(((i % 8) + 1) * 0x04000000);
 			}
 			w.push_back(std::move(sweep));
 		}
@@ -310,7 +310,7 @@ template <typename Fx>
 		if (block.extremes) {
 			for (std::size_t i = 0; i < frames.size(); ++i) {
 				const bool even = (i / kExtremesRun) % 2 == 0;
-				const q31_t extreme = even ? INT32_MAX : INT32_MIN;
+				const int32_t extreme = even ? INT32_MAX : INT32_MIN;
 				frames[i] = {extreme, extreme};
 			}
 		}
@@ -321,7 +321,7 @@ template <typename Fx>
 			trace.inputs.push_back(frame.l);
 			trace.inputs.push_back(frame.r);
 		}
-		std::vector<q31_t> send = send_input(block.n, b, block.extremes);
+		std::vector<int32_t> send = send_input(block.n, b, block.extremes);
 		int32_t volume = kStartVolume;
 		fx.processGrainFX(frames, block.rate, block.mix, block.density, block.randomness, &volume, block.sound,
 		                  block.send_amount, send);

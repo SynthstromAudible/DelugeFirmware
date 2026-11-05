@@ -22,8 +22,8 @@ std::vector<test::RawFrame> block(uint32_t seed, std::size_t n, int shift) {
 	fixed::SeededNoise noise{seed};
 	std::vector<test::RawFrame> out(n);
 	for (auto& f : out) {
-		const q31_t l = noise.render() >> shift;
-		const q31_t r = noise.render() >> shift;
+		const int32_t l = noise.render() >> shift;
+		const int32_t r = noise.render() >> shift;
 		f = {.l = l, .r = r};
 	}
 	return out;

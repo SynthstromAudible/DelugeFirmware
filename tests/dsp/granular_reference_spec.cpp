@@ -235,7 +235,7 @@ describe reference_granular("the granular reference", ${
 		for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 			const gw::GranularBlock& block = workload.blocks[b];
 			std::vector<deluge::dsp::test::RawFrame> frames = gw::stereo_input(block.n, b);
-			std::vector<q31_t> send(block.n, 0);
+			std::vector<int32_t> send(block.n, 0);
 			int32_t volume = gw::kStartVolume;
 			fx->processGrainFX(frames, block.rate, block.mix, block.density, block.randomness, &volume, true, gw::kSendAmount, send);
 		}
