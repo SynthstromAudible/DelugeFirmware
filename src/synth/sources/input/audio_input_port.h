@@ -25,7 +25,7 @@ namespace deluge::synth {
 ///
 /// The firmware supplies the adapter (`AudioInputAdapter`); a host or test can supply a fake. See
 /// `docs/dev/synth_source_ports.md`. The input ring is interleaved stereo (`NUM_MONO_INPUT_CHANNELS`-wide frames). The
-/// histories the shifter reads are the oscillator's own (@ref LiveInputs), not the host's.
+/// histories the shifter reads are the oscillator's own (@ref LiveInputs).
 class AudioInputPort {
 public:
 	virtual ~AudioInputPort() = default;

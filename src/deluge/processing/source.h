@@ -140,11 +140,11 @@ public:
 	bool hasAnyLoopEndPoint();
 	OscType getOscType();
 	void setOscType(OscType newType);
-	/// @brief Makes or frees the live histories to match the type, handing them to the render inside an
-	/// audio-excluded section. [task]
-	void reconcileLiveInputs();
 
 	DxPatch* ensureDxPatch();
 
 private:
+	/// @brief Makes or frees the live histories to match the type, handing them to the render inside an
+	/// audio-excluded section. [task]
+	void reconcileLiveInputs();
 };

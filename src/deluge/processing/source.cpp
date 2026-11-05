@@ -363,7 +363,7 @@ OscType Source::getOscType() {
 }
 
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
-// emptied.
+// emptied; likewise to or from an input type, whose live histories are replaced.
 void Source::setOscType(OscType newType) {
 
 	int32_t multiRangeSize;
