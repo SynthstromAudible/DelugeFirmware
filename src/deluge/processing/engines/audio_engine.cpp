@@ -86,7 +86,6 @@
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
 #include "synth/modulation/envelope.h"
-#include "synth/sources/input/live/live_input.h"
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -116,8 +115,6 @@
 namespace params = deluge::modulation::params;
 
 using namespace deluge;
-using deluge::synth::MonoLiveInput;
-using deluge::synth::StereoLiveInput;
 
 extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -496,10 +493,6 @@ bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
-
-/// The live inputs the voices share: the left and right channels, and both.
-std::array<MonoLiveInput*, 2> monoLiveInputs{};
-StereoLiveInput* stereoLiveInput = nullptr;
 
 // For debugging
 double lastRoutineTime;
@@ -2223,39 +2216,6 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 	TimeStretcherPool::recycle(timeStretcher);
 }
 
-namespace {
-/// @brief The pooled input at @p slot, made in the fast heap if it is missing and @p mayCreate.
-template <typename Input>
-Input* getOrCreateLiveInput(Input*& slot, deluge::synth::InputChannel channel, bool mayCreate) {
-	if (slot == nullptr && mayCreate) {
-		void* memory = deluge::memory::alloc_fast(sizeof(Input));
-		if (memory != nullptr) {
-			slot = new (memory) Input(channel); // NOLINT(cppcoreguidelines-owning-memory): the pool frees it
-		}
-	}
-	return slot;
-}
-
-/// @brief Frees the pooled input at @p slot if no voice read it this block.
-template <typename Input>
-void discardUnreadLiveInput(Input*& slot) {
-	if (slot != nullptr && slot->ingested_to() != audioSampleTimer) {
-		slot->~Input();
-		delugeDealloc(slot);
-		slot = nullptr;
-	}
-}
-} // namespace
-
-MonoLiveInput* getOrCreateMonoLiveInput(bool right, bool mayCreate) {
-	using enum deluge::synth::InputChannel;
-	return getOrCreateLiveInput(monoLiveInputs[right ? 1 : 0], right ? RIGHT : LEFT, mayCreate);
-}
-
-StereoLiveInput* getOrCreateStereoLiveInput(bool mayCreate) {
-	return getOrCreateLiveInput(stereoLiveInput, deluge::synth::InputChannel::STEREO, mayCreate);
-}
-
 bool createdNewRecorder;
 
 void doRecorderCardRoutines() {
@@ -2363,12 +2323,6 @@ void slowRoutine() {
 	// start-up) made us miss a whole output-ring cycle. Ring geometry is the
 	// board's business; skipped input simply never reaches the input ring.
 	deluge_audio_input_resync();
-
-	// Discard the live inputs no voice read this block
-	for (MonoLiveInput*& input : monoLiveInputs) {
-		discardUnreadLiveInput(input);
-	}
-	discardUnreadLiveInput(stereoLiveInput);
 
 	createdNewRecorder = false;
 

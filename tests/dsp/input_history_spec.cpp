@@ -55,10 +55,6 @@ public:
 	[[nodiscard]] bool stereo_input_available() const override { return true; }
 	[[nodiscard]] const int32_t* ring_read_pos() const override { return read_pos_; }
 	[[nodiscard]] const int32_t* ring_end() const override { return end_; }
-	[[nodiscard]] deluge::synth::MonoLiveInput* mono_input(InputChannel /*channel*/, bool /*may_create*/) override {
-		return nullptr;
-	}
-	[[nodiscard]] deluge::synth::StereoLiveInput* stereo_input(bool /*may_create*/) override { return nullptr; }
 	void report_hops(int32_t /*hops_ended*/) override {}
 
 private:

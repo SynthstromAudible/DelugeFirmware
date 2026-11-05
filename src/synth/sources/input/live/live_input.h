@@ -19,15 +19,16 @@
 #include "dsp-next/fixed/pitch_shift/input_history.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/input_channel.h"
+#include "synth/sources/input/live/live_inputs.h" // MonoLiveInput, StereoLiveInput
 
 #include <cstdint>
 
 namespace deluge::synth {
 
-/// @brief One input channel's live history, shared by every voice reading it: written once per audio block.
-/// @details The host pools one per channel (@ref AudioInputPort::mono_input, @ref AudioInputPort::stereo_input) and
-/// lets it go once a block passes without it being read. The first voice to read it in a block ingests the block's
-/// frames from the codec ring; the others find them written. A block that does not follow the last one ingested
+/// @brief One input channel's live history, owned by an input oscillator and shared by its voices: written once per
+/// audio block.
+/// @details The first voice to read it in a block ingests the block's frames from the codec ring; the others find them
+/// written. A block that does not follow the last one ingested (the oscillator's voices did not render for a while)
 /// starts the history over.
 /// @tparam Frame dsp::Q<31> for the left or right channel, dsp::StereoSample for both.
 template <typename Frame>
@@ -44,7 +45,7 @@ public:
 
 	[[nodiscard]] const History& history() const { return history_; }
 	[[nodiscard]] InputChannel channel() const { return channel_; }
-	/// @brief The frame clock the last block ingested ended at: the pool's test for an input no voice reads.
+	/// @brief The frame clock the last block ingested ended at.
 	[[nodiscard]] uint32_t ingested_to() const { return ingested_to_; }
 
 private:

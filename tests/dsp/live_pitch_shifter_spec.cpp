@@ -27,6 +27,7 @@
 
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
+#include "synth/sources/input/live/live_inputs.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 
 #include <algorithm>
@@ -47,7 +48,8 @@ namespace {
 namespace pw = pitch_shift_workloads;
 using deluge::synth::InputChannel;
 
-/// The host's input port as the shifter reads it: the block's clock and ring, and the one shared input.
+/// The host's input port as the shifter reads it, the block's clock and ring; and the one history the shifters share,
+/// as one oscillator's voices do.
 class WorkloadPort final : public deluge::synth::AudioInputPort {
 public:
 	explicit WorkloadPort(InputChannel channel) {
@@ -63,11 +65,9 @@ public:
 	[[nodiscard]] bool stereo_input_available() const override { return true; }
 	[[nodiscard]] const int32_t* ring_read_pos() const override { return block_.read_pos; }
 	[[nodiscard]] const int32_t* ring_end() const override { return block_.ring_end; }
-	[[nodiscard]] deluge::synth::MonoLiveInput* mono_input(InputChannel /*channel*/, bool /*may_create*/) override {
-		return mono_.get();
-	}
-	[[nodiscard]] deluge::synth::StereoLiveInput* stereo_input(bool /*may_create*/) override { return stereo_.get(); }
 	void report_hops(int32_t /*hops_ended*/) override {}
+	/// @brief The history, as the oscillator's store hands it to its voices.
+	[[nodiscard]] deluge::synth::LiveInputs inputs() const { return {.mono = mono_.get(), .stereo = stereo_.get()}; }
 
 private:
 	std::unique_ptr<deluge::synth::MonoLiveInput> mono_;
@@ -99,7 +99,7 @@ public:
 		port_.at(b);
 		return shifters_[slot].render(out, n, b.phase_increment, deluge::dsp::Q<31>::from_raw(b.amplitude),
 		                              deluge::dsp::Q<31>::from_raw(b.amplitude_increment), b.interpolation_size, port_,
-		                              noise);
+		                              port_.inputs(), noise);
 	}
 
 private:

@@ -18,7 +18,7 @@
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "dsp-next/core/fixed_point.h"
 #include "synth/sources/input/audio_input_port.h"
-#include "synth/sources/input/live/live_input.h"
+#include "synth/sources/input/live/live_inputs.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include <algorithm> // std::fill_n
 #include <tuple>
@@ -71,9 +71,10 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			if (channel_now == InputChannel::STEREO && !in_->stereo_input_available()) {
 				channel_now = InputChannel::LEFT;
 			}
-			// The channel's shared input, made now so the shifter's first block has it
-			const bool have_input = channel_now == InputChannel::STEREO ? in_->stereo_input(true) != nullptr
-			                                                            : in_->mono_input(channel_now, true) != nullptr;
+			// The oscillator's history of the channel's frame: without one there is nothing to shift
+			const bool have_input = live_inputs_ != nullptr
+			                        && (channel_now == InputChannel::STEREO ? live_inputs_->stereo != nullptr
+			                                                                : live_inputs_->mono != nullptr);
 
 			if (have_input) {
 				// Out of memory leaves it absent, to try again next block
@@ -99,9 +100,9 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			dsp::Q<31>* render_buffer = mono_scratch;
 			std::fill_n(render_buffer, num_samples, dsp::Q<31>{});
 
-			in_->report_hops(live_pitch_shifter_.render(render_buffer, num_samples,
-			                                            static_cast<int32_t>(phase_increment), source_amplitude,
-			                                            amplitude_increment, interpolation_buffer_size, *in_, noise));
+			in_->report_hops(live_pitch_shifter_.render(
+			    render_buffer, num_samples, static_cast<int32_t>(phase_increment), source_amplitude,
+			    amplitude_increment, interpolation_buffer_size, *in_, *live_inputs_, noise));
 
 			for (int32_t i = 0; i < num_samples; i++) {
 				add_panned(&osc_buffer[i << 1], render_buffer[i], amplitude_l, amplitude_r);
@@ -110,7 +111,7 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 		else {
 			in_->report_hops(live_pitch_shifter_.render(osc_buffer, num_samples, static_cast<int32_t>(phase_increment),
 			                                            source_amplitude, amplitude_increment,
-			                                            interpolation_buffer_size, *in_, noise));
+			                                            interpolation_buffer_size, *in_, *live_inputs_, noise));
 		}
 	}
 

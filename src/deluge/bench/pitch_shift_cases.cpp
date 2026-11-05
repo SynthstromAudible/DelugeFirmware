@@ -31,6 +31,7 @@
 #include "model/sample/sample_low_level_reader.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
+#include "synth/sources/input/live/live_inputs.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 
 #include <array>
@@ -91,7 +92,7 @@ alignas(16) std::array<int32_t, SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANN
 /// Storage for an object of @p T, in words so the object placed in it is aligned.
 template <typename T>
 using Storage = std::array<uint64_t, (sizeof(T) + 7) / 8>;
-/// The shared live inputs' storage, in SDRAM, as the host's pool allocates them: about 32 and 64 KB.
+/// The live inputs' storage, in SDRAM: about 32 and 64 KB.
 PLACE_SDRAM_BSS Storage<synth::MonoLiveInput> mono_input_storage;
 PLACE_SDRAM_BSS Storage<synth::StereoLiveInput> stereo_input_storage;
 
@@ -118,7 +119,7 @@ constexpr int32_t percussive_channel(uint32_t n, const std::array<uint32_t, 5>& 
 }
 
 /// The input port as the app's adapter gives it: the frame clock, the codec ring at the block's frames, stereo input
-/// present, and the case's shared live input.
+/// present; and the case's live input, as an oscillator's store hands it to its voices.
 class BenchInputPort final : public synth::AudioInputPort {
 public:
 	[[nodiscard]] uint32_t sample_time() const override { return time_; }
@@ -127,11 +128,9 @@ public:
 		return &input_ring[(time_ % SSI_RX_BUFFER_NUM_SAMPLES) * NUM_MONO_INPUT_CHANNELS];
 	}
 	[[nodiscard]] const int32_t* ring_end() const override { return input_ring.data() + input_ring.size(); }
-	[[nodiscard]] synth::MonoLiveInput* mono_input(synth::InputChannel /*channel*/, bool /*may_create*/) override {
-		return mono_;
-	}
-	[[nodiscard]] synth::StereoLiveInput* stereo_input(bool /*may_create*/) override { return stereo_; }
 	void report_hops(int32_t /*hops_ended*/) override {}
+	/// The case's live input.
+	[[nodiscard]] synth::LiveInputs inputs() const { return {.mono = mono_, .stereo = stereo_}; }
 
 	/// Makes the case's input afresh in its storage: stereo, or the left channel.
 	void make_input(bool stereo) {
@@ -237,7 +236,7 @@ void PitchShiftCase::block(std::size_t n) {
 	ShifterRig& rig = shifter_rig();
 	std::ignore = rig.shifter.render(rig.out.data(), static_cast<int32_t>(n), config_.phase_increment,
 	                                 dsp::Q<31>::from_raw(kShifterAmplitude), dsp::Q<31>{}, kInterpolationMaxNumSamples,
-	                                 rig.port, rig.noise);
+	                                 rig.port, rig.port.inputs(), rig.noise);
 	rig.port.advance(n);
 }
 

@@ -20,6 +20,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "instruments/deluge/sound_state.h"
+#include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "processing/dx7/dx_engine.h"
@@ -318,6 +319,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 	else if (synthMode == SynthMode::RINGMOD) {
 		oscType = std::min(oscType, kLastRingmoddableOscType);
 	}
+	reconcileLiveInputs();
 
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
 
@@ -405,6 +407,19 @@ doChangeType:
 	// preserving only topNote: reflect the whole list into the record. Also covers the getOrCreateFirstRange()
 	// insert-from-empty path (redundant with its own reseed, but harmless).
 	seedDocRanges();
+	reconcileLiveInputs();
+}
+
+void Source::reconcileLiveInputs() {
+	if (liveInputs.holds_for(oscType)) {
+		return;
+	}
+	deluge::synth::LiveInputStore next = deluge::synth::LiveInputStore::for_type(oscType);
+	{
+		AudioExcludedSection section; // the render reads the histories each block
+		liveInputs.swap(next);
+	}
+	// next holds the old histories, freed here, outside the section
 }
 
 DxPatch* Source::ensureDxPatch() {

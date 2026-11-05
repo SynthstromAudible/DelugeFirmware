@@ -59,7 +59,7 @@ struct PlayHeadState {
 /// frame it passes (after a jump of more than 16 frames, only the last 16; quirk Q7), then interpolates, windowed sinc
 /// or linear; the product is scaled by 16. Direct, it reads one history frame per step, scaled by 8.
 ///
-/// The owner configures each block with the history (which the host's pool may move between blocks), the shift, the
+/// The owner configures each block with the history (which the oscillator may replace between blocks), the shift, the
 /// sinc kernel's variant for it, and the head's kind and interpolation; it sends @ref start_segment before each
 /// segment it renders and @ref begin_hop when the head is placed for a new hop.
 /// @tparam Frame Q<31> for a mono history, StereoSample for a stereo one.

@@ -21,6 +21,7 @@
 #include "model/sample/sample_controls.h"
 #include "storage/audio/sample_load_walk.h"
 #include "storage/multi_range/multi_range_array.h"
+#include "synth/sources/input/live/live_inputs.h"
 #include "util/phase_increment_fine_tuner.h"
 
 class Sound;
@@ -90,6 +91,8 @@ public:
 
 	DxPatch* dxPatch;
 	bool dxPatchChanged = false;
+	/// @brief The live histories this oscillator's voices read while its type is an input type; empty otherwise.
+	deluge::synth::LiveInputStore liveInputs;
 	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;
@@ -137,6 +140,9 @@ public:
 	bool hasAnyLoopEndPoint();
 	OscType getOscType();
 	void setOscType(OscType newType);
+	/// @brief Makes or frees the live histories to match the type, handing them to the render inside an
+	/// audio-excluded section. [task]
+	void reconcileLiveInputs();
 
 	DxPatch* ensureDxPatch();
 

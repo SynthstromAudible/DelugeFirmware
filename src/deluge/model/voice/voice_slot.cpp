@@ -48,8 +48,11 @@ VoiceClock engineClock() {
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			kernel.unison_parts[u].slots[s].bind(
-			    {.sample = &ports_[u][s].sample, .dx = &ports_[u][s].dx, .input = &ports_[u][s].input});
+			// The oscillator's histories live as long as the Sound, which outlives its voice slots
+			kernel.unison_parts[u].slots[s].bind({.sample = &ports_[u][s].sample,
+			                                      .dx = &ports_[u][s].dx,
+			                                      .input = &ports_[u][s].input,
+			                                      .live_inputs = &sound.sources[s].liveInputs.inputs()});
 		}
 	}
 }
