@@ -18,7 +18,7 @@
 #![allow(non_upper_case_globals)]
 
 use core::ptr::{addr_of, addr_of_mut};
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 use crate::sys::DelugeStereoSample;
 
@@ -185,19 +185,60 @@ pub fn render_after_boot() -> bool {
 /// The frame the test input signal counts from while armed; `u64::MAX` while not.
 static TEST_INPUT_ORIGIN: AtomicU64 = AtomicU64::new(u64::MAX);
 
-/// Arms (or disarms) the test input signal, with frame 0 at the current render position.
+/// The test input signal while armed: 1 the sawtooth, 2 the percussive signal; 0 while not armed.
+static TEST_INPUT_SIGNAL: AtomicU32 = AtomicU32::new(0);
+
+/// Arms the test input `signal` (0 disarms), with frame 0 at the current render position.
 ///
-/// The signal gives the INPUT_L/R/STEREO sources something to render: a full-scale q31 sawtooth,
-/// 128 frames long on the left and 256 on the right (so a render can tell them apart). It is a pure
-/// function of the frame, so every run and architecture feeds the same samples.
+/// The signal gives the INPUT_L/R/STEREO sources something to render. Signal 1 is a full-scale q31
+/// sawtooth, 128 frames long on the left and 256 on the right (so a render can tell them apart).
+/// Signal 2 is [`percussive_frame`]. Both are pure functions of the frame, so every run and
+/// architecture feeds the same samples.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_host_test_input(on: bool) {
-    let origin = if on {
+pub extern "C" fn deluge_host_test_input(signal: u32) {
+    let origin = if signal != 0 {
         CURSOR.load(Ordering::Relaxed)
     } else {
         u64::MAX
     };
     TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
+    TEST_INPUT_SIGNAL.store(signal, Ordering::Relaxed);
+}
+
+/// A 32-bit integer hash (the murmur3 finaliser): the percussive signal's noise and burst starts.
+const fn hash32(mut x: u32) -> u32 {
+    x ^= x >> 16;
+    x = x.wrapping_mul(0x85eb_ca6b);
+    x ^= x >> 13;
+    x = x.wrapping_mul(0xc2b2_ae35);
+    x ^ (x >> 16)
+}
+
+/// The percussive signal's sample on one channel at frame `n`.
+///
+/// A half-scale sawtooth whose period steps through `periods` every 4096 frames, so no period locks
+/// to the pitch shifter's 128-frame percussiveness grid, plus a quarter-scale noise burst that starts
+/// at an irregular point in each 6000-frame window and halves every 256 frames. `seed` makes the
+/// channels differ.
+fn percussive_channel(n: u32, periods: [u32; 5], seed: u32) -> i32 {
+    let period = periods[((n / 4096) % 5) as usize];
+    let saw = (((n % 4096) % period).wrapping_mul(u32::MAX / period) as i32) >> 1;
+    let window = n / 6000;
+    let start = window * 6000 + hash32(window ^ seed) % 3000;
+    let burst = if n >= start && n - start < 256 * 12 {
+        ((hash32(n ^ seed) as i32) >> 2) >> ((n - start) / 256)
+    } else {
+        0
+    };
+    saw.wrapping_add(burst)
+}
+
+/// The percussive signal's frame `n`: the left and right channels with different periods and noise.
+fn percussive_frame(n: u32) -> DelugeStereoSample {
+    DelugeStereoSample {
+        l: percussive_channel(n, [97, 131, 173, 211, 149], 0),
+        r: percussive_channel(n, [149, 97, 211, 131, 173], 0x5bd1_e995),
+    }
 }
 
 /// Whether the headphone socket reads as occupied ([`deluge_host_headphones`]).
@@ -233,9 +274,12 @@ fn fill_input_block(block_start: u64, live: Option<&[[f32; 2]]>) {
                 })
         } else {
             let n = (block_start - origin + i as u64) as u32;
-            DelugeStereoSample {
-                l: n.wrapping_mul(0x0200_0000) as i32,
-                r: n.wrapping_mul(0x0100_0000) as i32,
+            match TEST_INPUT_SIGNAL.load(Ordering::Relaxed) {
+                2 => percussive_frame(n),
+                _ => DelugeStereoSample {
+                    l: n.wrapping_mul(0x0200_0000) as i32,
+                    r: n.wrapping_mul(0x0100_0000) as i32,
+                },
             }
         };
     }

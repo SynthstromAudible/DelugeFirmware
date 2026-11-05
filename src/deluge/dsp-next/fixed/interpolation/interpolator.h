@@ -49,56 +49,164 @@ template <int N>
 
 /// @brief A stereo windowed-sinc / linear sample interpolator over a sliding tap window (q31 backend).
 ///
-/// Holds the most recent @ref kInterpolationMaxNumSamples input samples per channel — the *tap window*, newest at
-/// index 0, oldest at the end. The owner feeds the window (@ref push_l / @ref push_r advance it by one sample,
-/// @ref jump_forward by several) and reads a sub-sample-accurate output frame with @ref interpolate (windowed-sinc,
-/// using the @p which_kernel-selected oversampling variant of @ref kWindowedSincKernel) or, on the cheap path,
-/// @ref interpolate_linear (2-tap linear).
+/// Holds the most recent @ref kInterpolationMaxNumSamples input samples per channel, the *tap window*: newest at
+/// index 0, oldest at the end. It reads a sub-sample-accurate output frame with @ref interpolate (windowed sinc, with
+/// the @p which_kernel-selected oversampling variant of @ref kWindowedSincKernel) or, on the cheap path,
+/// @ref interpolate_linear (the two newest taps).
 ///
-/// The tap windows are intentionally public: the sample-playback reader fills and shifts them directly for loop
-/// crossfades and jump-forward zero-fills — sample-specific window management that isn't generic interpolation, and
-/// which a later refactor may lift behind a richer API. The feed/read methods are the common path.
-struct Interpolator {
+/// The owner feeds the window through feeds, which write the slots an operation opened in the order the samples
+/// arrive:
+/// - @ref advance shifts the window by n samples and returns a @ref HeadFeed for the n vacated head slots, oldest
+///   first; @ref fill_head returns one without shifting; @ref advance_linear is the two-tap form.
+/// - @ref fill_tail returns a @ref TailFeed that writes from a slot toward the oldest, newest first: a window filled
+///   back from a play position.
+/// - @ref push_l / @ref push_r advance one channel by one sample.
+/// - @ref clear zeroes a range; @ref widen and @ref narrow move the window when the interpolation width changes.
+/// A mono owner feeds the left window only.
+class Interpolator {
+public:
 	using Window = std::array<int16_t, kInterpolationMaxNumSamples>;
+
+	/// @brief Writes a run of head slots, from the oldest of them to slot 0: the samples that follow the window's
+	/// newest, in the order they arrive.
+	class HeadFeed {
+	public:
+		/// Writes the next slot's left sample (a mono owner).
+		[[gnu::always_inline]] void put(int16_t l) { owner_->buffer_l_[--remaining_] = l; }
+		/// Writes the next slot's left and right samples.
+		[[gnu::always_inline]] void put(int16_t l, int16_t r) {
+			--remaining_;
+			owner_->buffer_l_[remaining_] = l;
+			owner_->buffer_r_[remaining_] = r;
+		}
+		/// Zeroes the next slot on both channels.
+		[[gnu::always_inline]] void silence() { put(0, 0); }
+		/// The slots still to write; 0 once slot 0 is written.
+		[[nodiscard]] [[gnu::always_inline]] std::size_t remaining() const { return remaining_; }
+
+	private:
+		friend class Interpolator;
+		[[gnu::always_inline]] HeadFeed(Interpolator& owner, std::size_t slots) : owner_(&owner), remaining_(slots) {}
+		Interpolator* owner_; ///< The interpolator whose windows it writes; never null.
+		std::size_t remaining_;
+	};
+
+	/// @brief Writes slots from one toward the oldest: the samples before the slot, newest first.
+	class TailFeed {
+	public:
+		/// Writes the next slot's left sample (a mono owner).
+		[[gnu::always_inline]] void put(int16_t l) { owner_->buffer_l_[index_++] = l; }
+		/// Writes the next slot's left and right samples.
+		[[gnu::always_inline]] void put(int16_t l, int16_t r) {
+			owner_->buffer_l_[index_] = l;
+			owner_->buffer_r_[index_] = r;
+			++index_;
+		}
+		/// Zeroes the next slot on both channels.
+		[[gnu::always_inline]] void silence() { put(0, 0); }
+		/// The slot the next write lands in.
+		[[nodiscard]] [[gnu::always_inline]] std::size_t index() const { return index_; }
+
+	private:
+		friend class Interpolator;
+		[[gnu::always_inline]] TailFeed(Interpolator& owner, std::size_t from) : owner_(&owner), index_(from) {}
+		Interpolator* owner_; ///< The interpolator whose windows it writes; never null.
+		std::size_t index_;
+	};
 
 	/// @brief Sub-sample-accurate windowed-sinc interpolation of the current window.
 	/// @param channels 1 = mono (left window only), 2 = stereo (both).
-	/// @param whichKernel the oversampling-kernel variant (from `WindowedSincKernel::variant_for`, by playback rate).
-	/// @param oscPos the sub-sample phase within the window.
+	/// @param which_kernel the oversampling-kernel variant (from `WindowedSincKernel::variant_for`, by playback rate).
+	/// @param osc_pos the sub-sample phase within the window, Q24.
 	/// @return the interpolated frame (right channel left untouched when @p channels == 1).
-	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t which_kernel, uint32_t osc_pos);
+	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t which_kernel, uint32_t osc_pos) const;
 
 	/// @brief 2-tap linear interpolation between the two newest window samples — the cheap alternative.
 	/// @details An integer lerp: the Q15 samples times Q15 weights that sum to 32767, so the frame is Q30 of the
 	/// samples, as @ref interpolate's is.
-	/// @param channels 1 = mono, 2 = stereo. @param phase the sub-sample phase.
-	[[nodiscard]] StereoSample interpolate_linear(std::size_t channels, uint32_t phase);
+	/// @param channels 1 = mono, 2 = stereo. @param phase the sub-sample phase, Q24.
+	[[nodiscard]] StereoSample interpolate_linear(std::size_t channels, uint32_t phase) const;
+
+	/// @brief Shifts both windows by @p n samples toward the oldest.
+	/// @return A feed for the @p n vacated head slots, which hold unspecified values until it writes them.
+	[[nodiscard]] [[gnu::always_inline]] constexpr HeadFeed advance(std::size_t n) {
+		shift_window(buffer_l_, n);
+		shift_window(buffer_r_, n);
+		return {*this, n};
+	}
+
+	/// @brief A feed for head slots @p n − 1 … 0, with no shift: a window filled forward from a play position.
+	[[nodiscard]] [[gnu::always_inline]] HeadFeed fill_head(std::size_t n) { return {*this, n}; }
+
+	/// @brief The two-tap form of @ref advance, which only the newest two taps are read by: a step of one moves tap 0
+	/// to tap 1 on @p channels channels and feeds tap 0; a longer step feeds both. Taps 2 on are left as they are.
+	[[nodiscard]] [[gnu::always_inline]] HeadFeed advance_linear(std::size_t n, std::size_t channels) {
+		if (n >= 2) {
+			return {*this, 2};
+		}
+		buffer_l_[1] = buffer_l_[0];
+		if (channels == 2) {
+			buffer_r_[1] = buffer_r_[0];
+		}
+		return {*this, 1};
+	}
+
+	/// @brief A feed from slot @p from toward the oldest.
+	[[nodiscard]] [[gnu::always_inline]] TailFeed fill_tail(std::size_t from) { return {*this, from}; }
 
 	/// Advance the left window by one sample, inserting @p value at the head.
 	[[gnu::always_inline]] constexpr void push_l(int16_t value) {
-		shift_window(buffer_l, 1);
-		buffer_l[0] = value;
+		shift_window(buffer_l_, 1);
+		buffer_l_[0] = value;
 	}
 	/// Advance the right window by one sample, inserting @p value at the head.
 	[[gnu::always_inline]] constexpr void push_r(int16_t value) {
-		shift_window(buffer_r, 1);
-		buffer_r[0] = value;
-	}
-	/// Advance both windows by @p num_samples, vacating that many head slots for the caller to fill.
-	[[gnu::always_inline]] constexpr void jump_forward(std::size_t num_samples) {
-		shift_window(buffer_l, num_samples);
-		shift_window(buffer_r, num_samples);
+		shift_window(buffer_r_, 1);
+		buffer_r_[0] = value;
 	}
 
-	/// The per-channel tap windows (newest sample at index 0). Quadword-aligned for the NEON dot product, and
-	/// value-initialised so an unfed tap reads as a defined 0 rather than allocation residue.
-	alignas(sizeof(int32_t) * 4) Window buffer_l{};
-	alignas(sizeof(int32_t) * 4) Window buffer_r{};
+	/// @brief Zeroes slots [@p from, @p to) of the left window, and of the right when @p channels is 2.
+	[[gnu::always_inline]] void clear(std::size_t from, std::size_t to, std::size_t channels) {
+		for (std::size_t i = from; i < to; ++i) {
+			buffer_l_[i] = 0;
+			if (channels == 2) {
+				buffer_r_[i] = 0;
+			}
+		}
+	}
+
+	/// @brief The interpolation width shrank: slot i takes slot i + @p offset, for i in [0, @p count).
+	[[gnu::always_inline]] void narrow(std::size_t offset, std::size_t count, std::size_t channels) {
+		for (std::size_t i = 0; i < count; ++i) {
+			buffer_l_[i] = buffer_l_[i + offset];
+			if (channels == 2) {
+				buffer_r_[i] = buffer_r_[i + offset];
+			}
+		}
+	}
+
+	/// @brief The interpolation width grew: slot i + @p offset takes slot i, for i in [0, @p count), in rising i.
+	/// @details Rising i reads slots it has already written when @p offset < @p count, so the newest taps are copied
+	/// along rather than the window moved (quirk Q11,
+	/// docs/dev/live_pitch_shifter_quirks.md).
+	[[gnu::always_inline]] void widen(std::size_t offset, std::size_t count, std::size_t channels) {
+		for (std::size_t i = 0; i < count; ++i) {
+			buffer_l_[i + offset] = buffer_l_[i];
+			if (channels == 2) {
+				buffer_r_[i + offset] = buffer_r_[i];
+			}
+		}
+	}
+
+	/// The left window, newest first.
+	[[nodiscard]] const Window& window_l() const { return buffer_l_; }
+	/// The right window, newest first.
+	[[nodiscard]] const Window& window_r() const { return buffer_r_; }
 
 private:
 	/// Shift @p window toward older indices by @p n samples, vacating the @p n head slots (the discarded tail falls
 	/// off the end; the vacated slots hold unspecified values until the caller fills them). Shared by @ref push_l /
-	/// @ref push_r / @ref jump_forward. Two NEON `vext`s per window instead of up to 15 halfword copies, which neither
+	/// @ref push_r / @ref advance. Two NEON `vext`s per window instead of up to 15 halfword copies, which neither
 	/// GCC nor Clang vectorises for n < 8 (the loop reads slots it has just written).
 	[[gnu::always_inline]] static constexpr void shift_window(Window& window, std::size_t n) {
 		if consteval {
@@ -164,6 +272,11 @@ private:
 			high.StoreTo(window.data() + Argon<int16_t>::lanes);
 		}
 	}
+
+	/// The per-channel tap windows (newest sample at index 0). Quadword-aligned for the NEON dot product, and
+	/// value-initialised so an unfed tap reads as a defined 0 rather than allocation residue.
+	alignas(sizeof(int32_t) * 4) Window buffer_l_{};
+	alignas(sizeof(int32_t) * 4) Window buffer_r_{};
 };
 
 } // namespace deluge::dsp::fixed

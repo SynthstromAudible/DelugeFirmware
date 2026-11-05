@@ -29,8 +29,8 @@
 ///   - `RENDER_MIDI`: the note script, `<frame> <hex bytes>` per line, frames counted from the start of capture.
 ///   - `RENDER_SECONDS`: how long to capture (default 2). Whole 128-frame blocks are captured, so the capture can run
 ///     up to a block past it.
-///   - `RENDER_INPUT`: `1` feeds the audio input the harness's test signal from the start of capture (see
-///     `audio/host.rs`), for presets whose sources read the input. Silence otherwise.
+///   - `RENDER_INPUT`: feeds the audio input a harness test signal from the start of capture (see `audio/host.rs`),
+///     for presets whose sources read the input: `1` the sawtooth, `2` the percussive signal. Silence otherwise.
 ///   - `RENDER_STEREO`: `1` plugs headphones in from the scenario's start, so the app renders in stereo as the device
 ///     does through them (voices with a stereo source render and filter both channels, ping-pong delay alternates).
 ///     Mono otherwise, as through the device's speaker.

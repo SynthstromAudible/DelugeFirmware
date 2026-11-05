@@ -17,64 +17,83 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/cong.h"
+#include "dsp-next/fixed/pitch_shift/hop_scheduler.h"
+#include "dsp-next/fixed/pitch_shift/play_head.h"
 #include "synth/sources/input/input_channel.h"
-#include "synth/sources/input/live/live_pitch_shifter_play_head.h"
 
-// The live pitch shifter keeps its legacy arithmetic as it is until its rewrite (TODO.md).
-// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+#include <cstdint>
+#include <span>
+#include <type_traits>
 
 namespace deluge::synth {
 
-class LiveInputBuffer;
 class AudioInputPort;
 
+/// @brief One voice's live pitch shifter over a mono (@p Frame dsp::Q<31>) or stereo (dsp::StereoSample) input.
+/// @details Two play heads over the channel's live history, cross-faded at each hop: the @ref
+/// dsp::fixed::pitch_shift::HopScheduler cuts each block into segments at its hops and gives each head's amplitude
+/// across a segment, and each head renders the segment in place as a @ref dsp::fixed::pitch_shift::PlayHead kernel.
+template <typename Frame>
 class LivePitchShifter {
 public:
-	LivePitchShifter(InputChannel channel, int32_t phase_increment);
-	~LivePitchShifter();
+	using Kernel = dsp::fixed::pitch_shift::PlayHead<Frame>;
+	using History = dsp::fixed::pitch_shift::InputHistory<Frame>;
 
-	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
-	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
-	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
-	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples_this_function_call,
-	                             int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
+	/// @brief A shifter for @p channel's input, starting at @p phase_increment.
+	LivePitchShifter(InputChannel channel, int32_t phase_increment);
+
+	/// @brief Adds @p num_samples of the pitch-shifted input into @p output_buffer (interleaved when stereo).
+	/// @details The channel's live input is ingested first, once per block whichever voice reads it. If the host has
+	/// let the input go, nothing is rendered.
+	/// @return The hops made: the host folds them into its per-routine CPU-load accounting.
+	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
+	                             dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment,
 	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
 
-	bool may_be_removed_without_click();
-
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	int32_t* repitchedBuffer;
-	int32_t repitchedBufferWritePos;
-	uint64_t repitchedBufferNumSamplesWritten;
-	bool stillWritingToRepitchedBuffer;
-	int32_t interpolationBuffer[2][kInterpolationMaxNumSamples];
-	uint32_t oscPos;
-#endif
-
-	int8_t num_channels;
-	InputChannel channel;
-
-	uint32_t crossfade_progress; // Out of kMaxSampleValue
-	// crossfadeIncrement + percThresholdForCut are only set at the first hop (before the crossfade/perc logic that
-	// reads them becomes reachable), so default-initialise them — otherwise a freshly-allocated shifter carries
-	// read-before-write garbage in these fields.
-	uint32_t crossfade_increment{0};
-	int32_t next_crossfade_length;
-	int32_t samples_til_hop_end;
-	int32_t samples_into_hop;
-
-	int32_t perc_threshold_for_cut{0};
-
-	LivePitchShifterPlayHead play_heads[2];
+	/// @brief Whether the shifter can go without a click: no crossfade running and the newer head reading direct.
+	[[nodiscard]] bool may_be_removed_without_click() const;
 
 private:
-	void hop_end(int32_t phase_increment, LiveInputBuffer* live_input_buffer, uint64_t num_raw_samples_processed,
-	             uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise);
-	void consider_repitched_buffer(int32_t phase_increment);
-	bool older_play_head_is_currently_sounding();
+	using Scheduler = dsp::fixed::pitch_shift::HopScheduler<Frame>;
+
+	[[nodiscard]] static std::span<Frame> frames_of(dsp::Q<31>* output_buffer, int32_t num_samples);
+	void configure(dsp::Mono<Kernel>& head, const History& history, int32_t phase_increment, int32_t which_kernel,
+	               int32_t interpolation_buffer_size);
+
+	InputChannel channel_;
+	Scheduler scheduler_;
+	dsp::fixed::pitch_shift::PlayHeads<Frame> heads_{};
+};
+
+extern template class LivePitchShifter<dsp::Q<31>>;
+extern template class LivePitchShifter<dsp::StereoSample>;
+
+/// @brief A voice's live pitch shifter, mono or stereo as its input channel: one allocation, made when the voice's
+/// pitch leaves the input's own.
+/// @details A handle: ownership is explicit, as the pooled sources it lives in are reused rather than destroyed, so the
+/// owner calls @ref destroy and nothing frees the shifter behind it.
+class PitchShifter {
+public:
+	/// @brief Makes the shifter for @p channel at @p phase_increment. @return false if the allocator had no room.
+	[[nodiscard]] bool create(InputChannel channel, int32_t phase_increment);
+	/// @brief Frees the shifter, if there is one.
+	void destroy();
+	[[nodiscard]] bool exists() const { return block_ != nullptr; }
+	/// @brief Whether the shifter's input is stereo, so its output is interleaved frames.
+	[[nodiscard]] bool stereo() const { return stereo_; }
+
+	/// @copydoc LivePitchShifter::render
+	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
+	                             dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment,
+	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
+	[[nodiscard]] bool may_be_removed_without_click() const;
+
+private:
+	void* block_ = nullptr; ///< The allocator's block holding one instantiation.
+	bool stereo_ = false;
 };
 
 } // namespace deluge::synth
-// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)

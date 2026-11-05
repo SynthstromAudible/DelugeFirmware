@@ -479,6 +479,21 @@ const std::vector<std::string_view> kVaShapeCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The pitch shift list's names, in order.
+const std::vector<std::string_view> kPitchShiftCaseNames{
+    "calibration_loop",
+    "sample_read_sinc_mono",
+    "sample_read_sinc_stereo",
+    "sample_read_linear_mono",
+    "sample_read_linear_stereo",
+    "pitch_shift_up7",
+    "pitch_shift_down12",
+    "pitch_shift_stereo_up7",
+    "pitch_shift_perc_up7",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -1077,7 +1092,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
 		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
-		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames},
+		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1159,7 +1175,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
 		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
-		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames},
+		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

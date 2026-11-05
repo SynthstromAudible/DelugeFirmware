@@ -209,6 +209,51 @@ set(delay_echo_spec_DEPS ${delay_processor_spec_DEPS})
 set(delay_kernel_spec_DEPS ${delay_processor_spec_DEPS})
 # The delay over storage it hasn't written, through the recorded workloads: the same sources.
 set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
+# The live input's slope follower and percussiveness: header-only, but for the tanh table they saturate through.
+set(slope_follower_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The live input's history and the synth's LiveInput over it, against the oracle's input buffer: LiveInput and the
+# tanh table.
+set(input_history_spec_DEPS
+  ${_repo_root}/src/synth/sources/input/live/live_input.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The pitch shifter's tuning against the old hop end's block: the table interpolator it reads through.
+set(pitch_shift_tuning_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp)
+# The pitch shifter's play head against the oracle's old head: the interpolator, its sinc kernels, and the tables the
+# oracle's input buffer reads.
+set(play_head_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The pitch shifter's hop planner, its percussive search and its waveform aligner against the old hop end
+# (reference_hop_plan.h): header-only, but for the tables the tuning and the histories' follower read.
+set(_hop_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(hop_planner_spec_DEPS ${_hop_spec_DEPS})
+set(percussive_search_spec_DEPS ${_hop_spec_DEPS})
+set(waveform_aligner_spec_DEPS ${_hop_spec_DEPS})
+# The pitch shifter's hop scheduler against the oracle's shifter: the interpolator, its sinc kernels and the tables.
+set(hop_scheduler_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The live pitch shifter's oracle (reference_live_pitch_shifter.h, header-only) over the workloads: the interpolation
+# and tables it reads.
+set(reference_live_pitch_shifter_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The live pitch shifter over the workloads: the shifter and its live input, the interpolation and tables they read.
+# Its allocator seam comes from alloc_seams.h.
+set(live_pitch_shifter_spec_DEPS
+  ${_repo_root}/src/synth/sources/input/live/live_pitch_shifter.cpp
+  ${_repo_root}/src/synth/sources/input/live/live_input.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The stutter reference (reference_stutter.h, stutter_workloads.h, header-only) over the delay's tape: the same sources.
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.

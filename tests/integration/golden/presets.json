@@ -1955,6 +1955,60 @@
   "rms_db": -23.15,
   "sha256": "ae61e04a17751bcfa7e1f5afc5efca7f73ed02d4b2cf443acb7cf9d0e2c92c6e"
  },
+ "input_pitchshift_down12": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.01,
+  "sha256": "99851bd5f39892ade54d8fc580358f5369c350fafd344dd911ff3b88dfb60b00"
+ },
+ "input_pitchshift_down5": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.04,
+  "sha256": "099293f16f12006665431ec604f4ec9d1bcdd60333ac84f1afdaf5b2d3543a6b"
+ },
+ "input_pitchshift_glide": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -21.76,
+  "sha256": "c0dd47352ac1f19b630e047e77994426798546cbb97d47d4f2294f36ca27006c"
+ },
+ "input_pitchshift_linear": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.16,
+  "sha256": "2f2e5c21d9f282c2b1c3744d945461bba2cedfad2215726a12abefa365149888"
+ },
+ "input_pitchshift_perc_down12": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.16,
+  "sha256": "90b37fb125285f6a8af1593e201e30db163cb394d5306edb2031cab94185fe72"
+ },
+ "input_pitchshift_perc_up7": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.42,
+  "sha256": "81dcb96535c69b0c31e0ca49553d99d97a46c241fd72ccc3b4721ffa55058807"
+ },
+ "input_pitchshift_up24": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.65,
+  "sha256": "da68b27cd3ca64e833a05795c102bc3ecb0377804aa0ce0b6e2df2653ae9547e"
+ },
+ "input_pitchshift_up7": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.17,
+  "sha256": "e703bb59fd9276fb6e6b4ce5d23025bf97bf458ffe2f1094d48d6a6edde1e4ca"
+ },
+ "input_pitchshift_up_half": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.1,
+  "sha256": "f020b452ee88db22ef1ae02673d044cf34a5c6fd36ccd8857a3994c03497d2e8"
+ },
  "input_stereo": {
   "frames": 88200,
   "peak": 245172224,
@@ -2164,6 +2218,18 @@
   "peak": 418182400,
   "rms_db": -21.89,
   "sha256": "af2e4449e9df40b49a78391ddece6cedc09ba79740a326bcb77b581f21bf10cf"
+ },
+ "stereo/input_pitchshift_stereo_up7": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.77,
+  "sha256": "d0bc6b28809dc194916e5501f1eeec12fee56227ca96b5f18ccea09d08e2740e"
+ },
+ "stereo/input_pitchshift_unison": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -24.04,
+  "sha256": "18dfb2efdfc1e480cb62cf6f64106662e12be43b99a15193a38e098c8d066a35"
  },
  "stereo/lpf_12db_hpf_ladder_h2l": {
   "frames": 88200,

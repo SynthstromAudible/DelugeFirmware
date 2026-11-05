@@ -48,7 +48,7 @@ void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 int32_t deluge_host_midi_script_start(const char* path);
-void deluge_host_test_input(bool on);
+void deluge_host_test_input(uint32_t signal);
 void deluge_host_headphones(bool on);
 uint32_t deluge_host_midi_script_released(void);
 }
@@ -70,7 +70,8 @@ int32_t g_failures = 0;
 int32_t g_ticks = 0;
 
 std::string g_midiPath;
-bool g_testInput = false;
+/// The harness test signal the audio input is fed (RENDER_INPUT), 0 for silence.
+uint32_t g_testInput = 0;
 bool g_stereo = false;
 uint64_t g_blocksWanted = 0;
 int32_t g_midiEvents = 0;
@@ -193,7 +194,7 @@ void stepCapturing() {
 	}
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_captured = deluge_host_capture_stop();
-		deluge_host_test_input(false);
+		deluge_host_test_input(0);
 		g_stage = Stage::Report;
 		return;
 	}
@@ -201,7 +202,7 @@ void stepCapturing() {
 	if (++g_ticks > static_cast<int64_t>(g_blocksWanted) * 2 + 1000) {
 		fail("RP-RENDER", "the render stopped short of the blocks asked for");
 		g_captured = deluge_host_capture_stop();
-		deluge_host_test_input(false);
+		deluge_host_test_input(0);
 		g_stage = Stage::Report;
 	}
 }
@@ -222,8 +223,8 @@ void report() {
 	if (audioSync != 0) {
 		fail("RP-TIER-SYNC-AUDIO", "the render made a synchronous card call");
 	}
-	printf("RP-CAPTURE frames=%llu input=%d stereo=%d\n", static_cast<unsigned long long>(g_captured),
-	       g_testInput ? 1 : 0, g_stereo ? 1 : 0);
+	printf("RP-CAPTURE frames=%llu input=%u stereo=%d\n", static_cast<unsigned long long>(g_captured), g_testInput,
+	       g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
 		fail("RP-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
 		                            : "the app rendered in stereo with nothing plugged in");
@@ -252,7 +253,7 @@ void deluge_scenario_render_preset_begin(void) {
 	g_stereo = stereo != nullptr && std::strcmp(stereo, "1") == 0;
 	deluge_host_headphones(g_stereo);
 	const char* input = std::getenv("RENDER_INPUT");
-	g_testInput = input != nullptr && std::strcmp(input, "1") == 0;
+	g_testInput = input != nullptr ? static_cast<uint32_t>(std::strtoul(input, nullptr, 10)) : 0;
 	const char* midi = std::getenv("RENDER_MIDI");
 	g_midiPath = midi != nullptr ? midi : "";
 	g_zoneMoved = false;
