@@ -74,9 +74,9 @@ inline constexpr std::array<WorkloadRecord, kWorkloadCount> kShifterRecords{{
     // UP7_BLOCK32_SINE_STEREO
     {.outputs = 0x7adcf3ba40bba510ULL, .hops = 0xf42734f1b1ac8005ULL, .lifecycle = 0x8c97755e5defcee5ULL},
     // GLIDE_PERC_LEFT
-    {.outputs = 0x6ced881a3b4bd8f9ULL, .hops = 0xc95032b67b8b0504ULL, .lifecycle = 0xf1e2b6f952cc9554ULL},
+    {.outputs = 0x7d17c9ac526c3c78ULL, .hops = 0x76f4a9b115fe2d54ULL, .lifecycle = 0xf1e2b6f952cc9554ULL},
     // GLIDE_SAW_STEREO
-    {.outputs = 0xba3e63c1e0857812ULL, .hops = 0xa20ab643f3b12cc7ULL, .lifecycle = 0x2e9a7b25629bdc54ULL},
+    {.outputs = 0xfeb663c52d6d3c5dULL, .hops = 0xa20ab643f3b12cc7ULL, .lifecycle = 0x2e9a7b25629bdc54ULL},
     // SHARED_UP7_PERC_LEFT
     {.outputs = 0xb184d1160ff4d74cULL, .hops = 0x14103f751eea4935ULL, .lifecycle = 0x291555d30af63cf5ULL},
     // SHARED_DOWN5_PERC_STEREO

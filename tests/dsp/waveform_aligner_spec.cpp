@@ -25,13 +25,18 @@
 
 #include "dsp-next/fixed/pitch_shift/waveform_aligner.h"
 
+#include <algorithm>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <memory>
 #include <random>
+#include <type_traits>
+#include <vector>
 
 namespace {
 namespace ps = deluge::dsp::fixed::pitch_shift;
 namespace ph = pitch_shift_histories;
+namespace pw = pitch_shift_workloads;
 using deluge::synth::reference_hop::reference_align;
 
 template <typename Frame>
@@ -70,6 +75,68 @@ bool aligns_as_the_old_hop_end(uint32_t seed, std::size_t& moved, std::size_t& p
 	}
 	return true;
 }
+
+// The stream's first frames over a ring a past stream filled with noise and then restarted: a restart silences the
+// ring, so what a search reads before the stream's start is silence, as over a fresh ring
+template <typename Frame>
+std::unique_ptr<ps::InputHistory<Frame>> over_old_noise(pw::Signal signal, uint32_t frames) {
+	auto h = std::make_unique<ps::InputHistory<Frame>>();
+	std::mt19937 rng(0x99u);
+	std::vector<Frame> noise(ps::kHistoryFrames);
+	for (Frame& f : noise) {
+		if constexpr (std::is_same_v<Frame, deluge::dsp::StereoSample>) {
+			f = {.l = deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(rng())),
+			     .r = deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(rng()))};
+		}
+		else {
+			f = deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(rng()));
+		}
+	}
+	h->write(noise);
+	h->restart();
+	const auto fresh = ph::history_of<Frame>(signal, frames);
+	std::vector<Frame> stream(frames);
+	for (uint32_t i = 0; i < frames; ++i) {
+		stream[i] = fresh->at(ps::RingPosition{i});
+	}
+	h->write(stream);
+	return h;
+}
+
+// How many searches on a history under one lap align differently over a restarted ring than over a fresh one
+template <typename Frame>
+std::size_t searches_reading_before_the_start(uint32_t seed) {
+	std::mt19937 rng(seed);
+	std::size_t reading = 0;
+	for (const uint32_t frames : {600U, 1500U, 3000U, 6000U}) {
+		const auto clean = ph::history_of<Frame>(pw::Signal::PERCUSSIVE, frames);
+		const auto dirty = over_old_noise<Frame>(pw::Signal::PERCUSSIVE, frames);
+		const uint64_t latest = clean->frames_written();
+		for (int k = 0; k < 2000; ++k) {
+			const auto length = static_cast<int32_t>(1 + (rng() % 70));
+			const auto start_offset = static_cast<int32_t>(rng() % 200) - 50;
+			const bool forward = (rng() & 1) != 0;
+			const auto back = static_cast<uint32_t>(3 * length) + (rng() % std::min<uint32_t>(frames, 2000));
+			if (back > frames) {
+				continue;
+			}
+			const ps::WaveformAligner::Search search{.start = static_cast<uint32_t>(latest - back),
+			                                         .start_offset = start_offset,
+			                                         .length = length,
+			                                         .size = static_cast<int32_t>(rng() % 1000),
+			                                         .direction = forward ? 1 : -1,
+			                                         .directions_searched = forward ? 0 : 1,
+			                                         .sub_sample = true};
+			const auto old_start =
+			    static_cast<uint32_t>(latest - std::min<uint64_t>(latest, 3 * length + (rng() % 500)));
+			const ps::MovingAverages old_totals = clean->moving_averages(ps::RingPosition{old_start}, length);
+			const ps::Alignment a = ps::WaveformAligner::align(*clean, search, old_totals, latest);
+			const ps::Alignment b = ps::WaveformAligner::align(*dirty, search, old_totals, latest);
+			reading += (a.offset != b.offset || a.phase != b.phase) ? 1 : 0;
+		}
+	}
+	return reading;
+}
 } // namespace
 
 // clang-format off
@@ -88,6 +155,11 @@ describe waveform_aligner("deluge::dsp::fixed::pitch_shift::WaveformAligner", ${
 		expect(aligns_as_the_old_hop_end<deluge::dsp::StereoSample>(0x42u, moved, placed)).to_be_true();
 		expect(moved).to_be_greater_than(std::size_t{100});
 		expect(placed).to_be_greater_than(std::size_t{100});
+	});
+
+	it("reads silence before the stream's start, a restarted history as a fresh one (quirk Q4)", _ {
+		expect(searches_reading_before_the_start<deluge::dsp::Q<31>>(0x51u)).to_equal(std::size_t{0});
+		expect(searches_reading_before_the_start<deluge::dsp::StereoSample>(0x52u)).to_equal(std::size_t{0});
 	});
 });
 // clang-format on

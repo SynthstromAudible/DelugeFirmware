@@ -81,11 +81,14 @@ template <typename Frame>
 requires std::is_same_v<Frame, Q<31>> || std::is_same_v<Frame, StereoSample>
 class InputHistory {
 public:
-	/// @brief Forgets the input: no frames written and the follower at rest. The ring keeps its contents, which the
-	/// count says are not yet written.
+	/// @brief Forgets the input: no frames written, the follower at rest, and the ring and its percussiveness silent,
+	/// as a fresh history's are, so what a hop reads before the stream's start is silence rather than the input before
+	/// the restart.
 	void restart() {
 		frames_written_ = 0;
 		follower_ = {};
+		frames_.fill(Frame{});
+		percussiveness_.fill(0);
 	}
 
 	/// @brief Appends @p n frames from @p source, one pass per frame: each is stored, folded and followed, and every
