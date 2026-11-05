@@ -46,11 +46,12 @@ void setupSPIInterrupts()
     setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
-// Priority CV channel: CV words bypass the OLED frame queue so gate timing isn't held
-// hostage by OLED refreshes on the shared SPI bus. A single latest-wins slot matches the queue's
-// previous coalescing of unsent CV words.
-volatile bool cvPriorityPending  = false;
-volatile uint32_t cvPriorityData = 0;
+// Coalesce updates only within the same DAC channel. Both channels must survive
+// an OLED transfer, and round-robin service prevents a busy channel starving the other.
+static volatile uint8_t cv_pending_channels = 0;
+static volatile uint32_t cv_pending_data[NUM_PHYSICAL_CV_CHANNELS];
+static uint8_t cv_next_channel    = 0;
+static uint8_t cv_sending_channel = 0;
 
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
@@ -59,9 +60,8 @@ static void finishOledSettling();
 void enqueueCVMessage(int channel, uint32_t message)
 {
     ENTER_CRITICAL_SECTION();
-    // Latest value wins (matches the queue's old coalescing of unsent CV words).
-    cvPriorityData    = message;
-    cvPriorityPending = true;
+    cv_pending_data[channel] = message;
+    cv_pending_channels |= 1u << channel;
     // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
     // boundary, ahead of any queued OLED frames.
     if (cancelUnsentOledSelect() || !spiBusCurrentlySending)
@@ -259,18 +259,23 @@ void sendCVWord(uint32_t message)
 }
 
 // Drains the priority CV slot if one is waiting. Must only be called at an inter-transfer boundary
-// (nothing currently on the bus). Returns true if a CV word was sent. Sends the word then calls
-// cvSent() so any gate waiting on this CV is released on schedule.
+// (nothing currently on the bus). Gates are released by the completion ISR, after the DAC is deselected.
 bool sendPriorityCVIfPending()
 {
-    if (!cvPriorityPending)
+    if (!cv_pending_channels)
     {
         return false;
     }
-    cvPriorityPending = false;
-    cv_sending        = true;
-    sendCVWord(cvPriorityData);
-    cvSent();
+    uint8_t channel = cv_next_channel;
+    while (!(cv_pending_channels & (1u << channel)))
+    {
+        channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+    }
+    cv_next_channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+    cv_pending_channels &= ~(1u << channel);
+    cv_sending         = true;
+    cv_sending_channel = channel;
+    sendCVWord(cv_pending_data[channel]);
     return true;
 }
 
@@ -329,7 +334,7 @@ void oledTransferComplete(uint32_t int_sense)
 
     // If there's another frame queued, just go ahead - unless a CV word is waiting, in which case we
     // deselect so the CV can slip in ahead of the next frame.
-    if (!cvPriorityPending && oledFrameQueueWritePos != oledFrameQueueReadPos
+    if (!cv_pending_channels && oledFrameQueueWritePos != oledFrameQueueReadPos
         && last_message_sent == OLED_MESSAGE_SELECT)
     {
         oledSelectingComplete();
@@ -356,8 +361,14 @@ void cvSPITransferComplete(uint32_t sense)
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE |=
         1 << 6; // Reset RX buffer. Slightly weird that we have to do it here, after the transfer? Or not weird?
 
-    // Another CV word turned up while this one was sending? Send it before returning to OLED frames
-    //.
+    // A newer voltage for this channel supersedes the word that just finished.
+    // Keep its gate held until the latest word has actually reached the DAC.
+    if (!(cv_pending_channels & (1u << cv_sending_channel)))
+    {
+        cvSent(cv_sending_channel);
+    }
+
+    // Drain pending CV before returning to OLED frames.
     if (sendPriorityCVIfPending())
     {
         return;
@@ -383,7 +394,7 @@ void oledDeselectionComplete()
     spiBusCurrentlySending = false;
     oled_sending           = false;
     // A waiting CV word goes out before any more OLED frames.
-    if (cvPriorityPending)
+    if (cv_pending_channels)
     {
         spiBusCurrentlySending = true;
         sendPriorityCVIfPending();
