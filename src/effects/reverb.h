@@ -104,7 +104,8 @@ public:
 	/// @param send The reverb send, one sample per frame, Q31.
 	/// @param pan_l The left return level, Q31.
 	/// @param pan_r The right return level, Q31.
-	void render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, int32_t pan_l, int32_t pan_r);
+	void render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, dsp::Q<31> pan_l,
+	            dsp::Q<31> pan_r);
 
 	/// @brief Sets the duck the return takes from the next block.
 	/// @param duck The depth and shape in effect.

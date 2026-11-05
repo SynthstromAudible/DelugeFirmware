@@ -1100,7 +1100,8 @@ bool TimeStretcher::allocateBuffer(int32_t numChannels) {
 
 namespace {
 /// @brief @p mix plus @p sample times @p amplitude, the high word, summed wrapping: @ref deluge::audio::mixed_in
-/// without its rounding.
+/// without its rounding. @p sample is a time-stretch buffer word, Q31; @p amplitude is the sample reader's amplitude
+/// word, read as Q31.
 [[gnu::always_inline]] inline deluge::dsp::Q<31> mixed_in_floor(deluge::dsp::Q<31> mix, int32_t sample,
                                                                 int32_t amplitude) {
 	using deluge::dsp::Q;

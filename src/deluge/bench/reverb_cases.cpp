@@ -15,7 +15,7 @@ namespace deluge::bench {
 namespace {
 
 /// @brief The return level renderReverb computes with no duck: (0x20000000 >> 15) * (0x20000000 >> 14).
-constexpr int32_t kReturnLevel = 1 << 29;
+constexpr dsp::Q<31> kReturnLevel = dsp::q<31>(0.25);
 
 struct ReverbRig {
 	dsp::Buffer<StereoSample> work{};         ///< The lanes output's first n frames, processed in place.

@@ -53,8 +53,8 @@ int32_t spread_of(int32_t spread, int32_t count) {
 /// (its unsigned word halved, read as Q31), back at Q31, then the high word with @p range: × range / 2^32.
 int32_t random_amount(uint32_t value, int32_t range) {
 	using deluge::dsp::Q;
-	const auto amount = mul_as_wrap<Q<31>>(Q<31>::from_raw(sampleTriangleDistribution()),
-	                                       Q<31>::from_raw(static_cast<int32_t>(value >> 1)));
+	const auto amount =
+	    mul_as_wrap<Q<31>>(sampleTriangleDistribution(), Q<31>::from_raw(static_cast<int32_t>(value >> 1)));
 	return mul(amount, Q<31>::from_raw(range)).raw();
 }
 } // namespace

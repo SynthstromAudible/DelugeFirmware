@@ -90,8 +90,8 @@ void Reverb::configure() {
 	settings_dirty_ = false;
 }
 
-void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, int32_t pan_l,
-                    int32_t pan_r) {
+void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<31>> send, dsp::Q<31> pan_l,
+                    dsp::Q<31> pan_r) {
 	if (rebuilding_) {
 		return; // a model change is under way: the render adds no reverb until commit
 	}
@@ -100,12 +100,12 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<3
 	}
 	switch (model_) {
 	case ReverbModel::FREEVERB:
-		freeverb_.on<&Freeverb::set_send>(send.data(), dsp::Q<31>::from_raw(pan_l), dsp::Q<31>::from_raw(pan_r));
+		freeverb_.on<&Freeverb::set_send>(send.data(), pan_l, pan_r);
 		freeverb_.render_block(block, block);
 		break;
 	case ReverbModel::MUTABLE:
 	case ReverbModel::DIGITAL:
-		plate_.on<&Plate::set_send>(send.data(), dsp::Q<31>::from_raw(pan_l), dsp::Q<31>::from_raw(pan_r));
+		plate_.on<&Plate::set_send>(send.data(), pan_l, pan_r);
 		plate_.render_block(block, block);
 		break;
 	}

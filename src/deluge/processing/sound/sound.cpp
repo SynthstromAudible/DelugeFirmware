@@ -1798,7 +1798,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO1
 		        .render(output.size(), snapshot_.lfo_config[LFO1_ID],
-		                getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise)
+		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_1>(LFO1_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
@@ -1814,7 +1814,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO3
 		        .render(output.size(), snapshot_.lfo_config[LFO3_ID],
-		                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise)
+		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_2>(LFO3_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
@@ -1975,22 +1975,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
-		    // The neutral is the volume's Q31 word, scaled in floating point
-		    .volume_neutral_value_for_unison = deluge::dsp::Q<31>::from_raw(volumeNeutralValueForUnison),
+		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .voice_priority = snapshot_.voice_priority,
 		    .synth_mode = getSynthMode(),
 		    .lfo2_config = snapshot_.lfo_config[LFO2_ID],
 		    .lfo4_config = snapshot_.lfo_config[LFO4_ID],
-		    // The synced increments come from the transport's integer tick maths
-		    .lfo2_synced_phase_increment =
-		        deluge::dsp::UQ<32>::from_raw((snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
-		                                          ? 0
-		                                          : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID])),
-		    .lfo4_synced_phase_increment =
-		        deluge::dsp::UQ<32>::from_raw((snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
-		                                          ? 0
-		                                          : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID])),
+		    .lfo2_synced_phase_increment = (snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       ? deluge::dsp::UQ<32>{}
+		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID]),
+		    .lfo4_synced_phase_increment = (snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       ? deluge::dsp::UQ<32>{}
+		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID]),
 		    .has_filters = thisHasFilters,
 		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
@@ -2062,15 +2058,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		eraseVoicesIf([](const ActiveVoice& voice) { return voice->should_be_deleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
-		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
-		int32_t amplitudeL, amplitudeR;
+		const dsp::Q<31> pan = halve_floor(paramManager->getPatchedParamSet()->getKnob(params::LOCAL_PAN));
+		dsp::fixed::PanAmplitudes amplitudes{};
 		bool doPanning = false;
 		if (AudioEngine::renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes =
-			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
-			amplitudeL = amplitudes.left.raw();
-			amplitudeR = amplitudes.right.raw();
-			doPanning = pan != 0;
+			amplitudes = dsp::fixed::pan_amplitudes(pan);
+			doPanning = pan != dsp::Q<31>{};
 		}
 
 		// If just rendered in mono, double that up to stereo now
@@ -2078,7 +2071,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](dsp::Q<31> sample) {
-					return dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitudeL), dsp::Q<30>::from_raw(amplitudeR));
+					return dsp::panned_mono(sample, amplitudes.left, amplitudes.right);
 				});
 			}
 			else {
@@ -2092,8 +2085,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// And if we're only applying pan here at the Sound level...
 		else if (!applyingPanAtVoiceLevel && doPanning) {
 			for (StereoSample& sample : sound_stereo) {
-				sample = dsp::panned_stereo(sample.l, sample.r, dsp::Q<30>::from_raw(amplitudeL),
-				                            dsp::Q<30>::from_raw(amplitudeR));
+				sample = dsp::panned_stereo(sample.l, sample.r, amplitudes.left, amplitudes.right);
 			}
 		}
 	}
@@ -2174,9 +2166,9 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// Do LFO
 			globalLFO1.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
-			                getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+			                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_1>(LFO1_ID));
 			globalLFO3.tick(AudioEngine::audioSampleTimer - timeStartedSkippingRenderingLFO,
-			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
+			                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_2>(LFO3_ID));
 
 			// Do Mod FX
 			core().mod_fx().tick(modFXTimeOff,
@@ -2218,18 +2210,16 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 	}
 }
 
-deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
-	using deluge::dsp::UQ;
+template <deluge::modulation::params::Global P>
+deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId) {
 	const LFOConfig& config = snapshot_.lfo_config[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
-		// The LFO rate params' words are phase increments (param_format.h)
-		return UQ<32>::from_raw(static_cast<uint32_t>(params.param_final_values[param - params::FIRST_GLOBAL]));
+		return deluge::synth::matrix::global_param_value<P>(params.param_final_values);
 	}
-	// The synced increment comes from the transport's integer tick maths
-	return UQ<32>::from_raw(getSyncedLFOPhaseIncrement(config));
+	return getSyncedLFOPhaseIncrement(config);
 }
 
-uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
+deluge::dsp::UQ<32> Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	uint32_t phaseIncrement =
 	    (playbackHandler.getTimePerInternalTickInverse())
 	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.sync_level));
@@ -2244,7 +2234,8 @@ uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 		phaseIncrement = phaseIncrement * 2 / 3;
 		break;
 	}
-	return phaseIncrement;
+	// The synced increment comes from the transport's integer tick maths
+	return deluge::dsp::UQ<32>::from_raw(phaseIncrement);
 }
 
 void Sound::resyncGlobalLFOs(bool reset_state) {
@@ -2573,9 +2564,9 @@ void Sound::setupUnisonStereoSpread() {
 }
 
 void Sound::calculateEffectiveVolume() {
-	// volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
-	volumeNeutralValueForUnison =
-	    (float)deluge::synth::matrix::kParamNeutral[params::LOCAL_VOLUME] / sqrtf(snapshot_.num_unison);
+	// The volume's neutral over the square root of the unison count, in float
+	constexpr float kNeutral = deluge::dsp::to_float(deluge::synth::matrix::param_neutral<params::LOCAL_VOLUME>());
+	volumeNeutralValueForUnison = deluge::dsp::from_float<31>(kNeutral / sqrtf(snapshot_.num_unison));
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this
@@ -2976,7 +2967,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
 	// what a save before any render writes back
-	core().compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(effects.compressor.threshold));
+	core().compressor().dsp().set_threshold(deluge::effects::compressor_knobs(effects.compressor).threshold);
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];
