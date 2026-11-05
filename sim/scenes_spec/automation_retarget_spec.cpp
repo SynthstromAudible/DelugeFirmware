@@ -16,6 +16,7 @@
 #include "gui/ui/ui.h" // currentUIMode, setRootUILowLevel
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
 #include "hid/button.h"
 #include "modulation/params/param.h"
 #include "scenes/menu/context.h"
@@ -402,6 +403,59 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		automationView.onMenuView = false;
 	});
 });
+describe automation_encoders("the knobs and encoders under the menu", $ {
+	it("turns a gold knob into the view's param in its editor", _ {
+		// `SoundEditor::modEncoderAction` hands the turn to the view, which edits its selected param (HPF frequency, no
+		// knob's) rather than the knob's own.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		on_overview(fx.clip);
+		expect(open_shortcut_over_automation(fx.clip, 9, 7)).to_be_true();
+		view.setActiveModControllableTimelineCounter(fx.clip); // as the clip view leaves it
+		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
+		fx.clip->lastSelectedParamID = params::LOCAL_HPF_FREQ;
+		expect(deluge::gui::ui::automationEditorTakesKnobs()).to_be_true();
+		const int32_t before = fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ);
+		shellHostUI.modEncoderAction(1, 8);
+		expect(fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ) != before).to_be_true();
+	});
+
+	it("leaves the gold knobs to the menu's knobs on the view's overview", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		on_overview(fx.clip);
+		expect(open_shortcut_over_automation(fx.clip, 9, 7)).to_be_true();
+		view.setActiveModControllableTimelineCounter(fx.clip); // as the clip view leaves it
+		expect(deluge::gui::ui::automationEditorTakesKnobs()).to_be_false();
+		const int32_t before = fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ);
+		shellHostUI.modEncoderAction(1, 8);
+		expect(fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ)).to_equal(before);
+	});
+
+	it("passes a vertical turn to the root, and keeps it with SHIFT held", _ {
+		// `SoundEditor::verticalEncoderAction`: the root's, unless SHIFT or X_ENC is held.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		currentUIMode = UI_MODE_NONE;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		const int32_t before = fx.clip->yScroll;
+		(void)shellHostUI.verticalEncoderAction(1);
+		expect(fx.clip->yScroll != before).to_be_true();
+		const int32_t moved = fx.clip->yScroll;
+		{
+			spec::ShiftHeld shift;
+			(void)shellHostUI.verticalEncoderAction(1);
+		}
+		expect(fx.clip->yScroll).to_equal(moved);
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(automation_retarget_spec, automation_root_facts, automation_retarget, automation_menu_view)
+DELUGE_SPEC(automation_retarget_spec, automation_root_facts, automation_retarget, automation_menu_view,
+            automation_encoders)

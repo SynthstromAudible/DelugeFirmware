@@ -205,8 +205,13 @@ namespace deluge::gui::ui {
 ///    would swallow the first turn after a pause, which legacy's own (dead) wiggle check never does,
 ///    and `ModKnobs` would accelerate it a second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
-///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which here does
-///    nothing.
+///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which does
+///    nothing then.
+///  - **In the automation view's editor the knobs are the view's.** A turn and a push go to
+///    `automationView` (`forwardAutomationGoldTurn`, `forwardAutomationGoldPush`), which edits its selected
+///    param, as `SoundEditor::modEncoderAction` hands them to the view; the push takes `modEncoderButtonAction`'s
+///    delivery and is not fed. On the view's overview the knobs' service does what the view would, and keeps the
+///    menu's readout following the knob.
 ///  - **A mod button is fed as its matrix button.** `Buttons` hands the eight to `modButtonAction`
 ///    and never to `buttonAction` (`hid/buttons.cpp:99-107`).
 ///  - **The knob popup outlives the guest.** `ModKnobs`' param popup is a passive overlay; when only
@@ -216,8 +221,8 @@ namespace deluge::gui::ui {
 /// The scene sees a turn first: in MIDI-learn mode the menu takes it and learns that knob, as
 /// `SoundEditor::modEncoderAction` does (`MenuLearn::gold_turn`).
 ///
-/// **What it costs.** Over the automation view a gold turn edits through `ModKnobs`, where legacy hands it to
-/// `automationView.modEncoderAction` -- in learn mode too.
+/// **What it costs.** On the automation view's overview a gold turn edits through `ModKnobs`, where legacy hands
+/// every turn to `automationView.modEncoderAction` -- in learn mode too; both edit the knob's param there.
 ///
 /// @par MIDI learn
 ///

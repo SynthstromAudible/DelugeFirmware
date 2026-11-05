@@ -186,6 +186,10 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	return target;
 }
 
+bool menuShowsAutomationViewParam() {
+	return menuShowsAutomationParam();
+}
+
 bool rootKeepsShortcutPad(int32_t x, int32_t y) {
 	return getRootUI() == &automationView && x == 0 && (y == 6 || y == 7);
 }

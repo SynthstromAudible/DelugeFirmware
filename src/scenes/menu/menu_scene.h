@@ -197,6 +197,23 @@ public:
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
 
+	/// @brief Where a horizontal turn under the menu goes (`route_horizontal_turn`).
+	enum class HorizontalTurn : uint8_t {
+		Menu,    ///< The menu's: fed to it (a page, which does nothing with it; a cable page's decimal cursor).
+		Root,    ///< Through to the root UI under the menu (`Param::horizontalEncoderAction`).
+		Neither, ///< Nowhere: a cable page's cursor held still by X_ENC, short of the edge delay.
+	};
+	/// @brief Route a horizontal turn of @p offset, as legacy's current item does: a param leaf passes it to the root
+	///        UI; a patch cable's page moves its decimal cursor (not while X_ENC is held) and passes the turn on only
+	///        once the cursor has stood at an edge for `kShortPressTime`
+	///        (`PatchCableStrength::horizontalEncoderAction`); anything else keeps it.
+	///
+	/// Ask once per turn: it keeps the cable page's edge delay.
+	/// @param offset   The turn's detents.
+	/// @param xenc_held Whether X_ENC is held (zooming the view under the menu).
+	/// @param now_ms   The turn's time.
+	HorizontalTurn route_horizontal_turn(int32_t offset, bool xenc_held, uint32_t now_ms);
+
 	/// @brief Collect the change of the value node the last tick's event made, with its cause, and clear it.
 	///
 	/// An event that can move the menu (a select release or BACK, which the render consumes; a column button, a pad's
@@ -514,6 +531,8 @@ private:
 	const Node* transition_from_ = nullptr;
 	/// @brief The record filed by the last `after_render`, until `take_transition` collects it.
 	std::optional<MenuTransition> transition_;
+	/// @brief When a cable page's cursor, standing at an edge, starts passing horizontal turns on; 0 while it moves.
+	uint32_t cable_edge_until_ms_ = 0;
 
 	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`
 	///        clears the whole of that on a re-root, and an action already filed must still be

@@ -30,6 +30,7 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
+#include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/node_id.h"
@@ -60,6 +61,22 @@ using deluge::ui::shell::UiEvent;
 
 using namespace detail;
 
+namespace {
+
+/// `kShortPressTime`, the half second a patch cable page's cursor stands at an edge before a horizontal turn passes on.
+constexpr uint32_t kCableEdgeDelayMs = 500;
+
+/// 10 to the power @p exponent, as `decimal_value` steps its cursor by.
+int64_t pow10_of(int32_t exponent) {
+	int64_t v = 1;
+	for (int32_t i = 0; i < exponent; i++) {
+		v *= 10;
+	}
+	return v;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
@@ -68,6 +85,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	st_ = MenuState{};
 	pending_transition_.reset();
 	transition_.reset();
+	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	pads_.forget_landing();
 	retarget(root);
@@ -382,6 +400,36 @@ void MenuScene::note_cause(TransitionCause cause, const Node* value_before) {
 		pending_transition_ = cause;
 		transition_from_ = value_before;
 	}
+}
+
+MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool xenc_held, uint32_t now_ms) {
+	const Node* node = focused();
+	if (node == nullptr || offset == 0) {
+		return HorizontalTurn::Menu;
+	}
+	if (node->custom != nullptr && node->custom->is_patch_cable()) {
+		// `Decimal::horizontalEncoderAction`'s move, which `decimal_value` makes for the page: right while there is a
+		// place below, left while the next place up is in range.
+		const int8_t pos = st_.decimal_pos;
+		const bool moves = !xenc_held
+		                   && ((offset > 0 && pos > 0)
+		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= kMaxMenuPatchCableValue));
+		if (moves) {
+			cable_edge_until_ms_ = 0;
+			return HorizontalTurn::Menu;
+		}
+		if (cable_edge_until_ms_ == 0) {
+			cable_edge_until_ms_ = now_ms + kCableEdgeDelayMs;
+		}
+		else if (static_cast<int32_t>(now_ms - cable_edge_until_ms_) > 0) {
+			return HorizontalTurn::Root;
+		}
+		return xenc_held ? HorizontalTurn::Neither : HorizontalTurn::Menu;
+	}
+	if (node->kind != Kind::Submenu && node->custom == nullptr && node->bind.param.valid()) {
+		return HorizontalTurn::Root;
+	}
+	return HorizontalTurn::Menu;
 }
 
 std::optional<MenuTransition> MenuScene::take_transition() {

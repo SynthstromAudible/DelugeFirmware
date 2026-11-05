@@ -840,6 +840,9 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// does nothing -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and the shift and transport handling
 	// above it, running (see the end of this function).
 	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
+		if (automationEditorTakesKnobs()) {
+			return ActionResult::NOT_DEALT_WITH; // the view's, through `modEncoderButtonAction`
+		}
 		const Cartesian xy = deluge::hid::button::toXY(b);
 		feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 		                      static_cast<int16_t>(on ? 255 : 0)});
@@ -934,13 +937,25 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 void ShellHostUI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	// In the automation view's editor the knobs edit the view's param (`SoundEditor::modEncoderAction`).
+	if (automationEditorTakesKnobs()) {
+		forwardAutomationGoldTurn(whichModEncoder, offset);
+		armTickSoon();
+		return;
+	}
 	// 0 is the lower knob, 1 the upper, as `interpretEncoders` numbers them; @p offset is legacy's lowered turn.
 	(void)shell_.route_lowered_turn(whichModEncoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper,
 	                                static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), nowMs());
 	armTickSoon();
 }
 
-void ShellHostUI::modEncoderButtonAction(uint8_t /*whichModEncoder*/, bool /*on*/) {
+void ShellHostUI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	// `Buttons::buttonAction`'s tail delivers the push here as well as to `buttonAction`, which feeds the knobs'
+	// service; in the automation view's editor it is the view's instead (`SoundEditor::modEncoderButtonAction`).
+	if (automationEditorTakesKnobs()) {
+		forwardAutomationGoldPush(whichModEncoder, on);
+		armTickSoon();
+	}
 }
 
 void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
@@ -962,6 +977,13 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 		}
 		return *result;
 	}
+	if (const std::optional<ActionResult> result = forwardMenuHorizontal(offset, nowMs())) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Horizontal, offset);
 	// `DEALT_WITH`, the base's value.
 	armTickSoon();
@@ -978,12 +1000,23 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 		}
 		return *result;
 	}
+	if (const std::optional<ActionResult> result = forwardMenuVertical(offset)) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Vertical, offset);
 	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }
 
 void ShellHostUI::selectEncoderAction(int8_t offset) {
+	if (forwardAutomationSelectTurn(offset)) {
+		armTickSoon();
+		return;
+	}
 	// `void`: legacy discards nothing because there is nothing to discard
 	// (`UI::selectEncoderAction`), so unlike the other two this hook has no way to say
 	// "not now" even in legacy. The offset arrives already saturated to `int8_t`

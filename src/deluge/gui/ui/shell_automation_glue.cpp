@@ -22,10 +22,12 @@
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_pad_forward.h" // menuShowsAutomationViewParam
 #include "gui/ui/ui.h" // getRootUI, rootUIIsClipMinderScreen, swapOutRootUILowLevel, uiNeedsRendering, currentUIMode
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip.h"
@@ -54,6 +56,11 @@ std::optional<AutomationParam> paramOf(const Node* node) {
 	}
 	const auto& scene = deluge::scenes::menu_scene();
 	return deluge::scenes::menu::automation_param(*node, scene.menu_context(), scene.state());
+}
+
+/// Whether the ported menu is what takes the guest's input (not a scene it opened over itself).
+bool menuTakesInput() {
+	return &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
 }
 
 /// Whether `Automation::buttonAction` acts at all: over a clip minder, or the arranger. @p clipMinder is set to which.
@@ -233,6 +240,63 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool 
 	}
 	(void)automationView.buttonAction(b, on);
 	return ActionResult::DEALT_WITH;
+}
+
+bool automationEditorTakesKnobs() {
+	return getRootUI() == &automationView && automationView.inAutomationEditor();
+}
+
+void forwardAutomationGoldTurn(int32_t whichModEncoder, int32_t offset) {
+	automationView.modEncoderAction(whichModEncoder, offset);
+	deluge::scenes::menu_scene().read_value_again();
+}
+
+void forwardAutomationGoldPush(uint8_t whichModEncoder, bool on) {
+	automationView.modEncoderButtonAction(whichModEncoder, on);
+	deluge::scenes::menu_scene().read_value_again();
+}
+
+bool forwardAutomationSelectTurn(int8_t offset) {
+	if (getRootUI() != &automationView || !isUIModeActive(UI_MODE_NOTES_PRESSED) || !menuShowsAutomationViewParam()
+	    || automationView.multiPadPressSelected) {
+		return false;
+	}
+	const int32_t scaled = Buttons::isButtonPressed(deluge::hid::button::SHIFT) ? offset * 5 : offset;
+	automationView.modEncoderAction(0, scaled);
+	deluge::scenes::menu_scene().read_value_again();
+	return true;
+}
+
+std::optional<ActionResult> forwardMenuHorizontal(int32_t offset, uint32_t now_ms) {
+	if (!menuTakesInput()) {
+		return std::nullopt;
+	}
+	using HorizontalTurn = deluge::scenes::menu::MenuScene::HorizontalTurn;
+	const HorizontalTurn route = deluge::scenes::menu_scene().route_horizontal_turn(
+	    offset, Buttons::isButtonPressed(deluge::hid::button::X_ENC), now_ms);
+	if (route == HorizontalTurn::Menu) {
+		return std::nullopt;
+	}
+	if (route == HorizontalTurn::Root) {
+		RootUI* root = getRootUI();
+		if (root == &automationView) {
+			(void)automationView.horizontalEncoderAction(offset);
+		}
+		else if (root == &keyboardScreen) {
+			(void)keyboardScreen.horizontalEncoderAction(offset);
+		}
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+std::optional<ActionResult> forwardMenuVertical(int32_t offset) {
+	if (!menuTakesInput()) {
+		return std::nullopt;
+	}
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+		return ActionResult::DEALT_WITH;
+	}
+	return getRootUI()->verticalEncoderAction(offset);
 }
 
 } // namespace deluge::gui::ui

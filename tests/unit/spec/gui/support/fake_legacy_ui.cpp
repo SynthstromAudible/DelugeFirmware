@@ -387,6 +387,23 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
 	return std::nullopt;
 }
 
+bool automationEditorTakesKnobs() {
+	return false;
+}
+void forwardAutomationGoldTurn(int32_t, int32_t) {
+}
+void forwardAutomationGoldPush(uint8_t, bool) {
+}
+bool forwardAutomationSelectTurn(int8_t) {
+	return false;
+}
+std::optional<ActionResult> forwardMenuHorizontal(int32_t, uint32_t) {
+	return std::nullopt;
+}
+std::optional<ActionResult> forwardMenuVertical(int32_t) {
+	return std::nullopt;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }
