@@ -59,7 +59,8 @@ void LiveInput<Frame>::ingest(int32_t n, AudioInputPort& port) {
 
 	const int32_t* read_pos = port.ring_read_pos();
 	const int32_t* const ring_end = port.ring_end();
-	std::array<Frame, kIngestChunk> block{};
+	// Each chunk is written in full before it is read
+	std::array<Frame, kIngestChunk> block; // NOLINT(cppcoreguidelines-pro-type-member-init)
 	auto remaining = static_cast<std::size_t>(n);
 	while (remaining != 0) {
 		const std::size_t count = std::min(remaining, kIngestChunk);

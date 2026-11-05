@@ -174,7 +174,8 @@ private:
 	}
 
 	void write_chunk(std::span<const Frame> frames) {
-		std::array<Q<31>, kChunk> slopes{};
+		// The chunk's first frames.size() slopes are written before they are read
+		std::array<Q<31>, kChunk> slopes; // NOLINT(cppcoreguidelines-pro-type-member-init)
 		const std::span<Q<31>> chunk{slopes.data(), frames.size()};
 		std::ranges::transform(frames, chunk.begin(), folded);
 		Q<31> previous = SlopeFollower::slope(follower_.state());
