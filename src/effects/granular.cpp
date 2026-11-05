@@ -105,7 +105,7 @@ void Granular::finish(GranularBlockChange& change) {
 	}
 }
 
-void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
+void Granular::render(std::span<dsp::StereoSample> block, const GranularInputs& in, dsp::Q<27>& post_fx_volume,
                       std::span<dsp::Q<31>> reverb_send, dsp::fixed::Cong& noise) {
 	// Checked in debug builds only: release builds define NDEBUG, so the @pre is the caller's to keep there.
 	assert(reverb_send.size() >= block.size());

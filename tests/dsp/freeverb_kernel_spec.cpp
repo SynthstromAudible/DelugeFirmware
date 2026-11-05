@@ -8,7 +8,7 @@
 #include "reverb_workloads.h"
 #include <cppspec.hpp>
 
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 #include <cstdint>
 #include <limits>
 #include <ranges>

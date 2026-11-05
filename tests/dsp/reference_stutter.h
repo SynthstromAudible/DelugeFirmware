@@ -28,12 +28,12 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/state.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -175,10 +175,10 @@ public:
 
 private:
 	/// @return The two taps @p a and @p b weighed by @p strength1 and @p strength2 (16.16, summing to 65536), Q31.
-	[[nodiscard]] static q31_t mix(q31_t a, q31_t b, int32_t strength1, int32_t strength2) {
-		const q31_t sum =
+	[[nodiscard]] static int32_t mix(int32_t a, int32_t b, int32_t strength1, int32_t strength2) {
+		const int32_t sum =
 		    wrapping_add(multiply_32x32_rshift32(a, strength1 << 14), multiply_32x32_rshift32(b, strength2 << 14));
-		return static_cast<q31_t>(static_cast<uint32_t>(sum) << 2);
+		return static_cast<int32_t>(static_cast<uint32_t>(sum) << 2);
 	}
 
 	std::vector<StereoSample> storage_;

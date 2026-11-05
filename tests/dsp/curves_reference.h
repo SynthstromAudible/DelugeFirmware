@@ -18,10 +18,10 @@
 // in dsp-next/fixed/curves.
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "raw_words.h"
 
 #include <algorithm>
 #include <cstdint>

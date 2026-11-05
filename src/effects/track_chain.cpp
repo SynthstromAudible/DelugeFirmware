@@ -34,9 +34,8 @@ TrackChain::TrackChain(RingAllocator mod_fx_allocator, RingAllocator granular_al
 
 TrackBlock TrackChain::begin_block(const TrackChainInputs& in, std::size_t frames) {
 	const EffectStates& settings = *in.fx.settings;
-	// The volume is a word from here: the bitcrush lowers it by a run-time shift (pre_tap).
 	TrackBlock levels{
-	    .volume_post_fx = filter_.configure(settings.filter, in.filter, in.volume_post_fx.raw()),
+	    .volume_post_fx = filter_.configure(settings.filter, in.filter, in.volume_post_fx),
 	    .post_reverb_volume = in.post_reverb_volume_neutral,
 	};
 
@@ -64,7 +63,8 @@ void TrackChain::pre_tap(std::span<dsp::StereoSample> block, const TrackChainInp
 	                    {.clipping_amount = settings.saturation.clipping_amount, .variant = SaturationVariant::CHAIN});
 	if (rendered) {
 		filter_.process(block, in.filter_scratch, *in.fx.noise);
-		levels.volume_post_fx >>= core_.bitcrush().process(block, in.bitcrush).volume_shift;
+		levels.volume_post_fx =
+		    scale_shr_floor(levels.volume_post_fx, core_.bitcrush().process(block, in.bitcrush).volume_shift);
 	}
 	core_.soft_off_grain(in.fx);
 	core_.render_fx(block, in.fx, levels.volume_post_fx, rendered, send);
@@ -75,9 +75,8 @@ void TrackChain::pre_tap(std::span<dsp::StereoSample> block, const TrackChainInp
 
 bool TrackChain::post_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, const TrackBlock& levels,
                           ReverbSend send) {
-	// TrackBlock's volume word, after the bitcrush's shift, is Q27.
 	const bool sent = core_.send_and_volume().process(block, send.first(block.size()),
-	                                                  {.post_fx_volume = dsp::Q<27>::from_raw(levels.volume_post_fx),
+	                                                  {.post_fx_volume = levels.volume_post_fx,
 	                                                   .post_reverb_volume = levels.post_reverb_volume,
 	                                                   .reverb_send = in.reverb_send,
 	                                                   .pan = in.pan,
@@ -85,7 +84,7 @@ bool TrackChain::post_tap(std::span<dsp::StereoSample> block, const TrackChainIn
 	                                                   .stereo = in.fx.stereo});
 	if (in.compressor_threshold > dsp::Q<31>{}) {
 		// The Q27 volume's word read as the 3.29 final volume, a quarter, as it is tuned.
-		core_.compressor().dsp().render_volume_neutral(block, dsp::Q<29>::from_raw(levels.volume_post_fx));
+		core_.compressor().dsp().render_volume_neutral(block, reinterpret_bits<dsp::Q<29>>(levels.volume_post_fx));
 	}
 	else {
 		core_.compressor().dsp().reset();

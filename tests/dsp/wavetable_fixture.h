@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 
 #include <algorithm>
 #include <bit>

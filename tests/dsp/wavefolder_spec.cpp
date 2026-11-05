@@ -16,9 +16,9 @@ static_assert(!std::is_polymorphic_v<Wavefolder>);
 
 namespace {
 /// A block of full-range noise, so every fold region is visited.
-std::vector<q31_t> noise_block(uint32_t seed, std::size_t n) {
+std::vector<int32_t> noise_block(uint32_t seed, std::size_t n) {
 	SeededNoise noise{seed};
-	std::vector<q31_t> out(n);
+	std::vector<int32_t> out(n);
 	for (auto& s : out) {
 		s = noise.render();
 	}
@@ -30,7 +30,7 @@ std::vector<q31_t> noise_block(uint32_t seed, std::size_t n) {
 describe wavefolder("the wavefolder", ${
 	it("folds every sample as the voice always has, at every amount", _ {
 		int32_t mismatches = 0;
-		for (q31_t amount : {q31_t{0}, q31_t{1}, q31_t{1 << 20}, q31_t{0x20000000}, q31_t{0x40000000}, q31_t{0x7FFFFFFF}}) {
+		for (int32_t amount : {int32_t{0}, int32_t{1}, int32_t{1 << 20}, int32_t{0x20000000}, int32_t{0x40000000}, int32_t{0x7FFFFFFF}}) {
 			auto expected = noise_block(9 + static_cast<uint32_t>(amount), 257);
 			auto actual = expected;
 			reference_wavefold::foldBufferPolyApproximation(expected.data(), expected.data() + expected.size(), amount);
@@ -42,7 +42,7 @@ describe wavefolder("the wavefolder", ${
 
 	it("renders a block as it renders each sample", _ {
 		const auto in = noise_block(3, 64);
-		std::vector<q31_t> block(64);
+		std::vector<int32_t> block(64);
 		Wavefolder folder{Q<31>::from_raw(0x30000000)};
 		folder.render_block(typed_view(std::span{in}), typed_view(std::span{block}));
 		int32_t mismatches = 0;

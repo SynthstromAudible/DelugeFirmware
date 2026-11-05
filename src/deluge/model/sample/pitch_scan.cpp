@@ -20,7 +20,6 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "libdeluge/clock.h" // deluge_clock_now
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"

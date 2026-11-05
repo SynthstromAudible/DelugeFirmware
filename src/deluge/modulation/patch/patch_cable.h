@@ -18,7 +18,6 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "modulation/automation/auto_param.h"
 #include "synth/modulation/cable.h"
 #include <cstdint>

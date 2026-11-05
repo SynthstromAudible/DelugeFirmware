@@ -34,12 +34,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
 #include "raw_frame.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <array>
@@ -243,12 +243,12 @@ public:
 
 private:
 	/// @return @p a + @p b, wrapping, counted in @ref wraps when it wraps.
-	[[nodiscard]] static q31_t add(q31_t a, q31_t b) {
+	[[nodiscard]] static int32_t add(int32_t a, int32_t b) {
 		wraps += static_cast<std::size_t>(static_cast<int64_t>(a) + b != static_cast<int64_t>(wrapping_add(a, b)));
 		return wrapping_add(a, b);
 	}
 	/// @return @p a - @p b, wrapping, counted in @ref wraps when it wraps.
-	[[nodiscard]] static q31_t sub(q31_t a, q31_t b) {
+	[[nodiscard]] static int32_t sub(int32_t a, int32_t b) {
 		wraps += static_cast<std::size_t>(static_cast<int64_t>(a) - b != static_cast<int64_t>(wrapping_sub(a, b)));
 		return wrapping_sub(a, b);
 	}
@@ -339,7 +339,7 @@ private:
 		int32_t lfo1 = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 		int32_t lfo2 = 0;
 		// anymore and they get audibly out of sync, this just sounds wobblier
-		constexpr q31_t width = 0.97 * kOneQ31;
+		constexpr int32_t width = 0.97 * kOneQ31;
 		if constexpr (modFXType == ModFXType::WARBLE) {
 			// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
 			// these will always be different anyway

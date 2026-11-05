@@ -30,8 +30,8 @@
 namespace deluge::dsp::fixed {
 
 /// @brief Two hit strengths (Q31) arriving before one block, combined: the stronger half plus half the clamped sum.
-/// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (kOneQ31) before it is
-/// halved, so the result never exceeds full scale.
+/// @details Two equal hits of x combine to one and a half x. The sum is clamped at full scale (`Q<31>::max()`) before
+/// it is halved, so the result never exceeds full scale.
 [[nodiscard]] [[gnu::always_inline]] constexpr Q<31> combine_hit_strengths(Q<31> a, Q<31> b) {
 	// Full scale, unsigned: the sum is clamped to it. Raw: an unsigned sum clamped below 2^31 has no typed form
 	constexpr auto kFullScale = static_cast<uint32_t>(Q<31>::max().raw());

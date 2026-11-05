@@ -23,7 +23,7 @@
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -207,7 +207,7 @@ struct Rig {
 
 	/// Configures for @p state and @p params from kVolume, then filters kInput, returning the interleaved output.
 	std::vector<int32_t> run(const FilterState& state, const FilterParams& params) {
-		volume = filter.configure(state, params, kVolume);
+		volume = filter.configure(state, params, deluge::dsp::Q<27>::from_raw(kVolume)).raw();
 		std::vector<StereoSample> block = frames(kInput);
 		filter.process(block,
 		               {.fade = deluge::dsp::typed_view(std::span{fade}),

@@ -35,7 +35,6 @@
 
 #include "definitions_cxx.hpp"    // kSampleRate
 #include "dsp-next/core/kernel.h" // EmptyBlock
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -44,6 +43,7 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "raw_frame.h"
 #include "raw_shaping.h"
+#include "raw_words.h"
 #include "reference_filters.h"
 
 #include <algorithm>
@@ -72,19 +72,19 @@ using CompressorScratch = std::span<RawFrame>;
 namespace detail {
 
 /// 1 - 1/ratio at knob @p ratio: 0.5 to 1.
-[[nodiscard]] inline float ratio_fraction(q31_t ratio) {
+[[nodiscard]] inline float ratio_fraction(int32_t ratio) {
 	return 0.5f + (static_cast<float>(ratio) / kOneQ31f) / 2;
 }
 
-[[nodiscard]] inline float compressor_attack_ms(q31_t attack) {
+[[nodiscard]] inline float compressor_attack_ms(int32_t attack) {
 	return 0.5 + (std::exp(2 * static_cast<float>(attack) / kOneQ31f) - 1) * 10;
 }
 
-[[nodiscard]] inline float compressor_release_ms(q31_t release) {
+[[nodiscard]] inline float compressor_release_ms(int32_t release) {
 	return 50 + (std::exp(2 * static_cast<float>(release) / kOneQ31f) - 1) * 50;
 }
 
-[[nodiscard]] inline float compressor_sidechain_hz(q31_t sidechain_hpf) {
+[[nodiscard]] inline float compressor_sidechain_hz(int32_t sidechain_hpf) {
 	return (std::exp(1.5 * static_cast<float>(sidechain_hpf) / kOneQ31f) - 1) * 30;
 }
 
@@ -121,7 +121,7 @@ public:
 	}
 
 	/// @brief The threshold this block renders with, from a knob position (Q31 of the knob's travel).
-	void set_threshold(q31_t threshold) {
+	void set_threshold(int32_t threshold) {
 		threshold_knob_ = threshold;
 		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / kOneQ31f);
 	}
@@ -141,8 +141,8 @@ public:
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
-	DELUGE_REFERENCE_LEGACY_ARITHMETIC void render(std::span<RawFrame> block, q31_t volume_l, q31_t volume_r,
-	                                               q31_t final_volume, CompressorScratch scratch) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void render(std::span<RawFrame> block, int32_t volume_l, int32_t volume_r,
+	                                               int32_t final_volume, CompressorScratch scratch) {
 		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
 		}
@@ -174,9 +174,9 @@ public:
 		const float final_volume_l = gain * static_cast<float>(volume_l >> 9);
 		const float final_volume_r = gain * static_cast<float>(volume_r >> 9);
 
-		const q31_t increment_l =
+		const int32_t increment_l =
 		    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())) << 8;
-		const q31_t increment_r =
+		const int32_t increment_r =
 		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())) << 8;
 
 		for (std::size_t i = 0; i < block.size(); i++) {
@@ -205,7 +205,7 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void render_volume_neutral(std::span<RawFrame> block, q31_t final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<RawFrame> block, int32_t final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
@@ -253,30 +253,30 @@ public:
 private:
 	static constexpr uint32_t kSaturation = 3;
 
-	void setAttack(q31_t attack) {
+	void setAttack(int32_t attack) {
 		attack_ms_ = detail::compressor_attack_ms(attack);
 		attack_rate_ = (-1000.0f / kSampleRate) / attack_ms_;
 	}
 
-	void setRelease(q31_t release) {
+	void setRelease(int32_t release) {
 		release_ms_ = detail::compressor_release_ms(release);
 		release_rate_ = (-1000.0f / kSampleRate) / release_ms_;
 	}
 
-	void setRatio(q31_t ratio) { fraction_ = detail::ratio_fraction(ratio); }
+	void setRatio(int32_t ratio) { fraction_ = detail::ratio_fraction(ratio); }
 
-	void setSidechain(q31_t sidechain_hpf) {
+	void setSidechain(int32_t sidechain_hpf) {
 		const float fc = detail::compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
 		const float wc = fc / (1 + fc);
-		detector_moveability_ = static_cast<q31_t>(wc * static_cast<float>(kOneQ31));
+		detector_moveability_ = static_cast<int32_t>(wc * static_cast<float>(kOneQ31));
 	}
 
-	void setBlend(q31_t blend) {
+	void setBlend(int32_t blend) {
 		dry_ = kOneQ31 - blend;
 		wet_ = blend;
 	}
 
-	float updateMakeup(float num_samples, q31_t final_volume) {
+	float updateMakeup(float num_samples, int32_t final_volume) {
 		const float song_volume = logf(final_volume + 1e-10);
 
 		const float threshold = song_volume * threshold_;
@@ -294,13 +294,13 @@ private:
 	}
 
 	DELUGE_REFERENCE_LEGACY_ARITHMETIC float measureLevel(std::span<const RawFrame> block) {
-		q31_t sum = 0;
+		int32_t sum = 0;
 		const float last_mean = mean_;
 
 		for (const RawFrame sample : block) {
-			const q31_t l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
-			const q31_t r = sample.r - detector_[1].lowPass(sample.r, detector_moveability_);
-			const q31_t s = std::max(std::abs(l), std::abs(r));
+			const int32_t l = sample.l - detector_[0].lowPass(sample.l, detector_moveability_);
+			const int32_t r = sample.r - detector_[1].lowPass(sample.r, detector_moveability_);
+			const int32_t s = std::max(std::abs(l), std::abs(r));
 			sum += multiply_32x32_rshift32(s, s);
 		}
 
@@ -319,11 +319,11 @@ private:
 	float fraction_ = 0.5;
 	float makeup_ = 0;
 	float threshold_ = 1;
-	q31_t detector_moveability_ = kOneQ15;
+	int32_t detector_moveability_ = kOneQ15;
 
 	float reduction_envelope_ = 0;
-	q31_t current_volume_l_ = 0;
-	q31_t current_volume_r_ = 0;
+	int32_t current_volume_l_ = 0;
+	int32_t current_volume_r_ = 0;
 	float log_rms_ = 0;
 	float mean_ = 0;
 	std::array<ReferenceAntialiasedTanh, 2> saturation_{ReferenceAntialiasedTanh{kSaturation},
@@ -337,9 +337,9 @@ private:
 
 	float base_gain_ = 1.35f;
 
-	q31_t threshold_knob_ = 0;
-	q31_t dry_ = 0;
-	q31_t wet_ = kOneQ31;
+	int32_t threshold_knob_ = 0;
+	int32_t dry_ = 0;
+	int32_t wet_ = kOneQ31;
 	uint8_t gain_reduction_ = 0;
 };
 
@@ -353,8 +353,8 @@ static_assert(std::is_trivially_copyable_v<ReferenceRmsFeedbackCompressor>);
 /// gain asked past 32 holds at the rail. Wherever no defect fires it renders exactly as the verbatim reference.
 class FixedReferenceRmsFeedbackCompressor {
 	/// @return @p step (13.18) lifted to 5.26, saturating.
-	[[nodiscard]] static q31_t lift_saturating(int32_t step) {
-		return static_cast<q31_t>(std::clamp<int64_t>(int64_t{step} * 256, INT32_MIN, INT32_MAX));
+	[[nodiscard]] static int32_t lift_saturating(int32_t step) {
+		return static_cast<int32_t>(std::clamp<int64_t>(int64_t{step} * 256, INT32_MIN, INT32_MAX));
 	}
 
 public:
@@ -385,13 +385,13 @@ public:
 	}
 
 	/// @brief The threshold this block renders with, from a knob position (Q31 of the knob's travel).
-	void set_threshold(q31_t threshold) {
+	void set_threshold(int32_t threshold) {
 		threshold_knob_ = threshold;
 		threshold_ = 1 - 0.8f * (static_cast<float>(threshold_knob_) / kOneQ31f);
 	}
 
 	/// @return The threshold this block renders with, as a knob position (Q31 of the knob's travel).
-	[[nodiscard]] q31_t threshold() const { return threshold_knob_; }
+	[[nodiscard]] int32_t threshold() const { return threshold_knob_; }
 
 	/// @brief Makeup gain in nepers at no reduction.
 	void set_base_gain(float base_gain) { base_gain_ = base_gain; }
@@ -408,7 +408,7 @@ public:
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
-	void render(std::span<RawFrame> block, q31_t volume_l, q31_t volume_r, q31_t final_volume,
+	void render(std::span<RawFrame> block, int32_t volume_l, int32_t volume_r, int32_t final_volume,
 	            CompressorScratch scratch) {
 		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
@@ -437,9 +437,9 @@ public:
 		const float final_volume_l = std::clamp(gain * static_cast<float>(volume_l >> 9), -8388608.f, 8388607.f);
 		const float final_volume_r = std::clamp(gain * static_cast<float>(volume_r >> 9), -8388608.f, 8388607.f);
 
-		const q31_t increment_l = lift_saturating(
+		const int32_t increment_l = lift_saturating(
 		    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())));
-		const q31_t increment_r = lift_saturating(
+		const int32_t increment_r = lift_saturating(
 		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())));
 
 		for (std::size_t i = 0; i < block.size(); i++) {
@@ -468,7 +468,7 @@ public:
 	}
 
 	/// @brief render at neutral channel gain, with @p final_volume (3.29) scaled.
-	void render_volume_neutral(std::span<RawFrame> block, q31_t final_volume, CompressorScratch scratch) {
+	void render_volume_neutral(std::span<RawFrame> block, int32_t final_volume, CompressorScratch scratch) {
 		render(block, 1 << 27, 1 << 27, final_volume >> 3, scratch);
 	}
 
@@ -515,34 +515,34 @@ private:
 	static constexpr AntialiasedTanh::Coefficients kSaturator = AntialiasedTanh::coefficients({.drive = kSaturation});
 
 	/// @return |@p x| as an unsigned value: INT32_MIN gives 2^31.
-	[[nodiscard]] static uint32_t magnitude(q31_t x) {
+	[[nodiscard]] static uint32_t magnitude(int32_t x) {
 		return x < 0 ? 0u - static_cast<uint32_t>(x) : static_cast<uint32_t>(x);
 	}
 
-	void setAttack(q31_t attack) {
+	void setAttack(int32_t attack) {
 		attack_ms_ = detail::compressor_attack_ms(attack);
 		attack_rate_ = (-1000.0f / kSampleRate) / attack_ms_;
 	}
 
-	void setRelease(q31_t release) {
+	void setRelease(int32_t release) {
 		release_ms_ = detail::compressor_release_ms(release);
 		release_rate_ = (-1000.0f / kSampleRate) / release_ms_;
 	}
 
-	void setRatio(q31_t ratio) { fraction_ = detail::ratio_fraction(ratio); }
+	void setRatio(int32_t ratio) { fraction_ = detail::ratio_fraction(ratio); }
 
-	void setSidechain(q31_t sidechain_hpf) {
+	void setSidechain(int32_t sidechain_hpf) {
 		const float fc = detail::compressor_sidechain_hz(sidechain_hpf) / static_cast<float>(kSampleRate);
 		const float wc = fc / (1 + fc);
-		detector_moveability_ = static_cast<q31_t>(wc * static_cast<float>(kOneQ31));
+		detector_moveability_ = static_cast<int32_t>(wc * static_cast<float>(kOneQ31));
 	}
 
-	void setBlend(q31_t blend) {
+	void setBlend(int32_t blend) {
 		dry_ = kOneQ31 - blend;
 		wet_ = blend;
 	}
 
-	float updateMakeup(float num_samples, q31_t final_volume) {
+	float updateMakeup(float num_samples, int32_t final_volume) {
 		const float song_volume = logf(final_volume + 1e-10);
 
 		const float threshold = song_volume * threshold_;
@@ -566,11 +566,11 @@ private:
 
 		int64_t sum = 0;
 		for (const RawFrame sample : block) {
-			const q31_t l = deluge::dsp::wrapping_sub(
+			const int32_t l = deluge::dsp::wrapping_sub(
 			    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_,
 			                                                     deluge::dsp::Q<31>::from_raw(sample.l))
 			                  .raw());
-			const q31_t r = deluge::dsp::wrapping_sub(
+			const int32_t r = deluge::dsp::wrapping_sub(
 			    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_,
 			                                                     deluge::dsp::Q<31>::from_raw(sample.r))
 			                  .raw());
@@ -593,11 +593,11 @@ private:
 	float fraction_ = 0.5;
 	float makeup_ = 0;
 	float threshold_ = 1;
-	q31_t detector_moveability_ = kOneQ15;
+	int32_t detector_moveability_ = kOneQ15;
 
 	float reduction_envelope_ = 0;
-	q31_t current_volume_l_ = 0;
-	q31_t current_volume_r_ = 0;
+	int32_t current_volume_l_ = 0;
+	int32_t current_volume_r_ = 0;
 	float log_rms_ = 0;
 	float mean_ = 0;
 	AntialiasedTanh::State saturation_l_{};
@@ -612,9 +612,9 @@ private:
 
 	float base_gain_ = 1.35f;
 
-	q31_t threshold_knob_ = 0;
-	q31_t dry_ = 0;
-	q31_t wet_ = kOneQ31;
+	int32_t threshold_knob_ = 0;
+	int32_t dry_ = 0;
+	int32_t wet_ = kOneQ31;
 	uint8_t gain_reduction_ = 0;
 };
 

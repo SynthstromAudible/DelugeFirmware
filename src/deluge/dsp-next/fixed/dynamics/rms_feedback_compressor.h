@@ -19,7 +19,6 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dynamics/compressor_kernel.h" // CompressorKnobs and their mappings
@@ -31,7 +30,7 @@
 
 namespace deluge::dsp::fixed {
 
-/// @return The wet level @p blend (Q31, kOneQ31 fully wet) gives, as a whole percentage.
+/// @return The wet level @p blend (Q31, `Q<31>::max()` fully wet) gives, as a whole percentage.
 [[nodiscard]] constexpr int32_t compressor_blend_percent(Q<31> blend) {
 	return blend.raw() > (127 << 24) ? 100 : 100 * (blend.raw() >> 24) >> 7;
 }

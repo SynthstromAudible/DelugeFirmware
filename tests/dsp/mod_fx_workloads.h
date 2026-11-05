@@ -25,8 +25,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h" // q31_t
 #include "raw_frame.h"
+#include "raw_words.h"
 #include "util/synth_noise.h"
 
 #include <array>
@@ -94,7 +94,7 @@ inline constexpr std::array<uint16_t, 10> kLengths{1, 2, 3, 4, 5, 6, 7, 8, 9, 12
 	for (RawFrame& frame : v) {
 		l = (l * 1664525U) + 1013904223U;
 		r = (r * 22695477U) + 1U;
-		frame = {static_cast<q31_t>(l), static_cast<q31_t>(r)};
+		frame = {static_cast<int32_t>(l), static_cast<int32_t>(r)};
 	}
 	return v;
 }

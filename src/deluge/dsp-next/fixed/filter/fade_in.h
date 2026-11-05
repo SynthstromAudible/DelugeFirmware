@@ -19,7 +19,6 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
@@ -34,7 +33,7 @@ namespace deluge::dsp::fixed {
 /// @brief The filters' fade-in over stereo frames: a mixer of the dry input and the filtered (wet) signal, the wet
 /// level rising over about 690 samples.
 /// @details Each sample is @ref dry_wet_blend of dry and wet at the current wet level, and then the level steps: the
-/// dry level, a float, × 0.99 (in double, stored as float), and the wet level kOneQ31 × (1 − dry) in float, to Q31.
+/// dry level, a float, × 0.99 (in double, stored as float), and the wet level 1 − dry in float, to Q31 truncating.
 /// The fade is over once dry falls below 0.001 (compared as a double, @ref active); the owner runs the kernel only
 /// on blocks where it is active, so the level stops stepping there.
 ///
@@ -56,7 +55,7 @@ struct FadeIn {
 	/// @brief Nothing to read but the State.
 	struct Coefficients {};
 
-	/// @brief The levels. State{} is a fresh filter's: dry 1, wet kOneQ31, which is active.
+	/// @brief The levels. State{} is a fresh filter's: dry 1, wet full scale, which is active.
 	struct State {
 		float dry = 1.0F;         ///< The dry level, 1 at the start of a fade, × 0.99 per step.
 		Q<31> wet = Q<31>::max(); ///< The wet level the next sample blends at.
@@ -92,8 +91,8 @@ struct FadeIn {
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> blend_step(State& s, Q<31> dry, Q<31> wet) {
 		const Q<31> out = dry_wet_blend(dry, wet, s.wet);
 		s.dry = static_cast<float>(static_cast<double>(s.dry) * kDecay);
-		// Raw: the level's float ramp, converted by the same cast the target makes
-		s.wet = Q<31>::from_raw(static_cast<int32_t>(static_cast<float>(kOneQ31) * (1.0F - s.dry)));
+		// The level's float ramp, converted truncating as the target's cast does
+		s.wet = from_float<31>(1.0F - s.dry);
 		return out;
 	}
 

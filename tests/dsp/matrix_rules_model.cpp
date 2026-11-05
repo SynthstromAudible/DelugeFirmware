@@ -8,6 +8,7 @@
 #include "matrix_rules_model.h"
 #include "raw_curves.h"
 #include "raw_matrix.h"
+#include "raw_words.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "synth/modulation/cable_depth.h"
 #include <algorithm>

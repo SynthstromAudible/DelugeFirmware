@@ -25,7 +25,6 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
@@ -34,6 +33,7 @@
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
+#include "raw_words.h"
 
 #include "loop_state_kernels.h"
 

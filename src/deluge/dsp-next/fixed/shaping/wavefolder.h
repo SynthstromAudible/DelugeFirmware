@@ -18,7 +18,6 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/processor.h"
-#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/types.h"
 
 #include <type_traits>
@@ -35,7 +34,7 @@ namespace deluge::dsp::fixed {
 class Wavefolder : public Processor<Wavefolder, Q<31>> {
 public:
 	/// @brief Sets the fold amount.
-	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), kOneQ31 most. The voice
+	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), full scale most. The voice
 	/// passes LOCAL_FOLD's final value, and renders the folder only when that is above 0.
 	explicit Wavefolder(Q<31> amount)
 	    // The amount plus the floor saturates at 1 (Q31); its bits read as Q24 are the gain, 12.8 to 128
@@ -50,7 +49,7 @@ public:
 		return scale_shr_floor<7>(fold(driven));
 	}
 
-	/// @brief The fold curve: 3x − 8x³ applied twice, x in Q31 with kOneQ31 as 1.
+	/// @brief The fold curve: 3x − 8x³ applied twice, x in Q31 with full scale as 1.
 	/// @details Each product of Q31 values is Q30, reformatted back to Q31. The reformats and the final ×4 wrap modulo
 	/// 2^32 at full scale, as the target's shifts do.
 	[[nodiscard, gnu::always_inline]] static Q<31> fold(Q<31> x) { return cubic(cubic(x)); }
@@ -65,9 +64,11 @@ private:
 		return as_wrap<Q<31>>(scale_shl_wrap<2>(quarter));
 	}
 
-	static constexpr Q<31> kMinimumDrive =
-	    Q<31>::from_raw(static_cast<int32_t>(0.1 * kOneQ31)); ///< The drive floor, 0.1.
-	static constexpr Q<31> kThreeFourths = Q<31>::from_raw(static_cast<int32_t>(0.75 * kOneQ31)); ///< ¾.
+	// 0.1 and ¾ of full scale (2^31 − 1), truncated: q<31> rounds the fraction of 2^31 instead, a word higher, so
+	// the words are spelt out.
+	static constexpr Q<31> kMinimumDrive = Q<31>::from_raw(static_cast<int32_t>(0.1 * 2147483647.0));  ///< 0.1.
+	static constexpr Q<31> kThreeFourths = Q<31>::from_raw(static_cast<int32_t>(0.75 * 2147483647.0)); ///< ¾.
+	static_assert(kMinimumDrive.raw() == 214748364 && kThreeFourths.raw() == 1610612735);
 
 	Q<24> drive_; ///< The gain: the fold amount plus the floor, saturated at 1 as Q31, read as Q24.
 };

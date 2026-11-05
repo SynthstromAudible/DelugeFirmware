@@ -20,7 +20,7 @@ set(component_framework_spec_DEPS)
 # The mode-dispatch spec needs no sources: ModeList and with_mode are header-only.
 set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
-# dsp-next/core/q31_ops.h's inline arithmetic.
+# the raw word helpers' inline arithmetic (dsp-next/core/detail/raw_ops.h).
 set(kernel_spec_DEPS)
 # The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
 # writes generically are header-only too.
@@ -34,6 +34,8 @@ set(mono_spec_DEPS)
 set(fixed_point_spec_DEPS)
 # The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
 set(fixed_point_lanes_spec_DEPS)
+# The run-time shift spec needs no sources: fixed_point.h and the raw helpers it is checked against are header-only.
+set(fixed_point_runtime_shift_spec_DEPS)
 # The typed-kernel spec needs no sources: the framework and its test kernels are header-only.
 set(typed_kernel_spec_DEPS)
 # The seam-view spec needs no sources: buffer_view.h is header-only.

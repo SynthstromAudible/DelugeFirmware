@@ -59,8 +59,8 @@ using FadeWrapper = std::conditional_t<kStereo, deluge::dsp::Mono<deluge::dsp::f
 
 /// @brief Blends @p block (wet) with the dry copy in @p scratch through @p fade, in the block's form.
 template <bool kStereo>
-void blend(FadeWrapper<kStereo>& fade, std::span<q31_t> block, std::span<q31_t> scratch) {
-	const std::span<q31_t> dry = scratch.first(block.size());
+void blend(FadeWrapper<kStereo>& fade, std::span<int32_t> block, std::span<int32_t> scratch) {
+	const std::span<int32_t> dry = scratch.first(block.size());
 	if constexpr (kStereo) {
 		const auto frames = deluge::dsp::as_frames(deluge::dsp::typed_view(block));
 		fade.render_block(deluge::dsp::as_frames(deluge::dsp::typed_view(dry)), frames, frames);
@@ -104,7 +104,7 @@ using AppLowPassLadder = deluge::dsp::fixed::LowPassLadder<>;
 /// outside the modes that set them, so a test holds them as the reference does.
 struct LadderHeld {
 	deluge::dsp::fixed::LowPassLadderMode mode{}; ///< The mode last configured.
-	q31_t feedback = 0;                           ///< The third feedback as last written, Q30.
+	int32_t feedback = 0;                         ///< The third feedback as last written, Q30.
 	bool oversample = false;                      ///< The oversampling flag as last written.
 
 	/// @brief Takes a configure in mode @p m that produced @p c: what the reference's configure writes.
@@ -174,10 +174,10 @@ public:
 	void begin() { fade_.template on<&FadeIn::begin>(); }
 	void zero() { fade_.template on<&FadeIn::zero>(); }
 	[[nodiscard]] bool active() const { return FadeIn::active(fade_.state()); }
-	void keepDry(std::span<const q31_t> block, std::span<q31_t> scratch) const {
+	void keepDry(std::span<const int32_t> block, std::span<int32_t> scratch) const {
 		std::ranges::copy(block, scratch.begin());
 	}
-	void blend(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void blend(std::span<int32_t> block, std::span<int32_t> scratch) {
 		kernel_filters::blend<kStereo>(fade_, block, scratch);
 	}
 	void digest(Digest& d) const { digest_fade(fade_.state(), d); }
@@ -194,20 +194,20 @@ class KernelSvf {
 	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Svf>, deluge::dsp::Mono<Svf>>;
 
 public:
-	[[nodiscard]] q31_t configure(q31_t gain, const filters_reference::FilterConfig& config,
-	                              deluge::dsp::fixed::SvfMode mode) {
+	[[nodiscard]] int32_t configure(int32_t gain, const filters_reference::FilterConfig& config,
+	                                deluge::dsp::fixed::SvfMode mode) {
 		filter_.configure({.gain = gain, .config = filters_reference::typed(config), .mode = mode});
 		return Svf::gain(filter_.coefficients());
 	}
 
-	void render_mono(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render_mono(std::span<int32_t> block, std::span<int32_t> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void render_stereo(std::span<q31_t> interleaved, std::span<q31_t> scratch) {
+	void render_stereo(std::span<int32_t> interleaved, std::span<int32_t> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -244,7 +244,7 @@ public:
 	}
 
 private:
-	void render(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render(std::span<int32_t> block, std::span<int32_t> scratch) {
 		const bool fading = FadeIn::active(fade_.state());
 		if (fading) {
 			std::ranges::copy(block, scratch.begin());
@@ -279,21 +279,22 @@ class KernelLowPassLadder {
 	using LowPassLadderMode = deluge::dsp::fixed::LowPassLadderMode;
 
 public:
-	[[nodiscard]] q31_t configure(q31_t gain, const filters_reference::FilterConfig& config, LowPassLadderMode mode) {
+	[[nodiscard]] int32_t configure(int32_t gain, const filters_reference::FilterConfig& config,
+	                                LowPassLadderMode mode) {
 		filter_.configure({.gain = gain, .config = filters_reference::typed(config), .mode = mode});
 		const Ladder::Coefficients& c = filter_.coefficients();
 		held_.take(mode, c);
 		return Ladder::gain(c);
 	}
 
-	void render_mono(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render_mono(std::span<int32_t> block, std::span<int32_t> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void render_stereo(std::span<q31_t> interleaved, std::span<q31_t> scratch) {
+	void render_stereo(std::span<int32_t> interleaved, std::span<int32_t> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -331,7 +332,7 @@ public:
 	}
 
 private:
-	void render(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render(std::span<int32_t> block, std::span<int32_t> scratch) {
 		const bool fading = FadeIn::active(fade_.state());
 		if (fading) {
 			std::ranges::copy(block, scratch.begin());
@@ -362,19 +363,19 @@ class KernelHighPassLadder {
 	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Ladder>, deluge::dsp::Mono<Ladder>>;
 
 public:
-	[[nodiscard]] q31_t configure(q31_t gain, const filters_reference::FilterConfig& config) {
+	[[nodiscard]] int32_t configure(int32_t gain, const filters_reference::FilterConfig& config) {
 		filter_.configure({.gain = gain, .config = filters_reference::typed(config)});
 		return Ladder::gain(filter_.coefficients());
 	}
 
-	void render_mono(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render_mono(std::span<int32_t> block, std::span<int32_t> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void render_stereo(std::span<q31_t> interleaved, std::span<q31_t> scratch) {
+	void render_stereo(std::span<int32_t> interleaved, std::span<int32_t> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -412,7 +413,7 @@ public:
 	}
 
 private:
-	void render(std::span<q31_t> block, std::span<q31_t> scratch) {
+	void render(std::span<int32_t> block, std::span<int32_t> scratch) {
 		const bool fading = FadeIn::active(fade_.state());
 		if (fading) {
 			std::ranges::copy(block, scratch.begin());
@@ -443,8 +444,8 @@ struct KernelFamily {
 	using DryWetFade = KernelFade<kStereo>;
 	using FilterSet = filters_reference::ReferenceFilterSet;
 
-	[[nodiscard]] static filters_reference::FilterScratch filter_scratch(std::span<q31_t> fade,
-	                                                                     std::span<q31_t> parallel) {
+	[[nodiscard]] static filters_reference::FilterScratch filter_scratch(std::span<int32_t> fade,
+	                                                                     std::span<int32_t> parallel) {
 		return {.fade = fade, .parallel = parallel};
 	}
 

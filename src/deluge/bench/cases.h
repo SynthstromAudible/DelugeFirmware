@@ -36,7 +36,6 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -101,6 +100,9 @@ inline constexpr uint32_t kA4Increment = 42'852'282;
 inline constexpr uint32_t kA3Increment = 21'426'141;
 /// @brief A1, 55 Hz: inside the crude saw and square region (band index below 6, increments up to 7,040,929).
 inline constexpr uint32_t kA1Increment = 5'356'535;
+
+/// @brief The post-effect volume a mod FX or granular block starts from, Q27: half full scale, just under 8× unity.
+inline constexpr dsp::Q<27> kEffectStartVolume = scale_shr_floor<1>(dsp::Q<27>::max());
 
 /// @brief The input block every case's first input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
@@ -882,7 +884,7 @@ using DelayHighPass = dsp::Pinned<ShiftTrackerCase::Tracker, ShiftTrackerCase::T
 using DelayFeedbackChain = dsp::Chain<dsp::fixed::FeedbackShaper, DelayHighPass>;
 
 /// @brief The delay feedback cases' feedback amount, Q31: a half.
-inline constexpr q31_t kDelayFeedback = 1 << 30;
+inline constexpr int32_t kDelayFeedback = 1 << 30;
 /// @brief The delay feedback cases' tanh drive, as a power of two: a sound's.
 inline constexpr uint32_t kDelayDrive = 8;
 
@@ -1006,7 +1008,7 @@ public:
 	/// @return The right high-pass memory, Q31.
 	[[nodiscard]] int32_t high_pass_r() const { return high_pass_r_; }
 	/// @return The feedback amount, Q31.
-	[[nodiscard]] q31_t feedback() const { return feedback_; }
+	[[nodiscard]] int32_t feedback() const { return feedback_; }
 	/// @return The tanh drive, as a power of two.
 	[[nodiscard]] uint32_t drive() const { return drive_; }
 
@@ -1014,7 +1016,7 @@ private:
 	reference::WrappingReferenceImpulseResponse response_;
 	int32_t high_pass_l_ = 0;
 	int32_t high_pass_r_ = 0;
-	q31_t feedback_ = kDelayFeedback;
+	int32_t feedback_ = kDelayFeedback;
 	uint32_t drive_ = kDelayDrive;
 	std::span<StereoSample> work_{};
 };
@@ -1189,7 +1191,7 @@ inline constexpr DelayWholeConfig kDelayWholeGrowing{
 /// the low-pass ladder draws from: the app's boot value.
 inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
 /// @brief The gain going into every filter case's set, Q31: a quarter.
-inline constexpr q31_t kFilterGain = 536'870'912;
+inline constexpr int32_t kFilterGain = 536'870'912;
 
 /// @brief The low-pass settings the filter cases run at: the cutoff at 2^23 (Q31), half resonance (2^28 of Q29's
 /// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
@@ -1331,7 +1333,7 @@ void fill_filter_input();
 /// so they share it; each case's setup resets it.
 struct FilterRig {
 	dsp::fixed::FilterSet set;    ///< The set, as a Voice's filterSet.
-	q31_t gain{};                 ///< The last configure's gain.
+	int32_t gain{};               ///< The last configure's gain.
 	std::span<dsp::Q<31>> work{}; ///< The lanes output's first n samples (2n in stereo), filtered in place.
 };
 

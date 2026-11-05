@@ -17,10 +17,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples(Magnitude)
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"                             // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // windowed_sinc_apply, SincWindow
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // kWindowedSincKernel
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
@@ -156,9 +156,10 @@ public:
 	                      int32_t wave_index, int32_t wave_index_increment)
 	    : table_{&table}, phase_increment_{phase_increment}, next_output_{output.data()},
 	      samples_remaining_{static_cast<int32_t>(output.size())},
-	      wave_index_scaled_{multiply_32x32_rshift32_rounded(table.wave_index_multiplier(), wave_index)},
+	      // Raw: the wave index and its increment, integer counts, scaled by the table's multiplier, a fraction
+	      wave_index_scaled_{dsp::detail::multiply_32x32_rshift32_rounded(table.wave_index_multiplier(), wave_index)},
 	      wave_index_increment_scaled_{
-	          multiply_32x32_rshift32_rounded(table.wave_index_multiplier(), wave_index_increment)},
+	          dsp::detail::multiply_32x32_rshift32_rounded(table.wave_index_multiplier(), wave_index_increment)},
 	      blend_shift_{32 + table.num_cycle_transitions_magnitude() - kWaveIndexScaledInputBits},
 	      blend_increment_{wave_index_increment_scaled_ << blend_shift_},
 	      band_index_{table.select_band(phase_increment)}, band_{&table.band(band_index_)} {}

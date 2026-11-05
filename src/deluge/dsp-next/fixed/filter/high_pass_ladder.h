@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/detail/raw_ops.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h" // lshift_and_saturate
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -192,7 +192,7 @@ struct HighPassLadder {
 		c.mode = mode_of(saturation, c.morph == Q<31>{} ? Cutoff::FIXED : Cutoff::MORPHING);
 
 		// The volume falls as the resonance rises: by 19/32 of its fourth power.
-		const auto resonance = as_wrap<Q<31>>(std::min(s.config.resonance, Q<29>::from_raw(kOneQ31 >> 2)));
+		const auto resonance = as_wrap<Q<31>>(std::min(s.config.resonance, scale_shr_floor<2>(Q<29>::max())));
 		const auto squared = mul_as_wrap<Q<31>>(resonance, resonance);
 		const Q<30> fourth = mul(squared, squared);
 		// Raw: the × 19 / 2^4 is an integer scale, reading the Q30 fourth power as Q31.
@@ -240,7 +240,8 @@ struct HighPassLadder {
 			// saturate holds the loop's schedule; the builtin a typed saturate compiles to is sunk out of the loop,
 			// and the A9 ran the rescheduled loop 5–22% slower (filter_hp_*).
 			AntialiasedTanh::place(s.saturator,
-			                       static_cast<uint32_t>(lshift_and_saturate<kPlaceShift>(a.raw())) + kTanhCentre);
+			                       static_cast<uint32_t>(dsp::detail::lshift_and_saturate<kPlaceShift>(a.raw()))
+			                           + kTanhCentre);
 			if constexpr (kSaturation == Saturation::TANH) {
 				a = tanh<kTanhDrive>(a);
 			}
@@ -258,8 +259,8 @@ private:
 	static constexpr auto kAntialiasAbove = Q<30>::from_raw(900000000);
 	/// @brief The processed resonance above which the loop saturates through the tanh, Q30.
 	static constexpr auto kTanhAbove = Q<30>::from_raw(750000000);
-	/// @brief The lowest per-sample moveability, Q31: −2^-8.
-	static constexpr auto kLowerLimit = Q<31>::from_raw(-(kOneQ31 >> 8));
+	/// @brief The lowest per-sample moveability, Q31: −2^-8 (the negated full scale shifted down by 8).
+	static constexpr auto kLowerLimit = neg_wrap(scale_shr_floor<8>(Q<31>::max()));
 	/// @brief The tanh's drive, as a power of two.
 	static constexpr uint32_t kTanhDrive = 2;
 	/// @brief The shift the bypass and the tanh place the saturator's position at.

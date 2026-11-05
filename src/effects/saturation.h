@@ -71,8 +71,8 @@ public:
 		Curve::State& position = channel == 0 ? left_ : right_;
 		const bool voice = params.variant == SaturationVariant::VOICE;
 		const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
-		// The make-up gain is a run-time shift, so raw.
-		return dsp::Q<31>::from_raw(Curve::step(c, {}, position, sample).raw() << shift(voice, amount));
+		// The make-up gain: a shift by the amount's octaves, wrapping
+		return scale_shl_wrap(Curve::step(c, {}, position, sample), static_cast<int>(shift(voice, amount)));
 	}
 
 	/// @brief A stereo block, in place; a CHAIN variant at amount 0 leaves it untouched.

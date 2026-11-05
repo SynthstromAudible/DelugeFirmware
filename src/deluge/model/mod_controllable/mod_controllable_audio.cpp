@@ -212,28 +212,28 @@ void ModControllableAudio::setSidechainSyncType(SyncType value) {
 void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
 	changeEffects(*this, [&](auto& e) { e.sidechain.sync_level = value; });
 }
-void ModControllableAudio::setCompressorAttack(q31_t value) {
+void ModControllableAudio::setCompressorAttack(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.attack = value; });
 }
-void ModControllableAudio::setCompressorRelease(q31_t value) {
+void ModControllableAudio::setCompressorRelease(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.release = value; });
 }
-void ModControllableAudio::setCompressorThreshold(q31_t value) {
+void ModControllableAudio::setCompressorThreshold(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.threshold = value; });
 }
-void ModControllableAudio::setCompressorRatio(q31_t value) {
+void ModControllableAudio::setCompressorRatio(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.ratio = value; });
 }
-void ModControllableAudio::setCompressorSidechainHpf(q31_t value) {
+void ModControllableAudio::setCompressorSidechainHpf(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.sidechain_hpf = value; });
 }
-void ModControllableAudio::setCompressorBlend(q31_t value) {
+void ModControllableAudio::setCompressorBlend(int32_t value) {
 	changeEffects(*this, [&](auto& e) { e.compressor.blend = value; });
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
                                            Song* knobsSong, std::optional<deluge::project::ControlsAddress> knobsOwner,
-                                           std::optional<q31_t> compressorThreshold) {
+                                           std::optional<int32_t> compressorThreshold) {
 	const deluge::effects::EffectPieces pieces =
 	    deluge::effects::encode_pieces(states, effectsCodecContext(), compressorThreshold);
 	writer.writeValue(pieces.delay);

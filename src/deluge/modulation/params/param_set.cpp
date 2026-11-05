@@ -44,6 +44,7 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
+#include <bit>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -204,7 +205,7 @@ void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* mode
 	for (int32_t i = topUintToRepParams; i >= 0; i--) {                                                                \
 		uint32_t whichParamsHere = whichParams[i];                                                                     \
 		while (whichParamsHere) {                                                                                      \
-			int32_t whichBit = 31 - clz(whichParamsHere);                                                              \
+			int32_t whichBit = 31 - std::countl_zero(whichParamsHere);                                                 \
 			whichParamsHere &= ~((uint32_t)1 << whichBit);                                                             \
 			int32_t p = whichBit + (i << 5);
 

@@ -167,7 +167,7 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		// The gain at this block's volume, held: what a ramp ending on its target would give at its last frame.
 		using Volume = Kernel::Volume;
 		const Volume held_gain = mul_as_wrap<Volume>(Volume::from_raw(1 << 27), Volume::from_raw(1 << 27));
-		const q31_t at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
+		const int32_t at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
 		expect(ones[0].l.raw() > at_target).to_be_true();
 	});
 });

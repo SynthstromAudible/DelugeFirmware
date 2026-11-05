@@ -20,7 +20,6 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
@@ -149,7 +148,7 @@ char const* sourceToStringShort(PatchSource source);
 
 /// @brief A 0..128 knob's level, Q31: the knob read as Q7 (128 is one), held to its 8 bits (so 128 gives 127/128),
 /// lifted to Q31.
-[[nodiscard, gnu::always_inline]] inline q31_t knob_level(int32_t knob) {
+[[nodiscard, gnu::always_inline]] inline int32_t knob_level(int32_t knob) {
 	return as_wrap<deluge::dsp::Q<31>>(clamp_bits<8>(deluge::dsp::Q<7>::from_raw(knob))).raw();
 }
 
@@ -186,11 +185,11 @@ void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 
 [[gnu::always_inline]] inline int32_t getMagnitudeOld(uint32_t input) {
-	return 32 - clz(input);
+	return 32 - std::countl_zero(input);
 }
 
 [[gnu::always_inline]] inline int32_t getMagnitude(uint32_t input) {
-	return 31 - clz(input);
+	return 31 - std::countl_zero(input);
 }
 
 [[gnu::always_inline]] inline bool isPowerOfTwo(uint32_t input) {

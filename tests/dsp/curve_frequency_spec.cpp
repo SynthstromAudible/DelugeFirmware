@@ -32,8 +32,8 @@ using deluge::dsp::fixed::curve_frequency;
 namespace {
 
 /// Every 2^16th positive cutoff, then 1, 2^26 (the top of the tan table) and INT32_MAX.
-std::vector<q31_t> cutoffs() {
-	std::vector<q31_t> v;
+std::vector<int32_t> cutoffs() {
+	std::vector<int32_t> v;
 	for (int32_t k = 1; k < (1 << 15); ++k) {
 		v.push_back(k << 16);
 	}
@@ -42,9 +42,9 @@ std::vector<q31_t> cutoffs() {
 }
 
 /// Cutoffs where any field parts from the reference's.
-std::size_t partings(const std::vector<q31_t>& frequencies) {
+std::size_t partings(const std::vector<int32_t>& frequencies) {
 	std::size_t parted = 0;
-	for (const q31_t frequency : frequencies) {
+	for (const int32_t frequency : frequencies) {
 		const auto curved = curve_frequency(deluge::dsp::Q<31>::from_raw(frequency));
 		const filters_reference::CurvedFrequency reference = filters_reference::curve_frequency(frequency);
 		parted += curved.tanned.raw() != reference.tanned

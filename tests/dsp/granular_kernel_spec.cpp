@@ -84,7 +84,7 @@ public:
 	/// @brief The reference's processGrainFX: renders @p frames in place while there is sound or the countdown runs,
 	/// adding the reverb feed into @p send and scaling @p volume (Q27).
 	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
-	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
+	                    int32_t* volume, bool sound, int32_t reverb_amount, std::span<int32_t> send) {
 		if (sound || mono_.state().wraps_to_shutdown >= 0) {
 			if (mono_.state().ring == nullptr) {
 				mono_.on<&Granular::set_ring>(ring_.data());
@@ -96,7 +96,7 @@ public:
 			                 .mix = Q<31>::from_raw(mix),
 			                 .density = Q<31>::from_raw(density),
 			                 .randomness = Q<31>::from_raw(randomness)});
-			*volume = Granular::post_fx_volume(*volume);
+			*volume = Granular::post_fx_volume(Q<27>::from_raw(*volume)).raw();
 			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
 			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
 			const std::span<StereoSample> block = deluge::dsp::test::typed_frames(frames);

@@ -6,8 +6,8 @@
 // <arm_neon.h> backend (no SIMDe, no compat shim -- see tests/unit-arm/spec/CMakeLists.txt). Two groups:
 //
 //  - FLOAT (the decision gate): Argon<float>::ConvertTo<int32_t,31>() (vcvtq_n_s32_f32) vs the scalar
-//    q31_from_float() from dsp-next/core/q31_ops.h. Under this arm-linux cross build __arm__ is defined, so
-//    q31_from_float() itself compiles to the VFP `vcvt.s32.f32 #31` instruction (see q31_ops.h) --
+//    q31_from_float() from dsp-next/core/detail/raw_ops.h. Under this arm-linux cross build __arm__ is defined, so
+//    q31_from_float() itself compiles to the VFP `vcvt.s32.f32 #31` instruction (see detail/raw_ops.h) --
 //    i.e. this is a real-hardware NEON-vs-VFP comparison, executed via qemu's instruction-accurate
 //    emulation of both instruction families, not a software model.
 //
@@ -28,7 +28,7 @@
 #include <cstring>
 #include <vector>
 
-#include "dsp-next/core/q31_ops.h"     // q31_from_float, q31_t
+#include "../../dsp/raw_words.h"
 #include "util/audio_format_helpers.h" // swapEndianness32, swapEndianness2x16
 
 namespace {
@@ -104,7 +104,7 @@ uint64_t checkFloatConvertParity() {
 		auto converted = Argon<float>::Load(buf).ConvertTo<int32_t, 31>();
 		auto got = converted.to_array();
 		for (size_t lane = 0; lane < lanes; ++lane) {
-			q31_t exp = q31_from_float(buf[lane]);
+			int32_t exp = q31_from_float(buf[lane]);
 			check<uint32_t>("float->q31 (SIMD)", static_cast<uint32_t>(i + lane), std::bit_cast<uint32_t>(got[lane]),
 			                std::bit_cast<uint32_t>(exp));
 		}
@@ -120,7 +120,7 @@ uint64_t checkFloatConvertParity() {
 		auto converted = Argon<float>::Load(buf).ConvertTo<int32_t, 31>();
 		auto got = converted.to_array();
 		for (size_t lane = 0; lane < remaining; ++lane) {
-			q31_t exp = q31_from_float(buf[lane]);
+			int32_t exp = q31_from_float(buf[lane]);
 			check<uint32_t>("float->q31 (SIMD tail)", static_cast<uint32_t>(i + lane),
 			                std::bit_cast<uint32_t>(got[lane]), std::bit_cast<uint32_t>(exp));
 		}

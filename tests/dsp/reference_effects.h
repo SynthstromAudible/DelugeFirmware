@@ -38,11 +38,11 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "raw_curves.h"
 #include "raw_frame.h"
+#include "raw_words.h"
 
 #include <algorithm>
 #include <cmath>
@@ -339,10 +339,10 @@ public:
 			return;
 		}
 
-		q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
+		int32_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
 
 		for (RawFrame& sample : buffer) {
-			q31_t value = (phase <= kOneQ31) ? high : -high;
+			int32_t value = (phase <= kOneQ31) ? high : -high;
 			phase += phaseIncrement;
 
 			sample.l += value;
@@ -411,26 +411,26 @@ track_monitor(AudioInputChannel input_channel, std::span<RawFrame> output, const
 
 		switch (input_channel) {
 		case AudioInputChannel::LEFT: {
-			const q31_t mono = input.l;
+			const int32_t mono = input.l;
 			output_sample.l += mono;
 			output_sample.r += mono;
 		} break;
 
 		case AudioInputChannel::RIGHT: {
-			const q31_t mono = input.r;
+			const int32_t mono = input.r;
 			output_sample.l += mono;
 			output_sample.r += mono;
 		} break;
 
 		case AudioInputChannel::BALANCED: {
-			const q31_t mono = (input.l / 2) - (input.r / 2);
+			const int32_t mono = (input.l / 2) - (input.r / 2);
 			output_sample.l += mono;
 			output_sample.r += mono;
 		} break;
 
 		case AudioInputChannel::NONE: // Means combine channels
 		{
-			const q31_t mono = (input.l / 2) + (input.r / 2);
+			const int32_t mono = (input.l / 2) + (input.r / 2);
 			output_sample.l += mono;
 			output_sample.r += mono;
 		} break;

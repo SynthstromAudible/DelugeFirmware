@@ -118,19 +118,21 @@ public:
 	/// @brief A track's monitoring gain at sample time @p time: 0 during the warm-up, then a linear fade to full.
 	/// @param time The engine's sample timer, plus an offset into the block.
 	/// @return The gain, Q31.
-	[[nodiscard]] q31_t gain(uint32_t time) const {
+	[[nodiscard]] deluge::dsp::Q<31> gain(uint32_t time) const {
+		using deluge::dsp::Q;
 		if (warmed_up_) {
-			return std::numeric_limits<q31_t>::max();
+			return Q<31>::max();
 		}
 		if (time <= kWarmupSamples) {
-			return 0;
+			return Q<31>{};
 		}
 		const uint32_t elapsed = time - kWarmupSamples;
 		if (elapsed >= kFadeInSamples) {
-			return std::numeric_limits<q31_t>::max();
+			return Q<31>::max();
 		}
-		return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
-		                          / kFadeInSamples);
+		// An integer product of the elapsed count and full scale, divided by the fade's length
+		return Q<31>::from_raw(static_cast<int32_t>(
+		    (static_cast<uint64_t>(elapsed) * static_cast<uint64_t>(Q<31>::max().raw())) / kFadeInSamples));
 	}
 
 private:

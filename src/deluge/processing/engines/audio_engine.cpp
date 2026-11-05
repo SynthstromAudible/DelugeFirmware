@@ -1065,8 +1065,8 @@ void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects
 	currentSong->live.master_channel.chain().render(renderingBuffer, master,
 	                                                {reverbMemory.data(), renderingBuffer.size()}, tracked);
 	if (post) {
-		masterVolumeAdjustmentL = kOneQ31;
-		masterVolumeAdjustmentR = kOneQ31;
+		masterVolumeAdjustmentL = std::numeric_limits<int32_t>::max();
+		masterVolumeAdjustmentR = std::numeric_limits<int32_t>::max();
 	}
 }
 void renderSamplePreview(size_t numSamples);

@@ -106,7 +106,7 @@ public:
 	/// @param block The audio to process in place.
 	/// @param in The block's resolved effect inputs.
 	/// @param send The granular's reverb feed is added into it.
-	void render_fx(std::span<dsp::StereoSample> block, const FxInputs& in, int32_t& post_fx_volume, bool sound,
+	void render_fx(std::span<dsp::StereoSample> block, const FxInputs& in, dsp::Q<27>& post_fx_volume, bool sound,
 	               ReverbSend send);
 
 	/// @brief A host chain's soft off of a GRAIN it holds (its selected knob at its minimum): the grain's ring is taken

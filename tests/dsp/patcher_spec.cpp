@@ -11,8 +11,8 @@
 #include "alloc_seams.h"
 #include "patch_cases.h"
 
-#include "dsp-next/core/q31_ops.h"
 #include "raw_matrix.h"
+#include "raw_words.h"
 #include "synth/modulation/cable_depth.h"
 
 #include <array>

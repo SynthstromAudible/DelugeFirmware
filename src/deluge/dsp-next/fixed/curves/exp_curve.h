@@ -18,7 +18,6 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h" // increase_magnitude_and_saturate
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
 #include <algorithm>
@@ -50,13 +49,13 @@ alignas(16) inline constexpr std::array<uint16_t, 257> kExpTable = {
 65535, };
 // clang-format on
 
-/// @brief The most octaves @ref increase_magnitude_and_saturate scales by: past 20 its saturation narrows no further,
+/// @brief The most octaves @ref scale_pow2_sat scales by: past 20 its saturation narrows no further,
 /// so a larger shift wraps.
 inline constexpr int32_t kExpSaturatingOctaves = 20;
 
 /// @brief The exponential curve every param is shaped by: @p preset scaled by 2^(adjustment / 2^26 + 2), saturating.
 /// The low 26 bits of @p adjustment are the fraction of an octave, looked up in @ref kExpTable. Up to 20 octaves the
-/// saturation is @ref increase_magnitude_and_saturate's (to the multiples of 2^octaves); past that, which an add chain
+/// saturation is @ref scale_pow2_sat's (to the multiples of 2^octaves); past that, which an add chain
 /// saturated by several cables reaches (up to 33), the scaled value saturates to the whole q31 range.
 /// @param preset The value at a zero adjustment, before the curve's × 4.
 /// @param adjustment Octaves, the integer part above the fraction.
@@ -69,13 +68,12 @@ template <int F>
 	const Q<30> power =
 	    Q<30>::from_raw(kLinearTableInterpolator.interpolate(adjustment.raw() & 67108863, 26, kExpTable.data()));
 	// The product's word, read in the preset's format, is preset · 2^fraction / 4: the octaves' + 2 restores the × 4
-	const int32_t within_octave = mul(preset, power).raw();
+	const auto within_octave = reinterpret_bits<Q<F>>(mul(preset, power));
 	if (octaves <= kExpSaturatingOctaves) {
-		// Raw: a run-time shift saturating to the multiples of 2^octaves has no typed form
-		return Q<F>::from_raw(increase_magnitude_and_saturate(within_octave, octaves));
+		return scale_pow2_sat(within_octave, octaves);
 	}
 	// 2^31 times 2^32 still fits in 64 bits; a nonzero value saturates long before
-	const int64_t scaled = static_cast<int64_t>(within_octave) << std::min(octaves, 32);
+	const int64_t scaled = static_cast<int64_t>(within_octave.raw()) << std::min(octaves, 32);
 	return Q<F>::from_raw(static_cast<int32_t>(
 	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max())));
 }
