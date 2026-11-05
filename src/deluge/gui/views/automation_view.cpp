@@ -157,6 +157,18 @@ std::optional<RuntimeParam> cellParam(OwnerPlugin owner, const std::optional<Par
 	return cell ? deluge::bridge::runtimeParamOf(owner, *cell) : std::nullopt;
 }
 
+/// Whether @p paramID is the cable of one of a sound's grid shortcuts (vibrato, sidechain volume).
+bool isShortcutCable(int32_t paramID) {
+	for (const auto& column : params::kSoundParamShortcuts) {
+		for (const std::optional<ParamTarget>& cell : column) {
+			if (cellIndex(cellParam(OwnerPlugin::INSTRUMENT, cell), params::Kind::PATCH_CABLE) == paramID) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 // shortcuts for toggling interpolation and pad selection mode
@@ -351,7 +363,8 @@ void AutomationView::focusRegained() {
 						}
 					}
 				}
-				if (!patchCableExists) {
+				// a shortcut cable stays selected without its cable: the view draws its lane, and an edit makes it
+				if (!patchCableExists && !isShortcutCable(clip->lastSelectedParamID)) {
 					initParameterSelection();
 				}
 			}
@@ -562,7 +575,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	// get the param Kind and param bipolar status
 	// so that it can be passed through the automation editor rendering
 	// calls below
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if (modelStackWithParam && (modelStackWithParam->autoParam || laneAwaitsCable(modelStackWithParam))) {
 		kind = modelStackWithParam->paramCollection->getParamKind();
 		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 	}
@@ -697,6 +710,12 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					pixel = colours::grey;
 				}
 
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
+			// a shortcut cable that does not exist yet is offered as an unautomated param, as `main` (which makes the
+			// cable on sight) shows it
+			else if (laneAwaitsCable(modelStackWithParam)) {
+				pixel = colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			else {
@@ -2889,6 +2908,11 @@ ModelStackWithAutoParam* AutomationView::laneFor(ModelStackWithTimelineCounter* 
 		return nullptr;
 	}
 	return getModelStackWithParamForClip(modelStack, clip, false, param->index, param->kind);
+}
+
+bool AutomationView::laneAwaitsCable(const ModelStackWithAutoParam* modelStack) {
+	return modelStack != nullptr && modelStack->autoParam == nullptr && modelStack->paramCollection != nullptr
+	       && modelStack->paramCollection->getParamKind() == params::Kind::PATCH_CABLE;
 }
 
 // this function obtains a parameters value and converts it to a knobPos

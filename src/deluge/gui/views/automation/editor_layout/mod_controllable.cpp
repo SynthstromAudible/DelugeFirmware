@@ -108,6 +108,10 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 		                       modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()), xScroll, xZoom,
 		                       kind, isBipolar);
 	}
+	else if (AutomationView::laneAwaitsCable(modelStackWithParam)) {
+		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay, false, xScroll,
+		                       xZoom, kind, isBipolar);
+	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
 		                    getAutomationView()->toTimelineView(), currentSong->persistentView.tripletsOn, xDisplay);
@@ -836,8 +840,10 @@ uint32_t AutomationEditorLayoutModControllable::getMiddlePosFromSquare(int32_t x
 // and also used for increasing/decreasing parameter values with the mod encoders
 int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(ModelStackWithAutoParam* modelStack,
                                                                              uint32_t squareStart) {
-	// obtain value corresponding to the two pads that were pressed in a multi pad press action
-	int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
+	// obtain value corresponding to the two pads that were pressed in a multi pad press action; a cable that does not
+	// exist yet reads zero
+	int32_t currentValue =
+	    modelStack->autoParam != nullptr ? modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack) : 0;
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
 
 	return knobPos;

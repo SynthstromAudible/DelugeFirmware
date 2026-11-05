@@ -149,6 +149,10 @@ public:
 	ModelStackWithAutoParam* laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                 deluge::bridge::OwnerPlugin owner, deluge::project::ParamTarget target);
 
+	/// @brief Whether @p modelStack names a cable depth whose cable does not exist yet: a read gets no lane, and the
+	/// view treats it as an unautomated lane at zero, which an edit makes through the mod matrix.
+	static bool laneAwaitsCable(const ModelStackWithAutoParam* modelStack);
+
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);
 	bool onArrangerView;
