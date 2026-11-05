@@ -43,7 +43,7 @@ using namespace gui;
 
 extern uint8_t currentlyAccessingCard;
 
-PLACE_SDRAM_BSS SaveSongUI saveSongUI{};
+SaveSongUI saveSongUI{};
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";

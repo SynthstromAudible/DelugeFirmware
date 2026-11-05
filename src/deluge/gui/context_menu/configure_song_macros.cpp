@@ -29,7 +29,7 @@ extern "C" {
 
 namespace deluge::gui::context_menu {
 
-PLACE_SDRAM_BSS ConfigureSongMacros configureSongMacros{};
+ConfigureSongMacros configureSongMacros{};
 
 bool ConfigureSongMacros::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0x01; // Only mode (audition) column

@@ -52,8 +52,6 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		percCacheClustersNearby[l] = nullptr;
 	}
 
-	percCacheFillDirection = 0;
-
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
 	playHeadStillActive[PLAY_HEAD_NEWER] = true;
 
@@ -1129,8 +1127,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 // This is just responsible for adding reasons to the upcoming Clusters of sample audio data that the perc lookahead is
 // going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need
 // it.
-void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection,
-                                                   int32_t priorityRating) {
+void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection) {
 	int32_t clusterIndex = sourceBytePos >> Cluster::size_magnitude;
 
 	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
@@ -1142,8 +1139,8 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 			    || nextClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) {
 				break; // If no more Clusters
 			}
-			clustersForPercLookahead[l] = sample->clusters.getElement(nextClusterIndex)
-			                                  ->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE, priorityRating);
+			clustersForPercLookahead[l] =
+			    sample->clusters.getElement(nextClusterIndex)->getCluster(sample, nextClusterIndex, CLUSTER_ENQUEUE);
 			if (!clustersForPercLookahead[l]) {
 				break;
 			}

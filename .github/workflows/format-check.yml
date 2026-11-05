@@ -12,15 +12,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  changes:
-    uses: ./.github/workflows/changes.yml
-    permissions:
-      pull-requests: read
-
   formatting-check:
     name: Formatting Check
-    needs: changes
-    if: needs.changes.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

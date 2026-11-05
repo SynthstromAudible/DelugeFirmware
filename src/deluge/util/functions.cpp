@@ -688,9 +688,6 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
-	case OscType::SUPERSAW:
-		return "supersaw";
-
 	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
@@ -736,9 +733,6 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "saw")) {
 		return OscType::SAW;
-	}
-	else if (!strcmp(string, "supersaw")) {
-		return OscType::SUPERSAW;
 	}
 	else if (!strcmp(string, "sine")) {
 		return OscType::SINE;
@@ -1209,9 +1203,6 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 	case AudioInputChannel::BALANCED:
 		return "balanced";
 
-	case AudioInputChannel::USB:
-		return "usb";
-
 	case AudioInputChannel::MIX:
 		return "mix";
 
@@ -1238,9 +1229,6 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	}
 	else if (!strcmp(string, "balanced")) {
 		return AudioInputChannel::BALANCED;
-	}
-	else if (!strcmp(string, "usb")) {
-		return AudioInputChannel::USB;
 	}
 	else if (!strcmp(string, "mix")) {
 		return AudioInputChannel::MIX;

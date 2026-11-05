@@ -48,7 +48,7 @@
 #include "util/try.h"
 #include <string.h>
 
-PLACE_SDRAM_BSS LoadSongUI loadSongUI{};
+LoadSongUI loadSongUI{};
 
 extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
@@ -448,11 +448,11 @@ gotErrorAfterCreatingSong:
 		preLoadedSong->loadAllSamples(true);
 	}
 
-	// Ensure the first Clusters of the new song's Samples are loaded, so they can start instantly
+	// Ensure all AudioFile Clusters needed for new song are loaded
 #ifdef USE_TASK_MANAGER
-	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnySampleStarts()); }, 5);
+	yieldWithTimeout([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements()); }, 5);
 #else
-	while (audioFileManager.loadingQueueHasAnySampleStarts() && count < 1024) {
+	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
 		audioFileManager.loadAnyEnqueuedClusters();
 		routineForSD();
 		count++;

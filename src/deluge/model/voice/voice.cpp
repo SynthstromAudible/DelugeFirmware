@@ -399,12 +399,6 @@ void Voice::randomizeOscPhases(const Sound& sound) {
 	for (int32_t u = 0; u < sound.numUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unisonParts[u].sources[s].oscPos = getNoise();
-			// Otherwise every note's side saws would start from the same place and sweep the same way
-			if (sound.sources[s].oscType == OscType::SUPERSAW) {
-				for (uint32_t& phase : unisonParts[u].sources[s].supersawPhases) {
-					phase = getNoise();
-				}
-			}
 			// TODO: we should do sample play pos, too
 		}
 		if (sound.getSynthMode() == SynthMode::FM) {
@@ -1359,15 +1353,14 @@ cantBeDoingOscSyncForFirstOsc:
 					    oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples, numSamples,
 					    phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
 					    doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
-					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable,
-					    &unisonParts[u].sources[s].supersawPhases);
+					    sourceWaveIndexIncrements[s], sourceWaveIndexesLastTime[s], waveTable);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
 					if (oscType == OscType::SAW || oscType == OscType::ANALOG_SAW_2) {
 						amplitudeForRingMod <<= 1;
 					}
-					else if (oscType == OscType::WAVETABLE || oscType == OscType::SUPERSAW) {
+					else if (oscType == OscType::WAVETABLE) {
 						amplitudeForRingMod <<= 2;
 					}
 				}
@@ -2109,8 +2102,8 @@ pitchTooHigh:
 					    >> 24;
 				}
 
-				LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate,
-				                                                                    getPriorityRating(), numSamples);
+				LateStartAttemptStatus result =
+				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
 
 				if (result == LateStartAttemptStatus::FAILURE) {
 					goto instantUnassign;
@@ -2495,11 +2488,11 @@ dontUseCache: {}
 			WaveTable* waveTable = guides[s].audioFileHolder != nullptr
 			                           ? static_cast<WaveTable*>(guides[s].audioFileHolder->audioFile)
 			                           : nullptr;
-			dsp::Oscillator::renderOsc(
-			    sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples, phaseIncrement,
-			    pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement, doOscSync,
-			    oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
-			    sourceWaveIndexesLastTime[s], waveTable, &unisonParts[u].sources[s].supersawPhases);
+			dsp::Oscillator::renderOsc(sound.sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd,
+			                           numSamples, phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos, true,
+			                           amplitudeIncrement, doOscSync, oscSyncPosThisUnison,
+			                           oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase, waveIndexIncrement,
+			                           sourceWaveIndexesLastTime[s], waveTable);
 
 			if (stereoBuffer) {
 				// TODO: if render buffer was typed we could use addPannedMono()

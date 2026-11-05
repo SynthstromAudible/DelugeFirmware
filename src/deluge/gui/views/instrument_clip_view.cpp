@@ -4785,9 +4785,8 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 
 				if (outputType == OutputType::SYNTH) {
 					if (inSoundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(
-						    clip->getYNoteFromYDisplay(yDisplay, currentSong)
-						    + static_cast<SoundInstrument&>(*output).transpose);
+						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
+						                                              + ((SoundInstrument*)output)->transpose);
 					}
 				}
 
@@ -5500,7 +5499,7 @@ void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32
 		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 			menu_item::multiRangeMenu.noteOnToChangeRange(
 			    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
-			    + static_cast<SoundInstrument&>(*instrument).transpose);
+			    + ((SoundInstrument*)instrument)->transpose);
 		}
 	}
 }

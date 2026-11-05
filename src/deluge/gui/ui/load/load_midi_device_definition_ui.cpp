@@ -35,7 +35,7 @@ using namespace deluge;
 
 #define MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER "MIDI_DEVICES/DEFINITION"
 
-PLACE_SDRAM_BSS LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI{};
+LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI{};
 
 bool LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;

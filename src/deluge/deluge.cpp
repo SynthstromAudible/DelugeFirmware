@@ -569,7 +569,7 @@ void registerTasks() {
 		    },
 		    p++, 0.0005, 0.0005, 0.001, "OLED/CV handshake", RESOURCE_NONE);
 	}
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(false); }, p++, 0.0001, 0.0001, 0.0002,
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
 	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
@@ -912,12 +912,6 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
-	// Long after resetprg.c has used the BSC to set up SDRAM, which shares this mapping
-	L2CacheMapRegistersAsDevice();
-	// Stealables are mostly streamed sample data, which L2 gains little from, and DMA writes Clusters there, which
-	// would otherwise need slow L2 maintenance. Before unlocking, so L2 isn't holding any of it.
-	L2CacheMapRangeInnerOnly(GeneralMemoryAllocator::get().stealableSectionsStart,
-	                         GeneralMemoryAllocator::get().stealableSectionsEnd);
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 

@@ -9,23 +9,10 @@ import remarkGithub from "remark-github"
 // @ts-expect-error remark-link-rewrite has no types
 import RemarkLinkRewrite from "remark-link-rewrite"
 import tailwindcss from "@tailwindcss/vite"
-import guidebookRedirects from "./src/data/guidebook-redirects.json" with { type: "json" }
 import { remarkDelugeKey } from "./src/markdown-directives/remark-deluge-key/remark-deluge-key.ts"
 import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-screen/remark-deluge-screen.ts"
 import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
-import { readFileSync } from "node:fs"
-import { fileURLToPath } from "node:url"
-import { remarkCrossLinks } from "./src/markdown-directives/remark-cross-links/remark-cross-links.ts"
-import { allTerms } from "./src/markdown-directives/remark-cross-links/terms.ts"
-import { remarkPanelSteps } from "./src/markdown-directives/remark-panel-steps/remark-panel-steps.ts"
-
-const readJson = (/** @type {string} */ path) =>
-  JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"))
-const crossLinkTerms = allTerms(
-  readJson("./src/data/guidebook-terms.json"),
-  readJson("./src/data/generated/menu-hierarchies.json"),
-)
 
 const siteBasePath = process.env.SITE_BASE_PATH || ""
 const isCI = process.env.CI === "true"
@@ -38,14 +25,6 @@ const config = defineConfig({
   // CI runners occasionally miss Sharp native bindings during image generation.
   // Use passthrough in CI to keep builds deterministic.
   image: isCI ? { service: passthroughImageService() } : undefined,
-  // Guidebook pages moved by the reorganization (online-manual tools/guidebook/reorg.py)
-  // Astro doesn't add `base` to redirect destinations; page links get it from RemarkLinkRewrite.
-  redirects: Object.fromEntries(
-    Object.entries(guidebookRedirects).map(([from, to]) => [
-      from,
-      `${siteBasePath}${to}`,
-    ]),
-  ),
   integrations: [
     svelte(),
     starlight({
@@ -58,7 +37,7 @@ const config = defineConfig({
       social: {
         github: "https://github.com/SynthstromAudible/DelugeFirmware",
         discord: "https://discord.gg/s2MnkFqZgj",
-        patreon: "https://patreon.com/Synthstrom",
+        patreon: "https://www.patreon.com/Synthstrom",
       },
       editLink: {
         baseUrl:
@@ -78,9 +57,6 @@ const config = defineConfig({
           exclude: [
             "/",
             "/DelugeFirmware/", // TODO: This is a basePath issue, fix!
-            // Menu item anchors live in FirmwareMenuSection's HTML, which this validator can't see;
-            // scripts/check-cross-links.mjs checks them against the built pages instead.
-            "/reference/menu_hierarchies#menu-*",
           ],
         }),
         starlightSidebarTopics([
@@ -136,164 +112,6 @@ const config = defineConfig({
             ],
           },
           {
-            label: "Guidebook",
-            icon: "document",
-            link: "/guidebook",
-            items: [
-              { label: "About", link: "/guidebook" },
-              { label: "Index", link: "/guidebook/index-a-z" },
-              {
-                label: "Part 1: Getting Started",
-                items: [
-                  {
-                    label: "1 Overview",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/01-overview" },
-                  },
-                  {
-                    label: "2 Basics",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/02-basics" },
-                  },
-                ],
-              },
-              {
-                label: "Part 2: Clips & Sequencing",
-                items: [
-                  {
-                    label: "3 Clips",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/03-clips" },
-                  },
-                  {
-                    label: "4 Sequencing",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/04-sequencing" },
-                  },
-                  {
-                    label: "5 Keyboard Views",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/05-keyboard-views" },
-                  },
-                  {
-                    label: "6 Automation",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/06-automation" },
-                  },
-                ],
-              },
-              {
-                label: "Part 3: Sounds",
-                items: [
-                  {
-                    label: "7 Synthesizers",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/07-synthesizers" },
-                  },
-                  {
-                    label: "8 Arpeggiator",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/08-arpeggiator" },
-                  },
-                  {
-                    label: "9 Kits",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/09-kits" },
-                  },
-                  {
-                    label: "10 Modulation",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/10-modulation" },
-                  },
-                  {
-                    label: "11 Effects",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/11-effects" },
-                  },
-                ],
-              },
-              {
-                label: "Part 4: Arranging & Performing",
-                items: [
-                  {
-                    label: "12 Session View",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/12-session-view" },
-                  },
-                  {
-                    label: "13 Performance View",
-                    collapsed: true,
-                    autogenerate: {
-                      directory: "guidebook/13-performance-view",
-                    },
-                  },
-                  {
-                    label: "14 Arranger View",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/14-arranger-view" },
-                  },
-                  {
-                    label: "15 Songs & Files",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/15-songs-and-files" },
-                  },
-                ],
-              },
-              {
-                label: "Part 5: Audio & Looping",
-                items: [
-                  {
-                    label: "16 Audio",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/16-audio" },
-                  },
-                  {
-                    label: "17 Looping",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/17-looping" },
-                  },
-                ],
-              },
-              {
-                label: "Part 6: Connecting",
-                items: [
-                  {
-                    label: "18 MIDI",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/18-midi" },
-                  },
-                  {
-                    label: "19 CV",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/19-cv" },
-                  },
-                  {
-                    label: "20 USB Host",
-                    collapsed: true,
-                    autogenerate: { directory: "guidebook/20-usb-host" },
-                  },
-                ],
-              },
-              {
-                label: "Part 7: System",
-                items: [
-                  {
-                    label: "21 Settings & System",
-                    collapsed: true,
-                    autogenerate: {
-                      directory: "guidebook/21-settings-and-system",
-                    },
-                  },
-                ],
-              },
-              {
-                label: "Appendices",
-                collapsed: true,
-                autogenerate: { directory: "guidebook/appendix" },
-              },
-            ],
-          },
-          {
             label: "Resources",
             icon: "star",
             link: "/resources/applications/overview",
@@ -313,18 +131,6 @@ const config = defineConfig({
               {
                 label: "Tutorials",
                 link: "/resources/tutorials",
-              },
-            ],
-          },
-          {
-            label: "Blog",
-            icon: "pen",
-            link: "/blog",
-            items: [
-              { label: "All Posts", link: "/blog" },
-              {
-                label: "Posts",
-                autogenerate: { directory: "blog" },
               },
             ],
           },
@@ -349,7 +155,6 @@ const config = defineConfig({
       customCss: ["./src/styles/global.css"],
       credits: true,
       components: {
-        SocialIcons: "./src/components/SocialIcons.astro",
         Head: "./src/components/Head.astro",
         Search: "./src/components/Search.astro",
       },
@@ -366,20 +171,7 @@ const config = defineConfig({
       ],
       remarkDirective,
       remarkDelugeKey,
-      [
-        remarkPanelSteps,
-        {
-          panel: readJson("./src/data/guidebook-panel.json"),
-          component: fileURLToPath(
-            new URL(
-              "./src/components/guidebook/PanelFigure.astro",
-              import.meta.url,
-            ),
-          ),
-        },
-      ],
       remarkDelugeScreen,
-      [remarkCrossLinks, { terms: crossLinkTerms }],
       [
         RemarkLinkRewrite,
         {

@@ -51,7 +51,7 @@ using namespace deluge::gui;
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-PLACE_SDRAM_BSS SampleMarkerEditor sampleMarkerEditor{};
+SampleMarkerEditor sampleMarkerEditor{};
 
 MultisampleRange& getCurrentMultisampleRange() {
 	return *static_cast<MultisampleRange*>(soundEditor.currentMultiRange);

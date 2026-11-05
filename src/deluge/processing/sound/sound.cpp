@@ -2184,9 +2184,8 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 
 		if (skippingStatusNow) {
 
-			// We wanna start, skipping, but if MOD fx or the compressor are on...
-			int32_t waitSamples = getSamplesUntilFXTailsEnd(modFXType_);
-			if (waitSamples != 0) {
+			// We wanna start, skipping, but if MOD fx are on...
+			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2198,6 +2197,21 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
+					int32_t waitSamplesModfx = 0;
+					switch (modFXType_) {
+					case ModFXType::CHORUS:
+						[[fallthrough]];
+					case ModFXType::CHORUS_STEREO:
+						waitSamplesModfx = 20 * 44;
+						break;
+					case ModFXType::GRAIN:
+						waitSamplesModfx = grainFX->getSamplesToShutdown();
+						break;
+					default:
+						waitSamplesModfx = (90 * 441);
+					}
+					int32_t waitSamples =
+					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.getReleaseMS() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 

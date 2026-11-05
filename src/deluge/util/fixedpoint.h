@@ -38,13 +38,8 @@ static inline q31_t toPositive(q31_t a) {
 	return ((a / 2) + (1073741824));
 }
 
-[[gnu::always_inline]] constexpr int32_t clz(uint32_t input) {
-	return std::countl_zero(input);
-}
-
 // this is only defined for 32 bit arm
 #if defined(__arm__)
-#include <arm_acle.h>
 // This multiplies two numbers in signed Q31 fixed point as if they were q32, so the return value is half what it should
 // be. Use this when several corrective shifts can be accumulated and then combined
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
@@ -111,17 +106,29 @@ template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
 template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) {
-	return __ssat(val, bits);
+	int32_t out;
+	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
+	return out;
 }
 
 static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturate(int32_t a, int32_t b) {
-	return __qadd(a, b);
+	int32_t out;
+	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
+	return out;
 }
 
 static inline int32_t subtract_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t subtract_saturate(int32_t a, int32_t b) {
-	return __qsub(a, b);
+	int32_t out;
+	asm("qsub %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
+	return out;
+}
+
+inline int32_t clz(uint32_t input) {
+	int32_t out;
+	asm("clz %0, %1" : "=r"(out) : "r"(input));
+	return out;
 }
 
 ///@brief Convert from a float to a q31 value, saturating above 1.0
@@ -137,7 +144,6 @@ static inline float q31_to_float(q31_t value) {
 	asm("vcvt.f32.s32 %0, %0, #31" : "+t"(value));
 	return std::bit_cast<float>(value);
 }
-
 #else
 
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
@@ -210,6 +216,11 @@ static inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
 }
 
+inline int32_t clz(uint32_t input) {
+	// ARM `clz` returns 32 for 0; __builtin_clz(0) is UB. Match the hardware.
+	return input ? __builtin_clz(input) : 32;
+}
+
 [[gnu::always_inline]] constexpr q31_t q31_from_float(float value) {
 	// A float is represented as 32 bits:
 	// 1-bit sign, 8-bit exponent, 24-bit mantissa
@@ -239,6 +250,7 @@ static inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	q31_t output_value = static_cast<q31_t>(mantissa >> shift);
 	return (negative) ? -output_value : output_value;
 }
+
 ///@brief Convert from a q31 to a float. Matches the ARM `vcvt.f32.s32 #31` (divide by 2^31).
 static inline float q31_to_float(q31_t value) {
 	return static_cast<float>(value) / 2147483648.0f;
@@ -415,7 +427,7 @@ public:
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
-	constexpr explicit operator double() const noexcept {
+	explicit operator double() const noexcept {
 #if defined(__arm__)
 		if (!std::is_constant_evaluated()) {
 			auto output = std::bit_cast<double>((int64_t)value_);

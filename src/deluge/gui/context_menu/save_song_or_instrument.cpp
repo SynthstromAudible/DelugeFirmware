@@ -24,7 +24,7 @@
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {
-PLACE_SDRAM_BSS SaveSongOrInstrument saveSongOrInstrument{};
+SaveSongOrInstrument saveSongOrInstrument{};
 
 char const* SaveSongOrInstrument::getTitle() {
 	using enum l10n::String;

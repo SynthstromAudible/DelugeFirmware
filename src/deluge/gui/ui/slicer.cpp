@@ -50,7 +50,7 @@
 
 using namespace deluge::gui;
 
-PLACE_SDRAM_BSS Slicer slicer{};
+Slicer slicer{};
 
 namespace params = deluge::modulation::params;
 
@@ -156,7 +156,6 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-// must have both a current kit and a first drum
 void Slicer::graphicsRoutine() {
 
 	int32_t newTickSquare = 255;
@@ -165,17 +164,8 @@ void Slicer::graphicsRoutine() {
 
 	MultisampleRange* range;
 	Kit* kit = getCurrentKit();
-	if (kit == nullptr) {
-		FREEZE_WITH_ERROR("E459");
-		return;
-	}
-	auto drum = static_cast<SoundDrum*>(kit->firstDrum);
-	if (drum == nullptr) {
-		FREEZE_WITH_ERROR("E459");
-		return;
-	}
+	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-	// I think this is always gonna be true? Dunno if there's some non kit non drum way to get here
 	if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
 		range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 
@@ -441,7 +431,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 void Slicer::stopAnyPreviewing() {
 	Kit* kit = getCurrentKit();
-	SoundDrum* drum = &static_cast<SoundDrum&>(*kit->firstDrum);
+	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->killAllVoices();
 	if (drum->sources[0].ranges.getNumElements()) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
@@ -451,7 +441,7 @@ void Slicer::stopAnyPreviewing() {
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
 	if (on) {
 		Kit* kit = getCurrentKit();
-		SoundDrum* drum = &static_cast<SoundDrum&>(*kit->firstDrum);
+		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
@@ -514,7 +504,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			SamplePlaybackGuide* guide = nullptr;
 			MultisampleRange* range;
 			Kit* kit = getCurrentKit();
-			SoundDrum* drum = &static_cast<SoundDrum&>(*kit->firstDrum);
+			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 			if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
 				auto valid_voices_view = drum->voices() | std::views::filter([&](const Sound::ActiveVoice& voice) {

@@ -51,8 +51,7 @@ public:
 	            LoopType loopingType, int32_t priorityRating);
 
 	void rememberPercCacheCluster(Cluster* cluster);
-	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection,
-	                                    int32_t priorityRating);
+	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection);
 
 	int32_t getSamplePos(int32_t playDirection);
 	bool allocateBuffer(int32_t numChannels);
@@ -98,13 +97,6 @@ public:
 
 	Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed
 	                                     // Clusters, basically
-
-	// Where the last call to Sample::fillPercCache() started, and where it left the perc cache zone ending, so we can
-	// skip calling it (and its walk through the Sample's metadata, which lives in SDRAM) until the lookahead has moved
-	// on a bit
-	int32_t percCacheFillStartPos;
-	int32_t percCacheFillEndPos;
-	int8_t percCacheFillDirection;
 
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,

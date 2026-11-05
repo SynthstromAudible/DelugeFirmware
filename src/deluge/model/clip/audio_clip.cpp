@@ -37,7 +37,6 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/fixedpoint.h"
 #include <new>
@@ -157,12 +156,12 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 		inputChannel = ((AudioOutput*)output)->inputChannel;
 		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
-		numChannels = (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
-		               || inputChannel == AudioInputChannel::STEREO || inputChannel == AudioInputChannel::USB)
-		                  ? 2
-		                  : 1;
-		// if reading from the codec input we need this. USB audio arrives at whatever level the host meant it to be
-		shouldNormalize = AudioEngine::isCodecInput(inputChannel);
+		numChannels =
+		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
+		        ? 2
+		        : 1;
+		shouldNormalize =
+		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION); // if reading from input we need this
 	}
 	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
 	// doing the classic deluge clip cloning loops (will be called on the clone instead)
@@ -431,10 +430,9 @@ doUnassignment:
 
 			setupPlaybackBounds();
 
-			voiceSample->noteOn(&guide, 0, getClusterPriority());
+			voiceSample->noteOn(&guide, 0, 1);
 			voiceSample->forAudioClip = true;
-			voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false,
-			                                        getClusterPriority());
+			voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
 
 possiblyResetEnvelopeAndGetOut:
 			if (shouldResetEnvelope) {
@@ -460,7 +458,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If reading or writing cache, that's not gonna be valid now that we've moved our play position, so gotta stop
 	// that.
 	if (voiceSample && voiceSample->cache) {
-		int32_t priorityRating = getClusterPriority();
+		int32_t priorityRating = 1;
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
 		                                           getLoopingType(modelStack) == LoopType::LOW_LEVEL);
 		if (!success) {
@@ -524,7 +522,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 			return;
 		}
 
-		voiceSample->noteOn(&guide, 0, getClusterPriority());
+		voiceSample->noteOn(&guide, 0, 1);
 		voiceSample->forAudioClip = true;
 		((AudioOutput*)output)->resetEnvelope();
 	}
@@ -541,7 +539,7 @@ void AudioClip::setupPlaybackBounds() {
 void AudioClip::sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack) {
 	if (voiceSample) {
 
-		int32_t priorityRating = getClusterPriority();
+		int32_t priorityRating = 1; // probably better fix this...
 
 		voiceSample->sampleZoneChanged(&guide, ((Sample*)sampleHolder.audioFile), sampleControls.isCurrentlyReversed(),
 		                               MarkerType::END, getLoopingType(modelStack), priorityRating, true);
@@ -569,19 +567,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
-	// The Sample is in SDRAM and always cold by the next render, so start fetching the parts of it that rendering uses
-	// before the setup below
-	__builtin_prefetch(sample);
-	__builtin_prefetch((char*)sample + 32);
-	__builtin_prefetch((char*)sample + 64);
-
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
 	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
-		LateStartAttemptStatus result =
-		    voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn, getClusterPriority());
+		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
 		if (result != LateStartAttemptStatus::SUCCESS) {
 			if (result == LateStartAttemptStatus::FAILURE) {
 				unassignVoiceSample(false);
@@ -620,13 +611,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
 
-		// If only the file's sample rate is changing phaseIncrement, playing it back at that speed already keeps it in
-		// time, so like an unadjusted 44100kHz file, it doesn't need time-stretching unless it's drifted out of sync.
-		// Otherwise every non-44100kHz file would always be time-stretched, even at its original tempo.
-		bool pitchManuallyAdjusted = pitchAdjust != kMaxSampleValue || sampleHolder.transpose || sampleHolder.cents;
-
 		// Or if no manual pitch adjustment...
-		if (phaseIncrement == kMaxSampleValue || !pitchManuallyAdjusted) {
+		else {
 
 			// If we'd only be time-stretching a tiiiny bit (+/- 1 cent)...
 			if (timeStretchRatio >= 16661327 && timeStretchRatio < 16893911) {
@@ -679,7 +665,7 @@ justDontTimeStretch:
 		}
 	}
 
-	int32_t priorityRating = getClusterPriority();
+	int32_t priorityRating = 1;
 
 	bool clipWillLoopAtEnd = playbackHandler.playbackState && currentPlaybackMode->willClipLoopAtSomePoint(modelStack);
 	// I don't love that this is being called for every AudioClip at every render. This is to determine the "looping"
@@ -779,7 +765,7 @@ justDontTimeStretch:
 		// We tell the cache setup that we're *not* looping.
 		// We want it to think this, otherwise problems if we've put the end point after the actual waveform end.
 		bool everythingOk = voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio,
-		                                                    priorityRating, LoopType::NONE);
+		                                                    1, LoopType::NONE);
 		if (!everythingOk) {
 			goto doUnassign;
 		}
@@ -791,66 +777,13 @@ justDontTimeStretch:
 		stillActive = voiceSample->render(&guide, outputBuffer.data(), outputBuffer.size(), sample, sample->numChannels,
 		                                  loopingType, phaseIncrement, timeStretchRatio, amplitude, amplitudeIncrement,
 		                                  sampleControls.getInterpolationBufferSize(phaseIncrement),
-		                                  sampleControls.interpolationMode, priorityRating);
+		                                  sampleControls.interpolationMode, 1);
 	}
 
 	if (!stillActive) {
 doUnassign:
 		unassignVoiceSample(false);
 	}
-	else {
-		prefetchClustersAhead(sample);
-	}
-}
-
-// The VoiceSample holds reasons on the Clusters it's about to play, but only enqueues each one as playback reaches the
-// one before, which on a slow card can be too late. So have the AudioFileManager hold a few more beyond those, until
-// the VoiceSample gets to them and holds them itself.
-void AudioClip::prefetchClustersAhead(Sample* sample) {
-	Cluster* furthestCluster = nullptr;
-	for (Cluster* cluster : voiceSample->clusters) {
-		if (cluster != nullptr) {
-			furthestCluster = cluster;
-		}
-	}
-	if (furthestCluster == nullptr) {
-		return;
-	}
-	if (furthestCluster == prefetchedAheadOf && audioFileManager.getPrefetchGeneration() == prefetchGenerationSeen) {
-		return;
-	}
-	prefetchedAheadOf = nullptr;
-
-	for (Cluster* cluster : voiceSample->clusters) {
-		if (cluster != nullptr) {
-			audioFileManager.claimPrefetch(cluster);
-		}
-	}
-
-	// While recording, Clusters past what's been written aren't on the card yet
-	if (recorder != nullptr) {
-		return;
-	}
-
-	int32_t finalClusterIndex = guide.getFinalClusterIndex(sample, voiceSample->shouldObeyMarkers());
-	int32_t clusterIndex = furthestCluster->clusterIndex;
-
-	for (int32_t i = 0; i < kNumClustersPrefetchedForAudioClip; i++) {
-		clusterIndex += guide.playDirection;
-		if (clusterIndex * guide.playDirection > finalClusterIndex * guide.playDirection || clusterIndex < 0
-		    || clusterIndex >= sample->clusters.getNumElements()) {
-			break;
-		}
-		if (!audioFileManager.prefetchCluster(sample, clusterIndex)) {
-			return; // Try again next time
-		}
-	}
-	prefetchedAheadOf = furthestCluster;
-	prefetchGenerationSeen = audioFileManager.getPrefetchGeneration();
-}
-
-int32_t AudioClip::getClusterPriority() const {
-	return static_cast<int32_t>(ClusterPriority::forAudioClip(voicePriority));
 }
 
 // Returns the "looping" parameter that gets passed into a lot of functions.
@@ -879,10 +812,6 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 
 void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 	if (voiceSample) {
-		// Whatever we'd prefetched may no longer be what's played next
-		if (sampleHolder.audioFile != nullptr) {
-			audioFileManager.releasePrefetchesForSample(static_cast<Sample*>(sampleHolder.audioFile));
-		}
 		voiceSample->beenUnassigned(wontBeUsedAgain);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
 		voiceSample = nullptr;

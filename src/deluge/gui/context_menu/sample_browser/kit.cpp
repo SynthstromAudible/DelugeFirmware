@@ -25,7 +25,7 @@
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
-PLACE_SDRAM_BSS Kit kit{};
+Kit kit{};
 
 char const* Kit::getTitle() {
 	using enum l10n::String;

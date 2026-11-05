@@ -165,8 +165,7 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 // Returns a status such as LateStartAttemptStatus::WAIT
 LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
-                                                           int64_t rawSamplesSinceStart, int32_t priorityRating,
-                                                           int32_t numSamples) {
+                                                           int64_t rawSamplesSinceStart, int32_t numSamples) {
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
@@ -203,8 +202,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
-		newClusters[l] = sample->clusters.getElement(clusterIndex)
-		                     ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
+		newClusters[l] = sample->clusters.getElement(clusterIndex)->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE);
 
 		// If failure (would only happen in insanely rare case where there's no free RAM)
 		if (l == 0 && !newClusters[l]) {
@@ -347,20 +345,8 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 	int32_t maxNumSamplesToProcess = numSamples * ((cache && writingToCache) ? 32 : 6);
 
 	if (timeStretchRatio != kMaxSampleValue) {
-		int32_t endPos = playSample + (phaseIncrement >> 10) * playDirection;
-
-		// Each call costs a chain of cache misses on the Sample and its perc cache zones, even when there's only a
-		// buffer's worth to add. So fill a few buffers further than needed, and skip calling while the zone last
-		// seen still reaches endPos
-		bool alreadyFilled = timeStretcher->percCacheFillDirection == playDirection
-		                     && (playSample - timeStretcher->percCacheFillStartPos) * playDirection >= 0
-		                     && (timeStretcher->percCacheFillEndPos - endPos) * playDirection >= 0;
-		if (!alreadyFilled) {
-			sample->fillPercCache(timeStretcher, playSample, endPos + numSamples * 4 * playDirection, playDirection,
-			                      maxNumSamplesToProcess, priorityRating);
-			timeStretcher->percCacheFillStartPos = playSample;
-			timeStretcher->percCacheFillDirection = playDirection;
-		}
+		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection,
+		                      playDirection, maxNumSamplesToProcess);
 	}
 
 	return true;
@@ -436,19 +422,6 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
                          int32_t priorityRating) {
 
 	int32_t playDirection = guide->playDirection;
-
-	// The Sample and its audio data are in SDRAM and always cold by the next render, so get them on their way before
-	// the setup below. Assumes 16-bit, which most samples are; the hardware prefetcher picks up any more after that
-	__builtin_prefetch(sample);
-	__builtin_prefetch((char*)sample + 32);
-	__builtin_prefetch((char*)sample + 64);
-	int32_t prefetchBytes = std::min<int32_t>(
-	    (((uint64_t)(numSamples * sampleSourceNumChannels * 2) * (uint32_t)phaseIncrement) >> 24) + 32, 512);
-	prefetchPlayData(prefetchBytes, playDirection);
-	if (timeStretcher && timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
-	    && !timeStretcher->olderHeadReadingFromBuffer) {
-		timeStretcher->olderPartReader.prefetchPlayData(prefetchBytes, playDirection);
-	}
 
 	// If there's a cache, check some stuff. Do this first, cos this can cause us to return
 	// unlikely - if there is a cache this render will be fast, if not we definitely don't want to waste time looking
@@ -877,7 +850,7 @@ readCachedWindow:
 				int32_t nextUncachedClusterIndex = uncachedClusterIndex;
 				for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 					clusters[l] = sample->clusters.getElement(nextUncachedClusterIndex)
-					                  ->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE, priorityRating);
+					                  ->getCluster(sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
 					if (!clusters[l]) {
 						break;
 					}

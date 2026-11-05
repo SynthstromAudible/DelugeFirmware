@@ -30,7 +30,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include <cmath>
 #include <cstring>
-#include <limits>
 #include <new>
 
 extern "C" {
@@ -164,8 +163,7 @@ void Sample::markAsUnloadable() {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster != nullptr) {
 			cluster->unloadable = true;
-			CriticalSectionGuard guard;
-			audioFileManager.loadingQueue.erase(cluster, guard);
+			audioFileManager.loadingQueue.erase(cluster);
 		}
 	}
 }
@@ -269,27 +267,21 @@ void Sample::deleteCache(SampleCache* cache) {
 
 // Returns error
 Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                            int32_t playDirection, int32_t maxNumSamplesToProcess, int32_t priorityRating) {
+                            int32_t playDirection, int32_t maxNumSamplesToProcess) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
 	auto reversed = static_cast<int32_t>(playDirection != 1);
-
-	// Tells the caller there's nothing more to fill in this direction, so it needn't call again unless it jumps back
-	int32_t const filledToEndOfWaveform = playDirection * (std::numeric_limits<int32_t>::max() / 2);
-
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
 		if (startPosSamples >= lengthInSamples) {
-			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
 			return Error::NONE;
 		}
 	}
 	else {
 		if (startPosSamples < 0) {
-			timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
 			return Error::NONE;
 		}
 	}
@@ -297,8 +289,6 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	LOCK_ENTRY
 
 	AudioEngine::logAction("fillPercCache");
-
-	timeStretcher->percCacheFillEndPos = startPosSamples; // Until we find a zone
 
 	// int32_t lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >>
 	// PERC_BUFFER_REDUCTION_MAGNITUDE);
@@ -373,11 +363,17 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 
 			// If the (potentially made-later) start pos is already beyond the waveform, get out (otherwise we'd be
 			// prone to an error getting the perc Cluster below. Fixed Aug 2021
-			if (reversed ? (startPosSamples < 0) : (startPosSamples >= lengthInSamples)) {
-				timeStretcher->percCacheFillEndPos = filledToEndOfWaveform;
+			if (!reversed) {
+				if (startPosSamples >= lengthInSamples) {
 doReturnNoError:
-				LOCK_EXIT
-				return Error::NONE;
+					LOCK_EXIT
+					return Error::NONE;
+				}
+			}
+			else {
+				if (startPosSamples < 0) {
+					goto doReturnNoError;
+				}
 			}
 
 			// First, update our "current pos for perc cache filling and reading" sorta thing so
@@ -442,7 +438,6 @@ doReturnNoError:
 				// We're now guaranteed to have a bunch of perc cache secured in RAM, un-stealable. So we can take a
 				// breather and know we won't need access to the source Clusters for it anytime very soon
 				timeStretcher->unassignAllReasonsForPercLookahead();
-				timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
 
 				goto doReturnNoError;
 			}
@@ -713,8 +708,6 @@ doLoading:
 #endif
 
 getOut:
-	timeStretcher->percCacheFillEndPos = percCacheZone->endPos;
-
 	// If we failed to do the loading we wanted to, e.g. because of insufficient RAM, we need to make sure we didn't
 	// leave a 0-length zone, cos that's invalid.
 	if (percCacheZone->endPos == percCacheZone->startPos) {
@@ -727,7 +720,7 @@ getOut:
 	LOCK_EXIT
 
 	// If current source Cluster has changed, update TimeStretcher's queue
-	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection, priorityRating);
+	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection);
 
 	AudioEngine::logAction("/fillPercCache");
 	return error; // Usually it'll be Error::NONE.

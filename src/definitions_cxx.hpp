@@ -362,7 +362,6 @@ enum class OscType : uint8_t {
 	ANALOG_SQUARE,
 	SAW,
 	ANALOG_SAW_2,
-	SUPERSAW,
 	WAVETABLE,
 	SAMPLE,
 	DX7,
@@ -679,8 +678,6 @@ constexpr auto kNumMIDITransposeControlMethods = util::to_underlying(MIDITranspo
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 constexpr int32_t kMaxNumClustersLoadedAhead = 8;
-// How many further Clusters an AudioClip asks to be loaded beyond those it holds, without holding reasons on them
-constexpr int32_t kNumClustersPrefetchedForAudioClip = 2;
 
 enum class InputMonitoringMode : uint8_t {
 	SMART,
@@ -869,7 +866,6 @@ enum class AudioInputChannel {
 	RIGHT,
 	STEREO,
 	BALANCED,
-	USB, // Stereo audio from a USB host (drivers/usb/usb_audio.h)
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,

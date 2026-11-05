@@ -58,8 +58,6 @@ public:
 
 	FIL readFIL;
 	char* fileClusterBuffer;
-	// Owns the allocation; fileClusterBuffer points past the cache padding.
-	void* fileClusterBufferAllocation = nullptr;
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
 
@@ -113,8 +111,6 @@ protected:
 	bool callRoutines = true;
 	uint8_t indentAmount;
 	char* writeClusterBuffer;
-	// Owns the allocation; writeClusterBuffer points past the cache padding.
-	void* writeClusterBufferAllocation = nullptr;
 	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos;
 	int32_t fileTotalBytesWritten;
