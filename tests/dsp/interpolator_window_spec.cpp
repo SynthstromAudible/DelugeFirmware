@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Pins the Interpolator's tap-window feed (pushL / pushR / jump_forward, the NEON `vext` shift) against the
+// Pins the Interpolator's tap-window shift (push_l / push_r / advance, the NEON `vext` shift) against the
 // element-by-element loop it replaces, for every shift distance and over long random feeds the way the sample
 // reader and live pitch shifter drive it (shift, then refill the vacated head slots).
 
@@ -24,6 +24,7 @@
 #include <cppspec.hpp>
 #include <cstdint>
 #include <random>
+#include <tuple>
 
 namespace {
 using deluge::dsp::fixed::Interpolator;
@@ -44,6 +45,14 @@ Window distinct_window(int16_t base) {
 	return window;
 }
 
+// Loads both windows whole, through a head feed over every slot (oldest first)
+void load(Interpolator& interpolator, const Window& l, const Window& r) {
+	auto feed = interpolator.fill_head(kInterpolationMaxNumSamples);
+	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 0; i--) {
+		feed.put(l[i], r[i]);
+	}
+}
+
 bool retained_taps_match(const Window& actual, const Window& expected, int32_t n) {
 	for (int32_t i = n; i < kInterpolationMaxNumSamples; i++) {
 		if (actual[i] != expected[i]) {
@@ -56,40 +65,38 @@ bool retained_taps_match(const Window& actual, const Window& expected, int32_t n
 
 // clang-format off
 describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift", ${
-	it("keeps every retained tap for each jump_forward distance 0 ... 17", _ {
+	it("keeps every retained tap for each advance distance 0 ... 17", _ {
 		for (int32_t n = 0; n <= kInterpolationMaxNumSamples + 1; n++) {
 			Interpolator interpolator;
-			interpolator.buffer_l = distinct_window(100);
-			interpolator.buffer_r = distinct_window(-100);
-			Window expected_l = interpolator.buffer_l;
-			Window expected_r = interpolator.buffer_r;
+			Window expected_l = distinct_window(100);
+			Window expected_r = distinct_window(-100);
+			load(interpolator, expected_l, expected_r);
 			reference_shift(expected_l, n);
 			reference_shift(expected_r, n);
 
-			interpolator.jump_forward(n);
+			std::ignore = interpolator.advance(n);
 
-			expect(retained_taps_match(interpolator.buffer_l, expected_l, n)).to_be_true();
-			expect(retained_taps_match(interpolator.buffer_r, expected_r, n)).to_be_true();
+			expect(retained_taps_match(interpolator.window_l(), expected_l, n)).to_be_true();
+			expect(retained_taps_match(interpolator.window_r(), expected_r, n)).to_be_true();
 		}
 	});
 
 	it("pushL / pushR shift their own window by one and insert at the head", _ {
 		Interpolator interpolator;
-		interpolator.buffer_l = distinct_window(100);
-		interpolator.buffer_r = distinct_window(-100);
-		Window expected_l = interpolator.buffer_l;
-		Window expected_r = interpolator.buffer_r;
+		Window expected_l = distinct_window(100);
+		Window expected_r = distinct_window(-100);
+		load(interpolator, expected_l, expected_r);
 
 		interpolator.push_l(7);
 		reference_shift(expected_l, 1);
 		expected_l[0] = 7;
-		expect(interpolator.buffer_l == expected_l).to_be_true();
-		expect(interpolator.buffer_r == expected_r).to_be_true(); // untouched
+		expect(interpolator.window_l() == expected_l).to_be_true();
+		expect(interpolator.window_r() == expected_r).to_be_true(); // untouched
 
 		interpolator.push_r(-7);
 		reference_shift(expected_r, 1);
 		expected_r[0] = -7;
-		expect(interpolator.buffer_r == expected_r).to_be_true();
+		expect(interpolator.window_r() == expected_r).to_be_true();
 	});
 
 	it("matches the reference over a long random shift-and-refill feed", _ {
@@ -102,16 +109,17 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 		Window expected_r{};
 		for (int32_t step = 0; step < 20000; step++) {
 			int32_t n = distance(rng);
-			interpolator.jump_forward(n);
+			auto feed = interpolator.advance(n);
 			reference_shift(expected_l, n);
 			reference_shift(expected_r, n);
 			for (int32_t i = n - 1; i >= 0; i--) {
 				auto left = static_cast<int16_t>(sample(rng));
 				auto right = static_cast<int16_t>(sample(rng));
-				interpolator.buffer_l[i] = expected_l[i] = left;
-				interpolator.buffer_r[i] = expected_r[i] = right;
+				feed.put(left, right);
+				expected_l[i] = left;
+				expected_r[i] = right;
 			}
-			if (interpolator.buffer_l != expected_l || interpolator.buffer_r != expected_r) {
+			if (interpolator.window_l() != expected_l || interpolator.window_r() != expected_r) {
 				expect(step).to_equal(-1); // report the first diverging step
 				return;
 			}

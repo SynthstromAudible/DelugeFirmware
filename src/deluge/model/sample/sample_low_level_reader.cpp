@@ -553,16 +553,14 @@ void SampleLowLevelReader::fillInterpolationBufferRetrospectively(Sample* sample
 
 	if (!hasCurrentRegion()) {
 		// zero and return ASAP
-		for (int32_t i = startI; i < bufferSize; i++) {
-			interpolator_.buffer_l[i] = 0;
-			interpolator_.buffer_r[i] = 0;
-		}
+		interpolator_.clear(startI, bufferSize, 2);
 		return;
 	}
 
 	// otherwise...
 	// Fill up the furthest-back end of the interpolation buffer
 	char* thisPlayPos = currentPlayPos;
+	auto feed = interpolator_.fill_tail(startI);
 	for (int32_t i = startI; i < bufferSize; i++) {
 		// At each iteration through this loop, we need to jump one sample backwards in time.
 		thisPlayPos = thisPlayPos - playDirection * sample->numChannels * sample->byteDepth;
@@ -570,17 +568,17 @@ void SampleLowLevelReader::fillInterpolationBufferRetrospectively(Sample* sample
 
 		// If there was valid audio data there...
 		if (bytesPastClusterStart >= 0) {
-			interpolator_.buffer_l[i] = *(int16_t*)(thisPlayPos + 2);
-
 			if (sample->numChannels == 2) {
-				interpolator_.buffer_r[i] = *(int16_t*)(thisPlayPos + 2 + sample->byteDepth);
+				feed.put(*(int16_t*)(thisPlayPos + 2), *(int16_t*)(thisPlayPos + 2 + sample->byteDepth));
+			}
+			else {
+				feed.put(*(int16_t*)(thisPlayPos + 2));
 			}
 		}
 
 		// Or if not, just write zeros
 		else {
-			interpolator_.buffer_l[i] = 0;
-			interpolator_.buffer_r[i] = 0;
+			feed.silence();
 		}
 	}
 }
@@ -595,7 +593,8 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 	}
 
 	// otherwise...
-	for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
+	auto feed = interpolator_.fill_head(numSpacesToFill);
+	while (feed.remaining() != 0) {
 		bool stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
 		if (!stillGoing) {
 			// There is no more audio, so the rest of the buffer is silence - and we must not read
@@ -607,12 +606,15 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 			// then, so changeClusterIfNecessary() would compute a hugely negative overshoot against
 			// the reassessment pointer, report that we are still inside the cluster, and let the next
 			// iteration do the read we just avoided.
-			return fillInterpolationBufferWithSilence(i, interpolationBufferSize);
+			return fillInterpolationBufferWithSilence(static_cast<int32_t>(feed.remaining()) - 1,
+			                                          interpolationBufferSize);
 		}
 
-		interpolator_.buffer_l[i] = *(int16_t*)(currentPlayPos + 2);
 		if (sample->numChannels == 2) {
-			interpolator_.buffer_r[i] = *(int16_t*)(currentPlayPos + 2 + sample->byteDepth);
+			feed.put(*(int16_t*)(currentPlayPos + 2), *(int16_t*)(currentPlayPos + 2 + sample->byteDepth));
+		}
+		else {
+			feed.put(*(int16_t*)(currentPlayPos + 2));
 		}
 
 		// And move forward one more
@@ -623,9 +625,9 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 }
 
 bool SampleLowLevelReader::fillInterpolationBufferWithSilence(int32_t fromIndex, int32_t interpolationBufferSize) {
-	for (int32_t i = fromIndex; i >= 0; i--) {
-		interpolator_.buffer_l[i] = 0;
-		interpolator_.buffer_r[i] = 0;
+	auto feed = interpolator_.fill_head(fromIndex + 1);
+	while (feed.remaining() != 0) {
+		feed.silence();
 		currentPlayPos++;
 		if ((uintptr_t)currentPlayPos >= interpolationBufferSize) {
 			return false;
@@ -716,12 +718,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t difference = interpolationBufferSizeLastTime - interpolationBufferSize;
 				int32_t offset = difference >> 1;
 
-				for (int32_t i = 0; i < interpolationBufferSize; i++) {
-					interpolator_.buffer_l[i] = interpolator_.buffer_l[i + offset];
-					if (sample->numChannels == 2) {
-						interpolator_.buffer_r[i] = interpolator_.buffer_r[i + offset];
-					}
-				}
+				interpolator_.narrow(offset, interpolationBufferSize, sample->numChannels);
 
 				jumpBackSamples(sample, offset, guide->playDirection);
 
@@ -746,12 +743,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t difference = interpolationBufferSize - interpolationBufferSizeLastTime;
 				int32_t offset = difference >> 1;
 
-				for (int32_t i = 0; i < interpolationBufferSizeLastTime; i++) {
-					interpolator_.buffer_l[i + offset] = interpolator_.buffer_l[i];
-					if (sample->numChannels == 2) {
-						interpolator_.buffer_r[i + offset] = interpolator_.buffer_r[i];
-					}
-				}
+				interpolator_.widen(offset, interpolationBufferSizeLastTime, sample->numChannels);
 
 				// And fill up to end of interpolation buffer
 				bool success = fillInterpolationBufferForward(guide, sample, interpolationBufferSize, loopingAtLowLevel,
@@ -761,12 +753,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				}
 
 				// If still here, fill far end with zeros. Not perfect, but it'll do.
-				for (int32_t i = (interpolationBufferSize - offset); i < interpolationBufferSize; i++) {
-					interpolator_.buffer_l[i] = 0;
-					if (sample->numChannels == 2) {
-						interpolator_.buffer_r[i] = 0;
-					}
-				}
+				interpolator_.clear(interpolationBufferSize - offset, interpolationBufferSize, sample->numChannels);
 
 				if (ALPHA_OR_BETA_VERSION && hasCurrentRegion()) {
 					int32_t bytesLeftWhichMayBeRead = (reassessmentLocation - currentPlayPos) * guide->playDirection;
@@ -1024,31 +1011,22 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 			// numSamplesToJumpForward = 2; // Not necessasry
 		}
 
+		// A step of one moves tap 0 to tap 1; a longer one reads both taps afresh
+		auto feed = interpolator_.advance_linear(numSamplesToJumpForward, numChannels);
 		if (numChannels == 2) {
 			if (numSamplesToJumpForward >= 2) {
-				interpolator_.buffer_l[1] = *(int16_t*)(currentPlayPos + 2);
-				interpolator_.buffer_r[1] = *(int16_t*)(currentPlayPos + 2 + byteDepth);
+				feed.put(*(int16_t*)(currentPlayPos + 2), *(int16_t*)(currentPlayPos + 2 + byteDepth));
 				currentPlayPos += jumpAmount;
 			}
-			else {
-				interpolator_.buffer_l[1] = interpolator_.buffer_l[0];
-				interpolator_.buffer_r[1] = interpolator_.buffer_r[0];
-			}
-			interpolator_.buffer_r[0] = *(int16_t*)(currentPlayPos + 2 + byteDepth);
+			feed.put(*(int16_t*)(currentPlayPos + 2), *(int16_t*)(currentPlayPos + 2 + byteDepth));
 		}
-
 		else {
 			if (numSamplesToJumpForward >= 2) {
-				interpolator_.buffer_l[1] = *(int16_t*)(currentPlayPos + 2);
+				feed.put(*(int16_t*)(currentPlayPos + 2));
 				currentPlayPos += jumpAmount;
 			}
-			else {
-				interpolator_.buffer_l[1] = interpolator_.buffer_l[0];
-			}
+			feed.put(*(int16_t*)(currentPlayPos + 2));
 		}
-
-		// Putting these down here did speed things up!
-		interpolator_.buffer_l[0] = *(int16_t*)(currentPlayPos + 2);
 		currentPlayPos += jumpAmount;
 	}
 }
@@ -1106,19 +1084,15 @@ void SampleLowLevelReader::readSamplesResampled(deluge::dsp::Q<31>** __restrict_
 
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
-					interpolator_.jump_forward(numSamplesToJumpForward);
-					numSamplesToJumpForward--;
+					auto feed = interpolator_.advance(numSamplesToJumpForward);
 
 					if (numChannels == 2) {
 						while (true) {
-							interpolator_.buffer_l[numSamplesToJumpForward] = sourceL;
-							interpolator_.buffer_r[numSamplesToJumpForward] =
-							    *(int16_t*)(currentPlayPosNow + byteDepth);
+							feed.put(sourceL, *(int16_t*)(currentPlayPosNow + byteDepth));
 							currentPlayPosNow += jumpAmount;
-							if (!numSamplesToJumpForward) {
+							if (feed.remaining() == 0) {
 								goto skipFirstSmooth;
 							}
-							numSamplesToJumpForward--;
 							sourceL = *(int16_t*)currentPlayPosNow;
 						}
 					}
@@ -1126,12 +1100,11 @@ void SampleLowLevelReader::readSamplesResampled(deluge::dsp::Q<31>** __restrict_
 					else {
 						while (true) {
 							currentPlayPosNow += jumpAmount;
-							interpolator_.buffer_l[numSamplesToJumpForward] = sourceL;
-							if (!numSamplesToJumpForward) {
+							feed.put(sourceL);
+							if (feed.remaining() == 0) {
 								goto skipFirstSmooth;
 							}
 							sourceL = *(int16_t*)currentPlayPosNow;
-							numSamplesToJumpForward--;
 						}
 					}
 				}

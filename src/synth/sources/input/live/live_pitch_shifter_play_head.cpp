@@ -94,14 +94,14 @@ void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, in
 					num_samples_to_jump_forward = kInterpolationMaxNumSamples;
 				}
 
-				interpolator_.jump_forward(num_samples_to_jump_forward);
-
-				while (num_samples_to_jump_forward--) {
-					interpolator_.buffer_l[num_samples_to_jump_forward] =
-					    static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * num_channels] >> 16);
+				auto feed = interpolator_.advance(num_samples_to_jump_forward);
+				while (feed.remaining() != 0) {
+					const auto l = static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * num_channels] >> 16);
 					if (num_channels == 2) {
-						interpolator_.buffer_r[num_samples_to_jump_forward] =
-						    static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * 2 + 1] >> 16);
+						feed.put(l, static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * 2 + 1] >> 16));
+					}
+					else {
+						feed.put(l);
 					}
 
 					raw_buffer_read_pos = (raw_buffer_read_pos + 1) & (kInputRawBufferSize - 1);
@@ -196,27 +196,21 @@ LivePitchShifterPlayHead::get_num_raw_samples_behind_input(LiveInputBuffer* live
 	}
 }
 
-/// @param numChannels a value between 0 and 1
+/// @brief Refills the window from the raw ring behind the read position, newest first; a position not yet written reads
+/// as silence.
+/// @param num_channels 1 or 2.
 void LivePitchShifterPlayHead::fill_interpolation_buffer(LiveInputBuffer* live_input_buffer, int32_t num_channels) {
-#pragma unroll
+	auto feed = interpolator_.fill_tail(0);
 	for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
 		int32_t pos = (uint32_t)(raw_buffer_read_pos - i) & (kInputRawBufferSize - 1);
-
-		interpolator_.buffer_l[i - 1] =
-		    static_cast<int16_t>(std::cmp_less(pos, live_input_buffer->num_raw_samples_processed)
-		                             ? live_input_buffer->raw_buffer[pos * num_channels] >> 16
-		                             : 0);
-	}
-
-	if (num_channels > 1) {
-#pragma unroll
-		for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
-			int32_t pos = (uint32_t)(raw_buffer_read_pos - i) & (kInputRawBufferSize - 1);
-
-			interpolator_.buffer_r[i - 1] =
-			    static_cast<int16_t>(std::cmp_less(pos, live_input_buffer->num_raw_samples_processed)
-			                             ? live_input_buffer->raw_buffer[pos * num_channels + 1] >> 16
-			                             : 0);
+		const bool written = std::cmp_less(pos, live_input_buffer->num_raw_samples_processed);
+		const auto l = static_cast<int16_t>(written ? live_input_buffer->raw_buffer[pos * num_channels] >> 16 : 0);
+		if (num_channels > 1) {
+			feed.put(l,
+			         static_cast<int16_t>(written ? live_input_buffer->raw_buffer[pos * num_channels + 1] >> 16 : 0));
+		}
+		else {
+			feed.put(l);
 		}
 	}
 }
