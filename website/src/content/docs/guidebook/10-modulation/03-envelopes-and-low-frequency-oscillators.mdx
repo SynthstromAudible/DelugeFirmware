@@ -4,7 +4,7 @@ description: "Envelopes are used to shape the sound typically over one cycle of 
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "10.3"
   chapter: 10
@@ -19,6 +19,7 @@ import EnvelopeFigure from "../../../../components/guidebook/EnvelopeFigure.astr
 import LfoFigure from "../../../../components/guidebook/LfoFigure.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -50,15 +51,6 @@ The LFO is a continuous modulation function. Wave options are Sine, Saw, Square 
   See [More envelopes](/features/community_features#458---more-envelopes).
 </Unwritten>
 
-## LFO2 sync <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): community_features: 4.3.2; CHANGELOG.mdx: L582 */}
-
-<Unwritten>
-  See [New LFO Synchronization
-  Options](/features/community_features#432---new-lfo-synchronization-options).
-</Unwritten>
-
 ## LFOs 3 and 4 <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 4.5.9; CHANGELOG.mdx: L89, L111, L113, L114, L186 */}
@@ -67,10 +59,15 @@ The LFO is a continuous modulation function. Wave options are Sine, Saw, Square 
   See [More LFOs](/features/community_features#459---more-lfos).
 </Unwritten>
 
-## Warble LFO shape <Badge text="C1.3" variant="tip" />
+{/* TODO(kate): community_features: 4.3.2; CHANGELOG.mdx: L582 */}
+
+<VersionNote version="C1.2" label="LFO2 sync">
+  See [New LFO Synchronization
+  Options](/features/community_features#432---new-lfo-synchronization-options).
+</VersionNote>
 
 {/* TODO(kate): community_features: 4.2.6; CHANGELOG.mdx: L102, L113 */}
 
-<Unwritten>
+<VersionNote version="C1.3" label="Warble LFO shape">
   See [Warble LFO](/features/community_features#426---warble-lfo).
-</Unwritten>
+</VersionNote>

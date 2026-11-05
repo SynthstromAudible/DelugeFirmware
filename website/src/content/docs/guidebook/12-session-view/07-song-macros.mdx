@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -28,8 +29,6 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
   See [Song macros](/features/community_features#419---song-macros).
 </Unwritten>
 
-## Bright and dim macro pads <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): PRs: #4572; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="Bright and dim macro pads" />

@@ -4,7 +4,7 @@ description: "Arranger view is a powerful persona and view within Deluge."
 sidebar:
   order: 4
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "14.5"
   chapter: 14
@@ -19,6 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -71,15 +72,13 @@ Arranger view is a powerful persona and view within Deluge. Understanding the ba
 
 </Steps>
 
+{/* TODO(kate): CHANGELOG.mdx: L530 */}
+
+<VersionNote version="C1.2" label="Playing from the scroll position" />
+
 ## Clip rendering <Badge text="C1.2" variant="tip" />
 
 {/* TODO(kate): CHANGELOG.mdx: L662, L664 */}
-
-<Unwritten />
-
-## Playing from the scroll position <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): CHANGELOG.mdx: L530 */}
 
 <Unwritten />
 

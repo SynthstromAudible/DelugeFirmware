@@ -4,7 +4,7 @@ description: "The commonly accessible parameters for clips are available from th
 sidebar:
   order: 4
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "7.5"
   chapter: 7
@@ -21,8 +21,7 @@ import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_5_1 from "../../../../assets/guidebook/figs/07-synthesizers__05-sound-editor-synthesizer-parameters--1.svg?raw"
 import fig_fig_7_5_2 from "../../../../assets/guidebook/figs/07-synthesizers__05-sound-editor-synthesizer-parameters--2.svg?raw"
 import fig_fig_7_5_3 from "../../../../assets/guidebook/figs/07-synthesizers__05-sound-editor-synthesizer-parameters--3.svg?raw"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -42,6 +41,10 @@ Nested menus provide access to the full parameter set available.
 />
 
 <StepFocus />
+
+{/* TODO(kate): PRs: #4881; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Sound editor colours" />
 
 ## Sound editor: editing parameters in nested menus
 
@@ -112,9 +115,3 @@ Editing the actual parameters in the nested menu or when selected with the short
 Some functions, for example transpose, have decimal values which can be fine tuned, at an individual digit level. Where this is applicable the digit in focus will be underscored and can be changed by turning :key[Select].
 
 Use the :key[Horizontal] control to select the digit in-focus to edit.
-
-## Sound editor colours <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): PRs: #4881; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />

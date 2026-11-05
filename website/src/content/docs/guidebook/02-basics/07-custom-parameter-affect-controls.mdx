@@ -1,12 +1,12 @@
 ---
-title: "2.8 Custom Parameter Affect Controls"
+title: "2.7 Custom Parameter Affect Controls"
 description: ""
 sidebar:
-  order: 7
+  order: 6
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
-  section: "2.8"
+  section: "2.7"
   chapter: 2
   pdfPages: [153, 154, 155]
   printedPages: [147, 148, 149]
@@ -18,16 +18,16 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basics__08-custom-parameter-affect-controls--1.svg?raw"
-import fig_fig_2_8_2 from "../../../../assets/guidebook/figs/02-basics__08-custom-parameter-affect-controls--2.svg?raw"
+import fig_fig_2_7_1 from "../../../../assets/guidebook/figs/02-basics__07-custom-parameter-affect-controls--1.svg?raw"
+import fig_fig_2_7_2 from "../../../../assets/guidebook/figs/02-basics__07-custom-parameter-affect-controls--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 There are three parameter functions contained in the affect parameter group. When using presets these will be set to a specific parameter within the preset. The Deluge convention is:
 
 <Figure
-  id="fig-2.8-1"
-  src={fig_fig_2_8_1}
+  id="fig-2.7-1"
+  src={fig_fig_2_7_1}
   alt={
     "Diagram: Custom 1 Typically controls pitch for sample based sounds. Portamento for synth sounds. Custom 2 Typically controls decimation for kits and…"
   }
@@ -79,8 +79,8 @@ MIDI controller controls are also assigned using the same process. MIDI Controls
 Example: sidechain patched to low-pass filter cutoff frequency with a custom control assigned to adjust the depth / strength of modulation.
 
 <Figure
-  id="fig-2.8-2"
-  src={fig_fig_2_8_2}
+  id="fig-2.7-2"
+  src={fig_fig_2_7_2}
   alt={
     "Diagram: MOD RATE STUTTER CUSTOM 2 LEARN / INPUT DEPTH CUSTOM 1 CUSTOM 3 + LPF 35 SIDECHAIN FREQUENCY Select parameter i.e. CUSTOM 1. Set modulation…"
   }

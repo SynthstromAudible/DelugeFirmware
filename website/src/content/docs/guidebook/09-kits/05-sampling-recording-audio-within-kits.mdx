@@ -4,7 +4,7 @@ description: "Kits are a great environment for sampling audio."
 sidebar:
   order: 4
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "9.5"
   chapter: 9
@@ -23,6 +23,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -97,6 +98,13 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
   page={209}
 />
 
+{/* TODO(kate): community_features: 3.19; CHANGELOG.mdx: L836 */}
+
+<VersionNote version="C1.1" label="Default slice mode">
+  See [Sample Slice Default
+  Mode](/features/community_features#319---sample-slice-default-mode).
+</VersionNote>
+
 ## Lazy chop manual slicing audio in a kit
 
 <Steps>
@@ -141,15 +149,6 @@ The currently active slice is lit bright green. Other available slices are ident
 Sample Waveform
 
 Slice Pads
-
-## Default slice mode <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 3.19; CHANGELOG.mdx: L836 */}
-
-<Unwritten>
-  See [Sample Slice Default
-  Mode](/features/community_features#319---sample-slice-default-mode).
-</Unwritten>
 
 ## Sounds sending MIDI notes <Badge text="C1.3" variant="tip" />
 

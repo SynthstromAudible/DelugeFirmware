@@ -4,7 +4,7 @@ description: "Scale mode is automatically set when new synth, MIDI and CV clips 
 sidebar:
   order: 7
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "4.8"
   chapter: 4
@@ -22,6 +22,7 @@ import fig_fig_4_8_1 from "../../../../assets/guidebook/figs/04-sequencing__08-n
 import fig_fig_4_8_2 from "../../../../assets/guidebook/figs/04-sequencing__08-note-scales--2.svg?raw"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -91,6 +92,12 @@ Scale mode is automatically set when new synth, MIDI and CV clips are created. S
 
 </Steps>
 
+{/* TODO(kate): community_features: 4.4.2; CHANGELOG.mdx: L284, L285 */}
+
+<VersionNote version="C1.3" label="Checking the scale with a long press">
+  See [Scales](/features/community_features#442---scales).
+</VersionNote>
+
 ## Transposing a clip up or down
 
 <Steps>
@@ -128,6 +135,13 @@ All songs with multiple clips set to SCALE mode will always be locked to the sam
 
 </Steps>
 
+{/* TODO(kate): community_features: 3.36; CHANGELOG.mdx: L381 */}
+
+<VersionNote version="C1.3" label="Sharps or flats">
+  See [Selectable
+  Accidental](/features/community_features#336---selectable-accidental).
+</VersionNote>
+
 ## New scales <Badge text="C1.1" variant="tip" />
 
 {/* TODO(kate): community_features: 4.4.2; CHANGELOG.mdx: L844, L862, L864, L865 */}
@@ -139,18 +153,3 @@ All songs with multiple clips set to SCALE mode will always be locked to the sam
 {/* TODO(kate): community_features: 4.4.2; CHANGELOG.mdx: L595, L596, L597, L598, L599 */}
 
 <Unwritten>See [Scales](/features/community_features#442---scales).</Unwritten>
-
-## Checking the scale with a long press <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): community_features: 4.4.2; CHANGELOG.mdx: L284, L285 */}
-
-<Unwritten>See [Scales](/features/community_features#442---scales).</Unwritten>
-
-## Sharps or flats <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): community_features: 3.36; CHANGELOG.mdx: L381 */}
-
-<Unwritten>
-  See [Selectable
-  Accidental](/features/community_features#336---selectable-accidental).
-</Unwritten>

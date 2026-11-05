@@ -423,11 +423,11 @@ const checks = {
 
     // 3.14-1 sits under an "Example" sub-heading after its Steps: still bound, 6 steps.
     const p1 = await browser.newPage()
-    await p1.goto(url("04-sequencing/14-euclidean-sequencing"), {
+    await p1.goto(url("04-sequencing/13-euclidean-sequencing"), {
       waitUntil: "load",
     })
     const bound = await p1.evaluate(
-      () => document.getElementById("fig-4.14-1")?.dataset.steps ?? "unbound",
+      () => document.getElementById("fig-4.13-1")?.dataset.steps ?? "unbound",
     )
     check("panel: 3.14-1 is bound to its 6 steps", bound === "6", bound)
     await p1.close()

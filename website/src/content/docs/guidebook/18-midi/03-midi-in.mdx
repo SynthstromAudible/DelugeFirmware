@@ -4,7 +4,7 @@ description: "The Deluge can be controlled by external MIDI keyboards, controlle
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "18.3"
   chapter: 18
@@ -25,6 +25,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -123,6 +124,12 @@ MIDI takeover mode, selectable in the MIDI settings governs the way an external 
 
 +/-
 
+{/* TODO(kate): community_features: 3.3; CHANGELOG.mdx: L906, L908 */}
+
+<VersionNote version="C1.1" label="Relative takeover">
+  See [MIDI](/features/community_features#33---midi).
+</VersionNote>
+
 ## Recording automation using an external controller
 
 <Steps>
@@ -157,9 +164,3 @@ Any recorded data for pitch bend and aftertouch (channel pressure) MIDI inputs i
   See [Added Song New Midi Learn
   Menu](/features/community_features#331---added-song-new-midi-learn-menu).
 </Unwritten>
-
-## Relative takeover <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 3.3; CHANGELOG.mdx: L906, L908 */}
-
-<Unwritten>See [MIDI](/features/community_features#33---midi).</Unwritten>

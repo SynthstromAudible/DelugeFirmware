@@ -3,7 +3,7 @@ title: "3.3 Creating a Clip"
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "3.3"
   chapter: 3
@@ -85,6 +85,7 @@ import fig_fig_3_3_1 from "../../../../assets/guidebook/figs/03-clips__03-creati
 import fig_fig_3_3_2 from "../../../../assets/guidebook/figs/03-clips__03-creating-a-clip--2.svg?raw"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -189,6 +190,13 @@ It is recommended to organise your samples in a folder that can be recognised in
 
 </Steps>
 
+{/* TODO(kate): community_features: 3.27; CHANGELOG.mdx: L624, L625, L626 */}
+
+<VersionNote version="C1.2" label="Default clip type">
+  See [Updated UI for Creating New Clips in New Tracks in Session Grid
+  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
+</VersionNote>
+
 ## Creating an audio clip in session view
 
 <Steps>
@@ -241,15 +249,6 @@ It is recommended to organise your samples in a folder that can be recognised in
 ## New-clip type picker <Badge text="C1.2" variant="tip" />
 
 {/* TODO(kate): community_features: 3.27, 3.32; CHANGELOG.mdx: L620, L622, L624, L626 */}
-
-<Unwritten>
-  See [Updated UI for Creating New Clips in New Tracks in Session Grid
-  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
-</Unwritten>
-
-## Default clip type <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): community_features: 3.27; CHANGELOG.mdx: L624, L625, L626 */}
 
 <Unwritten>
   See [Updated UI for Creating New Clips in New Tracks in Session Grid

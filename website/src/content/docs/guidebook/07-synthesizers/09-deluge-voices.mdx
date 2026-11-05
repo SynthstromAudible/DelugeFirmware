@@ -4,7 +4,7 @@ description: "A voice can be explained as a single signal path used by synthesiz
 sidebar:
   order: 8
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "7.9"
   chapter: 7
@@ -20,8 +20,7 @@ import fig_fig_7_9_1 from "../../../../assets/guidebook/figs/07-synthesizers__09
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -68,6 +67,17 @@ Multiple instances of polyphonic and unison clips are possible under powerful CP
 
 \* Warning: Do not use stereo spread with RING MOD synth type when UNISON NUMBER and NOISE are both values greater than 1. Extremely loud noise is produced. (Known Bug)
 
+{/* TODO(kate): community_features: 3.34; CHANGELOG.mdx: L721, L723, L724 */}
+
+<VersionNote version="C1.1" label="Maximum voices">
+  See [Polyphony / Voice
+  Count](/features/community_features#334---polyphony--voice-count).
+</VersionNote>
+
+{/* TODO(kate): PRs: #5005; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Voice usage menu" />
+
 ## Setting the synth unison
 
 <Steps>
@@ -83,18 +93,3 @@ Multiple instances of polyphonic and unison clips are possible under powerful CP
 9. Use :key[BackUndo] or tap any grid pad once to exit sub-menu and back up a level or to back out of the sound editor.
 
 </Steps>
-
-## Maximum voices <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 3.34; CHANGELOG.mdx: L721, L723, L724 */}
-
-<Unwritten>
-  See [Polyphony / Voice
-  Count](/features/community_features#334---polyphony--voice-count).
-</Unwritten>
-
-## Voice usage menu <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): PRs: #5005; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />

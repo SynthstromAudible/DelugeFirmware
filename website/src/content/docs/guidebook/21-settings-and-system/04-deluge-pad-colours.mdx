@@ -4,7 +4,7 @@ description: "Deluge has options to change the pad illumination including colour
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "21.4"
   chapter: 21
@@ -17,8 +17,7 @@ guidebook:
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -46,6 +45,13 @@ Deluge has options to change the pad illumination including colours, brightness 
 
 </Steps>
 
+{/* TODO(kate): community_features: 3.14; CHANGELOG.mdx: L730 */}
+
+<VersionNote version="C1.1" label="Saved pad brightness">
+  See [Preserve Pad Brightness Preference Through Power
+  Cycle](/features/community_features#314---preserve-pad-brightness-preference-through-power-cycle).
+</VersionNote>
+
 ## Setting deluge pad colours
 
 <Steps>
@@ -57,12 +63,3 @@ Deluge has options to change the pad illumination including colours, brightness 
 </Steps>
 
 Note: Default Mute / Launch pad rows colours for active, muted, stopped and soloed states can also be set in the pad menu within the settings options.
-
-## Saved pad brightness <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 3.14; CHANGELOG.mdx: L730 */}
-
-<Unwritten>
-  See [Preserve Pad Brightness Preference Through Power
-  Cycle](/features/community_features#314---preserve-pad-brightness-preference-through-power-cycle).
-</Unwritten>

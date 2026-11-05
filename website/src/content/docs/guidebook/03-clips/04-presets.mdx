@@ -3,7 +3,7 @@ title: "3.4 Presets"
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "3.4"
   chapter: 3
@@ -21,6 +21,7 @@ import fig_fig_3_4_1 from "../../../../assets/guidebook/figs/03-clips__04-preset
 import fig_fig_3_4_2 from "../../../../assets/guidebook/figs/03-clips__04-presets--2.svg?raw"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -155,6 +156,10 @@ Any new presets saved are available in the library for selection when loading. T
 
 </Steps>
 
+{/* TODO(kate): CHANGELOG.mdx: L801; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.1" label="Preset changes apply to every clip" />
+
 ## Changing a tracks preset when in arranger view
 
 <Steps>
@@ -179,12 +184,6 @@ or
 2. Press & hold :key[Audition Pad] for the instrument / row to change + press :key[Select] for an audio track.
 
 </Steps>
-
-## Preset changes apply to every clip <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): CHANGELOG.mdx: L801; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />
 
 ## MIDI presets <Badge text="C1.1" variant="tip" />
 

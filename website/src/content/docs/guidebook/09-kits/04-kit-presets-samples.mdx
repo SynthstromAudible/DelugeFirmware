@@ -4,7 +4,7 @@ description: "A kit consists of a number of sounds typically based on samples, a
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "9.4"
   chapter: 9
@@ -21,8 +21,7 @@ import fig_fig_9_4_2 from "../../../../assets/guidebook/figs/09-kits__04-kit-pre
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -72,6 +71,20 @@ The pad shortcut for the file browser :key[Shift + Browse Pad] can also be used 
 
 <Figure id="fig-9.4-2" src={fig_fig_9_4_2} alt={"Diagram: +"} page={124} />
 
+{/* TODO(kate): community_features: 4.6.2; CHANGELOG.mdx: L837, L838, L840 */}
+
+<VersionNote version="C1.1" label="Drum randomizer without a limit">
+  See [Drum Randomizer / Load Random
+  Samples](/features/community_features#462---drum-randomizer--load-random-samples).
+</VersionNote>
+
+{/* TODO(kate): community_features: 4.6.2; CHANGELOG.mdx: L313 */}
+
+<VersionNote version="C1.3" label="New drum randomizer shortcuts">
+  See [Drum Randomizer / Load Random
+  Samples](/features/community_features#462---drum-randomizer--load-random-samples).
+</VersionNote>
+
 ## Adding a synth-based preset to a kit row
 
 <Steps>
@@ -107,24 +120,6 @@ The pad shortcut for the file browser :key[Shift + Browse Pad] can also be used 
   }
   page={127}
 />
-
-## Drum randomizer without a limit <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 4.6.2; CHANGELOG.mdx: L837, L838, L840 */}
-
-<Unwritten>
-  See [Drum Randomizer / Load Random
-  Samples](/features/community_features#462---drum-randomizer--load-random-samples).
-</Unwritten>
-
-## New drum randomizer shortcuts <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): community_features: 4.6.2; CHANGELOG.mdx: L313 */}
-
-<Unwritten>
-  See [Drum Randomizer / Load Random
-  Samples](/features/community_features#462---drum-randomizer--load-random-samples).
-</Unwritten>
 
 :::note[See also]
 

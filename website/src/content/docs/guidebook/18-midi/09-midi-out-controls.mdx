@@ -4,7 +4,7 @@ description: ""
 sidebar:
   order: 8
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "18.9"
   chapter: 18
@@ -19,6 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -53,6 +54,10 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 </Steps>
 
+{/* TODO(kate): PRs: #4787; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Hide unlabelled CCs" />
+
 ## Recording automation for external parameters
 
 <Steps>
@@ -86,12 +91,6 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 <Unwritten>
   See [MIDI Device Definition Files](/features/midi_device_definition_files).
 </Unwritten>
-
-## Hide unlabelled CCs <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): PRs: #4787; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />
 
 :::note[See also]
 

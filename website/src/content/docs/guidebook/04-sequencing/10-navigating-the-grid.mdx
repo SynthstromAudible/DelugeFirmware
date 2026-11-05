@@ -4,7 +4,7 @@ description: "Deluge has a 16 x 8 grid of pads which is used when sequencing not
 sidebar:
   order: 9
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "4.10"
   chapter: 4
@@ -20,8 +20,7 @@ import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_4_10_1 from "../../../../assets/guidebook/figs/04-sequencing__10-navigating-the-grid--1.svg?raw"
 import fig_fig_4_10_2 from "../../../../assets/guidebook/figs/04-sequencing__10-navigating-the-grid--2.svg?raw"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -101,6 +100,13 @@ Bar Beat Tick
 
 1.3.1
 
+{/* TODO(kate): community_features: 3.21; CHANGELOG.mdx: L471, L528 */}
+
+<VersionNote version="C1.2" label="Zoom range">
+  See [Eased Timeline Zoom Level
+  Restrictions](/features/community_features#321---eased-timeline-zoom-level-restrictions).
+</VersionNote>
+
 ## Checking zoom level resolution
 
 <Steps>
@@ -118,12 +124,3 @@ Bar Beat Tick
 64TH-NOTES 128TH-NOTES
 
 64th notes 128th notes
-
-## Zoom range <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): community_features: 3.21; CHANGELOG.mdx: L471, L528 */}
-
-<Unwritten>
-  See [Eased Timeline Zoom Level
-  Restrictions](/features/community_features#321---eased-timeline-zoom-level-restrictions).
-</Unwritten>

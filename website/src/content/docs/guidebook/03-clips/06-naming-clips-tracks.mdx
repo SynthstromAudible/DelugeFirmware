@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -36,8 +37,6 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
   See [Clip Names](/features/community_features#335---clip-names).
 </Unwritten>
 
-## Renaming MIDI tracks in arranger <Badge text="C1.2" variant="tip" />
-
 {/* TODO(kate): CHANGELOG.mdx: L656 */}
 
-<Unwritten />
+<VersionNote version="C1.2" label="Renaming MIDI tracks in arranger" />

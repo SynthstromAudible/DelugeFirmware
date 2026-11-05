@@ -142,3 +142,16 @@
 .gb-replay[hidden] {
   display: none;
 }
+
+/* A later firmware's small change to a section, not yet written up. */
+.gb-version-note {
+  border-inline-start: 3px solid var(--sl-color-gray-4);
+  padding-inline-start: 0.75rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.gb-version-note p {
+  display: inline;
+  margin: 0;
+}

@@ -4,7 +4,7 @@ description: "What is a Compressor?"
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "11.3"
   chapter: 11
@@ -25,6 +25,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -126,17 +127,15 @@ Sidechain can be patched as a modulation source to various parameters. The amoun
 
 </Steps>
 
+{/* TODO(kate): community_features: 4.1.1; CHANGELOG.mdx: L489 */}
+
+<VersionNote version="C1.2" label="Compressor blend">
+  See [Compressors](/features/community_features#411---compressors).
+</VersionNote>
+
 ## Per-sound compressors <Badge text="C1.1" variant="tip" />
 
 {/* TODO(kate): community_features: 4.1.1; CHANGELOG.mdx: L716, L718, L719, L758 */}
-
-<Unwritten>
-  See [Compressors](/features/community_features#411---compressors).
-</Unwritten>
-
-## Compressor blend <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): community_features: 4.1.1; CHANGELOG.mdx: L489 */}
 
 <Unwritten>
   See [Compressors](/features/community_features#411---compressors).

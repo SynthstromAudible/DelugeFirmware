@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -26,20 +27,14 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <Unwritten>See [DX Synth](/features/dx_synth).</Unwritten>
 
-## Algorithm display <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): PRs: #5179; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
-
-## DX7 in kits <Badge text="C1.3" variant="tip" />
+<VersionNote version="C1.3" label="Algorithm display" />
 
 {/* TODO(kate): PRs: #5171; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
-
-## Parameter shortcut overlay <Badge text="C1.3" variant="tip" />
+<VersionNote version="C1.3" label="DX7 in kits" />
 
 {/* TODO(kate): PRs: #5145; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="Parameter shortcut overlay" />

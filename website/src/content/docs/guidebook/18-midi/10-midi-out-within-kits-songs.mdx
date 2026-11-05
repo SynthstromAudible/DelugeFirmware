@@ -4,7 +4,7 @@ description: "As well as samples, sounds, synths, MIDI can also be combined with
 sidebar:
   order: 9
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "18.10"
   chapter: 18
@@ -19,8 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_18_10_1 from "../../../../assets/guidebook/figs/18-midi__10-midi-out-within-kits-songs--1.svg?raw"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -65,8 +64,6 @@ As well as samples, sounds, synths, MIDI can also be combined within a kit as a 
 
 </Steps>
 
-## Program numbers 0 to 127 <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): CHANGELOG.mdx: L331 */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="Program numbers 0 to 127" />

@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -38,8 +39,6 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
   Exclusively](/features/community_features#4210---launch-exclusively).
 </Unwritten>
 
-## 24 sections <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): CHANGELOG.mdx: L259 */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="24 sections" />

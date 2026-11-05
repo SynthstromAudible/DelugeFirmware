@@ -4,7 +4,7 @@ description: "Delay adopts the standard principle of taking an audio input signa
 sidebar:
   order: 5
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "11.6"
   chapter: 11
@@ -19,8 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_11_6_1 from "../../../../assets/guidebook/figs/11-effects__06-delay--1.svg?raw"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -61,6 +60,10 @@ The delay can be synchronised to a time interval with respect to the rate. Optio
 
 <StepFocus />
 
+{/* TODO(kate): PRs: #5006; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Delay sync type when cloning" />
+
 ## Setting delay at sound level
 
 <Steps>
@@ -99,9 +102,3 @@ or
 6. Press :key[AffectEntire] to affect the entire kit. Button lit orange. Changes will apply to the entire kit
 
 </Steps>
-
-## Delay sync type when cloning <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): PRs: #5006; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />

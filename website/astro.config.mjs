@@ -136,7 +136,7 @@ const config = defineConfig({
             ],
           },
           {
-            label: "Guidebook (C1.0)",
+            label: "Guidebook",
             icon: "document",
             link: "/guidebook",
             items: [

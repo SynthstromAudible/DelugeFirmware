@@ -4,7 +4,7 @@ description: "An optional way of presenting the song mode is to use the grid vie
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "12.4"
   chapter: 12
@@ -23,6 +23,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -86,6 +87,12 @@ Press :key[Select] to cancel loop countdown.
 
 Press :key[Shift + Launch Pad] to immediately play the clip row in session view.
 
+{/* TODO(kate): community_features: 4.1.5; CHANGELOG.mdx: L275 */}
+
+<VersionNote version="C1.3" label="Selected-clip pulsing">
+  See [Grid View](/features/community_features#415---grid-view).
+</VersionNote>
+
 ## Launching / stopping a clip or section in session grid view
 
 <Steps>
@@ -96,6 +103,10 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in session view.
 4. Playing clips are lit bright and clips which are stopped are lit dimmed.
 
 </Steps>
+
+{/* TODO(kate): PRs: #4571; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Editing section repeats in green mode" />
 
 ## Adjusting armed countdown on the fly
 
@@ -126,15 +137,6 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in session view.
   See [Grid View](/features/community_features#415---grid-view).
 </Unwritten>
 
-## New-clip picker <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): community_features: 3.27; CHANGELOG.mdx: L620, L622, L624, L626 */}
-
-<Unwritten>
-  See [Updated UI for Creating New Clips in New Tracks in Session Grid
-  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
-</Unwritten>
-
 ## Entering clips in green mode <Badge text="C1.3" variant="tip" />
 
 {/* TODO(kate): community_features: 4.1.5; CHANGELOG.mdx: L271, L273, L426 */}
@@ -143,19 +145,12 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in session view.
   See [Grid View](/features/community_features#415---grid-view).
 </Unwritten>
 
-## Selected-clip pulsing <Badge text="C1.3" variant="tip" />
+{/* TODO(kate): community_features: 3.27; CHANGELOG.mdx: L620, L622, L624, L626 */}
 
-{/* TODO(kate): community_features: 4.1.5; CHANGELOG.mdx: L275 */}
-
-<Unwritten>
-  See [Grid View](/features/community_features#415---grid-view).
-</Unwritten>
-
-## Editing section repeats in green mode <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): PRs: #4571; Not confirmed in the changelog: confirm before writing. */}
-
-<Unwritten />
+<VersionNote version="C1.2" label="New-clip picker">
+  See [Updated UI for Creating New Clips in New Tracks in Session Grid
+  View](/features/community_features#327---updated-ui-for-creating-new-clips-in-new-tracks-in-session-grid-view).
+</VersionNote>
 
 :::note[See also]
 

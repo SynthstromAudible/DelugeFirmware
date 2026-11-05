@@ -4,7 +4,7 @@ description: "While a kit can contain drum and synth sounds it is normally recog
 sidebar:
   order: 1
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "5.2"
   chapter: 5
@@ -24,6 +24,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -77,14 +78,12 @@ This is available by pressing :key[Keyboard] when in Kit View
 
 </Steps>
 
+{/* TODO(kate): CHANGELOG.mdx: L369, L371 */}
+
+<VersionNote version="C1.3" label="Drum keyboard zoom levels" />
+
 ## Loading and selecting from the drum keyboard <Badge text="C1.2" variant="tip" />
 
 {/* TODO(kate): CHANGELOG.mdx: L669, L673, L683, L684, L686 */}
-
-<Unwritten />
-
-## Drum keyboard zoom levels <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): CHANGELOG.mdx: L369, L371 */}
 
 <Unwritten />

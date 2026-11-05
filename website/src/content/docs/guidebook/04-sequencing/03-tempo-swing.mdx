@@ -4,7 +4,7 @@ description: "Tempo can be set manually or a tap tempo option is available."
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "4.3"
   chapter: 4
@@ -20,8 +20,7 @@ import fig_fig_4_3_1 from "../../../../assets/guidebook/figs/04-sequencing__03-t
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -49,6 +48,13 @@ Tempo can be set manually or a tap tempo option is available.
 3. The display will show tempo settings when tapping.
 
 </Steps>
+
+{/* TODO(kate): community_features: 5; CHANGELOG.mdx: L219 */}
+
+<VersionNote version="C1.3" label="Four-press tap tempo">
+  See [Community Features Menu (aka Runtime
+  Settings)](/features/community_features#5-community-features-menu-aka-runtime-settings).
+</VersionNote>
 
 ## Switching the metronome on/off
 
@@ -93,17 +99,6 @@ Swing feature provides a rhythmic adjustment that brings a more natural and orga
 
 </Steps>
 
-## Four-press tap tempo <Badge text="C1.3" variant="tip" />
-
-{/* TODO(kate): community_features: 5; CHANGELOG.mdx: L219 */}
-
-<Unwritten>
-  See [Community Features Menu (aka Runtime
-  Settings)](/features/community_features#5-community-features-menu-aka-runtime-settings).
-</Unwritten>
-
-## Playback start behaviour <Badge text="C1.2" variant="tip" />
-
 {/* TODO(kate): CHANGELOG.mdx: L529 */}
 
-<Unwritten />
+<VersionNote version="C1.2" label="Playback start behaviour" />

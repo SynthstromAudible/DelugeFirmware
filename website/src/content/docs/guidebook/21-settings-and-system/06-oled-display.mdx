@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -26,20 +27,14 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
 
 <Unwritten />
 
-## Fonts <Badge text="C1.2" variant="tip" />
-
 {/* TODO(kate): CHANGELOG.mdx: L540 */}
 
-<Unwritten />
-
-## Rounded corners <Badge text="C1.3" variant="tip" />
+<VersionNote version="C1.2" label="Fonts" />
 
 {/* TODO(kate): PRs: #4793; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
-
-## Saving animation <Badge text="C1.3" variant="tip" />
+<VersionNote version="C1.3" label="Rounded corners" />
 
 {/* TODO(kate): CHANGELOG.mdx: L172, L174 */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="Saving animation" />

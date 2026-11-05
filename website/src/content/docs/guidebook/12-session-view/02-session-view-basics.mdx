@@ -4,7 +4,7 @@ description: "While the synth and kit clip view is used for developing individua
 sidebar:
   order: 1
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "12.2"
   chapter: 12
@@ -19,6 +19,7 @@ import fig_fig_12_2_1_a from "../../../../assets/guidebook/figs/12-session-view_
 
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_2_1 from "../../../../assets/guidebook/figs/12-session-view__02-session-view-basics--1.svg?raw"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -55,3 +56,10 @@ First time entering session view only one clip will be present. Clips can be cre
 />
 
 {/* /aside fig-12.2-1 */}
+
+{/* TODO(kate): community_features: 4.1.8; CHANGELOG.mdx: L694, L803, L805 */}
+
+<VersionNote version="C1.1" label="VU meter">
+  See [Added VU Meter rendering to Song / Arranger
+  View](/features/community_features#418---added-vu-meter-rendering-to-song--arranger-view).
+</VersionNote>

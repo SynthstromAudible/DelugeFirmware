@@ -1,27 +1,27 @@
 <svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 369.6 496.5">
 <defs>
-<clipPath id="02-basics__08-custom-parameter-affect-controls--1-clip_1">
+<clipPath id="02-basics__07-custom-parameter-affect-controls--1-clip_1">
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M175.1 127.0H544.8V623.5H175.1Z" clip-rule="evenodd"/>
 </clipPath>
-<clipPath id="02-basics__08-custom-parameter-affect-controls--1-clip_2">
+<clipPath id="02-basics__07-custom-parameter-affect-controls--1-clip_2">
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M187.2 425.7H396.5V619.9H187.2Z" clip-rule="evenodd"/>
 </clipPath>
-<mask id="02-basics__08-custom-parameter-affect-controls--1-mask_3">
+<mask id="02-basics__07-custom-parameter-affect-controls--1-mask_3">
 <g transform="matrix(.096,0,0,.096,12.1,34.9)">
-<image id="02-basics__08-custom-parameter-affect-controls--1-image_4" width="2180" height="1370" xlink:href="/guidebook/img/02-basics__08-custom-parameter-affect-controls--1-1.webp"/>
+<image id="02-basics__07-custom-parameter-affect-controls--1-image_4" width="2180" height="1370" xlink:href="/guidebook/img/02-basics__07-custom-parameter-affect-controls--1-1.webp"/>
 </g>
 </mask>
-<clipPath id="02-basics__08-custom-parameter-affect-controls--1-clip_6">
+<clipPath id="02-basics__07-custom-parameter-affect-controls--1-clip_6">
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M414.8 121.7H532.3V257.7H414.8Z" clip-rule="evenodd"/>
 </clipPath>
-<mask id="02-basics__08-custom-parameter-affect-controls--1-mask_7">
+<mask id="02-basics__07-custom-parameter-affect-controls--1-mask_7">
 <g transform="matrix(.12,0,0,.12,252.4,365.7)">
-<image id="02-basics__08-custom-parameter-affect-controls--1-image_8" width="676" height="1040" xlink:href="/guidebook/img/02-basics__08-custom-parameter-affect-controls--1-2.webp"/>
+<image id="02-basics__07-custom-parameter-affect-controls--1-image_8" width="676" height="1040" xlink:href="/guidebook/img/02-basics__07-custom-parameter-affect-controls--1-2.webp"/>
 </g>
 </mask>
 </defs>
 <g>
-<g clip-path="url(#02-basics__08-custom-parameter-affect-controls--1-clip_1)">
+<g clip-path="url(#02-basics__07-custom-parameter-affect-controls--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M407.0 544.9H538.0V617.5H407.0Z" fill="var(--gb-paper)"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(273.8 16.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Custom 1</tspan></text>
@@ -47,17 +47,17 @@
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M292.7 511.9V377.7"/>
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M406.4 539.7 538.8 539.9"/>
 <path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M406.4 460.5 538.8 460.7"/>
-<g clip-path="url(#02-basics__08-custom-parameter-affect-controls--1-clip_2)">
-<g mask="url(#02-basics__08-custom-parameter-affect-controls--1-mask_3)">
+<g clip-path="url(#02-basics__07-custom-parameter-affect-controls--1-clip_2)">
+<g mask="url(#02-basics__07-custom-parameter-affect-controls--1-mask_3)">
 <g transform="matrix(.096,0,0,.096,12.1,34.9)">
-<image class="gb-ink" id="02-basics__08-custom-parameter-affect-controls--1-image_5" width="2180" height="1370" xlink:href="/guidebook/img/02-basics__08-custom-parameter-affect-controls--1-3.webp"/>
+<image class="gb-ink" id="02-basics__07-custom-parameter-affect-controls--1-image_5" width="2180" height="1370" xlink:href="/guidebook/img/02-basics__07-custom-parameter-affect-controls--1-3.webp"/>
 </g>
 </g>
 </g>
-<g clip-path="url(#02-basics__08-custom-parameter-affect-controls--1-clip_6)">
-<g mask="url(#02-basics__08-custom-parameter-affect-controls--1-mask_7)">
+<g clip-path="url(#02-basics__07-custom-parameter-affect-controls--1-clip_6)">
+<g mask="url(#02-basics__07-custom-parameter-affect-controls--1-mask_7)">
 <g transform="matrix(.12,0,0,.12,252.4,365.7)">
-<image class="gb-ink" id="02-basics__08-custom-parameter-affect-controls--1-image_9" width="676" height="1040" xlink:href="/guidebook/img/02-basics__08-custom-parameter-affect-controls--1-4.webp"/>
+<image class="gb-ink" id="02-basics__07-custom-parameter-affect-controls--1-image_9" width="676" height="1040" xlink:href="/guidebook/img/02-basics__07-custom-parameter-affect-controls--1-4.webp"/>
 </g>
 </g>
 </g>

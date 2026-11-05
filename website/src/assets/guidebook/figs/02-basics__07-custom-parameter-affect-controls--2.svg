@@ -1,10 +1,10 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 341.8 186"><defs><path id="02-basics__08-custom-parameter-affect-controls--2-s1" d="M0 0C6.4 0 11.5 -5.1 11.5 -11.5 11.5 -17.8 6.4 -22.9 0 -22.9 -6.3 -22.9 -11.4 -17.8 -11.4 -11.5 -11.4 -5.1 -6.3 0 0 0ZM0 -0.7C6 -0.7 10.8 -5.5 10.8 -11.5 10.8 -17.4 6 -22.2 0 -22.2 -5.9 -22.2 -10.7 -17.4 -10.7 -11.5 -10.7 -5.5 -5.9 -0.7 0 -0.7Z" fill-rule="evenodd"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 341.8 186"><defs><path id="02-basics__07-custom-parameter-affect-controls--2-s1" d="M0 0C6.4 0 11.5 -5.1 11.5 -11.5 11.5 -17.8 6.4 -22.9 0 -22.9 -6.3 -22.9 -11.4 -17.8 -11.4 -11.5 -11.4 -5.1 -6.3 0 0 0ZM0 -0.7C6 -0.7 10.8 -5.5 10.8 -11.5 10.8 -17.4 6 -22.2 0 -22.2 -5.9 -22.2 -10.7 -17.4 -10.7 -11.5 -10.7 -5.5 -5.9 -0.7 0 -0.7Z" fill-rule="evenodd"/></defs>
 <defs>
-<clipPath id="02-basics__08-custom-parameter-affect-controls--2-clip_1">
+<clipPath id="02-basics__07-custom-parameter-affect-controls--2-clip_1">
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M196.3 181.2H538.2V367.2H196.3Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
-<g clip-path="url(#02-basics__08-custom-parameter-affect-controls--2-clip_1)">
+<g clip-path="url(#02-basics__07-custom-parameter-affect-controls--2-clip_1)">
 <text fill="currentColor" xml:space="preserve" transform="translate(70.0 51.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CUSTOM 1</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(23.4 51.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">DEPTH</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(71.9 11.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">STUTTER</tspan></text>
@@ -31,13 +31,13 @@
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M346.6 255.6 339.2 251.9V259.3ZM345.0 255.6 339.9 253.1C339.9 253.1 339.9 258.1 339.9 258.1Z" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M364.8 265.1C364.8 270.4 360.5 274.7 355.2 274.7H336.1C330.9 274.7 326.6 270.4 326.6 265.1V246.0C326.6 240.8 330.9 236.5 336.1 236.5H355.2C360.5 236.5 364.8 240.8 364.8 246.0ZM364.1 265.1V246.0C364.1 241.2 360.1 237.2 355.2 237.2H336.1C331.2 237.2 327.3 241.2 327.3 246.0V265.1C327.3 270.0 331.2 274.0 336.1 274.0H355.2C360.1 274.0 364.1 270.0 364.1 265.1Z" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M284.3 349.9C290.7 349.9 295.8 344.8 295.8 338.4 295.8 332.1 290.7 327.0 284.3 327.0 278.0 327.0 272.9 332.1 272.9 338.4 272.9 344.8 278.0 349.9 284.3 349.9Z" fill="#f57e32" fill-rule="evenodd"/>
-<use href="#02-basics__08-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 88 17.3)"/>
+<use href="#02-basics__07-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 88 17.3)"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M337.1 349.9C343.5 349.9 348.6 344.8 348.6 338.4 348.6 332.1 343.5 327.0 337.1 327.0 330.8 327.0 325.7 332.1 325.7 338.4 325.7 344.8 330.8 349.9 337.1 349.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<use href="#02-basics__08-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 140.8 17.3)"/>
+<use href="#02-basics__07-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 140.8 17.3)"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M458.1 349.9C464.5 349.9 469.6 344.8 469.6 338.4 469.6 332.1 464.5 327.0 458.1 327.0 451.8 327.0 446.6 332.1 446.6 338.4 446.6 344.8 451.8 349.9 458.1 349.9Z" fill="#5c96cf" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M458.1 349.9C464.5 349.9 469.6 344.8 469.6 338.4 469.6 332.1 464.5 327.0 458.1 327.0 451.8 327.0 446.6 332.1 446.6 338.4 446.6 344.8 451.8 349.9 458.1 349.9ZM458.1 349.2C464.1 349.2 468.9 344.4 468.9 338.4 468.9 332.5 464.1 327.7 458.1 327.7 452.2 327.7 447.3 332.5 447.3 338.4 447.3 344.4 452.2 349.2 458.1 349.2Z" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" d="M231.5 349.9C237.9 349.9 243.0 344.8 243.0 338.4 243.0 332.1 237.9 327.0 231.5 327.0 225.2 327.0 220.1 332.1 220.1 338.4 220.1 344.8 225.2 349.9 231.5 349.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<use href="#02-basics__08-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 35.2 17.3)"/>
+<use href="#02-basics__07-custom-parameter-affect-controls--2-s1" transform="matrix(1 0 0 -1 35.2 17.3)"/>
 <path transform="matrix(1,0,0,-1,-196.3,367.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
 </g>
 </svg>

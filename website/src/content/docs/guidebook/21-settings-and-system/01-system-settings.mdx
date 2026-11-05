@@ -4,7 +4,7 @@ description: "A number of parameter exist that are considered ‘system’ wide.
 sidebar:
   order: 0
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "21.1"
   chapter: 21
@@ -19,6 +19,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -132,11 +133,9 @@ System Settings (Continued)
 
 <Unwritten />
 
-## Battery display <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): community_features: 3.37; CHANGELOG.mdx: L385 */}
 
-<Unwritten>
+<VersionNote version="C1.3" label="Battery display">
   See [Battery Level Display in System
   Menu](/features/community_features#337---battery-level-display-in-system-menu).
-</Unwritten>
+</VersionNote>

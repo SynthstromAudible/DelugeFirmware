@@ -4,7 +4,7 @@ description: "Processing power and CPU management"
 sidebar:
   order: 4
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "21.5"
   chapter: 21
@@ -15,8 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import { Badge } from "@astrojs/starlight/components"
-import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,6 +26,13 @@ Deluge does not enforce firm limits on how many tracks or voices may sound at on
 Unaffected sample voices are very light on the CPU. This has been tested with a measure of up to 110 sounding at once. For synth voices, the most simple ones are light enough to allow around 64 to play.
 
 The Deluge’s analog-modelled oscillator types and drive filter consume a little more CPU than the other types, but not enormously more.
+
+{/* TODO(kate): community_features: 3.34; CHANGELOG.mdx: L721 */}
+
+<VersionNote version="C1.1" label="Voice count display">
+  See [Polyphony / Voice
+  Count](/features/community_features#334---polyphony--voice-count).
+</VersionNote>
 
 ## Considerations for CPU power
 
@@ -57,12 +63,3 @@ You may eject the SD card at any time, the only adverse effect being that if the
 The Deluge has 64MB of working RAM, which is mostly available to hold the currently loaded song’s synths, parameters, and sequenced notes. It’s unlikely that the 64MB limit would ever be reached - this would be enough to hold over 2 million notes.
 
 There may be cases, if both songs contain a lot of samples (i.e. near to the Deluge’s 64MB RAM limit), where the newly loaded song may fail to play some sounds for the first couple of seconds. However, the Deluge does everything it can to avoid such a case, by first discarding any not-currently-playing samples in the old song, and if necessary delay the loading of any not-currently-playing samples in the new song until the old song has been discarded completely.
-
-## Voice count display <Badge text="C1.1" variant="tip" />
-
-{/* TODO(kate): community_features: 3.34; CHANGELOG.mdx: L721 */}
-
-<Unwritten>
-  See [Polyphony / Voice
-  Count](/features/community_features#334---polyphony--voice-count).
-</Unwritten>

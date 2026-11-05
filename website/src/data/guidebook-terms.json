@@ -54,7 +54,7 @@
     {
       "term": "euclidean",
       "aliases": ["euclidean sequencing", "euclidean patterns"],
-      "href": "/guidebook/04-sequencing/14-euclidean-sequencing"
+      "href": "/guidebook/04-sequencing/13-euclidean-sequencing"
     },
     {
       "term": "probability",
@@ -89,7 +89,7 @@
     {
       "term": "alphanumeric keyboard",
       "aliases": ["QWERTY"],
-      "href": "/guidebook/02-basics/07-alphanumeric-keyboard-grid-layout"
+      "href": "/guidebook/02-basics/06-alphanumeric-keyboard-grid-layout"
     },
     {
       "term": "affect entire",

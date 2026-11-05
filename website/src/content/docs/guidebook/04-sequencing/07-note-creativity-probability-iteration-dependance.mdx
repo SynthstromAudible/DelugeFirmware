@@ -4,7 +4,7 @@ description: "Deluge has a number of features that bring even more creativity to
 sidebar:
   order: 6
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "4.7"
   chapter: 4
@@ -24,6 +24,7 @@ import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -148,3 +149,10 @@ Fill is a specific probability / iteration function which allows punch in/out pe
   See [Fill / Not Fill
   Modes](/features/community_features#434---fill--not-fill-modes).
 </Unwritten>
+
+{/* TODO(kate): community_features: 4.5.6; CHANGELOG.mdx: L826 */}
+
+<VersionNote version="C1.1" label="Note row play direction">
+  See [Configure Note Row Play
+  Direction](/features/community_features#456---configure-note-row-play-direction).
+</VersionNote>

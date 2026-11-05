@@ -4,7 +4,7 @@ description: "More in-depth details of the controls will come later."
 sidebar:
   order: 1
 banner:
-  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "2.2"
   chapter: 2
@@ -17,6 +17,7 @@ guidebook:
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -53,3 +54,10 @@ More in-depth details of the controls will come later. Some of the basic and fun
 </Steps>
 
 Note that turning the :key[Select] encoder will scroll to navigate menu options. To jump +/-5 options and speed up scrolling use :key[Shift] + Encoder, i.e. Hold :key[Shift + Turn Select]
+
+{/* TODO(kate): community_features: 3.20; CHANGELOG.mdx: L734 */}
+
+<VersionNote version="C1.1" label="Hold press time">
+  See [Default Hold Press
+  Time](/features/community_features#320---default-hold-press-time).
+</VersionNote>

@@ -4,7 +4,7 @@ description: "The recording of note events can be performed manually using the s
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
 guidebook:
   section: "4.4"
   chapter: 4
@@ -19,6 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -129,6 +130,10 @@ The recording of note events can be performed manually using the step sequencer 
 
 </Steps>
 
+{/* TODO(kate): CHANGELOG.mdx: L555 */}
+
+<VersionNote version="C1.2" label="Metronome during count-in" />
+
 ## Count-in bars <Badge text="C1.1" variant="tip" />
 
 {/* TODO(kate): community_features: 3.7; CHANGELOG.mdx: L788 */}
@@ -136,12 +141,6 @@ The recording of note events can be performed manually using the step sequencer 
 <Unwritten>
   See [Global Interface](/features/community_features#37---global-interface).
 </Unwritten>
-
-## Metronome during count-in <Badge text="C1.2" variant="tip" />
-
-{/* TODO(kate): CHANGELOG.mdx: L555 */}
-
-<Unwritten />
 
 ## Drone notes in linear recording <Badge text="C1.3" variant="tip" />
 

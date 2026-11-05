@@ -1,9 +1,9 @@
 ---
-title: "2.6 File Browser"
+title: "2.5 File Browser"
 sidebar:
-  order: 5
+  order: 4
 guidebook:
-  section: "2.6"
+  section: "2.5"
   chapter: 2
   pdfPages: []
   printedPages: []
@@ -15,6 +15,7 @@ guidebook:
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Badge } from "@astrojs/starlight/components"
 import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -45,8 +46,6 @@ import Unwritten from "../../../../components/guidebook/Unwritten.astro"
   browsing](/features/community_features#4313---auto-load-sample-when-browsing).
 </Unwritten>
 
-## Preview volume <Badge text="C1.3" variant="tip" />
-
 {/* TODO(kate): PRs: #4987; Not confirmed in the changelog: confirm before writing. */}
 
-<Unwritten />
+<VersionNote version="C1.3" label="Preview volume" />
