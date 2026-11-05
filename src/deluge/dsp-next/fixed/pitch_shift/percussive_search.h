@@ -31,9 +31,8 @@ namespace deluge::dsp::fixed::pitch_shift {
 /// @brief The pitched-up hop's placement: how far back from now the new head starts.
 /// @details It searches back from now over the percussiveness entries, between the tuning's nearest edge (moved out by
 /// a random part of itself, so the hops do not settle into one length and sound as a tone) and its furthest, for the
-/// stretch ending at now whose average percussiveness is highest. The averages are compared as floats (quirk Q6,
-/// docs/dev/live_pitch_shifter_quirks.md). The search stops early where it would reach
-/// before the history's start.
+/// stretch ending at now whose average percussiveness is highest, comparing averages by cross-multiplying their totals
+/// and lengths. The search stops early where it would reach before the history's start.
 class PercussiveSearch {
 public:
 	/// @brief The frames back from @p now_frames the new head starts at: a whole number of percussiveness entries.
@@ -55,7 +54,9 @@ public:
 		const int32_t far_edge = tuning.max_search >> kPercussivenessStepMagnitude;
 		int32_t searched = 0;
 		uint32_t total = 0;
-		float best_average = 0;
+		// The best average so far, as its total over its length: none yet is 0 over 1
+		uint32_t best_total = 0;
+		uint32_t best_length = 1;
 		int32_t best = back_edge;
 
 		for (; back_edge < far_edge; ++back_edge) {
@@ -66,9 +67,10 @@ public:
 				}
 				total += history.percussiveness_at(static_cast<uint32_t>(entry_now - searched));
 			}
-			const float average = static_cast<float>(total) / static_cast<float>(searched);
-			if (average > best_average) {
-				best_average = average;
+			// total / searched > best_total / best_length, exactly; an empty stretch (0 over 0) never wins
+			if (uint64_t{total} * best_length > uint64_t{best_total} * static_cast<uint32_t>(searched)) {
+				best_total = total;
+				best_length = static_cast<uint32_t>(searched);
 				best = searched;
 			}
 		}
