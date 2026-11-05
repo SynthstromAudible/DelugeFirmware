@@ -93,7 +93,8 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 	                                      .rangeIndex = menuCtx.range_index,
 	                                      .sourceIndex = menuCtx.source_index,
 	                                      .source = nullptr,
-	                                      .sampleControls = nullptr};
+	                                      .sampleControls = nullptr,
+	                                      .kitGlobalFx = menuCtx.is_kit_global_fx};
 	if (currentSong == nullptr) {
 		return resolved;
 	}

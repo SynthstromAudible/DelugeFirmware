@@ -104,6 +104,7 @@
 #include "util/comparison.h"
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 #include <new>
 #include <string.h>
 
@@ -2893,7 +2894,7 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 
 	// check if we're in the sound menu and not the settings menu
 	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
-	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
+	bool inSoundMenu = deluge::gui::ui::soundMenuOpen();
 
 	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
 	                                                           inSoundMenu, forEdit);
@@ -3063,8 +3064,7 @@ bool AutomationView::getAffectEntire() {
 		return true;
 	}
 	// are you in the sound menu for a kit?
-	else if (getCurrentOutputType() == OutputType::KIT && getCurrentUI() == &soundEditor
-	         && !soundEditor.inSettingsMenu()) {
+	else if (getCurrentOutputType() == OutputType::KIT && deluge::gui::ui::soundMenuOpen()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
 		if (soundEditor.setupKitGlobalFXMenu) {
 			return true;

@@ -426,7 +426,7 @@ void set_clock_ms(uint32_t ms) {
 ///
 /// Nothing here decides when the guest should run. Each round reads the duration the guest last
 /// asked `uiTimerManager` for, advances the clock by exactly that, clears the timer the way
-/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp:62-66`), and calls
+/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp:63-67`), and calls
 /// `timerCallback()` the way that function's `UI_SPECIFIC` arm does (`:142-148`). A guest that
 /// re-arms nothing ends the loop early -- which is what makes "the blink froze on an idle system" a
 /// failed expectation rather than a slow test.
@@ -1277,7 +1277,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	//
 	// `exitUI` above is the LONG press only: `Buttons` arms `TimerName::BACK_MENU_EXIT` on Back
 	// down (`hid/buttons.cpp:114-121`) and the manager calls `exitUI` from that arm alone
-	// (`gui/ui_timer_manager.cpp:149-155`). A short Back is fed into the shell like any other
+	// (`gui/ui_timer_manager.cpp:150-156`). A short Back is fed into the shell like any other
 	// button and routed inside `Shell::tick`, where a scene can take itself off the stack --
 	// `MenuScene`'s `Action::Kind::Remove` at depth 0. If nothing closed the guest
 	// when that emptied the stack, `shellHostUI` would stay current, drawing nothing and swallowing
@@ -2451,7 +2451,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// **The guard at `ShellHostUI::rearmTimer`'s top**.
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
-		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
+		// (`gui/ui_timer_manager.cpp:143-149`) -- so arming it while something else is current hands
 		// this guest's tick to that something else.
 		//
 		// This is not hypothetical, and it is not a state the guest puts itself into: three of the
@@ -2535,7 +2535,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(40'000'000));
 
 		// Past it, the arm saturates. Unclamped, `ms * 44` is 4.4e9 and overflows
-		// (`gui/ui_timer_manager.cpp:253-255`); waking early instead costs one tick, because the
+		// (`gui/ui_timer_manager.cpp:252-254`); waking early instead costs one tick, because the
 		// next tick recomputes `next_wake()` from scratch.
 		Rig far;
 		far.base.timer = 100'000'000; // ~27 hours
@@ -2614,7 +2614,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		(void)run_quiet(survive.guest, now, 3);
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
-		// Reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:149-155`), not from
+		// Reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:150-156`), not from
 		// `UI_SPECIFIC`, so nothing has re-armed the tick and the stack has just changed.
 		expect(survive.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));

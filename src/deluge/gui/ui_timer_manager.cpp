@@ -35,6 +35,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/sound_menu_open.h"
 
 #include <algorithm>
 
@@ -159,9 +160,7 @@ void UITimerManager::routine() {
 
 						automationView.displayAutomation();
 
-						if (getCurrentUI() == &soundEditor) {
-							soundEditor.getCurrentMenuItem()->readValueAgain();
-						}
+						deluge::gui::ui::readSoundMenuValueAgain();
 					}
 
 					else {

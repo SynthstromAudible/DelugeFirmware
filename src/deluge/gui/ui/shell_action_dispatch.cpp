@@ -165,7 +165,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///     but read the rest, because the guard was added for a sibling of this exact mistake and the
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
 ///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
-///     (`gui/ui_timer_manager.cpp:142-148`), i.e. to the root view underneath -- the hazard
+///     (`gui/ui_timer_manager.cpp:143-149`), i.e. to the root view underneath -- the hazard
 ///     `ShellHostUI::closeGuest`'s own comment names (`:1110-1114`). What survives the guard and
 ///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
 ///     on the shell stack, so the next open would resume a menu session this one was supposed to

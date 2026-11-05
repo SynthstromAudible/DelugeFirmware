@@ -18,7 +18,9 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
+#include "model/instrument/kit.h"
 #include "modulation/params/param.h"
+#include "processing/sound/sound_drum.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -28,6 +30,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "synth/modulation/cable.h"
+#include "util/sound_menu_open.h"
 
 #include "support/global_guest_menu.h"
 #include "support/menu_over_root.h"
@@ -455,7 +458,52 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		expect(fx.clip->yScroll).to_equal(moved);
 	});
 });
+describe automation_sound_menu("the legacy views see the ported menu as the sound menu", $ {
+	it("reads the ported menu over the automation view as the open sound menu, and not once it is gone", _ {
+		ShellMenuOn on;
+		spec::SongFixture fx = spec::make_synth_song();
+		on_overview(fx.clip);
+		{
+			GlobalGuestGuard guest_guard;
+			UiStackGuard ui_guard;
+			expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
+			expect(deluge::gui::ui::soundMenuOpen()).to_be_true();
+			expect(deluge::gui::ui::soundMenuCurrent()).to_be_true();
+		}
+		expect(deluge::gui::ui::soundMenuOpen()).to_be_false();
+	});
+
+	it("takes a kit's context from the menu open over it, not from the clip's affect-entire", _ {
+		// `AutomationView::getAffectEntire`: in a kit's sound menu, the kit's effects menu reads as affect-entire and
+		// a row's menu as not, whatever the clip says -- so a row's shortcut, then CLIP, edits the row.
+		ShellMenuOn on;
+		spec::SongFixture fx = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(fx);
+		on_overview(fx.clip);
+		fx.clip->affectEntire = true;
+		{
+			GlobalGuestGuard guest_guard;
+			UiStackGuard ui_guard;
+			(void)menu::assign_node_ids(nodes::kAllRoots);
+			setRootUILowLevel(&automationView);
+			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false))
+			    .to_be_true();
+			expect(automationView.getAffectEntire()).to_be_false();
+		}
+		{
+			GlobalGuestGuard guest_guard;
+			UiStackGuard ui_guard;
+			fx.clip->affectEntire = false;
+			(void)menu::assign_node_ids(nodes::kAllRoots);
+			setRootUILowLevel(&automationView);
+			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/true))
+			    .to_be_true();
+			expect(automationView.getAffectEntire()).to_be_true();
+		}
+		expect(automationView.getAffectEntire()).to_be_false(); // the clip's again
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(automation_retarget_spec, automation_root_facts, automation_retarget, automation_menu_view,
-            automation_encoders)
+            automation_encoders, automation_sound_menu)

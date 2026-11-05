@@ -91,7 +91,7 @@ namespace deluge::gui::ui {
 /// only in `opened()`.
 ///
 /// `TimerName::UI_SPECIFIC` is the timer, dispatched to `getCurrentUI()` by
-/// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:142-148`). Legacy clears it out from under
+/// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:143-149`). Legacy clears it out from under
 /// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp`), `changeRootUI` (the only conditional one: it clears
 /// only while `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`), `closeUI` and `openUI` -- all of them *before* the
 /// `opened()`/`focusRegained()` that follows, so arming from those two hooks is safe and is the only thing that makes
@@ -102,7 +102,7 @@ namespace deluge::gui::ui {
 ///
 /// `Shell::next_wake()` is an **absolute** millisecond deadline, recomputed at the bottom of every
 /// tick. `UITimerManager::setTimer` takes a **duration**
-/// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
+/// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:252-254`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
 /// `Shell::compute_next_wake` and `RepaintGate` both use -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the
 /// wrong one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
@@ -124,12 +124,12 @@ namespace deluge::gui::ui {
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
 ///
 /// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly `AudioEngine::audioSampleTimer`
-/// (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms = 44
+/// (`gui/ui_timer_manager.cpp:256-265`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms = 44
 /// samples) is the smallest duration `setTimer`'s `ms * 44` can express that leaves `triggerTime`
 /// strictly in the future**, and that is the whole of the argument: with zero, `triggerTime` is
 /// already behind the audio sample timer by the time `UITimerManager::routine` is next called at all
 /// -- audio advances at 44.1 kHz, far faster than the main loop the routine is called from -- so
-/// `timeNextEvent` is past, the early return at `gui/ui_timer_manager.cpp:54-57` does not fire, and
+/// `timeNextEvent` is past, the early return at `gui/ui_timer_manager.cpp:55-58` does not fire, and
 /// the timer's own test at `:64-65` is true. The whole 29-timer sweep and the shell's whole tick
 /// would then run on **every** pass of the main loop, for as long as the guest kept re-arming at
 /// zero. With 44 samples they run at most once a millisecond.
@@ -142,7 +142,7 @@ namespace deluge::gui::ui {
 ///
 /// @warning **1 ms is not legacy's animation cadence, and a future tenant will want the difference.**
 ///          Legacy's per-frame hook is `graphicsRoutine`, whose one external driver is
-///          `TimerName::GRAPHICS_ROUTINE`, re-armed at **15 ms** (`gui/ui_timer_manager.cpp:213-218`;
+///          `TimerName::GRAPHICS_ROUTINE`, re-armed at **15 ms** (`gui/ui_timer_manager.cpp:212-217`;
 ///          `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside the class
 ///          hierarchy). So a scene answering 0 gets ~1000 ticks/s here where legacy's equivalent runs
 ///          at ~66. 1 ms is nonetheless the right floor **for the scenes that run here**: the first is
@@ -318,7 +318,7 @@ public:
 	/// @name The tick's two clamps
 	/// @{
 	/// @brief What `UITimerManager::setTimer` multiplies a millisecond duration by
-	///        (`gui/ui_timer_manager.cpp:253-255`).
+	///        (`gui/ui_timer_manager.cpp:252-254`).
 	static constexpr int32_t kTimerSamplesPerMs = 44;
 	/// @brief The shortest re-arm the guest will ask for. See `@par Why the floor is 1 ms`.
 	static constexpr int32_t kMinRearmMs = 1;
@@ -451,7 +451,7 @@ private:
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
 	/// is armed here either, and the timer stays inactive (`UITimerManager::routine` cleared it
-	/// before calling, `gui/ui_timer_manager.cpp:66`). **With one exception**: while the lowering
+	/// before calling, `gui/ui_timer_manager.cpp:67`). **With one exception**: while the lowering
 	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
 	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
 	/// input-driven.

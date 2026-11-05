@@ -588,7 +588,7 @@ public:
 	///   * `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`) runs for **any** current UI
 	///     that returned `NOT_DEALT_WITH` from `getCurrentUI()->buttonAction` at `:134`, root or
 	///     not. That group needs no gate.
-	///   * `View::buttonAction` (`gui/views/view.cpp:140-487`) is reached only from a **root view**.
+	///   * `View::buttonAction` (`gui/views/view.cpp:141-488`) is reached only from a **root view**.
 	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
 	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
 	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
@@ -664,7 +664,7 @@ public:
 	///          per-iteration.** `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
 	///          the `UI` hierarchy: `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm,
 	///          which calls `getCurrentUI()->graphicsRoutine()` and then re-arms itself at **15 ms**
-	///          (`gui/ui_timer_manager.cpp:213-218`), behind a pad-output-space gate. So legacy's
+	///          (`gui/ui_timer_manager.cpp:212-217`), behind a pad-output-space gate. So legacy's
 	///          per-frame cadence is ~66 Hz on `uiTimerManager`, not the main loop's rate. Zero here
 	///          still means "next tick" -- what it costs is a question for the *host*, which decides
 	///          the tick rate, and `ShellHostUI` (`gui/ui/shell_host_ui.h`, `@par Why the floor is

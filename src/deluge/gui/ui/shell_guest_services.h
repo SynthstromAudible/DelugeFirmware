@@ -68,6 +68,13 @@ void wireShellGuestServices();
 ///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.
 void refreshShellRootFacts();
 
+/// @brief Whether the ported menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
+///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
+bool shellSoundMenuOpen();
+
+/// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
+void shellMenuReadValueAgain();
+
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
 

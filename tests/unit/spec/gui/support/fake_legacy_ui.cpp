@@ -142,7 +142,7 @@ void reset() {
 // is recorded with its duration and that `isTimerSet` answers honestly.
 //
 // `routine()` is deliberately a no-op rather than a reimplementation of
-// `gui/ui_timer_manager.cpp:52-251`: dispatching would need `getCurrentUI()`,
+// `gui/ui_timer_manager.cpp:53-250`: dispatching would need `getCurrentUI()`,
 // which needs the whole `uiNavigationHierarchy` this suite does not build. A
 // spec that wants the tick chain calls `timerCallback()` itself, at the moment
 // the recorded arm says the manager would have.
@@ -164,7 +164,7 @@ void UITimerManager::setTimer(TimerName which, int32_t ms) {
 
 void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	// The real conversion, run backwards, so a spec reads one unit: `setTimer` is
-	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:253-255`).
+	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:252-254`).
 	fakelegacyui::timer_arms.push_back(fakelegacyui::TimerArm{which, samples / 44});
 	getTimer(which).active = true;
 }

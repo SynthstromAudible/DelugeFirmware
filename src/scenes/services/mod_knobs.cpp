@@ -774,7 +774,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp:1689`): `numBlinks` 255 (i.e. forever) on
+	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp:1690`): `numBlinks` 255 (i.e. forever) on
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 
@@ -827,7 +827,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	now_ms_ = now_ms;
 
 	if (automation_display_ms_.has_value() && static_cast<int32_t>(now_ms - *automation_display_ms_) >= 0) {
-		// `TimerName::DISPLAY_AUTOMATION`'s callback (`gui/ui_timer_manager.cpp:157-171`) is
+		// `TimerName::DISPLAY_AUTOMATION`'s callback (`gui/ui_timer_manager.cpp:158-170`) is
 		// `automationView.displayAutomation()` / `view.displayAutomation()`, both view-side and not
 		// ported. Disarming is all this can do; `automation_display_pending()` is the fact
 		// `leds()` reads, exactly as legacy reads `isTimerSet(DISPLAY_AUTOMATION)`.
@@ -836,7 +836,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 
 	if (automation_feedback_ms_.has_value() && static_cast<int32_t>(now_ms - *automation_feedback_ms_) >= 0) {
 		automation_feedback_ms_.reset();
-		// `TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION`'s callback (`ui_timer_manager.cpp:173-176`):
+		// `TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION`'s callback (`ui_timer_manager.cpp:172-175`):
 		// only while playback is active, and only when feedback automation is not disabled. The
 		// LOW/MEDIUM/HIGH send-rate re-arm below those lines is `ui_timer_manager`'s own and is not
 		// ported here -- it is not part of any `View` function this service ports.

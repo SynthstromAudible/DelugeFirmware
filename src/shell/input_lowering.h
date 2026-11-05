@@ -402,7 +402,7 @@ public:
 
 private:
 	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
-	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1969-1971`).
+	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1970-1972`).
 	///
 	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
 	/// compares against; one second is legacy's own number and clears it by a wide margin.

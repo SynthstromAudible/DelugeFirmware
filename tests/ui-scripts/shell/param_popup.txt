@@ -16,7 +16,7 @@
 # **The turn at 100 ms is SWALLOWED, and that is the port working, not the script failing.**
 # `ModKnobs::set_focus` opens with `pretend_knobs_untouched()`
 # (legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1968-1972`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
+# `view.cpp:1969-1973`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
 # gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
 # of a possible wiggle. Every gold gesture on the device therefore
 # costs a detent to arm, and the fixture sets the mod target before the run exactly as

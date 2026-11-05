@@ -90,7 +90,7 @@ void setViewStates(GuestServices& services) {
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
-	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:521`: it is
+	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:522`: it is
 	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
 	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:165-170`), which is the
 	// state during a song swap and the state a spec that opens no UI is in.
@@ -128,6 +128,16 @@ void refreshShellRootFacts() {
 	setViewStates(guestServices());
 	deluge::scenes::menu_scene().set_root_facts(deluge::gui::menuRootGreyout(), getRootUI() == &keyboardScreen,
 	                                            getRootUI() == &automationView);
+}
+
+bool shellSoundMenuOpen() {
+	const auto& scene = deluge::scenes::menu_scene();
+	return getCurrentUI() == &shellHostUI && &shellHostUI.shell().stack().input_top() == &scene
+	       && scene.menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
+}
+
+void shellMenuReadValueAgain() {
+	deluge::scenes::menu_scene().read_value_again();
 }
 
 bool guestKnobsSeeAutomationEditor() {

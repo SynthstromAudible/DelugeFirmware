@@ -272,7 +272,7 @@ extern bool note_exit_saw_knob_clear;
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
 /// under which the real `UITimerManager` would have called `timerCallback()` at all
-/// (`gui/ui_timer_manager.cpp:142-148`). A spec driving `timerCallback()` by hand is standing in for
+/// (`gui/ui_timer_manager.cpp:143-149`). A spec driving `timerCallback()` by hand is standing in for
 /// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
 ///
 /// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes

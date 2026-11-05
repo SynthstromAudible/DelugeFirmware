@@ -213,6 +213,8 @@ public:
 		int8_t sourceIndex;
 		Source* source;
 		SampleControls* sampleControls;
+		/// `setupKitGlobalFXMenu`: the kit's own effects rather than a row's.
+		bool kitGlobalFx;
 	};
 
 	/// @brief Point the resolved `current*` members at what @p resolved names -- `setup()`'s
