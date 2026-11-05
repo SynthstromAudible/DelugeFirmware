@@ -70,7 +70,7 @@ void ModFx::finish(RingChange& change) {
 	}
 }
 
-void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume,
+void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, dsp::Q<27>& post_fx_volume,
                    dsp::fixed::Cong& noise) {
 	const bool ring_type = is_ring_type(in.active);
 	if (!ring_type) {
@@ -95,8 +95,7 @@ void ModFx::render(std::span<dsp::StereoSample> block, const ModFxInputs& in, in
 		mono_.configure(settings);
 		settings_ = settings;
 	}
-	// The owner's post-FX volume is a Q27 word (the bitcrush shifts it), scaled in place.
-	post_fx_volume = Kernel::post_fx_volume(mono_.coefficients(), dsp::Q<27>::from_raw(post_fx_volume)).raw();
+	post_fx_volume = Kernel::post_fx_volume(mono_.coefficients(), post_fx_volume);
 	if (ring_type && !holdsRing()) {
 		return;
 	}

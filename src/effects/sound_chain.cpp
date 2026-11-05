@@ -31,11 +31,10 @@ SoundChain::SoundChain(RingAllocator mod_fx_allocator, RingAllocator granular_al
 
 bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInputs& in, ReverbSend send) {
 	const EffectStates& settings = *in.fx.settings;
-	// The bitcrush lowers the volume by a run-time shift, so a word
-	int32_t post_fx_volume = in.post_fx_volume.raw();
 	core_.send_and_volume().prime(in.post_reverb_volume);
 
-	post_fx_volume >>= core_.bitcrush().process(block, in.bitcrush).volume_shift;
+	dsp::Q<27> post_fx_volume =
+	    scale_shr_floor(in.post_fx_volume, core_.bitcrush().process(block, in.bitcrush).volume_shift);
 	// A sound's type in effect is its setting: it has no soft off.
 	FxInputs fx = in.fx;
 	fx.mod_fx_type = settings.mod_fx.type;
@@ -45,7 +44,7 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 	}
 
 	const bool sent = core_.send_and_volume().process(block, send.first(block.size()),
-	                                                  {.post_fx_volume = dsp::Q<27>::from_raw(post_fx_volume),
+	                                                  {.post_fx_volume = post_fx_volume,
 	                                                   .post_reverb_volume = in.post_reverb_volume,
 	                                                   .reverb_send = in.reverb_send,
 	                                                   .pan = dsp::Q<31>{},
@@ -57,7 +56,7 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 	compressor.dsp().set_threshold(in.compressor_threshold); // a sound's threshold is its param
 	if (in.compressor_threshold > dsp::Q<31>{}) {
 		// The Q27 volume's word read as the 3.29 final volume, a quarter, as it is tuned.
-		compressor.dsp().render_volume_neutral(block, dsp::Q<29>::from_raw(post_fx_volume));
+		compressor.dsp().render_volume_neutral(block, reinterpret_bits<dsp::Q<29>>(post_fx_volume));
 	}
 	else {
 		compressor.dsp().reset();

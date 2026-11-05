@@ -14,8 +14,7 @@ src/deluge/bench/cases.cpp raw=0 boundary=7
 src/deluge/bench/cases.h raw=0 boundary=21
 src/deluge/bench/delay_cases.cpp raw=0 boundary=2
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
-src/deluge/bench/granular_cases.cpp raw=0 boundary=1
-src/deluge/bench/reference_chains.h raw=4 boundary=36
+src/deluge/bench/reference_chains.h raw=4 boundary=44
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=1
 src/deluge/dsp-next/core/convert.h raw=0 boundary=7
@@ -25,7 +24,7 @@ src/deluge/dsp-next/core/mixer.h raw=0 boundary=2
 src/deluge/dsp-next/core/mono.h raw=0 boundary=2
 src/deluge/dsp-next/core/phasor.h raw=0 boundary=2
 src/deluge/dsp-next/core/processor.h raw=0 boundary=2
-src/deluge/dsp-next/fixed/curves/exp_curve.h raw=1 boundary=6
+src/deluge/dsp-next/fixed/curves/exp_curve.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/curves/instant_tan.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/curves/param_curve.h raw=0 boundary=10
 src/deluge/dsp-next/fixed/delay/analog_impulse_response.h raw=0 boundary=5
@@ -57,7 +56,7 @@ src/deluge/dsp-next/fixed/filter/high_pass_ladder.h raw=1 boundary=20
 src/deluge/dsp-next/fixed/filter/low_pass_ladder.h raw=0 boundary=30
 src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/filter/svf.h raw=0 boundary=6
-src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=24
+src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=1 boundary=22
 src/deluge/dsp-next/fixed/interpolation/interpolator.cpp raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/sinc_interpolation.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=0 boundary=4
@@ -74,7 +73,7 @@ src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/shaping/antialiased_tanh.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/shaping/bit_depth.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16
-src/deluge/dsp-next/fixed/shaping/tanh.h raw=1 boundary=5
+src/deluge/dsp-next/fixed/shaping/tanh.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=18
@@ -109,7 +108,7 @@ src/deluge/model/sample/sample.cpp raw=0 boundary=4
 src/deluge/model/sample/sample.h raw=0 boundary=1
 src/deluge/model/sample/sample_low_level_reader.cpp raw=0 boundary=7
 src/deluge/model/sample/sample_low_level_reader.h raw=0 boundary=2
-src/deluge/model/sample/sample_recorder.cpp raw=2 boundary=7
+src/deluge/model/sample/sample_recorder.cpp raw=0 boundary=5
 src/deluge/model/song/song.cpp raw=0 boundary=1
 src/deluge/model/voice/sample_playback_adapter.cpp raw=0 boundary=2
 src/deluge/model/voice/voice_sample.cpp raw=0 boundary=20
@@ -128,13 +127,12 @@ src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
 src/deluge/util/functions.h raw=0 boundary=4
 src/deluge/util/param_functions.cpp raw=0 boundary=2
 src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
-src/effects/chain_core.cpp raw=0 boundary=1
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
-src/effects/filter.cpp raw=0 boundary=6
+src/effects/filter.cpp raw=0 boundary=8
 src/effects/granular.cpp raw=0 boundary=4
-src/effects/master_chain.cpp raw=0 boundary=5
-src/effects/mod_fx.cpp raw=0 boundary=6
+src/effects/master_chain.cpp raw=0 boundary=1
+src/effects/mod_fx.cpp raw=0 boundary=4
 src/effects/param_fragment.h raw=0 boundary=8
 src/effects/reverb.cpp raw=0 boundary=3
 src/effects/saturation.cpp raw=0 boundary=4
@@ -142,8 +140,8 @@ src/effects/saturation.h raw=0 boundary=2
 src/effects/send_and_volume.h raw=0 boundary=1
 src/effects/sidechain.cpp raw=0 boundary=7
 src/effects/sidechain.h raw=0 boundary=2
-src/effects/sound_chain.cpp raw=0 boundary=3
-src/effects/track_chain.cpp raw=0 boundary=5
+src/effects/sound_chain.cpp raw=0 boundary=1
+src/effects/track_chain.cpp raw=0 boundary=3
 src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
 src/scenes/services/knob_push.cpp raw=0 boundary=5
 src/synth/engines/block_controls.h raw=0 boundary=2

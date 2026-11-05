@@ -96,7 +96,7 @@ public:
 			                 .mix = Q<31>::from_raw(mix),
 			                 .density = Q<31>::from_raw(density),
 			                 .randomness = Q<31>::from_raw(randomness)});
-			*volume = Granular::post_fx_volume(*volume);
+			*volume = Granular::post_fx_volume(Q<27>::from_raw(*volume)).raw();
 			mono_.on<&Granular::set_send>(deluge::dsp::typed_view(std::span{send}).data(),
 			                              deluge::dsp::Q<31>::from_raw(reverb_amount));
 			const std::span<StereoSample> block = deluge::dsp::test::typed_frames(frames);

@@ -67,7 +67,9 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		        int64_t{multiply_32x32_rshift32(*postFXVolume, verbAmount)} << 5, int64_t{INT32_MAX}))),
 		    .sound = anySoundComingIn,
 		};
-		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);
+		auto volume = deluge::dsp::Q<27>::from_raw(*postFXVolume);
+		c.granular().render(buffer, grain, volume, {reverbBuffer.data(), buffer.size()}, *in.noise);
+		*postFXVolume = volume.raw();
 	}
 	else {
 		const fx::ModFxInputs mod{
@@ -79,7 +81,9 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .stereo = in.stereo,
 		    .sound = anySoundComingIn,
 		};
-		c.mod_fx().render(buffer, mod, *postFXVolume, *in.noise);
+		auto volume = deluge::dsp::Q<27>::from_raw(*postFXVolume);
+		c.mod_fx().render(buffer, mod, volume, *in.noise);
+		*postFXVolume = volume.raw();
 	}
 	c.equalizer().process(buffer, in.eq);
 	c.delay().process(buffer, in.delay, in.stereo);
@@ -165,7 +169,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	int32_t volumePostFX = in.volume_post_fx.raw();
 
 	// The filters' settings, which compensate the post-FX volume.
-	volumePostFX = filter_.configure(settings.filter, in.filter, volumePostFX);
+	volumePostFX = filter_.configure(settings.filter, in.filter, deluge::dsp::Q<27>::from_raw(volumePostFX)).raw();
 
 	int32_t reverbSendAmount = in.reverb_send.raw();
 	int32_t pan = in.pan.raw();
@@ -252,7 +256,8 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 
 	int32_t masterVolumeAdjustmentL = post->master_volume.raw();
 	int32_t masterVolumeAdjustmentR = post->master_volume.raw();
-	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
+	masterVolumeAdjustmentL =
+	    filter_.configure(settings.filter, post->filter, deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentL)).raw();
 	filter_.process(renderingBuffer, post->filter_scratch, *post->noise);
 	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
 

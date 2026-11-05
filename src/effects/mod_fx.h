@@ -165,7 +165,7 @@ public:
 	/// @param in The type and knobs for this block.
 	/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity; scaled in place.
 	/// @param noise The synth's noise stream, which the warblers draw their targets from.
-	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume,
+	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, dsp::Q<27>& post_fx_volume,
 	            dsp::fixed::Cong& noise);
 	/// @brief Advances the LFO by @p frames at @p rate (UQ0.32 per frame) while the owner skips rendering.
 	/// @param frames How many frames to advance.

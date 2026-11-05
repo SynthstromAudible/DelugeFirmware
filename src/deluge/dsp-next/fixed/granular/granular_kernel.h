@@ -148,8 +148,8 @@ struct Granular {
 	}
 
 	/// @return @p volume (Q27, 2^27 unity) divided by √2: the owner's post-FX volume while the effect renders.
-	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(int32_t volume) {
-		return mul_as_wrap<Q<27>>(Q<27>::from_raw(volume), Q<31>::from_raw(kOneOverSqrt2Q31)).raw();
+	[[nodiscard]] [[gnu::always_inline]] static Q<27> post_fx_volume(Q<27> volume) {
+		return mul_as_wrap<Q<27>>(volume, Q<31>::from_raw(kOneOverSqrt2Q31));
 	}
 
 	/// @brief Frees the grains of the first pass when the block starts at the ring's end, updates the derived values of

@@ -396,7 +396,7 @@ bool changesBlock(ModControllableAudio& owner, ParamManager& params, ModFXType t
 	    .sound = true,
 	};
 	bool changed = false;
-	int32_t volume = kOneQ31 >> 1;
+	auto volume = deluge::dsp::Q<27>::from_raw(kOneQ31 >> 1);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
@@ -444,7 +444,7 @@ MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 			const auto v = static_cast<int32_t>((static_cast<uint32_t>(b) * kRenderBlockFrames + i) << 20);
 			block[i] = {.l = deluge::dsp::Q<31>::from_raw(v), .r = deluge::dsp::Q<31>::from_raw(-v)}; // a raw ramp
 		}
-		int32_t volume = kOneQ31 >> 1;
+		auto volume = deluge::dsp::Q<27>::from_raw(kOneQ31 >> 1);
 		master.core().soft_off_grain(fx);
 		master.core().render_fx(block, fx, volume, true, deluge::dsp::typed_view(std::span{send}));
 		made.frames.insert(made.frames.end(), std::begin(block), std::end(block));

@@ -6,6 +6,7 @@
  */
 
 #include "reference_patcher.h"
+#include "dsp-next/core/q31_ops.h"
 #include "raw_curves.h"
 #include "raw_matrix.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange

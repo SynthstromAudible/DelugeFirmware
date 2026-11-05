@@ -124,6 +124,7 @@ public:
 
 	void processGrainFX(std::span<RawFrame> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
+		auto typed_volume = deluge::dsp::Q<27>::from_raw(*volume);
 		fx_.render(deluge::dsp::test::typed_frames(frames),
 		           {.rate = rate,
 		            .mix = mix,
@@ -131,7 +132,8 @@ public:
 		            .randomness = randomness,
 		            .send_amount = deluge::dsp::Q<31>::from_raw(reverb_amount),
 		            .sound = sound},
-		           *volume, deluge::dsp::typed_view(send), deluge::synth_noise);
+		           typed_volume, deluge::dsp::typed_view(send), deluge::synth_noise);
+		*volume = typed_volume.raw();
 	}
 
 	void change(ModFXType type) {
@@ -589,7 +591,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 				std::vector<RawFrame> frames = input;
 				std::vector<q31_t> send = gw::send_input(256, b, false);
 				const std::vector<q31_t> send_in = send;
-				int32_t volume = gw::kStartVolume;
+				auto volume = deluge::dsp::Q<27>::from_raw(gw::kStartVolume);
 				fx.render(deluge::dsp::test::typed_frames(std::span{frames}),
 				          {.rate = gw::kRateMid,
 				           .mix = gw::kMixMid,
@@ -603,7 +605,7 @@ describe granular("an owner's granular effect on the dsp-next kernel", ${
 					expect(frames[i].r).to_equal(input[i].r);
 				}
 				expect(send).to_equal(send_in);
-				expect(volume).to_equal(gw::kStartVolume);
+				expect(volume.raw()).to_equal(gw::kStartVolume);
 			}
 			expect(state_words(fx)).to_equal(before);
 			expect(deluge::synth_noise.state()).to_equal(gw::kCongSeed);
