@@ -55,11 +55,11 @@ StereoSample Interpolator::interpolate(std::size_t channels, int32_t which_kerne
 	const int16_t* kernel_row = kWindowedSincKernel.variant(which_kernel) + progress_small * kSincKernelTaps;
 	SincWindow kernel = blend_sinc_kernel(kernel_row, strength2);
 
-	// The windows' dot products are the Q31 samples, summed raw.
+	// Each window's Q30 dot product, its word read as the Q31 sample.
 	StereoSample output;
-	output.l = Q<31>::from_raw(windowed_sinc_dot(kernel, load_window(buffer_l_.data())));
+	output.l = reinterpret_bits<Q<31>>(windowed_sinc_dot(kernel, load_window(buffer_l_.data())));
 	if (channels == 2) {
-		output.r = Q<31>::from_raw(windowed_sinc_dot(kernel, load_window(buffer_r_.data())));
+		output.r = reinterpret_bits<Q<31>>(windowed_sinc_dot(kernel, load_window(buffer_r_.data())));
 	}
 	return output;
 }

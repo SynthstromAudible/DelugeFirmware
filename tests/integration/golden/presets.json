@@ -2419,9 +2419,9 @@
  },
  "voice/freerun_mono_wavetable": {
   "frames": 88200,
-  "peak": 173354752,
-  "rms_db": -26.61,
-  "sha256": "6fa424078fb3f9b2a3fcfb9053d26cd8b3f4ed46137d3bcbc62f8cfb8a144d15"
+  "peak": 173388032,
+  "rms_db": -27.57,
+  "sha256": "6fe135b90052e22f10833f551af738fddf1e6361e8034cc4a680a49af956a9b6"
  },
  "voice/high_note_inactive": {
   "frames": 88200,
@@ -2533,21 +2533,21 @@
  },
  "wavetable/morph_lfo": {
   "frames": 88200,
-  "peak": 508935680,
-  "rms_db": -21.93,
-  "sha256": "543ae98a22c0032585facfa1529ac267d517291085cfde115df77c2334c164fd"
+  "peak": 825770752,
+  "rms_db": -16.58,
+  "sha256": "30fee0ef812a0b3abc64a16336068be9dfb28fc8c8ac7568ddcc048ec5f03175"
  },
  "wavetable/morph_note": {
   "frames": 88200,
-  "peak": 341895936,
-  "rms_db": -33.28,
-  "sha256": "a28c606fdcbeeb2239a580ccb89d95ffc08405a80a6a02a38da6a45bd6109a37"
+  "peak": 631793664,
+  "rms_db": -27.62,
+  "sha256": "f6f6fe63959f71e667e01d38caac272f6da694bba61a0d79423af714d6538ed6"
  },
  "wavetable/morph_sync": {
   "frames": 88200,
-  "peak": 442308608,
-  "rms_db": -24.37,
-  "sha256": "0fca2b6502e1e62b7f7da569d95daff5885006b9e4a3ad149e8cb73f14fb0526"
+  "peak": 467331584,
+  "rms_db": -23.2,
+  "sha256": "f1f8e843e72055fc488e4a61e0d34eab61d887fb546afccfbfba6ca960b8d9f3"
  },
  "wavetable/scw": {
   "frames": 88200,
@@ -2563,21 +2563,21 @@
  },
  "wavetable/static": {
   "frames": 88200,
-  "peak": 112055808,
-  "rms_db": -32.78,
-  "sha256": "dcbee8099333a2557f6f6031e6a5bffe24b7f794004ec675929ed9493bd81348"
+  "peak": 133132544,
+  "rms_db": -30.28,
+  "sha256": "39f25b0f70dac153174fa52084964d3a5c2f0f6a8c0c425cc97e693c50004667"
  },
  "wavetable/static_lo": {
   "frames": 88200,
-  "peak": 111193344,
-  "rms_db": -34.4,
-  "sha256": "047b5379eb9559363c9e8a910d530fde1a2db8b356037de29e7ba27e4070f097"
+  "peak": 118812416,
+  "rms_db": -31.81,
+  "sha256": "93afe4665f2d66faa41abc24b444564c86ac18cd9ebf0b0ac567031596ed7c78"
  },
  "wavetable/sync": {
   "frames": 88200,
-  "peak": 486677760,
-  "rms_db": -24.25,
-  "sha256": "b242a9775fd6b6e72bee191c184aa33c997495a5c19db86353d944dd233aeaa3"
+  "peak": 503494656,
+  "rms_db": -23.1,
+  "sha256": "dd45bd558a2dda72c9b35189560317073d53fc9eb234b69b3a6232326c96ae39"
  },
  "wavetable_basic": {
   "frames": 88200,
