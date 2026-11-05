@@ -33,7 +33,7 @@
 namespace deluge::dsp::fixed::pitch_shift {
 
 /// @brief No percussiveness entry noted since the head's hop: the next onset check reads afresh (quirk Q9,
-/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md).
+/// docs/dev/live_pitch_shifter_quirks.md).
 inline constexpr uint32_t kNoPercussivenessEntry = 0xFFFFFFFF;
 
 /// @brief What a play head reads.

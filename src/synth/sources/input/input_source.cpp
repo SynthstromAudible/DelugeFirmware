@@ -99,10 +99,9 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			dsp::Q<31>* render_buffer = mono_scratch;
 			std::fill_n(render_buffer, num_samples, dsp::Q<31>{});
 
-			// The pitch shifter's amplitude arithmetic is on raw words
-			in_->report_hops(live_pitch_shifter_.render(
-			    render_buffer, num_samples, static_cast<int32_t>(phase_increment), source_amplitude.raw(),
-			    amplitude_increment.raw(), interpolation_buffer_size, *in_, noise));
+			in_->report_hops(live_pitch_shifter_.render(render_buffer, num_samples,
+			                                            static_cast<int32_t>(phase_increment), source_amplitude,
+			                                            amplitude_increment, interpolation_buffer_size, *in_, noise));
 
 			for (int32_t i = 0; i < num_samples; i++) {
 				add_panned(&osc_buffer[i << 1], render_buffer[i], amplitude_l, amplitude_r);
@@ -110,7 +109,7 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 		}
 		else {
 			in_->report_hops(live_pitch_shifter_.render(osc_buffer, num_samples, static_cast<int32_t>(phase_increment),
-			                                            source_amplitude.raw(), amplitude_increment.raw(),
+			                                            source_amplitude, amplitude_increment,
 			                                            interpolation_buffer_size, *in_, noise));
 		}
 	}

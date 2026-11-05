@@ -603,6 +603,39 @@ the owner's chain the stutter and its rate each block (see "Effect chains").
   `CG-STUTTERHANDOFF`, `CG-STUTTEROOM` and `CG-STUTTERSWAP` hold the
   hand-over.
 
+### A source over a shared history, hopped by a scheduler: the live pitch shifter
+
+The live pitch shifter (`fixed/pitch_shift/`, glued by `synth/sources/input/live/`) plays a voice's live input at
+another pitch by reading the input's recent history back at the shifted rate, through two play heads cross-faded at
+each hop. Its pieces split by rate:
+
+- **Per sample, kernels.** `SlopeFollower` (a processor kernel) follows the input's smoothed slope, and
+  `percussiveness()` reads an onset measure from it every 128 frames. `PlayHead<Frame>` (a processor kernel, mono
+  `Q<31>` or stereo `StereoSample`) adds one head into the voice's block in place: `DIRECT`, or repitching through the
+  windowed sinc or linearly, one mode per segment. Its window is the `Interpolator`, fed through its head and tail
+  feeds (`advance`, `fill_tail`), which the sample reader uses too; the taps are private.
+- **Per block, a component.** `InputHistory<Frame>` holds the last 8192 frames and the onset measures. The synth's
+  `LiveInput<Frame>` wraps it, ingesting each audio block once however many voices read the channel, and is pooled by
+  the host per channel (`AudioInputPort::mono_input` / `stereo_input`).
+- **Per hop, objects.** `PitchShiftTuning` gives the pitch-dependent search ranges, threshold, crossfade and hop
+  lengths as coefficients of the shift. `HopPlanner` places each hop's new head: `PercussiveSearch` finds how far back
+  a pitched-up hop starts, `WaveformAligner` lines its window up with the old head's by moving averages, to a
+  sub-sample phase. `HopScheduler` is iterated over a block (`while (auto s = scheduler.next(...))`): it shortens hops
+  a head cannot last, cuts them on an onset, plans the hop when it ends, and gives each head's amplitude across each
+  segment of the linear crossfade.
+- **The component.** `LivePitchShifter<Frame>` is the scheduler, the two heads and the render loop: configure the
+  heads for the block's history and shift, then render each segment's heads in place. `PitchShifter` is the voice's
+  handle, one allocation of whichever instantiation the channel needs, owned explicitly by `InputSource`.
+- **Evidence.** `tests/dsp/reference_live_pitch_shifter.h` is the old three classes verbatim but for owning their
+  storage; it and the component equal the records the old classes made over 27 workloads
+  (`pitch_shift_workload_records.h`), and each piece has a spec against its verbatim reference
+  (`slope_follower_spec`, `input_history_spec`, `pitch_shift_tuning_spec`, `play_head_spec`, `percussive_search_spec`,
+  `waveform_aligner_spec`, `hop_planner_spec`, `hop_scheduler_spec`, `interpolator_feed_spec`). The goldens
+  `input_pitchshift_*` play it up and down, in stereo, with unison and linear interpolation, through unity, and on the
+  harness's percussive test signal (`RENDER_INPUT=2`).
+- **Quirks.** Everything bit-exactness kept is named in the code and listed, with what to try, in
+  `docs/dev/live_pitch_shifter_quirks.md` (Q1–Q13).
+
 ### A float kernel and a fixed one over one buffer, the model chosen per block: the reverb
 
 The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`fixed/reverb/freeverb.h`, q31) and

@@ -32,7 +32,7 @@ namespace deluge::dsp::fixed::pitch_shift {
 /// @details It searches back from now over the percussiveness entries, between the tuning's nearest edge (moved out by
 /// a random part of itself, so the hops do not settle into one length and sound as a tone) and its furthest, for the
 /// stretch ending at now whose average percussiveness is highest. The averages are compared as floats (quirk Q6,
-/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md). The search stops early where it would reach
+/// docs/dev/live_pitch_shifter_quirks.md). The search stops early where it would reach
 /// before the history's start.
 class PercussiveSearch {
 public:

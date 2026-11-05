@@ -236,7 +236,8 @@ void PitchShiftCase::setup(std::size_t /*n*/) {
 void PitchShiftCase::block(std::size_t n) {
 	ShifterRig& rig = shifter_rig();
 	std::ignore = rig.shifter.render(rig.out.data(), static_cast<int32_t>(n), config_.phase_increment,
-	                                 kShifterAmplitude, 0, kInterpolationMaxNumSamples, rig.port, rig.noise);
+	                                 dsp::Q<31>::from_raw(kShifterAmplitude), dsp::Q<31>{}, kInterpolationMaxNumSamples,
+	                                 rig.port, rig.noise);
 	rig.port.advance(n);
 }
 

@@ -48,7 +48,7 @@ struct HopPlan {
 /// lined up with the old head's by @ref WaveformAligner, when the old head is repitching and there is room, and the
 /// alignment's sub-sample phase is added to the old head's. Pitching up, the hop lasts the time the new head takes to
 /// close on now, less the next crossfade, held between 100 samples (quirk Q5,
-/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md) and the tuning's longest; pitching down, it is the
+/// docs/dev/live_pitch_shifter_quirks.md) and the tuning's longest; pitching down, it is the
 /// tuning's longest.
 class HopPlanner {
 public:

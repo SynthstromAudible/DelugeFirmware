@@ -43,7 +43,7 @@ struct Alignment {
 ///
 /// It searches one way and then the other. Searching forward first, a first step that matches worse than where it
 /// started turns it round at once; searching backward first (pitching down) it searches backward only, with no early
-/// turn (quirk Q10, docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md). Where too little of the history
+/// turn (quirk Q10, docs/dev/live_pitch_shifter_quirks.md). Where too little of the history
 /// has been written to hold the new head's window it does not search.
 class WaveformAligner {
 public:
@@ -166,7 +166,7 @@ private:
 			}
 			if (latest_ < kHistoryFrames) {
 				// Back to the history's start, less the frame the window already stepped back (quirk Q4,
-				// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md); none left reads as 0
+				// docs/dev/live_pitch_shifter_quirks.md); none left reads as 0
 				return std::max(static_cast<int32_t>(search_.start) - search_.start_offset - 1, 0);
 			}
 			return search_.size;

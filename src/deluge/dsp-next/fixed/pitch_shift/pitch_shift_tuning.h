@@ -33,7 +33,7 @@ namespace deluge::dsp::fixed::pitch_shift {
 /// @details Each value is read from two tables by the shift's log: a fine one across ±1 octave in steps of an eighth of
 /// an octave (17 knots) and a coarse one across ±2 octaves in octave steps (5 knots), interpolated linearly. Beyond ±2
 /// octaves the coarse tables hold their end values (quirk Q8,
-/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md). The shifter evaluates it at each hop, for the
+/// docs/dev/live_pitch_shifter_quirks.md). The shifter evaluates it at each hop, for the
 /// shift then.
 struct PitchShiftTuning {
 	struct Settings {
@@ -71,7 +71,7 @@ struct PitchShiftTuning {
 	/// octaves.
 	/// @details The coarse table ends with a guard knot repeating its last: the clamp's top, +24 exactly, reads the
 	/// knot after the last with no weight (quirk Q12,
-	/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md).
+	/// docs/dev/live_pitch_shifter_quirks.md).
 	struct Tables {
 		std::array<int16_t, 17> fine;
 		std::array<int16_t, 6> coarse;

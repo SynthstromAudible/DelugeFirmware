@@ -188,7 +188,7 @@ public:
 	/// @brief The interpolation width grew: slot i + @p offset takes slot i, for i in [0, @p count), in rising i.
 	/// @details Rising i reads slots it has already written when @p offset < @p count, so the newest taps are copied
 	/// along rather than the window moved (quirk Q11,
-	/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md).
+	/// docs/dev/live_pitch_shifter_quirks.md).
 	[[gnu::always_inline]] void widen(std::size_t offset, std::size_t count, std::size_t channels) {
 		for (std::size_t i = 0; i < count; ++i) {
 			buffer_l_[i + offset] = buffer_l_[i];

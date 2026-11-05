@@ -89,7 +89,7 @@ inline constexpr uint64_t kPercussivenessGain = 262144;
 /// @details The change's magnitude times 2^18 over the slope, halved, saturated by `tanh<23>`, whose output (shifted
 /// down by 25 bits) is what makes the measure fit a byte. 0 where the slope is 0. The change is taken over one frame of
 /// the smoothed slope, though the measure is kept only every 128 frames (quirk Q3,
-/// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md). The arithmetic is on the words, as the measure
+/// docs/dev/live_pitch_shifter_quirks.md). The arithmetic is on the words, as the measure
 /// was tuned: the change and the slope widen to 64 bits as unsigned words, and the quotient narrows to 32 and its tanh
 /// to 8.
 [[nodiscard]] inline uint8_t percussiveness(Q<31> slope, Q<31> previous) {
