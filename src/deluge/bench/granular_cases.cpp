@@ -21,14 +21,11 @@ namespace deluge::bench {
 
 namespace {
 
-/// @brief The post-effect volume each block starts from, Q27: half full scale, just under 8× unity.
-constexpr dsp::Q<27> kStartVolume = scale_shr_floor<1>(dsp::Q<27>::max());
-
 /// @brief What every granular case renders with: one component, the work block and the reverb send. The cases run one
 /// after another, so they share it; each case's setup makes the component anew.
 struct GranularRig {
 	std::optional<effects::Granular> granular; ///< The component, as a Sound's.
-	dsp::Q<27> volume{kStartVolume};           ///< The post-effect volume the component scales, Q27: 8× unity.
+	dsp::Q<27> volume{kEffectStartVolume};     ///< The post-effect volume the component scales, Q27.
 	dsp::Buffer<StereoSample> work{};          ///< The lanes output's first n frames, processed in place.
 	std::span<const StereoSample> input{};     ///< The lanes input's first n frames, the sounding block.
 	std::array<dsp::Q<31>, kMaxBlock> send{};  ///< The reverb send the component adds its feed into.
@@ -42,7 +39,7 @@ constexpr uint32_t kNoiseSeed = 380116160;
 /// @brief One call as the owner makes it: a fresh post-effect volume and the reverb amount derived from it.
 /// @param config The case's knobs.
 void render_block(const GranularConfig& config) {
-	rig.volume = kStartVolume;
+	rig.volume = kEffectStartVolume;
 	const effects::GranularInputs in{
 	    .rate = kGranularRate,
 	    .mix = kGranularMix,

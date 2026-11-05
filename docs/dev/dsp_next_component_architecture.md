@@ -344,7 +344,7 @@ fused frame kernel of stereo frames, rendered in place as
 - **The blend needs no scratch.** `BLEND` mixes the frame as it came in back at
   the dry level, `dry_wet_blend`'s arithmetic. The step reads its input frame
   before the wrapper stores the output, so the dry signal is the step's own
-  `x`, in place. The blend knob picks the mode per block: `WET` at `kOneQ31`,
+  `x`, in place. The blend knob picks the mode per block: `WET` at `Q<31>::max()`,
   since the blend there is not an identity.
 - **The measurement runs one frame behind.** Measured on the output it has just
   made, a frame is one dependency chain (the gain multiply, the table lookup and
@@ -612,7 +612,7 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
 - **Two kernels, one interface.** Both take a q31 send by cursor (`set_send`, with the two return levels: a cursor as
   `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
   float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
-  and its output stage is `to_q31` saturating then the rounded multiply-accumulate, both named in the kernel.
+  and its output stage is `to_q31_saturating` then the rounded multiply-accumulate, both named in the kernel.
 - **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
   end to end by `kLayout`, or the plate's 32,768-float ring. The State holds only indices, the combs' stores and the
   filter memories. Neither declares `kStateInPlace`: copying the State into registers for the block measures faster
@@ -1527,7 +1527,7 @@ These are the reference blocks that later rewrites compose rather than re-derive
   the position where stepping `sample` would, or `place(s, position)`, which sets it directly.
 - **`dry_wet_blend` / `DryWetBlend`** (`mix/dry_wet.h`): the dry/wet crossfade. The filters' fade runs it; the
   compressor's `BLEND` step writes the same arithmetic with the dry level taken once per configure, pointing at it.
-  `FULL_WET` returns the wet sample unchanged, because the blend at `kOneQ31` is not an identity.
+  `FULL_WET` returns the wet sample unchanged, because the blend at `Q<31>::max()` is not an identity.
 - **`wrapping_add` / `wrapping_sub`** (`wrapping.h`): q31 add and subtract with two's-complement wrap, defined for every
   input.
 - **The tables** (`tables/`): `kSineSmall` (one turn of sine, Q15, 257 entries with the wrap) and `kDecaySmall4` /
@@ -1575,9 +1575,9 @@ memory.
   `tanh<3>`. Modes BAND and NOTCH. Its gain compensation is the gain it was given.
 - **`FadeIn` and `FadeInMono`** (`fade_in.h`): the fade from a filter's dry input to its output after the filter is
   switched on, a mixer kernel of (dry, wet).
-  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is `kOneQ31 × (1 − dry)`
-    in float. Each sample is `dry_wet_blend` at the wet level, then the level steps. It is over once dry falls below
-    0.001.
+  - **The level.** The dry level is a float × 0.99 per step, computed in double. The wet level is 1 − dry in float,
+    converted truncating (`from_float<31>`). Each sample is `dry_wet_blend` at the wet level, then the level steps. It
+    is over once dry falls below 0.001.
   - **One level, stepped once per channel-sample.** In stereo the left channel blends at one level and the right at the
     next, so the two channels sit one step apart and a stereo fade ends in half the frames. That is why the fade is
     not a q31 kernel under `Stereo`, which would give each channel its own level.

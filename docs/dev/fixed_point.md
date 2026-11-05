@@ -24,9 +24,8 @@ The formats the code uses today include:
 - Signed Q8.24: sample-playback phase increment.
 - `Q<24>`: the DX7 engine.
 
-`one()` is 2^F, except where 2^F doesn't fit: `Q<31>::one()` is INT32_MAX, which is one minus one LSB, today's
-`kOneQ31`. `q<F>(double)` builds a constant at compile time, rounding to nearest. A constant out of range doesn't
-compile.
+`one()` is 2^F, except where 2^F doesn't fit: `Q<31>::one()` is INT32_MAX, which is one minus one LSB, `Q<31>::max()`.
+`q<F>(double)` builds a constant at compile time, rounding to nearest. A constant out of range doesn't compile.
 
 The types have no arithmetic operators and no implicit conversions. The only way in is `T::from_raw(storage)` and the
 only way out is `.raw()`.
@@ -59,11 +58,11 @@ in another.
 
 They differ in the lowest bit on about half of all inputs. Pick the one whose bits the code needs.
 
-**A shift known only at run time** takes its count as an argument: `scale_shr_floor(x, n)`,
+**A shift known only at run time** takes its count as an argument: `scale_shr_floor(x, n)`, `scale_shl_wrap(x, n)`,
 `scale_shl_clamp_then_shift(x, n)` and `scale_pow2_sat(x, m)` (a signed power of two: a clamped left shift for m > 0, a
 floor right shift otherwise). The run-time clamp-then-shift clamps to 32 − n bits for shifts 1 to 20 and to 12 bits for
-a zero shift and for shifts past 20, where the shift wraps: that is the app's saturating shift's width, which the
-run-time tanh drive keeps.
+a zero shift and for shifts past 20, where the shift wraps: that is the width of the raw
+`detail::lshift_and_saturate_unknown`, which the run-time tanh drive and the recorder's input gain keep.
 
 **Reading bits as another type** (an unsigned increment read as signed, say) is `reinterpret_bits<To>(x)`. Every use
 says why in a comment.
@@ -342,16 +341,17 @@ source change, so an empty result is not the gate. Each changed function is clas
   `int32_t` as its only member). Raw machine code takes it: the DX7 graph's call into the device's NEON kernel and the
   supersaw's hand-written NEON passes, the only views outside the specs. The specs view their raw references' buffers
   with it.
-- **`scripts/check_fixed_point_raw.py`** counts three things per file outside `fixed_point.h` and `detail/raw_ops.h`:
+- **`scripts/check_fixed_point_raw.py`** counts three things per file outside the core headers that define them
+  (`fixed_point.h`, `fixed_point_neon.h`, `buffer_view.h`, `high_word_asm.h` and `detail/raw_ops.h`):
   - raw sites, meaning raw helper calls and DSP-instruction asm;
   - seam views, meaning `typed_view` and `raw_view` calls;
   - boundary crossings, meaning `from_raw`, `.raw()`, `->raw()` and `reinterpret_bits`.
 
   `scripts/fixed_point_raw_allowlist.txt` pins all three counts per file, and they may only shrink. A count below its
-  entry also fails until `--write` records it, so freed headroom can't be spent again. A new crossing fails until
-  another is removed, or until a `--write --allow-growth` is justified in review; each crossing that stays says why in a
-  comment where it crosses, for one of the reasons below. Moving a file onto the typed operations is the unit of
-  progress.
+  entry also fails until `--write` records it, so freed headroom can't be spent again. The counts are per file: a new
+  crossing fails until another in the same file is removed, or until a `--write --allow-growth` is justified in review;
+  each crossing that stays says why in a comment where it crosses, for one of the reasons below. Moving a file onto the
+  typed operations is the unit of progress.
 - **The raw helpers** (`dsp-next/core/detail/raw_ops.h`, in `deluge::dsp::detail`) are the arithmetic of the raw
   references the typed operations are checked against, and of the few raw sites that say why they are raw: the high-pass
   ladder's asm saturate, the granular grain size and the wavetable chunker's index scaling, integer products of a count
@@ -363,7 +363,7 @@ source change, so an empty result is not the gate. Each changed function is clas
     display values;
   - word interfaces: `effects::final_value` (its result's format is the param's curve's), the patcher's source values,
     the supersaw's phases, the fine tuners' signed increments, the sample reader's amplitude, the live pitch shifter;
-  - run-time shifts the typed forms don't take: the saturator's make-up gain, octave and sync levels;
+  - run-time shifts of words: octave and sync levels, the play-head modes;
   - integer products and 64-bit intermediates, the matrix's depth square, and format reinterpretations
     (`reinterpret_bits`), each saying what the word is read as;
   - the bench's raw references, raw on purpose.

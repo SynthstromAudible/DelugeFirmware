@@ -6,8 +6,8 @@
 """Ratchet on raw fixed-point arithmetic outside the format types (dsp-next/core/fixed_point.h).
 
 Counts three things per C/C++ file under src/, comments excluded:
-- raw sites: calls to detail/raw_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
-  asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
+- raw sites: calls to detail/raw_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...),
+  inline asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
   vmlal_s16, vshrq_n_s32, ...) and Argon's fixed-point methods (MultiplyFixedQMax, ShiftRightAccumulate, ...);
 - seam views: calls to buffer_view.h's typed_view() and raw_view(), where a raw int32_t buffer is viewed as a Q<F>
   format or back;
@@ -18,9 +18,10 @@ All three counts are pinned in scripts/fixed_point_raw_allowlist.txt and may onl
 crossing in a file not on the list, a count above its entry, and an entry with headroom left (a count below it) all
 fail; rewrite the list with --write after moving code onto the typed operations or typing a caller's buffers. Each
 crossing that stays says why at the crossing (a stored or codec word, a word interface, a run-time table index, a
-reinterpretation, ...); docs/dev/fixed_point.md's "The words that stay" lists the reasons. A new crossing fails until
-another is removed, or a --write --allow-growth is justified in review. Bare int32_t audio arithmetic (`+`, `<<` on samples) cannot be told apart from other
-integer code lexically, so reviews cover it, not this check.
+reinterpretation, ...); docs/dev/fixed_point.md's "The words that stay" lists the reasons. The counts are per file: a
+new crossing fails until another in the same file is removed, or a --write --allow-growth is justified in review. Bare
+int32_t audio arithmetic (`+`, `<<` on samples) cannot be told apart from other integer code lexically, so reviews
+cover it, not this check.
 
 Usage:
     scripts/check_fixed_point_raw.py            # check, exit 1 on growth or a stale entry
@@ -216,6 +217,20 @@ def check(
     return errors, stale
 
 
+def grown(counts: dict[str, Counts], allowlist: dict[str, Counts]) -> list[str]:
+    """The files with a count above their entry (a file not on the list pins zero)."""
+    return sorted(
+        name
+        for name, c in counts.items()
+        if any(
+            value > pinned
+            for (_, value), (_, pinned) in zip(
+                c.gated(), allowlist.get(name, Counts(0, 0)).gated()
+            )
+        )
+    )
+
+
 def write_allowlist(
     path: Path,
     counts: dict[str, Counts],
@@ -223,22 +238,10 @@ def write_allowlist(
     allow_growth: bool,
 ) -> None:
     """Writes @p counts as the allowlist; refuses a count above @p previous unless @p allow_growth."""
-    if not allow_growth:
-        grown = [
-            n
-            for n, c in counts.items()
-            if any(
-                value > pinned
-                for (_, value), (_, pinned) in zip(
-                    c.gated(), previous.get(n, Counts(0, 0)).gated()
-                )
-            )
-        ]
-        if grown:
-            raise ValueError(
-                "would raise the raw, view or boundary count of: "
-                + ", ".join(sorted(grown))
-            )
+    if not allow_growth and (raised := grown(counts, previous)):
+        raise ValueError(
+            "would raise the raw, view or boundary count of: " + ", ".join(raised)
+        )
     body = "".join(
         f"{name} raw={c.raw}{f' view={c.view}' if c.view else ''} boundary={c.boundary}\n"
         for name, c in sorted(counts.items())
@@ -288,15 +291,15 @@ def main() -> int:
         )
         return 0
 
-    errors, stale = check(counts, allowlist)
+    errors, _ = check(counts, allowlist)
     for error in errors:
         print(error, file=sys.stderr)
-    if len(errors) > len(stale):
+    if grown(counts, allowlist):
         print(
             "Raw fixed-point arithmetic, the seam views or the boundary crossings grew. Write it with "
-            "dsp-next/core/fixed_point.h's typed operations and typed buffers, or remove another crossing; if a raw "
-            "site, a view or a crossing is unavoidable, say why where it is, justify it in review and rewrite the "
-            "list with --write --allow-growth.",
+            "dsp-next/core/fixed_point.h's typed operations and typed buffers, or remove another crossing in the "
+            "same file; if a raw site, a view or a crossing is unavoidable, say why where it is, justify it in review "
+            "and rewrite the list with --write --allow-growth.",
             file=sys.stderr,
         )
     return 1 if errors else 0

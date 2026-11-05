@@ -61,6 +61,7 @@ EXACT = {
     "probe_scale_shl_clamp_then_shift_3": ["ssat", "lsl"],
     "probe_scale_shr_round_3": ["ubfx", "add"],
     "probe_scale_shr_floor_runtime": ["asr"],
+    "probe_scale_shl_wrap_runtime": ["lsl"],
     "probe_halve_toward_zero": ["add", "asr"],
     "probe_from_q16": ["lsl"],
     "probe_widen_9": ["asr", "lsl", "orr", "lsl"],

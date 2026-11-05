@@ -101,6 +101,9 @@ inline constexpr uint32_t kA3Increment = 21'426'141;
 /// @brief A1, 55 Hz: inside the crude saw and square region (band index below 6, increments up to 7,040,929).
 inline constexpr uint32_t kA1Increment = 5'356'535;
 
+/// @brief The post-effect volume a mod FX or granular block starts from, Q27: half full scale, just under 8× unity.
+inline constexpr dsp::Q<27> kEffectStartVolume = scale_shr_floor<1>(dsp::Q<27>::max());
+
 /// @brief The input block every case's first input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
 [[nodiscard]] std::span<const dsp::Q<31>, kMaxBlock> input_a();

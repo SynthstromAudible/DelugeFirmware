@@ -855,9 +855,15 @@ template <class S, int F>
 [[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shr_floor(Fixed<S, F> x, int n) noexcept {
 	return Fixed<S, F>::from_raw(static_cast<S>(x.raw() >> n));
 }
+/// @brief x × 2^@p n in the same format, @p n known only at run time (0 to the storage's bits − 1), wrapping (`lsl` by
+/// a register).
+template <class S, int F>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shl_wrap(Fixed<S, F> x, int n) noexcept {
+	return Fixed<S, F>::from_raw(detail::wrap_shl(x.raw(), n));
+}
 /// @brief x clamped, then × 2^@p n in the same format, @p n known only at run time (0 to 31). The clamp is to
 /// 32 − @p n bits for shifts 1 to 20, and to 12 bits for a zero shift and for shifts past 20, where the shift wraps:
-/// the width of the app's run-time saturating shift, which every caller's output depends on.
+/// the width of `detail::lshift_and_saturate_unknown`, the raw helper whose output every caller keeps.
 template <int F>
 [[gnu::always_inline, nodiscard]] constexpr Q<F> scale_shl_clamp_then_shift(Q<F> x, int n) noexcept {
 	const int width = (n == 0 || n > 20) ? 12 : 32 - n;

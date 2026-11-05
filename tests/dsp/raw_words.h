@@ -2,11 +2,23 @@
  * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
- * Licensed under the GNU General Public License v3 or later; see LICENSE.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The raw references' vocabulary: the raw word helpers, by their own names, and the full-scale words the references
-// were written with. The typed operations are checked against these; new specs use fixed_point.h's operations.
+/// @file
+/// @brief The raw references' vocabulary: the raw word helpers, by their own names, and the full-scale words the
+/// references were written with. The typed operations are checked against these; new specs use fixed_point.h's
+/// operations.
 
 #pragma once
 

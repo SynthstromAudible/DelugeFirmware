@@ -47,6 +47,17 @@ std::size_t shr_mismatches() {
 	return bad;
 }
 
+std::size_t shl_mismatches() {
+	std::size_t bad = 0;
+	for (const int32_t x : words()) {
+		for (int n = 0; n < 32; ++n) {
+			const auto wrapped = static_cast<int32_t>(static_cast<uint32_t>(x) << n);
+			bad += scale_shl_wrap(Q<31>::from_raw(x), n).raw() != wrapped ? 1 : 0;
+		}
+	}
+	return bad;
+}
+
 // The raw saturating shift, every shift its uint8_t takes below 32, the zero shift and the wrapping ones included.
 std::size_t clamp_shift_mismatches() {
 	std::size_t bad = 0;
@@ -75,6 +86,9 @@ std::size_t pow2_mismatches() {
 // clang-format off
 describe fixed_point_runtime_shift("the run-time shifts", ${
 	it("floor-shift right by a run-time count as >> does", _ { expect(shr_mismatches()).to_equal(std::size_t{0}); });
+	it("shift left by a run-time count, wrapping, as the unsigned << does", _ {
+		expect(shl_mismatches()).to_equal(std::size_t{0});
+	});
 	it("clamp then shift left as the raw saturating shift does", _ {
 		expect(clamp_shift_mismatches()).to_equal(std::size_t{0});
 	});

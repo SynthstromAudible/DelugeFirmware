@@ -206,6 +206,9 @@ std::int32_t probe_as_clamp_then_shift_3(std::int32_t a) {
 std::int32_t probe_scale_shl_clamp_then_shift_3(std::int32_t a) {
 	return scale_shl_clamp_then_shift<3>(typed31(a)).raw();
 }
+std::int32_t probe_scale_shl_wrap_runtime(std::int32_t a, int n) {
+	return scale_shl_wrap(typed31(a), n).raw();
+}
 std::int32_t probe_scale_shr_floor_runtime(std::int32_t a, int n) {
 	return scale_shr_floor(typed31(a), n).raw();
 }

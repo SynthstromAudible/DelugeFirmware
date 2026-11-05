@@ -34,9 +34,9 @@ src/deluge/dsp-next/fixed/dx7/envelope.cpp raw=0 boundary=5
 src/deluge/dsp-next/fixed/dx7/graph.cpp raw=0 view=2 boundary=2
 src/deluge/dsp-next/fixed/dx7/lfo.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/dx7/lfo_delay.h raw=0 boundary=1
-src/deluge/dsp-next/fixed/dx7/mki_feedback_stack.h raw=0 boundary=7
+src/deluge/dsp-next/fixed/dx7/mki_feedback_stack.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/dx7/modern_vector_operator.h raw=0 boundary=10
-src/deluge/dsp-next/fixed/dx7/operator.h raw=0 boundary=11
+src/deluge/dsp-next/fixed/dx7/operator.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/dx7/pitch_envelope.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/dx7/voice.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=0 boundary=14
@@ -59,7 +59,7 @@ src/deluge/dsp-next/fixed/interpolation/sinc_interpolation.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/mix/output_fold.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/mix/track_monitor.h raw=0 boundary=2
-src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=0 boundary=33
+src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=0 boundary=32
 src/deluge/dsp-next/fixed/osc/band_limited_table_oscillator.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8
@@ -133,8 +133,6 @@ src/effects/master_chain.cpp raw=0 boundary=1
 src/effects/mod_fx.cpp raw=0 boundary=4
 src/effects/param_fragment.h raw=0 boundary=8
 src/effects/reverb.cpp raw=0 boundary=3
-src/effects/saturation.cpp raw=0 boundary=4
-src/effects/saturation.h raw=0 boundary=2
 src/effects/send_and_volume.h raw=0 boundary=1
 src/effects/sidechain.cpp raw=0 boundary=7
 src/effects/sidechain.h raw=0 boundary=2

@@ -296,8 +296,8 @@ struct Operator {
 			at = add_wrap(at, modulation); // a sample is a phase offset
 		}
 		else if constexpr (input_of(M) == Input::FEEDBACK) {
-			// The last two samples' sum, scaled down by a run-time shift, so raw.
-			at = add_wrap(at, Phase::from_raw(add_wrap(l.feedback.y0, l.feedback.y1).raw() >> (c.feedback_shift + 1)));
+			// The last two samples' sum, scaled down by the feedback shift: a sample is a phase offset.
+			at = add_wrap(at, scale_shr_floor(add_wrap(l.feedback.y0, l.feedback.y1), c.feedback_shift + 1));
 			l.feedback.y0 = l.feedback.y1;
 		}
 		Q<24> y{};

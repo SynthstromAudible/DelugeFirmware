@@ -37,7 +37,8 @@ namespace detail {
 /// keeps the format: the level falls by 2^(drive + 2).
 [[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh_lookup(uint32_t position, uint32_t drive) {
 	constexpr const int16_t* kBase = kTanhSmallTable.data();
-	return Q<31>::from_raw(kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8) >> (drive + 2));
+	const auto level = Q<31>::from_raw(kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8));
+	return scale_shr_floor(level, static_cast<int>(drive + 2));
 }
 } // namespace detail
 

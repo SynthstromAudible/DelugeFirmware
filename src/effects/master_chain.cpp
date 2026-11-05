@@ -50,10 +50,9 @@ void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectSt
                               const MasterPostInputs& post) {
 	using dsp::Q;
 	// The master's volume is Q27, 2^27 unity; a bitcrush lowers it by a run-time shift.
-	Q<27> volume = filter_.configure(settings.filter, post.filter, post.master_volume);
+	const Q<27> volume = filter_.configure(settings.filter, post.filter, post.master_volume);
 	filter_.process(block, post.filter_scratch, *post.noise);
-	volume = scale_shr_floor(volume, core_.bitcrush().process(block, post.bitcrush).volume_shift);
-	Q<27> volume_l = volume;
+	Q<27> volume_l = scale_shr_floor(volume, core_.bitcrush().process(block, post.bitcrush).volume_shift);
 	Q<27> volume_r = volume_l;
 
 	if (post.stutter != nullptr) {

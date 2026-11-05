@@ -19,15 +19,12 @@ namespace deluge::bench {
 
 namespace {
 
-/// @brief The post-effect volume each block starts from, Q27: half full scale, just under 8× unity.
-constexpr dsp::Q<27> kStartVolume = scale_shr_floor<1>(dsp::Q<27>::max());
-
 /// @brief What every mod FX case renders with: one component and the work block. The cases run one after another,
 /// so they share it; each case's setup makes the component anew.
 struct ModFxRig {
-	std::optional<effects::ModFx> mod_fx; ///< The component, as a Sound's.
-	dsp::Q<27> volume{kStartVolume};      ///< The post-effect volume the component scales in place, Q27: 8× unity.
-	dsp::Buffer<StereoSample> work{};     ///< The lanes output's first n frames, processed in place.
+	std::optional<effects::ModFx> mod_fx;  ///< The component, as a Sound's.
+	dsp::Q<27> volume{kEffectStartVolume}; ///< The post-effect volume the component scales in place, Q27.
+	dsp::Buffer<StereoSample> work{};      ///< The lanes output's first n frames, processed in place.
 };
 
 ModFxRig rig{};
@@ -62,7 +59,7 @@ void ModFxCase::setup(std::size_t n) {
 	effects::RingChange ring = rig.mod_fx->prepare(type);
 	rig.mod_fx->commit(type, ring);
 	rig.mod_fx->finish(ring);
-	rig.volume = kStartVolume;
+	rig.volume = kEffectStartVolume;
 	fill_compressor_input();
 	const FrameSpans<StereoSample> spans = stereo_frame_spans(n);
 	rig.work = spans.out;

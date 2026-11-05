@@ -103,7 +103,7 @@ shared blocks padded off 1 KB multiples:
 - Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolate_signed<Table>` takes its table
   (a built-in `int16_t[R][W]`) at compile time, so the base, the row stride and both log2 sizes are constants: the
   stride folds into the `ldrsh` offsets and every read stays inside one row. `AntialiasedTanh` clamps the input to
-  bounds its coefficients precompute, two compares in place of `lshift_and_saturate_unknown`'s jump table. `tanh_lookup`
+  bounds its coefficients precompute, two compares in place of a jump table on the width (the raw `detail::lshift_and_saturate_unknown`'s). `tanh_lookup`
   reads `kTanhSmallTable` through a `constexpr` base pointer.
 - What remains is one dependency chain per sample: `AntialiasedTanh` is 40 instructions in about 42 cycles (load,
   clamp, shift, index, four `ldrsh`, `mul`/`mla`, two `smmul`, shift, store), `Tanh<3>` 15 in about 16. Removing
