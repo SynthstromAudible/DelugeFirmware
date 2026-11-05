@@ -162,10 +162,10 @@ char const* sourceToStringShort(PatchSource source);
 }
 
 /// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0, from two of the synth's noise draws.
-inline q31_t sampleTriangleDistribution() {
+inline deluge::dsp::Q<31> sampleTriangleDistribution() {
 	auto u1 = getNoise();
 	auto u2 = getNoise();
-	return deluge::dsp::triangle(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2)).raw();
+	return deluge::dsp::triangle(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2));
 }
 
 void seedRandom();

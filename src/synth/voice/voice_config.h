@@ -33,7 +33,7 @@ struct VoiceConfig {
 	deluge::dsp::fixed::HighPassSlot high_pass; ///< What the high-pass slot runs: OFF when the sound needs no high-pass
 	deluge::dsp::fixed::FilterRoute filter_route; ///< How the two filters join
 	/// The level going into the filters, so the unison parts' sum stays at one voice's: 2^27 / √(unison count)
-	int32_t volume_neutral_value_for_unison;
+	dsp::Q<31> volume_neutral_value_for_unison;
 	/// How far behind the engine's render is running, 0 when on time: the render takes cheaper paths as it grows.
 	int32_t cpu_direness;
 	VoicePriority voice_priority; ///< The sound's voice priority, which the cull order ranks by first
@@ -42,8 +42,8 @@ struct VoiceConfig {
 	LFOConfig lfo2_config; ///< The first local LFO's wave and sync
 	LFOConfig lfo4_config; ///< The second local LFO's wave and sync
 	/// Each local LFO's phase increment when synced to the transport (0, unused, when it runs free).
-	uint32_t lfo2_synced_phase_increment;
-	uint32_t lfo4_synced_phase_increment;
+	dsp::UQ<32> lfo2_synced_phase_increment;
+	dsp::UQ<32> lfo4_synced_phase_increment;
 
 	bool has_filters; ///< The sound's filters can run at all
 
@@ -56,9 +56,9 @@ struct VoiceConfig {
 	bool doing_osc_sync;             ///< Source 1 is hard-synced to source 0
 	bool engine_rendering_in_stereo; ///< The engine renders in stereo (headphones), so voices may pan
 
-	uint8_t num_unison;                                  ///< Unison parts per voice
-	uint8_t unison_stereo_spread;                        ///< How far the unison parts spread across the field
-	std::array<int32_t, kMaxNumVoicesUnison> unison_pan; ///< Each unison part's pan
+	uint8_t num_unison;                                     ///< Unison parts per voice
+	uint8_t unison_stereo_spread;                           ///< How far the unison parts spread across the field
+	std::array<dsp::Q<31>, kMaxNumVoicesUnison> unison_pan; ///< Each unison part's pan
 
 	std::array<uint32_t, kNumSources> osc_retrigger_phase; ///< Each source's retrigger phase, or kNoRetrigger
 

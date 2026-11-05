@@ -46,10 +46,10 @@ class Sine {
 
 public:
 	explicit Sine(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
@@ -59,10 +59,10 @@ class Triangle {
 
 public:
 	explicit Triangle(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
@@ -72,10 +72,10 @@ class Saw {
 
 public:
 	explicit Saw(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
@@ -86,10 +86,10 @@ class Square {
 
 public:
 	explicit Square(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
@@ -101,10 +101,10 @@ class AnalogSaw {
 
 public:
 	explicit AnalogSaw(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
@@ -114,10 +114,10 @@ class AnalogSquare {
 
 public:
 	explicit AnalogSquare(deluge::dsp::Phasor seed) : phasor_{seed} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
-	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
-	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
-	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
+	[[nodiscard]] dsp::UQ<32> phase() const { return phasor_.phase(); }
+	[[nodiscard]] dsp::UQ<32> increment() const { return phasor_.increment(); }
+	void set_increment(dsp::UQ<32> increment) { phasor_.set_increment(increment); }
+	void seek(dsp::UQ<32> phase) { phasor_.seek(phase); }
 	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 

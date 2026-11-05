@@ -36,13 +36,13 @@ class WavetableOscillator {
 public:
 	using value_type = Q<31>; ///< Wave samples.
 
-	WavetableOscillator(WaveTableData table, uint32_t phase, uint32_t increment, int32_t wave_index,
+	WavetableOscillator(WaveTableData table, UQ<32> phase, UQ<32> increment, int32_t wave_index,
 	                    int32_t wave_index_increment)
-	    : table_{table}, phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, wave_index_{wave_index},
+	    : table_{table}, phasor_{phase, increment}, wave_index_{wave_index},
 	      wave_index_increment_{wave_index_increment} {}
 
 	/// The phase after rendering — what the voice stores back to continue next block.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
 	void render_block(dsp::Buffer<Q<31>> output) {

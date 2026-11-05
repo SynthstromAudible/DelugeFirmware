@@ -30,10 +30,10 @@ namespace deluge::effects {
 /// is the centre), whether to ramp the post-reverb volume from the last block's, and whether the engine renders in
 /// stereo (pan applies only then).
 struct SendAndVolumeParams {
-	int32_t post_fx_volume{0};
-	int32_t post_reverb_volume{0};
-	int32_t reverb_send{0};
-	int32_t pan{0};
+	dsp::Q<27> post_fx_volume{};
+	dsp::Q<27> post_reverb_volume{};
+	dsp::Q<31> reverb_send{};
+	dsp::Q<31> pan{};
 	bool ramp{false};
 	bool stereo{true};
 };
@@ -59,9 +59,7 @@ public:
 
 	/// @brief Before a first block: ramp from @p post_reverb_volume, if nothing has been ramped from yet.
 	/// @param post_reverb_volume The volume to ramp from, Q27.
-	void prime(int32_t post_reverb_volume) {
-		gains_.on<&dsp::fixed::SendAndVolume::prime>(dsp::Q<27>::from_raw(post_reverb_volume));
-	}
+	void prime(dsp::Q<27> post_reverb_volume) { gains_.on<&dsp::fixed::SendAndVolume::prime>(post_reverb_volume); }
 
 	/// @brief Forget the last block's volume: the next prime() sets it.
 	void forget() { gains_.on<&dsp::fixed::SendAndVolume::forget>(); }

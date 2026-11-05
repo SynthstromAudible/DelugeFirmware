@@ -102,7 +102,7 @@ describe click_spec("the metronome's click as a kernel", ${
 			for (std::size_t at = 0; at < a.size(); at += 128) {
 				const std::size_t n = std::min<std::size_t>(128, a.size() - at);
 				ref.render(std::span{a}.subspan(at, n), reference::Click::volume(menu), 1 << 30);
-				metronome.render(typed_frames(std::span{b}.subspan(at, n)), 1 << 30);
+				metronome.render(typed_frames(std::span{b}.subspan(at, n)), deluge::dsp::q<27>(8.0));
 			}
 			expect(same(a, b)).to_be_true();
 			expect(metronome.sounding()).to_be_false();

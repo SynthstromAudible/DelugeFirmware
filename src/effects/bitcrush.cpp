@@ -22,11 +22,11 @@ namespace deluge::effects {
 BitcrushBlock Bitcrush::process(std::span<dsp::StereoSample> block, const BitcrushParams& params) {
 	using dsp::fixed::BitDepth;
 	using dsp::fixed::SampleRateReducer;
-	const BitcrushBlock out{.volume_shift = BitDepth::volume_shift(dsp::Q<31>::from_raw(params.bitcrush))};
-	if (!SampleRateReducer::on(dsp::Q<31>::from_raw(params.sample_rate_reduction))) {
+	const BitcrushBlock out{.volume_shift = BitDepth::volume_shift(params.bitcrush)};
+	if (!SampleRateReducer::on(params.sample_rate_reduction)) {
 		reducing_ = false;
-		if (BitDepth::on(dsp::Q<31>::from_raw(params.bitcrush))) {
-			depth_.configure({.bitcrush = dsp::Q<31>::from_raw(params.bitcrush)});
+		if (BitDepth::on(params.bitcrush)) {
+			depth_.configure({.bitcrush = params.bitcrush});
 			depth_.render_block(block, block);
 		}
 		return out;
@@ -36,8 +36,8 @@ BitcrushBlock Bitcrush::process(std::span<dsp::StereoSample> block, const Bitcru
 		reducer_.on<&SampleRateReducer::start>();
 	}
 	reducer_.configure({
-	    .sample_rate_reduction = dsp::Q<31>::from_raw(params.sample_rate_reduction),
-	    .grab_mask = BitDepth::mask(dsp::Q<31>::from_raw(params.bitcrush), BitDepth::kGrabMaskBase),
+	    .sample_rate_reduction = params.sample_rate_reduction,
+	    .grab_mask = BitDepth::mask(params.bitcrush, BitDepth::kGrabMaskBase),
 	});
 	reducer_.render_block(block, block);
 	return out;

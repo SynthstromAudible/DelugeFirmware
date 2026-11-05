@@ -12,6 +12,7 @@
 #include "patch_cases.h"
 
 #include "dsp-next/core/q31_ops.h"
+#include "raw_matrix.h"
 #include "synth/modulation/cable_depth.h"
 
 #include <array>
@@ -21,6 +22,9 @@
 
 using namespace deluge::synth;
 using namespace deluge::synth::test;
+using deluge::synth::test::raw_matrix::apply_range;
+using deluge::synth::test::raw_matrix::modified_depth;
+using deluge::synth::test::raw_matrix::to_polarity;
 namespace params = deluge::modulation::params;
 
 // clang-format off

@@ -36,7 +36,10 @@ constexpr uint32_t kRate = 65536;     // a moderate per-sample rate (a stage spa
 
 // Render one block; the release curve is tables::kDecaySmall8, exactly as the voice supplies.
 int32_t render(Envelope& env, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release) {
-	return env.render(kBlock, attack, decay, sustain, release, deluge::dsp::fixed::tables::kDecaySmall8.data());
+	return env
+	    .render(kBlock, attack, decay, deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(sustain)), release,
+	            deluge::dsp::fixed::tables::kDecaySmall8.data())
+	    .raw();
 }
 
 // Drive the envelope until it reaches @p target (or give up), returning the blocks taken.
@@ -58,14 +61,14 @@ describe envelope_spec("Envelope", ${
 		env.note_on(false);
 		expect(env.stage() == Stage::ATTACK).to_be_truthy();
 		expect(env.is_at_attack_start()).to_be_truthy();
-		expect(env.output_level()).to_equal(0);
+		expect(env.output_level().raw()).to_equal(0);
 	});
 
 	it("can start straight in decay at full level", _ {
 		Envelope env;
-		env.note_on(true, kFull);
+		env.note_on(true, deluge::dsp::Q<31>::from_raw(kFull)).raw();
 		expect(env.stage() == Stage::DECAY).to_be_truthy();
-		expect(env.output_level()).to_equal(kFull);
+		expect(env.output_level().raw()).to_equal(kFull);
 	});
 
 	it("rises monotonically through the attack", _ {

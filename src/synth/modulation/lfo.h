@@ -56,47 +56,63 @@ public:
 namespace lfo_wave {
 
 /// Advance the shared phase accumulator.
-/// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate).
+/// @param phase_increment per-sample phase step (freq·2^32/sampleRate).
 /// @param num_samples     samples in this render block.
-[[gnu::always_inline]] inline void advance(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-	using deluge::dsp::UQ;
-	phase = deluge::dsp::advanced(UQ<32>::from_raw(phase), UQ<32>::from_raw(phase_increment),
-	                              static_cast<uint32_t>(num_samples))
-	            .raw();
+[[gnu::always_inline]] inline void advance(deluge::dsp::UQ<32>& phase, deluge::dsp::UQ<32> phase_increment,
+                                           int32_t num_samples) {
+	phase = deluge::dsp::advanced(phase, phase_increment, static_cast<uint32_t>(num_samples));
 }
 
-/// Rising ramp: the phase itself, reinterpreted as a signed q31 sweep from −1 to +1.
+/// @brief Whether a block of @p num_samples from @p phase crosses a period boundary: the phase wraps past 2^32.
+[[gnu::always_inline]] inline bool wraps(deluge::dsp::UQ<32> phase, deluge::dsp::UQ<32> phase_increment,
+                                         int32_t num_samples) {
+	return deluge::dsp::advanced(phase, phase_increment, static_cast<uint32_t>(num_samples)) < phase;
+}
+
+/// @brief A random word from @p noise as a full-scale value.
+[[gnu::always_inline]] inline deluge::dsp::Q<31> random_value(deluge::dsp::fixed::Cong& noise) {
+	return deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(noise.next()));
+}
+
+/// Rising ramp: the phase itself, reinterpreted as a signed sweep from −1 to +1.
 struct Saw {
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		int32_t value = static_cast<int32_t>(phase);
+	[[gnu::always_inline]] static deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase,
+	                                                        deluge::dsp::UQ<32> phase_increment, int32_t num_samples,
+	                                                        [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		const auto value = deluge::dsp::reinterpret_bits<deluge::dsp::Q<31>>(phase); // the phase read as signed
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
 };
 
 struct Square {
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		int32_t value = deluge::dsp::fixed::square(phase, 2147483648u);
+	[[gnu::always_inline]] static deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase,
+	                                                        deluge::dsp::UQ<32> phase_increment, int32_t num_samples,
+	                                                        [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		// The square's table steps the phase's word
+		const auto value = deluge::dsp::Q<31>::from_raw(deluge::dsp::fixed::square(phase.raw(), 2147483648u));
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
 };
 
 struct Sine {
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		int32_t value = deluge::dsp::fixed::kSineTable.value(phase);
+	[[gnu::always_inline]] static deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase,
+	                                                        deluge::dsp::UQ<32> phase_increment, int32_t num_samples,
+	                                                        [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		// The sine table reads the phase's word
+		const auto value = deluge::dsp::Q<31>::from_raw(deluge::dsp::fixed::kSineTable.value(phase.raw()));
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
 };
 
 struct Triangle {
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		int32_t value = deluge::dsp::fixed::triangle(phase);
+	[[gnu::always_inline]] static deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase,
+	                                                        deluge::dsp::UQ<32> phase_increment, int32_t num_samples,
+	                                                        [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		// The triangle folds the phase's word
+		const auto value = deluge::dsp::Q<31>::from_raw(deluge::dsp::fixed::triangle(phase.raw()));
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
@@ -104,11 +120,12 @@ struct Triangle {
 
 /// Sample-and-hold: latch a fresh random value at each period boundary, then hold it steady until the next.
 struct SampleHold {
-	int32_t held_value_ = 0;
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		bool new_period = (phase == 0) || (phase + phase_increment * num_samples < phase);
-		int32_t value = new_period ? (held_value_ = noise.next()) : held_value_;
+	deluge::dsp::Q<31> held_value{};
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase, deluge::dsp::UQ<32> phase_increment,
+	                                                 int32_t num_samples,
+	                                                 [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		bool new_period = (phase == deluge::dsp::UQ<32>{}) || wraps(phase, phase_increment, num_samples);
+		const deluge::dsp::Q<31> value = new_period ? (held_value = random_value(noise)) : held_value;
 		advance(phase, phase_increment, num_samples);
 		return value;
 	}
@@ -117,26 +134,27 @@ struct SampleHold {
 /// Random walk: at each period boundary, step the held value by a random amount that is biased back towards
 /// zero modulation — the further it has wandered from zero, the stronger the pull home — then hold.
 struct RandomWalk {
-	int32_t held_value_ = 0;
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+	deluge::dsp::Q<31> held_value{};
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase, deluge::dsp::UQ<32> phase_increment,
+	                                                 int32_t num_samples,
+	                                                 [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
 		// The walk spans ±(range/2) per step; full modulation depth is reached after several steps.
 		uint32_t range = 4294967295u / 20;
-		if (phase == 0) {
-			// First period: a plain centred random value, no previous value to bias against.
-			held_value_ = (range / 2) - noise.next() % range;
+		if (phase == deluge::dsp::UQ<32>{}) {
+			// First period: a plain centred random value, no previous value to bias against. Raw: an integer draw
+			held_value = deluge::dsp::Q<31>::from_raw(static_cast<int32_t>((range / 2) - noise.next() % range));
 		}
-		else if (phase + phase_increment * num_samples < phase) {
-			// (held_value_ / -16) is the homing bias. Its effect at the extremes:
-			//   held_value_ ==  8*range => bias + range/2 == 0       => next value <= current (forced down)
-			//   held_value_ ==  0       => bias + range/2 == range/2 => equal chance up or down
-			//   held_value_ == -8*range => bias + range/2 == range   => next value >= current (forced up)
-			// The step is integer, in the held value's Q31 units; the sum saturates.
-			const auto step = static_cast<int32_t>((held_value_ / -16) + (range / 2) - noise.next() % range);
-			held_value_ = add_sat(deluge::dsp::Q<31>::from_raw(step), deluge::dsp::Q<31>::from_raw(held_value_)).raw();
+		else if (wraps(phase, phase_increment, num_samples)) {
+			// (held_value / -16) is the homing bias. Its effect at the extremes:
+			//   held_value ==  8*range => bias + range/2 == 0       => next value <= current (forced down)
+			//   held_value ==  0       => bias + range/2 == range/2 => equal chance up or down
+			//   held_value == -8*range => bias + range/2 == range   => next value >= current (forced up)
+			// Raw: the step is an integer draw in the held value's units; the sum saturates.
+			const auto step = static_cast<int32_t>((held_value.raw() / -16) + (range / 2) - noise.next() % range);
+			held_value = add_sat(deluge::dsp::Q<31>::from_raw(step), held_value);
 		}
 		advance(phase, phase_increment, num_samples);
-		return held_value_;
+		return held_value;
 	}
 };
 
@@ -144,28 +162,27 @@ struct RandomWalk {
 /// picks a new random target. Rather than filtering the distance to the target, it filters the *rate* of
 /// approach (a second-order response), so the curve eases out — zero derivative — at both ends.
 struct Warbler {
-	int32_t held_value_ = 0;
-	int32_t target_ = 0;
-	int32_t speed_ = 0;
-	[[gnu::always_inline]] int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples,
-	                                      [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
-		phase_increment *= 2; // the warbler sweeps at twice the configured rate
-		if (phase + phase_increment * num_samples < phase) {
-			target_ = noise.next();
-			speed_ = 0;
+	deluge::dsp::Q<31> held_value{};
+	deluge::dsp::Q<31> target{};
+	int32_t speed = 0;
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(deluge::dsp::UQ<32>& phase, deluge::dsp::UQ<32> phase_increment,
+	                                                 int32_t num_samples,
+	                                                 [[maybe_unused]] deluge::dsp::fixed::Cong& noise) {
+		phase_increment = scale_shl_wrap<1>(phase_increment); // the warbler sweeps at twice the configured rate
+		if (wraps(phase, phase_increment, num_samples)) {
+			target = random_value(noise);
+			speed = 0;
 		}
 		// Saturating: a target more than full scale away is still the way to go
-		const int32_t distance_to_target =
-		    sub_sat(deluge::dsp::Q<31>::from_raw(target_), deluge::dsp::Q<31>::from_raw(held_value_)).raw();
+		const deluge::dsp::Q<31> distance_to_target = sub_sat(target, held_value);
 		// The distance scaled by the increment's top 24 bits, read as a UQ<32> fraction: the speed's change per
-		// sample, in the held value's Q31 units
-		const int32_t pull =
-		    mul(deluge::dsp::UQ<32>::from_raw(phase_increment >> 8), deluge::dsp::Q<31>::from_raw(distance_to_target))
-		        .raw();
-		speed_ = speed_ + (num_samples * pull);
-		held_value_ = add_sat(deluge::dsp::Q<31>::from_raw(held_value_), deluge::dsp::Q<31>::from_raw(speed_)).raw();
+		// sample, in the held value's units
+		const int32_t pull = mul(scale_shr_floor<8>(phase_increment), distance_to_target).raw();
+		// Raw: the speed is an integer product of the block's length and the pull, wrapping
+		speed = speed + (num_samples * pull);
+		held_value = add_sat(held_value, deluge::dsp::Q<31>::from_raw(speed));
 		advance(phase, phase_increment, num_samples);
-		return held_value_;
+		return held_value;
 	}
 };
 
@@ -190,32 +207,34 @@ public:
 	void set_global_initial_phase(const LFOConfig& config, bool reset_state = false);
 
 	/// Render one block of @p config's wave (see the LFOType overload).
-	[[gnu::always_inline]] int32_t render(int32_t num_samples, const LFOConfig& config, uint32_t phase_increment,
-	                                      deluge::dsp::fixed::Cong& noise) {
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(int32_t num_samples, const LFOConfig& config,
+	                                                 deluge::dsp::UQ<32> phase_increment,
+	                                                 deluge::dsp::fixed::Cong& noise) {
 		return render(num_samples, config.wave_type, phase_increment, noise);
 	}
 
-	/// Render one block, returning the LFO's q31 value for it.
-	/// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate). The phase accumulates
+	/// Render one block, returning the LFO's value for it.
+	/// @param phase_increment per-sample phase step (freq·2^32/sampleRate). The phase accumulates
 	///        `phase_increment * num_samples` across the block.
 	/// @param noise The noise stream the random waves (sample-and-hold, random walk, warbler) draw from.
-	[[gnu::always_inline]] int32_t render(int32_t num_samples, LFOType wave_type, uint32_t phase_increment,
-	                                      deluge::dsp::fixed::Cong& noise) {
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(int32_t num_samples, LFOType wave_type,
+	                                                 deluge::dsp::UQ<32> phase_increment,
+	                                                 deluge::dsp::fixed::Cong& noise) {
 		select_wave(wave_type);
 		return std::visit([&](auto& wave) { return wave.render(phase_, phase_increment, num_samples, noise); }, wave_);
 	}
 
 	/// Advance the phase without producing output (used while rendering is skipped). Waveform-agnostic.
-	void tick(int32_t num_samples, uint32_t phase_increment) {
+	void tick(int32_t num_samples, deluge::dsp::UQ<32> phase_increment) {
 		// Note: if this overflows and we're using SAMPLE_AND_HOLD or RANDOM_WALK, the next render() won't know
 		// it has overflown. Probably not an issue.
 		lfo_wave::advance(phase_, phase_increment, num_samples);
 	}
 
-	uint32_t phase() const { return phase_; }
-	void set_phase(uint32_t phase) { phase_ = phase; }
+	[[nodiscard]] deluge::dsp::UQ<32> phase() const { return phase_; }
+	void set_phase(deluge::dsp::UQ<32> phase) { phase_ = phase; }
 	/// Nudge the phase forward (e.g. to align a synced global LFO to the transport position).
-	void advance_phase(uint32_t delta) { phase_ += delta; }
+	void advance_phase(deluge::dsp::UQ<32> delta) { phase_ = add_wrap(phase_, delta); }
 
 private:
 	// Force a fresh waveform of `type`, resetting its accumulators (note-on / re-sync).
@@ -228,7 +247,7 @@ private:
 		}
 	}
 
-	uint32_t phase_ = 0;
+	deluge::dsp::UQ<32> phase_{};
 	// Alternatives are ordered to match the LFOType enum, so wave_.index() == static_cast<size_t>(LFOType).
 	std::variant<lfo_wave::Sine, lfo_wave::Triangle, lfo_wave::Square, lfo_wave::Saw, lfo_wave::SampleHold,
 	             lfo_wave::RandomWalk, lfo_wave::Warbler>

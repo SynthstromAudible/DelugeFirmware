@@ -1043,8 +1043,8 @@ void midiGateOutputTimerFired() {
 }
 
 void scheduleMidiGateOutISR(size_t numSamples);
-/// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
-constexpr int32_t kMasterVolumeWithoutSong = 167763968;
+/// The output stage's volume while no song is current, Q27: the master's, as a song master's filters start.
+constexpr int32_t kMasterVolumeWithoutSong = deluge::effects::kMasterVolume.raw();
 
 /// @brief The current song's master over @p renderingBuffer: its half before the reverb with @p master (noting a send
 /// to the reverb), then @p between (which renders the reverb, and the sample preview, and returns the half after's
@@ -1311,19 +1311,14 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 
 namespace {
 
-/// The song's post-FX volume as the metronome takes it, Q27: the song volume param's final value, halved; unity with no
+/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; unity with no
 /// song.
-int32_t metronomeVolumePostFx() {
+deluge::dsp::Q<27> metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
-		return 1 << 27; // unity, Q27: playback triggers the click only with a song, so this is defensive
+		return deluge::dsp::q<27>(1.0); // playback triggers the click only with a song, so this is defensive
 	}
-	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
-	return halve_floor(
-	           deluge::dsp::fixed::curve_square(deluge::dsp::Q<27>::one(),
-	                                            deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
-	                                                currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                                                    deluge::modulation::params::UNPATCHED_VOLUME)))))
-	    .raw();
+	return deluge::model::volume_from_knob(
+	    currentSong->paramManager.getUnpatchedParamSet()->getKnob(deluge::modulation::params::UNPATCHED_VOLUME));
 }
 
 } // namespace
@@ -1540,11 +1535,8 @@ void renderReverb(size_t numSamples) {
 	// The return's duck advances whether or not the reverb renders this block. The tick inverse is read only while it
 	// ducks: between songs there is no tempo to read.
 	const uint32_t tickInverse = reverb.return_ducks() ? playbackHandler.getTimePerInternalTickInverse() : 0;
-	const int32_t reverbOutputVolume =
+	const deluge::dsp::Q<31> reverbOutputVolume =
 	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse);
-
-	int32_t reverbAmplitudeL;
-	int32_t reverbAmplitudeR;
 
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
@@ -1552,26 +1544,16 @@ void renderReverb(size_t numSamples) {
 	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
-		// Reverb panning
-		bool thisDoPanning = false;
-		if (renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes =
-			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(reverbPan));
-			reverbAmplitudeL = amplitudes.left.raw();
-			reverbAmplitudeR = amplitudes.right.raw();
-			thisDoPanning = reverbPan != 0;
-		}
-
-		if (thisDoPanning) {
-			// The Q30 pan amplitudes times the Q31 output volume, Q29, moved to Q31
+		deluge::dsp::Q<31> reverbAmplitudeL = reverbOutputVolume;
+		deluge::dsp::Q<31> reverbAmplitudeR = reverbOutputVolume;
+		if (renderInStereo && reverbPan != 0) {
+			// The song's reverb pan setting is a Q31 word. The Q30 pan amplitudes times the output volume, Q29, moved
+			// to Q31
 			using deluge::dsp::Q;
-			reverbAmplitudeL =
-			    mul_as_wrap<Q<31>>(Q<30>::from_raw(reverbAmplitudeL), Q<31>::from_raw(reverbOutputVolume)).raw();
-			reverbAmplitudeR =
-			    mul_as_wrap<Q<31>>(Q<30>::from_raw(reverbAmplitudeR), Q<31>::from_raw(reverbOutputVolume)).raw();
-		}
-		else {
-			reverbAmplitudeL = reverbAmplitudeR = reverbOutputVolume;
+			const deluge::dsp::fixed::PanAmplitudes amplitudes =
+			    deluge::dsp::fixed::pan_amplitudes(Q<31>::from_raw(reverbPan));
+			reverbAmplitudeL = mul_as_wrap<Q<31>>(amplitudes.left, reverbOutputVolume);
+			reverbAmplitudeR = mul_as_wrap<Q<31>>(amplitudes.right, reverbOutputVolume);
 		}
 
 		// Mix reverb into main render
@@ -1900,6 +1882,7 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
 		if (monitorInput) {
+			// The codec's input ring holds raw Q31 words
 			const StereoSample monitored =
 			    deluge::dsp::fixed::output_monitor_fold(monitorFold,
 			                                            {.l = deluge::dsp::Q<31>::from_raw(inputReadPos[0]),
@@ -2077,11 +2060,13 @@ void updateReverbParams() {
 		return;
 	}
 
-	// Otherwise, use manually set params for reverb sidechain
-	reverb.set_return_duck({.depth = reverbSidechainVolume, .shape = reverbSidechainShape});
+	// Otherwise, use manually set params for reverb sidechain: the settings' words are the depth (Q29) and shape (Q31)
+	reverb.set_return_duck({.depth = deluge::dsp::Q<29>::from_raw(reverbSidechainVolume),
+	                        .shape = deluge::dsp::Q<31>::from_raw(reverbSidechainShape)});
 }
 
 void registerSideChainHit(int32_t strength) {
+	// The hit strengths are Q31 words: Reverb::return_level and Song::renderAudio read the pending hit as one
 	sideChainHitPending = deluge::dsp::fixed::combine_hit_strengths(deluge::dsp::Q<31>::from_raw(strength),
 	                                                                deluge::dsp::Q<31>::from_raw(sideChainHitPending))
 	                          .raw();

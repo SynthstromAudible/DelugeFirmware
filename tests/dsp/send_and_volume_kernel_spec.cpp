@@ -75,14 +75,14 @@ bool compare(reference::SendAndVolume& ref, Adapter& live, std::size_t frames_n,
 			live.forget();
 		}
 		ref.prime(p.post_reverb_volume >> 1);
-		live.prime(p.post_reverb_volume >> 1);
+		live.prime(deluge::dsp::Q<27>::from_raw(p.post_reverb_volume >> 1));
 		const bool sa = ref.process(std::span{a}.subspan(at, n), std::span{ra}.subspan(at, n), p);
 		const bool sb = live.process(typed_frames(std::span{b}.subspan(at, n)),
 		                             deluge::dsp::typed_view(std::span{rb}.subspan(at, n)),
-		                             {.post_fx_volume = p.post_fx_volume,
-		                              .post_reverb_volume = p.post_reverb_volume,
-		                              .reverb_send = p.reverb_send,
-		                              .pan = p.pan,
+		                             {.post_fx_volume = deluge::dsp::Q<27>::from_raw(p.post_fx_volume),
+		                              .post_reverb_volume = deluge::dsp::Q<27>::from_raw(p.post_reverb_volume),
+		                              .reverb_send = deluge::dsp::Q<31>::from_raw(p.reverb_send),
+		                              .pan = deluge::dsp::Q<31>::from_raw(p.pan),
 		                              .ramp = p.ramp,
 		                              .stereo = p.stereo});
 		sends_equal = sends_equal && sa == sb;
@@ -140,7 +140,7 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		std::vector<int32_t> ra(33);
 		std::vector<int32_t> rb(33);
 		(void)ref.process(a, ra, {.post_fx_volume = 1 << 27, .post_reverb_volume = 0x04000000, .ramp = true});
-		(void)live.process(typed_frames(std::span{b}), deluge::dsp::typed_view(std::span{rb}), {.post_fx_volume = 1 << 27, .post_reverb_volume = 0x04000000, .ramp = true});
+		(void)live.process(typed_frames(std::span{b}), deluge::dsp::typed_view(std::span{rb}), {.post_fx_volume = deluge::dsp::Q<27>::one(), .post_reverb_volume = deluge::dsp::Q<27>::from_raw(0x04000000), .ramp = true});
 		expect(same(a, b)).to_be_true();
 	});
 

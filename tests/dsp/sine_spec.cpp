@@ -134,21 +134,21 @@ describe sine_kernel("deluge::dsp::fixed sine", ${
 
 	context("sine_fm_operator() — scalar FM-feedback step", _ {
 		it("is zero at phase 0", _ {
-			expect(sine_fm_operator(0, 0)).to_equal(0);
+			expect(sine_fm_operator(deluge::dsp::UQ<32>::from_raw(0), 0).raw()).to_equal(0);
 		});
 		it("peaks at the quarter cycle reached via the carrier", _ {
-			expect(sine_fm_operator(kQuarter, 0)).to_equal(kPeak);
+			expect(sine_fm_operator(deluge::dsp::UQ<32>::from_raw(kQuarter), 0).raw()).to_equal(kPeak);
 		});
 		it("reaches the quarter cycle via the phase-shift (modulation) input", _ {
 			// phase_shift is added in the operator's 24-bit phase space; a quarter
 			// cycle there is (kQuarter >> 8).
-			expect(sine_fm_operator(0, kQuarter >> 8)).to_equal(kPeak);
+			expect(sine_fm_operator(deluge::dsp::UQ<32>::from_raw(0), kQuarter >> 8).raw()).to_equal(kPeak);
 		});
 		it("returns to zero at the half cycle", _ {
-			expect(sine_fm_operator(kHalf, 0)).to_equal(0);
+			expect(sine_fm_operator(deluge::dsp::UQ<32>::from_raw(kHalf), 0).raw()).to_equal(0);
 		});
 		it("agrees with sine() at the quarter cycle (shared table, fraction zero)", _ {
-			expect(sine_fm_operator(kQuarter, 0)).to_equal(sineAt(kQuarter));
+			expect(sine_fm_operator(deluge::dsp::UQ<32>::from_raw(kQuarter), 0).raw()).to_equal(sineAt(kQuarter));
 		});
 	});
 });

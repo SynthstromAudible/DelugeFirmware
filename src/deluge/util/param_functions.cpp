@@ -24,10 +24,8 @@
 namespace params = deluge::modulation::params;
 namespace curves = deluge::dsp::fixed;
 
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
-	// The neutral read at Q31 (its units are the param's); the patched value is the chain's Q29 combination
-	const auto neutral = deluge::dsp::Q<31>::from_raw(paramNeutralValue);
-	auto combination = deluge::dsp::Q<29>::from_raw(patchedValue);
+int32_t getFinalParameterValueExpWithDumbEnvelopeHack(deluge::dsp::Q<31> neutral, deluge::dsp::Q<29> combination,
+                                                      int32_t p) {
 	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
 		// The neutral times the release rate: the high word, in the neutral's units
 		return mul(neutral, curves::release_rate(combination)).raw();

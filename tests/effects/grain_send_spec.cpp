@@ -3,11 +3,16 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
-using deluge::effects::grain_send_amount;
+using deluge::dsp::Q;
 
 namespace {
 constexpr int32_t kUnity = 1 << 27; ///< The post-FX volume's unity, Q27.
 constexpr int32_t kHalf = 1 << 30;  ///< Half the send, Q31.
+
+/// The send for a Q27 volume word and a Q31 send word, as its word.
+int32_t grain_send_amount(int32_t volume, int32_t send) {
+	return deluge::effects::grain_send_amount(Q<27>::from_raw(volume), Q<31>::from_raw(send)).raw();
+}
 } // namespace
 
 // clang-format off

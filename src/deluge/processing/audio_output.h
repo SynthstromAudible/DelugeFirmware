@@ -84,7 +84,7 @@ public:
 
 	Envelope envelope;
 
-	int32_t amplitudeLastTime{};
+	deluge::dsp::Q<31> amplitudeLastTime{};
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate{};
 
@@ -188,13 +188,15 @@ private:
 	/// @param shouldLimitDelayFeedback Whether a delay's feedback is capped below self-oscillation.
 	/// @param isClipActive Whether the track's active clip plays.
 	/// @param pitchAdjust The track's pitch adjust.
-	/// @param amplitudeAtStart The clip's amplitude scale at the block's start, Q27 (134217728 is unity).
-	/// @param amplitudeAtEnd The clip's amplitude scale at the block's end, Q27 (134217728 is unity).
+	/// @param amplitudeAtStart The clip's amplitude at the block's start, Q30: the monitored input's gain, and, times
+	/// the envelope, the sample reader's amplitude. The channel passes an eighth.
+	/// @param amplitudeAtEnd The clip's amplitude at the block's end, Q30.
 	/// @return Whether the clip rendered.
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
 	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
 	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                   deluge::dsp::Q<24> pitchAdjust, deluge::dsp::Q<30> amplitudeAtStart,
+	                   deluge::dsp::Q<30> amplitudeAtEnd);
 	/// The audio track's channel strip: the chain its clip renders into, its settings and view.
 	deluge::model::TrackChannel channel_;
 };

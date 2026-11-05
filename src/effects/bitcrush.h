@@ -25,7 +25,6 @@
 
 #include <array>
 #include <cstdint>
-#include <limits>
 #include <span>
 
 namespace deluge::effects {
@@ -33,8 +32,8 @@ namespace deluge::effects {
 /// @brief One block's bitcrush settings: the two params' Q31 values. The bitcrush is on from -2113929216; the
 /// sample-rate reduction is on above -2^31.
 struct BitcrushParams {
-	int32_t bitcrush{std::numeric_limits<int32_t>::min()};
-	int32_t sample_rate_reduction{std::numeric_limits<int32_t>::min()};
+	dsp::Q<31> bitcrush{dsp::Q<31>::min()};
+	dsp::Q<31> sample_rate_reduction{dsp::Q<31>::min()};
 };
 
 /// @brief What a crushed block asks of its owner: how far to shift its post-FX volume down.

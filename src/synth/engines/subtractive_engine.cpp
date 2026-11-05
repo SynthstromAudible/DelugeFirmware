@@ -31,12 +31,13 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 
 	// Each source's amplitude, with the filters' gain folded in when there are filters; the voice's overall amplitude
 	// is applied after the filters.
-	std::array<int32_t, kNumSources> source_amplitudes{};
+	std::array<dsp::Q<31>, kNumSources> source_amplitudes{};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		// The Q31 volume at Q27: times the filters' gain (Q28, 2^28 unity) rounded, or a sixteenth unfiltered
-		const auto volume = dsp::Q<31>::from_raw(c.volume[s]);
-		source_amplitudes[s] =
-		    (cfg.has_filters ? mul_r(volume, dsp::Q<28>::from_raw(c.filter_gain)) : as_floor<dsp::Q<27>>(volume)).raw();
+		// The volume at Q27: times the filters' gain rounded, or a sixteenth unfiltered. The Q27 word is the source's
+		// level as the oscillators' VCAs take it
+		const dsp::Q<31> volume = c.volume[s];
+		source_amplitudes[s] = dsp::reinterpret_bits<dsp::Q<31>>(cfg.has_filters ? mul_r(volume, c.filter_gain)
+		                                                                         : as_floor<dsp::Q<27>>(volume));
 	}
 
 	Pass pass = begin(block, source_amplitudes);
@@ -91,7 +92,7 @@ EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
 }
 
 SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
-                                                 const std::array<int32_t, kNumSources>& source_amplitudes) {
+                                                 const std::array<dsp::Q<31>, kNumSources>& source_amplitudes) {
 	const DualSourceControls& c = block.dual;
 	SourceLevels& levels = *block.levels;
 
@@ -103,8 +104,10 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 	}
 	Pass pass{.amplitudes = levels.amplitudes_last_time};
 	for (int32_t s = 0; s < kNumSources; s++) {
+		// Raw: the increment is an integer division of the levels' difference
 		pass.amplitude_increments[s] =
-		    static_cast<int32_t>(source_amplitudes[s] - levels.amplitudes_last_time[s]) / block.num_samples;
+		    dsp::Q<31>::from_raw(static_cast<int32_t>(source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw())
+		                         / block.num_samples);
 	}
 	levels.filter_gain_last_time = c.filter_gain;
 
@@ -117,7 +120,7 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 
 bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo) {
 	const bool doing_osc_sync = block.cfg->doing_osc_sync;
-	std::span<uint32_t> master_increments;
+	std::span<dsp::UQ<32>> master_increments;
 	if (s == 0 && doing_osc_sync) {
 		master_increments = pass.sync_increments;
 	}

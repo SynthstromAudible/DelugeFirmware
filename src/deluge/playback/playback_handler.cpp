@@ -105,8 +105,8 @@ extern void songLoaded(Song* song);
 namespace {
 /// @brief A quarter of the tick time @p t (a sample count's word, read as Q31) raised by the Q30 @p factor (1.05 or
 /// 1.01): the high word, to compare with t >> 2.
-int32_t quarter_raised(int32_t factor, int32_t t) {
-	return mul(deluge::dsp::Q<30>::from_raw(factor), deluge::dsp::Q<31>::from_raw(t)).raw();
+int32_t quarter_raised(deluge::dsp::Q<30> factor, int32_t t) {
+	return mul(factor, deluge::dsp::Q<31>::from_raw(t)).raw();
 }
 } // namespace
 
@@ -1974,8 +1974,9 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		// 1% = 1084479242
 		// 2% = 1095216660
 		// 5% = 1127428915
-		if ((lowpassedTimePerInternalTick >> 2) > quarter_raised(1127428915, stickyTimePerInternalTick)
-		    || (stickyTimePerInternalTick >> 2) > quarter_raised(1127428915, lowpassedTimePerInternalTick)) {
+		if ((lowpassedTimePerInternalTick >> 2) > quarter_raised(deluge::dsp::q<30>(1.05), stickyTimePerInternalTick)
+		    || (stickyTimePerInternalTick >> 2)
+		           > quarter_raised(deluge::dsp::q<30>(1.05), lowpassedTimePerInternalTick)) {
 			// D_PRINTLN("5% tempo jump");
 			// D_PRINTLN(lowpassedTimePerInternalTick);
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
@@ -1985,9 +1986,10 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			    2147483647 / std::max<uint32_t>((stickyTimePerInternalTick * 3) >> 1, 1);
 		}
 		else if ((slowpassedTimePerInternalTick >> (slowpassedTimePerInternalTickSlowness + 2))
-		             > quarter_raised(1084479242, stickyTimePerInternalTick)
-		         || (stickyTimePerInternalTick >> 2) > quarter_raised(
-		                1084479242, slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness)) {
+		             > quarter_raised(deluge::dsp::q<30>(1.01), stickyTimePerInternalTick)
+		         || (stickyTimePerInternalTick >> 2)
+		                > quarter_raised(deluge::dsp::q<30>(1.01),
+		                                 slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness)) {
 			// D_PRINTLN("1% tempo jump");
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;

@@ -84,8 +84,7 @@ void LiveInputBuffer::give_input(int32_t num_samples, AudioInputPort& port, Inpu
 		for (int32_t p = 0; p < kDifferenceLPFPoles; p++) {
 			int32_t distance_to_go = angle - angle_lpf_mem[p];
 			// A 1/512 step toward the angle, rounded: the rounded high word of the distance times 2^23
-			angle_lpf_mem[p] +=
-			    mul_r(deluge::dsp::Q<31>::from_raw(distance_to_go), deluge::dsp::Q<31>::from_raw(1 << 23)).raw();
+			angle_lpf_mem[p] += mul_r(deluge::dsp::Q<31>::from_raw(distance_to_go), deluge::dsp::q<31>(0x1p-8)).raw();
 
 			angle = angle_lpf_mem[p];
 		}

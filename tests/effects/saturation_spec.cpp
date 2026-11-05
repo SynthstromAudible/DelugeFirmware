@@ -13,14 +13,14 @@ using deluge::dsp::StereoSample;
 
 namespace {
 
-constexpr int32_t kInput = 1 << 28;
+constexpr deluge::dsp::Q<31> kInput = deluge::dsp::q<31>(0.125);
 
 /// kInput through the antialiased tanh at @p drive, from silence: the first sample a fresh curve gives.
 int32_t first_sample(uint32_t drive) {
 	using deluge::dsp::fixed::AntialiasedTanh;
 	AntialiasedTanh::State state{};
 	return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = drive}), deluge::dsp::EmptyBlock{}, state,
-	                             deluge::dsp::Q<31>::from_raw(kInput))
+	                             kInput)
 	    .raw();
 }
 
@@ -55,14 +55,14 @@ describe saturation("tanh saturation per voice and per chain", ${
 	it("saturates a voice's sample harder, shifting from amount 2", _ {
 		for (uint8_t amount = 1; amount <= 4; amount++) {
 			Saturation s;
-			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::VOICE}))
+			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::VOICE}).raw())
 			    .to_equal(voice_by_hand(amount));
 		}
 	});
 	it("saturates a chain's sample from amount 1, shifting from amount 3", _ {
 		for (uint8_t amount = 1; amount <= 4; amount++) {
 			Saturation s;
-			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::CHAIN}))
+			expect(s.saturate(kInput, 0, {.clipping_amount = amount, .variant = SaturationVariant::CHAIN}).raw())
 			    .to_equal(chain_by_hand(amount));
 		}
 	});
@@ -86,8 +86,8 @@ describe saturation("tanh saturation per voice and per chain", ${
 		byBlock.process(block, params);
 		const std::vector<StereoSample> input = ramp();
 		for (size_t i = 0; i < input.size(); i++) {
-			expect(block[i].l.raw()).to_equal(bySample.saturate(input[i].l.raw(), 0, params));
-			expect(block[i].r.raw()).to_equal(bySample.saturate(input[i].r.raw(), 1, params));
+			expect(block[i].l).to_equal(bySample.saturate(input[i].l, 0, params));
+			expect(block[i].r).to_equal(bySample.saturate(input[i].r, 1, params));
 		}
 	});
 });

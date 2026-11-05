@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "modulation/automation/auto_param.h"
 #include "synth/modulation/cable.h"
@@ -47,4 +48,7 @@ public:
 	/// The depth's interpolation cursor, within [-2^30, 2^30]; the depth's value and automation are the host's lane,
 	/// PatchCableSet::docForParam.
 	AutoParam param;
+
+	/// @brief The cable's current depth, −1 to 1 (the cursor's word).
+	[[nodiscard]] deluge::dsp::Q<30> depth() const { return deluge::dsp::Q<30>::from_raw(param.getCurrentValue()); }
 };

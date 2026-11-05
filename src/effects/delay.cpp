@@ -291,6 +291,7 @@ void Delay::process(std::span<dsp::StereoSample> buffer, const State& delayWorki
 	}
 
 	DelayTape* const growing = secondary_.is_active() ? &secondary_ : nullptr;
+	// The working state's feedback is final_value's word, Q31.
 	const dsp::fixed::DelayBlockResult result =
 	    processor_.process(buffer, &primary_, growing,
 	                       {.rate = delayWorkingState.userDelayRate,

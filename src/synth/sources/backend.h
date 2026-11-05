@@ -45,7 +45,7 @@ struct Fixed {
 	using Sample = dsp::Q<31>; ///< A sample
 	using Level = dsp::Q<31>;  ///< A level or amplitude, or its per-sample increment
 	using Pan = dsp::Q<30>;    ///< A pan gain: unity at 2^30
-	using Phase = uint32_t;    ///< A phase or phase increment, one cycle at 2^32 (UQ0.32)
+	using Phase = dsp::UQ<32>; ///< A phase or phase increment, one cycle at 2^32
 
 	// A source's per-block inputs beyond the common ones
 	using OscillatorControls = synth::BlockControls;

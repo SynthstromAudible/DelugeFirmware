@@ -221,7 +221,7 @@ public:
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
 
-	int32_t volumeNeutralValueForUnison{0};
+	deluge::dsp::Q<31> volumeNeutralValueForUnison{};
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
@@ -289,7 +289,7 @@ public:
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,
 	            deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
-	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
+	            bool shouldLimitDelayFeedback = false, deluge::dsp::Q<24> pitchAdjust = deluge::dsp::Q<24>::one(),
 	            SampleRecorder* recorder = nullptr);
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
@@ -434,7 +434,7 @@ public:
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 
-	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
+	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
@@ -476,7 +476,8 @@ private:
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 
-	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
+	template <deluge::modulation::params::Global P>
+	deluge::dsp::UQ<32> getGlobalLFOPhaseIncrement(LFO_ID lfoId);
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);

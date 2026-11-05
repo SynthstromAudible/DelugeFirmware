@@ -28,6 +28,22 @@
 #include <cstdint>
 
 namespace {
+using deluge::dsp::UQ;
+
+/// One block of @p lfo's wave at the increment's word, as the value's word.
+int32_t render(LFO& lfo, int32_t num_samples, const LFOConfig& config, uint32_t phase_increment) {
+	return lfo.render(num_samples, config, UQ<32>::from_raw(phase_increment), deluge::synth_noise).raw();
+}
+
+/// One block of the wave generator @p wave from the phase word @p phase, which it moves on, as the value's word.
+template <class Wave>
+int32_t render(Wave& wave, uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
+	UQ<32> typed = UQ<32>::from_raw(phase);
+	const int32_t value = wave.render(typed, UQ<32>::from_raw(phase_increment), num_samples, deluge::synth_noise).raw();
+	phase = typed.raw();
+	return value;
+}
+
 // Restarts the noise stream the LFO is passed at a fixed seed, so the random waves' draws are deterministic. Call this
 // at the start of any case that exercises randomness.
 void seedRng() {
@@ -42,58 +58,58 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::TRIANGLE);
 		lfo.set_global_initial_phase(conf);
-		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(0);
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(10 * 100 * 2); // slope of 2 per phase step
+		expect(render(lfo, 10, conf, 100)).to_equal(0);
+		expect(render(lfo, 0, conf, 0)).to_equal(10 * 100 * 2); // slope of 2 per phase step
 	});
 
 	it("renders a local triangle from the negative extreme", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::TRIANGLE);
 		lfo.set_local_initial_phase(conf);
-		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(INT32_MIN);
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN + 2000);
+		expect(render(lfo, 10, conf, 100)).to_equal(INT32_MIN);
+		expect(render(lfo, 0, conf, 0)).to_equal(INT32_MIN + 2000);
 	});
 
 	it("renders a global sine from zero", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SINE);
 		lfo.set_global_initial_phase(conf);
-		expect((int32_t)lfo.phase()).to_equal(0); // sin(0) == 0
-		lfo.set_phase(1024);
+		expect((int32_t)lfo.phase().raw()).to_equal(0); // sin(0) == 0
+		lfo.set_phase(UQ<32>::from_raw(1024));
 		// (2^31)*sin(2*pi*1024/(2^32)) == 3216.99
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(3216);
+		expect(render(lfo, 0, conf, 0)).to_equal(3216);
 	});
 
 	it("renders a local sine from the negative extreme", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SINE);
 		lfo.set_local_initial_phase(conf);
-		expect(lfo.phase()).to_equal(3221225472u);
-		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(-2147418112);
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(-2147418082);
+		expect(lfo.phase().raw()).to_equal(3221225472u);
+		expect(render(lfo, 10, conf, 100)).to_equal(-2147418112);
+		expect(render(lfo, 0, conf, 0)).to_equal(-2147418082);
 	});
 
 	it("renders a saw with the same initial phase for local and global", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SAW);
 		lfo.set_local_initial_phase(conf);
-		uint32_t local_phase = lfo.phase();
+		uint32_t local_phase = lfo.phase().raw();
 		lfo.set_global_initial_phase(conf);
-		expect(lfo.phase()).to_equal(local_phase);
-		expect(lfo.render(10, conf, 100, deluge::synth_noise)).to_equal(INT32_MIN);
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN + 1000);
+		expect(lfo.phase().raw()).to_equal(local_phase);
+		expect(render(lfo, 10, conf, 100)).to_equal(INT32_MIN);
+		expect(render(lfo, 0, conf, 0)).to_equal(INT32_MIN + 1000);
 	});
 
 	it("renders a square and crosses its phase-width threshold", _ {
 		LFO lfo;
 		LFOConfig conf(LFOType::SQUARE);
 		lfo.set_local_initial_phase(conf);
-		uint32_t local_phase = lfo.phase();
+		uint32_t local_phase = lfo.phase().raw();
 		lfo.set_global_initial_phase(conf);
-		expect(lfo.phase()).to_equal(local_phase);
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MAX); // historically the positive extreme
-		lfo.set_phase(0x80000001);                           // force over the phase width
-		expect(lfo.render(0, conf, 0, deluge::synth_noise)).to_equal(INT32_MIN);
+		expect(lfo.phase().raw()).to_equal(local_phase);
+		expect(render(lfo, 0, conf, 0)).to_equal(INT32_MAX); // historically the positive extreme
+		lfo.set_phase(UQ<32>::from_raw(0x80000001));                           // force over the phase width
+		expect(render(lfo, 0, conf, 0)).to_equal(INT32_MIN);
 	});
 
 	// ---- Random waveforms: deterministic under a fixed synth_noise seed ----
@@ -102,29 +118,29 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		lfo.set_local_initial_phase(conf);
-		uint32_t local_phase = lfo.phase();
+		uint32_t local_phase = lfo.phase().raw();
 		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.set_global_initial_phase(conf);
-		expect(lfo.phase()).to_equal(local_phase);
-		expect(lfo.phase()).to_equal(0u);
+		expect(lfo.phase().raw()).to_equal(local_phase);
+		expect(lfo.phase().raw()).to_equal(0u);
 
-		int32_t value = lfo.render(10, conf, 10, deluge::synth_noise);
+		int32_t value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-1392915738);
-		expect(lfo.phase()).to_equal(100u);
+		expect(lfo.phase().raw()).to_equal(100u);
 
-		value = lfo.render(10, conf, 10, deluge::synth_noise); // held — no change
+		value = render(lfo, 10, conf, 10); // held — no change
 		expect(value).to_equal(-1392915738);
-		expect(lfo.phase()).to_equal(200u);
+		expect(lfo.phase().raw()).to_equal(200u);
 
-		lfo.set_phase(0); // force a new period
-		value = lfo.render(10, conf, 10, deluge::synth_noise);
+		lfo.set_phase(UQ<32>::from_raw(0)); // force a new period
+		value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-28442955);
-		expect(lfo.phase()).to_equal(100u);
+		expect(lfo.phase().raw()).to_equal(100u);
 
-		lfo.set_phase(UINT32_MAX); // next advance overflows -> new period
-		value = lfo.render(10, conf, 10, deluge::synth_noise);
+		lfo.set_phase(UQ<32>::from_raw(UINT32_MAX)); // next advance overflows -> new period
+		value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-1725170056);
-		expect(lfo.phase()).to_equal(99u);
+		expect(lfo.phase().raw()).to_equal(99u);
 	});
 
 	it("random-walks a biased value per period", _ {
@@ -134,23 +150,23 @@ describe lfo_spec("LFO", ${
 		lfo.set_local_initial_phase(conf);
 		conf.sync_level = deluge::plugin::SyncLevel::EIGHTH;
 		lfo.set_global_initial_phase(conf);
-		expect(lfo.phase()).to_equal(0u);
+		expect(lfo.phase().raw()).to_equal(0u);
 
-		int32_t value = lfo.render(10, conf, 10, deluge::synth_noise);
+		int32_t value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-2948644);
-		expect(lfo.phase()).to_equal(100u);
+		expect(lfo.phase().raw()).to_equal(100u);
 
-		value = lfo.render(10, conf, 10, deluge::synth_noise); // held
+		value = render(lfo, 10, conf, 10); // held
 		expect(value).to_equal(-2948644);
 
-		lfo.set_phase(0); // force a new period
-		value = lfo.render(10, conf, 10, deluge::synth_noise);
+		lfo.set_phase(UQ<32>::from_raw(0)); // force a new period
+		value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-78931243);
 
-		lfo.set_phase(UINT32_MAX); // overflow -> new period
-		value = lfo.render(10, conf, 10, deluge::synth_noise);
+		lfo.set_phase(UQ<32>::from_raw(UINT32_MAX)); // overflow -> new period
+		value = render(lfo, 10, conf, 10);
 		expect(value).to_equal(-174189095);
-		expect(lfo.phase()).to_equal(99u);
+		expect(lfo.phase().raw()).to_equal(99u);
 	});
 
 	// ---- Global re-sync vs playback-start reset (upstream #5039) ----
@@ -159,21 +175,21 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		lfo.set_global_initial_phase(conf);
-		const int32_t held = lfo.render(1, conf, 100, deluge::synth_noise);
+		const int32_t held = render(lfo, 1, conf, 100);
 		expect(held).not_().to_equal(0);
 
 		// Sound::resyncGlobalLFOs() resets the initial phase and then adds the current clock offset.
 		// Model successive re-syncs within one period.
 		for (uint32_t offset = 0x20000000; offset < 0xE0000000; offset += 0x20000000) {
 			lfo.set_global_initial_phase(conf);
-			lfo.advance_phase(offset);
-			expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(held);
+			lfo.advance_phase(UQ<32>::from_raw(offset));
+			expect(render(lfo, 1, conf, 100)).to_equal(held);
 		}
 
-		lfo.set_phase(UINT32_MAX);
-		const int32_t next = lfo.render(1, conf, 100, deluge::synth_noise);
+		lfo.set_phase(UQ<32>::from_raw(UINT32_MAX));
+		const int32_t next = render(lfo, 1, conf, 100);
 		expect(next).not_().to_equal(held);
-		expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(next);
+		expect(render(lfo, 1, conf, 100)).to_equal(next);
 	});
 
 	it("keeps random-waveform state across a global re-sync but not a local one", _ {
@@ -182,23 +198,24 @@ describe lfo_spec("LFO", ${
 			LFO lfo;
 			LFOConfig conf(type);
 			lfo.set_local_initial_phase(conf);
-			lfo.render(1, conf, 0x10000000, deluge::synth_noise);
-			lfo.set_phase(0x40000000);
-			const int32_t before = LFO(lfo).render(1, conf, 1, deluge::synth_noise);
+			render(lfo, 1, conf, 0x10000000);
+			lfo.set_phase(UQ<32>::from_raw(0x40000000));
+			LFO copy = lfo;
+			const int32_t before = render(copy, 1, conf, 1);
 
 			LFO resynced = lfo;
 			resynced.set_global_initial_phase(conf);
-			resynced.set_phase(0x40000000);
-			expect(resynced.render(1, conf, 1, deluge::synth_noise)).to_equal(before);
+			resynced.set_phase(UQ<32>::from_raw(0x40000000));
+			expect(render(resynced, 1, conf, 1)).to_equal(before);
 
 			// Per-voice note-on still starts with fresh waveform state.
 			LFO fresh;
 			fresh.set_local_initial_phase(conf);
-			fresh.set_phase(0x40000000);
+			fresh.set_phase(UQ<32>::from_raw(0x40000000));
 			LFO noted = lfo;
 			noted.set_local_initial_phase(conf);
-			noted.set_phase(0x40000000);
-			expect(noted.render(1, conf, 1, deluge::synth_noise)).to_equal(fresh.render(1, conf, 1, deluge::synth_noise));
+			noted.set_phase(UQ<32>::from_raw(0x40000000));
+			expect(render(noted, 1, conf, 1)).to_equal(render(fresh, 1, conf, 1));
 		}
 	});
 
@@ -208,15 +225,15 @@ describe lfo_spec("LFO", ${
 			LFO lfo;
 			LFOConfig conf(type);
 			lfo.set_global_initial_phase(conf, true);
-			lfo.render(1, conf, 0x10000000, deluge::synth_noise);
+			render(lfo, 1, conf, 0x10000000);
 
 			lfo.set_global_initial_phase(conf, true);
 			LFO fresh;
 			fresh.set_global_initial_phase(conf, true);
-			expect(lfo.phase()).to_equal(fresh.phase());
-			lfo.set_phase(0x40000000);
-			fresh.set_phase(0x40000000);
-			expect(lfo.render(1, conf, 1, deluge::synth_noise)).to_equal(fresh.render(1, conf, 1, deluge::synth_noise));
+			expect(lfo.phase().raw()).to_equal(fresh.phase().raw());
+			lfo.set_phase(UQ<32>::from_raw(0x40000000));
+			fresh.set_phase(UQ<32>::from_raw(0x40000000));
+			expect(render(lfo, 1, conf, 1)).to_equal(render(fresh, 1, conf, 1));
 		}
 	});
 
@@ -226,11 +243,11 @@ describe lfo_spec("LFO", ${
 		LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
 		for (int restart = 0; restart < 2; ++restart) {
 			lfo.set_global_initial_phase(conf, true);
-			const int32_t held = lfo.render(1, conf, 100, deluge::synth_noise);
+			const int32_t held = render(lfo, 1, conf, 100);
 			expect(held).not_().to_equal(0);
 			lfo.set_global_initial_phase(conf);
-			lfo.advance_phase(0x20000000);
-			expect(lfo.render(1, conf, 100, deluge::synth_noise)).to_equal(held);
+			lfo.advance_phase(UQ<32>::from_raw(0x20000000));
+			expect(render(lfo, 1, conf, 100)).to_equal(held);
 		}
 	});
 
@@ -239,20 +256,20 @@ describe lfo_spec("LFO", ${
 		LFO lfo;
 		LFOConfig conf(LFOType::WARBLER);
 		lfo.set_local_initial_phase(conf);
-		expect(lfo.phase()).to_equal(0u);
-		lfo.render(10, conf, 100, deluge::synth_noise);
+		expect(lfo.phase().raw()).to_equal(0u);
+		render(lfo, 10, conf, 100);
 		// The warbler advances phase at 2x the supplied increment (100 * 10 * 2).
-		expect(lfo.phase()).to_equal(2000u);
+		expect(lfo.phase().raw()).to_equal(2000u);
 	});
 
 	it("warbles toward a target more than full scale away, not away from it", _ {
 		// Held near the top, the target near the bottom: the distance, about -2^32, saturates rather than wrapping
 		// positive, so the held value moves down toward the target.
 		lfo_wave::Warbler warbler;
-		warbler.held_value_ = 2000000000;
-		warbler.target_ = -2000000000;
+		warbler.held_value = deluge::dsp::Q<31>::from_raw(2000000000);
+		warbler.target = deluge::dsp::Q<31>::from_raw(-2000000000);
 		uint32_t phase = 0;
-		const int32_t held = warbler.render(phase, 1 << 20, 16, deluge::synth_noise);
+		const int32_t held = render(warbler, phase, 1 << 20, 16);
 		expect(held < 2000000000).to_be_true();
 	});
 
@@ -260,7 +277,7 @@ describe lfo_spec("LFO", ${
 	it("advances phase through a stateless generator", _ {
 		lfo_wave::Sine sine;
 		uint32_t phase = 0;
-		expect(sine.render(phase, 100, 10, deluge::synth_noise)).to_equal(deluge::dsp::fixed::kSineTable.value(0));
+		expect(render(sine, phase, 100, 10)).to_equal(deluge::dsp::fixed::kSineTable.value(0));
 		expect(phase).to_equal(1000u); // 100 * 10
 	});
 
@@ -268,8 +285,8 @@ describe lfo_spec("LFO", ${
 		seedRng();
 		lfo_wave::SampleHold sh;
 		uint32_t phase = 0;
-		int32_t first = sh.render(phase, 10, 10, deluge::synth_noise); // phase==0 -> fresh sample
-		int32_t held = sh.render(phase, 10, 10, deluge::synth_noise);  // mid-period -> same value
+		int32_t first = render(sh, phase, 10, 10); // phase==0 -> fresh sample
+		int32_t held = render(sh, phase, 10, 10);  // mid-period -> same value
 		expect(held).to_equal(first);
 	});
 

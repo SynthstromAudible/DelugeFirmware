@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "effects/state.h"
 #include <cstdint>
 
@@ -28,8 +29,8 @@ namespace deluge::model {
 struct ReverbCandidate {
 	int32_t amount{0};               ///< The send compared, signed Q31.
 	bool found{false};               ///< Whether an owner's send beat the song's.
-	int32_t duck_depth{0};           ///< The winner's sidechain volume as a patch cable's depth, Q29.
-	int32_t duck_shape{0};           ///< The winner's sidechain shape param, Q31.
+	dsp::Q<29> duck_depth{};         ///< The winner's sidechain volume as a patch cable's depth.
+	dsp::Q<31> duck_shape{};         ///< The winner's sidechain shape param.
 	effects::SidechainState rates{}; ///< The winner's envelope; the reverb takes its attack, release and sync level.
 };
 

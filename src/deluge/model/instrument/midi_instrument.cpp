@@ -324,6 +324,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 
 	switch (expressionDimension) {
 	case X_PITCH_BEND: {
+		// The stored Q31 poly and mono expression, summed saturating; the pitch bend is its top 14 bits.
 		int32_t new_value = add_sat(deluge::dsp::Q<31>::from_raw(lastCombinedPolyExpression[expressionDimension]),
 		                            deluge::dsp::Q<31>::from_raw(lastMonoExpression[expressionDimension]))
 		                        .raw();
@@ -346,6 +347,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		break;
 	}
 	case Z_PRESSURE: {
+		// The stored Q31 poly and mono expression, summed saturating; the aftertouch is its top 7 bits.
 		int32_t new_value = add_sat(deluge::dsp::Q<31>::from_raw(lastCombinedPolyExpression[expressionDimension]),
 		                            deluge::dsp::Q<31>::from_raw(lastMonoExpression[expressionDimension]))
 		                        .raw()

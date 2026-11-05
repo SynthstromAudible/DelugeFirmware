@@ -33,18 +33,18 @@ public:
 private:
 	/// What each source's render in this block shares.
 	struct Pass {
-		std::array<int32_t, kNumSources> amplitudes{};            ///< Each source's amplitude at block start
-		std::array<int32_t, kNumSources> amplitude_increments{};  ///< Its per-sample increment
-		std::array<int32_t, kNumSources> wave_index_increments{}; ///< Each wavetable index's per-sample slope
-		std::array<uint32_t, kMaxNumVoicesUnison> sync_pos{};     ///< The osc-sync master's phase in each part
+		std::array<dsp::Q<31>, kNumSources> amplitudes{};           ///< Each source's amplitude at block start
+		std::array<dsp::Q<31>, kNumSources> amplitude_increments{}; ///< Its per-sample increment
+		std::array<int32_t, kNumSources> wave_index_increments{};   ///< Each wavetable index's per-sample slope
+		std::array<dsp::UQ<32>, kMaxNumVoicesUnison> sync_pos{};    ///< The osc-sync master's phase in each part
 		/// The master's increment in each part, which source 1 syncs to; 0 (too high: the slave skips) where the
 		/// master did not render the part.
-		std::array<uint32_t, kMaxNumVoicesUnison> sync_increments{};
+		std::array<dsp::UQ<32>, kMaxNumVoicesUnison> sync_increments{};
 	};
 
 	/// The block's levels (held, or ramping from the last block's), wavetable slopes and osc-sync master phases, from
 	/// this block's @p source_amplitudes.
-	static Pass begin(const EngineBlock& block, const std::array<int32_t, kNumSources>& source_amplitudes);
+	static Pass begin(const EngineBlock& block, const std::array<dsp::Q<31>, kNumSources>& source_amplitudes);
 	/// Renders source @p s into the mono (or, with @p stereo, the stereo) buffer: source 0 takes the osc-sync master's
 	/// increments even when silent, and source 1 syncs to them. @return whether a unison part became inactive.
 	static bool render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo);

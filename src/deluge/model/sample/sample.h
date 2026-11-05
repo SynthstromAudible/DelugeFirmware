@@ -137,7 +137,7 @@ public:
 	/// `reserve()` pre-sizing is needed.
 	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
 
-	// Floating point
+	// A float sample's native word, Q31, as convert_word gives an integer one's
 	[[nodiscard]] q31_t convertToNative(float value) const { return deluge::dsp::from_float<31>(value).raw(); }
 
 	[[nodiscard]] q31_t convertToNative(int32_t value) const {

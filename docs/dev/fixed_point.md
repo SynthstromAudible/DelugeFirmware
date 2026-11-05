@@ -171,9 +171,11 @@ instructions.
 
 ## Where the types are used
 
-- **Phase:** `Phasor` and `SyncedPhasor` hold, take and return `UQ<32>`; a step is `add_wrap`. The crude oscillators
-  forward their phase source's type. The table, pulse and wavetable oscillators and the synth's sources keep raw
-  `uint32_t` phase interfaces and convert where they meet a phasor; table and gather positions stay integer.
+- **Phase:** `Phasor` and `SyncedPhasor` hold, take and return `UQ<32>`; a step is `add_wrap`, n steps `advanced`.
+  The crude oscillators forward their phase source's type. The table, pulse, wavetable and synced oscillators, the
+  resetter, the synth's sources and slots (`osc_pos`, the stored increments), the engines' sync arrays, the FM
+  operators and the LFOs take and hold `UQ<32>`; `kInactive` is `UQ<32>::max()`. The pulse width stays a word (a phase
+  offset the pulse oscillator adds as bits), and table and gather positions stay integer.
 - **Table oscillators:** the table, pulse and sine oscillators read `{entry, next}` Q15 pairs as `Q16x2Vec<15>` and
   interpolate with `mla_doubling_wide_sat`: the entry widened to Q31 plus the doubled product of a Q15 slope and a Q15
   weight. The pulse interpolates square A with negated weights (its polarity flip) and ring-modulates with
@@ -263,12 +265,25 @@ instructions.
   delay's synced rate the Q24 rate times it, rounded, Q23; the sync levels' run-time shifts and the sync types' 3/2 and
   2/3 stay integer. The grain send is the Q27 volume times the Q31 send, moved to Q31; the master's pan amplitudes are
   Q30, and it halves its volume into the compressor's 4.27 gains and takes an eighth of the song volume as its 3.29
-  final volume (`scale_shr_floor`). The bench's chain and impulse-response references keep their raw arithmetic, written
+  final volume (`scale_shr_floor`). The chains' inputs are typed (`SoundChainInputs`, `TrackChainInputs`,
+  `MasterChainInputs`, `MasterPostInputs`: Q27 volumes, Q31 sends, pans and thresholds, the Q29 duck depth, Q30 pan
+  gains), as are the send and volume's params, the duck block and the reverb's return duck; a chain's running post-FX
+  volume is a Q27 word, which the bitcrush lowers by a run-time shift and the mod FX and grain scale in place. The
+  bench's chain and impulse-response references keep their raw arithmetic, written
   independently of what they check, and so does its legacy analog case, the arithmetic the kernel is compared against.
-- **Legacy synth:** the matrix's combinations are Q29 ("1" is 2^29): a cable's term is its Q31 source times its Q30
+- **Params:** the param arrays (`param_final_values`, the patcher's preset values) stay words, read and written
+  through `synth/matrix/param_format.h`: `param_value<P>`, `global_param_value<P>`, `param_value_at<First, N>`,
+  `param_neutral<P>` and `set_param_value<P>` give each param's final value in its format: Q31 by default, Q29 for
+  resonance and morph, Q24 for the pitch adjusts and the delay and arp rates, `UQ<32>` for the LFO and mod FX rates,
+  Q27 for the post-FX and post-reverb volumes, an integer for envelope attack, decay and release. A stored word is a
+  knob position, `ParamSet::getKnob(p)` its `Q<31>`; a patch cable's depth is `PatchCable::depth()`, `Q<30>`.
+- **Legacy synth:** the matrix's sources are Q31, its depths Q30 and its combinations Q29 ("1" is 2^29), as
+  `MatrixFixed`'s lanes and the evaluator's working values: a cable's term is its Q31 source times its Q30
   depth, times its Q29 range, held to [−1, 1) (so a multiply chain's 1 + term never wraps); a multiply step is held to
   [−4, 4); an add step saturates; the depth square and its lanes' integer square stay raw. Envelopes are Q31 levels
-  over UQ23 stage positions (2^23 a stage's end), stepped in 64 bits and held at the end; LFO phases are `UQ<32>`.
+  over UQ23 stage positions (2^23 a stage's end), stepped in 64 bits and held at the end; LFO phases are `UQ<32>` and
+  their output Q31; the portamento's depth is Q24. The engines' controls carry their formats: Q31 volumes and
+  feedback, Q24 pitch adjusts, the Q28 filter gain; the voice's overall amplitude is Q31 and its unison pans Q31.
   Pitch multipliers are Q24 (2^24 unity) on `UQ<32>` increments, read as signed Q31 for the multiply (they stay under 2^31, so the bits agree); the
   fine tuner's multiplier is Q30. The engines' filter gain is Q28 (2^28 unity), so a gain product is Q27 moved back to
   Q31; the FM operators' NEON loops read the amplitude at Q30 and round on both paths. A source panned into the
@@ -280,7 +295,10 @@ instructions.
   held to the word (`output_gain`), its dithered volume product 64-bit integer. Expression is Q31, a drum's inputs Q7
   combined to Q15 held to 16 bits (`combined_expression`); patch-cable nodes are Q30, doubled to the param's Q31; a
   0..128 knob is Q7 lifted to Q31 (`knob_level`); the arp's spreads are Q7 and its random amounts a true triangle
-  (`triangle_of`). What stays integer: the 64-bit tick and increment arithmetic, run-time shifts (the recorder's input
+  (`triangle_of`). An output's volume, pitch adjust and arp rate knobs reach their final values through
+  `volume_from_knob` (Q27), `pitch_adjust_from_knob` (Q24) and `ArpeggiatorSettings::rate_from_knob` (Q24); the
+  pitch adjust reaches the sound and the audio clip as Q24. What stays integer: the 64-bit tick and increment
+  arithmetic, run-time shifts (the recorder's input
   gain among them), MIDI and menu scalings, and the UI's display mappings.
 - **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A
   fixed-point kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a
@@ -291,7 +309,7 @@ instructions.
   (`spareRenderingBuffer`, the osc-sync buffer) are `Q<31>`; the DX7 port returns `Q<24>`. The FM operators' buffers
   and the sample reader's mix hold their Q30 products as the words of the voice's Q31 samples (`buffer_sample`,
   `mixed_in`). The audio clip, the sample reader, the reverb send (`ReverbSend`, the engine's reverb memory) and the
-  bench's blocks are typed too. Their internal arithmetic, phases and the mod matrix convert at each step.
+  bench's blocks are typed too, and so is their internal arithmetic; the edges that stay words are listed below.
 
 ## Measuring
 
@@ -328,6 +346,17 @@ any source change, so an empty result is not the gate. Each changed function is 
   fails until `--write` records it, so freed headroom can't be spent again. Boundary crossings are recorded but not
   gated: while the app's interfaces still take raw words, moving code onto the typed operations adds them. Moving a file onto
   the typed operations is the unit of progress.
+- **The words that stay** outside dsp-next, each with its reason in a comment where it crosses:
+  - codec and DMA words: the audio engine's input and output rings, the CV DAC, the MIDI wire;
+  - file, cache and settings words: stored params (`ParamSet::getKnob` reads one typed), settings, sample data, the
+    UI's display values;
+  - word interfaces: `effects::final_value` (its result's format is the param's curve's), the patcher's source
+    values, the supersaw's phases, the fine tuners' signed increments, the sample reader's amplitude, the live pitch
+    shifter;
+  - run-time shifts: a chain's post-FX volume (the bitcrush), the saturator's make-up gain, octave and sync levels;
+  - integer products and 64-bit intermediates, the matrix's depth square, and format reinterpretations
+    (`reinterpret_bits`), each saying what the word is read as;
+  - the bench's raw references, raw on purpose.
 - **What the ratchet can't see:** bare `int32_t` audio arithmetic (`+` or `<<` on samples) looks like any other
   integer code, so reviews have to catch it.
 - **Doc comments** still give the physical meaning where the type can't: cycles per sample, unity gain, a legacy

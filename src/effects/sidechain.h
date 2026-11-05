@@ -30,9 +30,9 @@ namespace deluge::effects {
 /// @brief One block's duck: its length, the hit pending for it, the shape and depth params and the rates.
 struct DuckBlock {
 	uint32_t frames;             ///< The block's length in samples.
-	int32_t hit;                 ///< The hit pending for this block, Q31; 0 for none.
-	int32_t shape;               ///< The shape param, Q31: the release's curve.
-	int32_t depth;               ///< The sidechain volume as a patch cable's depth, Q29.
+	dsp::Q<31> hit;              ///< The hit pending for this block, Q31; 0 for none.
+	dsp::Q<31> shape;            ///< The shape param, Q31: the release's curve.
+	dsp::Q<29> depth;            ///< The sidechain volume as a patch cable's depth, Q29.
 	const SidechainState& state; ///< The attack, release and sync.
 	uint32_t tick_inverse;       ///< The playback handler's getTimePerInternalTickInverse().
 };
@@ -60,11 +60,14 @@ public:
 	/// release by 9 less it.
 	/// @return The settings to configure the duck envelope with.
 	[[nodiscard]] static dsp::fixed::DuckEnvelope::Settings settings(const SidechainState& state,
-	                                                                 uint32_t time_per_tick_inverse, q31_t shape);
+	                                                                 uint32_t time_per_tick_inverse, dsp::Q<31> shape);
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
 	/// @param strength The hit's strength, Q31.
-	void register_hit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(dsp::Q<31>::from_raw(strength)); }
+	void register_hit(int32_t strength) {
+		// The strength is the engine's pending hit word (the sound passes sideChainHitPending).
+		duck_.on<&dsp::fixed::DuckEnvelope::hit>(dsp::Q<31>::from_raw(strength));
+	}
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
 	/// for @p time_per_tick_inverse.
@@ -83,7 +86,7 @@ public:
 	/// @param state                 The sidechain's attack, release and sync.
 	/// @param time_per_tick_inverse The playback handler's getTimePerInternalTickInverse().
 	/// @return The duck after the block, Q31: 0 is none, negative ducks.
-	[[nodiscard]] int32_t render(uint32_t num_samples, int32_t shape, const SidechainState& state,
+	[[nodiscard]] int32_t render(uint32_t num_samples, dsp::Q<31> shape, const SidechainState& state,
 	                             uint32_t time_per_tick_inverse);
 
 	/// @brief Registers @p b's hit, advances the duck by its block and gives the level at @p S's scale.
@@ -92,14 +95,15 @@ public:
 	/// @return The ducked level at @p S's scale: 2^27 (CLIP) or 2^29 (REVERB_RETURN) unducked.
 	template <dsp::fixed::DuckScale S>
 	[[nodiscard]] int32_t level(const DuckBlock& b) {
-		if (b.hit != 0) {
-			register_hit(b.hit);
+		if (b.hit != dsp::Q<31>{}) {
+			duck_.on<&dsp::fixed::DuckEnvelope::hit>(b.hit);
 		}
 		const int32_t duck = render(b.frames, b.shape, b.state, b.tick_inverse);
 		// The ranges duck_gain's square stays in range for (see its Wrapping note).
 		assert(duck <= 0 && duck > INT32_MIN);
-		assert(b.depth >= -(1 << 30) && b.depth <= (1 << 30));
-		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), dsp::Q<29>::from_raw(b.depth));
+		assert(b.depth >= dsp::q<29>(-2.0) && b.depth <= dsp::q<29>(2.0));
+		// render gives the patcher's source word; the duck is Q31.
+		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), b.depth);
 	}
 
 	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::DuckEnvelope::stop.

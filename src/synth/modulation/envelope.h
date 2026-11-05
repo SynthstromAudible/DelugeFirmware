@@ -17,6 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 
 constexpr uint32_t kSoftCullIncrement = 65536;
@@ -53,14 +54,14 @@ public:
 	/// decay_rate / @p release_rate are per-sample position increments; @p sustain_level is the
 	/// target level (not a rate); @p release_table shapes the release curve. The stage machine
 	/// self-advances (ATTACK→DECAY→SUSTAIN, RELEASE→OFF, …) purely from the accumulated position.
-	int32_t render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate, uint32_t sustain_level,
-	               uint32_t release_rate, const uint16_t* release_table);
+	deluge::dsp::Q<31> render(uint32_t num_samples, uint32_t attack_rate, uint32_t decay_rate,
+	                          deluge::dsp::Q<31> sustain_level, uint32_t release_rate, const uint16_t* release_table);
 
 	/// Start a note. @p directly_to_decay skips the attack stage (for very fast attacks).
-	int32_t note_on(bool directly_to_decay);
+	deluge::dsp::Q<31> note_on(bool directly_to_decay);
 	/// Start a note, seeding the sustain tracker with @p initial_sustain (the patched sustain level
 	/// at note-on, so the first decay/sustain block doesn't smooth up from a stale value).
-	int32_t note_on(bool directly_to_decay, int32_t initial_sustain);
+	deluge::dsp::Q<31> note_on(bool directly_to_decay, deluge::dsp::Q<31> initial_sustain);
 
 	/// Release the note. @p has_sustain is the caller's decision (e.g. the patched sustain is
 	/// audible): if false the note-off is ignored (held until the sustain stage resolves it);
@@ -71,14 +72,14 @@ public:
 	void unconditional_off();
 	/// Re-enter the attack stage at the position matching @p resume_level (legato/voice-reuse, so the
 	/// attack resumes from the level the previous note left off at rather than clicking to 0).
-	void resume_attack(int32_t resume_level);
+	void resume_attack(deluge::dsp::Q<31> resume_level);
 
 	// --- queries (the owner reads these for note/voice decisions; the envelope owns the data) ---
 
 	/// The current ADSR stage.
 	[[nodiscard]] Stage stage() const { return stage_; }
 	/// The current (uncentred, 0..2^31-1) envelope value — e.g. captured for @ref resumeAttack.
-	[[nodiscard]] int32_t output_level() const { return current_level_; }
+	[[nodiscard]] deluge::dsp::Q<31> output_level() const { return current_level_; }
 	/// The fast-release per-sample increment (the voice-cull paths compare against it).
 	[[nodiscard]] uint32_t fast_release_rate() const { return fast_release_rate_; }
 	/// True if the note has just started its attack and not yet advanced.
@@ -96,7 +97,7 @@ public:
 	/// a value before the envelope's own params have been patched (the voice's pre-patch ordering),
 	/// and snaps it to full when releasing a not-yet-started attack. This bypasses the stage machine
 	/// and exists only until the ControlBlock work (Phase 2 step 4) removes the ordering dependency.
-	void set_output_level(int32_t level) { current_level_ = level; }
+	void set_output_level(deluge::dsp::Q<31> level) { current_level_ = level; }
 
 private:
 	void set_state(Stage new_stage);
@@ -111,17 +112,17 @@ private:
 	// block. Split out of one big switch so each stage's (idiosyncratic) curve math is named and
 	// isolated; the values/arithmetic are unchanged.
 	StepOutcome step_attack(uint32_t attack_rate, uint32_t num_samples);
-	StepOutcome step_decay(uint32_t decay_rate, uint32_t sustain_level, uint32_t num_samples);
-	StepOutcome step_sustain(uint32_t sustain_level, uint32_t num_samples);
+	StepOutcome step_decay(uint32_t decay_rate, deluge::dsp::Q<31> sustain_level, uint32_t num_samples);
+	StepOutcome step_sustain(deluge::dsp::Q<31> sustain_level, uint32_t num_samples);
 	StepOutcome step_release(uint32_t release_rate, uint32_t num_samples, const uint16_t* release_table);
 	StepOutcome step_fast_release(uint32_t release_rate, uint32_t num_samples);
 
-	uint32_t stage_position_;          ///< Phase within the current stage; the stage ends when it reaches 2^23.
-	Stage stage_;                      ///< The current ADSR stage.
-	int32_t current_level_;            ///< The current (uncentred) envelope output level.
-	int32_t level_at_stage_entry_;     ///< The level when the current stage began (scales the release curves).
-	uint32_t fast_release_rate_{1024}; ///< Per-sample increment used by the fast-release stage.
-	bool ignored_note_off_;            ///< A note-off arrived while there was no audible sustain to release.
-	int32_t smoothed_sustain_{0};
+	uint32_t stage_position_;                 ///< Phase within the current stage; the stage ends when it reaches 2^23.
+	Stage stage_;                             ///< The current ADSR stage.
+	deluge::dsp::Q<31> current_level_;        ///< The current (uncentred) envelope output level.
+	deluge::dsp::Q<31> level_at_stage_entry_; ///< The level when the current stage began (scales the release curves).
+	uint32_t fast_release_rate_{1024};        ///< Per-sample increment used by the fast-release stage.
+	bool ignored_note_off_;                   ///< A note-off arrived while there was no audible sustain to release.
+	deluge::dsp::Q<31> smoothed_sustain_{};
 	bool stage_changed_{false};
 };

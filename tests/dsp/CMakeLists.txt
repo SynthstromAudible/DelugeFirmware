@@ -299,6 +299,9 @@ set(input_monitor_spec_DEPS)
 # The param curves and the matrix's neutral table are header-only.
 set(param_curve_spec_DEPS)
 
+# The params' formats are header-only.
+set(param_format_spec_DEPS)
+
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

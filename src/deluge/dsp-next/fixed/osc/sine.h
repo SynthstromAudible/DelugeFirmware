@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include <argon.hpp>
 #include <cstdint>
 
@@ -48,10 +49,10 @@ namespace deluge::dsp::fixed {
 /// FM-operator concern that merely shares the sine table; it will move to the FM engine
 /// in Phase 3.
 ///
-/// @param carrier_phase The operator's carrier phase, a full-circle q32 value.
-/// @param phase_shift The phase modulation to add, in 24-bit phase units.
-/// @return The interpolated sine sample, Q31: the Q15 entry at Q31 plus the Q15 difference times the Q16 weight
-/// (Q15 × Q16 is Q31, so no doubling). An integer lerp, kept integer.
-[[nodiscard]] int32_t sine_fm_operator(uint32_t carrier_phase, uint32_t phase_shift);
+/// @param carrier_phase The operator's carrier phase.
+/// @param phase_shift The phase modulation to add, its word in 24-bit phase units.
+/// @return The interpolated sine sample: the Q15 entry at Q31 plus the Q15 difference times the Q16 weight (Q15 × Q16
+/// is Q31, so no doubling). An integer lerp, kept integer.
+[[nodiscard]] Q<31> sine_fm_operator(UQ<32> carrier_phase, uint32_t phase_shift);
 
 } // namespace deluge::dsp::fixed

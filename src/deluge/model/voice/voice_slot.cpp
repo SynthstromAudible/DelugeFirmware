@@ -148,7 +148,7 @@ void VoiceSlot::dump_sources(const deluge::synth::matrix::MatrixBlock& control_b
 			    .source = static_cast<uint8_t>(s),
 			    .active = slot.active,
 			    .cache = cfg.osc_type[s] == OscType::SAMPLE && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
-			    .phase_increment = slot.phase_increment_stored_value,
+			    .phase_increment = slot.phase_increment_stored_value.raw(), // the dump records the word
 			};
 		}
 	}

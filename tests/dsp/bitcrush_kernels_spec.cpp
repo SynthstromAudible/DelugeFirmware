@@ -97,7 +97,7 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 					ref.process(std::span{a}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = block_srr},
 					            volume);
 					const int shift =
-					    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = crush, .sample_rate_reduction = block_srr})
+					    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = Q<31>::from_raw(crush), .sample_rate_reduction = Q<31>::from_raw(block_srr)})
 					        .volume_shift;
 					expect(volume).to_equal((1 << 27) >> shift);
 					at += n;
@@ -122,7 +122,7 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 				int32_t volume = 1 << 27;
 				ref.process(std::span{a}.subspan(at, n), {.bitcrush = crush, .sample_rate_reduction = srr}, volume);
 				const int shift =
-				    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = crush, .sample_rate_reduction = srr})
+				    k.process(typed_frames(std::span{b}.subspan(at, n)), {.bitcrush = Q<31>::from_raw(crush), .sample_rate_reduction = Q<31>::from_raw(srr)})
 				        .volume_shift;
 				expect(volume).to_equal((1 << 27) >> shift);
 				at += n;

@@ -19,6 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "modulation/sync.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
@@ -67,7 +68,13 @@ public:
 
 	void updateSettingsFromCurrentPreset();
 
-	uint32_t getPhaseIncrement(int32_t arpRate);
+	/// @brief The arp's phase increment per sample at @p arpRate, or the tempo's while it syncs.
+	/// @param arpRate The rate param's final value: 1 is the base rate.
+	uint32_t getPhaseIncrement(deluge::dsp::Q<24> arpRate);
+
+	/// @brief An unpatched arp rate knob's final value: its exponential curve around the rate's neutral.
+	/// @param knob The rate param's stored word.
+	[[nodiscard]] static deluge::dsp::Q<24> rate_from_knob(deluge::dsp::Q<31> knob);
 
 	// Main settings
 	ArpPreset preset{ArpPreset::OFF};

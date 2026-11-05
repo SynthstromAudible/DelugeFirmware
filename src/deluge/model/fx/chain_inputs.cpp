@@ -19,7 +19,7 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral
+#include "synth/matrix/param_format.h" // param_neutral
 #include "util/synth_noise.h"
 
 #include "effects/reverb.h"
@@ -90,13 +90,13 @@ effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Del
 	return delayWorkingState;
 }
 
-int32_t sidechainDepth(ParamManager& paramManager) {
-	int32_t sidechainVolumeParam = paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
-	return (sidechainVolumeParam >> 2) + 536870912;
+dsp::Q<29> sidechainDepth(ParamManager& paramManager) {
+	const dsp::Q<31> knob = paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_VOLUME);
+	return add_wrap(as_floor<dsp::Q<29>>(knob), dsp::Q<29>::one());
 }
 
 effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
-                               ParamManager& paramManager, const effects::Delay::State& delay, int32_t grainSend) {
+                               ParamManager& paramManager, const effects::Delay::State& delay, dsp::Q<31> grainSend) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const effects::ModFx::Params modFx = effects::ModFx::params_from({
 	    .rate = unpatched->getValue(params::UNPATCHED_MOD_FX_RATE),
@@ -111,10 +111,10 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 	    .mod_fx_depth = modFx.depth,
 	    .mod_fx_offset = modFx.offset,
 	    .mod_fx_feedback = modFx.feedback,
-	    .eq = {.bass = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS)),
-	           .treble = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE)),
-	           .bass_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS_FREQ)),
-	           .treble_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE_FREQ))},
+	    .eq = {.bass = unpatched->getKnob(params::UNPATCHED_BASS),
+	           .treble = unpatched->getKnob(params::UNPATCHED_TREBLE),
+	           .bass_frequency = unpatched->getKnob(params::UNPATCHED_BASS_FREQ),
+	           .treble_frequency = unpatched->getKnob(params::UNPATCHED_TREBLE_FREQ)},
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
@@ -123,60 +123,62 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 }
 
 effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
-                                           int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                           dsp::Q<27> volumeAdjustment, int32_t reverbAmountAdjust,
                                            int32_t sideChainHitPending, const effects::Delay::State& delay,
                                            OutputType outputType) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits add a quarter of the
-	// volume; audio tracks add the exact factor 471633397 / 2^32.
-	int32_t volumePostFX = volumeAdjustment;
-	volumePostFX +=
+	// volume; audio tracks add the exact factor 471633397 / 2^32: the rounded high word of the volume times the
+	// Q31 constant is that product in the volume's units.
+	const dsp::Q<27> headroom =
 	    (outputType == OutputType::AUDIO)
-	        // the rounded high word: the volume times 471633397 / 2^32, in its units
-	        ? mul_r(deluge::dsp::Q<31>::from_raw(volumeAdjustment), deluge::dsp::Q<31>::from_raw(471633397)).raw()
-	        : (volumeAdjustment >> 2);
+	        ? dsp::reinterpret_bits<dsp::Q<27>>(mul_r(volumeAdjustment, dsp::q<31>(471633397 / 0x1p31)))
+	        : scale_shr_floor<2>(volumeAdjustment);
+	const dsp::Q<27> volumePostFX = add_wrap(volumeAdjustment, headroom);
 
-	const int32_t reverbSendAmount = effects::final_value(
-	    effects::Reverb::kSend, unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT), reverbAmountAdjust);
+	// The send's final value is Q31
+	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
+	    effects::Reverb::kSend, unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT), reverbAmountAdjust));
 	const StutterInput stutter = stutterInput(channel.core(), &paramManager);
 	const snapshot::ModControllableSnapshot& snapshot = channel.binding().snapshot();
 
 	return {
 	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount),
-	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
+	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
 	    .volume_post_fx = volumePostFX,
 	    .reverb_send = reverbSendAmount,
-	    .pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1,
+	    .pan = halve_floor(unpatched->getKnob(params::UNPATCHED_PAN)),
 	    .sidechain_on = unpatched->getValue(params::UNPATCHED_SIDECHAIN_VOLUME) != std::numeric_limits<q31_t>::min(),
-	    .sidechain_hit = sideChainHitPending,
-	    .sidechain_shape = unpatched->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .sidechain_hit = dsp::Q<31>::from_raw(sideChainHitPending), // the engine's pending hit word
+	    .sidechain_shape = unpatched->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .sidechain_depth = sidechainDepth(paramManager),
 	    .tick_inverse = playbackHandler.getTimePerInternalTickInverse(),
-	    .post_reverb_volume_neutral = deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND],
-	    .compressor_threshold = unpatched->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD),
+	    .post_reverb_volume_neutral = synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>(),
+	    .compressor_threshold = unpatched->getKnob(params::UNPATCHED_COMPRESSOR_THRESHOLD),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};
 }
 
-effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
+effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX) {
 	MasterChannel& master = song.live.master_channel;
 	ParamManager& paramManager = song.paramManager;
 	const snapshot::ModControllableSnapshot& snapshot = master.binding().snapshot();
 	const effects::Delay::State delay =
 	    delayWorkingState(paramManager, master.core().delay(), snapshot.effects.delay, false, true);
-	const int32_t reverbSendAmount = effects::final_value(
-	    effects::Reverb::kSend, paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT));
+	// The send's final value is Q31
+	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
+	    effects::Reverb::kSend, paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 	return {
-	    .fx =
-	        hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount >> 3),
+	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay,
+	                       scale_shr_floor<3>(reverbSendAmount)),
 	    .volume_post_fx = volumePostFX,
-	    .post_reverb_volume = deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND],
-	    .reverb_send = reverbSendAmount >> 1,
+	    .post_reverb_volume = synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>(),
+	    .reverb_send = halve_floor(reverbSendAmount),
 	};
 }
 
@@ -185,34 +187,24 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	const StutterInput stutter = stutterInput(song.live.master_channel.core(), &song.paramManager);
 
 	// The pan applies after the reverb, in stereo only.
-	const int32_t pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1;
-	int32_t amplitudeL = 0;
-	int32_t amplitudeR = 0;
-	const bool doPanning = pan != 0 && AudioEngine::renderInStereo;
+	const dsp::Q<31> pan = halve_floor(unpatched->getKnob(params::UNPATCHED_PAN));
+	dsp::fixed::PanAmplitudes amplitudes{};
+	const bool doPanning = pan != dsp::Q<31>{} && AudioEngine::renderInStereo;
 	if (doPanning) {
-		const deluge::dsp::fixed::PanAmplitudes amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
-		amplitudeL = amplitudes.left.raw();
-		amplitudeR = amplitudes.right.raw();
+		amplitudes = dsp::fixed::pan_amplitudes(pan);
 	}
 
 	return {
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
 	    .noise = &synth_noise,
-	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	    // 134217728 made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.
-	    .master_volume = 167763968,
+	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
+	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	    .master_volume = effects::kMasterVolume,
 	    .do_pan = doPanning,
-	    .pan_l = amplitudeL,
-	    .pan_r = amplitudeR,
-	    // The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
-	    .song_volume = halve_floor(deluge::dsp::fixed::curve_square(
-	                                   deluge::dsp::Q<27>::one(),
-	                                   deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
-	                                       unpatched->getValue(params::UNPATCHED_VOLUME)))))
-	                       .raw(),
+	    .pan_l = amplitudes.left,
+	    .pan_r = amplitudes.right,
+	    .song_volume = volume_from_knob(unpatched->getKnob(params::UNPATCHED_VOLUME)),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

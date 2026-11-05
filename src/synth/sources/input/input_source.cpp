@@ -220,7 +220,8 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 
 SourceRenderResult InputSource::render(const SourceBlock& block) {
 	// Live input never ends by itself; channel routing follows the channel latched at note-on.
-	render_input(block.osc_buffer, block.num_samples, block.phase_increment, block.source_amplitude,
+	// The pitch shifter steps the increment's word
+	render_input(block.osc_buffer, block.num_samples, block.phase_increment.raw(), block.source_amplitude,
 	             block.amplitude_increment, block.stereo_buffer, block.stereo_unison, block.amplitude_l,
 	             block.amplitude_r, block.input.interpolation_buffer_size, *block.noise, block.stereo_scratch);
 	return deluge::synth::SourceRenderResult::ACTIVE;

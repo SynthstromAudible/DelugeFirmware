@@ -23,10 +23,10 @@ namespace {
 namespace va = deluge::synth::va_shape;
 
 /// @brief The VCA's amplitude: a quarter, steady.
-constexpr q31_t kAmplitude = q31_t{1} << 29;
+constexpr dsp::Q<31> kAmplitude = dsp::q<31>(0.25);
 
 dsp::Phasor phasor(uint32_t increment) {
-	return dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(increment)};
+	return dsp::Phasor{dsp::UQ<32>{}, dsp::UQ<32>::from_raw(increment)};
 }
 
 struct VaShapeRig {
@@ -61,16 +61,14 @@ void VaShapeCase::setup(std::size_t /*n*/) {
 }
 
 void VaShapeCase::block(std::size_t n) {
-	synth::BlockControls controls{.amplitude = dsp::Ramp{dsp::Q<31>::from_raw(kAmplitude), dsp::Q<31>::from_raw(0)},
-	                              .apply_amplitude = true};
+	synth::BlockControls controls{.amplitude = dsp::Ramp{kAmplitude, dsp::Q<31>{}}, .apply_amplitude = true};
 	if (config_.sync) {
 		controls.sync = rig.master;
 	}
 	const std::span<dsp::Q<31>> output{rig.output.data(), n};
 	const std::span<dsp::Q<31>> scratch{rig.scratch.data(), n};
 	std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, rig.shape);
-	rig.master.seek(
-	    dsp::UQ<32>::from_raw(rig.master.phase().raw() + (rig.master.increment().raw() * static_cast<uint32_t>(n))));
+	rig.master.seek(dsp::advanced(rig.master.phase(), rig.master.increment(), static_cast<uint32_t>(n)));
 }
 
 } // namespace deluge::bench

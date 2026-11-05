@@ -2602,14 +2602,10 @@ void Song::deleteSoundsWhichWontSound() {
 deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
                                                      deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
-	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
-	int32_t volumePostFX =
-	    halve_floor(deluge::dsp::fixed::curve_square(
-	                    deluge::dsp::Q<27>::one(),
-	                    deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
-	                        paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))))
-	        .raw();
+	const deluge::dsp::Q<27> volumePostFX =
+	    deluge::model::volume_from_knob(paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME));
+	// The outputs take the halved volume's word as their reverb adjust
+	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
@@ -2627,7 +2623,7 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+			output->renderOutput(modelStack, outputBuffer, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
 		EXIT_CRITICAL_SECTION();

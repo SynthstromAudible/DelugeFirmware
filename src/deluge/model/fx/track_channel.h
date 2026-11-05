@@ -55,7 +55,7 @@ struct ContentBlock {
 	int32_t side_chain_hit_pending{};   ///< The sidechain hit pending this block, Q31; 0 for none.
 	bool should_limit_delay_feedback{}; ///< Whether a delay's feedback is capped below self-oscillation.
 	bool is_clip_active{};              ///< Whether the track's active clip plays.
-	int32_t pitch_adjust{};             ///< The channel's pitch adjust, as its param gives it.
+	dsp::Q<24> pitch_adjust{};          ///< The channel's pitch adjust (pitch_adjust_from_knob).
 };
 
 /// @brief A track's content render: returns whether anything rendered.

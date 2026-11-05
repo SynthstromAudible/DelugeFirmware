@@ -44,7 +44,7 @@ public:
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	void render(ModelStackWithTimelineCounter* modelStack, std::span<deluge::dsp::Q<31>> output, int32_t amplitude,
-	            int32_t amplitudeIncrement, int32_t pitchAdjust);
+	            int32_t amplitudeIncrement, deluge::dsp::Q<24> pitchAdjust);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
 	                      bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,

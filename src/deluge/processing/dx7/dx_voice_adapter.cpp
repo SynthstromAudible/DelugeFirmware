@@ -86,16 +86,16 @@ std::span<const Q<24>> DxVoiceAdapter::render(int32_t numSamples, uint32_t phase
 	// TODO: 1. use existing int log function?
 	//       2. going from phase to logs (and then the voice's frequency table turning those logs into phase again) is
 	//         a round trip: take our phase increments directly?
-	int logpitch = (int)(log2f(phaseIncrement) * (1 << 24));
-	int adjpitch = logpitch - 278023814;
+	// The float log2 of the phase increment as Q24 octaves, less 32 − log2(44100) (16.57): the log2 of the frequency in
+	// Hz, the voice's log frequency
+	const Q<24> base_pitch = sub_wrap(from_float<24>(log2f(phaseIncrement)), q<24>(278023814.0 / 16777216.0));
 
 	midinote_ = midinote;
 	if (patchChanged) {
 		patch_->refreshVoiceParams();
 	}
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
-	// The pitch is the float log2 read as Q24 octaves.
-	const PoolVoice::BlockInputs in{.base_pitch = Q<24>::from_raw(adjpitch),
+	const PoolVoice::BlockInputs in{.base_pitch = base_pitch,
 	                                .lfo_value = patch_->lfo_value,
 	                                .eg_mod = patch_->eg_mod,
 	                                .amp_mod = ampModParam >> 13};

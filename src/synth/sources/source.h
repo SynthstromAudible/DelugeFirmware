@@ -74,8 +74,8 @@ inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
 /// is created/seeded, not passed here.
 struct BlockControls {
 	deluge::dsp::Ramp amplitude{
-	    deluge::dsp::Q<31>::from_raw(0),
-	    deluge::dsp::Q<31>::from_raw(0)}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
+	    deluge::dsp::Q<31>{},
+	    deluge::dsp::Q<31>{}}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
 	/// When true, VCA-scale the wave and mix it into @c output's prior contents (the normal voice path). When
 	/// false, write the raw "standalone" wave straight out (e.g. the ring-mod carrier, which is multiplied later).
 	bool apply_amplitude{};
@@ -140,10 +140,10 @@ struct Dx7Block {
 
 /// @brief A sample source's block inputs.
 struct SampleBlock {
-	uint32_t porta_envelope_pos{kNoPorta};   ///< The voice's portamento position; kNoPorta when not gliding
-	int32_t priority_rating{};               ///< The voice's cull rating (the cache and the reader rank by it)
-	uint32_t phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
-	bool pitch_mod_disallows_cache{};        ///< A source that can change during the note modulates its pitch
+	uint32_t porta_envelope_pos{kNoPorta};      ///< The voice's portamento position; kNoPorta when not gliding
+	int32_t priority_rating{};                  ///< The voice's cull rating (the cache and the reader rank by it)
+	dsp::UQ<32> phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
+	bool pitch_mod_disallows_cache{};           ///< A source that can change during the note modulates its pitch
 };
 
 /// @brief A live-input source's block inputs.

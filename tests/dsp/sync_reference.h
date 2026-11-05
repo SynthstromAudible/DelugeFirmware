@@ -37,7 +37,11 @@ namespace sync_reference {
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::kSineTable;
-using deluge::dsp::fixed::Resetter;
+/// @brief The hard-sync master as the reference keeps it: raw phase words.
+struct Resetter {
+	uint32_t phase;
+	uint32_t phase_increment;
+};
 
 inline int32_t resetter_reciprocal(uint32_t resetter_increment) {
 	if (resetter_increment == 0) {

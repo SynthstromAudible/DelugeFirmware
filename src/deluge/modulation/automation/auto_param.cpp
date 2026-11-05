@@ -1123,7 +1123,8 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	// store current value (so we can check if it changed below)
 	int32_t oldValue = played_;
 
-	// add value increment, clamp within the int32 limits (-2147483648, 2147483647)
+	// add value increment, clamp within the int32 limits (-2147483648, 2147483647). played_ and the increment are the
+	// lane's stored words, Q31 only for the saturating add
 	played_ = add_sat(deluge::dsp::Q<31>::from_raw(played_), deluge::dsp::Q<31>::from_raw(value_increment)).raw();
 
 	// check if overflow occurred (e.g. increment would push current value over limit)

@@ -63,18 +63,18 @@ struct Rig {
 /// and @p release.
 inline matrix::MatrixBlock presets(int32_t release) {
 	matrix::MatrixBlock block{};
-	block.preset_values.fill(0);
-	block.preset_values[params::LOCAL_OSC_A_VOLUME] = kMax;
-	block.preset_values[params::LOCAL_OSC_B_VOLUME] = kMin;
-	block.preset_values[params::LOCAL_NOISE_VOLUME] = kMin;
-	block.preset_values[params::LOCAL_VOLUME] = 0x4CCCCCA8;
-	block.preset_values[params::LOCAL_ENV_0_ATTACK] = kMin;
-	block.preset_values[params::LOCAL_ENV_0_SUSTAIN] = kMax;
-	block.preset_values[params::LOCAL_ENV_0_RELEASE] = release;
-	block.preset_values[params::LOCAL_LPF_FREQ] = kMax;
-	block.preset_values[params::LOCAL_HPF_FREQ] = kMin;
-	block.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = 0x40000000;
-	block.preset_values[params::LOCAL_MODULATOR_1_VOLUME] = kMin;
+	block.preset_values.fill(deluge::dsp::Q<31>{});
+	block.preset_values[params::LOCAL_OSC_A_VOLUME] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_OSC_B_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_NOISE_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_VOLUME] = deluge::dsp::Q<31>::from_raw(0x4CCCCCA8);
+	block.preset_values[params::LOCAL_ENV_0_ATTACK] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_ENV_0_SUSTAIN] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_ENV_0_RELEASE] = deluge::dsp::Q<31>::from_raw(release);
+	block.preset_values[params::LOCAL_LPF_FREQ] = deluge::dsp::Q<31>::from_raw(kMax);
+	block.preset_values[params::LOCAL_HPF_FREQ] = deluge::dsp::Q<31>::from_raw(kMin);
+	block.preset_values[params::LOCAL_MODULATOR_0_VOLUME] = deluge::dsp::Q<31>::from_raw(0x40000000);
+	block.preset_values[params::LOCAL_MODULATOR_1_VOLUME] = deluge::dsp::Q<31>::from_raw(kMin);
 	return block;
 }
 
@@ -98,7 +98,7 @@ inline SoundSnapshot snapshot(SynthMode mode) {
 
 inline VoiceConfig config(SynthMode mode, OscType osc) {
 	VoiceConfig cfg{};
-	cfg.volume_neutral_value_for_unison = 134217728;
+	cfg.volume_neutral_value_for_unison = deluge::dsp::Q<31>::from_raw(134217728);
 	cfg.voice_priority = VoicePriority::MEDIUM;
 	cfg.synth_mode = mode;
 	cfg.num_unison = 1;
@@ -144,7 +144,7 @@ inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cf
 	    {
 	        .buffer = rig.out.data(),
 	        .num_samples = kBlock,
-	        .pitch_adjust = kMaxSampleValue,
+	        .pitch_adjust = deluge::dsp::Q<24>::one(),
 	        .spare_buffers = {rig.spare[0].data(), rig.spare[1].data(), rig.spare[2].data(), rig.spare[3].data()},
 	        .filter_scratch = {.fade = rig.fade, .parallel = rig.parallel},
 	        .sync_scratch = rig.sync,

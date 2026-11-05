@@ -32,21 +32,21 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 	dsp::Q<31>* const osc_buffer = block.osc_buffer;
 	const DualSourceControls& c = block.dual;
 	// Rendered once for every unison part rather than for each: more unison parts turn the oscillators down
-	if (c.noise_volume != 0) [[unlikely]] {
+	if (c.noise_volume != dsp::Q<31>{}) [[unlikely]] {
 		// >>1 rather than >>2: noise was too loud with a filter on in V2.0.x, and is kept as loud since
 		using dsp::Q;
-		Q<31> n = halve_floor(Q<31>::from_raw(c.noise_volume));
+		Q<31> n = halve_floor(c.noise_volume);
 		if (block.cfg->has_filters) {
 			// Times the filters' Q28 gain (2^28 unity), Q27, back at Q31. It cannot wrap: the noise volume is at most
 			// 2147385344 and the gain at most 322500000 (a 12 or 24 dB ladder at full resonance, one unison part), so
 			// the Q27 product peaks at 80621309, 0.60 of the 2^27 its move would wrap at.
-			const Q<27> product = mul(n, Q<28>::from_raw(c.filter_gain));
-			assert(product.raw() < (1 << 27) && product.raw() >= -(1 << 27));
+			const Q<27> product = mul(n, c.filter_gain);
+			assert(product < Q<27>::one() && product >= dsp::q<27>(-1.0));
 			n = as_wrap<Q<31>>(product);
 		}
 
 		// The same limit as the oscillators'
-		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, Q<31>::from_raw(268435455)));
+		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, scale_shr_floor<3>(Q<31>::max())));
 
 		dsp::Q<31> const* const noise_end = osc_buffer + (block.num_samples * channels);
 		dsp::Q<31>* __restrict__ this_sample = osc_buffer;
@@ -62,8 +62,8 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 	return false;
 }
 
-std::array<uint32_t, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const EngineBlock& block) {
-	std::array<uint32_t, kMaxNumVoicesUnison> phases{};
+std::array<dsp::UQ<32>, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const EngineBlock& block) {
+	std::array<dsp::UQ<32>, kMaxNumVoicesUnison> phases{};
 	for (int32_t u = 0; u < block.cfg->num_unison; u++) {
 		phases[u] = block.parts[u].slots[0].current_osc_phase();
 	}
@@ -79,7 +79,7 @@ std::array<int32_t, kNumSources> DualSourceEngine::wave_index_increments(const E
 	return increments;
 }
 
-void DualSourceEngine::store_levels(const EngineBlock& block, const std::array<int32_t, kNumSources>* amplitudes) {
+void DualSourceEngine::store_levels(const EngineBlock& block, const std::array<dsp::Q<31>, kNumSources>* amplitudes) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (amplitudes != nullptr) {
 			block.levels->amplitudes_last_time[s] = (*amplitudes)[s];
@@ -128,10 +128,11 @@ bool DualSourceEngine::all_parts_inactive(const EngineBlock& block) {
 // straight onto the voice's buffer, which is cleared once. Applying the amplitude to the parts' sum would need a
 // buffer per source to clear, sum into and copy out of, and an osc-synced wave already applies its amplitude only as
 // it adds onto the buffer, once its render has finished rewriting its own.
-bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool stereo_buffer, int32_t source_amplitude,
-                                     int32_t amplitude_increment, bool do_osc_sync, const uint32_t* sync_pos,
-                                     const uint32_t* sync_increments, std::span<uint32_t> increments_out,
-                                     bool advance_only, int32_t wave_index_increment) {
+bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool stereo_buffer,
+                                     dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment, bool do_osc_sync,
+                                     const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
+                                     std::span<dsp::UQ<32>> increments_out, bool advance_only,
+                                     int32_t wave_index_increment) {
 	const VoiceConfig& cfg = *block.cfg;
 	bool unison_part_became_inactive = false;
 
@@ -144,12 +145,12 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 		}
 
 		// The overall pitch adjust, then this source's
-		uint32_t phase_increment = slot.phase_increment_stored_value;
+		dsp::UQ<32> phase_increment = slot.phase_increment_stored_value;
 		if (!adjust_pitch(phase_increment, block.dual.overall_pitch_adjust)
 		    || !adjust_pitch(phase_increment, block.dual.pitch_adjust[s])) {
 			// Too high to render
 			if (!increments_out.empty()) {
-				increments_out[u] = 0;
+				increments_out[u] = dsp::UQ<32>{};
 			}
 			continue;
 		}
@@ -159,14 +160,14 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 
 			if (advance_only) {
 				// A skipped osc-sync master still advances its phase
-				slot.advance_osc_phase(phase_increment * block.num_samples);
+				slot.advance_osc_phase(dsp::advanced(dsp::UQ<32>{}, phase_increment, block.num_samples));
 				continue;
 			}
 		}
 
 		const bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && stereo_buffer;
 		const dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    dsp::fixed::pan_amplitudes(dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
+		    dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : dsp::Q<31>{});
 
 		const SourceRenderResult result =
 		    render_part(block, u, s, stereo_buffer, source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
@@ -181,17 +182,18 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 }
 
 SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32_t u, int32_t s, bool stereo_buffer,
-                                                 int32_t source_amplitude, int32_t amplitude_increment,
-                                                 uint32_t phase_increment, bool do_osc_sync, const uint32_t* sync_pos,
-                                                 const uint32_t* sync_increments, int32_t wave_index_increment,
-                                                 bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
+                                                 dsp::Q<31> source_amplitude, dsp::Q<31> amplitude_increment,
+                                                 dsp::UQ<32> phase_increment, bool do_osc_sync,
+                                                 const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
+                                                 int32_t wave_index_increment, bool stereo_unison,
+                                                 dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
 	const VoiceConfig& cfg = *block.cfg;
 	const DualSourceControls& c = block.dual;
 	SourceSlot& slot = block.parts[u].slots[s];
 
 	const uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // needed even without osc sync
-	const uint32_t sync_pos_this_unison = do_osc_sync ? sync_pos[u] : 0;
-	const uint32_t sync_increment_this_unison = do_osc_sync ? sync_increments[u] : 0;
+	const dsp::UQ<32> sync_pos_this_unison = do_osc_sync ? sync_pos[u] : dsp::UQ<32>{};
+	const dsp::UQ<32> sync_increment_this_unison = do_osc_sync ? sync_increments[u] : dsp::UQ<32>{};
 	const uint32_t pulse_width = pulse_width_from(c.phase_width[s]);
 
 	std::optional<SyncMaster> sync;
@@ -205,9 +207,8 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	    .stereo_unison = stereo_unison,
 	    .amplitude_l = amplitude_l,
 	    .amplitude_r = amplitude_r,
-	    // The engine's amplitudes are raw words: make_block_controls takes them raw
-	    .source_amplitude = dsp::Q<31>::from_raw(source_amplitude),
-	    .amplitude_increment = dsp::Q<31>::from_raw(amplitude_increment),
+	    .source_amplitude = source_amplitude,
+	    .amplitude_increment = amplitude_increment,
 	    .phase_increment = phase_increment,
 	    .sync = sync,
 	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*apply_amplitude=*/true,
@@ -239,7 +240,8 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	    .input =
 	        {
 	            .interpolation_buffer_size = interpolation_buffer_size(
-	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment), cfg.cpu_direness),
+	                // the buffer size reads the increment's word, as a signed sample step
+	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment.raw()), cfg.cpu_direness),
 	        },
 	};
 

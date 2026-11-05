@@ -188,7 +188,7 @@ private:
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
 	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
 	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                   deluge::dsp::Q<24> pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 	/// The kit's channel strip: the chain its drums render into, its settings and view.
 	deluge::model::TrackChannel channel_;
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,

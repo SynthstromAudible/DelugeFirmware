@@ -47,6 +47,7 @@ int32_t Filter::configure(const FilterState& state, const FilterParams& params, 
 	const bool low_on = state.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE || params.lpf_frequency_param < kLowPassOpen
 	                    || params.lpf_morph_param > kMinimum;
 	const bool high_on = params.hpf_frequency_param > kMinimum || params.hpf_morph_param > kMinimum;
+	// FilterParams holds final_value's words; each field's format is its doc's.
 	return set_.configure(post_fx_volume,
 	                      {
 	                          .frequency = dsp::Q<31>::from_raw(params.lpf_frequency),

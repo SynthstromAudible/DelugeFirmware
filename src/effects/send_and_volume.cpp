@@ -23,15 +23,15 @@ bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<dsp::Q
                             const SendAndVolumeParams& params) {
 	gains_.on<&dsp::fixed::SendAndVolume::set_send>(reverb.data());
 	gains_.configure({
-	    .post_fx_volume = dsp::Q<27>::from_raw(params.post_fx_volume),
-	    .post_reverb_volume = dsp::Q<27>::from_raw(params.post_reverb_volume),
-	    .reverb_send = dsp::Q<31>::from_raw(params.reverb_send),
-	    .pan = dsp::Q<31>::from_raw(params.pan),
+	    .post_fx_volume = params.post_fx_volume,
+	    .post_reverb_volume = params.post_reverb_volume,
+	    .reverb_send = params.reverb_send,
+	    .pan = params.pan,
 	    .ramp = params.ramp,
 	    .stereo = params.stereo,
 	});
 	gains_.render_block(block, block);
-	return params.reverb_send != 0;
+	return params.reverb_send != dsp::Q<31>{};
 }
 
 } // namespace deluge::effects

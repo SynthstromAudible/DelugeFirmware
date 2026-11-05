@@ -61,8 +61,10 @@ struct ComponentRunner {
 		reverb->commit();
 	}
 	void set_knobs(const rw::Knobs& k) { reverb->publish(settings_of(k)); }
+	// The workload's return levels are the reference's Q31 words
 	void render(std::span<int32_t> send, std::span<RawFrame> out, int32_t l, int32_t r) {
-		reverb->render(deluge::dsp::test::typed_frames(out), deluge::dsp::typed_view(send), l, r);
+		reverb->render(deluge::dsp::test::typed_frames(out), deluge::dsp::typed_view(send),
+		               deluge::dsp::Q<31>::from_raw(l), deluge::dsp::Q<31>::from_raw(r));
 	}
 	void digest_state(rw::Digest& d) const {
 		if (reverb->model() == ReverbModel::FREEVERB) {
@@ -195,7 +197,7 @@ describe reverb("the reverb component", ${
 		reverb->prepare(ReverbModel::MUTABLE);
 		reverb->commit();
 		Block mine(0);
-		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), deluge::dsp::typed_view(std::span{mine.send}), rw::kCentred, rw::kCentred);
+		reverb->render(deluge::dsp::test::typed_frames(std::span{mine.out}), deluge::dsp::typed_view(std::span{mine.send}), deluge::dsp::Q<31>::from_raw(rw::kCentred), deluge::dsp::Q<31>::from_raw(rw::kCentred));
 
 		auto reference = std::make_unique<deluge::dsp::test::reverb_ref::ReferenceReverb>();
 		reference->setModel(deluge::dsp::test::reverb_ref::ReferenceReverb::Model::MUTABLE);
@@ -308,17 +310,17 @@ describe reverb("the reverb component", ${
 
 		// At depth 0 the return is unducked, and a hit neither registers nor advances the envelope.
 		expect(reverb->return_ducks()).to_be_false();
-		expect(reverb->return_level(128, kHit, rates, kInverse)).to_equal(1 << 29);
+		expect(reverb->return_level(128, kHit, rates, kInverse).raw()).to_equal(1 << 29);
 
-		reverb->set_return_duck(ReturnDuck{.depth = 0x20000000, .shape = kShape});
+		reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(0x20000000), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 		expect(reverb->return_ducks()).to_be_true();
 		for (int block = 0; block < 40; block++) {
 			const int32_t hit = block == 2 || block == 25 ? kHit : 0;
 			if (hit != 0) {
 				alongside.register_hit(hit);
 			}
-			const int32_t duck = alongside.render(128, kShape, rates, kInverse);
-			expect(reverb->return_level(128, hit, rates, kInverse))
+			const int32_t duck = alongside.render(128, deluge::dsp::Q<31>::from_raw(kShape), rates, kInverse);
+			expect(reverb->return_level(128, hit, rates, kInverse).raw())
 			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(0x20000000)));
 		}
 	});
@@ -339,15 +341,15 @@ describe reverb("the reverb component", ${
 		for (int block = 0; block < 36; block++) {
 			const int32_t depth = block < 10 ? 0x20000000 : (block < 20 ? 0 : 0x30000000);
 			const int32_t hit = block == 2 || block == 12 || block == 25 ? kHit : 0;
-			reverb->set_return_duck(ReturnDuck{.depth = depth, .shape = kShape});
+			reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(depth), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 			int32_t duck = 0;
 			if (depth != 0) {
 				if (hit != 0) {
 					by_hand.register_hit(hit);
 				}
-				duck = by_hand.render(128, kShape, rates, kInverse);
+				duck = by_hand.render(128, deluge::dsp::Q<31>::from_raw(kShape), rates, kInverse);
 			}
-			expect(reverb->return_level(128, hit, rates, kInverse))
+			expect(reverb->return_level(128, hit, rates, kInverse).raw())
 			    .to_equal(duck_gain<DuckScale::REVERB_RETURN>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(depth)));
 		}
 	});

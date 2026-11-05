@@ -1162,10 +1162,10 @@ skipFirstSmooth:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				// Raw: the reader halves each channel toward zero, as integers.
-				sampleRead.l = deluge::dsp::Q<31>::from_raw((sampleRead.l.raw() / 2) + (sampleRead.r.raw() / 2));
+				sampleRead.l = add_wrap(halve_toward_zero(sampleRead.l), halve_toward_zero(sampleRead.r));
 			}
 
+			// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
@@ -1207,10 +1207,10 @@ skipFirstLinear:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				// Raw: the reader halves each channel by an arithmetic shift, as integers.
-				sampleRead.l = deluge::dsp::Q<31>::from_raw((sampleRead.l.raw() >> 1) + (sampleRead.r.raw() >> 1));
+				sampleRead.l = add_wrap(halve_floor(sampleRead.l), halve_floor(sampleRead.r));
 			}
 
+			// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
@@ -1251,6 +1251,7 @@ void SampleLowLevelReader::readSamplesNative(deluge::dsp::Q<31>** __restrict__ b
 		int32_t sampleReadL = *(int32_t*)currentPlayPosNow;
 
 		const deluge::dsp::Q<31> existingValueL = *bufferPosNow;
+		// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
 		*amplitude += amplitudeIncrement;
 		sampleReadL &= bitMask;
 

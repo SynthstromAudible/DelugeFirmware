@@ -860,7 +860,8 @@ readCachedWindow:
 
 			amplitude += amplitudeIncrement;
 
-			// Mono / left channel (or stereo condensed to mono): the cache's words are Q31 samples
+			// Mono / left channel (or stereo condensed to mono): the cache's words are Q31 samples. The amplitude is
+			// render's word, stepped by integer multiples of its increment.
 			const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
 			*outputBufferWritePos =
 			    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
@@ -1643,7 +1644,8 @@ headsFinishedReading:
 						cacheWritePosNow++;
 					}
 
-					// Mono / left channel (or stereo condensed to mono)
+					// Mono / left channel (or stereo condensed to mono). The amplitude is render's word, stepped by
+					// integer multiples of its increment.
 					const auto level = deluge::dsp::Q<31>::from_raw(amplitude);
 					*outputBufferWritePos =
 					    deluge::audio::mixed_in(existingValueL, deluge::dsp::Q<31>::from_raw(sampleRead[0]), level);
