@@ -79,6 +79,7 @@
 #include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/structural_edit_probe.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -2060,6 +2061,13 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	recordExpressionTarget(song);
 	newShapesTarget(song);
 
+#if ALPHA_OR_BETA_VERSION
+	// Only the interaction tier changes a lane store, and each change excludes the render.
+	check(deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE) == 0,
+	      "the render changed no lane store");
+	check(deluge::unguardedStructuralEdits(deluge::StructuralContainer::PARAM_STORE) == 0,
+	      "every lane-store change excluded the render");
+#endif
 	std::free(xml);
 	return failures ? 3 : 0;
 }

@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/render_song_scenario.h"
+#include "util/structural_edit_probe.h"
 
 #include "definitions_cxx.hpp"
 #include "effects/reverb.h"
@@ -812,6 +813,13 @@ void report() {
 		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
+	printf("RS-STORE render_edits=%u\n", storeEdits);
+	if (storeEdits != 0) {
+		fail("RS-STORE", "the render changed a lane store");
+	}
+#endif
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }

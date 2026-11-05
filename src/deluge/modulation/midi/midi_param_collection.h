@@ -106,7 +106,7 @@ public:
 	/// reorder of the MIDIParamVector is transparent.
 	///
 	/// @param ext The project-tree CC store; non-owning, must outlive this collection.
-	void bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext) { domMidiRef_ = ext; }
+	void bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext);
 	/// @brief The bound external CC store (test / inspection accessor).
 	/// @return The store, or nullptr if unbound.
 	std::vector<deluge::project::DocMidiParam>* domMidi() { return domMidiRef_; }

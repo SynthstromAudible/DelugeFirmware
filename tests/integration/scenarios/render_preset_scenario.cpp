@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/render_preset_scenario.h"
+#include "util/structural_edit_probe.h"
 
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
@@ -224,6 +225,13 @@ void report() {
 		fail("RP-RENDER", "CPU direness rose, so the render took reduced-quality paths");
 	}
 	const uint32_t allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
+	printf("RP-STORE render_edits=%u\n", storeEdits);
+	if (storeEdits != 0) {
+		fail("RP-STORE", "the render changed a lane store");
+	}
+#endif
 	// Reported, not gated: the live-input pitch shift, the sample timestretch and the voice cache paths allocate on
 	// the render (TODO.md).
 	printf("RP-ALLOC render_allocations=%u\n", allocations);
