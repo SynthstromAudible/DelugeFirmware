@@ -126,11 +126,17 @@ describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
 	});
 
 	it("differs from the legacy classes only where a quirk's fix reaches", _ {
-		// Q1: a shifter made on an input already running (the second of a shared input)
-		const std::set<pw::WorkloadId> fixed{pw::WorkloadId::SHARED_UP7_PERC_LEFT, pw::WorkloadId::SHARED_DOWN5_PERC_STEREO};
+		// Q1 reaches a shifter made on an input already running (the second of a shared input); Q14, a head kept from
+		// passing now, reaches every workload but those whose heads never run out: the smallest shift up, block lengths
+		// under 128 and the octave up, whose hops end well inside each head's reach
+		const std::set<pw::WorkloadId> untouched{pw::WorkloadId::UP_HALF_SINE_LEFT, pw::WorkloadId::UP12_SINE_STEREO,
+		                                         pw::WorkloadId::UP7_BLOCK1_PERC_LEFT,
+		                                         pw::WorkloadId::DOWN12_BLOCK7_PERC_LEFT,
+		                                         pw::WorkloadId::UP7_BLOCK32_SINE_STEREO,
+		                                         pw::WorkloadId::SILENCE_DOWN12_LEFT};
 		for (const pw::Workload& w : pw::all_workloads()) {
 			const auto i = static_cast<std::size_t>(w.id);
-			expect(pw::kShifterRecords.at(i) == pw::kRecordedReference.at(i)).to_equal(!fixed.contains(w.id));
+			expect(pw::kShifterRecords.at(i) == pw::kRecordedReference.at(i)).to_equal(untouched.contains(w.id));
 		}
 	});
 

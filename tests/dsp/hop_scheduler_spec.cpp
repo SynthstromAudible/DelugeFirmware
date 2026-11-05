@@ -19,7 +19,7 @@
 // its heads as the shifter does: each block's hop count and the hop's progress after it (the samples until the hop
 // ends and into it, the crossfade's progress and step, the next crossfade, the onset threshold) are hashed against the
 // scheduler's records (hop_scheduler_records.h; HOP_SCHEDULER_PRINT_RECORDS=1 prints them), and on every block the
-// segments must tile the block.
+// segments must tile the block and no head may pass now, the frame not yet written (Q14).
 
 #include "hop_scheduler_records.h"
 #include "pitch_shift_workloads.h"
@@ -52,7 +52,7 @@ struct Tally {
 };
 
 // The scheduler and its heads, rendered as the shifter renders them, over workload @p w: false if a block's segments do
-// not tile it; @p record hashes each block's hops and progress.
+// not tile it or a head passes now; @p record hashes each block's hops and progress.
 template <typename Frame>
 bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 	constexpr std::size_t kChannels = std::is_same_v<Frame, StereoSample> ? 2 : 1;
@@ -126,6 +126,15 @@ bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 			if (s->older_sounding) {
 				render(heads->older, s->older, s->older_step);
 			}
+			// A repitching head reads frames before its cursor: past now it would read the input a ring ago. The older
+			// head counts only while it sounds; after its crossfade it stands still
+			const auto passed_now = [&](const deluge::dsp::Mono<Kernel>& head) {
+				return head.state().kind == ps::HeadKind::REPITCHING
+				       && history->now().since(head.state().cursor) > ps::kHistoryFrames / 2;
+			};
+			if (passed_now(heads->newer) || (s->older_sounding && passed_now(heads->older))) {
+				return false;
+			}
 			covered += s->length;
 			++segments;
 		}
@@ -154,7 +163,7 @@ bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 
 // clang-format off
 describe hop_scheduler("deluge::dsp::fixed::pitch_shift::HopScheduler", ${
-	it("schedules every workload as recorded, tiling each block", _ {
+	it("schedules every workload as recorded, tiling each block, no head passing now", _ {
 		const char* print = std::getenv("HOP_SCHEDULER_PRINT_RECORDS");
 		const bool printing = print != nullptr && std::strcmp(print, "1") == 0;
 		Tally tally;
