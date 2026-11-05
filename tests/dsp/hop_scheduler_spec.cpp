@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The live pitch shifter's hop scheduler (dsp-next/fixed/pitch_shift/hop_scheduler.h) against the oracle's shifter
-// (reference_live_pitch_shifter.h) over every workload: after each block, the hop's progress (the samples until the
-// hop ends and into it, the crossfade's progress and step, the next crossfade, the onset threshold) and the block's
-// hop count must equal the oracle's, and the block's segments must tile it.
+// The live pitch shifter's hop scheduler (dsp-next/fixed/pitch_shift/hop_scheduler.h) over every workload, rendering
+// its heads as the shifter does: each block's hop count and the hop's progress after it (the samples until the hop
+// ends and into it, the crossfade's progress and step, the next crossfade, the onset threshold) are hashed against the
+// scheduler's records (hop_scheduler_records.h; HOP_SCHEDULER_PRINT_RECORDS=1 prints them), and on every block the
+// segments must tile the block.
 
+#include "hop_scheduler_records.h"
 #include "pitch_shift_workloads.h"
-#include "reference_live_pitch_shifter.h"
 
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
@@ -30,6 +31,9 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -37,7 +41,6 @@
 namespace {
 namespace pw = pitch_shift_workloads;
 namespace ps = deluge::dsp::fixed::pitch_shift;
-namespace ref = deluge::dsp::test::reference_pitch_shift;
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::synth::InputChannel;
@@ -48,22 +51,19 @@ struct Tally {
 	std::size_t hops = 0;
 };
 
-// The scheduler and its heads, rendered as the shifter renders them, beside the oracle, over workload @p w
+// The scheduler and its heads, rendered as the shifter renders them, over workload @p w: false if a block's segments do
+// not tile it; @p record hashes each block's hops and progress.
 template <typename Frame>
-bool schedules_as_the_oracle(const pw::Workload& w, Tally& tally) {
+bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 	constexpr std::size_t kChannels = std::is_same_v<Frame, StereoSample> ? 2 : 1;
 	using Kernel = ps::PlayHead<Frame>;
 	pw::InputRing ring;
 	auto history = std::make_unique<ps::InputHistory<Frame>>();
-	pw::PooledBuffer<ref::ReferenceInputBuffer> reference_buffer(w.channel);
-	auto oracle = std::make_unique<ref::ReferenceLivePitchShifter>(w.channel, w.phase_at(0));
 	auto scheduler = std::make_unique<ps::HopScheduler<Frame>>(w.phase_at(0));
 	auto heads = std::make_unique<ps::PlayHeads<Frame>>();
 	heads->newer.template on<&Kernel::note_percussiveness_entry>(ps::kNoPercussivenessEntry);
 	deluge::dsp::fixed::Cong noise_a(pw::kNoiseSeed);
-	deluge::dsp::fixed::Cong noise_b(pw::kNoiseSeed);
 	std::vector<Q<31>> out_a(static_cast<std::size_t>(w.block_length) * kChannels);
-	std::vector<Q<31>> out_b(out_a.size());
 	uint32_t time = 0;
 	const auto configure = [&](ps::PlayHeads<Frame>& h, int32_t phase, int32_t kernel) {
 		for (auto* head : {&h.newer, &h.older}) {
@@ -77,10 +77,10 @@ bool schedules_as_the_oracle(const pw::Workload& w, Tally& tally) {
 	for (int32_t b = 0; b < w.blocks; ++b) {
 		const int32_t phase = w.phase_at(b);
 		if (phase == pw::kUnity) {
-			return true; // The workloads that reach unity remove the shifter there: the schedule is compared up to it
+			return true; // The workloads that reach unity remove the shifter there: the schedule is followed up to it
 		}
 		const int32_t* read_pos = ring.write(w.signal, time, static_cast<std::size_t>(w.block_length));
-		// Both histories ingest the block as their shifters do
+		// The history ingests the block as the shifter's input does
 		std::vector<Frame> frames(static_cast<std::size_t>(w.block_length));
 		for (std::size_t i = 0; i < frames.size(); ++i) {
 			const int32_t* f = read_pos + (i * NUM_MONO_INPUT_CHANNELS);
@@ -96,10 +96,6 @@ bool schedules_as_the_oracle(const pw::Workload& w, Tally& tally) {
 		}
 		history->write(frames);
 		std::fill(out_a.begin(), out_a.end(), Q<31>{});
-		std::fill(out_b.begin(), out_b.end(), Q<31>{});
-		const int32_t hops_b = oracle->render(
-		    out_b.data(), w.block_length, phase, w.amplitude, w.amplitude_increment, w.interpolation_size,
-		    ref::ReferencePort{.time = time, .read_pos = read_pos, .end = ring.end()}, reference_buffer.get(), noise_b);
 		const int32_t kernel = deluge::dsp::fixed::WindowedSincKernel::variant_for(phase);
 		configure(*heads, phase, kernel);
 		scheduler->begin_block({.length = w.block_length,
@@ -135,22 +131,22 @@ bool schedules_as_the_oracle(const pw::Workload& w, Tally& tally) {
 		}
 		time += static_cast<uint32_t>(w.block_length);
 		const auto& p = scheduler->progress();
-		if (covered != w.block_length || scheduler->hops() != hops_b
-		    || p.samples_til_hop_end != oracle->samples_til_hop_end || p.samples_into_hop != oracle->samples_into_hop
-		    || p.crossfade_progress != oracle->crossfade_progress
-		    || p.crossfade_increment != oracle->crossfade_increment
-		    || p.next_crossfade_length != oracle->next_crossfade_length
-		    || p.percussive_threshold != oracle->perc_threshold_for_cut || noise_a.state() != noise_b.state()) {
+		if (covered != w.block_length) {
 			return false;
 		}
-		for (std::size_t i = 0; i < out_a.size(); ++i) {
-			if (out_a[i].raw() != out_b[i].raw()) {
-				return false;
-			}
+		for (const uint32_t word :
+		     {static_cast<uint32_t>(scheduler->hops()), static_cast<uint32_t>(p.samples_til_hop_end),
+		      static_cast<uint32_t>(p.samples_into_hop), p.crossfade_progress, p.crossfade_increment,
+		      static_cast<uint32_t>(p.next_crossfade_length), static_cast<uint32_t>(p.percussive_threshold),
+		      noise_a.state()}) {
+			record.add(word);
+		}
+		for (const Q<31> word : out_a) {
+			record.add(static_cast<uint32_t>(word.raw()));
 		}
 		++tally.blocks;
 		tally.split_blocks += segments > 1 ? 1 : 0;
-		tally.hops += static_cast<std::size_t>(hops_b);
+		tally.hops += static_cast<std::size_t>(scheduler->hops());
 	}
 	return true;
 }
@@ -158,15 +154,24 @@ bool schedules_as_the_oracle(const pw::Workload& w, Tally& tally) {
 
 // clang-format off
 describe hop_scheduler("deluge::dsp::fixed::pitch_shift::HopScheduler", ${
-	it("schedules every workload's hops and crossfades as the oracle did, block by block", _ {
+	it("schedules every workload as recorded, tiling each block", _ {
+		const char* print = std::getenv("HOP_SCHEDULER_PRINT_RECORDS");
+		const bool printing = print != nullptr && std::strcmp(print, "1") == 0;
 		Tally tally;
 		for (const pw::Workload& w : pw::all_workloads()) {
 			if (w.shared) {
 				continue; // One shifter per scheduler: the shared workloads are the component's to check
 			}
-			const bool same = w.channel == InputChannel::STEREO ? schedules_as_the_oracle<StereoSample>(w, tally)
-			                                                    : schedules_as_the_oracle<Q<31>>(w, tally);
-			expect(same).to_be_true();
+			pw::Fnv record;
+			const bool held = w.channel == InputChannel::STEREO ? schedules<StereoSample>(w, tally, record)
+			                                                    : schedules<Q<31>>(w, tally, record);
+			expect(held).to_be_true();
+			if (printing) {
+				std::cout << "    0x" << std::hex << record.value() << std::dec << "ULL, // " << w.name << "\n";
+			}
+			else {
+				expect(record.value()).to_equal(kSchedulerRecords.at(static_cast<std::size_t>(w.id)));
+			}
 		}
 		expect(tally.split_blocks).to_be_greater_than(std::size_t{100});
 		expect(tally.hops).to_be_greater_than(std::size_t{1000});
