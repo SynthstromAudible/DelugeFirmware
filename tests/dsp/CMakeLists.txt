@@ -209,6 +209,18 @@ set(delay_echo_spec_DEPS ${delay_processor_spec_DEPS})
 set(delay_kernel_spec_DEPS ${delay_processor_spec_DEPS})
 # The delay over storage it hasn't written, through the recorded workloads: the same sources.
 set(delay_poisoned_storage_spec_DEPS ${delay_processor_spec_DEPS})
+# The live pitch shifter's oracle (reference_live_pitch_shifter.h, header-only) against the legacy classes it was
+# taken from, while they live: the shifter, its play head and its input buffer, and the interpolation and tables they
+# read, and the panic seam the shifter's E165 calls.
+set(reference_live_pitch_shifter_spec_DEPS
+  ${_repo_root}/src/synth/sources/input/live/live_pitch_shifter.cpp
+  ${_repo_root}/src/synth/sources/input/live/live_pitch_shifter_play_head.cpp
+  ${_repo_root}/src/synth/sources/input/live/live_input_buffer.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+  ${_repo_root}/tests/support/mocks/mock_panic.cpp)
 # The stutter reference (reference_stutter.h, stutter_workloads.h, header-only) over the delay's tape: the same sources.
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
