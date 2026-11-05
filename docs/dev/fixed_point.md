@@ -268,7 +268,8 @@ instructions.
   final volume (`scale_shr_floor`). The chains' inputs are typed (`SoundChainInputs`, `TrackChainInputs`,
   `MasterChainInputs`, `MasterPostInputs`: Q27 volumes, Q31 sends, pans and thresholds, the Q29 duck depth, Q30 pan
   gains), as are the send and volume's params, the duck block and the reverb's return duck; a chain's running post-FX
-  volume is a Q27 word, which the bitcrush lowers by a run-time shift and the mod FX and grain scale in place. The bench's chain and impulse-response references keep their raw arithmetic, written
+  volume is a Q27 word, which the bitcrush lowers by a run-time shift and the mod FX and grain scale in place. The
+  bench's chain and impulse-response references keep their raw arithmetic, written
   independently of what they check, and so does its legacy analog case, the arithmetic the kernel is compared against.
 - **Params:** the param arrays (`param_final_values`, the patcher's preset values) stay words, read and written
   through `synth/matrix/param_format.h`: `param_value<P>`, `global_param_value<P>`, `param_value_at<First, N>`,
@@ -296,7 +297,8 @@ instructions.
   0..128 knob is Q7 lifted to Q31 (`knob_level`); the arp's spreads are Q7 and its random amounts a true triangle
   (`triangle_of`). An output's volume, pitch adjust and arp rate knobs reach their final values through
   `volume_from_knob` (Q27), `pitch_adjust_from_knob` (Q24) and `ArpeggiatorSettings::rate_from_knob` (Q24); the
-  pitch adjust reaches the sound and the audio clip as Q24. What stays integer: the 64-bit tick and increment arithmetic, run-time shifts (the recorder's input
+  pitch adjust reaches the sound and the audio clip as Q24. What stays integer: the 64-bit tick and increment
+  arithmetic, run-time shifts (the recorder's input
   gain among them), MIDI and menu scalings, and the UI's display mappings.
 - **dsp-next's interfaces** are typed: `q31` is `Q<31>`, and `fixed::Buffer` and `Signal` are spans of it. A
   fixed-point kernel's value type is a `Q<F>` (the DX7 engine's `Q<24>`) stepped as itself or as `QVec<F>`, or a

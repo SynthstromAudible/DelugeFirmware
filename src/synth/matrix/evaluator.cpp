@@ -155,9 +155,8 @@ void uncabled_run(const ScopePass& pass, const MatrixBlock& block, int32_t first
                   CurveKind kind, Lanes4 lanes) {
 	int32_t p = from;
 	for (; p + 4 <= to; p += 4) {
-		// The ranges are Q30 words
-		const auto terms = B::preset_terms(B::SourceLanes::load(&block.preset_values[p]),
-		                                   B::DepthLanes::from_raw(Argon<int32_t>::Load(&kParamRange[p])));
+		const auto terms =
+		    B::preset_terms(B::SourceLanes::load(&block.preset_values[p]), B::load_ranges(&kParamRange[p]));
 		B::store_words(lanes(B::load_words(&kParamNeutral[p]), terms), &pass.final_values[p - first]);
 	}
 	for (; p < to; ++p) {

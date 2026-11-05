@@ -58,7 +58,7 @@ int32_t driveUntil(Envelope& env, Stage target, uint32_t attack, uint32_t decay,
 describe envelope_spec("Envelope", ${
 	it("starts a note at the bottom of the attack stage", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		expect(env.stage() == Stage::ATTACK).to_be_truthy();
 		expect(env.is_at_attack_start()).to_be_truthy();
 		expect(env.output_level().raw()).to_equal(0);
@@ -73,7 +73,7 @@ describe envelope_spec("Envelope", ${
 
 	it("rises monotonically through the attack", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		int32_t first = render(env, kRate, kRate, kFull, kRate);
 		int32_t second = render(env, kRate, kRate, kFull, kRate);
 		expect(env.stage() == Stage::ATTACK).to_be_truthy(); // still attacking at this rate
@@ -86,7 +86,7 @@ describe envelope_spec("Envelope", ${
 		// end, as a step past the stage's end does.
 		for (const uint32_t fast : {uint32_t{1} << 28, uint32_t{0x7fffffff}}) {
 			Envelope env;
-			env.note_on(false).raw();
+			env.note_on(false);
 			render(env, kRate, kRate, kFull, kRate); // the attack under way
 			render(env, fast, kRate, kFull, kRate);
 			expect(env.stage() == Stage::ATTACK).to_be_falsy();
@@ -95,7 +95,7 @@ describe envelope_spec("Envelope", ${
 
 	it("settles in sustain near the sustain level", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		expect(driveUntil(env, Stage::SUSTAIN, kRate, kRate, kFull, kRate)).to_be_greater_than(0);
 		// Hold a while to let the smoother settle, then the output should be near full (positive).
 		int32_t level = 0;
@@ -108,7 +108,7 @@ describe envelope_spec("Envelope", ${
 
 	it("releases down to silence and turns off", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		driveUntil(env, Stage::SUSTAIN, kRate, kRate, kFull, kRate);
 		env.note_off(/*has_sustain=*/true);
 		expect(env.stage() == Stage::RELEASE).to_be_truthy();
@@ -118,7 +118,7 @@ describe envelope_spec("Envelope", ${
 
 	it("ignores a note-off when there is no sustain to release", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		env.note_off(/*has_sustain=*/false);
 		// The note-off is deferred, not acted on — we're still in the attack, not releasing.
 		expect(env.stage() == Stage::ATTACK).to_be_truthy();
@@ -126,14 +126,14 @@ describe envelope_spec("Envelope", ${
 
 	it("reports a stage change exactly once", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		expect(env.take_stage_changed()).to_be_truthy();
 		expect(env.take_stage_changed()).to_equal(false);
 	});
 
 	it("enters the requested stage at the requested fast-release rate", _ {
 		Envelope env;
-		env.note_on(false).raw();
+		env.note_on(false);
 		env.unconditional_release(Stage::FAST_RELEASE, 5000);
 		expect(env.stage() == Stage::FAST_RELEASE).to_be_truthy();
 		expect(env.fast_release_rate()).to_equal(5000u);

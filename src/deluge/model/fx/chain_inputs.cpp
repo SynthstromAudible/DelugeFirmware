@@ -200,8 +200,7 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .noise = &synth_noise,
 	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	    // Unity made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.
-	    .master_volume = dsp::q<27>(1.24993896484375),
+	    .master_volume = effects::kMasterVolume,
 	    .do_pan = doPanning,
 	    .pan_l = amplitudes.left,
 	    .pan_r = amplitudes.right,

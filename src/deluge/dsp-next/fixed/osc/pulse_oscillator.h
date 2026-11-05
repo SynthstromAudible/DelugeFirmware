@@ -44,8 +44,8 @@ class PulseOscillator : public Generator<PulseOscillator, Q<31>> {
 	const int16_t* samples_;
 	int32_t magnitude_;
 	Phasor phasor_;
-	uint32_t
-	    phase_offset_; ///< phase distance between the two squares, its word as the loop steps it; sets the duty cycle
+	/// The phase distance between the two squares, its word as the loop steps it; sets the duty cycle.
+	uint32_t phase_offset_;
 
 	static constexpr int16_t kMin = std::numeric_limits<int16_t>::min();
 	static constexpr int16_t kMax = std::numeric_limits<int16_t>::max();

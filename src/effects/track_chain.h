@@ -54,7 +54,8 @@ struct TrackChainInputs {
 
 /// @brief The volumes begin_block works out before the content renders, which process applies.
 struct TrackBlock {
-	/// After the filter's compensation, Q27; the bitcrush lowers it by a run-time shift, so a word.
+	/// After the filter's compensation, Q27; the bitcrush lowers it by a run-time shift and the mod FX and grain scale
+	/// it in place, so a word.
 	int32_t volume_post_fx;
 	dsp::Q<27> post_reverb_volume; ///< Ducked by the sidechain while it is on.
 };

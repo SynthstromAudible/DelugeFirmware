@@ -111,20 +111,20 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<3
 	}
 }
 
-int32_t Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
+dsp::Q<31> Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
 	if (return_duck_.depth == dsp::Q<29>{}) {
-		// return_level is a word, as Sidechain::level<S> is: its scale is the owner's (2^29 here).
-		return dsp::fixed::kDuckGainNeutral.raw();
+		// The duck gain's neutral word, 2^29, is the unducked return level, read as the Q31 volume the engine applies
+		return dsp::reinterpret_bits<dsp::Q<31>>(dsp::fixed::kDuckGainNeutral);
 	}
-	// The hit is the engine's pending sidechain hit word, Q31
-	return return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
+	// The hit is the engine's pending sidechain hit word, Q31; the level at the return's scale is read as Q31 too
+	return dsp::Q<31>::from_raw(return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
 	    .frames = frames,
 	    .hit = dsp::Q<31>::from_raw(hit),
 	    .shape = return_duck_.shape,
 	    .depth = return_duck_.depth,
 	    .state = state,
 	    .tick_inverse = tick_inverse,
-	});
+	}));
 }
 
 } // namespace deluge::effects

@@ -22,6 +22,7 @@
 
 #include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
+#include "phase_words.h"
 #include <arm_neon.h>
 #include <array>
 #include <cppspec.hpp>
@@ -69,11 +70,6 @@ public:
 } // namespace reference
 
 namespace {
-
-/// A phase or increment word as the oscillators take it.
-[[nodiscard]] constexpr deluge::dsp::UQ<32> uq(uint32_t word) {
-	return deluge::dsp::UQ<32>::from_raw(word);
-}
 using deluge::dsp::fixed::Table;
 using deluge::dsp::fixed::TableOscillator;
 

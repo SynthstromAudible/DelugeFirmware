@@ -39,6 +39,10 @@ struct MasterChainInputs {
 	dsp::Q<31> reverb_send;        ///< The reverb send amount the send and volume adds, Q31.
 };
 
+/// @brief The master's volume before its filter: unity made a bit bigger, so the filters' default resonance doesn't
+/// reduce the volume overall.
+inline constexpr dsp::Q<27> kMasterVolume = dsp::q<27>(1.24993896484375);
+
 /// @brief What the master's half after the reverb reads, resolved once the reverb has rendered.
 struct MasterPostInputs {
 	FilterParams filter;

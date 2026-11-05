@@ -27,16 +27,12 @@
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
 #include "dsp-next/fixed/osc/table_oscillator.h"
+#include "phase_words.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 
 namespace {
-
-/// A phase or increment word as the oscillators take it.
-[[nodiscard]] constexpr deluge::dsp::UQ<32> uq(uint32_t word) {
-	return deluge::dsp::UQ<32>::from_raw(word);
-}
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::BandLimitedTableOscillator;

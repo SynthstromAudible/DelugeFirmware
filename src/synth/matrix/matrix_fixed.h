@@ -26,7 +26,6 @@
 
 #include <argon.hpp>
 #include <cstdint>
-#include <limits>
 #include <numbers>
 
 namespace deluge::synth::matrix {
@@ -60,6 +59,10 @@ struct MatrixFixed {
 	}
 	/// Four params' words, from the Q31 lanes they were read or computed as.
 	[[gnu::always_inline]] static void store_words(SourceLanes lanes, int32_t* words) { lanes.raw().StoreTo(words); }
+	/// Four params' preset ranges from @p words, the range table's Q30 words.
+	[[gnu::always_inline]] static DepthLanes load_ranges(const int32_t* words) {
+		return DepthLanes::from_raw(Argon<int32_t>::Load(words));
+	}
 
 	/// A source value as a cable reads it.
 	[[gnu::always_inline]] static Source convert(Conversion conversion, Source value) {

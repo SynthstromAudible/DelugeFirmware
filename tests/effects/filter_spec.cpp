@@ -21,6 +21,7 @@
 
 #include "dsp-next/core/buffer_view.h"
 #include "effects/filter.h"
+#include "effects/master_chain.h"
 
 #include "dsp-next/core/q31_ops.h"
 #include "util/synth_noise.h"
@@ -40,7 +41,8 @@ namespace {
 
 constexpr uint32_t kSeed = 123456789;
 /// A track chain's post-FX volume at neutral (Q31), as the master starts from.
-constexpr int32_t kVolume = 167763968;
+constexpr int32_t kVolume =
+    deluge::effects::kMasterVolume.raw(); // the master's volume word, as filter.configure takes it
 constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMaximum = std::numeric_limits<int32_t>::max();
 

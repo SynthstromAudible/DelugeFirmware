@@ -496,7 +496,7 @@ private:
 class MonoGainCase {
 public:
 	/// @brief The gain: -3 dB, Q31.
-	static constexpr dsp::Q<31> kGain = dsp::Q<31>::from_raw(0x5A82'799A); // 1/√2, rounded
+	static constexpr dsp::Q<31> kGain = dsp::q<31>(1.0 / std::numbers::sqrt2);
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).

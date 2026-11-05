@@ -19,15 +19,12 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/param_curve.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
-#include "synth/matrix/param_format.h"
 #include "util/functions.h"
 #include <cstring>
 

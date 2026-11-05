@@ -1836,7 +1836,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		int32_t old = params.source_values[patchSourceSidechainUnderlying];
 		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+		    output.size(), paramManager->getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);

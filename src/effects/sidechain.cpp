@@ -23,12 +23,11 @@
 namespace deluge::effects {
 
 dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& state, uint32_t time_per_tick_inverse,
-                                                       q31_t shape) {
-	// The shape arrives as the patcher's source word (render's caller in the sound), Q31.
+                                                       dsp::Q<31> shape) {
 	dsp::fixed::DuckEnvelope::Settings out{
 	    .attack = state.attack,
 	    .release = state.release,
-	    .shape = dsp::Q<31>::from_raw(shape),
+	    .shape = shape,
 	    .instant_attack = state.attack == kInstantAttack,
 	};
 	if (state.sync_level == plugin::SyncLevel::NONE) {
@@ -57,12 +56,12 @@ dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& sta
 void Sidechain::registerHitRetrospectively(int32_t strength, uint32_t samples_ago, const SidechainState& state,
                                            uint32_t time_per_tick_inverse) {
 	// hit_at reads no shape, so the middle one serves.
-	duck_.configure(settings(state, time_per_tick_inverse, 0));
+	duck_.configure(settings(state, time_per_tick_inverse, dsp::Q<31>{}));
 	// The strength is the engine's sidechain hit word, Q31.
 	duck_.on<&dsp::fixed::DuckEnvelope::hit_at>(dsp::Q<31>::from_raw(strength), samples_ago);
 }
 
-int32_t Sidechain::render(uint32_t num_samples, int32_t shape, const SidechainState& state,
+int32_t Sidechain::render(uint32_t num_samples, dsp::Q<31> shape, const SidechainState& state,
                           uint32_t time_per_tick_inverse) {
 	duck_.configure(settings(state, time_per_tick_inverse, shape));
 	// render gives a word: the sound's patcher takes it as a source value.

@@ -122,9 +122,9 @@ public:
 	/// @param state The attack, release and sync in effect, read at every block so a menu's edit takes effect at the
 	/// next.
 	/// @param tick_inverse The playback handler's getTimePerInternalTickInverse(); read only while @ref return_ducks.
-	/// @return The return's level, 2^29 unducked.
-	[[nodiscard]] int32_t return_level(uint32_t frames, int32_t hit, const SidechainState& state,
-	                                   uint32_t tick_inverse);
+	/// @return The return's level, 2^29 (a quarter) unducked.
+	[[nodiscard]] dsp::Q<31> return_level(uint32_t frames, int32_t hit, const SidechainState& state,
+	                                      uint32_t tick_inverse);
 
 	/// @brief The return's sidechain.
 	[[nodiscard]] Sidechain& sidechain() { return return_sidechain_; }

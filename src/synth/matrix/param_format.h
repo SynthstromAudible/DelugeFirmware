@@ -189,20 +189,11 @@ template <class T>
 		return T::from_raw(static_cast<T::storage_type>(word));
 	}
 }
-/// @brief A value in format @p T as its param word.
-template <class T>
-[[nodiscard, gnu::always_inline]] constexpr int32_t to_word(T value) {
-	if constexpr (std::is_same_v<T, int32_t>) {
-		return value;
-	}
-	else {
-		return static_cast<int32_t>(value.raw());
-	}
-}
 } // namespace detail
 
-/// @brief Param @p P's final value from the words of every param, in its format.
+/// @brief Local param @p P's final value from the words of the local params, in its format.
 template <int P>
+requires(P < params::FIRST_GLOBAL)
 [[nodiscard, gnu::always_inline]] constexpr param_format_t<P> param_value(std::span<const int32_t> words) {
 	return detail::from_word<param_format_t<P>>(words[P]);
 }
@@ -214,8 +205,9 @@ requires(P >= params::FIRST_GLOBAL)
 	return detail::from_word<param_format_t<P>>(words[P - params::FIRST_GLOBAL]);
 }
 
-/// @brief Param @p First + @p i's final value, for a run of params that share one format.
+/// @brief Local param @p First + @p i's final value, for a run of local params that share one format.
 template <int First, int N>
+requires(First + N <= params::FIRST_GLOBAL)
 [[nodiscard, gnu::always_inline]] constexpr param_format_t<First> param_value_at(std::span<const int32_t> words,
                                                                                  int32_t i) {
 	static_assert(
@@ -234,12 +226,6 @@ template <int First, int N>
 template <int P>
 [[nodiscard, gnu::always_inline]] constexpr param_format_t<P> param_neutral() {
 	return detail::from_word<param_format_t<P>>(kParamNeutral[P]);
-}
-
-/// @brief Writes param @p P's final value into the words of every param.
-template <int P>
-[[gnu::always_inline]] constexpr void set_param_value(std::span<int32_t> words, param_format_t<P> value) {
-	words[P] = detail::to_word(value);
 }
 
 } // namespace deluge::synth::matrix

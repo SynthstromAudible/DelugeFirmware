@@ -18,7 +18,6 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -54,8 +53,6 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
-#include "synth/matrix/param_format.h"
 #include "util/functions.h" // stringToInt (id-first drum peek)
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"

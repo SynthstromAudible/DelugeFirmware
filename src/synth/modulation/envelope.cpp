@@ -21,7 +21,6 @@
 #include "dsp-next/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
 #include "dsp-next/fixed/tables/decay_small.h"
 #include <algorithm>
-#include <limits>
 
 using deluge::dsp::Q;
 using deluge::dsp::fixed::get_decay4;

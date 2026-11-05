@@ -285,7 +285,7 @@ std::string master_difference() {
 					    .filter_scratch = scratch->view(),
 					    .noise = &deluge::synth_noise,
 					    .bitcrush = cw::kBitcrush,
-					    .master_volume = deluge::dsp::Q<27>::from_raw(167763968),
+					    .master_volume = deluge::effects::kMasterVolume,
 					    .do_pan = w.stereo,
 					    .pan_l = deluge::dsp::Q<30>::from_raw(0x30000000),
 					    .pan_r = deluge::dsp::Q<30>::from_raw(0x10000000),

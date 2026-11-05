@@ -21,7 +21,6 @@
 #include "synth/modulation/cable.h"
 
 #include <cstdint>
-#include <limits>
 #include <numbers>
 
 /// @file

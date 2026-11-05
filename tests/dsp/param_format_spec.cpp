@@ -73,11 +73,6 @@ describe param_format_spec("each param's format", ${
 		expect(matrix::param_neutral<params::LOCAL_PITCH_ADJUST>().raw()).to_equal(matrix::kParamNeutral[params::LOCAL_PITCH_ADJUST]);
 		expect(matrix::param_neutral<params::LOCAL_ENV_0_ATTACK>()).to_equal(matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK]);
 	});
-	it("writes a param's word back", _ {
-		auto words = numbered_words();
-		matrix::set_param_value<params::LOCAL_PAN>(words, Q<31>::from_raw(-77));
-		expect(words[params::LOCAL_PAN]).to_equal(-77);
-	});
 });
 // clang-format on
 

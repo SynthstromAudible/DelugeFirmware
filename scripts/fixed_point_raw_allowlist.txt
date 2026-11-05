@@ -11,12 +11,11 @@
 #
 # <path> raw=<n> [view=<n>] boundary=<n>
 src/deluge/bench/cases.cpp raw=0 boundary=7
-src/deluge/bench/cases.h raw=0 boundary=22
-src/deluge/bench/chain_cases.cpp raw=0 boundary=1
+src/deluge/bench/cases.h raw=0 boundary=21
 src/deluge/bench/delay_cases.cpp raw=0 boundary=2
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
 src/deluge/bench/granular_cases.cpp raw=0 boundary=1
-src/deluge/bench/reference_chains.h raw=4 boundary=37
+src/deluge/bench/reference_chains.h raw=4 boundary=36
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=1
 src/deluge/dsp-next/core/convert.h raw=0 boundary=7
@@ -137,12 +136,12 @@ src/effects/granular.cpp raw=0 boundary=4
 src/effects/master_chain.cpp raw=0 boundary=5
 src/effects/mod_fx.cpp raw=0 boundary=6
 src/effects/param_fragment.h raw=0 boundary=8
-src/effects/reverb.cpp raw=0 boundary=2
+src/effects/reverb.cpp raw=0 boundary=3
 src/effects/saturation.cpp raw=0 boundary=4
 src/effects/saturation.h raw=0 boundary=2
 src/effects/send_and_volume.h raw=0 boundary=1
-src/effects/sidechain.cpp raw=0 boundary=8
-src/effects/sidechain.h raw=0 boundary=3
+src/effects/sidechain.cpp raw=0 boundary=7
+src/effects/sidechain.h raw=0 boundary=2
 src/effects/sound_chain.cpp raw=0 boundary=3
 src/effects/track_chain.cpp raw=0 boundary=5
 src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
@@ -154,9 +153,9 @@ src/synth/engines/pitch.h raw=0 boundary=2
 src/synth/engines/ring_mod_engine.cpp raw=0 boundary=1
 src/synth/engines/slot_engine.cpp raw=0 boundary=5
 src/synth/engines/subtractive_engine.cpp raw=0 boundary=4
-src/synth/matrix/evaluator.cpp raw=0 boundary=2
-src/synth/matrix/matrix_fixed.h raw=0 boundary=17
-src/synth/matrix/param_format.h raw=0 boundary=2
+src/synth/matrix/evaluator.cpp raw=0 boundary=1
+src/synth/matrix/matrix_fixed.h raw=0 boundary=18
+src/synth/matrix/param_format.h raw=0 boundary=1
 src/synth/modulation/cable_depth.h raw=0 boundary=4
 src/synth/modulation/envelope.cpp raw=0 boundary=8
 src/synth/modulation/lfo.h raw=0 boundary=13

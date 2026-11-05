@@ -210,7 +210,7 @@ void master_block(bool reference) {
 	    .filter_scratch = render::filter_scratch(),
 	    .noise = &deluge::synth_noise,
 	    .bitcrush = kBitcrush,
-	    .master_volume = dsp::Q<27>::from_raw(167763968),
+	    .master_volume = effects::kMasterVolume,
 	    .do_pan = false,
 	    .pan_l = dsp::Q<30>{},
 	    .pan_r = dsp::Q<30>{},

@@ -1043,8 +1043,8 @@ void midiGateOutputTimerFired() {
 }
 
 void scheduleMidiGateOutISR(size_t numSamples);
-/// The output stage's volume while no song is current: 134217728 made a bit bigger, as a song master's filters start.
-constexpr int32_t kMasterVolumeWithoutSong = 167763968;
+/// The output stage's volume while no song is current, Q27: the master's, as a song master's filters start.
+constexpr int32_t kMasterVolumeWithoutSong = deluge::effects::kMasterVolume.raw();
 
 /// @brief The current song's master over @p renderingBuffer: its half before the reverb with @p master (noting a send
 /// to the reverb), then @p between (which renders the reverb, and the sample preview, and returns the half after's
@@ -1535,9 +1535,8 @@ void renderReverb(size_t numSamples) {
 	// The return's duck advances whether or not the reverb renders this block. The tick inverse is read only while it
 	// ducks: between songs there is no tempo to read.
 	const uint32_t tickInverse = reverb.return_ducks() ? playbackHandler.getTimePerInternalTickInverse() : 0;
-	// Reverb::return_level's word, the Q31 return level
-	const auto reverbOutputVolume = deluge::dsp::Q<31>::from_raw(
-	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse));
+	const deluge::dsp::Q<31> reverbOutputVolume =
+	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse);
 
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);

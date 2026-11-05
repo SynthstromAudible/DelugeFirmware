@@ -175,7 +175,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 		if (in.sidechain_hit.raw() != 0) {
 			c.sidechain().register_hit(in.sidechain_hit.raw());
 		}
-		int32_t sidechainOutput = c.sidechain().render(global_effectable_audio.size(), in.sidechain_shape.raw(),
+		int32_t sidechainOutput = c.sidechain().render(global_effectable_audio.size(), in.sidechain_shape,
 		                                               settings.sidechain, in.tick_inverse);
 
 		int32_t positivePatchedValue = multiply_32x32_rshift32(sidechainOutput, in.sidechain_depth.raw()) + 536870912;
