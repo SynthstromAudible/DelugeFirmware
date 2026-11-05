@@ -334,6 +334,12 @@ const Node* MenuScene::focused_value() const {
 	return menu::focused_value(ctx_, st_);
 }
 
+void MenuScene::set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation) {
+	ctx_.root_greyout = greyout;
+	ctx_.root_is_keyboard = root_is_keyboard;
+	ctx_.root_is_automation = root_is_automation;
+}
+
 std::optional<AutomationParam> MenuScene::focused_automation_param() const {
 	const Node* value = focused_value();
 	return value != nullptr ? automation_param(*value, ctx_, st_) : std::nullopt;
@@ -763,9 +769,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// `SoundEditor::modEncoderAction`: in learn mode a gold turn learns that knob. Under the automation view legacy
 	// hands the turn to the view instead, which the knobs' service stands in for.
-	const bool automation_root = ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar
-	                             || (ctx_.root_greyout == MenuContext::RootGreyout::Nothing && !ctx_.root_is_keyboard);
-	if (!automation_root && visit_.learn.gold_turn(ctx_, st_, event)) {
+	if (!ctx_.root_is_automation && visit_.learn.gold_turn(ctx_, st_, event)) {
 		return Result{.handled = true};
 	}
 

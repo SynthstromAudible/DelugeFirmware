@@ -322,6 +322,11 @@ void ShellHostUI::handBack(deluge::ui::shell::PadRegions regions) {
 	                 holds(regions, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
 }
 
+void ShellHostUI::refreshRootFacts() {
+	refreshShellRootFacts();
+	syncPads();
+}
+
 void ShellHostUI::syncPads() {
 	using deluge::ui::shell::PadRegions;
 	using deluge::ui::shell::regions_without;

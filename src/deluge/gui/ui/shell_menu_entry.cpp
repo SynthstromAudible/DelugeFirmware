@@ -112,6 +112,7 @@ menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performan
 	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	ctx.root_greyout = deluge::gui::menuRootGreyout();
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
+	ctx.root_is_automation = getRootUI() == &automationView;
 	return ctx;
 }
 

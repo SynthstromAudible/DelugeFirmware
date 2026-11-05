@@ -142,6 +142,9 @@ extern int service_wirings;
 /// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
 /// binary where the real scene exists.
 extern int action_dispatches;
+/// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
+///        writes the menu and the knobs, none of which this suite builds.
+extern int root_fact_refreshes;
 
 /// @brief Called by the fake `dispatchShellActions()`, after it bumps `action_dispatches`.
 ///

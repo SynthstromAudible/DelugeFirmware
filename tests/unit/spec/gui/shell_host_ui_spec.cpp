@@ -891,6 +891,21 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::greyout_reassessments).to_equal(1);
 	});
 
+	it("on refreshing the root facts, re-reads them and then the greyout they decide", _ {
+		// The facts change under an open menu when the root or the automation view's editor does; the greyout the
+		// menu answers moves with them, and legacy re-reads it on every greyout.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFC, 0};
+		expect(r.open()).to_be_true();
+		const int reassessments = fakelegacy::greyout_reassessments;
+		r.base.greyout = {};
+		r.guest.refreshRootFacts();
+		expect(fakelegacyui::root_fact_refreshes).to_equal(1);
+		expect(fakelegacy::greyout_reassessments).to_equal(reassessments + 1);
+	});
+
 	it("greys at once when a scene takes the main pads and greys every column, as the SHIFT overlay does", _ {
 		// `renderMainShortcutsOnly` calls `PadLEDs::doGreyoutInstantly()`: the overlay's greyout does not fade in.
 		Rig r;

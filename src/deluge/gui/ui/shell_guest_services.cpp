@@ -19,6 +19,7 @@
 
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -32,6 +33,7 @@
 #include "hid/display/display.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/global_controls.h"
@@ -73,35 +75,8 @@ GuestServices& guestServices() {
 	return services;
 }
 
-} // namespace
-
-void handOffGuestOverlays(uint32_t now_ms) {
-	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
-	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
-		display->displayNotification(shown->name, shown->value);
-		uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(shown->remaining_ms));
-		view.adoptModEncoderValuePopup(shown->kind, shown->param_id, shown->display_value, shown->source1,
-		                               shown->source2);
-	}
-}
-
-void wireShellGuestServices() {
-	GuestServices& services = guestServices();
-	ShellHostUI::setCloseHook(&handOffGuestOverlays);
-
-	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
-	// `scenes-currentSong` row) and which all three services resolve against
-	// (`ModKnobs::set_song`, `GlobalControls::set_song`, `MidiLearn::set_song`).
-	services.learn.set_song(currentSong);
-	services.knobs.set_song(currentSong);
-	services.controls.set_song(currentSong);
-	// A guest opens with the knobs untouched, so its first turn is not taken as a repeat of the last.
-	services.knobs.pretend_knobs_untouched();
-	// The clip the views have open, which the global buttons and MIDI learn ask about.
-	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
-	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
-	                                                            : deluge::scenes::services::MenuView{});
-
+/// @brief Give the knobs and the global controls the two `ViewState` blocks, read from the legacy views now.
+void setViewStates(GuestServices& services) {
 	// The two `ViewState` blocks -- the questions about *which legacy view is on screen* that a
 	// service in `src/scenes` has no way to ask. Each field is its own doc comment's legacy
 	// expression, evaluated here.
@@ -135,6 +110,48 @@ void wireShellGuestServices() {
 	// tenant, `MenuScene`, is not a root scene. So no arm that reads `ui_mode` is reachable under
 	// the guest. Uncovered, and named as uncovered.
 	services.controls.set_view_state(controlView);
+}
+
+} // namespace
+
+void handOffGuestOverlays(uint32_t now_ms) {
+	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
+	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
+		display->displayNotification(shown->name, shown->value);
+		uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(shown->remaining_ms));
+		view.adoptModEncoderValuePopup(shown->kind, shown->param_id, shown->display_value, shown->source1,
+		                               shown->source2);
+	}
+}
+
+void refreshShellRootFacts() {
+	setViewStates(guestServices());
+	deluge::scenes::menu_scene().set_root_facts(deluge::gui::menuRootGreyout(), getRootUI() == &keyboardScreen,
+	                                            getRootUI() == &automationView);
+}
+
+bool guestKnobsSeeAutomationEditor() {
+	return guestServices().knobs.view_state().in_automation_editor;
+}
+
+void wireShellGuestServices() {
+	GuestServices& services = guestServices();
+	ShellHostUI::setCloseHook(&handOffGuestOverlays);
+
+	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
+	// `scenes-currentSong` row) and which all three services resolve against
+	// (`ModKnobs::set_song`, `GlobalControls::set_song`, `MidiLearn::set_song`).
+	services.learn.set_song(currentSong);
+	services.knobs.set_song(currentSong);
+	services.controls.set_song(currentSong);
+	// A guest opens with the knobs untouched, so its first turn is not taken as a repeat of the last.
+	services.knobs.pretend_knobs_untouched();
+	// The clip the views have open, which the global buttons and MIDI learn ask about.
+	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
+	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
+	                                                            : deluge::scenes::services::MenuView{});
+
+	setViewStates(services);
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a

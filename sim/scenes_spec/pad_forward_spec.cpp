@@ -43,7 +43,6 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 
-#include "model/settings/runtime_feature_settings.h"
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -53,6 +52,7 @@
 #include "shell/scene.h" // SceneKind
 
 #include "support/global_guest_menu.h"
+#include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
 #include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
@@ -72,54 +72,13 @@ namespace nodes = deluge::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 using deluge::scenes::spec::GlobalGuestGuard;
 using deluge::scenes::spec::open_menu_on_global_guest_at;
+using deluge::scenes::spec::open_shortcut_over;
+using deluge::scenes::spec::open_shortcut_over_automation;
+using deluge::scenes::spec::ShellMenuOn;
+using deluge::scenes::spec::ShiftHeld;
 using deluge::scenes::spec::UiStackGuard;
 
-/// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
-///       these (`hid/buttons.cpp`) and the header does not export them.
-/// @{
-namespace Buttons {
-extern bool shiftCurrentlyPressed;
-extern bool shiftCurrentlyStuck;
-} // namespace Buttons
-/// @}
-
 namespace {
-
-/// @brief Turn the `ShellMenu` toggle on for an example, and put it back however it ends.
-struct ShellMenuOn {
-	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
-	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, RuntimeFeatureStateToggle::On); }
-	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
-	ShellMenuOn(const ShellMenuOn&) = delete;
-	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
-};
-
-/// @brief Hold Shift on legacy's side for an example, and let go however it ends.
-struct ShiftHeld {
-	ShiftHeld() { Buttons::shiftCurrentlyPressed = true; }
-	~ShiftHeld() {
-		Buttons::shiftCurrentlyPressed = false;
-		Buttons::shiftCurrentlyStuck = false;
-	}
-	ShiftHeld(const ShiftHeld&) = delete;
-	ShiftHeld& operator=(const ShiftHeld&) = delete;
-};
-
-/// @brief Open the ported menu over @p root at the sound shortcut (@p x, @p y) -- the page that lists the shortcut's
-///        param, focused on it, as `SoundEditor::setup` lands one.
-///
-/// The application's node numbering is put back first: `open_menu_on_global_guest` numbers `root_song` alone, and the
-/// shortcut entry refuses a node numbered 0.
-bool open_shortcut_over(RootUI* root, InstrumentClip* clip, int32_t x, int32_t y) {
-	(void)menu::assign_node_ids(nodes::kAllRoots);
-	setRootUILowLevel(root);
-	return deluge::gui::ui::openShellMenuAtShortcut(clip, x, y, false, false, false, false);
-}
-
-bool open_shortcut_over_automation(InstrumentClip* clip, int32_t x, int32_t y) {
-	return open_shortcut_over(&automationView, clip, x, y);
-}
 
 /// The vibrato page's cable, LFO 1 onto pitch, in the automation view's numbering: the cable's descriptor word.
 constexpr int32_t kVibratoCableId = static_cast<int32_t>(

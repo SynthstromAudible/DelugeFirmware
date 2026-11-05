@@ -343,6 +343,10 @@ public:
 	/// deadline is asleep until something arms its timer. Called by `drain_notifications` on every
 	/// pass of the app loop.
 	void wakeForPendingFacts();
+	/// @brief Re-read the facts about the root UI that the guest holds (`refreshShellRootFacts`), then the greyout
+	///        and pad regions they decide. For whatever changes the root, or the automation view's editor, while the
+	///        guest is up.
+	void refreshRootFacts();
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;

@@ -160,6 +160,10 @@ struct MenuContext {
 	/// Not read from `root_greyout`, which is also `Nothing` under the automation view's editor.
 	bool root_is_keyboard = false;
 
+	/// @brief Whether the root UI under the menu is the automation view (`getRootUI() == &automationView`), which
+	///        this layer may not read: the menu's opener sets it, and the host again whenever the root changes.
+	bool root_is_automation = false;
+
 	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected
 	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).

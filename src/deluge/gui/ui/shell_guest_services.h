@@ -63,6 +63,14 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
+/// @brief Re-read the facts about the root UI that the open menu and the knobs hold: the menu's greyout arm and
+///        whether the root is the keyboard screen or the automation view (`MenuScene::set_root_facts`), and the two
+///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.
+void refreshShellRootFacts();
+
+/// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
+bool guestKnobsSeeAutomationEditor();
+
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.
 ///        The guest's other passive overlays are dropped with its stack. `wireShellGuestServices()` installs it.
