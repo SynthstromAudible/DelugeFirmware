@@ -73,7 +73,7 @@
 extern "C" {
 int32_t deluge_host_midi_script_start(const char* path);
 uint32_t deluge_host_midi_script_released(void);
-void deluge_host_test_input(bool on);
+void deluge_host_test_input(uint32_t signal);
 }
 
 namespace {
@@ -298,7 +298,7 @@ void stepLoading() {
 		return;
 	}
 	g_steps = 0;
-	deluge_host_test_input(true);
+	deluge_host_test_input(1);
 	g_stage = Stage::MidiOpen;
 }
 
@@ -710,7 +710,7 @@ void stepNextLoad() {
 }
 
 void report() {
-	deluge_host_test_input(false);
+	deluge_host_test_input(0);
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}

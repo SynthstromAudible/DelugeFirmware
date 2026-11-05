@@ -1,0 +1,8 @@
+# Held C4 at the input's own pitch, bent up, back through unity, down, and back: the shifter is made when the
+# bend leaves unity and freed at unity once its crossfade has ended.
+4608 90 3C 64
+12000 E0 00 60
+30000 E0 00 40
+40000 E0 00 10
+56000 E0 00 40
+70000 80 3C 40
