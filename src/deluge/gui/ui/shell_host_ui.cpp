@@ -821,6 +821,8 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			shell_.note_activity(nowMs()); // `deluge.cpp`: every pad is activity, forwarded or not
 			(void)forwardGridPad(x, y, velocity);
 			if (getCurrentUI() == this) {
+				// A pad the root took can move it between views (the automation view's editor and overview, a kit row).
+				refreshRootFacts();
 				armTickSoon();
 			}
 			return ActionResult::DEALT_WITH;
@@ -837,8 +839,8 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// The two gold-knob pushes are the knobs' service's: fed here, ahead of the note mode, which has no arm for them.
 	// `Buttons::buttonAction` delivers each press twice -- here, and to `modEncoderButtonAction` in its tail, which
-	// does nothing -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and the shift and transport handling
-	// above it, running (see the end of this function).
+	// takes it only in the automation view's editor -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and
+	// the shift and transport handling above it, running (see the end of this function).
 	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
 		if (automationEditorTakesKnobs()) {
 			return ActionResult::NOT_DEALT_WITH; // the view's, through `modEncoderButtonAction`

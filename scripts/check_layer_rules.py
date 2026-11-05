@@ -312,8 +312,8 @@ LEGACY_PORT_SEAMS = (
     # `ShellHostUI::timerCallback` runs once per tick, and what legacy's sound editor does to `automationView` for each
     # change of the menu's param (`scenes/menu/transition.h`). It names `deluge::scenes::menu_scene()` and the menu's
     # `AutomationParam` and `MenuTransition` because it reads them, and `automationView` because this is the side of the
-    # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares one no-arguments
-    # function and names no port type.
+    # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
+    # legacy types and integers and names no port type.
     "src/deluge/gui/ui/shell_automation_glue.cpp",
     # The binding's host half. It names the scenes' binding types
     # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:

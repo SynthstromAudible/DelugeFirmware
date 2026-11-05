@@ -202,7 +202,10 @@ void dispatchMenuTransitions() {
 		return;
 	}
 	runTransition(*t);
-	shellHostUI.refreshRootFacts();
+	// Not for a guest an action of this tick has already put behind a legacy UI.
+	if (getCurrentUI() == &shellHostUI) {
+		shellHostUI.refreshRootFacts();
+	}
 }
 
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool on) {

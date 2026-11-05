@@ -110,8 +110,7 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 bool rootKeepsShortcutPad(int32_t x, int32_t y);
 
 /// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the ported menu: whether the param the menu edits is
-/// the
-///        one the automation view has selected.
+///        the one the automation view has selected.
 bool menuShowsAutomationViewParam();
 
 /// @brief Replace what performs a decided forward; `nullptr` restores the real one.

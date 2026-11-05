@@ -22,6 +22,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -115,6 +116,9 @@ void setViewStates(GuestServices& services) {
 } // namespace
 
 void handOffGuestOverlays(uint32_t now_ms) {
+	// The menu's kit context goes with it (`adoptShellMenuContext` wrote it at open), as legacy's `exitCompletely`
+	// clears it; a legacy menu opened afterwards sets it only when it means it.
+	soundEditor.setupKitGlobalFXMenu = false;
 	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
 	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
 		display->displayNotification(shown->name, shown->value);
