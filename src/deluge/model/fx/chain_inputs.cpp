@@ -111,10 +111,10 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 	    .mod_fx_depth = modFx.depth,
 	    .mod_fx_offset = modFx.offset,
 	    .mod_fx_feedback = modFx.feedback,
-	    .eq = {.bass = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS)),
-	           .treble = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE)),
-	           .bass_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_BASS_FREQ)),
-	           .treble_frequency = deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE_FREQ))},
+	    .eq = {.bass = unpatched->getKnob(params::UNPATCHED_BASS),
+	           .treble = unpatched->getKnob(params::UNPATCHED_TREBLE),
+	           .bass_frequency = unpatched->getKnob(params::UNPATCHED_BASS_FREQ),
+	           .treble_frequency = unpatched->getKnob(params::UNPATCHED_TREBLE_FREQ)},
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
@@ -133,7 +133,7 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	// Q31 constant is that product in the volume's units.
 	const dsp::Q<27> headroom =
 	    (outputType == OutputType::AUDIO)
-	        ? dsp::reinterpret_bits<dsp::Q<27>>(mul_r(volumeAdjustment, dsp::Q<31>::from_raw(471633397)))
+	        ? dsp::reinterpret_bits<dsp::Q<27>>(mul_r(volumeAdjustment, dsp::q<31>(471633397 / 0x1p31)))
 	        : scale_shr_floor<2>(volumeAdjustment);
 	const dsp::Q<27> volumePostFX = add_wrap(volumeAdjustment, headroom);
 
@@ -145,8 +145,8 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 
 	return {
 	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount),
-	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
+	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
 	    .volume_post_fx = volumePostFX,
@@ -198,10 +198,10 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
 	    .noise = &synth_noise,
-	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
-	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
+	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
+	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	    // Unity made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.
-	    .master_volume = dsp::Q<27>::from_raw(167763968),
+	    .master_volume = dsp::q<27>(1.24993896484375),
 	    .do_pan = doPanning,
 	    .pan_l = amplitudes.left,
 	    .pan_r = amplitudes.right,

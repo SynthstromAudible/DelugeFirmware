@@ -113,6 +113,7 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<3
 
 int32_t Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
 	if (return_duck_.depth == dsp::Q<29>{}) {
+		// return_level is a word, as Sidechain::level<S> is: its scale is the owner's (2^29 here).
 		return dsp::fixed::kDuckGainNeutral.raw();
 	}
 	// The hit is the engine's pending sidechain hit word, Q31

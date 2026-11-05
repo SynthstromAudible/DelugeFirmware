@@ -56,6 +56,7 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 	compressor.configure(settings.compressor);
 	compressor.dsp().set_threshold(in.compressor_threshold); // a sound's threshold is its param
 	if (in.compressor_threshold > dsp::Q<31>{}) {
+		// The Q27 volume's word read as the 3.29 final volume, a quarter, as it is tuned.
 		compressor.dsp().render_volume_neutral(block, dsp::Q<29>::from_raw(post_fx_volume));
 	}
 	else {

@@ -1938,8 +1938,8 @@ doFinishCapturing:
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
 				for (StereoSample sample : input.first(numSamplesThisCycle)) {
-					// Raw: the balanced difference of the halved words, toward zero, written as 24 bits.
-					q31_t rxBalanced = (sample.l.raw() / 2) - (sample.r.raw() / 2);
+					// The balanced difference of the halves toward zero, a word for the 24-bit write.
+					q31_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);

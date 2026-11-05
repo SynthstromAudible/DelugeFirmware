@@ -58,6 +58,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
+			// The arp's stored rate word is the knob, Q31.
 			uint32_t phaseIncrement =
 			    activeInstrumentClip->arpSettings.getPhaseIncrement(ArpeggiatorSettings::rate_from_knob(
 			        deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.rate)));

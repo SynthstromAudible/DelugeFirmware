@@ -108,7 +108,7 @@ effects::FxInputs fx_inputs(effects::ChainCore& core, dsp::Q<31> grain_send) {
 	};
 }
 
-constexpr effects::BitcrushParams kBitcrush{.bitcrush = -0x40000000, .sample_rate_reduction = -0x40000000};
+constexpr effects::BitcrushParams kBitcrush{.bitcrush = dsp::q<31>(-0.5), .sample_rate_reduction = dsp::q<31>(-0.5)};
 
 /// @return The filter params a host chain reads: a low-pass and a high-pass both running.
 effects::FilterParams filter_params() {

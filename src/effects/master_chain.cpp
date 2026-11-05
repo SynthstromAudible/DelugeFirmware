@@ -50,26 +50,27 @@ void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectSt
                               const MasterPostInputs& post) {
 	using dsp::Q;
 	// The master's volume is Q27, 2^27 unity; a bitcrush lowers it by a run-time shift, so raw.
-	int32_t volume_l = filter_.configure(settings.filter, post.filter, post.master_volume.raw());
+	int32_t volume = filter_.configure(settings.filter, post.filter, post.master_volume.raw());
 	filter_.process(block, post.filter_scratch, *post.noise);
-	volume_l >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
-	int32_t volume_r = volume_l;
+	volume >>= core_.bitcrush().process(block, post.bitcrush).volume_shift;
+	// The shift done, the volume is Q27 from here.
+	Q<27> volume_l = Q<27>::from_raw(volume);
+	Q<27> volume_r = volume_l;
 
 	if (post.stutter != nullptr) {
 		post.stutter->render(block, post.stutter_rate);
 	}
 	if (post.do_pan) {
 		// The Q27 volume times a Q30 pan amplitude is Q25, moved back to Q27.
-		volume_l = mul_as_wrap<Q<27>>(Q<27>::from_raw(volume_l), post.pan_l).raw();
-		volume_r = mul_as_wrap<Q<27>>(Q<27>::from_raw(volume_r), post.pan_r).raw();
+		volume_l = mul_as_wrap<Q<27>>(volume_l, post.pan_l);
+		volume_r = mul_as_wrap<Q<27>>(volume_r, post.pan_r);
 	}
 
 	Compressor& compressor = core_.compressor();
 	compressor.configure(settings.compressor); // the master's threshold is its knob
 	// The compressor's channel gains are 4.27 and its final volume 3.29: the master halves its Q27 volume into the
 	// gains, and reads an eighth of the song's Q27 volume as the final volume, as it is tuned.
-	compressor.dsp().render(block, scale_shr_floor<1>(Q<27>::from_raw(volume_l)),
-	                        scale_shr_floor<1>(Q<27>::from_raw(volume_r)),
+	compressor.dsp().render(block, scale_shr_floor<1>(volume_l), scale_shr_floor<1>(volume_r),
 	                        reinterpret_bits<Q<29>>(scale_shr_floor<3>(post.song_volume)));
 }
 

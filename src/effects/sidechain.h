@@ -64,7 +64,10 @@ public:
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
 	/// @param strength The hit's strength, Q31.
-	void register_hit(int32_t strength) { duck_.on<&dsp::fixed::DuckEnvelope::hit>(dsp::Q<31>::from_raw(strength)); }
+	void register_hit(int32_t strength) {
+		// The strength is the engine's pending hit word (the sound passes sideChainHitPending).
+		duck_.on<&dsp::fixed::DuckEnvelope::hit>(dsp::Q<31>::from_raw(strength));
+	}
 
 	/// @brief Places the duck where a hit of @p strength (Q31) @p samples_ago would have put it, at @p state's rates
 	/// for @p time_per_tick_inverse.
@@ -99,7 +102,8 @@ public:
 		const int32_t duck = render(b.frames, b.shape.raw(), b.state, b.tick_inverse);
 		// The ranges duck_gain's square stays in range for (see its Wrapping note).
 		assert(duck <= 0 && duck > INT32_MIN);
-		assert(b.depth.raw() >= -(1 << 30) && b.depth.raw() <= (1 << 30));
+		assert(b.depth >= dsp::q<29>(-2.0) && b.depth <= dsp::q<29>(2.0));
+		// render gives the patcher's source word; the duck is Q31.
 		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), b.depth);
 	}
 

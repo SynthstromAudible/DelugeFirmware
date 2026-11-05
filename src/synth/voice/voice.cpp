@@ -632,9 +632,8 @@ void Voice::write_stereo(const VoiceOutput& output) {
 		}
 
 		if constexpr (kClipping) {
-			// The saturation works on raw words
-			left = Q<31>::from_raw(output_saturation_.saturate(left.raw(), 0, saturation));
-			right = Q<31>::from_raw(output_saturation_.saturate(right.raw(), 1, saturation));
+			left = output_saturation_.saturate(left, 0, saturation);
+			right = output_saturation_.saturate(right, 1, saturation);
 		}
 
 		// Write to the output buffer, panning or not
@@ -667,8 +666,7 @@ void Voice::write_mono(const VoiceOutput& output) {
 		}
 
 		if constexpr (kClipping) {
-			// The saturation works on raw words
-			sample = Q<31>::from_raw(output_saturation_.saturate(sample.raw(), 0, saturation));
+			sample = output_saturation_.saturate(sample, 0, saturation);
 		}
 
 		if (output.sound_in_stereo) {

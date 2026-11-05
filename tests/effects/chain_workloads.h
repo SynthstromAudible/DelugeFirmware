@@ -251,7 +251,8 @@ inline fx::Delay::State delay_state(fx::ChainCore& core, const Workload& w, cons
 	return state;
 }
 
-inline constexpr fx::BitcrushParams kBitcrush{.bitcrush = -0x40000000, .sample_rate_reduction = -0x40000000};
+inline constexpr fx::BitcrushParams kBitcrush{.bitcrush = deluge::dsp::q<31>(-0.5),
+                                              .sample_rate_reduction = deluge::dsp::q<31>(-0.5)};
 
 inline constexpr fx::FilterParams kFilter{
     .lpf_frequency = 0x30000000,

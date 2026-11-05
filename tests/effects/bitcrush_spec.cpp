@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cppspec.hpp>
 #include <cstdint>
-#include <limits>
 #include <vector>
 
 using namespace deluge::effects;
@@ -11,11 +10,11 @@ using deluge::dsp::StereoSample;
 
 namespace {
 
-constexpr int32_t kOff = std::numeric_limits<int32_t>::min();
+constexpr deluge::dsp::Q<31> kOff = deluge::dsp::Q<31>::min();
 /// Bitcrush preset 6 of 7: (6 << 29) - 2^31.
-constexpr int32_t kPresetSix = 1073741824;
+constexpr deluge::dsp::Q<31> kPresetSix = deluge::dsp::q<31>(0.5);
 /// Sample-rate reduction a quarter of the way up.
-constexpr int32_t kQuarterRate = -1073741824;
+constexpr deluge::dsp::Q<31> kQuarterRate = deluge::dsp::q<31>(-0.5);
 
 std::vector<StereoSample> wave(size_t frames) {
 	std::vector<StereoSample> block;

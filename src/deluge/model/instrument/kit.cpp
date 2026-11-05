@@ -945,6 +945,7 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
+			// The arp's stored rate word is the knob, Q31.
 			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
 			    ArpeggiatorSettings::rate_from_knob(deluge::dsp::Q<31>::from_raw(nonAudioDrum->arpSettings.rate)));
 

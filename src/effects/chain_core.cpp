@@ -30,6 +30,8 @@ ChainCore::ChainCore(RingAllocator mod_fx_allocator, RingAllocator granular_allo
 void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in, int32_t& post_fx_volume, bool sound,
                           ReverbSend send) {
 	if (in.mod_fx_type == ModFXType::GRAIN) {
+		// The post-FX volume is a Q27 word: the bitcrush lowers it by a run-time shift, and the mod FX and the grain
+		// scale it in place.
 		granular_.render(block,
 		                 {
 		                     .rate = in.mod_fx_rate,
