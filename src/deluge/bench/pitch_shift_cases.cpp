@@ -72,7 +72,7 @@ public:
 /// The rig shared by the reader cases, made on first use: the reader and the sample it plays.
 struct ReaderRig {
 	BenchReader reader{};
-	Sample sample{};
+	::Sample sample{};
 	std::array<dsp::Q<31>, kMaxBlock * 2> out{};
 	bool ready = false;
 };
