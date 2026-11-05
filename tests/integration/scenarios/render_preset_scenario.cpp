@@ -20,6 +20,7 @@
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
+#include "memory/heaps.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
 #include "model/output.h"
@@ -78,6 +79,8 @@ uint64_t g_blocksWanted = 0;
 int32_t g_midiEvents = 0;
 
 uint64_t g_renderBase = 0;
+/// The render's heap allocations when capture starts: the render must make none.
+uint32_t g_allocationBase = 0;
 uint32_t g_audioSyncBase = 0;
 uint64_t g_blocksRendered = 0;
 int32_t g_direnessMax = 0;
@@ -141,6 +144,7 @@ void stepStart() {
 	}
 	g_renderBase = deluge_host_render_count();
 	g_audioSyncBase = deluge_tier_sync_audio_total();
+	g_allocationBase = deluge::memory::audioTierAllocations();
 	deluge_host_capture_start();
 	g_ticks = 0;
 	g_stage = Stage::Capturing;
@@ -219,6 +223,10 @@ void report() {
 	if (g_direnessMax != 0) {
 		fail("RP-RENDER", "CPU direness rose, so the render took reduced-quality paths");
 	}
+	const uint32_t allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
+	// Reported, not gated: the live-input pitch shift, the sample timestretch and the voice cache paths allocate on
+	// the render (TODO.md).
+	printf("RP-ALLOC render_allocations=%u\n", allocations);
 	const uint32_t audioSync = deluge_tier_sync_audio_total() - g_audioSyncBase;
 	printf("RP-TIER-SYNC-AUDIO total=%u\n", audioSync);
 	if (audioSync != 0) {

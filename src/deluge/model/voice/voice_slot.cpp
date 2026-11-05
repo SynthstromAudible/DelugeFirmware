@@ -256,7 +256,7 @@ bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, 
 	// If none of this source still active, and no noise, see if the other source still has any...
 	if (!anyStillActive
 	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
+	        paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 
 		s = 1 - s;
 

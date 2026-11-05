@@ -223,6 +223,20 @@ void laneAgreementTarget(Song* song) {
 		    memory, song, clip->output->toModControllable(), clip, &clip->paramManager);
 		walk(owner, clip->paramManager);
 	}
+	// The render's direct reads never create a set's store: an unbound set reads the unheld lane and stays unbound; a
+	// bound one reads its store's lane.
+	{
+		ParamManagerForTimeline fresh;
+		if (fresh.setupWithPatching() == Error::NONE) {
+			PatchedParamSet* set = fresh.getPatchedParamSet();
+			if (set->findDocParamForId(0) == nullptr) {
+				check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
+				check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
+			}
+			(void)set->docForParam(0);
+			check(&set->findDocForParam(0) == set->findDocParamForId(0), "a bound set reads its store's lane");
+		}
+	}
 	std::fprintf(io.out, "LH-AGREE checked=%d mismatches=%d\n", static_cast<int>(checked),
 	             static_cast<int>(mismatches));
 	check(mismatches == 0, "the collection's lane is the one its address resolves to");
