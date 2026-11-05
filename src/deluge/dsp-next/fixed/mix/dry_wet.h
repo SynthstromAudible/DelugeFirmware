@@ -32,16 +32,16 @@ namespace deluge::dsp::fixed {
 
 /// @brief dry × (1 − level) + wet × level, Q31, in the rounding the filters' fade and the compressor use.
 /// @details The wet product keeps its high word truncated; the dry product is accumulated onto it rounded; the sum,
-/// Q30, is doubled back to Q31, so the result's lowest bit is always clear. At @p level kOneQ31 the dry level is 0,
-/// but the wet product is (wet × (2^31 − 1)) ≫ 32 doubled: a negative wet sample with its lowest bit cleared, a
+/// Q30, is doubled back to Q31, so the result's lowest bit is always clear. At @p level `Q<31>::max()` the dry level is
+/// 0, but the wet product is (wet × (2^31 − 1)) ≫ 32 doubled: a negative wet sample with its lowest bit cleared, a
 /// positive one 1 or 2 below itself. The blend is not an identity there, and a caller wanting the wet signal
 /// unchanged skips it (DryWetBlend's FULL_WET).
 ///
-/// **Wrapping.** The dry level kOneQ31 − @p level and the doubling wrap modulo 2^32, as the target's `sub` and `lsl`
-/// do: a negative level, outside the callers' range, gives the wrapped value rather than undefined behaviour.
+/// **Wrapping.** The dry level `Q<31>::max()` − @p level and the doubling wrap modulo 2^32, as the target's `sub` and
+/// `lsl` do: a negative level, outside the callers' range, gives the wrapped value rather than undefined behaviour.
 /// @param dry The dry sample, Q31.
 /// @param wet The wet sample, Q31.
-/// @param level The wet level, Q31: 0 is fully dry, kOneQ31 fully wet.
+/// @param level The wet level, Q31: 0 is fully dry, `Q<31>::max()` fully wet.
 /// @return The blend, Q31, its lowest bit clear.
 [[nodiscard]] [[gnu::always_inline]] constexpr Q<31> dry_wet_blend(Q<31> dry, Q<31> wet, Q<31> level) {
 	const Q<31> dry_level = sub_wrap(Q<31>::max(), level);
@@ -51,9 +51,9 @@ namespace deluge::dsp::fixed {
 }
 
 /// @brief The dry/wet blend as a mixer kernel: inputs dry and wet, at a wet level constant per block.
-/// @details BLEND runs @ref dry_wet_blend. FULL_WET returns the wet sample unchanged: the blend at kOneQ31 is not an
-/// identity, so the skip the compressor makes at full wet is a mode of its own, chosen by @ref coefficients at a level
-/// of exactly kOneQ31. Stateless.
+/// @details BLEND runs @ref dry_wet_blend. FULL_WET returns the wet sample unchanged: the blend at `Q<31>::max()` is
+/// not an identity, so the skip the compressor makes at full wet is a mode of its own, chosen by @ref coefficients at a
+/// level of exactly `Q<31>::max()`. Stateless.
 struct DryWetBlend {
 	using value_type = Q<31>; ///< A sample.
 	using step_type = Q<31>;  ///< A sample: one step per sample.
@@ -79,7 +79,7 @@ struct DryWetBlend {
 	/// @brief No state: each sample's blend is its own.
 	struct State {};
 
-	/// @brief The coefficients for @p s: the level, and FULL_WET at exactly kOneQ31, BLEND at every other level.
+	/// @brief The coefficients for @p s: the level, and FULL_WET at exactly `Q<31>::max()`, BLEND at every other level.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
 		return {.level = s.level, .mode = s.level == Q<31>::max() ? Mode::FULL_WET : Mode::BLEND};
 	}

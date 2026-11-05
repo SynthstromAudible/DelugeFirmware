@@ -14,6 +14,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include <limits>
 
 namespace deluge::gui::menu_item::audio_compressor {
 
@@ -134,7 +135,7 @@ public:
 			knobPos = knob_level(value);
 		}
 		else {
-			knobPos = kOneQ31;
+			knobPos = std::numeric_limits<int32_t>::max();
 		}
 		effectSettingFor(owner, "audioCompressor/compBlend", deluge::serialization::Value::makeNumber(knobPos));
 	}

@@ -20,7 +20,6 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/bandlimited/waves.h"
@@ -72,8 +71,10 @@ struct ModFx {
 	static constexpr int32_t kFlangerAmplitude = kMaxDelay - kFlangerMinTime;     ///< 16.16 frames.
 	static constexpr int32_t kFlangerOffset = (kMaxDelay + kFlangerMinTime) >> 1; ///< 16.16 frames.
 	static constexpr std::size_t kAllpassStages = 6;                              ///< The phaser's stages.
-	static constexpr Q<31> kWarbleWidth =
-	    Q<31>::from_raw(static_cast<int32_t>(0.97 * kOneQ31)); ///< The second warbler's rate.
+	/// @brief The second warbler's rate: 0.97 of full scale (2^31 − 1), truncated. q<31>(0.97) rounds 0.97 × 2^31
+	/// instead, a word two higher, so the word is spelt out.
+	static constexpr Q<31> kWarbleWidth = Q<31>::from_raw(static_cast<int32_t>(0.97 * 2147483647.0));
+	static_assert(kWarbleWidth.raw() == 2083059137);
 
 	/// @brief The LFO's wave in each mode.
 	enum class Wave : uint8_t { SINE, TRIANGLE, WARBLER };

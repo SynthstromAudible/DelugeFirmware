@@ -50,6 +50,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/notify.h"
+#include <limits>
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -611,7 +612,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				q31_t level = current == 64 ? kOneQ31 : knob_level(current + 64);
+				q31_t level = current == 64 ? std::numeric_limits<int32_t>::max() : knob_level(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
 				// knob_level gives the blend setting's word, which the edit stores.

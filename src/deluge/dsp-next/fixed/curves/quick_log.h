@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h" // clz
+#include <bit>
 
 #include <cstdint>
 
@@ -30,7 +30,7 @@ namespace deluge::dsp::fixed {
 /// @return log2(input) + 2 at 2^25 per octave, linear within each octave. A value with bit 31 set is lined up by an
 /// arithmetic shift, so its sign bits come in and the sum wraps (0xFFFFFFFF gives 1006632959).
 [[nodiscard]] inline int32_t quick_log(uint32_t input) {
-	const auto magnitude = static_cast<uint32_t>(32 - clz(input));
+	const auto magnitude = static_cast<uint32_t>(32 - std::countl_zero(input));
 	// Lined up so the leading one sits at bit 25: signed, so values past 26 bits shift down arithmetically.
 	const auto value = static_cast<int32_t>(input);
 	const int32_t shift = 26 - static_cast<int32_t>(magnitude);
