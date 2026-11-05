@@ -1111,8 +1111,9 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	View::RenderBlockStackWatch stackWatch;
 	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
-	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
-	deluge::memory::RenderBlock renderBlockMark;
+	// The caller is the render tier for the block: onRenderTier() reads it, and the host counts the render's heap
+	// allocations by it (it must make none).
+	deluge::memory::RenderBlock renderBlock;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -1756,16 +1757,17 @@ uint32_t routine() {
 		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
 		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
 			size_t numSamples = kOfflineFramesPerBlock;
-			if (currentSong != nullptr) {
-				deluge::modulation::applyRecordEvents(*currentSong);
-			}
-			tickSongFinalizeWindows(numSamples);
-			sendWindowOutputsNow();
-
-			numSamplesLastTime = numSamples;
 			{
-				// The interaction tier renders this block: it is the render tier while it does.
+				// The interaction tier runs this block's render work, as deluge_app_render's block holds it: the
+				// recorded values, the ticks and the render. It is the render tier while it does.
 				deluge::memory::RenderBlock renderBlock;
+				if (currentSong != nullptr) {
+					deluge::modulation::applyRecordEvents(*currentSong);
+				}
+				tickSongFinalizeWindows(numSamples);
+				sendWindowOutputsNow();
+
+				numSamplesLastTime = numSamples;
 				renderAudioForStemExport(numSamples);
 			}
 			sideChainHitPending = 0;

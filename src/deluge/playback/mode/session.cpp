@@ -23,7 +23,6 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
-#include "libdeluge/system.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -855,9 +854,8 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-	// The play position is the render's: set with it excluded.
-	AudioExcludedSection section;
 	clip->setPos(modelStack, modifiedStartPos);
+
 	clip->resumePlayback(modelStack);
 }
 
@@ -867,8 +865,6 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 // then we'll make sure we still set the pos to something / sync it to something (because it presumably didn't have a
 // valid pos yet). Check playbackHandler.isEitherClockActive() before calling this.
 void Session::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip) {
-	// The play position is the render's: set with it excluded (the section nests when the render calls this).
-	AudioExcludedSection section;
 
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
@@ -2130,8 +2126,6 @@ void Session::reversionDone() {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-			// The lanes' played values and cursors are the render's: re-read with it excluded.
-			AudioExcludedSection section;
 			clip->reGetParameterAutomation(modelStackWithTimelineCounter);
 			clip->expectEvent();
 		}

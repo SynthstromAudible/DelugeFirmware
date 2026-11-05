@@ -16,8 +16,6 @@
  */
 
 #include "scenarios/render_song_scenario.h"
-#include "modulation/automation/auto_param.h"
-#include "util/structural_edit_probe.h"
 
 #include "definitions_cxx.hpp"
 #include "effects/reverb.h"
@@ -40,10 +38,12 @@
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -816,9 +816,10 @@ void report() {
 	}
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
-	printf("RS-STORE render_edits=%u stray_render_code=%u\n", storeEdits, deluge::modulation::strayRenderCodeCalls);
-	if (deluge::modulation::strayRenderCodeCalls != 0) {
-		fail("RS-STORE", "the interaction tier moved a lane cursor while playing, the render not excluded");
+	printf("RS-STORE render_edits=%u\n", storeEdits);
+	printf("RS-LANES splits=%u\n", deluge::modulation::laneSplits);
+	if (deluge::modulation::laneSplits != 0) {
+		fail("RS-LANES", "the interaction tier resolved a lane the render does not read");
 	}
 	if (storeEdits != 0) {
 		fail("RS-STORE", "the render changed a lane store");

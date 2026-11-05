@@ -175,9 +175,10 @@ void renderBlockStart() {
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
 #endif
-	deluge::memory::noteRenderBlock(true);
-	deluge::modulation::applyRecordEvents(*currentSong);
-	deluge::memory::noteRenderBlock(false);
+	{
+		deluge::memory::RenderBlock block;
+		deluge::modulation::applyRecordEvents(*currentSong);
+	}
 	if (deluge::memory::audioTierAllocations() != allocations) {
 		std::fprintf(io.err, "the render allocated writing recorded values\n");
 		probeFailed = true;
@@ -185,6 +186,10 @@ void renderBlockStart() {
 #if ALPHA_OR_BETA_VERSION
 	if (deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE) != storeEdits) {
 		std::fprintf(io.err, "the render changed a lane store writing recorded values\n");
+		probeFailed = true;
+	}
+	if (deluge::modulation::laneSplits != 0) {
+		std::fprintf(io.err, "the interaction tier resolved a lane the render does not read\n");
 		probeFailed = true;
 	}
 	if (deluge::modulation::unheldLaneWrites != 0) {

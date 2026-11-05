@@ -102,7 +102,7 @@ void ParamSet::bindDomStore() {
 
 void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
 	// The render resolves this set's lanes through domStoreRef_: it sees the old store or the external one, never
-	// neither. A lazily-created own store is dropped after the section.
+	// neither. A lazily-created own store is freed when this returns: after the section, or inside a caller's.
 	std::unique_ptr<deluge::project::DocParamSet> dropped;
 	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
 	dropped = std::move(domStore_);

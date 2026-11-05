@@ -16,7 +16,6 @@
  */
 
 #include "scenarios/render_preset_scenario.h"
-#include "util/structural_edit_probe.h"
 
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
@@ -28,9 +27,10 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
-#include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <cmath>
@@ -247,9 +247,13 @@ void report() {
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
 #if ALPHA_OR_BETA_VERSION
-	printf("RP-UNHELD writes=%u\n", deluge::modulation::unheldLaneWrites);
+	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
+	       deluge::modulation::laneSplits);
+	if (deluge::modulation::laneSplits != 0) {
+		fail("RP-LANES", "the interaction tier resolved a lane the render does not read");
+	}
 	if (deluge::modulation::unheldLaneWrites != 0) {
-		fail("RP-UNHELD", "the render's unheld lane was written");
+		fail("RP-LANES", "the render's unheld lane was written");
 	}
 #endif
 	printf("RP-RESULT failures=%d\n", g_failures);

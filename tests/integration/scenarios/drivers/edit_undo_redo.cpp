@@ -69,6 +69,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -230,9 +231,32 @@ void laneAgreementTarget(Song* song) {
 		ParamManagerForTimeline fresh;
 		if (fresh.setupWithPatching() == Error::NONE) {
 			PatchedParamSet* set = fresh.getPatchedParamSet();
-			if (set->findDocParamForId(0) == nullptr) {
-				check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
-				check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
+			check(set->findDocParamForId(0) == nullptr, "a fresh set starts unbound");
+			check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
+			check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
+
+			// The render's lookup of an unbound set's lane misses: it gets the unheld lane, writes nothing to it,
+			// and a write something else made there is found, counted and undone at the next miss.
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE]{};
+			ModelStackWithThreeMainThings* owner = song->setupModelStackWithSongAsTimelineCounter(memory);
+			owner->paramManager = &fresh;
+			ModelStackWithAutoParam* lane = owner->getPatchedAutoParamFromId(0);
+			if (lane != nullptr && lane->autoParam != nullptr) {
+				deluge::memory::RenderBlock block;
+				deluge::project::DocAutoParam* missed = lane->doc();
+				check(missed != nullptr && isUnheldLane(*missed), "the render's miss reads the unheld lane");
+				check(set->findDocParamForId(0) == nullptr, "the render's miss creates no store");
+#if ALPHA_OR_BETA_VERSION
+				const uint32_t before = deluge::modulation::unheldLaneWrites;
+				deluge::project::set_base(*missed, 5);
+				missed = lane->doc();
+				check(deluge::modulation::unheldLaneWrites == before + 1, "a write to the unheld lane is counted");
+				check(missed->current_value == 0, "a write to the unheld lane is undone");
+				deluge::modulation::unheldLaneWrites = before;
+#endif
+			}
+			else {
+				check(false, "the fresh set's lane is reachable");
 			}
 			(void)set->docForParam(0);
 			check(&set->findDocForParam(0) == set->findDocParamForId(0), "a bound set reads its store's lane");
@@ -2065,8 +2089,9 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	// Only the interaction tier changes a lane store, and each change excludes the render.
 	check(deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE) == 0,
 	      "the render changed no lane store");
-	check(deluge::unguardedStructuralEdits(deluge::StructuralContainer::PARAM_STORE) == 0,
-	      "every lane-store change excluded the render");
+	// The interaction tier's lanes are the render's, after every target's mutations too.
+	laneAgreementTarget(song);
+	check(deluge::modulation::laneSplits == 0, "every lane the interaction tier resolved is the render's");
 #endif
 	std::free(xml);
 	return failures ? 3 : 0;

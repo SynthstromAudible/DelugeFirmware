@@ -121,13 +121,27 @@ int32_t cable_node_value(int32_t value) {
 }
 } // namespace
 
-// The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner
-// (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a stable
-// `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address from this
-// ModelStack (the owner classification is shared with the Edit substrate). The engine fallback below serves only an
-// unaddressable owner, whose nodes live in the engine collection's own store; it returns the same store the address
-// would. The `paramCollection` pointer is used here only to reach `docParamForId()`; it also serves the collection's
-// polymorphic dispatch across the engine, so node resolution is not decoupled from it.
+namespace {
+/// @brief The interaction tier's lane, checked against the render's lookup: the render must read the same lane, or a
+/// playing edit would be missed.
+deluge::project::DocAutoParam* sameAsRender([[maybe_unused]] ParamCollection& collection,
+                                            [[maybe_unused]] int32_t paramId, deluge::project::DocAutoParam* lane) {
+#if ALPHA_OR_BETA_VERSION
+	if (lane != nullptr && collection.findDocParamForId(paramId) != lane) {
+		deluge::modulation::laneSplits++;
+	}
+#endif
+	return lane;
+}
+} // namespace
+
+// The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. On the interaction
+// tier every saved owner (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC)
+// resolves via a stable `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds
+// that address from this ModelStack (the owner classification is shared with the Edit substrate). The engine fallback
+// below serves only an unaddressable owner, whose nodes live in the engine collection's own store; it returns the same
+// store the address would. The render resolves through the collection alone (`findDocParamForId()`), which is the same
+// storage an address resolves to.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// The render reads a lane where its collection keeps it: the tree's block once the owner is relocated, the
 	// collection's own store before that (and always, for an MPE note row's lanes). It builds no address and reads no
@@ -149,7 +163,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	}
 	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
 		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
-			return resolved;
+			return sameAsRender(*paramCollection, paramId, resolved);
 		}
 	}
 	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
@@ -157,7 +171,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// real owner resolves through the project tree; the paramCollection fallback below is dead for them, surviving
 	// only as a non-bricking net for genuinely unclassifiable owners (e.g. non-Sound drums).
 	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
-		return relocated;
+		return sameAsRender(*paramCollection, paramId, relocated);
 	}
 #if ALPHA_OR_BETA_VERSION
 	// Lazy relocation id-addresses every real owner, so this fallback is expected to be dead. Tally each hit
@@ -182,13 +196,6 @@ bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
 const deluge::project::DocAutoParam& unheldLane() {
 	return g_unheldLane;
 }
-
-#if ALPHA_OR_BETA_VERSION
-namespace deluge::modulation {
-uint32_t unheldLaneWrites = 0;
-uint32_t strayRenderCodeCalls = 0;
-} // namespace deluge::modulation
-#endif
 
 void AutoParam::init(deluge::project::DocAutoParam& doc) {
 	doc.nodes.init();
@@ -1417,13 +1424,6 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-#if ALPHA_OR_BETA_VERSION
-	// The cursor is the render's: while playing, the interaction tier moves it only with the render excluded.
-	if (!deluge::memory::onRenderTier() && deluge_audio_excluded_depth() == 0
-	    && playbackHandler.isEitherClockActive()) {
-		deluge::modulation::strayRenderCodeCalls++;
-	}
-#endif
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
