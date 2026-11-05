@@ -1955,6 +1955,12 @@
   "rms_db": -23.15,
   "sha256": "ae61e04a17751bcfa7e1f5afc5efca7f73ed02d4b2cf443acb7cf9d0e2c92c6e"
  },
+ "input_pitchshift_chord": {
+  "frames": 88200,
+  "peak": 734262528,
+  "rms_db": -20.97,
+  "sha256": "1eb60761e30050875069c5179932d83ce4c0e660b47c94b8ba70db2d0c4ceee5"
+ },
  "input_pitchshift_down12": {
   "frames": 88200,
   "peak": 245172224,

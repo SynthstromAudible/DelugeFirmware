@@ -63,6 +63,7 @@ INPUT = {
     "input_pitchshift_glide": 1,
     "input_pitchshift_perc_up7": 2,
     "input_pitchshift_perc_down12": 2,
+    "input_pitchshift_chord": 2,
     "stereo/input_pitchshift_stereo_up7": 2,
     "stereo/input_pitchshift_unison": 1,
 }
