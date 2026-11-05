@@ -1,0 +1,42 @@
+{
+  "figure": "fig-18.7-1",
+  "source": "hand",
+  "window": [1900, 300, 3700, 1200],
+  "steps": [
+    {
+      "note": "Clip view",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Clip length set",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Sync-scaling on for this clip: SYNC-SCALING flashes blue",
+      "leds": {
+        "Clip": "blue",
+        "Sync-scaling": {
+          "colour": "blue",
+          "blink": true
+        }
+      }
+    },
+    {
+      "note": "Another clip selected: SYNC-SCALING lit blue (on, but not for the selected clip)",
+      "leds": {
+        "Clip": "blue",
+        "Sync-scaling": "blue"
+      }
+    },
+    {
+      "note": "Sync-scaling off: unlit",
+      "leds": {
+        "Clip": "blue"
+      }
+    }
+  ]
+}

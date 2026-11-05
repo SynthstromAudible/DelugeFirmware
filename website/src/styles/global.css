@@ -350,3 +350,11 @@
 .menu-hierarchy-page .menu-hierarchy-row-label {
   min-width: 0;
 }
+
+/* Guidebook cross-links added at build time (remark-cross-links): quieter than authored links. */
+.sl-markdown-content a.xref:not(:hover, :focus-visible) {
+  color: inherit;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--sl-color-gray-3);
+  text-underline-offset: 0.2em;
+}

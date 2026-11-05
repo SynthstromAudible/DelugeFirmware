@@ -1,0 +1,33 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 97.2 54.5">
+<defs>
+<clipPath id="03-clips__02-clip-view-overview--1-a-clip_1">
+<path transform="matrix(1,0,0,-1,-107.2,606.4)" d="M107.2 551.9H204.5V606.4H107.2Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="03-clips__02-clip-view-overview--1-a-clip_2">
+<path transform="matrix(1,0,0,-1,-107.2,606.4)" d="M297.9 145.9H362.3V176.0H297.9Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="03-clips__02-clip-view-overview--1-a-clip_3">
+<path transform="matrix(1,0,0,-1,-107.2,606.4)" d="M76.0 116.9H144.1V179.8H76.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="03-clips__02-clip-view-overview--1-a-mask_4">
+<g transform="matrix(.088593,0,0,.088593009,6.0,5.9)">
+<image id="03-clips__02-clip-view-overview--1-a-image_5" width="962" height="480" xlink:href="/guidebook/img/03-clips__02-clip-view-overview--1-a-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#03-clips__02-clip-view-overview--1-a-clip_1)">
+<g clip-path="url(#03-clips__02-clip-view-overview--1-a-clip_2)">
+</g>
+<path transform="matrix(1,0,0,-1,-107.2,606.4)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M170.2 556.5V519.8"/>
+<g clip-path="url(#03-clips__02-clip-view-overview--1-a-clip_3)">
+</g>
+<g mask="url(#03-clips__02-clip-view-overview--1-a-mask_4)">
+<g transform="matrix(.088593,0,0,.088593009,6.0,5.9)">
+<image class="gb-ink" id="03-clips__02-clip-view-overview--1-a-image_6" width="962" height="480" xlink:href="/guidebook/img/03-clips__02-clip-view-overview--1-a-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-107.2,606.4)" d="M170.3 573.5C173.9 573.5 176.9 570.6 176.9 567.1 176.9 563.5 173.9 560.6 170.3 560.6 166.7 560.6 163.8 563.5 163.8 567.1 163.8 570.6 166.7 573.5 170.3 573.5Z" fill="#5c96cf" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

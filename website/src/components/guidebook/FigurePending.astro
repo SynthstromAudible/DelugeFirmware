@@ -1,0 +1,38 @@
+---
+/**
+ * Placeholder for a Guidebook figure that has not been rebuilt yet.
+ * The slot carries the figure's label text so it stays searchable.
+ */
+type Props = {
+  id: string
+  page: number
+}
+
+const { id, page } = Astro.props
+---
+
+<figure class="figure-pending" id={id}>
+  <figcaption>Figure pending (guidebook p.{page})</figcaption>
+  <div class="figure-pending-text"><slot /></div>
+</figure>
+
+<style>
+  .figure-pending {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border: 2px dashed var(--sl-color-gray-4);
+    border-radius: 0.5rem;
+    color: var(--sl-color-gray-2);
+  }
+  .figure-pending figcaption {
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+  }
+  .figure-pending-text {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+  }
+  .figure-pending-text:empty {
+    display: none;
+  }
+</style>

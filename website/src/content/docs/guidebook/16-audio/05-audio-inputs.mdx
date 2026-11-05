@@ -1,0 +1,74 @@
+---
+title: "16.5 Audio Inputs"
+description: "Audio clips are recorded into Deluge from within song view or arranger View."
+sidebar:
+  order: 4
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "16.5"
+  chapter: 16
+  pdfPages: [206]
+  printedPages: [200]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_16_5_1 from "../../../../assets/guidebook/figs/16-audio__05-audio-inputs--1.svg?raw"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Audio clips are recorded into Deluge from within session view or arranger View. Deluge records audio through the mic or stereo line-in.
+
+## Line In - TRS Connector
+
+<Figure
+  id="fig-16.5-1"
+  src={fig_fig_16_5_1}
+  alt={
+    "Diagram: Left (InL) Input left (tip) Right (InR) Input right (ring) Stereo (InLR) Input left / right (tip/ring) Microphone If nothing is connected…"
+  }
+  page={200}
+/>
+
+(sleeve)
+
+## Audio Input Options
+
+Several audio input options are available for recording.
+
+| Input    | Input Options  | Options                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Left     | LEFT (Default) | The left or mono channel of the Deluge’s line or mic input. Use this if using the Deluge’s internal mic, or recording a mono source with an unbalanced cable.                                                                                                                                                                                                                            |
+|          | LEFT.          | Left dot, enables audio “thru” or “monitoring” on that input channel - echoing the audio that’s fed in. The left or mono channel of the Deluge’s line or mic input. Use this if using the Deluge’s internal mic, or recording a mono source with an unbalanced cable.                                                                                                                    |
+| Right    | RIGHT          | Used if the Deluge’s stereo line input is connected as two separate mono inputs.                                                                                                                                                                                                                                                                                                         |
+|          | RIGHT.         | Right dot, enables audio “thru” or “monitoring” on that input channel - echoing the audio that’s fed in. Used if the Deluge’s stereo line input is connected as two separate mono inputs.                                                                                                                                                                                                |
+| Stereo   | STEREO         | Stereo line or mic input.                                                                                                                                                                                                                                                                                                                                                                |
+|          | STEREO         | Stereo dot, enables audio “thru” or “monitoring” on that input channel - echoing the audio that’s fed in. Stereo line or mic input.                                                                                                                                                                                                                                                      |
+| Balanced | BALANCED       | Used when running a mono signal via a TRS cable from a balanced output into the Deluge’s line input socket.                                                                                                                                                                                                                                                                              |
+|          | BALANCED.      | Balanced dot, enables audio “thru” or “monitoring” on that input channel - echoing the audio that’s fed in. Used when running a mono signal via a TRS cable from a balanced output into the Deluge’s line input socket.                                                                                                                                                                  |
+| Mix      | MIX            | Sources audio from the Deluge’s output. Example, other playing tracks. Grabs the audio pre master FX and level adjustment, and without reverb applied. This is usually the best option for “resampling” or “bouncing” existing instrument clips down to a single new audio clip. (Not to be confused with the Deluge’s resampling function for recording its output straight to a file.) |
+| Output   | OUTPUT         | Deluge audio output post FX and with reverb - same as resampling. For recording audio clips MIX is recommended.                                                                                                                                                                                                                                                                          |
+| Off      | OFF            | No audio input, recording disabled.                                                                                                                                                                                                                                                                                                                                                      |
+
+## Track input and track FX <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): community_features: 3.17; CHANGELOG.mdx: L485 */}
+
+<Unwritten>
+  See [Select Audio Clip Source and
+  Monitoring](/features/community_features#317---select-audio-clip-source-and-monitoring).
+</Unwritten>
+
+## Output modes and monitoring <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): community_features: 3.17; CHANGELOG.mdx: L39 */}
+
+<Unwritten>
+  See [Select Audio Clip Source and
+  Monitoring](/features/community_features#317---select-audio-clip-source-and-monitoring).
+</Unwritten>
