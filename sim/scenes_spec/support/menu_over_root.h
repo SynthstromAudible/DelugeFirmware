@@ -19,8 +19,7 @@
 #include <cstdint>
 
 /// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads these
-/// (`hid/buttons.cpp`)
-///       and the header does not export them.
+///       (`hid/buttons.cpp`) and the header does not export them.
 /// @{
 namespace Buttons {
 extern bool shiftCurrentlyPressed;
