@@ -56,7 +56,8 @@ using deluge::dsp::Q;
 
 int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const {
 	int32_t voice_level_value = this->local_expression_source_values_before_smoothing_[expression_dimension];
-	// The two Q31 values' halves summed and saturate-doubled: their sum within 2 LSBs, saturating at 2^31 − 2
+	// The two Q31 values' halves summed and saturate-doubled: their sum within 2 LSBs, saturating at 2^31 − 2. The
+	// expression values are the source values' words
 	return add_halves_sat(Q<31>::from_raw(synth_level_value), Q<31>::from_raw(voice_level_value)).raw();
 }
 
@@ -240,7 +241,7 @@ void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong
 	noise_ = &noise;
 	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			unison_parts[u].slots[s].osc_pos = dsp::UQ<32>::from_raw(next_noise());
+			unison_parts[u].slots[s].osc_pos = dsp::UQ<32>::from_raw(next_noise()); // a random word, a random phase
 			// TODO: we should do sample play pos, too
 		}
 		engines_.for_mode(snapshot.synth_mode).randomize_part(u, *noise_);
@@ -330,7 +331,7 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	// unaffected. Important that the quadrupling saturates - otherwise, number can overflow if combining high
 	// velocity patching with big LFO
 	// The volume times envelope 0 made unipolar (halved, plus a half): the high word, held to 30 bits and quadrupled
-	// in the volume's units, so twice the volume at the envelope's top
+	// in the volume's units, so twice the volume at the envelope's top. The source values are Q31 words
 	const Q<31> envelope =
 	    add_wrap(halve_floor(Q<31>::from_raw(params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0)])),
 	             dsp::q<31>(0.5));
@@ -508,6 +509,7 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		int32_t old = params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
+		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
 		    lfo2_
 		        .render(num_samples, cfg.lfo2_config,
@@ -523,6 +525,7 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		int32_t old = params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
+		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
 		    lfo4_
 		        .render(num_samples, cfg.lfo4_config,
@@ -558,7 +561,7 @@ namespace {
 /// to Q24 cannot wrap.
 Q<24> pitch_product(Q<24> a, Q<24> b) {
 	const Q<16> product = mul_r(a, b);
-	return as_wrap<Q<24>>(clamp_high(product, Q<16>::from_raw(8388607)));
+	return as_wrap<Q<24>>(clamp_high(product, scale_shr_floor<8>(Q<16>::max())));
 }
 } // namespace
 
@@ -589,7 +592,7 @@ Q<24> Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, Q<24> ext
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
-		// Raw: the rate's word, shifted, is the envelope position's step
+		// Raw: the rate's word, shifted, is the envelope position's step; the portamento is its param's stored word
 		int32_t envelope_speed =
 		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(Q<31>::from_raw(cfg.portamento)))
 		        .raw()

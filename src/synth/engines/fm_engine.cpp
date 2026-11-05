@@ -95,12 +95,17 @@ using dsp::UQ;
 
 /// @brief Four operator products as their buffer holds them (@ref buffer_sample).
 [[gnu::always_inline]] inline QVec<31> buffer_samples(QVec<30> products) {
-	return QVec<31>::from_raw(products.raw());
+	return dsp::reinterpret_bits<QVec<31>>(products);
+}
+
+/// @brief The sine of four phases: dsp::fixed::sine gives its Q31 words.
+[[gnu::always_inline]] inline QVec<31> sine_lanes(Argon<uint32_t> phases) {
+	return QVec<31>::from_raw(dsp::fixed::sine(phases));
 }
 
 /// @brief @p result added into the buffer's four samples at @p sample, wrapping.
 [[gnu::always_inline]] inline void add_into(Q<31>* sample, QVec<30> result) {
-	buffer_samples(add_wrap(QVec<30>::from_raw(QVec<31>::load(sample).raw()), result)).store(sample);
+	buffer_samples(add_wrap(dsp::reinterpret_bits<QVec<30>>(QVec<31>::load(sample)), result)).store(sample);
 }
 } // namespace
 
@@ -128,7 +133,7 @@ bool FMEngine::note_on(const EngineNote& note) {
 
 void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		modulator_phase_[u][m] = UQ<32>::from_raw(noise.next());
+		modulator_phase_[u][m] = UQ<32>::from_raw(noise.next()); // a random word, a random phase
 	}
 }
 
@@ -161,6 +166,7 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 		phase_increment = snapshot.modulator_transposers[m].detune(phase_increment);
 		phase_increment = snapshot.fine_tuner.detune(phase_increment);
 
+		// The tuners work on signed increments; the bits are the same
 		if (snapshot.num_unison == 1) {
 			modulator_phase_increment_[0][m] = UQ<32>::from_raw(phase_increment);
 		}
@@ -214,7 +220,7 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		// The product's word, Q30, is the carrier's level as the operators take it
 		pass.source_amplitudes[s] = dsp::reinterpret_bits<Q<31>>(
-		    clamp_high(mul(c.carrier_volume[s], c.overall_osc_amplitude), Q<30>::from_raw(134217727)));
+		    clamp_high(mul(c.carrier_volume[s], c.overall_osc_amplitude), scale_shr_floor<4>(Q<30>::max())));
 	}
 
 	// A new filter gain, or a slow attack on the first block, jumps to the new levels rather than ramping to them
@@ -413,11 +419,11 @@ void FMEngine::render_sine_wave(Q<31>* buffer_start, int32_t num_samples, UQ<32>
 		do {
 			const Argon<uint32_t> phase_vector = phase_lanes(phase_now, phase_increment);
 			phase_now = dsp::advanced(phase_now, phase_increment, 4);
-			int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
+			const QVec<31> sine_value_vector = sine_lanes(phase_vector);
 
 			// Rounded, as a held level is
-			const QVec<30> result = mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment),
-			                                           QVec<31>::from_raw(sine_value_vector));
+			const QVec<30> result =
+			    mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment), sine_value_vector);
 			if (add) {
 				add_into(this_sample, result);
 			}
@@ -433,10 +439,9 @@ void FMEngine::render_sine_wave(Q<31>* buffer_start, int32_t num_samples, UQ<32>
 		do {
 			const Argon<uint32_t> phase_vector = phase_lanes(phase_now, phase_increment);
 			phase_now = dsp::advanced(phase_now, phase_increment, 4);
-			int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
+			const QVec<31> sine_value_vector = sine_lanes(phase_vector);
 			// A held level rounds
-			const QVec<30> result =
-			    mul_doubling_r_sat(QVec<31>::from_raw(sine_value_vector), as_floor<Q<30>>(amplitude_now));
+			const QVec<30> result = mul_doubling_r_sat(sine_value_vector, as_floor<Q<30>>(amplitude_now));
 			if (add) {
 				add_into(this_sample, result);
 			}
@@ -535,12 +540,12 @@ void FMEngine::render_fm_add(Q<31>* buffer_start, int32_t num_samples, const Q<3
 		while (true) {
 			// The modulators' words are the phase modulation, its 24-bit units moved up to the carrier's 32
 			uint32x4_t phase_shift = vreinterpretq_u32_s32(QVec<31>::load(fm_sample).raw());
-			int32x4_t sine_value_vector =
-			    dsp::fixed::sine(Argon<uint32_t>{phase_vector.raw()} + (Argon<uint32_t>{phase_shift} << 8));
+			const QVec<31> sine_value_vector =
+			    sine_lanes(Argon<uint32_t>{phase_vector.raw()} + (Argon<uint32_t>{phase_shift} << 8));
 
 			// Rounded, as a held level is
-			add_into(this_sample, mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment),
-			                                         QVec<31>::from_raw(sine_value_vector)));
+			add_into(this_sample,
+			         mul_doubling_r_sat(ramp_lanes(amplitude_now, amplitude_increment), sine_value_vector));
 
 			if (this_sample >= buffer_pre_end) {
 				break;
@@ -556,12 +561,11 @@ void FMEngine::render_fm_add(Q<31>* buffer_start, int32_t num_samples, const Q<3
 		while (true) {
 			// The modulators' words are the phase modulation, its 24-bit units moved up to the carrier's 32
 			uint32x4_t phase_shift = vreinterpretq_u32_s32(QVec<31>::load(fm_sample).raw());
-			int32x4_t sine_value_vector =
-			    dsp::fixed::sine(Argon<uint32_t>{phase_vector.raw()} + (Argon<uint32_t>{phase_shift} << 8));
+			const QVec<31> sine_value_vector =
+			    sine_lanes(Argon<uint32_t>{phase_vector.raw()} + (Argon<uint32_t>{phase_shift} << 8));
 
 			// A held level rounds
-			add_into(this_sample,
-			         mul_doubling_r_sat(QVec<31>::from_raw(sine_value_vector), as_floor<Q<30>>(amplitude_now)));
+			add_into(this_sample, mul_doubling_r_sat(sine_value_vector, as_floor<Q<30>>(amplitude_now)));
 
 			if (this_sample >= buffer_pre_end) {
 				break;

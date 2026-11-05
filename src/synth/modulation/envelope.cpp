@@ -30,10 +30,10 @@ using deluge::dsp::fixed::kLinearTableInterpolator;
 using deluge::dsp::fixed::kSineTable;
 
 namespace {
-constexpr uint32_t kStageEnd = 1u << 23;               ///< A stage completes once its position reaches this.
-constexpr Q<31> kFullScale = Q<31>::max();             ///< A fully-open envelope level.
-constexpr Q<31> kHalfScale = Q<31>::from_raw(1 << 30); ///< The mid level (the output's zero-centre, the sine's DC).
-constexpr Q<31> kOff = Q<31>::min();                   ///< The centred output of a silent (level-0) envelope.
+constexpr uint32_t kStageEnd = 1u << 23;              ///< A stage completes once its position reaches this.
+constexpr Q<31> kFullScale = Q<31>::max();            ///< A fully-open envelope level.
+constexpr Q<31> kHalfScale = deluge::dsp::q<31>(0.5); ///< The mid level (the output's zero-centre, the sine's DC).
+constexpr Q<31> kOff = Q<31>::min();                  ///< The centred output of a silent (level-0) envelope.
 
 /// Map an uncentred level (0 to full scale) to the centred output range (about 0): less a half, doubled.
 constexpr Q<31> centred(Q<31> level) {
@@ -109,7 +109,8 @@ Envelope::StepOutcome Envelope::step_attack(uint32_t attack_rate, uint32_t num_s
 		return StepOutcome::ADVANCE; // Run decay this same block.
 	}
 	current_level_ = sub_wrap(kFullScale, decay4(stage_position_)); // Makes a curved attack.
-	current_level_ = std::max(current_level_, Q<31>::from_raw(1));
+	// At least one LSB: the attack never emits a zero level
+	current_level_ = std::max(current_level_, deluge::dsp::q<31>(0x1p-31));
 	return StepOutcome::EMIT_LEVEL;
 }
 

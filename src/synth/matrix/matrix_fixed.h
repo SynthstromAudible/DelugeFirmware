@@ -27,6 +27,7 @@
 #include <argon.hpp>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 
 namespace deluge::synth::matrix {
 
@@ -62,7 +63,7 @@ struct MatrixFixed {
 
 	/// A source value as a cable reads it.
 	[[gnu::always_inline]] static Source convert(Conversion conversion, Source value) {
-		constexpr auto kHalf = Source::from_raw(std::numeric_limits<int32_t>::max() / 2);
+		constexpr Source kHalf = halve_floor(Source::max());
 		switch (conversion) {
 		case Conversion::AS_IS:
 			return value;
@@ -83,16 +84,16 @@ struct MatrixFixed {
 		}
 		// The depth squared to Q29, its sign kept: raw, an integer product of the two truncated factors
 		int32_t output = (d.raw() >> 15) * (d.raw() >> 16);
-		if (d.raw() < 0) {
+		if (d < Depth{}) {
 			output = -output;
 		}
 		// The square's word is the shaped depth, as modified_depth's (cable_depth.h)
 		const auto squared = Q<29>::from_raw(output);
 		if (mode == DepthMode::SQUARED_PITCH_VELOCITY) { // times 2/3
-			return dsp::reinterpret_bits<Depth>(mul_r_as_wrap<Q<29>>(squared, Q<31>::from_raw(1431655765)));
+			return dsp::reinterpret_bits<Depth>(mul_r_as_wrap<Q<29>>(squared, q<31>(2.0 / 3.0)));
 		}
 		if (mode == DepthMode::SQUARED_PITCH_OTHER) { // times 1/√2
-			return dsp::reinterpret_bits<Depth>(mul_r_as_wrap<Q<29>>(squared, Q<31>::from_raw(1518500250)));
+			return dsp::reinterpret_bits<Depth>(mul_r_as_wrap<Q<29>>(squared, q<31>(1.0 / std::numbers::sqrt2)));
 		}
 		return dsp::reinterpret_bits<Depth>(squared);
 	}

@@ -100,7 +100,8 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 	else if (engine_mode && osc_type == OscType::SUPERSAW) {
 		using dsp::fixed::Supersaw;
 		if (retrigger) {
-			// The side saws start at fixed offsets from the centre one, so every note starts the same way
+			// The side saws start at fixed offsets from the centre one, so every note starts the same way (the supersaw
+			// keeps its phases as words)
 			oscillator_.emplace<SupersawSource>(seed_phase, Supersaw::side_phases_from(seed_phase.raw()));
 		}
 		else if (reset_everything || !std::holds_alternative<SupersawSource>(oscillator_)) {

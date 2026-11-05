@@ -31,7 +31,7 @@ namespace deluge::synth {
 		// The increment's word read as signed Q31 (base increments stay under 2^31) times the Q24 adjustment, rounded:
 		// Q23, too high at 1.0 and above, else moved back to Q31 and its word read as the increment again
 		const Q<23> output = mul_r(dsp::reinterpret_bits<Q<31>>(phase_increment), adjustment);
-		if (output.raw() >= (1 << 23)) {
+		if (output >= Q<23>::one()) {
 			return false;
 		}
 		phase_increment = dsp::reinterpret_bits<dsp::UQ<32>>(as_wrap<Q<31>>(output));

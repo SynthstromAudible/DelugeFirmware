@@ -41,12 +41,12 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 			// 2147385344 and the gain at most 322500000 (a 12 or 24 dB ladder at full resonance, one unison part), so
 			// the Q27 product peaks at 80621309, 0.60 of the 2^27 its move would wrap at.
 			const Q<27> product = mul(n, c.filter_gain);
-			assert(product.raw() < (1 << 27) && product.raw() >= -(1 << 27));
+			assert(product < Q<27>::one() && product >= dsp::q<27>(-1.0));
 			n = as_wrap<Q<31>>(product);
 		}
 
 		// The same limit as the oscillators'
-		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, Q<31>::from_raw(268435455)));
+		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, scale_shr_floor<3>(Q<31>::max())));
 
 		dsp::Q<31> const* const noise_end = osc_buffer + (block.num_samples * channels);
 		dsp::Q<31>* __restrict__ this_sample = osc_buffer;
@@ -240,6 +240,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	    .input =
 	        {
 	            .interpolation_buffer_size = interpolation_buffer_size(
+	                // the buffer size reads the increment's word, as a signed sample step
 	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment.raw()), cfg.cpu_direness),
 	        },
 	};

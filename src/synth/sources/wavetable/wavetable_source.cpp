@@ -67,7 +67,7 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 		    dsp::UQ<32>::from_raw(render_inc),
 		    deluge::dsp::fixed::Resetter{.phase = dsp::UQ<32>::from_raw(resetter_phase),
 		                                 .phase_increment = dsp::UQ<32>::from_raw(resetter_inc)},
-		    dsp::UQ<32>::from_raw(controls.retrigger_phase),
+		    dsp::UQ<32>::from_raw(controls.retrigger_phase), // the controls' retrigger phase is a word
 		    wave_index,
 		    wave_index_increment_};
 		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});

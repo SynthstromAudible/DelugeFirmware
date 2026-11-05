@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <numbers>
 
 /// @file
 /// @brief The matrix's per-cable arithmetic: how a cable reads its source, how a depth cable's range value scales a
@@ -33,7 +34,7 @@ namespace deluge::synth {
 /// source bipolar; Y carries both the unipolar mod wheel and bipolar MPE Y, so it is never converted.
 [[nodiscard]] [[gnu::always_inline]] inline dsp::Q<31> to_polarity(PatchSource from, CablePolarity polarity,
                                                                    dsp::Q<31> value) {
-	constexpr auto kHalf = dsp::Q<31>::from_raw(std::numeric_limits<int32_t>::max() / 2);
+	constexpr dsp::Q<31> kHalf = halve_floor(dsp::Q<31>::max());
 	if (from == PatchSource::AFTERTOUCH) {
 		if (polarity == CablePolarity::UNIPOLAR) {
 			return value;
@@ -69,12 +70,13 @@ namespace deluge::synth {
 	case params::GLOBAL_DELAY_RATE: {
 		// The depth squared to Q29, its sign kept: raw, an integer product of the two truncated factors
 		int32_t output = (depth.raw() >> 15) * (depth.raw() >> 16);
-		if (depth.raw() < 0) {
+		if (depth < dsp::Q<30>{}) {
 			output = -output;
 		}
 		auto squared = dsp::Q<29>::from_raw(output);
 		if (p == params::LOCAL_PITCH_ADJUST) { // times 2/3 for velocity, 1/√2 for any other source
-			const auto scale = dsp::Q<31>::from_raw(from == PatchSource::VELOCITY ? 1431655765 : 1518500250);
+			const dsp::Q<31> scale =
+			    from == PatchSource::VELOCITY ? dsp::q<31>(2.0 / 3.0) : dsp::q<31>(1.0 / std::numbers::sqrt2);
 			squared = mul_r_as_wrap<dsp::Q<29>>(squared, scale);
 		}
 		// The square's word is the shaped depth: a full depth's square is 2^29, half the plain one's reach

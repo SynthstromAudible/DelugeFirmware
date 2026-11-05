@@ -31,6 +31,7 @@ public:
 
 	/// @param centre_phase the centre saw's phase, which is the source's phase
 	/// @param side_phases the six side saws' phases
+	/// The phases are held as words: dsp::fixed::Supersaw steps them by reference
 	SupersawSource(dsp::UQ<32> centre_phase, const SidePhases& side_phases)
 	    : centre_phase_{centre_phase.raw()}, side_phases_{side_phases} {}
 

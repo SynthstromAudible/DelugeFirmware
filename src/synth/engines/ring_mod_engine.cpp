@@ -131,7 +131,7 @@ dsp::Q<31> RingModEngine::level(bool has_filters, dsp::Q<28> filter_gain, OscTyp
 	using dsp::Q;
 	// 2^27, times the gain rounded to Q27 and back at Q31. Each step saturates: two wavetables or supersaws reach full
 	// scale unfiltered, and the resonant ladders' compensation passes it.
-	Q<31> amplitude = Q<31>::from_raw(1 << 27);
+	Q<31> amplitude = dsp::q<31>(0.0625);
 	if (has_filters) {
 		amplitude = as_sat<Q<31>>(mul_r(amplitude, filter_gain));
 	}

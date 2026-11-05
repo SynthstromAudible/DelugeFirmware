@@ -6,10 +6,10 @@ using deluge::dsp::UQ;
 UQ<32> get_lfo_initial_phase_for_negative_extreme(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::SAW:
-		return UQ<32>::from_raw(2147483648u); // half a cycle
+		return deluge::dsp::uq<32>(0.5); // half a cycle
 
 	case LFOType::SINE:
-		return UQ<32>::from_raw(3221225472u); // three quarters of a cycle
+		return deluge::dsp::uq<32>(0.75); // three quarters of a cycle
 
 	default:
 		// This is actually positive extreme for square wave.
@@ -21,7 +21,7 @@ UQ<32> get_lfo_initial_phase_for_negative_extreme(LFOType wave_type) {
 UQ<32> get_lfo_initial_phase_for_zero(LFOType wave_type) {
 	switch (wave_type) {
 	case LFOType::TRIANGLE:
-		return UQ<32>::from_raw(1073741824u); // a quarter of a cycle
+		return deluge::dsp::uq<32>(0.25); // a quarter of a cycle
 
 	default:
 		return UQ<32>{};

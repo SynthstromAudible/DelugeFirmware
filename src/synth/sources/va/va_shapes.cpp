@@ -55,7 +55,7 @@ constexpr uint32_t kThreeQuarterCycle = 3221225472u; // 3 · 2^30
 constexpr uint32_t kQuarterCycle = 1073741824u;      // 2^30
 
 // The triangle drops to its crude (aliasing) render below this phase increment — i.e. below this pitch the
-// band-limited table is overkill, so the cheap ramp is used instead.
+// band-limited table is overkill, so the cheap ramp is used instead. The increment word is about 711 Hz at 44.1 kHz.
 constexpr UQ<32> kTriangleCrudeIncrement = UQ<32>::from_raw(69273666u);
 
 // The crude↔band-limited gate works off the band-ladder index: render crude once the band index falls within
@@ -111,7 +111,8 @@ PulseRewrite multiply_pulse_rewrite(uint32_t pulse_width, uint32_t resetter_phas
 	// half a cycle less, wrapping
 	auto resetter_to_multiply = deluge::dsp::reinterpret_bits<Q<31>>(as_floor<UQ<31>>(uq32(resetter_phase)));
 	if (resetter_phase >= (uint32_t)-(resetter_increment >> 1)) {
-		resetter_to_multiply = sub_wrap(resetter_to_multiply, Q<31>::from_raw(static_cast<int32_t>(kHalfCycle)));
+		resetter_to_multiply =
+		    sub_wrap(resetter_to_multiply, Q<31>::min()); // half a cycle, 2^31, wraps to Q31's minimum
 	}
 
 	// Half the width plus a quarter cycle, read as Q31; the rounded products moved up by 3, their words the render
