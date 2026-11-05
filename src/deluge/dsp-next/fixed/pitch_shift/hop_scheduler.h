@@ -102,6 +102,8 @@ public:
 		if (remaining_ == 0) {
 			return std::nullopt;
 		}
+		int32_t length = 0;
+		bool forced = false;
 		while (true) {
 			if (!hopped_ && block_.phase_increment > kMaxSampleValue) {
 				fit_hop_to_heads(history, heads);
@@ -111,13 +113,36 @@ public:
 				check_onset(history, heads);
 			}
 			if (progress_.samples_til_hop_end != 0) {
-				break;
+				length = std::min(remaining_, progress_.samples_til_hop_end);
+				// No head reads past the latest input: the newer head's hop ends where it would (hopping now if it has
+				// no reach left, once), and the older head's crossfade is hurried to end where it would
+				const int32_t newer = reach(heads.newer, history);
+				if (newer == 0 && !forced) {
+					progress_.samples_til_hop_end = 0;
+					forced = true;
+				}
+				else {
+					if (newer < length) {
+						length = std::max(newer, int32_t{1});
+						progress_.samples_til_hop_end = length;
+					}
+					break;
+				}
 			}
-			hop(history, heads, noise);
-			++hops_;
-			hopped_ = true;
+			if (progress_.samples_til_hop_end == 0) {
+				hop(history, heads, noise);
+				++hops_;
+				hopped_ = true;
+			}
 		}
-		const Segment segment = crossfade(std::min(remaining_, progress_.samples_til_hop_end));
+		if (crossfading()) {
+			const int32_t older = reach(heads.older, history);
+			if (older < length) {
+				length = std::max(older, int32_t{1});
+				hurry_crossfade(static_cast<uint32_t>(length));
+			}
+		}
+		const Segment segment = crossfade(length);
 		progress_.samples_til_hop_end -= segment.length;
 		progress_.samples_into_hop += segment.length;
 		remaining_ -= segment.length;
@@ -169,6 +194,22 @@ private:
 		const uint64_t estimate =
 		    (static_cast<uint64_t>(scaled) << 24) / static_cast<uint32_t>(block_.phase_increment - kMaxSampleValue);
 		return estimate >= kForever ? kForever : static_cast<int32_t>(estimate);
+	}
+
+	/// @brief The samples @p head can render before it reads the latest frame written, at the block's shift: with phase
+	/// φ and step r, k steps read up to the frame φ + k·r reaches, so k = (distance · 2^24 − φ) / r. A direct head
+	/// reads one frame per sample and is placed behind the block's input, so it never runs out within a block.
+	[[nodiscard]] int32_t reach(const Mono<Kernel>& head, const InputHistory<Frame>& history) const {
+		if (head.state().kind != HeadKind::REPITCHING) {
+			return kForever;
+		}
+		const auto ahead = (static_cast<int64_t>(history.now().since(head.state().cursor)) << 24)
+		                   - static_cast<int64_t>(head.state().phase);
+		if (ahead <= 0) {
+			return 0;
+		}
+		const int64_t steps = ahead / static_cast<int64_t>(static_cast<uint32_t>(block_.phase_increment));
+		return steps >= kForever ? kForever : static_cast<int32_t>(steps);
 	}
 
 	/// @brief Pitching up: shortens a hop the newer head cannot last, and hurries the crossfade if the older head will

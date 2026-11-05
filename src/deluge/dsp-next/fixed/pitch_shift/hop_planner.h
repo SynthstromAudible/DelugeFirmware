@@ -144,6 +144,16 @@ public:
 			plan.kind = HeadKind::REPITCHING;
 			plan.cursor = RingPosition{cursor + static_cast<uint32_t>(offset)};
 			plan.phase = static_cast<uint32_t>(phase);
+			// Far enough behind the latest input that the rest of the block cannot read past it: the head moves the
+			// phase plus the remaining samples' steps, in whole frames
+			const uint64_t remaining = latest_frames - now_frames;
+			const auto advance =
+			    static_cast<uint32_t>((plan.phase + (remaining * static_cast<uint32_t>(phase_increment))) >> 24);
+			const RingPosition latest{static_cast<uint32_t>(latest_frames)};
+			const uint32_t behind = latest.since(plan.cursor);
+			if (behind > kHistoryFrames / 2 || behind < advance) {
+				plan.cursor = latest - static_cast<int32_t>(advance);
+			}
 		}
 		return plan;
 	}

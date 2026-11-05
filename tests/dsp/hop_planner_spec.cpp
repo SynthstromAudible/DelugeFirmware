@@ -17,7 +17,8 @@
 
 // The live pitch shifter's hop planner (dsp-next/fixed/pitch_shift/hop_planner.h) against the old hop end it replaced
 // (reference_hop_plan.h): the new head's cursor, phase and kind, the hop's length, threshold and next crossfade, and
-// the noise drawn, over random old heads, shifts, crossfades and moments, mono and stereo, on several histories.
+// the noise drawn, over random old heads, shifts, crossfades and moments, mono and stereo, on several histories. The
+// one difference is Q14's: a repitching head is held far enough behind the latest frame for the rest of the block.
 
 #include "pitch_shift_histories.h"
 #include "reference_hop_plan.h"
@@ -35,8 +36,21 @@ namespace ph = pitch_shift_histories;
 namespace pw = pitch_shift_workloads;
 using deluge::synth::reference_hop::reference_plan;
 
+// The old hop end's cursor, held behind the latest frame by the rest of the block's advance (Q14)
+uint32_t held_behind(uint32_t cursor, uint32_t phase, int32_t shift, uint64_t now, uint64_t latest, std::size_t& held) {
+	const uint64_t remaining = latest - now;
+	const auto advance = static_cast<uint32_t>((phase + (remaining * static_cast<uint32_t>(shift))) >> 24);
+	const ps::RingPosition last{static_cast<uint32_t>(latest)};
+	const uint32_t behind = last.since(ps::RingPosition{cursor});
+	if (behind > ps::kHistoryFrames / 2 || behind < advance) {
+		++held;
+		return (last - static_cast<int32_t>(advance)).index();
+	}
+	return cursor;
+}
+
 template <typename Frame>
-bool plans_as_the_old_hop_end(uint32_t seed, std::size_t& aligned) {
+bool plans_as_the_old_hop_end(uint32_t seed, std::size_t& aligned, std::size_t& held) {
 	std::mt19937 rng(seed);
 	const std::vector<int32_t> shifts{pw::kDown24, pw::kDown12, pw::kDown5, pw::kDown1, pw::kUnity, pw::kUpHalf,
 	                                  pw::kUp1,    pw::kUp5,    pw::kUp7,   pw::kUp12,  pw::kUp24};
@@ -59,7 +73,10 @@ bool plans_as_the_old_hop_end(uint32_t seed, std::size_t& aligned) {
 			const ps::HopPlan got =
 			    ps::HopPlanner::plan(shift, *history, older, crossfade, into_hop, now, latest, noise_a);
 			const auto want = reference_plan(shift, *history, older, crossfade, into_hop, now, latest, noise_b);
-			if (got.cursor.index() != want.cursor || got.kind != want.kind || got.hop_length != want.hop_length
+			const uint32_t want_cursor = want.kind == ps::HeadKind::REPITCHING
+			                                 ? held_behind(want.cursor, want.phase, shift, now, latest, held)
+			                                 : want.cursor;
+			if (got.cursor.index() != want_cursor || got.kind != want.kind || got.hop_length != want.hop_length
 			    || got.tuning.percussive_threshold != want.percussive_threshold
 			    || got.tuning.crossfade_length != want.next_crossfade_length || noise_a.state() != noise_b.state()) {
 				return false;
@@ -67,7 +84,7 @@ bool plans_as_the_old_hop_end(uint32_t seed, std::size_t& aligned) {
 			if (got.kind == ps::HeadKind::REPITCHING && got.phase != want.phase) {
 				return false;
 			}
-			if (got.phase != older.phase || got.cursor.index() != (want.cursor)) {
+			if (got.phase != older.phase || got.cursor.index() != want_cursor) {
 				++aligned; // The alignment moved the head or its phase: counted to show the aligner was reached
 			}
 		}
@@ -78,16 +95,20 @@ bool plans_as_the_old_hop_end(uint32_t seed, std::size_t& aligned) {
 
 // clang-format off
 describe hop_planner("deluge::dsp::fixed::pitch_shift::HopPlanner", ${
-	it("plans each hop as the old hop end did, mono", _ {
+	it("plans each hop as the old hop end did, held behind the latest frame, mono", _ {
 		std::size_t aligned = 0;
-		expect(plans_as_the_old_hop_end<deluge::dsp::Q<31>>(0x11u, aligned)).to_be_true();
+		std::size_t held = 0;
+		expect(plans_as_the_old_hop_end<deluge::dsp::Q<31>>(0x11u, aligned, held)).to_be_true();
 		expect(aligned).to_be_greater_than(std::size_t{100});
+		expect(held).to_be_greater_than(std::size_t{0});
 	});
 
-	it("plans each hop as the old hop end did, stereo", _ {
+	it("plans each hop as the old hop end did, held behind the latest frame, stereo", _ {
 		std::size_t aligned = 0;
-		expect(plans_as_the_old_hop_end<deluge::dsp::StereoSample>(0x22u, aligned)).to_be_true();
+		std::size_t held = 0;
+		expect(plans_as_the_old_hop_end<deluge::dsp::StereoSample>(0x22u, aligned, held)).to_be_true();
 		expect(aligned).to_be_greater_than(std::size_t{100});
+		expect(held).to_be_greater_than(std::size_t{0});
 	});
 });
 // clang-format on
