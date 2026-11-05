@@ -25,8 +25,8 @@
 
 namespace deluge::synth {
 
-/// @brief A mono or stereo live input, read by ring index and a run-time channel count, as the pitch shifter's legacy
-/// arithmetic reads it until the shifter's components replace it.
+/// @brief A mono or stereo live input, found by its run-time channel, as the pitch shifter's legacy render loop finds
+/// it until the shifter's components replace it.
 class LegacyInputView {
 public:
 	/// @brief The live input of @p channel from @p port, made if @p may_create; empty if there is none.
@@ -63,45 +63,9 @@ public:
 		return stereo_ != nullptr ? stereo_->history().frames_written() : mono_->history().frames_written();
 	}
 
-	/// @brief The frame's left (or only) channel at ring index @p pos, as a word.
-	[[nodiscard]] int32_t word_l(uint32_t pos) const {
-		const dsp::fixed::pitch_shift::RingPosition p{pos};
-		return stereo_ != nullptr ? stereo_->history().at(p).l.raw() : mono_->history().at(p).raw();
-	}
-	/// @brief The frame's right channel at ring index @p pos, as a word.
-	[[nodiscard]] int32_t word_r(uint32_t pos) const {
-		return stereo_->history().at(dsp::fixed::pitch_shift::RingPosition{pos}).r.raw();
-	}
-
-	/// @brief The top half of the left (or only) channel at ring index @p pos.
-	[[nodiscard]] int16_t high_l(uint32_t pos) const {
-		const dsp::fixed::pitch_shift::RingPosition p{pos};
-		return stereo_ != nullptr ? stereo_->history().high_l(p).raw() : mono_->history().high_l(p).raw();
-	}
-	/// @brief The top half of the right channel at ring index @p pos.
-	[[nodiscard]] int16_t high_r(uint32_t pos) const {
-		return stereo_->history().high_r(dsp::fixed::pitch_shift::RingPosition{pos}).raw();
-	}
-
-	[[nodiscard]] int32_t folded_high_word(uint32_t pos) const {
-		const dsp::fixed::pitch_shift::RingPosition p{pos};
-		return stereo_ != nullptr ? stereo_->history().folded_high_word(p) : mono_->history().folded_high_word(p);
-	}
-
 	[[nodiscard]] uint8_t percussiveness_at(uint32_t entry) const {
 		return stereo_ != nullptr ? stereo_->history().percussiveness_at(entry)
 		                          : mono_->history().percussiveness_at(entry);
-	}
-
-	[[nodiscard]] dsp::fixed::pitch_shift::MovingAverages moving_averages(uint32_t start, int32_t length) const {
-		const dsp::fixed::pitch_shift::RingPosition p{start};
-		return stereo_ != nullptr ? stereo_->history().moving_averages(p, length)
-		                          : mono_->history().moving_averages(p, length);
-	}
-
-	[[nodiscard]] bool written(uint32_t pos) const {
-		const dsp::fixed::pitch_shift::RingPosition p{pos};
-		return stereo_ != nullptr ? stereo_->history().written(p) : mono_->history().written(p);
 	}
 
 private:

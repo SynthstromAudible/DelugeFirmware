@@ -67,6 +67,7 @@ src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=6
 src/deluge/dsp-next/fixed/osc/supersaw.cpp raw=0 view=1 boundary=7
 src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/pitch_shift/input_history.h raw=0 boundary=3
+src/deluge/dsp-next/fixed/pitch_shift/percussive_search.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/pitch_shift/play_head.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/pitch_shift/slope_follower.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=3
@@ -158,9 +159,8 @@ src/synth/modulation/envelope.cpp raw=0 boundary=8
 src/synth/modulation/lfo.h raw=0 boundary=13
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=3
 src/synth/sources/input/input_source.cpp raw=0 boundary=6
-src/synth/sources/input/live/legacy_input_view.h raw=0 boundary=6
 src/synth/sources/input/live/live_input.cpp raw=0 boundary=1
-src/synth/sources/input/live/live_pitch_shifter.cpp raw=0 boundary=17
+src/synth/sources/input/live/live_pitch_shifter.cpp raw=0 boundary=13
 src/synth/sources/sample/sample_source.cpp raw=0 boundary=2
 src/synth/sources/source_slot.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2

@@ -225,6 +225,14 @@ set(play_head_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The pitch shifter's hop planner, its percussive search and its waveform aligner against the old hop end
+# (reference_hop_plan.h): header-only, but for the tables the tuning and the histories' follower read.
+set(_hop_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+set(hop_planner_spec_DEPS ${_hop_spec_DEPS})
+set(percussive_search_spec_DEPS ${_hop_spec_DEPS})
+set(waveform_aligner_spec_DEPS ${_hop_spec_DEPS})
 # The live pitch shifter's oracle (reference_live_pitch_shifter.h, header-only) against the legacy classes it was
 # taken from, while they live: the shifter and its live input, the interpolation and tables they read, the allocator
 # seam the shifter's owner allocates through, and the panic seam the shifter's E165 calls.
