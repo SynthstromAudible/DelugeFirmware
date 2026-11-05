@@ -21,38 +21,25 @@
 #include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
+#include "synth/sources/input/live/live_inputs.h"
 
 #include <memory>
 #include <new>
 
 namespace deluge::synth {
 
-namespace {
-/// @brief The pooled live input of @p channel, if the host has it.
 template <typename Frame>
-[[nodiscard]] LiveInput<Frame>* input_of(AudioInputPort& port, InputChannel channel) {
-	if constexpr (std::is_same_v<Frame, dsp::StereoSample>) {
-		return port.stereo_input(false);
-	}
-	else {
-		return port.mono_input(channel, false);
-	}
-}
-} // namespace
-
-template <typename Frame>
-LivePitchShifter<Frame>::LivePitchShifter(InputChannel channel, int32_t phase_increment)
-    : channel_(channel), scheduler_(phase_increment) {
+LivePitchShifter<Frame>::LivePitchShifter(int32_t phase_increment) : scheduler_(phase_increment) {
 }
 
 template <typename Frame>
 int32_t LivePitchShifter<Frame>::render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
                                         dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment,
                                         int32_t interpolation_buffer_size, AudioInputPort& port,
-                                        dsp::fixed::Cong& noise) {
-	LiveInput<Frame>* input = input_of<Frame>(port, channel_);
+                                        const LiveInputs& inputs, dsp::fixed::Cong& noise) {
+	LiveInput<Frame>* input = inputs.of<Frame>();
 	if (input == nullptr) {
-		return 0; // The host let the input go: nothing to read
+		return 0; // The oscillator has no history of this frame: nothing to read
 	}
 	input->ingest(num_samples, port);
 	const History& history = input->history();
@@ -131,10 +118,10 @@ bool PitchShifter::create(InputChannel channel, int32_t phase_increment) {
 	}
 	// Placed in the allocator's block, which destroy frees
 	if (stereo_) {
-		new (memory) StereoShifter(channel, phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
+		new (memory) StereoShifter(phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
 	}
 	else {
-		new (memory) MonoShifter(channel, phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
+		new (memory) MonoShifter(phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
 	}
 	block_ = memory;
 	return true;
@@ -156,13 +143,15 @@ void PitchShifter::destroy() {
 
 int32_t PitchShifter::render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
                              dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment, int32_t interpolation_buffer_size,
-                             AudioInputPort& port, dsp::fixed::Cong& noise) {
+                             AudioInputPort& port, const LiveInputs& inputs, dsp::fixed::Cong& noise) {
 	if (stereo_) {
 		return static_cast<StereoShifter*>(block_)->render(output_buffer, num_samples, phase_increment, amplitude,
-		                                                   amplitude_increment, interpolation_buffer_size, port, noise);
+		                                                   amplitude_increment, interpolation_buffer_size, port, inputs,
+		                                                   noise);
 	}
 	return static_cast<MonoShifter*>(block_)->render(output_buffer, num_samples, phase_increment, amplitude,
-	                                                 amplitude_increment, interpolation_buffer_size, port, noise);
+	                                                 amplitude_increment, interpolation_buffer_size, port, inputs,
+	                                                 noise);
 }
 
 bool PitchShifter::may_be_removed_without_click() const {

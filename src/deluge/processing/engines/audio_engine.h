@@ -41,10 +41,6 @@ using StereoSample = deluge::dsp::StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;
-namespace deluge::synth {
-template <typename Frame>
-class LiveInput;
-}
 class SampleRecorder;
 class VoiceSlot;
 class VoiceSample;
@@ -188,10 +184,6 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-/// The pooled live input of the left (@p right false) or right input channel, made if @p mayCreate.
-deluge::synth::LiveInput<deluge::dsp::Q<31>>* getOrCreateMonoLiveInput(bool right, bool mayCreate);
-/// The pooled live input of both input channels, made if @p mayCreate.
-deluge::synth::LiveInput<deluge::dsp::StereoSample>* getOrCreateStereoLiveInput(bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
 /// @brief Run the recorder card-write drain (doRecorderCardRoutines()) inline. Counts the drains after boot:

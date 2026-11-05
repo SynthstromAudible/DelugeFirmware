@@ -19,7 +19,7 @@
 #include "synth/sources/input/audio_input_port.h" // synth::AudioInputPort
 
 /// @brief The firmware adapter behind @ref deluge::synth::AudioInputPort: exposes AudioEngine's live-input ring,
-/// frame clock, plug-state, and the shared per-channel live input pool to the (library) live-input DSP.
+/// frame clock and plug-state to the (library) live-input DSP.
 /// Stateless — all of it lives in AudioEngine; this is the thin seam that keeps the DSP free of that global.
 class AudioInputAdapter final : public deluge::synth::AudioInputPort {
 public:
@@ -27,8 +27,5 @@ public:
 	[[nodiscard]] bool stereo_input_available() const override;
 	[[nodiscard]] const int32_t* ring_read_pos() const override;
 	[[nodiscard]] const int32_t* ring_end() const override;
-	[[nodiscard]] deluge::synth::MonoLiveInput* mono_input(deluge::synth::InputChannel channel,
-	                                                       bool mayCreate) override;
-	[[nodiscard]] deluge::synth::StereoLiveInput* stereo_input(bool mayCreate) override;
 	void report_hops(int32_t hopsEnded) override;
 };

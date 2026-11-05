@@ -615,8 +615,10 @@ each hop. Its pieces split by rate:
   windowed sinc or linearly, one mode per segment. Its window is the `Interpolator`, fed through its head and tail
   feeds (`advance`, `fill_tail`), which the sample reader uses too; the taps are private.
 - **Per block, a component.** `InputHistory<Frame>` holds the last 8192 frames and the onset measures. The synth's
-  `LiveInput<Frame>` wraps it, ingesting each audio block once however many voices read the channel, and is pooled by
-  the host per channel (`AudioInputPort::mono_input` / `stereo_input`).
+  `LiveInput<Frame>` wraps it, ingesting each audio block once however many voices read it. The input oscillator
+  owns its histories (`LiveInputStore` on `::Source`: its channel's, and for stereo the stereo one and the left), made
+  and freed on the interaction tier as its type changes and handed to the render inside an audio-excluded section;
+  its voices read them through `LiveInputs`, bound with their ports.
 - **Per hop, objects.** `PitchShiftTuning` gives the pitch-dependent search ranges, threshold, crossfade and hop
   lengths as coefficients of the shift. `HopPlanner` places each hop's new head: `PercussiveSearch` finds how far back
   a pitched-up hop starts, `WaveformAligner` lines its window up with the old head's by moving averages, to a

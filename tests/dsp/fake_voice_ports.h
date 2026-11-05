@@ -111,8 +111,6 @@ public:
 	[[nodiscard]] bool stereo_input_available() const override { return false; }
 	[[nodiscard]] const int32_t* ring_read_pos() const override { return ring_.data(); }
 	[[nodiscard]] const int32_t* ring_end() const override { return ring_.data() + ring_.size(); }
-	[[nodiscard]] MonoLiveInput* mono_input(InputChannel /*channel*/, bool /*may_create*/) override { return nullptr; }
-	[[nodiscard]] StereoLiveInput* stereo_input(bool /*may_create*/) override { return nullptr; }
 	void report_hops(int32_t /*hops_ended*/) override {}
 
 private:

@@ -33,14 +33,6 @@ const int32_t* AudioInputAdapter::ring_end() const {
 	return AudioEngine::inputRingEnd();
 }
 
-deluge::synth::MonoLiveInput* AudioInputAdapter::mono_input(deluge::synth::InputChannel channel, bool mayCreate) {
-	return AudioEngine::getOrCreateMonoLiveInput(channel == deluge::synth::InputChannel::RIGHT, mayCreate);
-}
-
-deluge::synth::StereoLiveInput* AudioInputAdapter::stereo_input(bool mayCreate) {
-	return AudioEngine::getOrCreateStereoLiveInput(mayCreate);
-}
-
 void AudioInputAdapter::report_hops(int32_t hopsEnded) {
 	AudioEngine::numHopsEndedThisRoutineCall += hopsEnded;
 }

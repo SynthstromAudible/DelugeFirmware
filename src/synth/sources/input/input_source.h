@@ -25,16 +25,19 @@
 namespace deluge::synth {
 
 class AudioInputPort;
+struct LiveInputs;
 
 /// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///
 /// Reads the host's live-input ring (through the injected @ref AudioInputPort — the ring + frame
-/// clock + plug-state + the shared per-channel @ref LiveInput pool) and sums it into the voice's oscBuffer,
-/// pitch-shifting through a lazily-created @ref PitchShifter when the played note is off the input's natural
+/// clock + plug-state) and sums it into the voice's oscBuffer, pitch-shifting from the oscillator's own histories
+/// (@ref LiveInputs) through a lazily-created @ref PitchShifter when the played note is off the input's natural
 /// rate. The port keeps the source free of `AudioEngine`. It owns the pooled pitch-shifter; ownership is
 /// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
 class InputSource : public Source {
 	AudioInputPort* in_;
+	/// The oscillator's histories, which the pitch shifter reads.
+	const LiveInputs* live_inputs_ = nullptr;
 	PitchShifter live_pitch_shifter_{};
 	/// Which input channel this source plays — latched once at note-on (see @ref note_on), so the per-block
 	/// render context need not carry it.
@@ -42,8 +45,11 @@ class InputSource : public Source {
 
 public:
 	explicit InputSource(AudioInputPort* in) : in_(in) {}
-	/// Reads through @p in, which must outlive this source.
-	void bind_port(AudioInputPort* in) { in_ = in; }
+	/// Reads through @p in and @p live_inputs, which must outlive this source.
+	void bind_port(AudioInputPort* in, const LiveInputs* live_inputs) {
+		in_ = in;
+		live_inputs_ = live_inputs;
+	}
 
 	/// Latches the input channel for the note about to start, from the source's type.
 	bool note_on(const SourceNote& note) override;

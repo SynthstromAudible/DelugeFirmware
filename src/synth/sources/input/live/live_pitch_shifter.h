@@ -31,6 +31,7 @@
 namespace deluge::synth {
 
 class AudioInputPort;
+struct LiveInputs;
 
 /// @brief One voice's live pitch shifter over a mono (@p Frame dsp::Q<31>) or stereo (dsp::StereoSample) input.
 /// @details Two play heads over the channel's live history, cross-faded at each hop: the @ref
@@ -42,16 +43,19 @@ public:
 	using Kernel = dsp::fixed::pitch_shift::PlayHead<Frame>;
 	using History = dsp::fixed::pitch_shift::InputHistory<Frame>;
 
-	/// @brief A shifter for @p channel's input, starting at @p phase_increment.
-	LivePitchShifter(InputChannel channel, int32_t phase_increment);
+	/// @brief A shifter starting at @p phase_increment.
+	explicit LivePitchShifter(int32_t phase_increment);
 
 	/// @brief Adds @p num_samples of the pitch-shifted input into @p output_buffer (interleaved when stereo).
-	/// @details The channel's live input is ingested first, once per block whichever voice reads it. If the host has
-	/// let the input go, nothing is rendered.
+	/// @details The history is ingested first, once per block whichever voice reads it. If the oscillator has no
+	/// history of this frame, nothing is rendered.
+	/// @param port The host's input: the frame clock and the codec ring the history ingests from.
+	/// @param inputs The oscillator's histories; the shifter reads the one of its frame.
 	/// @return The hops made: the host folds them into its per-routine CPU-load accounting.
 	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
 	                             dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment,
-	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
+	                             int32_t interpolation_buffer_size, AudioInputPort& port, const LiveInputs& inputs,
+	                             dsp::fixed::Cong& noise);
 
 	/// @brief Whether the shifter can go without a click: no crossfade running and the newer head reading direct.
 	[[nodiscard]] bool may_be_removed_without_click() const;
@@ -63,7 +67,6 @@ private:
 	void configure(dsp::Mono<Kernel>& head, const History& history, int32_t phase_increment, int32_t which_kernel,
 	               int32_t interpolation_buffer_size);
 
-	InputChannel channel_;
 	Scheduler scheduler_;
 	dsp::fixed::pitch_shift::PlayHeads<Frame> heads_{};
 	bool placed_ = false; ///< The newer head has been placed at the input's first block.
@@ -89,7 +92,8 @@ public:
 	/// @copydoc LivePitchShifter::render
 	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
 	                             dsp::Q<31> amplitude, dsp::Q<31> amplitude_increment,
-	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
+	                             int32_t interpolation_buffer_size, AudioInputPort& port, const LiveInputs& inputs,
+	                             dsp::fixed::Cong& noise);
 	[[nodiscard]] bool may_be_removed_without_click() const;
 
 private:
