@@ -33,6 +33,7 @@ bool knob_clear_saw_close = false;
 int service_wirings = 0;
 int action_dispatches = 0;
 int root_fact_refreshes = 0;
+int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
 int pad_forwards = 0;
@@ -94,6 +95,7 @@ void reset() {
 	service_wirings = 0;
 	action_dispatches = 0;
 	root_fact_refreshes = 0;
+	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
 	pad_forwards = 0;
@@ -381,6 +383,14 @@ void wireShellGuestServices() {
 // builds. The counter and the callback are what let
 // `shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
 // whether `ShellHostUI::timerCallback` polls at all, how often, on which paths, and after what.
+std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
+	return std::nullopt;
+}
+
+void dispatchMenuTransitions() {
+	fakelegacyui::transition_dispatches++;
+}
+
 void refreshShellRootFacts() {
 	fakelegacyui::root_fact_refreshes++;
 }

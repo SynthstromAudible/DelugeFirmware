@@ -43,6 +43,7 @@
 #include "scenes/menu/present.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcut_overlay.h"
+#include "scenes/menu/transition.h"
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/view.h"
 #include "scenes/menu/voice_usage.h"
@@ -195,6 +196,14 @@ public:
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
+
+	/// @brief Collect the change of the value node the last tick's event made, with its cause, and clear it.
+	///
+	/// An event that can move the menu (a select release or BACK, which the render consumes; a column button, a pad's
+	/// jump) notes the value node it found; the record is filed after the tick's navigation, from that node to the one
+	/// the menu is on then. One record per tick; the host drains it after `Shell::tick`, as it drains `take_action`.
+	/// @return The record, or nullopt when no such event arrived since the last call.
+	std::optional<MenuTransition> take_transition();
 
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
@@ -461,6 +470,14 @@ public:
 private:
 	/// @brief Whether the SHIFT shortcut overlay shows (`shortcut_overlay.h`).
 	bool overlay_up() const { return overlay_shown(ctx_, visit_.shift_held); }
+	/// @brief `after_render`'s navigation and its other arms, before the tick's transition is filed.
+	deluge::ui::shell::Result after_render_navigation();
+	/// @brief Note the cause of a transition @p event may make, with the value node @p value_before it found
+	///        (`take_transition`).
+	void note_transition(const deluge::ui::shell::UiEvent& event, const deluge::ui::shell::Result& r,
+	                     const Node* value_before);
+	/// @brief Note @p cause and the value node @p value_before it leaves, unless this tick already noted one.
+	void note_cause(TransitionCause cause, const Node* value_before);
 	/// @brief `handle`'s body, beneath its SHIFT-overlay bookkeeping.
 	deluge::ui::shell::Result handle_event(const deluge::ui::shell::UiEvent& event,
 	                                       const deluge::ui::shell::UiContext& ctx);
@@ -492,6 +509,11 @@ private:
 	/// The renders, and the storage a horizontal page draws from.
 	MenuView view_;
 	MenuContext ctx_{};
+	/// @brief The cause an event of this tick noted, and the value node it found (`take_transition`).
+	std::optional<TransitionCause> pending_transition_;
+	const Node* transition_from_ = nullptr;
+	/// @brief The record filed by the last `after_render`, until `take_transition` collects it.
+	std::optional<MenuTransition> transition_;
 
 	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`
 	///        clears the whole of that on a re-root, and an action already filed must still be

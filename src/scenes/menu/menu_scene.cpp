@@ -66,6 +66,8 @@ using namespace detail;
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
+	pending_transition_.reset();
+	transition_.reset();
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	pads_.forget_landing();
 	retarget(root);
@@ -340,6 +342,52 @@ void MenuScene::set_root_facts(MenuContext::RootGreyout greyout, bool root_is_ke
 	ctx_.root_is_automation = root_is_automation;
 }
 
+void MenuScene::note_transition(const UiEvent& event, const Result& r, const Node* value_before) {
+	// One record per tick: the first event's value is the one it moved from (`note_cause`).
+	// SELECT and BACK are the widgets' own edges, consumed by the render (`after_render`), not routed here.
+	std::optional<TransitionCause> cause;
+	if (event.kind == UiEvent::Kind::Button) {
+		switch (event.button) {
+		case ButtonId::Synth:
+		case ButtonId::Kit:
+		case ButtonId::Midi:
+		case ButtonId::Cv:
+		case ButtonId::CrossScreen:
+		case ButtonId::Scale:
+			// `SoundEditor::buttonAction`'s horizontal-menu arm compares the item before and after the press.
+			if (event.on) {
+				cause = TransitionCause::ColumnButton;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	else if (event.kind == UiEvent::Kind::Pad) {
+		// A pad that jumps (a shortcut, or a patching source opening its page) answers with a Replace.
+		for (const Action& action : r.actions) {
+			if (action.kind == Action::Kind::Replace) {
+				cause = TransitionCause::Shortcut;
+				break;
+			}
+		}
+	}
+	if (cause) {
+		note_cause(*cause, value_before);
+	}
+}
+
+void MenuScene::note_cause(TransitionCause cause, const Node* value_before) {
+	if (!pending_transition_) {
+		pending_transition_ = cause;
+		transition_from_ = value_before;
+	}
+}
+
+std::optional<MenuTransition> MenuScene::take_transition() {
+	return std::exchange(transition_, std::nullopt);
+}
+
 std::optional<AutomationParam> MenuScene::focused_automation_param() const {
 	const Node* value = focused_value();
 	return value != nullptr ? automation_param(*value, ctx_, st_) : std::nullopt;
@@ -423,6 +471,25 @@ MenuActionRequest MenuScene::take_action() {
 }
 
 Result MenuScene::after_render() {
+	// The render consumed this tick's BACK (above depth 0) and select edges -- the select one on its release, as
+	// legacy's SELECT arm acts (`select_acts_on_release`) -- and the navigation below acts on them: note the value they
+	// leave now.
+	if (st_.tick.back_claimed) {
+		note_cause(TransitionCause::Back, focused_value());
+	}
+	else if (st_.tick.render_resp.entered || st_.tick.column_press) {
+		note_cause(TransitionCause::Select, focused_value());
+	}
+	Result r = after_render_navigation();
+	// The record an event noted (`handle`) is filed once its navigation has run, which is here.
+	if (pending_transition_) {
+		transition_ = MenuTransition{.from = transition_from_, .to = focused_value(), .cause = *pending_transition_};
+		pending_transition_.reset();
+	}
+	return r;
+}
+
+Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
 	drain_trace_len_ = 0;
@@ -740,7 +807,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// greyout, and while it shows a source pad's press or release can change the source column.
 	const bool overlay_was_up = overlay_up();
 	visit_.shift_held = ctx.shift;
+	const Node* const value_before = focused_value();
 	Result r = handle_event(event, ctx);
+	note_transition(event, r, value_before);
 	if (overlay_up() != overlay_was_up
 	    || (overlay_up() && event.kind == UiEvent::Kind::Pad && is_patching_source_pad(event.x, event.y))) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});

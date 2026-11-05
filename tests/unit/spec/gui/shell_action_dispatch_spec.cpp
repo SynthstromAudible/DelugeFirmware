@@ -170,6 +170,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 
 		const int settled_renders = r.base.renders;
 		fakelegacyui::action_dispatches = 0;
+		fakelegacyui::transition_dispatches = 0;
 
 		for (uint32_t i = 0; i < 5; i++) {
 			set_clock_ms(20 + i * 10);
@@ -184,6 +185,8 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		// arms exist, perform nothing on the second read -- harmless today, but not what the one
 		// call site claims.
 		expect(fakelegacyui::action_dispatches).to_equal(5);
+		// The menu's transition record is polled beside it, on the same terms.
+		expect(fakelegacyui::transition_dispatches).to_equal(5);
 	});
 
 	it("polls AFTER Shell::tick, so a request this tick's after_render filed is taken this tick", _ {
@@ -251,6 +254,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
 
 		expect(fakelegacyui::action_dispatches).to_equal(1);
+		expect(fakelegacyui::transition_dispatches).to_equal(1);
 	});
 
 	it("polls from the tick and from nowhere else -- no input hook polls", _ {

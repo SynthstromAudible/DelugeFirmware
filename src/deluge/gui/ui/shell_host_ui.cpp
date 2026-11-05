@@ -19,6 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_guest_services.h"
@@ -514,6 +515,11 @@ ActionResult ShellHostUI::timerCallback() {
 	// asking, and asking is what takes it.
 	dispatchShellActions();
 
+	// The menu's transition record, the automation view's half of the same wall: filed by `after_render` too, so
+	// drained after the tick and above the close check for the same reasons, and after the action poll -- a menu action
+	// never moves the value node, so nothing turns on the order.
+	dispatchMenuTransitions();
+
 	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
 	// the same two reasons.**
 	//
@@ -858,6 +864,17 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// `TimerName::UI_SPECIFIC` is delivered to whoever is current (`UITimerManager::routine`). The
 	// arm itself is still wanted while the guest is current, for the gold-knob arm's reason above.
 	if (const std::optional<ActionResult> result = forwardNoteButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// CLIP, X_ENC and KEYBOARD where the automation view takes them from under the menu (`forwardAutomationButton`):
+	// the param item's own CLIP and X_ENC, and the sound editor's KEYBOARD arm over the view. Below the note forward,
+	// whose roots these never share; the handler may swap the root, so the same guard applies.
+	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();

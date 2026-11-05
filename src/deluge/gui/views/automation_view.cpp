@@ -2910,6 +2910,42 @@ ModelStackWithAutoParam* AutomationView::laneFor(ModelStackWithTimelineCounter* 
 	return getModelStackWithParamForClip(modelStack, clip, false, param->index, param->kind);
 }
 
+void AutomationView::selectParam(ModelStackWithAutoParam* modelStack, bool clipMinder, PatchSource patchSource) {
+	int32_t knobPos = getAutomationParameterKnobPos(modelStack, view.modPos()) + kKnobPosOffset;
+	setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
+
+	int32_t p = modelStack->paramId;
+	params::Kind kind = modelStack->paramCollection->getParamKind();
+
+	Clip* clip = getCurrentClip();
+
+	if (clipMinder) {
+		clip->lastSelectedParamID = p;
+		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedOutputType = clip->output->type;
+		clip->lastSelectedPatchSource = patchSource;
+		clip->lastSelectedParamShortcutX = kNoSelection;
+		clip->lastSelectedParamShortcutY = kNoSelection;
+		clip->lastSelectedParamArrayPosition = 0;
+	}
+	else {
+		currentSong->lastSelectedParamID = p;
+		currentSong->lastSelectedParamKind = kind;
+		currentSong->lastSelectedParamShortcutX = kNoSelection;
+		currentSong->lastSelectedParamShortcutY = kNoSelection;
+		currentSong->lastSelectedParamArrayPosition = 0;
+		onArrangerView = true;
+	}
+	// not blinking any shortcuts for patch cables
+	// no scroll selection for patch cables
+	if (kind != params::Kind::PATCH_CABLE) {
+		getLastSelectedParamShortcut(clip);
+		getLastSelectedParamArrayPosition(clip);
+	}
+
+	automationParamType = AutomationParamType::PER_SOUND;
+}
+
 bool AutomationView::laneAwaitsCable(const ModelStackWithAutoParam* modelStack) {
 	return modelStack != nullptr && modelStack->autoParam == nullptr && modelStack->paramCollection != nullptr
 	       && modelStack->paramCollection->getParamKind() == params::Kind::PATCH_CABLE;
