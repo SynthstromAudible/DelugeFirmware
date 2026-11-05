@@ -65,7 +65,7 @@ public:
 	[[nodiscard]] virtual StereoLiveInput* stereo_input(bool may_create) = 0;
 
 	/// Report the time-stretch hops the pitch-shifter performed this block, for the host's per-routine CPU-load
-	/// accounting (the pitch-shifter itself stays free of that global; see LivePitchShifter::render's return value).
+	/// accounting (the pitch-shifter itself stays free of that global; see PitchShifter::render's return value).
 	virtual void report_hops(int32_t hops_ended) = 0;
 };
 

@@ -19,6 +19,7 @@
 // the legacy classes make the records, the oracle makes the same, and the workloads reach every path.
 // PITCH_SHIFT_PRINT_RECORDS=1 prints the legacy classes' records, for pitch_shift_workload_records.h.
 
+#include "alloc_seams.h"
 #include "pitch_shift_workload_records.h"
 #include "pitch_shift_workloads.h"
 #include "reference_live_pitch_shifter.h"
@@ -74,22 +75,31 @@ private:
 class LegacySystem {
 public:
 	explicit LegacySystem(InputChannel channel) : port_(channel) {}
-	void create(std::size_t slot, InputChannel channel, int32_t phase) {
-		shifters_[slot] = std::make_unique<deluge::synth::LivePitchShifter>(channel, phase);
+	LegacySystem(const LegacySystem&) = delete;
+	LegacySystem& operator=(const LegacySystem&) = delete;
+	~LegacySystem() {
+		for (deluge::synth::PitchShifter& shifter : shifters_) {
+			shifter.destroy();
+		}
 	}
-	void destroy(std::size_t slot) { shifters_[slot].reset(); }
-	[[nodiscard]] bool exists(std::size_t slot) const { return shifters_[slot] != nullptr; }
-	[[nodiscard]] bool removable(std::size_t slot) const { return shifters_[slot]->may_be_removed_without_click(); }
+	void create(std::size_t slot, InputChannel channel, int32_t phase) {
+		if (!shifters_[slot].create(channel, phase)) {
+			std::abort(); // The host heap has room for a shifter
+		}
+	}
+	void destroy(std::size_t slot) { shifters_[slot].destroy(); }
+	[[nodiscard]] bool exists(std::size_t slot) const { return shifters_[slot].exists(); }
+	[[nodiscard]] bool removable(std::size_t slot) { return shifters_[slot].may_be_removed_without_click(); }
 	[[nodiscard]] int32_t render(std::size_t slot, deluge::dsp::Q<31>* out, int32_t n, const pw::BlockInput& b,
 	                             deluge::dsp::fixed::Cong& noise) {
 		port_.at(b);
-		return shifters_[slot]->render(out, n, b.phase_increment, b.amplitude, b.amplitude_increment,
-		                               b.interpolation_size, port_, noise);
+		return shifters_[slot].render(out, n, b.phase_increment, b.amplitude, b.amplitude_increment,
+		                              b.interpolation_size, port_, noise);
 	}
 
 private:
 	WorkloadPort port_;
-	std::array<std::unique_ptr<deluge::synth::LivePitchShifter>, 2> shifters_{};
+	std::array<deluge::synth::PitchShifter, 2> shifters_{};
 };
 
 [[nodiscard]] const pw::WorkloadRecord& recorded(const pw::Workload& w) {

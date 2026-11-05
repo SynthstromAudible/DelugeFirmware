@@ -18,28 +18,28 @@
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
 #include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/pitch_shift/pitch_shift_tuning.h"
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
+#include "memory/memory_allocator_interface.h"    // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/legacy_input_view.h"
 #include <algorithm> // std::min / std::max / std::clamp
 #include <cstdlib>
+#include <memory>
+#include <new>
+#include <span>
 
 // The live pitch shifter keeps its legacy arithmetic as it is until its rewrite (TODO.md).
 // NOLINTBEGIN(bugprone-implicit-widening-of-multiplication-result,cppcoreguidelines-avoid-goto,bugprone-narrowing-conversions,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-init-variables,cppcoreguidelines-narrowing-conversions,cppcoreguidelines-prefer-member-initializer,modernize-avoid-c-arrays,modernize-avoid-c-style-cast,readability-function-cognitive-complexity,readability-implicit-bool-conversion,readability-make-member-function-const,readability-redundant-casting,readability-use-std-min-max)
 
-// #define MEASURE_HOP_END_PERFORMANCE 1
-#ifndef MEASURE_HOP_END_PERFORMANCE
-#define MEASURE_HOP_END_PERFORMANCE 0 // NOLINT(cppcoreguidelines-macro-usage): #if tests it
-#endif
-
 namespace deluge::synth {
 
-LivePitchShifter::LivePitchShifter(InputChannel new_channel, int32_t phase_increment) {
+template <typename Frame>
+LivePitchShifter<Frame>::LivePitchShifter(InputChannel new_channel, int32_t phase_increment) {
 	channel = new_channel;
-	num_channels = (new_channel == InputChannel::STEREO) ? 2 : 1;
 
 	if (phase_increment < kMaxSampleValue) {
 		next_crossfade_length = samples_til_hop_end = kInterpolationMaxNumSamples * 2;
@@ -57,31 +57,17 @@ LivePitchShifter::LivePitchShifter(InputChannel new_channel, int32_t phase_incre
 	crossfade_progress = kMaxSampleValue;
 	samples_into_hop = 0;
 
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	stillWritingToRepitchedBuffer = false;
-	repitchedBuffer = NULL;
-#endif
-	consider_repitched_buffer(phase_increment);
-
-	play_heads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
-	play_heads[PLAY_HEAD_NEWER].osc_pos = 0;
-
-	play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos = 0;
-	play_heads[PLAY_HEAD_NEWER].perc_pos = 0xFFFFFFFF;
+	// The newer head starts direct, at the ring's start (quirk Q1,
+	// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md)
+	play_heads[PLAY_HEAD_NEWER].template on<&Kernel::note_percussiveness_entry>(
+	    dsp::fixed::pitch_shift::kNoPercussivenessEntry);
 }
 
-LivePitchShifter::~LivePitchShifter() {
-
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	if (repitchedBuffer) {
-		delugeDealloc(repitchedBuffer);
-	}
-#endif
-}
-
-int32_t LivePitchShifter::render(dsp::Q<31>* __restrict__ output_buffer, int32_t num_samples_this_function_call,
-                                 int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
-                                 int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise) {
+template <typename Frame>
+int32_t LivePitchShifter<Frame>::render(dsp::Q<31>* __restrict__ output_buffer, int32_t num_samples_this_function_call,
+                                        int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
+                                        int32_t interpolation_buffer_size, AudioInputPort& port,
+                                        dsp::fixed::Cong& noise) {
 
 	const LegacyInputView live_input = LegacyInputView::of(port, channel, false);
 	if (!live_input) {
@@ -94,46 +80,12 @@ int32_t LivePitchShifter::render(dsp::Q<31>* __restrict__ output_buffer, int32_t
 	live_input.ingest(num_samples_this_function_call, port);
 
 	int32_t which_kernel = dsp::fixed::WindowedSincKernel::variant_for(phase_increment);
+	const History* history = live_input.template history<Frame>();
+	for (Head& head : play_heads) {
+		configure_head(head, history, phase_increment, which_kernel, interpolation_buffer_size);
+	}
 
 	uint64_t num_raw_samples_processed_at_start = live_input.frames_written() - num_samples_this_function_call;
-
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	if (repitchedBuffer) {
-		for (int32_t i = 0; i < numSamplesThisFunctionCall; i++) {
-
-			// Shift contents of interpolation buffer along by 1
-			for (int32_t b = kInterpolationMaxNumSamples - 1; b >= 1; b--) {
-				interpolationBuffer[0][b] = interpolationBuffer[0][b - 1];
-				if (numChannels == 2) {
-					interpolationBuffer[1][b] = interpolationBuffer[1][b - 1];
-				}
-			}
-
-			// Feed this 1 input sample into interpolation buffer
-			StereoSample* inputSample = audioDriver.getInputSample(i);
-
-			interpolationBuffer[0][0] = (channel == InputChannel::RIGHT) ? inputSample->r : inputSample->l;
-
-			if (numChannels == 2) {
-				interpolationBuffer[1][0] = inputSample->r;
-			}
-
-			while (oscPos < kMaxSampleValue) {
-
-				// Interpolate and put in buffer
-				interpolate(&repitchedBuffer[repitchedBufferWritePos * numChannels], interpolationBufferSize,
-				            numChannels, whichKernel);
-
-				repitchedBufferWritePos = (repitchedBufferWritePos + 1) & (INPUT_REPITCHED_BUFFER_SIZE - 1);
-				repitchedBufferNumSamplesWritten++;
-
-				oscPos += phaseIncrement;
-			}
-
-			oscPos -= kMaxSampleValue;
-		}
-	}
-#endif
 
 	bool just_did_hop = false;
 	int32_t hops_ended = 0;
@@ -141,13 +93,8 @@ int32_t LivePitchShifter::render(dsp::Q<31>* __restrict__ output_buffer, int32_t
 startRenderAgain:
 
 	if (!just_did_hop && phase_increment > kMaxSampleValue) {
-		int32_t max_playable_samples_newer = play_heads[PLAY_HEAD_NEWER].get_estimated_playtime_remaining(
-#if INPUT_ENABLE_REPITCHED_BUFFER
-		    repitchedBufferNumSamplesWritten,
-#else
-		    0,
-#endif
-		    live_input, phase_increment);
+		int32_t max_playable_samples_newer =
+		    get_estimated_playtime_remaining(play_heads[PLAY_HEAD_NEWER], live_input, phase_increment);
 
 		if (samples_til_hop_end + next_crossfade_length > max_playable_samples_newer) {
 
@@ -179,13 +126,8 @@ startRenderAgain:
 		}
 
 		if (samples_til_hop_end && older_play_head_is_currently_sounding()) {
-			uint32_t max_playable_samples_older = play_heads[PLAY_HEAD_OLDER].get_estimated_playtime_remaining(
-#if INPUT_ENABLE_REPITCHED_BUFFER
-			    repitchedBufferNumSamplesWritten,
-#else
-			    0,
-#endif
-			    live_input, phase_increment);
+			uint32_t max_playable_samples_older =
+			    get_estimated_playtime_remaining(play_heads[PLAY_HEAD_OLDER], live_input, phase_increment);
 			// D_PRINTLN(maxPlayableSamplesOlder);
 			if (!max_playable_samples_older) {
 				crossfade_increment = kMaxSampleValue;
@@ -202,14 +144,12 @@ startRenderAgain:
 		}
 	}
 
-#if !MEASURE_HOP_END_PERFORMANCE
 	// If the percussiveness is higher at "now" time than at the newer play head, end the hop.
 	// This was designed with pitching-down in mind, but sounds good on pitching-up too
 	if (!just_did_hop && !older_play_head_is_currently_sounding() && samples_til_hop_end
-	    && play_heads[PLAY_HEAD_NEWER].mode != PlayHeadMode::RAW_DIRECT) {
+	    && play_heads[PLAY_HEAD_NEWER].state().kind != dsp::fixed::pitch_shift::HeadKind::DIRECT) {
 
-		int32_t how_far_back =
-		    play_heads[PLAY_HEAD_NEWER].get_num_raw_samples_behind_input(live_input, this, phase_increment);
+		int32_t how_far_back = get_num_raw_samples_behind_input(play_heads[PLAY_HEAD_NEWER], live_input);
 
 		uint32_t newer_play_head_perc_pos =
 		    (live_input.frames_written() - how_far_back - 1) >> kPercBufferReductionMagnitude;
@@ -218,7 +158,7 @@ startRenderAgain:
 		uint32_t latest_perc_pos_now = (live_input.frames_written() - 1) >> kPercBufferReductionMagnitude;
 
 		if (latest_perc_pos_now != newer_play_head_perc_pos
-		    && (newer_play_head_perc_pos != play_heads[PLAY_HEAD_NEWER].perc_pos
+		    && (newer_play_head_perc_pos != play_heads[PLAY_HEAD_NEWER].state().percussiveness_entry
 		        || latest_perc_pos_now != latest_perc_pos_before)) {
 
 			int32_t perc_latest = live_input.percussiveness_at(latest_perc_pos_now);
@@ -233,9 +173,8 @@ startRenderAgain:
 			}
 		}
 
-		play_heads[PLAY_HEAD_NEWER].perc_pos = newer_play_head_perc_pos;
+		play_heads[PLAY_HEAD_NEWER].template on<&Kernel::note_percussiveness_entry>(newer_play_head_perc_pos);
 	}
-#endif
 
 	if (!samples_til_hop_end) {
 		hop_end(phase_increment, live_input, num_raw_samples_processed_at_start, live_input.frames_written(), noise);
@@ -290,26 +229,22 @@ startRenderAgain:
 		// No need to set the "older" ones, cos that's not going to be rendered
 	}
 
+	// The segment's frames, in place: each head adds into them
+	const std::span<Frame> segment = frames_of(output_buffer, num_samples_this_timestretched_read);
+	const auto render_head = [&](Head& head, int32_t head_amplitude, int32_t head_amplitude_increment) {
+		configure_head(head, history, phase_increment, which_kernel, interpolation_buffer_size);
+		// The ramp's words, as the crossfade computed them
+		head.template on<&Kernel::start_segment>(dsp::Q<31>::from_raw(head_amplitude),
+		                                         dsp::Q<31>::from_raw(head_amplitude_increment));
+		head.render_block(segment, segment);
+	};
+
 	// Read newer play-head
-	play_heads[PLAY_HEAD_NEWER].render(output_buffer, num_samples_this_timestretched_read, num_channels,
-	                                   phase_increment, newer_source_amplitude_now, newer_amplitude_increment_now,
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	                                   repitchedBuffer,
-#else
-	                                   nullptr,
-#endif
-	                                   live_input, which_kernel, interpolation_buffer_size);
+	render_head(play_heads[PLAY_HEAD_NEWER], newer_source_amplitude_now, newer_amplitude_increment_now);
 
 	// Read older play-head
 	if (older_play_head_audible_here) {
-		play_heads[PLAY_HEAD_OLDER].render(output_buffer, num_samples_this_timestretched_read, num_channels,
-		                                   phase_increment, older_source_amplitude_now, older_amplitude_increment_now,
-#if INPUT_ENABLE_REPITCHED_BUFFER
-		                                   repitchedBuffer,
-#else
-		                                   nullptr,
-#endif
-		                                   live_input, which_kernel, interpolation_buffer_size);
+		render_head(play_heads[PLAY_HEAD_OLDER], older_source_amplitude_now, older_amplitude_increment_now);
 	}
 
 	samples_til_hop_end -= num_samples_this_timestretched_read;
@@ -317,7 +252,7 @@ startRenderAgain:
 	num_samples_this_function_call -= num_samples_this_timestretched_read;
 
 	if (num_samples_this_function_call) {
-		output_buffer += num_samples_this_timestretched_read * num_channels;
+		output_buffer += num_samples_this_timestretched_read * kNumChannels;
 
 		amplitude += amplitude_increment * num_samples_this_timestretched_read;
 
@@ -329,13 +264,10 @@ startRenderAgain:
 	return hops_ended;
 }
 
-void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& live_input,
-                               uint64_t num_raw_samples_processed_at_now_time,
-                               uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise) {
-
-#if MEASURE_HOP_END_PERFORMANCE
-	uint16_t startTime = MTU2.TCNT_0;
-#endif
+template <typename Frame>
+void LivePitchShifter<Frame>::hop_end(int32_t phase_increment, const LegacyInputView& live_input,
+                                      uint64_t num_raw_samples_processed_at_now_time,
+                                      uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise) {
 
 	// int32_t numChannelsNow = numChannels;
 
@@ -349,7 +281,8 @@ void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& l
 	// (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
 
 	// What was new is now old
-	play_heads[PLAY_HEAD_OLDER] = play_heads[PLAY_HEAD_NEWER];
+	play_heads[PLAY_HEAD_OLDER].template on<&Kernel::take>(play_heads[PLAY_HEAD_NEWER].state());
+	uint32_t newer_read_pos = play_heads[PLAY_HEAD_NEWER].state().cursor.index();
 	uint32_t this_crossfade_length = next_crossfade_length;
 
 	const dsp::fixed::pitch_shift::PitchShiftTuning::Coefficients tuning =
@@ -386,7 +319,7 @@ void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& l
 	// What's the maximum amount further forward than that older play-head that data actually exists yet for us to
 	// examine?
 	int32_t max_offset_from_head =
-	    (uint32_t)(num_raw_samples_processed_latest - play_heads[PLAY_HEAD_OLDER].raw_buffer_read_pos)
+	    (uint32_t)(num_raw_samples_processed_latest - play_heads[PLAY_HEAD_OLDER].state().cursor.index())
 	    & (kInputRawBufferSize - 1);
 
 	// Ok, work out the end-pos of our moving-averages region
@@ -413,7 +346,7 @@ void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& l
 	// averages. But if it's ok, then...
 	if (length_per_moving_average) {
 		int32_t averages_start_pos_old_head =
-		    (play_heads[PLAY_HEAD_OLDER].raw_buffer_read_pos + averages_start_offset_from_head)
+		    (play_heads[PLAY_HEAD_OLDER].state().cursor.index() + averages_start_offset_from_head)
 		    & (kInputRawBufferSize - 1);
 		std::ranges::copy(live_input.moving_averages(averages_start_pos_old_head, length_per_moving_average),
 		                  old_head_totals);
@@ -440,13 +373,11 @@ void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& l
 			// audible sort of "tone". But, some sort of random element could actually work just as well - I haven't
 			// tried yet.
 
-#if !MEASURE_HOP_END_PERFORMANCE
 			// A random fraction of the search length: the Q31 noise times the random element moved up 8, Q30, times the
 			// length's word read as Q31 (an integer count, so the product is its fraction at Q29), ×4
 			const auto fraction = mul(deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(noise.next())),
 			                          deluge::dsp::Q<31>::from_raw(random_element << 8));
 			min_search += scale_shl_wrap<2>(mul(deluge::dsp::Q<31>::from_raw(min_search), fraction)).raw();
-#endif
 
 			int32_t back_edge = min_search >> kPercBufferReductionMagnitude; // Pixellated
 			int32_t how_far_back_searched = 0;
@@ -513,15 +444,12 @@ stopPercSearch:
 			    (num_raw_samples_processed_at_now_time - how_far_back + averages_start_offset_from_head)
 			    & (kInputRawBufferSize - 1);
 			search_size = 490; // Allow tracking down to about 45Hz
-#if !MEASURE_HOP_END_PERFORMANCE
 			search_size = std::min(search_size, samples_til_hop_end);
-#endif
 			num_full_directions_searched = 0;
 			search_direction = 1;
 		}
 
-		play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos =
-		    (uint32_t)(num_raw_samples_processed_at_now_time - how_far_back) & (kInputRawBufferSize - 1);
+		newer_read_pos = (uint32_t)(num_raw_samples_processed_at_now_time - how_far_back) & (kInputRawBufferSize - 1);
 	}
 
 	// Or if pitch shifting down...
@@ -533,18 +461,15 @@ stopPercSearch:
 			                               - length_per_moving_average * TimeStretch::Crossfade::kNumMovingAverages)
 			                              & (kInputRawBufferSize - 1);
 			search_size = 980; // Allow tracking down to about 45Hz
-#if !MEASURE_HOP_END_PERFORMANCE
 			search_size = std::min(search_size, samples_into_hop);
-#endif
 			num_full_directions_searched = 1;
 			search_direction = -1;
 		}
 
-		play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos =
-		    (uint32_t)(num_raw_samples_processed_latest
-		               - (length_per_moving_average * TimeStretch::Crossfade::kNumMovingAverages)
-		               - averages_start_offset_from_head)
-		    & (kInputRawBufferSize - 1);
+		newer_read_pos = (uint32_t)(num_raw_samples_processed_latest
+		                            - (length_per_moving_average * TimeStretch::Crossfade::kNumMovingAverages)
+		                            - averages_start_offset_from_head)
+		                 & (kInputRawBufferSize - 1);
 	}
 
 	int32_t best_offset = 0;
@@ -552,7 +477,8 @@ stopPercSearch:
 	int32_t additional_osc_pos = 0;
 
 	// If we're all good to do the moving averages...
-	if (length_per_moving_average && play_heads[PLAY_HEAD_OLDER].mode != PlayHeadMode::RAW_DIRECT) {
+	if (length_per_moving_average
+	    && play_heads[PLAY_HEAD_OLDER].state().kind != dsp::fixed::pitch_shift::HeadKind::DIRECT) {
 
 		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're
 		// currently proposing we put it - but we're then going to experiment with shifting that, below
@@ -685,11 +611,9 @@ startSearch:
 				// After sign has flipped twice (in total, including both search directions), we can be fairly sure
 				// we've found a good fit
 				times_sign_flipped++;
-#if !MEASURE_HOP_END_PERFORMANCE
 				if (times_sign_flipped >= 2) {
 					goto stopSearch;
 				}
-#endif
 			}
 
 			offset_now = new_offset_now;
@@ -707,45 +631,30 @@ searchNextDirection:
 
 stopSearch:
 
-	additional_osc_pos += play_heads[PLAY_HEAD_OLDER].osc_pos;
+	additional_osc_pos += play_heads[PLAY_HEAD_OLDER].state().phase;
 	if (additional_osc_pos >= kMaxSampleValue) {
 		additional_osc_pos -= kMaxSampleValue;
 		best_offset++;
 	}
 
-	play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos =
-	    (uint32_t)(play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos + best_offset) & (kInputRawBufferSize - 1);
+	newer_read_pos = (uint32_t)(newer_read_pos + best_offset) & (kInputRawBufferSize - 1);
 
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	// If pitching up, use repitched buffer if possible
-	if (stillWritingToRepitchedBuffer && repitchedBufferNumSamplesWritten && phaseIncrement > kMaxSampleValue) {
-		int32_t howFarBackRepitched = ((uint64_t)howFarBack << 24) / (uint32_t)phaseIncrement + 1;
-		if (repitchedBufferNumSamplesWritten >= howFarBackRepitched) {
-			playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::REPITCHED_BUFFER;
-			playHeads[PLAY_HEAD_NEWER].repitchedBufferReadPos =
-			    (uint32_t)(repitchedBufferWritePos - howFarBackRepitched) & (INPUT_REPITCHED_BUFFER_SIZE - 1);
-			goto thatsDone;
-		}
-	}
-#endif
 	// If still here, use raw direct buffer - usually because we're pitching down
 
+	using Hop = Kernel::Hop;
 	if (phase_increment == kMaxSampleValue) {
-		play_heads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
-		play_heads[PLAY_HEAD_NEWER].raw_buffer_read_pos =
-		    num_raw_samples_processed_at_now_time & (kInputRawBufferSize - 1);
+		play_heads[PLAY_HEAD_NEWER].template on<&Kernel::begin_hop>(
+		    Hop{.cursor =
+		            dsp::fixed::pitch_shift::RingPosition(static_cast<uint32_t>(num_raw_samples_processed_at_now_time)),
+		        .kind = dsp::fixed::pitch_shift::HeadKind::DIRECT});
 	}
 
 	else {
-		play_heads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_REPITCHING;
-
-		// memset(playHeads[PLAY_HEAD_NEWER].interpolationBuffer, 0,
-		// sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
-		play_heads[PLAY_HEAD_NEWER].fill_interpolation_buffer(live_input, num_channels);
-		play_heads[PLAY_HEAD_NEWER].osc_pos = additional_osc_pos;
+		play_heads[PLAY_HEAD_NEWER].template on<&Kernel::begin_hop>(
+		    Hop{.cursor = dsp::fixed::pitch_shift::RingPosition(newer_read_pos),
+		        .phase = static_cast<uint32_t>(additional_osc_pos),
+		        .kind = dsp::fixed::pitch_shift::HeadKind::REPITCHING});
 	}
-
-	play_heads[PLAY_HEAD_NEWER].perc_pos = 0xFFFFFFFF;
 
 	if (this_crossfade_length) {
 		crossfade_progress = 0;
@@ -768,56 +677,124 @@ stopSearch:
 	}
 	*/
 
-	consider_repitched_buffer(phase_increment);
-
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	if (repitchedBuffer && !stillWritingToRepitchedBuffer
-	    && playHeads[PLAY_HEAD_NEWER].mode != PlayHeadMode::REPITCHED_BUFFER
-	    && playHeads[PLAY_HEAD_OLDER].mode != PlayHeadMode::REPITCHED_BUFFER) {
-		delugeDealloc(repitchedBuffer);
-		repitchedBuffer = NULL;
-	}
-#endif
 	samples_into_hop = 0;
-
-#if MEASURE_HOP_END_PERFORMANCE
-	uint16_t endTime = MTU2.TCNT_0;
-	uint16_t timeTaken = endTime - startTime;
-#endif
 }
 
-void LivePitchShifter::consider_repitched_buffer(int32_t /*phaseIncrement*/) {
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	// Consider whether to have the repitchedBuffer
-	if (phaseIncrement > kMaxSampleValue) {
-		if (!repitchedBuffer) {
-
-			repitchedBuffer =
-			    (int32_t*)deluge::memory::alloc_fast(INPUT_REPITCHED_BUFFER_SIZE * sizeof(int32_t) * numChannels);
-			if (repitchedBuffer) {
-				repitchedBufferWritePos = 0;
-				oscPos = 0;
-				repitchedBufferNumSamplesWritten = 0;
-				stillWritingToRepitchedBuffer = true;
-				memset(interpolationBuffer, 0, sizeof(interpolationBuffer));
-			}
-		}
+template <typename Frame>
+std::span<Frame> LivePitchShifter<Frame>::frames_of(dsp::Q<31>* output_buffer, int32_t num_samples) {
+	if constexpr (std::is_same_v<Frame, dsp::StereoSample>) {
+		return dsp::as_frames(std::span<dsp::Q<31>>{output_buffer, static_cast<std::size_t>(num_samples) * 2});
 	}
-
 	else {
-		if (repitchedBuffer) {
-			stillWritingToRepitchedBuffer = false;
-		}
+		return {output_buffer, static_cast<std::size_t>(num_samples)};
 	}
-#endif
 }
 
-bool LivePitchShifter::older_play_head_is_currently_sounding() {
+template <typename Frame>
+void LivePitchShifter<Frame>::configure_head(Head& head, const History* history, int32_t phase_increment,
+                                             int32_t which_kernel, int32_t interpolation_buffer_size) {
+	head.configure({.history = history,
+	                .phase_increment = static_cast<uint32_t>(phase_increment),
+	                .kernel_variant = which_kernel,
+	                .kind = head.state().kind,
+	                .linear = interpolation_buffer_size <= 2});
+}
+
+// Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself
+// moving forward) and runs out of audio. Only valid if phaseIncrement > kMaxSampleValue
+template <typename Frame>
+int32_t LivePitchShifter<Frame>::get_estimated_playtime_remaining(const Head& head, const LegacyInputView& live_input,
+                                                                  int32_t phase_increment) {
+	if (head.state().kind != dsp::fixed::pitch_shift::HeadKind::REPITCHING) {
+		return 2147483647; // A direct head never runs out
+	}
+	uint32_t how_far_back_raw = (live_input.frames_written() - head.state().cursor.index()) & (kInputRawBufferSize - 1);
+	// The distance divided by the rate and then by the rate's excess over 1 (quirk Q2,
+	// docs/superpowers/specs/2026-11-05-pitch-shift-dsp-next-design.md)
+	uint32_t how_far_back = (static_cast<uint64_t>(how_far_back_raw) << 24) / static_cast<uint32_t>(phase_increment);
+	uint64_t estimate =
+	    (static_cast<uint64_t>(how_far_back) << 24) / static_cast<uint32_t>(phase_increment - kMaxSampleValue);
+	if (estimate >= 2147483647) {
+		return 2147483647;
+	}
+	return static_cast<int32_t>(estimate);
+}
+
+template <typename Frame>
+int32_t LivePitchShifter<Frame>::get_num_raw_samples_behind_input(const Head& head, const LegacyInputView& live_input) {
+	if (head.state().kind != dsp::fixed::pitch_shift::HeadKind::REPITCHING) {
+		return 0;
+	}
+	return static_cast<int32_t>((live_input.frames_written() - head.state().cursor.index())
+	                            & (kInputRawBufferSize - 1));
+}
+
+template <typename Frame>
+bool LivePitchShifter<Frame>::older_play_head_is_currently_sounding() {
 	return (crossfade_progress < kMaxSampleValue);
 }
 
-bool LivePitchShifter::may_be_removed_without_click() {
-	return (!older_play_head_is_currently_sounding() && play_heads[PLAY_HEAD_NEWER].mode == PlayHeadMode::RAW_DIRECT);
+template <typename Frame>
+bool LivePitchShifter<Frame>::may_be_removed_without_click() {
+	return (!older_play_head_is_currently_sounding()
+	        && play_heads[PLAY_HEAD_NEWER].state().kind == dsp::fixed::pitch_shift::HeadKind::DIRECT);
+}
+
+template class LivePitchShifter<dsp::Q<31>>;
+template class LivePitchShifter<dsp::StereoSample>;
+
+bool PitchShifter::create(InputChannel channel, int32_t phase_increment) {
+	destroy();
+	stereo_ = channel == InputChannel::STEREO;
+	void* memory =
+	    allocMaxSpeed(stereo_ ? sizeof(LivePitchShifter<dsp::StereoSample>) : sizeof(LivePitchShifter<dsp::Q<31>>));
+	if (memory == nullptr) {
+		return false;
+	}
+	// Placed in the allocator's block, which destroy frees
+	if (stereo_) {
+		new (memory)
+		    LivePitchShifter<dsp::StereoSample>(channel, phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
+	}
+	else {
+		new (memory) LivePitchShifter<dsp::Q<31>>(channel, phase_increment); // NOLINT(cppcoreguidelines-owning-memory)
+	}
+	block_ = memory;
+	return true;
+}
+
+void PitchShifter::destroy() {
+	if (block_ == nullptr) {
+		return;
+	}
+	if (stereo_) {
+		std::destroy_at(static_cast<LivePitchShifter<dsp::StereoSample>*>(block_));
+	}
+	else {
+		std::destroy_at(static_cast<LivePitchShifter<dsp::Q<31>>*>(block_));
+	}
+	delugeDealloc(block_);
+	block_ = nullptr;
+}
+
+int32_t PitchShifter::render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment, int32_t amplitude,
+                             int32_t amplitude_increment, int32_t interpolation_buffer_size, AudioInputPort& port,
+                             dsp::fixed::Cong& noise) {
+	if (stereo_) {
+		return static_cast<LivePitchShifter<dsp::StereoSample>*>(block_)->render(
+		    output_buffer, num_samples, phase_increment, amplitude, amplitude_increment, interpolation_buffer_size,
+		    port, noise);
+	}
+	return static_cast<LivePitchShifter<dsp::Q<31>>*>(block_)->render(output_buffer, num_samples, phase_increment,
+	                                                                  amplitude, amplitude_increment,
+	                                                                  interpolation_buffer_size, port, noise);
+}
+
+bool PitchShifter::may_be_removed_without_click() {
+	if (stereo_) {
+		return static_cast<LivePitchShifter<dsp::StereoSample>*>(block_)->may_be_removed_without_click();
+	}
+	return static_cast<LivePitchShifter<dsp::Q<31>>*>(block_)->may_be_removed_without_click();
 }
 
 } // namespace deluge::synth

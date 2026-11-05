@@ -18,24 +18,35 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/cong.h"
+#include "dsp-next/fixed/pitch_shift/play_head.h"
 #include "synth/sources/input/input_channel.h"
-#include "synth/sources/input/live/live_pitch_shifter_play_head.h"
+#include <array>
+#include <span>
+#include <type_traits>
 
 // The live pitch shifter keeps its legacy arithmetic as it is until its rewrite (TODO.md).
-// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 
 namespace deluge::synth {
 
 class LegacyInputView;
 class AudioInputPort;
 
+/// @brief One voice's live pitch shifter over a mono (@p Frame dsp::Q<31>) or stereo (dsp::StereoSample) input.
+template <typename Frame>
 class LivePitchShifter {
 public:
-	LivePitchShifter(InputChannel channel, int32_t phase_increment);
-	~LivePitchShifter();
+	using Kernel = dsp::fixed::pitch_shift::PlayHead<Frame>;
+	using Head = dsp::Mono<Kernel>;
+	using History = dsp::fixed::pitch_shift::InputHistory<Frame>;
+	static constexpr int32_t kNumChannels = std::is_same_v<Frame, dsp::StereoSample> ? 2 : 1;
 
-	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
+	LivePitchShifter(InputChannel channel, int32_t phase_increment);
+
+	/// Render @p num_samples_this_function_call of pitch-shifted output, summed into @p output_buffer (interleaved
+	/// when stereo).
 	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
 	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples_this_function_call,
@@ -44,16 +55,6 @@ public:
 
 	bool may_be_removed_without_click();
 
-#if INPUT_ENABLE_REPITCHED_BUFFER
-	int32_t* repitchedBuffer;
-	int32_t repitchedBufferWritePos;
-	uint64_t repitchedBufferNumSamplesWritten;
-	bool stillWritingToRepitchedBuffer;
-	int32_t interpolationBuffer[2][kInterpolationMaxNumSamples];
-	uint32_t oscPos;
-#endif
-
-	int8_t num_channels;
 	InputChannel channel;
 
 	uint32_t crossfade_progress; // Out of kMaxSampleValue
@@ -67,14 +68,46 @@ public:
 
 	int32_t perc_threshold_for_cut{0};
 
-	LivePitchShifterPlayHead play_heads[2];
+	std::array<Head, 2> play_heads{};
 
 private:
 	void hop_end(int32_t phase_increment, const LegacyInputView& live_input, uint64_t num_raw_samples_processed,
 	             uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise);
-	void consider_repitched_buffer(int32_t phase_increment);
 	bool older_play_head_is_currently_sounding();
+	static std::span<Frame> frames_of(dsp::Q<31>* output_buffer, int32_t num_samples);
+	static void configure_head(Head& head, const History* history, int32_t phase_increment, int32_t which_kernel,
+	                           int32_t interpolation_buffer_size);
+	int32_t get_estimated_playtime_remaining(const Head& head, const LegacyInputView& live_input,
+	                                         int32_t phase_increment);
+	int32_t get_num_raw_samples_behind_input(const Head& head, const LegacyInputView& live_input);
+};
+
+extern template class LivePitchShifter<dsp::Q<31>>;
+extern template class LivePitchShifter<dsp::StereoSample>;
+
+/// @brief A voice's live pitch shifter, mono or stereo as its input channel: one allocation, made when the voice's
+/// pitch leaves the input's own.
+/// @details A handle: ownership is explicit, as the pooled sources it lives in are reused rather than destroyed, so the
+/// owner calls @ref destroy and nothing frees the shifter behind it.
+class PitchShifter {
+public:
+	/// @brief Makes the shifter for @p channel at @p phase_increment. @return false if the allocator had no room.
+	[[nodiscard]] bool create(InputChannel channel, int32_t phase_increment);
+	/// @brief Frees the shifter, if there is one.
+	void destroy();
+	[[nodiscard]] bool exists() const { return block_ != nullptr; }
+	/// @brief Whether the shifter's input is stereo, so its output is interleaved frames.
+	[[nodiscard]] bool stereo() const { return stereo_; }
+
+	/// @copydoc LivePitchShifter::render
+	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t phase_increment,
+	                             int32_t amplitude, int32_t amplitude_increment, int32_t interpolation_buffer_size,
+	                             AudioInputPort& port, dsp::fixed::Cong& noise);
+	[[nodiscard]] bool may_be_removed_without_click();
+
+private:
+	void* block_ = nullptr; ///< The allocator's block holding one instantiation.
+	bool stereo_ = false;
 };
 
 } // namespace deluge::synth
-// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)

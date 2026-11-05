@@ -16,26 +16,26 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                 // OscType
-#include "synth/sources/input/input_channel.h" // synth::InputChannel
-#include "synth/sources/source.h"              // synth::Source, SourceBlock, SourceRenderResult
+#include "definitions_cxx.hpp"                           // OscType
+#include "synth/sources/input/input_channel.h"           // synth::InputChannel
+#include "synth/sources/input/live/live_pitch_shifter.h" // synth::PitchShifter
+#include "synth/sources/source.h"                        // synth::Source, SourceBlock, SourceRenderResult
 #include <cstdint>
 
 namespace deluge::synth {
 
 class AudioInputPort;
-class LivePitchShifter;
 
 /// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
 ///
 /// Reads the host's live-input ring (through the injected @ref AudioInputPort — the ring + frame
 /// clock + plug-state + the shared per-channel @ref LiveInput pool) and sums it into the voice's oscBuffer,
-/// pitch-shifting through a lazily-created @ref LivePitchShifter when the played note is off the input's natural
+/// pitch-shifting through a lazily-created @ref PitchShifter when the played note is off the input's natural
 /// rate. The port keeps the source free of `AudioEngine`. It owns the pooled pitch-shifter; ownership is
 /// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
 class InputSource : public Source {
 	AudioInputPort* in_;
-	LivePitchShifter* live_pitch_shifter_ = nullptr;
+	PitchShifter live_pitch_shifter_{};
 	/// Which input channel this source plays — latched once at note-on (see @ref note_on), so the per-block
 	/// render context need not carry it.
 	InputChannel channel_ = InputChannel::LEFT;

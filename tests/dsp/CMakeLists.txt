@@ -218,12 +218,18 @@ set(input_history_spec_DEPS
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The pitch shifter's tuning against the old hop end's block: the table interpolator it reads through.
 set(pitch_shift_tuning_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp)
+# The pitch shifter's play head against the oracle's old head: the interpolator, its sinc kernels, and the tables the
+# oracle's input buffer reads.
+set(play_head_spec_DEPS
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+  ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The live pitch shifter's oracle (reference_live_pitch_shifter.h, header-only) against the legacy classes it was
-# taken from, while they live: the shifter, its play head and its live input, and the interpolation and tables they
-# read, and the panic seam the shifter's E165 calls.
+# taken from, while they live: the shifter and its live input, the interpolation and tables they read, the allocator
+# seam the shifter's owner allocates through, and the panic seam the shifter's E165 calls.
 set(reference_live_pitch_shifter_spec_DEPS
   ${_repo_root}/src/synth/sources/input/live/live_pitch_shifter.cpp
-  ${_repo_root}/src/synth/sources/input/live/live_pitch_shifter_play_head.cpp
   ${_repo_root}/src/synth/sources/input/live/live_input.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/interpolator.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp

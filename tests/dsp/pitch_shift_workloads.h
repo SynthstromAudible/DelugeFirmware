@@ -364,7 +364,7 @@ inline constexpr uint32_t kNoiseSeed = 0x1234'5678;
 
 /// @brief A slot's state for the lifecycle hash: 2 absent, 1 removable without a click, 0 not.
 template <typename System>
-[[nodiscard]] uint32_t slot_state(const System& system, std::size_t slot) {
+[[nodiscard]] uint32_t slot_state(System& system, std::size_t slot) {
 	if (!system.exists(slot)) {
 		return 2;
 	}

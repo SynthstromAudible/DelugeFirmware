@@ -169,7 +169,7 @@ private:
 /// The rig shared by the shifter cases: the port with its input, the shifter, the voice's noise and its output.
 struct ShifterRig {
 	BenchInputPort port;
-	std::optional<synth::LivePitchShifter> shifter;
+	synth::PitchShifter shifter{};
 	dsp::fixed::Cong noise{0x1234'5678};
 	std::array<dsp::Q<31>, kMaxBlock * 2> out{};
 };
@@ -225,7 +225,8 @@ void PitchShiftCase::setup(std::size_t /*n*/) {
 	}
 	rig.port.make_input(config_.stereo);
 	const auto channel = config_.stereo ? synth::InputChannel::STEREO : synth::InputChannel::LEFT;
-	rig.shifter.emplace(channel, config_.phase_increment);
+	rig.shifter.destroy();
+	std::ignore = rig.shifter.create(channel, config_.phase_increment);
 	rig.noise.seed(0x1234'5678);
 	for (std::size_t done = 0; done < kShifterWarmUpFrames; done += kMaxBlock) {
 		block(kMaxBlock);
@@ -234,8 +235,8 @@ void PitchShiftCase::setup(std::size_t /*n*/) {
 
 void PitchShiftCase::block(std::size_t n) {
 	ShifterRig& rig = shifter_rig();
-	std::ignore = rig.shifter->render(rig.out.data(), static_cast<int32_t>(n), config_.phase_increment,
-	                                  kShifterAmplitude, 0, kInterpolationMaxNumSamples, rig.port, rig.noise);
+	std::ignore = rig.shifter.render(rig.out.data(), static_cast<int32_t>(n), config_.phase_increment,
+	                                 kShifterAmplitude, 0, kInterpolationMaxNumSamples, rig.port, rig.noise);
 	rig.port.advance(n);
 }
 

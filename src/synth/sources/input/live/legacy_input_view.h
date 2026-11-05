@@ -21,6 +21,7 @@
 #include "synth/sources/input/live/live_input.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace deluge::synth {
 
@@ -37,6 +38,17 @@ public:
 	}
 
 	[[nodiscard]] explicit operator bool() const { return mono_ != nullptr || stereo_ != nullptr; }
+
+	/// @brief The input's history, if it is of @p Frame.
+	template <typename Frame>
+	[[nodiscard]] const dsp::fixed::pitch_shift::InputHistory<Frame>* history() const {
+		if constexpr (std::is_same_v<Frame, dsp::StereoSample>) {
+			return stereo_ != nullptr ? &stereo_->history() : nullptr;
+		}
+		else {
+			return mono_ != nullptr ? &mono_->history() : nullptr;
+		}
+	}
 
 	void ingest(int32_t n, AudioInputPort& port) const {
 		if (stereo_ != nullptr) {

@@ -17,12 +17,11 @@
 #include "synth/sources/input/input_source.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "dsp-next/core/fixed_point.h"
-#include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include <algorithm> // std::fill_n
-#include <new>
+#include <tuple>
 
 namespace deluge::synth {
 
@@ -65,7 +64,7 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 	// If pitch shifting and we weren't previously...
 	if (phase_increment != kMaxSampleValue) {
 
-		if (live_pitch_shifter_ == nullptr) {
+		if (!live_pitch_shifter_.exists()) {
 
 			// A configured-stereo channel folds to the left channel when the host has no stereo input.
 			InputChannel channel_now = channel_;
@@ -77,40 +76,31 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			                                                            : in_->mono_input(channel_now, true) != nullptr;
 
 			if (have_input) {
-
-				void* memory = allocMaxSpeed(sizeof(LivePitchShifter));
-
-				if (memory != nullptr) {
-					// Placed in the allocator's block, which unassign frees
-					// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-					live_pitch_shifter_ =
-					    new (memory) LivePitchShifter(channel_now, static_cast<int32_t>(phase_increment));
-				}
+				// Out of memory leaves it absent, to try again next block
+				std::ignore = live_pitch_shifter_.create(channel_now, static_cast<int32_t>(phase_increment));
 			}
 		}
 	}
 
 	// If not pitch shifting and we were previously...
 	else {
-		if ((live_pitch_shifter_ != nullptr) && live_pitch_shifter_->may_be_removed_without_click()) {
-			live_pitch_shifter_->~LivePitchShifter();
-			delugeDealloc(live_pitch_shifter_);
-			live_pitch_shifter_ = nullptr;
+		if (live_pitch_shifter_.exists() && live_pitch_shifter_.may_be_removed_without_click()) {
+			live_pitch_shifter_.destroy();
 		}
 	}
 
 	// Yes pitch shifting
-	if (live_pitch_shifter_ != nullptr) {
+	if (live_pitch_shifter_.exists()) {
 		// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
 		// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
 		// into the interleaved buffer as if it were mono and produce noise. Either way the shifter reports the
 		// hops it performed; the port folds them into the host's CPU-load accounting.
-		if (stereo_unison && live_pitch_shifter_->num_channels == 1) {
+		if (stereo_unison && !live_pitch_shifter_.stereo()) {
 			dsp::Q<31>* render_buffer = mono_scratch;
 			std::fill_n(render_buffer, num_samples, dsp::Q<31>{});
 
 			// The pitch shifter's amplitude arithmetic is on raw words
-			in_->report_hops(live_pitch_shifter_->render(
+			in_->report_hops(live_pitch_shifter_.render(
 			    render_buffer, num_samples, static_cast<int32_t>(phase_increment), source_amplitude.raw(),
 			    amplitude_increment.raw(), interpolation_buffer_size, *in_, noise));
 
@@ -119,9 +109,9 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			}
 		}
 		else {
-			in_->report_hops(live_pitch_shifter_->render(osc_buffer, num_samples, static_cast<int32_t>(phase_increment),
-			                                             source_amplitude.raw(), amplitude_increment.raw(),
-			                                             interpolation_buffer_size, *in_, noise));
+			in_->report_hops(live_pitch_shifter_.render(osc_buffer, num_samples, static_cast<int32_t>(phase_increment),
+			                                            source_amplitude.raw(), amplitude_increment.raw(),
+			                                            interpolation_buffer_size, *in_, noise));
 		}
 	}
 
@@ -230,11 +220,7 @@ SourceRenderResult InputSource::render(const SourceBlock& block) {
 }
 
 void InputSource::unassign(bool /*deleting_song*/) {
-	if (live_pitch_shifter_ != nullptr) {
-		live_pitch_shifter_->~LivePitchShifter();
-		delugeDealloc(live_pitch_shifter_);
-		live_pitch_shifter_ = nullptr;
-	}
+	live_pitch_shifter_.destroy();
 }
 
 } // namespace deluge::synth
