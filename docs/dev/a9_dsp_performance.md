@@ -736,6 +736,36 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   that flag caught.
 - **The controls move by 0.0-1.4%**, the bound on placement noise between the two images.
 
+## Live pitch shifter
+
+The `pitch_shift` list (`DELUGE_DSP_BENCH_CASES=pitch_shift`) times the sample reader's resampled read
+(`SampleLowLevelReader::readSamplesResampled`, at a rate of 1.5 over 32-bit frames) and one voice's live pitch shifter
+(up 7, down 12, stereo up 7, and up 7 on the harness's percussive signal), each block ingesting the input as the first
+voice on its channel does. Medians of three interleaved rounds against the legacy shifter and reader, cycles per
+sample (2026-11-05):
+
+| case | n=32 | n=64 | n=128 |
+|---|---:|---:|---:|
+| sample_read_sinc_mono | −6.4% | −2.8% | −6.8% |
+| sample_read_sinc_stereo | −1.8% | −1.9% | −2.0% |
+| sample_read_linear_mono | +4.1%¹ | −6.0% | −6.4% |
+| sample_read_linear_stereo | −7.5% | −7.8% | −8.1% |
+| pitch_shift_up7 | +2.5% | +4.7% | +4.2% |
+| pitch_shift_down12 | +6.2% | +5.6% | +6.8% |
+| pitch_shift_stereo_up7 | +5.3% | +4.6% | +5.1% |
+| pitch_shift_perc_up7 | +5.7% | +3.5% | +3.8% |
+
+¹ Within that case's run-to-run spread (4.4 cps). The delay-chain control cases are level throughout.
+
+- The reader's gain is the Interpolator's head and tail feeds: its resampled loop allocates differently and stores
+  fewer taps.
+- The shifter's cost first measured +5% to +21%, worst at small blocks: about 850 cycles a block were the ingest's two
+  scratch blocks, value-initialised every block. Left unzeroed (each is written in full before it is read), what remains
+  is per sample, consistent with the ingest running in passes (ring walk, fold, follower, ring store) where the legacy
+  buffer ran one fused loop.
+- Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
+  to +24%): the head's interpolator window is 64 bytes.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

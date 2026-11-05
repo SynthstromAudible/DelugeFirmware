@@ -1807,7 +1807,7 @@ tools/dsp_bench.py --timeout 180          # flashes, captures RTT, writes the ta
 ./dbt build RelWithDebInfo
 ```
 
-The cases come in eleven lists, chosen by the CMake cache string
+The cases come in lists chosen by the CMake cache string
 `DELUGE_DSP_BENCH_CASES`, since the device prints about 70 lines over RTT before
 it drops some:
 
@@ -1865,7 +1865,11 @@ it drops some:
 - `fft_forward` and `fft_inverse`: the int32 real FFT at every size the firmware
   transforms (forward 16 to 8192 points, inverse 8 to 8192), one transform per
   block whatever the block size, so their figure is cycles per transform
-  (`cycles / k`), not cps.
+  (`cycles / k`), not cps;
+- `pitch_shift`: the sample reader's resampled read, windowed sinc and linear,
+  mono and stereo, and one voice's live pitch shifter up and down, in stereo
+  and on the percussive test signal, its input ingested each block (see
+  [a9_dsp_performance.md](a9_dsp_performance.md#live-pitch-shifter)).
 
 Every other case builds with the app's flags. A bench image builds only its own
 list's cases, since the image fills on-chip SRAM up to 0x202E0000 (past it the
