@@ -122,9 +122,9 @@ TrackChannel::~TrackChannel() {
 ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManagerForTimeline& paramManager) const {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 	if (unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated(
-	        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT))
+	        unpatchedParams->findDocForParam(params::UNPATCHED_REVERB_SEND_AMOUNT))
 	    || !unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(
-	        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), -2147483648)) {
+	        unpatchedParams->findDocForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), -2147483648)) {
 		return best;
 	}
 	const int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);

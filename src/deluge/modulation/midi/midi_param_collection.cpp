@@ -101,6 +101,12 @@ deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t 
 	return domMidiRef_->back();
 }
 
+void MIDIParamCollection::bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext) {
+	// The render resolves the CCs' lanes through domMidiRef_: it sees the inline lanes or the tree's, never neither.
+	EditGuard guard{ModelEdit::PARAM_STORE};
+	domMidiRef_ = ext;
+}
+
 deluge::project::DocAutoParam* MIDIParamCollection::findDomMidiNodes(uint8_t cc) const {
 	if (domMidiRef_ == nullptr) {
 		return nullptr;

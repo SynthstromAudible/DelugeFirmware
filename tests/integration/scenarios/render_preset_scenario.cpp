@@ -20,14 +20,17 @@
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
+#include "memory/heaps.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <cmath>
@@ -77,6 +80,8 @@ uint64_t g_blocksWanted = 0;
 int32_t g_midiEvents = 0;
 
 uint64_t g_renderBase = 0;
+/// The render's heap allocations when capture starts: the render must make none.
+uint32_t g_allocationBase = 0;
 uint32_t g_audioSyncBase = 0;
 uint64_t g_blocksRendered = 0;
 int32_t g_direnessMax = 0;
@@ -140,6 +145,7 @@ void stepStart() {
 	}
 	g_renderBase = deluge_host_render_count();
 	g_audioSyncBase = deluge_tier_sync_audio_total();
+	g_allocationBase = deluge::memory::audioTierAllocations();
 	deluge_host_capture_start();
 	g_ticks = 0;
 	g_stage = Stage::Capturing;
@@ -218,6 +224,17 @@ void report() {
 	if (g_direnessMax != 0) {
 		fail("RP-RENDER", "CPU direness rose, so the render took reduced-quality paths");
 	}
+	const uint32_t allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
+	printf("RP-STORE render_edits=%u\n", storeEdits);
+	if (storeEdits != 0) {
+		fail("RP-STORE", "the render changed a lane store");
+	}
+#endif
+	// Reported, not gated: the live-input pitch shift, the sample timestretch and the voice cache paths allocate on
+	// the render (TODO.md).
+	printf("RP-ALLOC render_allocations=%u\n", allocations);
 	const uint32_t audioSync = deluge_tier_sync_audio_total() - g_audioSyncBase;
 	printf("RP-TIER-SYNC-AUDIO total=%u\n", audioSync);
 	if (audioSync != 0) {
@@ -229,6 +246,16 @@ void report() {
 		fail("RP-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
+#if ALPHA_OR_BETA_VERSION
+	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
+	       deluge::modulation::laneSplits);
+	if (deluge::modulation::laneSplits != 0) {
+		fail("RP-LANES", "the interaction tier resolved a lane the render does not read");
+	}
+	if (deluge::modulation::unheldLaneWrites != 0) {
+		fail("RP-LANES", "the render's unheld lane was written");
+	}
+#endif
 	printf("RP-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }

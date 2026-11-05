@@ -48,6 +48,7 @@
 #include "scenarios/drivers/tree_load.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/structural_edit_probe.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -171,13 +172,31 @@ bool probeFailed = false;
 // What the render does at the start of a block, as a render block: write the values the interaction tier recorded.
 void renderBlockStart() {
 	const uint32_t allocations = deluge::memory::audioTierAllocations();
-	deluge::memory::noteRenderBlock(true);
-	deluge::modulation::applyRecordEvents(*currentSong);
-	deluge::memory::noteRenderBlock(false);
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
+#endif
+	{
+		deluge::memory::RenderBlock block;
+		deluge::modulation::applyRecordEvents(*currentSong);
+	}
 	if (deluge::memory::audioTierAllocations() != allocations) {
 		std::fprintf(io.err, "the render allocated writing recorded values\n");
 		probeFailed = true;
 	}
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE) != storeEdits) {
+		std::fprintf(io.err, "the render changed a lane store writing recorded values\n");
+		probeFailed = true;
+	}
+	if (deluge::modulation::laneSplits != 0) {
+		std::fprintf(io.err, "the interaction tier resolved a lane the render does not read\n");
+		probeFailed = true;
+	}
+	if (deluge::modulation::unheldLaneWrites != 0) {
+		std::fprintf(io.err, "the render's unheld lane was written\n");
+		probeFailed = true;
+	}
+#endif
 }
 
 /// Whether the render tier logged undo since @p before; a recorded write's snapshot is the interaction tier's.

@@ -114,6 +114,34 @@ checks across its recorded cases (not the latch) that the render logs no undo, a
 that 70 writes with no render block between them leave the lane, its base and its played value as the same writes a
 block apart, and that a write undone before the next block stays undone.
 
+## How the render reaches a lane
+
+The render reads a lane where its collection keeps it (`ModelStackWithAutoParam::doc()` on the render tier):
+`paramCollection->findDocParamForId(paramId)`, which is the tree's block once the owner is relocated and the
+collection's own store before that (and always, for an MPE note row's lanes). It builds no address and reads no tree
+map; the interaction tier resolves by address and relocates, to the same storage. A lane nothing holds is the unheld
+lane: no nodes, base 0, read as unautomated, and never written. The render's direct reads of a set's lanes (a source's
+level, the reverb candidate, the envelopes' sustain) use `ParamSet::findDocForParam`, which never creates the set's
+store: an unbound set, or a param past a shorter store's end, reads the unheld lane.
+
+Only the interaction tier changes a collection's lane storage: a cable's or a CC's lane added or erased, a store
+created, bound to the tree's or copied out of it. Each change runs inside `EditGuard{ModelEdit::PARAM_STORE}`, which
+excludes the render, so a lookup sees the storage before or after the change; a store a change replaces is freed when
+the change returns.
+
+The render tier is what `deluge::memory::onRenderTier()` says: the audio tier, or a render block
+(`deluge::memory::RenderBlock`) for the tier that entered it: `deluge_app_render`'s, a host harness's, and each block of
+the offline export loop (its recorded values, ticks and render, as `deluge_app_render`'s block holds them). A storage
+task that preempts an export block is not the render.
+
+Alpha counters: `unheldLaneWrites` (a write found in the unheld lane at the render's next miss, undone) and
+`laneSplits` (a lane the interaction tier resolved that is not the one the render's lookup finds: playback would miss
+an edit to it). The goldens (`RP-LANES`), render-song (`RS-LANES`), param-record-diff and edit-undo-redo fail on
+either; edit-undo-redo also drives a render-tier miss on an unbound set and checks the write detection. The
+structural-edit probe's `PARAM_STORE` render count gates the render's store changes (`RP-STORE`, `RS-STORE`,
+param-record-diff per block, edit-undo-redo). edit-undo-redo checks over the corpus, before and after its targets'
+mutations, that every unpatched and patched lane the render's lookup finds is the one the owner's address resolves to.
+
 ## The descriptor
 
 Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):

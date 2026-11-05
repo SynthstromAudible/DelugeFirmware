@@ -195,15 +195,37 @@ namespace {
 }
 } // namespace
 
+namespace {
+// Render blocks the caller is inside: deluge_app_render marks its own, and the offline export loop each block it runs
+// from the interaction tier. The depth belongs to the tier that entered the outermost block, so a storage task that
+// preempts an export block is not the render. On the host a harness may render from a thread whose tier tag is not the
+// audio tier, so both are the thread's.
+#ifdef DELUGE_HOST
+thread_local int32_t g_renderBlockDepth = 0;
+thread_local DelugeTier g_renderBlockTier = DELUGE_TIER_AUDIO;
+#else
+int32_t g_renderBlockDepth = 0;
+DelugeTier g_renderBlockTier = DELUGE_TIER_AUDIO;
+#endif
+} // namespace
+
+void noteRenderBlock(bool entering) {
+	if (entering && g_renderBlockDepth == 0) {
+		g_renderBlockTier = deluge_tier_current();
+	}
+	g_renderBlockDepth += entering ? 1 : -1;
+}
+bool inRenderBlock() {
+	const DelugeTier tier = deluge_tier_current();
+	return tier == DELUGE_TIER_AUDIO || (g_renderBlockDepth > 0 && tier == g_renderBlockTier);
+}
+
 #ifdef DELUGE_HOST
 namespace {
 std::atomic<uint32_t> g_audioTierAllocations{0};
-/// Render blocks the calling thread is inside (deluge_app_render marks its own). A host harness may call the render
-/// from a thread whose tier tag is not the audio tier, so the block itself is marked too.
-thread_local int32_t g_renderBlockDepth = 0;
 /// Count an allocation made by the render: it must not allocate (it shares the heap with every other tier, unlocked).
 void countIfAudioTier() {
-	if (g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO) {
+	if (inRenderBlock()) {
 		g_audioTierAllocations.fetch_add(1, std::memory_order_relaxed);
 	}
 }
@@ -213,12 +235,6 @@ uint32_t audioTierAllocations() {
 }
 void countRenderAllocation() {
 	countIfAudioTier();
-}
-void noteRenderBlock(bool entering) {
-	g_renderBlockDepth += entering ? 1 : -1;
-}
-bool inRenderBlock() {
-	return g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO;
 }
 namespace {
 std::atomic<std::size_t> g_failNextSize{0};
@@ -234,11 +250,6 @@ bool allocationFailurePending() {
 	return g_failNextSize.load(std::memory_order_relaxed) != 0;
 }
 #else
-void noteRenderBlock(bool) {
-}
-bool inRenderBlock() {
-	return false;
-}
 namespace {
 inline void countIfAudioTier() {
 }
