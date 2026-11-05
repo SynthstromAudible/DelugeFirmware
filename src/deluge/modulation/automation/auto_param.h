@@ -61,6 +61,15 @@ struct StolenParamNodes;
 /// @brief Whether @p lane is the stand-in the render reads for a lane nothing holds yet: it reads as unautomated, and
 /// nothing may be written into it.
 [[nodiscard]] bool isUnheldLane(const deluge::project::DocAutoParam& lane);
+/// @brief The lane the render reads for a param nothing holds: no nodes, base 0.
+[[nodiscard]] const deluge::project::DocAutoParam& unheldLane();
+
+#if ALPHA_OR_BETA_VERSION
+namespace deluge::modulation {
+/// Writes found in the unheld lane when the render next reached it (each undone): it must stay 0.
+extern uint32_t unheldLaneWrites;
+} // namespace deluge::modulation
+#endif
 
 class AutoParam {
 public:

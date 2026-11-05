@@ -26,6 +26,7 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 
@@ -229,6 +230,12 @@ void report() {
 		fail("RP-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
+#if ALPHA_OR_BETA_VERSION
+	printf("RP-UNHELD writes=%u\n", deluge::modulation::unheldLaneWrites);
+	if (deluge::modulation::unheldLaneWrites != 0) {
+		fail("RP-UNHELD", "the render's unheld lane was written");
+	}
+#endif
 	printf("RP-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }

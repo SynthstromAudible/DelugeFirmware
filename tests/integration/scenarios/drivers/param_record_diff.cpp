@@ -178,6 +178,12 @@ void renderBlockStart() {
 		std::fprintf(io.err, "the render allocated writing recorded values\n");
 		probeFailed = true;
 	}
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::modulation::unheldLaneWrites != 0) {
+		std::fprintf(io.err, "the render's unheld lane was written\n");
+		probeFailed = true;
+	}
+#endif
 }
 
 /// Whether the render tier logged undo since @p before; a recorded write's snapshot is the interaction tier's.
