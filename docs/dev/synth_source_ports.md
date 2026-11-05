@@ -20,7 +20,7 @@ kernel no longer names concrete source types. **All five sources** now physicall
 | `VirtualAnalogSource` | `synth/sources/` | none — pure DSP |
 | `WavetableSource` | `synth/sources/` | none — depends on the `fixed::WaveTableData` band-data view (port #1 ✅) |
 | `DX7Source` | `synth/sources/` | none — depends on `synth::DxVoicePort`; the `getDxEngine()` pool (of `dsp-next`'s `dx7::Voice`) + `DxPatch` live behind `dsp::DxVoiceAdapter` in `processing/dx7/` (port #2 ✅) |
-| `InputSource` | `synth/sources/` | none — depends on `synth::AudioInputPort`; `AudioInputAdapter` (`processing/live/`) exposes `AudioEngine`'s input ring, frame clock, plug state and the `LiveInputBuffer` pool. The live-input DSP (`LiveInputBuffer`, `LivePitchShifter`) is library-resident under `synth/sources/input/live/` (port #3 ✅) |
+| `InputSource` | `synth/sources/` | none — depends on `synth::AudioInputPort`; `AudioInputAdapter` (`processing/live/`) exposes `AudioEngine`'s input ring, frame clock and plug state. The live-input DSP (`LiveInput`, `LivePitchShifter`) is library-resident under `synth/sources/input/live/`; the histories it reads are the input oscillator's own (`LiveInputStore` on `::Source`, bound to each voice as `SourcePorts::live_inputs`) (port #3 ✅) |
 | `SampleSource` | `synth/sources/` | none — depends on `synth::SamplePlaybackPort`; `SamplePlaybackAdapter` (`model/voice/`) holds the pooled `VoiceSample` reader and keeps storage, the cluster cache, time-stretch, the pool and `playbackHandler` (port #4 ✅) |
 
 "Swappable behind an interface" (done) is **not** "separated from the App" (the source impl is still glued to the
@@ -51,7 +51,7 @@ the outside.
 | `VirtualAnalogSource` | — (already library-resident) | — | **done** |
 | `WavetableSource` | `fixed::WaveTableData` band-data view — a read-only span over the wavetable's bands | the `WaveTable` storage object (`view()`) | **done** (port #1) |
 | `DX7Source` | `synth::DxVoicePort` — solicit/release + the `DxVoice` ops, injected instead of the `getDxEngine()` global (the patch is an opaque `void*`) | `dsp::DxVoiceAdapter` wrapping the MSFA `DxVoice` pool | **done** (port #2) |
-| `InputSource` | `synth::AudioInputPort` — sample clock, stereo availability, ring read window, per-channel `LiveInputBuffer`, hop reporting | `AudioInputAdapter` over `AudioEngine`'s SSI ring + `LiveInputBuffer` pool | **done** (port #3) |
+| `InputSource` | `synth::AudioInputPort` — sample clock, stereo availability, ring read window, hop reporting; and the oscillator's `synth::LiveInputs` | `AudioInputAdapter` over `AudioEngine`'s SSI ring; the histories from `::Source::liveInputs` | **done** (port #3) |
 | `SampleSource` | `synth::SamplePlaybackPort` — render / cache-decision / play-position queries and ops over one pooled reader | `SamplePlaybackAdapter` wrapping `VoiceSample` + clusters + cache + timestretch + the pool + `playbackHandler`; it also owns the note lifecycle (solicit/release, zone change, loop-end note-off) off the port | **done** (port #4) |
 
 VA proves the end state; **wavetable is the cheap first win** that validates the whole port pattern end-to-end
@@ -114,7 +114,7 @@ this design as follows — and the headline is: **Engines need no ports of their
    and relocated into `synth/sources/` (boundary-clean — the amplitude sum's include was narrowed from the fat
    `util/functions.h` to `dsp-next/core/q31_ops.h`). **3 of 5 sources now library-resident (VA + wavetable + DX7).**
 3. **Live-input port — ✅ DONE (commits `a287fd00f`/`6fb5d3f1a`/`340133b1e`; namespace moves
-   `e3548ddc6`/`eaf4df0ae`).** `InputSource` depends on `synth::AudioInputPort` and lives in `synth/sources/`; `LiveInputBuffer` and the live pitch shifter moved to
+   `e3548ddc6`/`eaf4df0ae`).** `InputSource` depends on `synth::AudioInputPort` and lives in `synth/sources/`; `LiveInput` and the live pitch shifter moved to
    `synth/sources/input/live/`. `AudioInputAdapter` (`processing/live/`) is the App-side adapter.
 4. **Sample-playback port — ✅ DONE (commits `637c1d121`/`e948fe3c5`; namespace move `e3548ddc6`).**
    `SampleSource` depends on `synth::SamplePlaybackPort` and lives in `synth/sources/`. `SamplePlaybackAdapter` (`model/voice/`) wraps

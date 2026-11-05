@@ -54,7 +54,7 @@ open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::cloneFrom\(Arpe
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×interaction	state: AudioEngine::audioSampleTimer read by the UI timer routine while audio writes it (2026-09-26 probe; not in the 10-run triage)
 
 open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
-open	src/deluge/model/mod_controllable/mod_controllable_audio.cpp	^ModControllableAudio::processFX\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, deluge::effects::ModFXType, int, int, (deluge::effects::)?Delay::State const&, int\*, ParamManager\*, bool, int, int\*\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global, read per delay block to choose the ping-pong routing)
+open	src/deluge/model/fx/chain_inputs.cpp	^deluge::model::hostFxInputs\(	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global, read per block to choose the delay's ping-pong routing)
 open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
 open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (its tiers are not recorded)
 open	src/deluge/model/song/song.cpp	^Song::renderAudio\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, int\*, int\)$	audio×interaction	state: global 'AudioEngine::firstRecorder' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
@@ -105,19 +105,14 @@ open	src/deluge/modulation/params/param_manager.cpp	^ParamManagerForTimeline::pr
 open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(ModelStackWithParamCollection\*, int, bool, bool, bool\)$	audio×interaction	state: a param set's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/gui/ui/ui.cpp	^uiStackEmpty\(\)$	audio×interaction	state: global 'numUIsOpen' (the render's getCurrentUI() read, from renderSamplePreview, reaches it through uiStackEmpty())
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock\(DelugeStereoSample const\*, DelugeStereoSample\*, unsigned int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (the render's per-block advance; read by the interaction tier's input and timer routines)
-open	src/deluge/processing/engines/audio_engine.cpp	getOrCreateLiveInput<	audio×interaction	state: global 'AudioEngine::monoLiveInputs', the live input pool slot the render fills; owner: the input oscillator (feat/instrument-live-input)
-open	src/deluge/processing/engines/audio_engine.cpp	discardUnreadLiveInput<	audio×interaction	state: global 'AudioEngine::monoLiveInputs', the live input pool slot slowRoutine frees; owner: the input oscillator (feat/instrument-live-input)
-open	src/synth/sources/input/live/live_input.h	^deluge::synth::LiveInput<.*>::ingested_to\(\) const$	audio×interaction	state: a pooled live input's frame clock, written by the render's ingest, read by slowRoutine's free; owner: the input oscillator (feat/instrument-live-input)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::renderAppBlock, AudioEngine::routine, routine_task, routineWithClusterLoading,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
-#     Sound::renderingVoicesInStereo, ModControllableAudio::processFX, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
+#     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     deluge::sample::advance_overview_scan
-#   The live input pool (monoLiveInputs, stereoLiveInput, each input's ingested_to): getOrCreateLiveInput,
-#     discardUnreadLiveInput, LiveInput::ingested_to
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
 #     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and
