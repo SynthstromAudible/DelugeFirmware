@@ -26,7 +26,7 @@
 namespace deluge::synth {
 
 class LivePitchShifter;
-class LiveInputBuffer;
+class LegacyInputView;
 
 enum class PlayHeadMode {
 	REPITCHED_BUFFER,
@@ -36,15 +36,15 @@ enum class PlayHeadMode {
 
 struct LivePitchShifterPlayHead {
 	void render(dsp::Q<31>* output_buffer, int32_t num_samples, int32_t num_channels, int32_t phase_increment,
-	            int32_t amplitude, int32_t amplitude_increment, int32_t* repitched_buffer, int32_t* raw_buffer,
+	            int32_t amplitude, int32_t amplitude_increment, int32_t* repitched_buffer, const LegacyInputView& input,
 	            int32_t which_kernel, int32_t interpolation_buffer_size);
-	int32_t get_estimated_playtime_remaining(uint32_t repitched_buffer_write_pos, LiveInputBuffer* live_input_buffer,
+	int32_t get_estimated_playtime_remaining(uint32_t repitched_buffer_write_pos, const LegacyInputView& live_input,
 	                                         int32_t phase_increment);
 
-	int32_t get_num_raw_samples_behind_input(LiveInputBuffer* live_input_buffer, LivePitchShifter* live_pitch_shifter,
+	int32_t get_num_raw_samples_behind_input(const LegacyInputView& live_input, LivePitchShifter* live_pitch_shifter,
 	                                         int32_t phase_increment);
 
-	void fill_interpolation_buffer(LiveInputBuffer* live_input_buffer, int32_t num_channels);
+	void fill_interpolation_buffer(const LegacyInputView& live_input, int32_t num_channels);
 
 	// Default member initializers: this class has no constructor and the OLDER play
 	// head is never explicitly initialized by LivePitchShifter, so on hardware its

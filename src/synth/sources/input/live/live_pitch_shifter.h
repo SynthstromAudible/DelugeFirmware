@@ -27,7 +27,7 @@
 
 namespace deluge::synth {
 
-class LiveInputBuffer;
+class LegacyInputView;
 class AudioInputPort;
 
 class LivePitchShifter {
@@ -70,7 +70,7 @@ public:
 	LivePitchShifterPlayHead play_heads[2];
 
 private:
-	void hop_end(int32_t phase_increment, LiveInputBuffer* live_input_buffer, uint64_t num_raw_samples_processed,
+	void hop_end(int32_t phase_increment, const LegacyInputView& live_input, uint64_t num_raw_samples_processed,
 	             uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise);
 	void consider_repitched_buffer(int32_t phase_increment);
 	bool older_play_head_is_currently_sounding();

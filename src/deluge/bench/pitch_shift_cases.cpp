@@ -19,7 +19,7 @@
 /// @brief The pitch-shift list's cases: the sample reader's resampled loops, and the live pitch shifter.
 /// @details The reader cases call `SampleLowLevelReader::readSamplesResampled` as a sample voice does, over a resident
 /// region of 32-bit frames. The shifter cases render one voice's live pitch shifter over an input ring the codec has
-/// filled, the shared input buffer ingesting each block as the first voice on its channel makes it.
+/// filled, the shared live input ingesting each block as the first voice on its channel makes it.
 
 #include "bench/cases.h"
 
@@ -30,12 +30,13 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "synth/sources/input/audio_input_port.h"
-#include "synth/sources/input/live/live_input_buffer.h"
+#include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <new>
 #include <optional>
 #include <tuple>
@@ -87,11 +88,12 @@ ReaderRig& reader_rig() {
 /// The codec ring the shifter cases read: SSI_RX_BUFFER_NUM_SAMPLES interleaved frames, filled once at setup.
 alignas(16) std::array<int32_t, SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS> input_ring{};
 
-/// Bytes of the shared input buffer, the stereo one with its raw ring's second half after it, as the host's pool
-/// allocates it: about 66 KB.
-constexpr std::size_t kInputBufferBytes = sizeof(synth::LiveInputBuffer) + kInputRawBufferSize * sizeof(int32_t);
-/// The shared input buffer's storage, in SDRAM, in words so the buffer placed in it is aligned.
-PLACE_SDRAM_BSS std::array<uint64_t, (kInputBufferBytes + 7) / 8> input_buffer_storage;
+/// Storage for an object of @p T, in words so the object placed in it is aligned.
+template <typename T>
+using Storage = std::array<uint64_t, (sizeof(T) + 7) / 8>;
+/// The shared live inputs' storage, in SDRAM, as the host's pool allocates them: about 32 and 64 KB.
+PLACE_SDRAM_BSS Storage<synth::MonoLiveInput> mono_input_storage;
+PLACE_SDRAM_BSS Storage<synth::StereoLiveInput> stereo_input_storage;
 
 /// A 32-bit hash, the murmur3 finaliser: the percussive signal's noise and burst starts.
 constexpr uint32_t hash32(uint32_t x) {
@@ -116,7 +118,7 @@ constexpr int32_t percussive_channel(uint32_t n, const std::array<uint32_t, 5>& 
 }
 
 /// The input port as the app's adapter gives it: the frame clock, the codec ring at the block's frames, stereo input
-/// present, and the one shared buffer.
+/// present, and the case's shared live input.
 class BenchInputPort final : public synth::AudioInputPort {
 public:
 	[[nodiscard]] uint32_t sample_time() const override { return time_; }
@@ -125,27 +127,48 @@ public:
 		return &input_ring[(time_ % SSI_RX_BUFFER_NUM_SAMPLES) * NUM_MONO_INPUT_CHANNELS];
 	}
 	[[nodiscard]] const int32_t* ring_end() const override { return input_ring.data() + input_ring.size(); }
-	[[nodiscard]] synth::LiveInputBuffer* buffer_for_channel(synth::InputChannel /*channel*/,
-	                                                         bool /*may_create*/) override {
-		return buffer_;
+	[[nodiscard]] synth::MonoLiveInput* mono_input(synth::InputChannel /*channel*/, bool /*may_create*/) override {
+		return mono_;
 	}
+	[[nodiscard]] synth::StereoLiveInput* stereo_input(bool /*may_create*/) override { return stereo_; }
 	void report_hops(int32_t /*hops_ended*/) override {}
 
-	void use(synth::LiveInputBuffer* buffer) {
-		buffer_ = buffer;
+	/// Makes the case's input afresh in its storage: stereo, or the left channel.
+	void make_input(bool stereo) {
+		drop_input();
 		time_ = 0;
+		// Placed in the storage above, destroyed by drop_input
+		if (stereo) {
+			stereo_input_storage.fill(0);
+			stereo_ = new (stereo_input_storage.data()) synth::StereoLiveInput(synth::InputChannel::STEREO); // NOLINT
+		}
+		else {
+			mono_input_storage.fill(0);
+			mono_ = new (mono_input_storage.data()) synth::MonoLiveInput(synth::InputChannel::LEFT); // NOLINT
+		}
 	}
 	void advance(std::size_t n) { time_ += static_cast<uint32_t>(n); }
 
 private:
-	synth::LiveInputBuffer* buffer_ = nullptr;
+	void drop_input() {
+		if (mono_ != nullptr) {
+			std::destroy_at(mono_);
+			mono_ = nullptr;
+		}
+		if (stereo_ != nullptr) {
+			std::destroy_at(stereo_);
+			stereo_ = nullptr;
+		}
+	}
+
+	synth::MonoLiveInput* mono_ = nullptr;
+	synth::StereoLiveInput* stereo_ = nullptr;
 	uint32_t time_ = 0;
 };
 
-/// The rig shared by the shifter cases: the port, the buffer, the shifter, the voice's noise and its output.
+/// The rig shared by the shifter cases: the port with its input, the shifter, the voice's noise and its output.
 struct ShifterRig {
 	BenchInputPort port;
-	synth::LiveInputBuffer* buffer = nullptr;
 	std::optional<synth::LivePitchShifter> shifter;
 	dsp::fixed::Cong noise{0x1234'5678};
 	std::array<dsp::Q<31>, kMaxBlock * 2> out{};
@@ -200,12 +223,7 @@ void PitchShiftCase::setup(std::size_t /*n*/) {
 		    perc ? percussive_channel(f, {149, 97, 211, 131, 173}, 0x5bd1'e995U)
 		         : static_cast<int32_t>(f * 0x0100'0000U);
 	}
-	if (rig.buffer != nullptr) {
-		rig.buffer->~LiveInputBuffer();
-	}
-	input_buffer_storage.fill(0);
-	rig.buffer = new (input_buffer_storage.data()) synth::LiveInputBuffer(); // NOLINT(cppcoreguidelines-owning-memory)
-	rig.port.use(rig.buffer);
+	rig.port.make_input(config_.stereo);
 	const auto channel = config_.stereo ? synth::InputChannel::STEREO : synth::InputChannel::LEFT;
 	rig.shifter.emplace(channel, config_.phase_increment);
 	rig.noise.seed(0x1234'5678);

@@ -19,7 +19,7 @@
 #include "dsp-next/core/fixed_point.h"
 #include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
-#include "synth/sources/input/live/live_input_buffer.h"
+#include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include <algorithm> // std::fill_n
 #include <new>
@@ -72,9 +72,11 @@ void InputSource::render_input(dsp::Q<31>* osc_buffer, int32_t num_samples, uint
 			if (channel_now == InputChannel::STEREO && !in_->stereo_input_available()) {
 				channel_now = InputChannel::LEFT;
 			}
-			LiveInputBuffer* live_input_buffer = in_->buffer_for_channel(channel_now, true);
+			// The channel's shared input, made now so the shifter's first block has it
+			const bool have_input = channel_now == InputChannel::STEREO ? in_->stereo_input(true) != nullptr
+			                                                            : in_->mono_input(channel_now, true) != nullptr;
 
-			if (live_input_buffer != nullptr) {
+			if (have_input) {
 
 				void* memory = allocMaxSpeed(sizeof(LivePitchShifter));
 

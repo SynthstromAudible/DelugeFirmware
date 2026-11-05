@@ -24,12 +24,12 @@
 #include "dsp-next/fixed/timestretch/crossfade.h" // totalDifferenceAbs / totalChange
 #include "foundation/panic.h"                     // FREEZE_WITH_ERROR
 #include "synth/sources/input/audio_input_port.h"
-#include "synth/sources/input/live/live_input_buffer.h"
+#include "synth/sources/input/live/legacy_input_view.h"
 #include <algorithm> // std::min / std::max / std::clamp
 #include <cstdlib>
 
 // The live pitch shifter keeps its legacy arithmetic as it is until its rewrite (TODO.md).
-// NOLINTBEGIN(bugprone-implicit-widening-of-multiplication-result,bugprone-narrowing-conversions,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-init-variables,cppcoreguidelines-narrowing-conversions,cppcoreguidelines-prefer-member-initializer,modernize-avoid-c-arrays,modernize-avoid-c-style-cast,readability-function-cognitive-complexity,readability-implicit-bool-conversion,readability-make-member-function-const,readability-redundant-casting,readability-use-std-min-max)
+// NOLINTBEGIN(bugprone-implicit-widening-of-multiplication-result,cppcoreguidelines-avoid-goto,bugprone-narrowing-conversions,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-init-variables,cppcoreguidelines-narrowing-conversions,cppcoreguidelines-prefer-member-initializer,modernize-avoid-c-arrays,modernize-avoid-c-style-cast,readability-function-cognitive-complexity,readability-implicit-bool-conversion,readability-make-member-function-const,readability-redundant-casting,readability-use-std-min-max)
 
 // #define MEASURE_HOP_END_PERFORMANCE 1
 #ifndef MEASURE_HOP_END_PERFORMANCE
@@ -84,20 +84,19 @@ int32_t LivePitchShifter::render(dsp::Q<31>* __restrict__ output_buffer, int32_t
                                  int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
                                  int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise) {
 
-	LiveInputBuffer* live_input_buffer = port.buffer_for_channel(channel, false);
-	if (!live_input_buffer) {
+	const LegacyInputView live_input = LegacyInputView::of(port, channel, false);
+	if (!live_input) {
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E165");
 		}
 		return 0; // Render nothing rather than dereference null
 	}
 
-	live_input_buffer->give_input(num_samples_this_function_call, port, channel);
+	live_input.ingest(num_samples_this_function_call, port);
 
 	int32_t which_kernel = dsp::fixed::WindowedSincKernel::variant_for(phase_increment);
 
-	uint64_t num_raw_samples_processed_at_start =
-	    live_input_buffer->num_raw_samples_processed - num_samples_this_function_call;
+	uint64_t num_raw_samples_processed_at_start = live_input.frames_written() - num_samples_this_function_call;
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (repitchedBuffer) {
@@ -149,7 +148,7 @@ startRenderAgain:
 #else
 		    0,
 #endif
-		    live_input_buffer, phase_increment);
+		    live_input, phase_increment);
 
 		if (samples_til_hop_end + next_crossfade_length > max_playable_samples_newer) {
 
@@ -187,7 +186,7 @@ startRenderAgain:
 #else
 			    0,
 #endif
-			    live_input_buffer, phase_increment);
+			    live_input, phase_increment);
 			// D_PRINTLN(maxPlayableSamplesOlder);
 			if (!max_playable_samples_older) {
 				crossfade_increment = kMaxSampleValue;
@@ -211,22 +210,20 @@ startRenderAgain:
 	    && play_heads[PLAY_HEAD_NEWER].mode != PlayHeadMode::RAW_DIRECT) {
 
 		int32_t how_far_back =
-		    play_heads[PLAY_HEAD_NEWER].get_num_raw_samples_behind_input(live_input_buffer, this, phase_increment);
+		    play_heads[PLAY_HEAD_NEWER].get_num_raw_samples_behind_input(live_input, this, phase_increment);
 
 		uint32_t newer_play_head_perc_pos =
-		    (live_input_buffer->num_raw_samples_processed - how_far_back - 1) >> kPercBufferReductionMagnitude;
+		    (live_input.frames_written() - how_far_back - 1) >> kPercBufferReductionMagnitude;
 
 		uint32_t latest_perc_pos_before = (num_raw_samples_processed_at_start - 1) >> kPercBufferReductionMagnitude;
-		uint32_t latest_perc_pos_now =
-		    (live_input_buffer->num_raw_samples_processed - 1) >> kPercBufferReductionMagnitude;
+		uint32_t latest_perc_pos_now = (live_input.frames_written() - 1) >> kPercBufferReductionMagnitude;
 
 		if (latest_perc_pos_now != newer_play_head_perc_pos
 		    && (newer_play_head_perc_pos != play_heads[PLAY_HEAD_NEWER].perc_pos
 		        || latest_perc_pos_now != latest_perc_pos_before)) {
 
-			int32_t perc_latest = live_input_buffer->perc_buffer[latest_perc_pos_now & (kInputPercBufferSize - 1)];
-			int32_t perc_newer_play_head =
-			    live_input_buffer->perc_buffer[newer_play_head_perc_pos & (kInputPercBufferSize - 1)];
+			int32_t perc_latest = live_input.percussiveness_at(latest_perc_pos_now);
+			int32_t perc_newer_play_head = live_input.percussiveness_at(newer_play_head_perc_pos);
 
 			if (perc_latest >= perc_newer_play_head + perc_threshold_for_cut) {
 				/*
@@ -242,8 +239,7 @@ startRenderAgain:
 #endif
 
 	if (!samples_til_hop_end) {
-		hop_end(phase_increment, live_input_buffer, num_raw_samples_processed_at_start,
-		        live_input_buffer->num_raw_samples_processed, noise);
+		hop_end(phase_increment, live_input, num_raw_samples_processed_at_start, live_input.frames_written(), noise);
 		++hops_ended;
 		just_did_hop = true;
 		goto startRenderAgain;
@@ -303,7 +299,7 @@ startRenderAgain:
 #else
 	                                   nullptr,
 #endif
-	                                   live_input_buffer->raw_buffer, which_kernel, interpolation_buffer_size);
+	                                   live_input, which_kernel, interpolation_buffer_size);
 
 	// Read older play-head
 	if (older_play_head_audible_here) {
@@ -314,7 +310,7 @@ startRenderAgain:
 #else
 		                                   nullptr,
 #endif
-		                                   live_input_buffer->raw_buffer, which_kernel, interpolation_buffer_size);
+		                                   live_input, which_kernel, interpolation_buffer_size);
 	}
 
 	samples_til_hop_end -= num_samples_this_timestretched_read;
@@ -382,7 +378,7 @@ const int16_t kRandomFine[] = {
 
 const int16_t kRandomCoarse[] = {0, 0, 0, 80, 80};
 
-void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_input_buffer,
+void LivePitchShifter::hop_end(int32_t phase_increment, const LegacyInputView& live_input,
                                uint64_t num_raw_samples_processed_at_now_time,
                                uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise) {
 
@@ -505,8 +501,8 @@ void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_in
 		int32_t averages_start_pos_old_head =
 		    (play_heads[PLAY_HEAD_OLDER].raw_buffer_read_pos + averages_start_offset_from_head)
 		    & (kInputRawBufferSize - 1);
-		live_input_buffer->get_averages_for_crossfade(old_head_totals, averages_start_pos_old_head,
-		                                              length_per_moving_average, num_channels);
+		std::ranges::copy(live_input.moving_averages(averages_start_pos_old_head, length_per_moving_average),
+		                  old_head_totals);
 	}
 
 	int32_t averages_start_pos_new_head;
@@ -523,7 +519,7 @@ void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_in
 	// If pitch shifting up...
 	if (phase_increment > kMaxSampleValue) {
 
-		if (live_input_buffer) {
+		if (live_input) {
 
 			// Search backwards, looking for the area (ending at now-time) with the highest average percussiveness.
 			// This particularly helps to keep the hops from all happening at the same length, which leads to a clearly
@@ -554,9 +550,7 @@ void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_in
 					if (how_far_back_searched > perc_pos) {
 						goto stopPercSearch;
 					}
-					int32_t perc_here =
-					    live_input_buffer
-					        ->perc_buffer[(uint32_t)(perc_pos - how_far_back_searched) & (kInputPercBufferSize - 1)];
+					int32_t perc_here = live_input.percussiveness_at((uint32_t)(perc_pos - how_far_back_searched));
 					total_perc += perc_here;
 				}
 
@@ -660,8 +654,8 @@ stopPercSearch:
 		}
 
 		int32_t new_head_totals[TimeStretch::Crossfade::kNumMovingAverages];
-		live_input_buffer->get_averages_for_crossfade(new_head_totals, averages_start_pos_new_head,
-		                                              length_per_moving_average, num_channels);
+		std::ranges::copy(live_input.moving_averages(averages_start_pos_new_head, length_per_moving_average),
+		                  new_head_totals);
 
 		int32_t best_difference_abs = deluge::dsp::fixed::totalDifferenceAbs(old_head_totals, new_head_totals);
 		int32_t times_sign_flipped = 0;
@@ -721,10 +715,7 @@ startSearch:
 
 			for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages + 1; i++) {
 
-				int32_t read_value = live_input_buffer->raw_buffer[read_pos[i] * num_channels] >> 16;
-				if (num_channels == 2) {
-					read_value += live_input_buffer->raw_buffer[read_pos[i] * 2 + 1] >> 16;
-				}
+				int32_t read_value = live_input.folded_high_word(read_pos[i]);
 
 				read_pos[i] = (uint32_t)(read_pos[i] + search_direction) & (kInputRawBufferSize - 1);
 
@@ -836,7 +827,7 @@ stopSearch:
 
 		// memset(playHeads[PLAY_HEAD_NEWER].interpolationBuffer, 0,
 		// sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
-		play_heads[PLAY_HEAD_NEWER].fill_interpolation_buffer(live_input_buffer, num_channels);
+		play_heads[PLAY_HEAD_NEWER].fill_interpolation_buffer(live_input, num_channels);
 		play_heads[PLAY_HEAD_NEWER].osc_pos = additional_osc_pos;
 	}
 
@@ -916,4 +907,4 @@ bool LivePitchShifter::may_be_removed_without_click() {
 }
 
 } // namespace deluge::synth
-// NOLINTEND(bugprone-implicit-widening-of-multiplication-result,bugprone-narrowing-conversions,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-init-variables,cppcoreguidelines-narrowing-conversions,cppcoreguidelines-prefer-member-initializer,modernize-avoid-c-arrays,modernize-avoid-c-style-cast,readability-function-cognitive-complexity,readability-implicit-bool-conversion,readability-make-member-function-const,readability-redundant-casting,readability-use-std-min-max)
+// NOLINTEND(bugprone-implicit-widening-of-multiplication-result,cppcoreguidelines-avoid-goto,bugprone-narrowing-conversions,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-init-variables,cppcoreguidelines-narrowing-conversions,cppcoreguidelines-prefer-member-initializer,modernize-avoid-c-arrays,modernize-avoid-c-style-cast,readability-function-cognitive-complexity,readability-implicit-bool-conversion,readability-make-member-function-const,readability-redundant-casting,readability-use-std-min-max)

@@ -24,7 +24,7 @@
 #include "reference_live_pitch_shifter.h"
 
 #include "synth/sources/input/audio_input_port.h"
-#include "synth/sources/input/live/live_input_buffer.h"
+#include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 
 #include <array>
@@ -42,30 +42,38 @@ namespace pw = pitch_shift_workloads;
 namespace ref = deluge::dsp::test::reference_pitch_shift;
 using deluge::synth::InputChannel;
 
-/// The host's input port as the legacy classes read it: the block's clock and ring, and the one shared buffer.
+/// The host's input port as the legacy classes read it: the block's clock and ring, and the one shared input.
 class WorkloadPort final : public deluge::synth::AudioInputPort {
 public:
-	explicit WorkloadPort(deluge::synth::LiveInputBuffer* buffer) : buffer_(buffer) {}
+	explicit WorkloadPort(InputChannel channel) {
+		if (channel == InputChannel::STEREO) {
+			stereo_ = std::make_unique<deluge::synth::StereoLiveInput>(channel);
+		}
+		else {
+			mono_ = std::make_unique<deluge::synth::MonoLiveInput>(channel);
+		}
+	}
 	void at(const pw::BlockInput& b) { block_ = b; }
 	[[nodiscard]] uint32_t sample_time() const override { return block_.time; }
 	[[nodiscard]] bool stereo_input_available() const override { return true; }
 	[[nodiscard]] const int32_t* ring_read_pos() const override { return block_.read_pos; }
 	[[nodiscard]] const int32_t* ring_end() const override { return block_.ring_end; }
-	[[nodiscard]] deluge::synth::LiveInputBuffer* buffer_for_channel(InputChannel /*channel*/,
-	                                                                 bool /*may_create*/) override {
-		return buffer_;
+	[[nodiscard]] deluge::synth::MonoLiveInput* mono_input(InputChannel /*channel*/, bool /*may_create*/) override {
+		return mono_.get();
 	}
+	[[nodiscard]] deluge::synth::StereoLiveInput* stereo_input(bool /*may_create*/) override { return stereo_.get(); }
 	void report_hops(int32_t /*hops_ended*/) override {}
 
 private:
-	deluge::synth::LiveInputBuffer* buffer_;
+	std::unique_ptr<deluge::synth::MonoLiveInput> mono_;
+	std::unique_ptr<deluge::synth::StereoLiveInput> stereo_;
 	pw::BlockInput block_{};
 };
 
-/// The legacy classes as a workload system: the shared buffer as the host's pool allocates it, and its shifters.
+/// The legacy classes as a workload system: the shared live input, and its shifters.
 class LegacySystem {
 public:
-	explicit LegacySystem(InputChannel channel) : buffer_(channel), port_(buffer_.get()) {}
+	explicit LegacySystem(InputChannel channel) : port_(channel) {}
 	void create(std::size_t slot, InputChannel channel, int32_t phase) {
 		shifters_[slot] = std::make_unique<deluge::synth::LivePitchShifter>(channel, phase);
 	}
@@ -80,7 +88,6 @@ public:
 	}
 
 private:
-	pw::PooledBuffer<deluge::synth::LiveInputBuffer> buffer_;
 	WorkloadPort port_;
 	std::array<std::unique_ptr<deluge::synth::LivePitchShifter>, 2> shifters_{};
 };

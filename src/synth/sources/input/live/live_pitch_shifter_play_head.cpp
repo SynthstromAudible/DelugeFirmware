@@ -18,10 +18,9 @@
 #include "synth/sources/input/live/live_pitch_shifter_play_head.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
-#include "synth/sources/input/live/live_input_buffer.h"
+#include "synth/sources/input/live/legacy_input_view.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 #include <argon.hpp>
-#include <utility> // std::cmp_less
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC push_options
@@ -50,7 +49,7 @@ template <int N>
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): split by the pitch-shifter rewrite (TODO.md)
 void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, int32_t num_samples, int32_t num_channels,
                                       int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
-                                      [[maybe_unused]] int32_t* repitched_buffer, int32_t* raw_buffer,
+                                      [[maybe_unused]] int32_t* repitched_buffer, const LegacyInputView& input,
                                       int32_t which_kernel, int32_t interpolation_buffer_size) {
 
 	dsp::Q<31>* output_buffer_end = output_buffer + num_samples * num_channels;
@@ -96,9 +95,9 @@ void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, in
 
 				auto feed = interpolator_.advance(num_samples_to_jump_forward);
 				while (feed.remaining() != 0) {
-					const auto l = static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * num_channels] >> 16);
+					const int16_t l = input.high_l(raw_buffer_read_pos);
 					if (num_channels == 2) {
-						feed.put(l, static_cast<int16_t>(raw_buffer[raw_buffer_read_pos * 2 + 1] >> 16));
+						feed.put(l, input.high_r(raw_buffer_read_pos));
 					}
 					else {
 						feed.put(l);
@@ -128,11 +127,11 @@ void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, in
 		do {
 			amplitude += amplitude_increment;
 
-			add_levelled<4>(output_buffer, raw_buffer[raw_buffer_read_pos * num_channels], amplitude);
+			add_levelled<4>(output_buffer, input.word_l(raw_buffer_read_pos), amplitude);
 			output_buffer++;
 
 			if (num_channels == 2) {
-				add_levelled<4>(output_buffer, raw_buffer[raw_buffer_read_pos * 2 + 1], amplitude);
+				add_levelled<4>(output_buffer, input.word_r(raw_buffer_read_pos), amplitude);
 				output_buffer++;
 			}
 			raw_buffer_read_pos = (raw_buffer_read_pos + 1) & (kInputRawBufferSize - 1);
@@ -144,7 +143,7 @@ void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, in
 // moving forward) and runs out of audio Only valid if phaseIncrement > kMaxSampleValue
 // NOLINTNEXTLINE(readability-make-member-function-const): the header changes with the pitch-shifter rewrite (TODO.md)
 int32_t LivePitchShifterPlayHead::get_estimated_playtime_remaining([[maybe_unused]] uint32_t repitched_buffer_write_pos,
-                                                                   LiveInputBuffer* live_input_buffer,
+                                                                   const LegacyInputView& live_input,
                                                                    int32_t phase_increment) {
 	uint32_t how_far_back = 0;
 #if INPUT_ENABLE_REPITCHED_BUFFER
@@ -155,8 +154,7 @@ int32_t LivePitchShifterPlayHead::get_estimated_playtime_remaining([[maybe_unuse
 	else
 #endif
 	    if (mode == PlayHeadMode::RAW_REPITCHING) {
-		uint32_t how_far_back_raw =
-		    (live_input_buffer->num_raw_samples_processed - raw_buffer_read_pos) & (kInputRawBufferSize - 1);
+		uint32_t how_far_back_raw = (live_input.frames_written() - raw_buffer_read_pos) & (kInputRawBufferSize - 1);
 		how_far_back = (static_cast<uint64_t>(how_far_back_raw) << 24) / static_cast<uint32_t>(phase_increment);
 	}
 	else {                 // DIRECT
@@ -175,7 +173,7 @@ int32_t LivePitchShifterPlayHead::get_estimated_playtime_remaining([[maybe_unuse
 
 // NOLINTNEXTLINE(readability-make-member-function-const): the header changes with the pitch-shifter rewrite (TODO.md)
 int32_t
-LivePitchShifterPlayHead::get_num_raw_samples_behind_input(LiveInputBuffer* live_input_buffer,
+LivePitchShifterPlayHead::get_num_raw_samples_behind_input(const LegacyInputView& live_input,
                                                            [[maybe_unused]] LivePitchShifter* live_pitch_shifter,
                                                            [[maybe_unused]] int32_t phase_increment) {
 #if INPUT_ENABLE_REPITCHED_BUFFER
@@ -187,8 +185,7 @@ LivePitchShifterPlayHead::get_num_raw_samples_behind_input(LiveInputBuffer* live
 	else
 #endif
 	    if (mode == PlayHeadMode::RAW_REPITCHING) {
-		return static_cast<int32_t>((live_input_buffer->num_raw_samples_processed - raw_buffer_read_pos)
-		                            & (kInputRawBufferSize - 1));
+		return static_cast<int32_t>((live_input.frames_written() - raw_buffer_read_pos) & (kInputRawBufferSize - 1));
 	}
 
 	else { // DIRECT
@@ -199,15 +196,14 @@ LivePitchShifterPlayHead::get_num_raw_samples_behind_input(LiveInputBuffer* live
 /// @brief Refills the window from the raw ring behind the read position, newest first; a position not yet written reads
 /// as silence.
 /// @param num_channels 1 or 2.
-void LivePitchShifterPlayHead::fill_interpolation_buffer(LiveInputBuffer* live_input_buffer, int32_t num_channels) {
+void LivePitchShifterPlayHead::fill_interpolation_buffer(const LegacyInputView& live_input, int32_t num_channels) {
 	auto feed = interpolator_.fill_tail(0);
 	for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
 		int32_t pos = (uint32_t)(raw_buffer_read_pos - i) & (kInputRawBufferSize - 1);
-		const bool written = std::cmp_less(pos, live_input_buffer->num_raw_samples_processed);
-		const auto l = static_cast<int16_t>(written ? live_input_buffer->raw_buffer[pos * num_channels] >> 16 : 0);
+		const bool written = live_input.written(pos);
+		const int16_t l = written ? live_input.high_l(pos) : int16_t{0};
 		if (num_channels > 1) {
-			feed.put(l,
-			         static_cast<int16_t>(written ? live_input_buffer->raw_buffer[pos * num_channels + 1] >> 16 : 0));
+			feed.put(l, written ? live_input.high_r(pos) : int16_t{0});
 		}
 		else {
 			feed.put(l);

@@ -1676,8 +1676,8 @@ struct PitchShiftConfig {
 	bool percussive = false;           ///< The harness's percussive signal; otherwise its saw.
 };
 
-/// @brief One voice's live pitch shifter as the input source renders it, the shared input buffer ingesting each block.
-/// @details Setup fills the codec ring with the case's signal, makes the buffer and the shifter afresh, and renders a
+/// @brief One voice's live pitch shifter as the input source renders it, the shared live input ingesting each block.
+/// @details Setup fills the codec ring with the case's signal, makes the input and the shifter afresh, and renders a
 /// second of blocks untimed so the hops are in their steady pattern.
 class PitchShiftCase {
 public:
