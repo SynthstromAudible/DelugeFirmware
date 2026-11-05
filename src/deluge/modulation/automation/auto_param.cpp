@@ -186,6 +186,7 @@ const deluge::project::DocAutoParam& unheldLane() {
 #if ALPHA_OR_BETA_VERSION
 namespace deluge::modulation {
 uint32_t unheldLaneWrites = 0;
+uint32_t strayRenderCodeCalls = 0;
 } // namespace deluge::modulation
 #endif
 
@@ -1416,6 +1417,13 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
+#if ALPHA_OR_BETA_VERSION
+	// The cursor is the render's: while playing, the interaction tier moves it only with the render excluded.
+	if (!deluge::memory::onRenderTier() && deluge_audio_excluded_depth() == 0
+	    && playbackHandler.isEitherClockActive()) {
+		deluge::modulation::strayRenderCodeCalls++;
+	}
+#endif
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 

@@ -73,14 +73,21 @@ uint32_t audioTierAllocations();
 /// Host-only; a no-op on the device.
 void countRenderAllocation();
 
-/// @brief Mark the calling thread as inside (or leaving) a render block, for audioTierAllocations() (host-only).
+/// @brief Mark the caller as inside (or leaving) a render block: a render made outside the audio context (a host
+/// harness thread, the offline export loop) is still the render tier.
 /// @param entering True when entering the render block, false when leaving it.
 void noteRenderBlock(bool entering);
-/// @brief Whether the calling thread is inside a render block.
-///
-/// Host-only; always false on the device, where deluge_in_audio_context() answers.
+/// @brief Whether the caller is inside a render block, or on the audio tier.
 /// @return True when inside a render block.
 bool inRenderBlock();
+
+/// @brief A render block's extent: the caller is the render tier while it lives.
+struct RenderBlock {
+	RenderBlock() { noteRenderBlock(true); }
+	~RenderBlock() { noteRenderBlock(false); }
+	RenderBlock(const RenderBlock&) = delete;
+	RenderBlock& operator=(const RenderBlock&) = delete;
+};
 
 /// @brief [task] [audio] [isr] Whether the caller is the audio render: the device's audio context, or a host render
 /// block (the host renders on a thread deluge_in_audio_context() does not see).

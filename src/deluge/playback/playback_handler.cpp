@@ -587,8 +587,11 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	// Start synced global LFOs with fresh state, including sounds without an active clip.
 	// Periodic timer ticks only realign their phase.
 	currentSong->resyncLFOs(true);
-	// Have to do this after calling AudioEngine::routine()
-	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
+	// Have to do this after calling AudioEngine::routine(). The play positions are the render's: set with it excluded.
+	{
+		AudioExcludedSection section;
+		currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
+	}
 	currentlyActioningSwungTickOrResettingPlayPos = false;
 	AudioEngine::audioRoutineLocked = oldState;
 
@@ -1566,6 +1569,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
 			currentPlaybackMode = &arrangement;
 			arrangement.setupPlayback();
+			AudioExcludedSection section; // the play positions are the render's
 			arrangement.resetPlayPos(currentSong->persistentView.lastClipInstanceEnteredStartPos);
 		}
 
@@ -1690,6 +1694,7 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 			return;
 		}
 
+		AudioExcludedSection section; // the play positions are the render's
 		currentPlaybackMode->resetPlayPos((int32_t)pos);
 	}
 
@@ -3118,7 +3123,10 @@ void PlaybackHandler::switchToArrangement() {
 	stopOutputRecordingAtLoopEnd = false;
 	session.endPlayback();
 	arrangement.setupPlayback();
-	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
+	{
+		AudioExcludedSection section; // the play positions are the render's
+		arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
+	}
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {

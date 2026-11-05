@@ -1112,10 +1112,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
 	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
-	struct RenderBlockMark {
-		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
-		~RenderBlockMark() { deluge::memory::noteRenderBlock(false); }
-	} renderBlockMark;
+	deluge::memory::RenderBlock renderBlockMark;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -1766,7 +1763,11 @@ uint32_t routine() {
 			sendWindowOutputsNow();
 
 			numSamplesLastTime = numSamples;
-			renderAudioForStemExport(numSamples);
+			{
+				// The interaction tier renders this block: it is the render tier while it does.
+				deluge::memory::RenderBlock renderBlock;
+				renderAudioForStemExport(numSamples);
+			}
 			sideChainHitPending = 0;
 			audioSampleTimer += numSamples;
 			// Drains the just-rendered block to any OUTPUT-mode recorder

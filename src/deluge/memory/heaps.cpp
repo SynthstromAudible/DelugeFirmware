@@ -195,12 +195,26 @@ namespace {
 }
 } // namespace
 
+namespace {
+/// Render blocks the caller is inside: deluge_app_render marks its own, and the offline export loop each block it
+/// renders from the interaction tier. On the host a harness may call the render from a thread whose tier tag is not
+/// the audio tier, so the depth is the thread's; the device has one core.
+#ifdef DELUGE_HOST
+thread_local
+#endif
+    int32_t g_renderBlockDepth = 0;
+} // namespace
+
+void noteRenderBlock(bool entering) {
+	g_renderBlockDepth += entering ? 1 : -1;
+}
+bool inRenderBlock() {
+	return g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO;
+}
+
 #ifdef DELUGE_HOST
 namespace {
 std::atomic<uint32_t> g_audioTierAllocations{0};
-/// Render blocks the calling thread is inside (deluge_app_render marks its own). A host harness may call the render
-/// from a thread whose tier tag is not the audio tier, so the block itself is marked too.
-thread_local int32_t g_renderBlockDepth = 0;
 /// Count an allocation made by the render: it must not allocate (it shares the heap with every other tier, unlocked).
 void countIfAudioTier() {
 	if (g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO) {
@@ -213,12 +227,6 @@ uint32_t audioTierAllocations() {
 }
 void countRenderAllocation() {
 	countIfAudioTier();
-}
-void noteRenderBlock(bool entering) {
-	g_renderBlockDepth += entering ? 1 : -1;
-}
-bool inRenderBlock() {
-	return g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO;
 }
 namespace {
 std::atomic<std::size_t> g_failNextSize{0};
@@ -234,11 +242,6 @@ bool allocationFailurePending() {
 	return g_failNextSize.load(std::memory_order_relaxed) != 0;
 }
 #else
-void noteRenderBlock(bool) {
-}
-bool inRenderBlock() {
-	return false;
-}
 namespace {
 inline void countIfAudioTier() {
 }

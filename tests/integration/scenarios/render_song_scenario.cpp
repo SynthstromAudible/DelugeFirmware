@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/render_song_scenario.h"
+#include "modulation/automation/auto_param.h"
 #include "util/structural_edit_probe.h"
 
 #include "definitions_cxx.hpp"
@@ -815,7 +816,10 @@ void report() {
 	}
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
-	printf("RS-STORE render_edits=%u\n", storeEdits);
+	printf("RS-STORE render_edits=%u stray_render_code=%u\n", storeEdits, deluge::modulation::strayRenderCodeCalls);
+	if (deluge::modulation::strayRenderCodeCalls != 0) {
+		fail("RS-STORE", "the interaction tier moved a lane cursor while playing, the render not excluded");
+	}
 	if (storeEdits != 0) {
 		fail("RS-STORE", "the render changed a lane store");
 	}

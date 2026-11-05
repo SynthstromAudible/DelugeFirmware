@@ -68,6 +68,8 @@ struct StolenParamNodes;
 namespace deluge::modulation {
 /// Writes found in the unheld lane when the render next reached it (each undone): it must stay 0.
 extern uint32_t unheldLaneWrites;
+/// A lane cursor moved while playing by the interaction tier with the render not excluded: it must stay 0.
+extern uint32_t strayRenderCodeCalls;
 } // namespace deluge::modulation
 #endif
 
