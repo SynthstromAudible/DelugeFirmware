@@ -71,12 +71,12 @@ struct SincWindow {
 ///
 /// Split from @ref blend_sinc_kernel so a stereo consumer can blend the kernel once and apply it to
 /// both channels (as the sample-playback Interpolator does).
-[[gnu::always_inline]] inline int32_t windowed_sinc_dot(const SincWindow& kernel, const SincWindow& samples) {
+[[gnu::always_inline]] inline Q<30> windowed_sinc_dot(const SincWindow& kernel, const SincWindow& samples) {
 	auto accumulated = QVec<30>::splat(Q<30>::from_raw(0));
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
 		accumulated = mla_wide(mla_wide(accumulated, kernel[i].lo(), samples[i].lo()), kernel[i].hi(), samples[i].hi());
 	}
-	return sum_wrap(accumulated).raw();
+	return sum_wrap(accumulated);
 }
 
 /// @brief Apply a windowed-sinc interpolation kernel to a sample window (argon; the shared core of
@@ -85,12 +85,12 @@ struct SincWindow {
 /// @param kernel_row the lower of the two adjacent kernel rows (see @ref blend_sinc_kernel).
 /// @param row_blend the Q15 sub-sample position between the two rows.
 /// @param samples the window to weight.
-/// @returns the interpolated sample.
+/// @returns the interpolated sample, Q30 of the window's Q15 samples.
 ///
 /// Bit-identical to a hand-written NEON implementation; sinc_interpolation_spec pins it against a
 /// raw-NEON reference.
-[[gnu::always_inline]] inline int32_t windowed_sinc_apply(const int16_t* kernel_row, int16_t row_blend,
-                                                          const SincWindow& samples) {
+[[gnu::always_inline]] inline Q<30> windowed_sinc_apply(const int16_t* kernel_row, int16_t row_blend,
+                                                        const SincWindow& samples) {
 	return windowed_sinc_dot(blend_sinc_kernel(kernel_row, row_blend), samples);
 }
 

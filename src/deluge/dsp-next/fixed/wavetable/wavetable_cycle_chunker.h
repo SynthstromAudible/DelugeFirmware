@@ -61,12 +61,18 @@ constexpr int32_t kSincRowBlendShift =
 /// @brief One morphing sample: @p value1 toward @p value2 by @p blend.
 /// @param value1 the first cycle's interpolated sample, Q30.
 /// @param value2 the second cycle's, Q30.
-/// @param blend the morph, UQ32: 0 is all @p value1.
-/// @return Q29 of the cycles' samples. The blend read as Q31 (one fewer bit, top bit clear) weights the wrapping Q30
-/// difference, a Q29 product (`smmlar`), so value1 is reformatted to Q29.
-[[gnu::always_inline]] inline Q<29> morph(Q<30> value1, Q<30> value2, uint32_t blend) {
-	const auto weight = reinterpret_bits<Q<31>>(as_floor<UQ<31>>(UQ<32>::from_raw(blend)));
-	return mla_r(as_floor<Q<29>>(value1), sub_wrap(value2, value1), weight);
+/// @param blend the morph: 0 is all @p value1.
+/// @return the morphed sample, Q30 like a single cycle's: @p value1 plus the blend's share of the wrapping
+/// difference (the exact unsigned × signed high word, floored), the sum wrapping.
+[[gnu::always_inline]] inline Q<30> morph(Q<30> value1, Q<30> value2, UQ<32> blend) {
+	return add_wrap(value1, mul(blend, sub_wrap(value2, value1)));
+}
+
+/// @brief A wavetable's interpolated sample, Q30 of the cycles' Q15 samples, as the voice's Q31 output: the word is
+/// kept, so a full-scale cycle plays at half of the output's full scale. Single and morphing cycles both pass through
+/// here, so they play at one level.
+[[gnu::always_inline]] inline Q<31> output_sample(Q<30> sample) {
+	return reinterpret_bits<Q<31>>(sample);
 }
 
 /// The first of the two kernel rows to blend, for @p phase, offset into @p kernel.
@@ -111,9 +117,9 @@ struct CycleChunk {
 			const int16_t* __restrict__ cycle = band->dataAccessAddress;
 			do {
 				phase += phase_increment;
-				*sample = Q<31>::from_raw(windowed_sinc_apply(sinc_kernel_row(kernel, phase, magnitude),
-				                                              sinc_row_blend(phase, magnitude),
-				                                              load_window(cycle, phase, magnitude)));
+				*sample = output_sample(windowed_sinc_apply(sinc_kernel_row(kernel, phase, magnitude),
+				                                            sinc_row_blend(phase, magnitude),
+				                                            load_window(cycle, phase, magnitude)));
 			} while (++sample != end);
 			return;
 		}
@@ -122,18 +128,18 @@ struct CycleChunk {
 		int32_t cycle_stride = band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd;
 		const int16_t* __restrict__ cycle1 = &band->dataAccessAddress[first_cycle * cycle_stride];
 		const int16_t* __restrict__ cycle2 = cycle1 + cycle_stride;
-		uint32_t blend =
-		    cross_cycle_blend + static_cast<uint32_t>(cross_cycle_blend_increment) * static_cast<uint32_t>(offset);
+		// The signed increment's bits, added modulo 2^32, so a falling morph steps the blend down.
+		const auto increment = UQ<32>::from_raw(static_cast<uint32_t>(cross_cycle_blend_increment));
+		auto blend = UQ<32>::from_raw(cross_cycle_blend + increment.raw() * static_cast<uint32_t>(offset));
 		do {
 			phase += phase_increment;
 			// Both cycles share the same sub-sample kernel position, so blend the kernel once.
 			SincWindow blended =
 			    blend_sinc_kernel(sinc_kernel_row(kernel, phase, magnitude), sinc_row_blend(phase, magnitude));
-			const auto value1 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude)));
-			const auto value2 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude)));
-			// The Q29 blend's bits are the sample, as the windowed single cycle's are
-			*sample = reinterpret_bits<Q<31>>(morph(value1, value2, blend));
-			blend += cross_cycle_blend_increment;
+			const Q<30> value1 = windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude));
+			const Q<30> value2 = windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude));
+			*sample = output_sample(morph(value1, value2, blend));
+			blend = add_wrap(blend, increment);
 		} while (++sample != end);
 	}
 };
@@ -149,7 +155,7 @@ struct CycleChunk {
 ///   WavetableCycleChunker chunker{table, output, phaseIncrement, waveIndex, waveIndexIncrement};
 ///   while (std::optional<CycleChunk> chunk = chunker.next()) { ... chunk->render(...) ... }
 /// @endcode
-/// Bit-exact with the legacy `WaveTable::render` loop.
+/// A single-cycle and a morphing wavetable reach the output at one level, through @ref wavetable_detail::output_sample.
 class WavetableCycleChunker {
 public:
 	WavetableCycleChunker(const WaveTableData& table, dsp::Buffer<Q<31>> output, uint32_t phase_increment,
