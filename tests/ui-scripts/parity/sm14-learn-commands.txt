@@ -1,7 +1,7 @@
 # MIDI learn onto the MIDI commands. From the song view, SHIFT + SELECT opens the settings menu: MIDI > COMMANDS. With
 # the cursor on PLAY in the list, LEARN held takes a note, a program change and a CC (the CC is D72: main's list drops
 # it), and SHIFT + LEARN forgets PLAY's command; then PLAY's own screen learns a note and a program change, FILL refuses
-# a program change, and BACK leaves the menu.
+# a program change, and out of the menu the learned program change starts and stops playback.
 100   snapshot boot
 300   button Session down
 320   button Session up
@@ -69,4 +69,8 @@
 18300 button Back down
 18320 button Back up
 19000 snapshot closed
-19300 quit
+19300 pc 1 6
+20000 snapshot playing
+20300 pc 1 6
+21000 snapshot stopped
+21300 quit
