@@ -185,12 +185,10 @@ public:
 		}
 	}
 
-	/// @brief The interpolation width grew: slot i + @p offset takes slot i, for i in [0, @p count), in rising i.
-	/// @details Rising i reads slots it has already written when @p offset < @p count, so the newest taps are copied
-	/// along rather than the window moved (quirk Q11,
-	/// docs/dev/live_pitch_shifter_quirks.md).
+	/// @brief The interpolation width grew: slots [0, @p count) move to [@p offset, @p offset + @p count), the far end
+	/// first so no slot is read after it is written.
 	[[gnu::always_inline]] void widen(std::size_t offset, std::size_t count, std::size_t channels) {
-		for (std::size_t i = 0; i < count; ++i) {
+		for (std::size_t i = count; i-- > 0;) {
 			buffer_l_[i + offset] = buffer_l_[i];
 			if (channels == 2) {
 				buffer_r_[i + offset] = buffer_r_[i];
