@@ -66,6 +66,7 @@ private:
 	InputChannel channel_;
 	Scheduler scheduler_;
 	dsp::fixed::pitch_shift::PlayHeads<Frame> heads_{};
+	bool placed_ = false; ///< The newer head has been placed at the input's first block.
 };
 
 extern template class LivePitchShifter<dsp::Q<31>>;

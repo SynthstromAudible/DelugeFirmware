@@ -43,9 +43,6 @@ template <typename Frame>
 template <typename Frame>
 LivePitchShifter<Frame>::LivePitchShifter(InputChannel channel, int32_t phase_increment)
     : channel_(channel), scheduler_(phase_increment) {
-	// The newer head starts direct, at the ring's start (quirk Q1, docs/dev/live_pitch_shifter_quirks.md), with no
-	// onset entry noted (quirk Q9)
-	heads_.newer.template on<&Kernel::note_percussiveness_entry>(dsp::fixed::pitch_shift::kNoPercussivenessEntry);
 }
 
 template <typename Frame>
@@ -62,6 +59,13 @@ int32_t LivePitchShifter<Frame>::render(dsp::Q<31>* output_buffer, int32_t num_s
 	const int32_t which_kernel = dsp::fixed::WindowedSincKernel::variant_for(phase_increment);
 	configure(heads_.newer, history, phase_increment, which_kernel, interpolation_buffer_size);
 	configure(heads_.older, history, phase_increment, which_kernel, interpolation_buffer_size);
+	if (!placed_) {
+		// The first block: the newer head starts direct at the block's own first frame, so it plays the input as it
+		// arrives until the first hop, with no onset entry noted (quirk Q9)
+		heads_.newer.template on<&Kernel::begin_hop>(typename Kernel::Hop{
+		    .cursor = history.now() - num_samples, .kind = dsp::fixed::pitch_shift::HeadKind::DIRECT});
+		placed_ = true;
+	}
 
 	scheduler_.begin_block({.length = num_samples,
 	                        .phase_increment = phase_increment,

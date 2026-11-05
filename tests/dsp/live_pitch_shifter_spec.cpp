@@ -16,10 +16,12 @@
  */
 
 // The live pitch shifter (synth/sources/input/live/live_pitch_shifter.h) over every workload
-// (pitch_shift_workloads.h): it must make the records the legacy classes made (pitch_shift_workload_records.h).
-// PITCH_SHIFT_PRINT_RECORDS=1 prints its records instead.
+// (pitch_shift_workloads.h): it must make its records (pitch_shift_component_records.h), which differ from the legacy
+// classes' (pitch_shift_workload_records.h) only on the workloads its quirk fixes reach. PITCH_SHIFT_PRINT_RECORDS=1
+// prints its records instead.
 
 #include "alloc_seams.h"
+#include "pitch_shift_component_records.h"
 #include "pitch_shift_workload_records.h"
 #include "pitch_shift_workloads.h"
 
@@ -27,6 +29,7 @@
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_pitch_shifter.h"
 
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <cstddef>
@@ -35,6 +38,9 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <set>
+#include <tuple>
+#include <vector>
 
 namespace {
 
@@ -105,7 +111,7 @@ private:
 
 // clang-format off
 describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
-	it("renders each workload as the legacy classes did", _ {
+	it("renders each workload as recorded", _ {
 		const char* print = std::getenv("PITCH_SHIFT_PRINT_RECORDS");
 		const bool printing = print != nullptr && std::strcmp(print, "1") == 0;
 		for (const pw::Workload& w : pw::all_workloads()) {
@@ -114,9 +120,57 @@ describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
 				std::cout << "    // " << w.name << "\n    " << record << ",\n";
 			}
 			else {
-				expect(record).to_equal(pw::kRecordedReference.at(static_cast<std::size_t>(w.id)));
+				expect(record).to_equal(pw::kShifterRecords.at(static_cast<std::size_t>(w.id)));
 			}
 		}
+	});
+
+	it("differs from the legacy classes only where a quirk's fix reaches", _ {
+		// Q1: a shifter made on an input already running (the second of a shared input)
+		const std::set<pw::WorkloadId> fixed{pw::WorkloadId::SHARED_UP7_PERC_LEFT, pw::WorkloadId::SHARED_DOWN5_PERC_STEREO};
+		for (const pw::Workload& w : pw::all_workloads()) {
+			const auto i = static_cast<std::size_t>(w.id);
+			expect(pw::kShifterRecords.at(i) == pw::kRecordedReference.at(i)).to_equal(!fixed.contains(w.id));
+		}
+	});
+
+	it("plays the block it is made in, on an input already running", _ {
+		// An input ingested for 20,000 frames, then a shifter made on it: until its first hop its head reads the block
+		// directly, at the direct level (×8 of the rounded high word of the frame times the amplitude)
+		pw::InputRing ring;
+		ShifterSystem system(InputChannel::LEFT);
+		const auto amplitude = deluge::dsp::Q<31>::from_raw(0x3000'0000);
+		uint32_t time = 0;
+		deluge::dsp::fixed::Cong noise(pw::kNoiseSeed);
+		std::vector<deluge::dsp::Q<31>> out(32);
+		const auto block = [&] {
+			const int32_t* read_pos = ring.write(pw::Signal::PERCUSSIVE, time, 32);
+			const pw::BlockInput input{.time = time, .read_pos = read_pos, .ring_end = ring.end(),
+			                           .phase_increment = pw::kUp7, .amplitude = amplitude.raw(),
+			                           .amplitude_increment = 0, .interpolation_size = kInterpolationMaxNumSamples};
+			time += 32;
+			return input;
+		};
+		// The first shifter runs the input for 20,000 frames; the second is made after them
+		system.create(0, InputChannel::LEFT, pw::kUp7);
+		for (int b = 0; b < 625; ++b) {
+			std::ranges::fill(out, deluge::dsp::Q<31>{});
+			std::ignore = system.render(0, out.data(), 32, block(), noise);
+		}
+		system.create(1, InputChannel::LEFT, pw::kUp7);
+		const uint32_t first = time;
+		std::ranges::fill(out, deluge::dsp::Q<31>{});
+		const pw::BlockInput input = block();
+		std::ignore = system.render(0, out.data(), 32, input, noise); // The first shifter ingests the block
+		std::ranges::fill(out, deluge::dsp::Q<31>{});
+		std::ignore = system.render(1, out.data(), 32, input, noise);
+		bool plays_the_block = true;
+		for (uint32_t i = 0; i < 32; ++i) {
+			const auto frame = deluge::dsp::Q<31>::from_raw(pw::input_frame(pw::Signal::PERCUSSIVE, first + i)[0]);
+			const auto want = scale_shl_wrap<3>(mul_r_as_wrap<deluge::dsp::Q<31>>(frame, amplitude));
+			plays_the_block = plays_the_block && out[i].raw() == want.raw();
+		}
+		expect(plays_the_block).to_be_true();
 	});
 });
 // clang-format on
