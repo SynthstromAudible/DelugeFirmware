@@ -868,10 +868,31 @@ std::span<const Case> va_shapes_list(CaseSet& s) {
 	return va_shapes;
 }
 
+/// @brief The pitch shift list.
+std::span<const Case> pitch_shift_list(CaseSet& s) {
+	static const std::array pitch_shift{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("sample_read_sinc_mono", s.sample_read_sinc_mono),
+	    make_case("sample_read_sinc_stereo", s.sample_read_sinc_stereo),
+	    make_case("sample_read_linear_mono", s.sample_read_linear_mono),
+	    make_case("sample_read_linear_stereo", s.sample_read_linear_stereo),
+	    make_case("pitch_shift_up7", s.pitch_shift_up7),
+	    make_case("pitch_shift_down12", s.pitch_shift_down12),
+	    make_case("pitch_shift_stereo_up7", s.pitch_shift_stereo_up7),
+	    make_case("pitch_shift_perc_up7", s.pitch_shift_perc_up7),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return pitch_shift;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::VA_SHAPES) {
+	if constexpr (L == CaseList::PITCH_SHIFT) {
+		return pitch_shift_list(s);
+	}
+	else if constexpr (L == CaseList::VA_SHAPES) {
 		return va_shapes_list(s);
 	}
 	else if constexpr (L == CaseList::MOD_MATRIX) {
@@ -947,6 +968,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::GRANULAR>(s);
 	case CaseList::STUTTER:
 		return list_cases<CaseList::STUTTER>(s);
+	case CaseList::PITCH_SHIFT:
+		return list_cases<CaseList::PITCH_SHIFT>(s);
 	case CaseList::REVERB:
 		return list_cases<CaseList::REVERB>(s);
 	case CaseList::DX7:
