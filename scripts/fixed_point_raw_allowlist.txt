@@ -115,8 +115,9 @@ src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/modulation/params/param_set.h raw=0 boundary=1
 src/deluge/modulation/patch/patch_cable.h raw=0 boundary=1
 src/deluge/playback/playback_handler.cpp raw=0 boundary=2
-src/deluge/processing/audio_output.cpp raw=0 boundary=7
+src/deluge/processing/audio_output.cpp raw=0 boundary=5
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=26
+src/deluge/processing/engines/input_monitor.h raw=0 boundary=2
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=2
 src/deluge/processing/sound/sound.cpp raw=0 boundary=9
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1

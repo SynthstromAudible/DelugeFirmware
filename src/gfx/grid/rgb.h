@@ -14,7 +14,7 @@
 // `util/functions.h` (etc.) would become an ambiguous overload/reference. Qualifying every call
 // here sidesteps that regardless of what else shares the name elsewhere.
 namespace deluge::gfx::grid::detail {
-// from dsp-next/core/q31_ops.h (q31_t is just int32_t; kOneQ15 is the fixed-point value for 1.0 at Q15).
+// The grid's fixed-point 1.0: 65536.
 constexpr int32_t kOneQ15{65536};
 
 // from util/const_functions.h

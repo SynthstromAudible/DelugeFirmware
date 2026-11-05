@@ -312,9 +312,10 @@ renderEnvelope:
 	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
 	// power-on, then fade it in (issue #4517) - otherwise its power-on transient gets passed straight through to the
 	// output.
-	q31_t const monitoring_gain_end = AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer + render.size());
-	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+	const deluge::dsp::Q<31> monitoring_gain_end =
+	    AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer + render.size());
+	if (monitoring_gain_end != deluge::dsp::Q<31>{} && modeAllowsMonitoring()
+	    && modelStack->song->isOutputActiveInArrangement(this) && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		int32_t const* __restrict__ input_ptr = AudioEngine::getInputReadPos(inputChannel);
 		int32_t const* const input_end = AudioEngine::getInputBufferEnd(inputChannel);
@@ -333,9 +334,9 @@ renderEnvelope:
 		if (!AudioEngine::inputMonitor.warmed_up()) {
 			// The amplitude times the warming monitor's gain (InputMonitor::gain's Q31 word), moved back to Q30
 			using deluge::dsp::Q;
-			amplitude_start = mul_as_wrap<Q<30>>(
-			    amplitude_start, Q<31>::from_raw(AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer)));
-			amplitude_end = mul_as_wrap<Q<30>>(amplitude_end, Q<31>::from_raw(monitoring_gain_end));
+			amplitude_start =
+			    mul_as_wrap<Q<30>>(amplitude_start, AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer));
+			amplitude_end = mul_as_wrap<Q<30>>(amplitude_end, monitoring_gain_end);
 		}
 
 		using deluge::dsp::fixed::TrackMonitor;

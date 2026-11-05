@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/q31_ops.h" // q31_t, kOneQ31, kOneQ31f (standard-headers-only, L0-clean)
+#include "dsp-next/core/q31_ops.h" // the raw word helpers (standard-headers-only, L0-clean)
 #include <concepts>
 
 // Numeric vocabulary for dsp-next. The library is numeric-agnostic at the
@@ -29,7 +29,7 @@ namespace deluge::dsp {
 //
 // A typed format, not a raw int32: every operation on a sample names its overflow
 // and rounding (fixed_point.h), and the format travels with the value. The app's
-// raw q31_t meets it only at the seam (buffer_view.h's typed_view and raw_view,
+// raw int32_t words meet it only at the seam (buffer_view.h's typed_view and raw_view,
 // from_raw and raw()).
 using q31 = Q<31>;
 

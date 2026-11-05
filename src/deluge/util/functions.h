@@ -149,7 +149,7 @@ char const* sourceToStringShort(PatchSource source);
 
 /// @brief A 0..128 knob's level, Q31: the knob read as Q7 (128 is one), held to its 8 bits (so 128 gives 127/128),
 /// lifted to Q31.
-[[nodiscard, gnu::always_inline]] inline q31_t knob_level(int32_t knob) {
+[[nodiscard, gnu::always_inline]] inline int32_t knob_level(int32_t knob) {
 	return as_wrap<deluge::dsp::Q<31>>(clamp_bits<8>(deluge::dsp::Q<7>::from_raw(knob))).raw();
 }
 

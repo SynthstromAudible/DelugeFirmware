@@ -36,15 +36,15 @@ constexpr std::size_t kBlockGap = 64;
 /// from its input.
 struct SharedBlocks {
 	alignas(16) std::array<dsp::Q<31>, kMaxBlock> input_a;  ///< The first input.
-	std::array<q31_t, kBlockGap> after_a;                   ///< Padding, never read or written.
+	std::array<int32_t, kBlockGap> after_a;                 ///< Padding, never read or written.
 	alignas(16) std::array<dsp::Q<31>, kMaxBlock> input_b;  ///< The second input.
-	std::array<q31_t, kBlockGap> after_b;                   ///< Padding, never read or written.
+	std::array<int32_t, kBlockGap> after_b;                 ///< Padding, never read or written.
 	alignas(16) std::array<dsp::Q<31>, kMaxBlock> output;   ///< The output.
-	std::array<q31_t, kBlockGap> after_output;              ///< Padding, never read or written.
+	std::array<int32_t, kBlockGap> after_output;            ///< Padding, never read or written.
 	alignas(16) std::array<StereoSample, kMaxBlock> stereo; ///< The stereo block, read and written in place.
-	std::array<q31_t, kBlockGap / 2> after_stereo;          ///< Padding, never read or written.
+	std::array<int32_t, kBlockGap / 2> after_stereo;        ///< Padding, never read or written.
 	alignas(16) std::array<dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
-	std::array<q31_t, kBlockGap> after_lanes_input;                         ///< Padding, never read or written.
+	std::array<int32_t, kBlockGap> after_lanes_input;                       ///< Padding, never read or written.
 	alignas(16) std::array<dsp::Q<31>, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
 };
 
@@ -107,7 +107,7 @@ void fill_inputs() {
 /// @brief The lanes blocks' first @p n frames of type F: the q31 storage viewed as frames of interleaved lanes.
 template <class F>
 [[nodiscard]] FrameSpans<F> frame_spans(std::size_t n) {
-	static_assert(sizeof(F) % sizeof(q31_t) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31_t)
+	static_assert(sizeof(F) % sizeof(int32_t) == 0 && sizeof(F) <= kMaxLanes * sizeof(int32_t)
 	              && std::is_trivially_copyable_v<F>);
 	return FrameSpans<F>{
 	    .in = dsp::Signal<F>{reinterpret_cast<const F*>(shared.lanes_input.data()), n},

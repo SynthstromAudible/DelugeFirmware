@@ -1939,7 +1939,7 @@ doFinishCapturing:
 			if (mode == AudioInputChannel::BALANCED) {
 				for (StereoSample sample : input.first(numSamplesThisCycle)) {
 					// The balanced difference of the halves toward zero, a word for the 24-bit write.
-					q31_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
+					int32_t rxBalanced = sub_wrap(halve_toward_zero(sample.l), halve_toward_zero(sample.r)).raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
@@ -1954,7 +1954,7 @@ doFinishCapturing:
 						return applyGain ? scale_shl_clamp_then_shift(sample, gainToApply) : sample;
 					};
 					const deluge::dsp::Q<31> l = gained(frame.l);
-					const q31_t rxL = l.raw();
+					const int32_t rxL = l.raw();
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxL)[1], 3, writePosNow);
@@ -1962,23 +1962,23 @@ doFinishCapturing:
 					recordMax = std::max(rxL, recordMax);
 					recordMin = std::min(rxL, recordMin);
 
-					q31_t absL = (rxL >= 0) ? rxL : -1 - rxL;
+					int32_t absL = (rxL >= 0) ? rxL : -1 - rxL;
 					recordSumL += absL;
 
 					if (rxL < recordPeakL) {
 						recordPeakL = rxL;
 					}
-					else if (const q31_t negated = neg_sat(l).raw(); negated < recordPeakL) {
+					else if (const int32_t negated = neg_sat(l).raw(); negated < recordPeakL) {
 						recordPeakL = negated; // saturating: a full-scale negative input's negation is INT32_MAX
 					}
-					if (rxL == std::numeric_limits<q31_t>::max() || rxL == std::numeric_limits<q31_t>::min()) {
+					if (rxL == std::numeric_limits<int32_t>::max() || rxL == std::numeric_limits<int32_t>::min()) {
 						recordingClippedRecently = true;
 					}
 
 					// recording stereo
 					if (recordingNumChannels == 2) {
 						const deluge::dsp::Q<31> r = gained(frame.r);
-						const q31_t rxR = r.raw();
+						const int32_t rxR = r.raw();
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
 						writePosNow = std::copy_n(&reinterpret_cast<const std::byte*>(&rxR)[1], 3, writePosNow);
@@ -1997,10 +1997,10 @@ doFinishCapturing:
 						if (rxR < recordPeakR) {
 							recordPeakR = rxR;
 						}
-						else if (const q31_t negated = neg_sat(r).raw(); negated < recordPeakR) {
+						else if (const int32_t negated = neg_sat(r).raw(); negated < recordPeakR) {
 							recordPeakR = negated;
 						}
-						if (rxR == std::numeric_limits<q31_t>::max() || rxR == std::numeric_limits<q31_t>::min()) {
+						if (rxR == std::numeric_limits<int32_t>::max() || rxR == std::numeric_limits<int32_t>::min()) {
 							recordingClippedRecently = true;
 						}
 

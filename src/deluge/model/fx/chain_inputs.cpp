@@ -152,7 +152,7 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	    .volume_post_fx = volumePostFX,
 	    .reverb_send = reverbSendAmount,
 	    .pan = halve_floor(unpatched->getKnob(params::UNPATCHED_PAN)),
-	    .sidechain_on = unpatched->getValue(params::UNPATCHED_SIDECHAIN_VOLUME) != std::numeric_limits<q31_t>::min(),
+	    .sidechain_on = unpatched->getValue(params::UNPATCHED_SIDECHAIN_VOLUME) != std::numeric_limits<int32_t>::min(),
 	    .sidechain_hit = dsp::Q<31>::from_raw(sideChainHitPending), // the engine's pending hit word
 	    .sidechain_shape = unpatched->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .sidechain_depth = sidechainDepth(paramManager),
