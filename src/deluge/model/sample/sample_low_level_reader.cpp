@@ -919,6 +919,94 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 	}
 }
 
+// Largely a copy of jumpForwardLinear() and interpolateLinear()
+// Modified to be branchless and not write back until the loop ends
+template <int32_t numChannels, int32_t numChannelsAfterCondensing>
+[[gnu::always_inline]] inline void
+SampleLowLevelReader::readSamplesLinear(int32_t* __restrict__& oscBufferPos, int32_t const* oscBufferEnd,
+                                        int32_t jumpAmount, int32_t byteDepth, int32_t phaseIncrement,
+                                        int32_t& amplitude, int32_t amplitudeIncrement, bool skipFirstJump) {
+	static_assert(numChannelsAfterCondensing <= numChannels);
+	constexpr bool stereo = (numChannels == 2);
+
+	int32_t* __restrict__ out = oscBufferPos;
+	char const* __restrict__ playPos = currentPlayPos;
+	uint32_t phase = oscPos;
+	int32_t amplitudeNow = amplitude;
+
+	int16_t newestL = interpolator_.l(0);
+	int16_t previousL = interpolator_.l(1);
+	int16_t newestR = stereo ? interpolator_.r(0) : 0;
+	int16_t previousR = stereo ? interpolator_.r(1) : 0;
+
+	auto output = [&]() __attribute__((always_inline)) {
+		int16_t strength2 = phase >> 9;
+		int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2;
+		int32_t sampleL = (previousL * strength1) + (newestL * strength2);
+		int32_t sampleR = 0;
+		if constexpr (stereo) {
+			sampleR = (previousR * strength1) + (newestR * strength2);
+		}
+		if constexpr (stereo && numChannelsAfterCondensing == 1) {
+			sampleL = (sampleL >> 1) + (sampleR >> 1);
+		}
+
+		amplitudeNow += amplitudeIncrement;
+		*out = multiply_accumulate_32x32_rshift32_rounded(*out, sampleL, amplitudeNow);
+		out++;
+		if constexpr (numChannelsAfterCondensing == 2) {
+			*out = multiply_accumulate_32x32_rshift32_rounded(*out, sampleR, amplitudeNow);
+			out++;
+		}
+	};
+
+	if (skipFirstJump) {
+		output();
+		if (out == oscBufferEnd) {
+			goto done;
+		}
+	}
+
+	do {
+		phase += phaseIncrement;
+		if (int32_t numSamplesToJumpForward = phase >> 24; numSamplesToJumpForward != 0) {
+			phase &= 16777215;
+			if (numSamplesToJumpForward > 2) {
+				playPos += (numSamplesToJumpForward - 2) * jumpAmount;
+			}
+			if (numSamplesToJumpForward >= 2) {
+				previousL = *(int16_t const*)(playPos + 2);
+				if constexpr (stereo) {
+					previousR = *(int16_t const*)(playPos + 2 + byteDepth);
+				}
+				playPos += jumpAmount;
+			}
+			else {
+				previousL = newestL;
+				previousR = newestR;
+			}
+			if constexpr (stereo) {
+				newestR = *(int16_t const*)(playPos + 2 + byteDepth);
+			}
+			newestL = *(int16_t const*)(playPos + 2);
+			playPos += jumpAmount;
+		}
+		output();
+	} while (out != oscBufferEnd);
+
+done:
+	interpolator_.setL(1, previousL);
+	interpolator_.setL(0, newestL);
+	if constexpr (stereo) {
+		interpolator_.setR(1, previousR);
+		interpolator_.setR(0, newestR);
+	}
+	oscPos = phase;
+	currentPlayPos = const_cast<char*>(playPos);
+	amplitude = amplitudeNow;
+	oscBufferPos = out;
+}
+
 constexpr static size_t numBitsInTableSize = 8;
 constexpr static size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
 
@@ -1047,6 +1135,26 @@ skipFirstSmooth:
 	}
 
 	// Linear interpolation
+	else if (clusters[0] != nullptr && numChannelsAfterCondensing <= numChannels) [[likely]] {
+		bool skipFirstJump = !*doneAnySamplesYet;
+		*doneAnySamplesYet = true;
+		if (numChannels == 2) {
+			if (numChannelsAfterCondensing == 2) {
+				readSamplesLinear<2, 2>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement,
+				                        *amplitude, amplitudeIncrement, skipFirstJump);
+			}
+			else {
+				readSamplesLinear<2, 1>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement,
+				                        *amplitude, amplitudeIncrement, skipFirstJump);
+			}
+		}
+		else {
+			readSamplesLinear<1, 1>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement, *amplitude,
+			                        amplitudeIncrement, skipFirstJump);
+		}
+	}
+
+	// Linear interpolation while there's no Cluster to read (so zeroes)
 	else {
 		if (!*doneAnySamplesYet) {
 			*doneAnySamplesYet = true;
