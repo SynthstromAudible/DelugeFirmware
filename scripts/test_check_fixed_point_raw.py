@@ -171,11 +171,16 @@ class RatchetTest(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertEqual(stale, ["src/k.cpp"])
 
-    def test_boundary_crossings_may_grow_and_appear(self):
-        self.assertEqual(
-            check({"src/k.cpp": Counts(2, 9)}, {"src/k.cpp": Counts(2, 1)}), ([], [])
-        )
-        self.assertEqual(check({"src/n.cpp": Counts(0, 4)}, {}), ([], []))
+    def test_boundary_crossings_that_grew_or_appeared_fail(self):
+        errors, _ = check({"src/k.cpp": Counts(2, 9)}, {"src/k.cpp": Counts(2, 1)})
+        self.assertEqual(len(errors), 1)
+        errors, _ = check({"src/n.cpp": Counts(0, 4)}, {})
+        self.assertEqual(len(errors), 1)
+
+    def test_boundary_crossings_that_fell_are_stale(self):
+        errors, stale = check({"src/k.cpp": Counts(2, 1)}, {"src/k.cpp": Counts(2, 3)})
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(stale, ["src/k.cpp"])
 
     def test_writing_refuses_raw_growth_unless_allowed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -198,13 +203,20 @@ class RatchetTest(unittest.TestCase):
                     previous=load_allowlist(path),
                     allow_growth=False,
                 )
+            with self.assertRaises(ValueError):
+                write_allowlist(
+                    path,
+                    {"src/k.cpp": Counts(1, 5)},
+                    previous=load_allowlist(path),
+                    allow_growth=False,
+                )
             write_allowlist(
                 path,
-                {"src/k.cpp": Counts(1, 5)},
+                {"src/k.cpp": Counts(1, 1)},
                 previous=load_allowlist(path),
                 allow_growth=False,
             )
-            self.assertEqual(load_allowlist(path), {"src/k.cpp": Counts(1, 5)})
+            self.assertEqual(load_allowlist(path), {"src/k.cpp": Counts(1, 1)})
 
     def test_writing_records_views_and_refuses_their_growth(self):
         with tempfile.TemporaryDirectory() as tmp:

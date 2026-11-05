@@ -1,13 +1,13 @@
 # Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp-next/core/fixed_point.h and
 # detail/raw_ops.h. `raw`: raw_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
 # fixed-point methods. `view`: buffer_view.h's typed_view()/raw_view() calls, written only where there are any.
-# `boundary`: from_raw()/.raw()/reinterpret_bits<> crossings, recorded but not gated.
+# `boundary`: from_raw()/.raw()/reinterpret_bits<> crossings, each with its reason at the crossing.
 #
-# The raw and view counts may only SHRINK: a count above its entry, a raw site or a view in a file not on the list, or
+# Every count may only SHRINK: a count above its entry, a raw site, a view or a crossing in a file not on the list, or
 # an entry with headroom left fails the check. After moving a file's arithmetic onto fixed_point.h's typed operations
 # or typing its buffers, rewrite with
 #   scripts/check_fixed_point_raw.py --write
-# which refuses to raise a raw or view count or add a file with either.
+# which refuses to raise a count or add a counted file; --allow-growth overrides it, for a growth justified in review.
 #
 # <path> raw=<n> [view=<n>] boundary=<n>
 src/deluge/bench/cases.cpp raw=0 boundary=7
