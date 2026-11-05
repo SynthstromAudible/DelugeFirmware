@@ -46,7 +46,6 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer) {
 	q31_t l = 0;
 	q31_t r = 0;
-	StereoFloatSample logMean;
 	for (StereoSample sample : buffer) {
 		l += absForLevel(sample.l) >> 8;
 		r += absForLevel(sample.r) >> 8;
@@ -54,8 +53,14 @@ StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer
 
 	float ns = buffer.size();
 
-	meanL = 256.f * l / ns;
-	meanR = 256.f * r / ns;
+	return calcApproxRMSFromMeans(256.f * l / ns, 256.f * r / ns, buffer.size());
+}
+
+StereoFloatSample AbsValueFollower::calcApproxRMSFromMeans(float newMeanL, float newMeanR, size_t numSamples) {
+	StereoFloatSample logMean;
+	float ns = numSamples;
+	meanL = newMeanL;
+	meanR = newMeanR;
 
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
