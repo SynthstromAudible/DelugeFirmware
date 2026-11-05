@@ -205,6 +205,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
 
+	// Arp Freeze
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ArpFreeze], STRING_FOR_COMMUNITY_FEATURE_ARP_FREEZE,
+	                  "arpFreeze", RuntimeFeatureStateToggle::On);
+
 	// Shortcut Overlay
 	auto& overlay = settings[RuntimeFeatureSettingType::ShortcutOverlay];
 	overlay.displayName = STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY;

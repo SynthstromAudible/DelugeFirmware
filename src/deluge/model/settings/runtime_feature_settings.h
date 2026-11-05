@@ -71,6 +71,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShowBatteryLevel,
 	RoundedCorners,
 	ShortcutOverlay,
+	ArpFreeze, // NOLINT(readability-identifier-naming): named like the other settings
 	MaxElement // Keep as boundary
 };
 
