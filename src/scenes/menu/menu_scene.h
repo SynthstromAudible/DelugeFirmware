@@ -187,11 +187,10 @@ public:
 	/// the same measure `shouldForwardButtons` names.
 	const Node* focused_value() const;
 
-	/// @brief Replace the facts about the root UI under the menu that the opener set: its greyout arm, and whether it
-	/// is
-	///        the keyboard screen or the automation view. The host calls it whenever the root, or the automation view's
-	///        editor, changes while the menu is open; legacy re-reads them on every greyout
-	///        (`sound_editor.cpp:497-500`).
+	/// @brief Replace the facts about the root UI under the menu that the opener set: its greyout arm, and
+	///        whether it is the keyboard screen or the automation view. The host calls it whenever the root, or
+	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
+	///        greyout (`sound_editor.cpp:497-500`).
 	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
