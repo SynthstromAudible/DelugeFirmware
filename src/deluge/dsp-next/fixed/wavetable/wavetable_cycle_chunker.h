@@ -128,7 +128,7 @@ struct CycleChunk {
 		int32_t cycle_stride = band->cycleSizeNoDuplicates + kWavetableDuplicateSamplesAtCycleEnd;
 		const int16_t* __restrict__ cycle1 = &band->dataAccessAddress[first_cycle * cycle_stride];
 		const int16_t* __restrict__ cycle2 = cycle1 + cycle_stride;
-		// The blend wraps with its signed increment's bits, as the unsigned arithmetic does
+		// The signed increment's bits, added modulo 2^32, so a falling morph steps the blend down.
 		const auto increment = UQ<32>::from_raw(static_cast<uint32_t>(cross_cycle_blend_increment));
 		auto blend = UQ<32>::from_raw(cross_cycle_blend + increment.raw() * static_cast<uint32_t>(offset));
 		do {
@@ -155,7 +155,7 @@ struct CycleChunk {
 ///   WavetableCycleChunker chunker{table, output, phaseIncrement, waveIndex, waveIndexIncrement};
 ///   while (std::optional<CycleChunk> chunk = chunker.next()) { ... chunk->render(...) ... }
 /// @endcode
-/// Bit-exact with the legacy `WaveTable::render` loop.
+/// A single-cycle and a morphing wavetable reach the output at one level, through @ref wavetable_detail::output_sample.
 class WavetableCycleChunker {
 public:
 	WavetableCycleChunker(const WaveTableData& table, dsp::Buffer<Q<31>> output, uint32_t phase_increment,

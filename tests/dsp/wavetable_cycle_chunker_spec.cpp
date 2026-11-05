@@ -41,7 +41,7 @@ using deluge::dsp::fixed::WavetableCycleChunker;
 using deluge::dsp::fixed::WaveTableData;
 
 constexpr int32_t kBlock = 64;
-constexpr uint32_t kPlayRate = 0x00100000; // only affects which band/kernel is picked
+constexpr uint32_t kPlayRate = 0x00100000; // the band and kernel it picks; the level spec also renders at it
 
 // One band that covers every cycle, so the band walk always finds data. dataAccessAddress is null —
 // these specs assert chunk geometry, never render.
@@ -142,6 +142,7 @@ std::size_t differences(int32_t wave_index, int32_t wave_index_increment) {
 	write_cycle(data.data() + kStride);
 	const WaveTableBand band{0xFFFFFFFFu, -1, 2, kCycleSize, 8, data.data()};
 	const WaveTableData single{1, 0, 0, &band, sizeof(WaveTableBand), 1};
+	// As the loader sets a two-cycle table: one transition, its magnitude 1, the index multiplier 1 << 30.
 	const WaveTableData morphing{2, 1, 1 << 30, &band, sizeof(WaveTableBand), 1};
 
 	std::array<int32_t, 128> want{};

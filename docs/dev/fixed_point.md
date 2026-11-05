@@ -214,9 +214,10 @@ operation: on the x86 host through SIMDe, and under qemu on the A9's own instruc
 - **Interpolation:** the bilinear table interpolator's rows are Q16 and its result Q15 of the table's units; the 1-D
   lerps stay integer. The stutter blend's Q16 strengths are reformatted to Q30. The windowed sinc blends Q15 kernel rows
   (`add_wrap`, `mul_doubling_sat`, `sub_wrap`) and weights a Q15 window into a Q30 sample (`mla_wide`, then `sum_wrap`);
-  the wavetable morph adds the `UQ<32>` morph's share of the Q30 cycle difference (the unsigned × signed high word) to
-  the first cycle, so a morphing wavetable's sample is Q30 like a single cycle's, and both reach the output through one
-  `Q<30>` step. The sample interpolator's linear path stays an integer lerp, Q30.
+  the wavetable morph adds the `UQ<32>` morph's share of the wrapping Q30 cycle difference (the unsigned × signed high
+  word, floored) to the first cycle, the sum wrapping, so a morphing wavetable's sample is Q30 like a single cycle's.
+  Both reach the output as the Q30 word read as the Q31 sample (`output_sample`), so a full-scale cycle plays at half
+  of the output's full scale. The sample interpolator's linear path is an integer lerp, Q30.
 - **Filters:** the one-pole's step rounds (x − z) × m to Q30 and doubles it back to Q31 (`mul_r_as_wrap`); a ladder
   reads its feedback by a Q30 amount, z × amount at Q31 (`OnePole::feedback`) or at Q29 to sum four
   (`feedback_unshifted`). `curve_frequency` gives tan(f) at Q28 and 1 / (1 + tan(f)) and the moveability at Q31, the
