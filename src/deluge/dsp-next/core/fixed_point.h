@@ -848,6 +848,27 @@ requires detail::shift_amount<N, S>
 [[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shr_floor(Fixed<S, F> x) noexcept {
 	return Fixed<S, F>::from_raw(static_cast<S>(x.raw() >> N));
 }
+
+/// @brief x / 2^@p n in the same format, @p n known only at run time (0 to the storage's bits − 1), rounding toward
+/// −∞ (`asr` by a register).
+template <class S, int F>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shr_floor(Fixed<S, F> x, int n) noexcept {
+	return Fixed<S, F>::from_raw(static_cast<S>(x.raw() >> n));
+}
+/// @brief x clamped, then × 2^@p n in the same format, @p n known only at run time (0 to 31). The clamp is to
+/// 32 − @p n bits for shifts 1 to 20, and to 12 bits for a zero shift and for shifts past 20, where the shift wraps:
+/// the width of the app's run-time saturating shift, which every caller's output depends on.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> scale_shl_clamp_then_shift(Q<F> x, int n) noexcept {
+	const int width = (n == 0 || n > 20) ? 12 : 32 - n;
+	return Q<F>::from_raw(detail::wrap_shl(clamp_bits(x, width).raw(), n));
+}
+/// @brief x × 2^@p magnitude in the same format, @p magnitude known only at run time (−31 to 31): a positive
+/// magnitude is @ref scale_shl_clamp_then_shift's, a zero or negative one rounds toward −∞.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> scale_pow2_sat(Q<F> x, int magnitude) noexcept {
+	return magnitude > 0 ? scale_shl_clamp_then_shift(x, magnitude) : scale_shr_floor(x, -magnitude);
+}
 /// @brief x / 2^N in the same format, rounding half up; never wraps.
 template <int N, class S, int F>
 requires detail::shift_amount<N, S>
