@@ -254,6 +254,12 @@ set(live_pitch_shifter_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The input oscillator's live histories: the store and the live input it makes, and the tanh table the input reads.
+# Its allocator seam comes from alloc_seams.h.
+set(live_inputs_spec_DEPS
+  ${_repo_root}/src/synth/sources/input/live/live_inputs.cpp
+  ${_repo_root}/src/synth/sources/input/live/live_input.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The stutter reference (reference_stutter.h, stutter_workloads.h, header-only) over the delay's tape: the same sources.
 set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
