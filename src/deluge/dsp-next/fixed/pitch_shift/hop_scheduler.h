@@ -263,7 +263,9 @@ private:
 		// Where the progress will be, held to [−1, 1) before its move to Q31
 		const int32_t newer_share_after =
 		    as_wrap<Q<31>>(clamp_bits<25>(Q<24>::from_raw(static_cast<int32_t>(progress_.crossfade_progress)))).raw();
-		const int32_t share_step = static_cast<int32_t>(newer_share_after - newer_share) / length;
+		// The difference wraps: a hurried crossfade can carry the progress past full scale within one segment
+		const int32_t share_step =
+		    sub_wrap(Q<31>::from_raw(newer_share_after), Q<31>::from_raw(newer_share)).raw() / length;
 		// The source amplitude times each share (and its step), moved back to Q31
 		const auto source = Q<31>::from_raw(amplitude_);
 		const int32_t change = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(share_step)).raw();

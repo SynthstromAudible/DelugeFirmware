@@ -43,8 +43,8 @@ template <typename Frame>
 template <typename Frame>
 LivePitchShifter<Frame>::LivePitchShifter(InputChannel channel, int32_t phase_increment)
     : channel_(channel), scheduler_(phase_increment) {
-	// The newer head starts direct, at the ring's start (quirk Q1,
-	// docs/dev/live_pitch_shifter_quirks.md)
+	// The newer head starts direct, at the ring's start (quirk Q1, docs/dev/live_pitch_shifter_quirks.md), with no
+	// onset entry noted (quirk Q9)
 	heads_.newer.template on<&Kernel::note_percussiveness_entry>(dsp::fixed::pitch_shift::kNoPercussivenessEntry);
 }
 
