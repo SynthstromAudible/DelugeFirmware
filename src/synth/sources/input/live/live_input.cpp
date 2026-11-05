@@ -17,10 +17,7 @@
 #include "synth/sources/input/live/live_input.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
-#include <span>
 #include <type_traits>
 
 namespace deluge::synth {
@@ -42,8 +39,21 @@ template <typename Frame>
 	}
 }
 
-/// Frames ingested at once, through a block on the stack: the render's largest block.
-constexpr std::size_t kIngestChunk = 128;
+/// @brief The codec ring's frames from a read position, wrapping at the ring's end: the history's frame source.
+template <typename Frame>
+struct CodecFrames {
+	const int32_t* read_pos;
+	const int32_t* ring_end;
+	InputChannel channel;
+	[[gnu::always_inline]] Frame next() {
+		const auto frame = frame_at<Frame>(read_pos, channel);
+		read_pos += NUM_MONO_INPUT_CHANNELS;
+		if (read_pos >= ring_end) {
+			read_pos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+		}
+		return frame;
+	}
+};
 } // namespace
 
 template <typename Frame>
@@ -57,23 +67,8 @@ void LiveInput<Frame>::ingest(int32_t n, AudioInputPort& port) {
 		history_.restart(); // Frames were missed
 	}
 
-	const int32_t* read_pos = port.ring_read_pos();
-	const int32_t* const ring_end = port.ring_end();
-	// Each chunk is written in full before it is read
-	std::array<Frame, kIngestChunk> block; // NOLINT(cppcoreguidelines-pro-type-member-init)
-	auto remaining = static_cast<std::size_t>(n);
-	while (remaining != 0) {
-		const std::size_t count = std::min(remaining, kIngestChunk);
-		for (std::size_t i = 0; i < count; ++i) {
-			block[i] = frame_at<Frame>(read_pos, channel_);
-			read_pos += NUM_MONO_INPUT_CHANNELS;
-			if (read_pos >= ring_end) {
-				read_pos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
-			}
-		}
-		history_.write(std::span<const Frame>{block.data(), count});
-		remaining -= count;
-	}
+	CodecFrames<Frame> source{port.ring_read_pos(), port.ring_end(), channel_};
+	history_.write(source, static_cast<uint32_t>(n));
 	ingested_to_ = end;
 }
 

@@ -18,7 +18,7 @@
 
 #include "definitions_cxx.hpp" // kInputRawBufferSize, kInputPercBufferSize, kPercBufferReductionMagnitude
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/mono.h"
+#include "dsp-next/core/kernel.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/pitch_shift/slope_follower.h"
 
@@ -74,8 +74,8 @@ using MovingAverages = std::array<int32_t, kMovingAverages>;
 
 /// @brief The live input's recent history: its frames, and how percussive it was.
 /// @details Holds the last kHistoryFrames frames in a ring and, every 128 frames, the percussiveness (0 to 63) of the
-/// input's smoothed slope there, read from a @ref SlopeFollower over the input folded to one channel (a quarter of each
-/// channel, summed). The count of frames written runs on past the ring's length, wrapping at 2^32.
+/// input's smoothed slope there, read from a @ref SlopeFollower stepped over the input folded to one channel (a quarter
+/// of each channel, summed). The count of frames written runs on past the ring's length, wrapping at 2^32.
 /// @tparam Frame Q<31> for one channel, StereoSample for two.
 template <typename Frame>
 requires std::is_same_v<Frame, Q<31>> || std::is_same_v<Frame, StereoSample>
@@ -85,16 +85,33 @@ public:
 	/// count says are not yet written.
 	void restart() {
 		frames_written_ = 0;
-		follower_.reset();
+		follower_ = {};
+	}
+
+	/// @brief Appends @p n frames from @p source, one pass per frame: each is stored, folded and followed, and every
+	/// 128th frame's percussiveness noted.
+	/// @tparam Source An object whose `next()` gives the next frame.
+	template <typename Source>
+	void write(Source& source, uint32_t n) {
+		Q<31> previous = SlopeFollower::slope(follower_);
+		for (uint32_t i = 0; i < n; ++i) {
+			const Frame frame = source.next();
+			frames_[frames_written_ & (kHistoryFrames - 1)] = frame;
+			const Q<31> slope = kernel_ops::step_at<SlopeFollower, kernel_ops::NoMode::NONE>({}, EmptyBlock{},
+			                                                                                 follower_, folded(frame));
+			if ((frames_written_ & ((1U << kPercussivenessStepMagnitude) - 1)) == 0) {
+				percussiveness_[(frames_written_ >> kPercussivenessStepMagnitude) & (kPercussivenessEntries - 1)] =
+				    percussiveness(slope, previous);
+			}
+			previous = slope;
+			++frames_written_;
+		}
 	}
 
 	/// @brief Appends @p frames.
 	void write(std::span<const Frame> frames) {
-		while (!frames.empty()) {
-			const std::size_t n = std::min(frames.size(), kChunk);
-			write_chunk(frames.first(n));
-			frames = frames.subspan(n);
-		}
+		SpanSource source{frames};
+		write(source, static_cast<uint32_t>(frames.size()));
 	}
 
 	/// @brief The frames written since the last restart, wrapping at 2^32.
@@ -151,8 +168,12 @@ public:
 	[[nodiscard]] bool written(RingPosition p) const { return p.index() < frames_written_; }
 
 private:
-	/// Frames the follower runs over at once.
-	static constexpr std::size_t kChunk = 128;
+	/// @brief Frames from a span, in order.
+	struct SpanSource {
+		std::span<const Frame> frames;
+		std::size_t at = 0;
+		[[nodiscard]] Frame next() { return frames[at++]; }
+	};
 
 	[[nodiscard]] static constexpr Q<31> left(const Frame& f) {
 		if constexpr (std::is_same_v<Frame, StereoSample>) {
@@ -173,28 +194,10 @@ private:
 		}
 	}
 
-	void write_chunk(std::span<const Frame> frames) {
-		// The chunk's first frames.size() slopes are written before they are read
-		std::array<Q<31>, kChunk> slopes; // NOLINT(cppcoreguidelines-pro-type-member-init)
-		const std::span<Q<31>> chunk{slopes.data(), frames.size()};
-		std::ranges::transform(frames, chunk.begin(), folded);
-		Q<31> previous = SlopeFollower::slope(follower_.state());
-		follower_.render_block(chunk, chunk);
-		for (std::size_t i = 0; i < frames.size(); ++i) {
-			frames_[frames_written_ & (kHistoryFrames - 1)] = frames[i];
-			if ((frames_written_ & ((1U << kPercussivenessStepMagnitude) - 1)) == 0) {
-				percussiveness_[(frames_written_ >> kPercussivenessStepMagnitude) & (kPercussivenessEntries - 1)] =
-				    percussiveness(chunk[i], previous);
-			}
-			previous = chunk[i];
-			++frames_written_;
-		}
-	}
-
 	std::array<Frame, kHistoryFrames> frames_{};
 	/// Zeroed: a hop reads entries ahead of what has been written while the input warms up.
 	std::array<uint8_t, kPercussivenessEntries> percussiveness_{};
-	Mono<SlopeFollower> follower_;
+	SlopeFollower::State follower_{};
 	uint32_t frames_written_ = 0;
 };
 

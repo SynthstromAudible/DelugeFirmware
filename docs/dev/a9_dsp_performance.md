@@ -746,23 +746,24 @@ sample (2026-11-05):
 
 | case | n=32 | n=64 | n=128 |
 |---|---:|---:|---:|
-| sample_read_sinc_mono | −6.4% | −2.8% | −6.8% |
-| sample_read_sinc_stereo | −1.8% | −1.9% | −2.0% |
-| sample_read_linear_mono | +4.1%¹ | −6.0% | −6.4% |
-| sample_read_linear_stereo | −7.5% | −7.8% | −8.1% |
-| pitch_shift_up7 | +2.5% | +4.7% | +4.2% |
-| pitch_shift_down12 | +6.2% | +5.6% | +6.8% |
-| pitch_shift_stereo_up7 | +5.3% | +4.6% | +5.1% |
-| pitch_shift_perc_up7 | +5.7% | +3.5% | +3.8% |
+| sample_read_sinc_mono | −2.7% | +1.4%¹ | −2.6% |
+| sample_read_sinc_stereo | −1.8% | −1.8% | −1.9% |
+| sample_read_linear_mono | +4.7%¹ | −6.3% | −14.3%¹ |
+| sample_read_linear_stereo | −6.4% | −7.5% | −7.9% |
+| pitch_shift_up7 | −1.8% | −0.6% | −1.3% |
+| pitch_shift_down12 | +0.2% | +0.1% | −0.5% |
+| pitch_shift_stereo_up7 | −0.3% | −0.9% | −0.8% |
+| pitch_shift_perc_up7 | +0.5% | −1.3% | −1.3% |
 
-¹ Within that case's run-to-run spread (4.4 cps). The delay-chain control cases are level throughout.
+¹ Within that case's run-to-run spread (up to 9 cps for linear mono). The delay-chain control cases are level
+throughout.
 
 - The reader's gain is the Interpolator's head and tail feeds: its resampled loop allocates differently and stores
   fewer taps.
-- The shifter's cost first measured +5% to +21%, worst at small blocks: about 850 cycles a block were the ingest's two
-  scratch blocks, value-initialised every block. Left unzeroed (each is written in full before it is read), what remains
-  is per sample, consistent with the ingest running in passes (ring walk, fold, follower, ring store) where the legacy
-  buffer ran one fused loop.
+- The shifter first measured +5% to +21%, worst at small blocks. About 850 cycles a block were the ingest's two scratch
+  blocks, value-initialised every block; the rest was the ingest's separate passes (ring walk, fold, follower, ring
+  store). The ingest now reads each codec frame once and stores, folds, follows and measures it in one loop, the
+  follower stepped through `kernel_ops::step_at`, and the shifter is level with the legacy.
 - Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
   to +24%): the head's interpolator window is 64 bytes.
 
