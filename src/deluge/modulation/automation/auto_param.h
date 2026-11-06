@@ -195,9 +195,15 @@ public:
 	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
 	inline bool isAutomated(deluge::project::LaneView lane) { return !lane.empty(); }
 
-	inline void cancelOverriding() { // Will also cancel "latching".
-		renewedOverridingAtTime = 0;
-	}
+	/// @brief Stop overriding the lane, and latching. The render's cursor state: see stopInterpolating().
+	void cancelOverriding();
+	/// @brief Override the lane from now, after a value set by hand while it plays: the render holds the value for a
+	///        moment before following the lane again. The render's cursor state: see stopInterpolating().
+	void overrideFromNow();
+	/// @brief Stop interpolating. The render's cursor state, which it writes as it plays: the interaction tier writes
+	/// it
+	///        with the render held off, so no block sees it half made.
+	void stopInterpolating();
 
 	// The AutoParam is a pure interpolation cursor: it holds no node storage. Every node operation receives a
 	// `DocAutoParam&` resolved by the owner (ModelStackWithAutoParam::doc(), or a per-owner docForParam). The DOM owns

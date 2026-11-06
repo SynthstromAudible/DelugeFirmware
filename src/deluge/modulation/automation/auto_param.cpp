@@ -278,7 +278,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 	bool recorded = false; // the write went to the render as a recorded value
-	resetInterpolationIncrement();
+	stopInterpolating();
 
 	bool isPlaying =
 	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -381,10 +381,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 		// Or if not recording...
 		else {
 			if (!nodesRef.empty()) {
-				renewedOverridingAtTime = AudioEngine::audioSampleTimer;
-				if (renewedOverridingAtTime <= 1) {
-					renewedOverridingAtTime = 0xFFFFFFFF;
-				}
+				overrideFromNow();
 			}
 		}
 	}
@@ -503,13 +500,10 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 	// scalar patch never touches nodes, so isAutomated is invariant across the write (automatedBefore ==
 	// automatedNow) and the notify's automationChanged is false, matching the getOut: tail.
 	auto& nodesRef = modelStack->doc()->nodes;
-	resetInterpolationIncrement();
+	stopInterpolating();
 	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
 	if (isPlaying && !nodesRef.empty()) {
-		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
-		if (renewedOverridingAtTime <= 1) {
-			renewedOverridingAtTime = 0xFFFFFFFF;
-		}
+		overrideFromNow();
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
@@ -525,7 +519,7 @@ void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack
 	using deluge::project::RegionCurrentValueEffect;
 	if (result.currentValueEffect == RegionCurrentValueEffect::SetAndResetInterp) {
 		// clock-active, playhead inside the edited region: the engine resets the interpolation cursor here.
-		resetInterpolationIncrement();
+		stopInterpolating();
 	}
 	else if (result.currentValueEffect == RegionCurrentValueEffect::NotifyOnly) {
 		// clock-active, playhead outside: the engine leaves current_value alone and notifies the UI of automation.
@@ -622,8 +616,8 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 		nodesRef.clear();
 	}
 
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
+	stopInterpolating();
+	cancelOverriding();
 
 	if (shouldNotify && wasAutomated) {
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
@@ -1033,6 +1027,36 @@ bool AutoParam::hasInterpolationIncrement() {
 	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
 }
 
+namespace {
+/// @brief Run @p write, a write of the render's cursor state: as it is on the render, else with the render held off.
+template <typename Write>
+void writeCursor(Write write) {
+	if (deluge::memory::onRenderTier()) {
+		write();
+		return;
+	}
+	AudioExcludedSection section;
+	write();
+}
+} // namespace
+
+void AutoParam::cancelOverriding() {
+	writeCursor([&] { renewedOverridingAtTime = 0; });
+}
+
+void AutoParam::overrideFromNow() {
+	writeCursor([&] {
+		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
+		if (renewedOverridingAtTime <= 1) {
+			renewedOverridingAtTime = 0xFFFFFFFF;
+		}
+	});
+}
+
+void AutoParam::stopInterpolating() {
+	writeCursor([&] { resetInterpolationIncrement(); });
+}
+
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
 void AutoParam::resetInterpolationIncrement() {
@@ -1375,7 +1399,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 
 		if (!clockActive || inRegionNow) {
 			if (clockActive) {
-				resetInterpolationIncrement();
+				stopInterpolating();
 			}
 			setBase(*modelStack->doc(), value);
 		}
@@ -1595,8 +1619,8 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodesRef.clear();              // Delete them - either if no action, or if the above chose not to steal them.
-		resetInterpolationIncrement(); // In case we were interpolating.
+		nodesRef.clear();    // Delete them - either if no action, or if the above chose not to steal them.
+		stopInterpolating(); // In case we were interpolating.
 	}
 }
 
@@ -2057,7 +2081,7 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 	}
 	deluge::project::nudgeNonInterpolatingNodesAtPos(*modelStack->doc(), pos, offset, lengthBeforeLoop);
 	if (modelStack->doc()->nodes.empty()) {
-		resetInterpolationIncrement(); // In case we were interpolating.
+		stopInterpolating(); // In case we were interpolating.
 	}
 }
 
