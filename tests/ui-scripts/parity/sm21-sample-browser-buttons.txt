@@ -1,0 +1,44 @@
+# ShellMenu: the sample browser's buttons. On CLIPS' first file SHIFT + SAVE asks to delete it and BACK refuses;
+# LOAD turns auto-load on (its LED), Select +1 loads the next file and the browser stays open, SHIFT + SAVE on that
+# file refuses (the song uses it), LOAD again turns auto-load off; the audition column sounds the clip's row; RECORD
+# opens the audio recorder and BACK leaves it. Run on the content ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+1500  encoder Select +1
+2500  button SelectEnc down
+2520  button SelectEnc up
+4500  snapshot file
+5600  button Shift down
+5700  button Save down
+5720  button Save up
+5800  button Shift up
+7000  snapshot delete_prompt
+8100  button Back down
+8120  button Back up
+9500  snapshot delete_refused
+10600 button Load down
+10620 button Load up
+11700 snapshot auto_load_on
+12800 encoder Select +1
+15000 snapshot auto_loaded
+16100 button Shift down
+16200 button Save down
+16220 button Save up
+16300 button Shift up
+16400 snapshot used_in_song
+19600 button Load down
+19620 button Load up
+20700 snapshot auto_load_off
+21800 pad 17 3 down
+22200 snapshot audition
+23200 pad 17 3 up
+24200 snapshot audition_up
+25300 button Record down
+25320 button Record up
+27000 snapshot recorder
+28100 button Back down
+28120 button Back up
+29500 snapshot closed

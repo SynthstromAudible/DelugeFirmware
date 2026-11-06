@@ -1,0 +1,34 @@
+# ShellMenu: the sample browser's waveform. On CLIPS' first file, X_ENC held with Horizontal turns zooms the
+# waveform, released a Horizontal turn scrolls it (zoomed in) and back; a Vertical turn goes to the clip view behind;
+# the mute column closes the browser. Run on the content ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+1500  encoder Select +1
+2500  button SelectEnc down
+2520  button SelectEnc up
+4500  snapshot waveform
+5600  button XEnc down
+5700  encoder Horizontal +1
+6700  snapshot zoom_1
+7000  encoder Horizontal +1
+8000  snapshot zoom_2
+8300  encoder Horizontal +1
+9300  snapshot zoom_3
+9600  button XEnc up
+10600 snapshot zoom_released
+10900 encoder Horizontal +1
+11900 snapshot scrolled
+12200 encoder Horizontal -1
+13200 snapshot scrolled_back
+13500 button XEnc down
+13600 encoder Horizontal -3
+14600 snapshot zoom_out
+14900 button XEnc up
+15200 encoder Vertical +1
+16500 snapshot vertical
+17600 pad 16 0 down
+17640 pad 16 0 up
+19000 snapshot closed
