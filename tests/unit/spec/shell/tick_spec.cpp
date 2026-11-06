@@ -573,6 +573,22 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(*r.shell.next_wake()).to_equal(uint32_t(22));
 	});
 
+	it("reconsider_wake brings the wake forward to a scene timer set since the tick, never later", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.base.timer = 50;
+		r.shell.tick(0);
+		expect(*r.shell.next_wake()).to_equal(uint32_t(50));
+		// The host hands the scene an answer between ticks, which moves its timer.
+		r.base.timer = 0;
+		r.shell.reconsider_wake(5);
+		expect(*r.shell.next_wake()).to_equal(uint32_t(5));
+		r.base.timer = 100;
+		r.shell.reconsider_wake(6);
+		expect(*r.shell.next_wake()).to_equal(uint32_t(5));
+	});
+
 	it("a scene timer repaints every surface the scene is on, with no gate arm of its own", _ {
 		// `BaseScene` arms nothing from `render_*`. Without the fold `next_timer()` would be a bare
 		// wake: the shell would come back, `RepaintGate::needs_frame` would say no on every surface,

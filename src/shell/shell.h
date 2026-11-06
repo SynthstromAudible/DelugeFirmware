@@ -420,6 +420,13 @@ public:
 	std::optional<uint32_t> next_wake(uint32_t now_ms) const {
 		return notify::dirty().pending(notify::DirtyConsumer::Shell) ? std::optional<uint32_t>{now_ms} : next_wake_;
 	}
+	/// @brief Bring `next_wake()` forward to any scene's timer as it stands now.
+	///
+	/// For a host that acts on the scenes between ticks (the guest's drains hand a scene its answer after `tick`
+	/// returned): a timer that answer moved is otherwise unseen until something else wakes the shell. Only ever
+	/// earlier, never later: a deadline already set stands.
+	/// @param now_ms The clock now.
+	void reconsider_wake(uint32_t now_ms);
 
 	/// @name Inspection
 	/// @{

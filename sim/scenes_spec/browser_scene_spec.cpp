@@ -685,7 +685,7 @@ bool blank_start_path(spec::AudioSongFixture& f) {
 }
 
 /// @brief A 16-bit mono sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
-Sample* make_overview_sample() {
+Sample* make_overview_sample(int32_t investigated_clusters = 32) {
 	constexpr size_t kClusterBytes = 32768;
 	constexpr int32_t kClusters = 32;
 	constexpr uint64_t kLength = static_cast<uint64_t>(kClusterBytes) * kClusters / 2;
@@ -705,7 +705,7 @@ Sample* make_overview_sample() {
 		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
 		e.min = static_cast<int8_t>(-(16 + 3 * i));
 		e.max = static_cast<int8_t>(16 + 3 * i);
-		e.investigated = true;
+		e.investigated = i < investigated_clusters;
 	}
 	return s;
 }
@@ -1436,6 +1436,23 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		}
 		expect(lit > 0).to_be_true();
 		expect(differ).to_equal(0);
+	});
+
+	it("redraws a preview the card has not caught up with, and gives up 300 ms after its last progress", _ {
+		// `tickPreviewRedraw`. No cluster the overview lacks ever arrives here (the spec process runs no loader), so
+		// the render never completes: the browser asks for redraws, then stops.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_true();
+		run_until(r, r.clock + 400);
+		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
 	});
 
 	it("returns to the root state, blinking again, when the preview settles with no sample", _ {

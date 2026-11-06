@@ -349,6 +349,10 @@ inline constexpr int32_t kRowIconX = 1;
 /// what both APIs take.
 inline constexpr uint32_t kListingPollMs = 10;
 
+/// @brief How long a preview's incomplete render keeps being redrawn with no column newly resolved:
+///        `SampleBrowser::tickPreviewRedraw`'s `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
+inline constexpr uint32_t kWaveformRedrawGiveUpMs = 300;
+
 /// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`, the default layout without banks): a
 ///        first press there reveals the keyboard and does nothing else.
 inline constexpr int32_t kFavouriteRow = 7;
@@ -661,6 +665,9 @@ private:
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
 	deluge::sample::WaveformNav nav_{};
 	uint64_t nav_identity_ = 0;
+	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
+	int32_t redraw_resolved_cols_ = -1;
+	uint32_t redraw_progress_ms_ = 0;
 	/// The BROWSE pad's blink in the root state (`possiblySetUpBlinking`): its plan, the cycle's start, re-armed on
 	/// each entry to the root state, and the last step flashed.
 	deluge::scenes::menu::BlinkPlan blink_{};

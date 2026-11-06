@@ -1168,16 +1168,36 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	if (!info) {
 		return;
 	}
+	const uint32_t now = f.now_ms();
 	if (info->identity != nav_identity_) {
 		nav_identity_ = info->identity;
 		nav_.sample = nullptr;
 		nav_.length_samples = info->length_samples;
 		nav_.opened(0, 0);
+		redraw_resolved_cols_ = -1;
 	}
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	bool complete = true;
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		(void)services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
+		complete = services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
 	});
+	if (complete) {
+		redraw_resolved_cols_ = -1;
+		return;
+	}
+	// `tickPreviewRedraw`: a render the card has not caught up with yet is drawn again as its clusters land, until it
+	// is whole or `kWaveformRedrawGiveUpMs` pass with no column newly resolved.
+	int32_t resolved = 0;
+	for (const uint8_t status : nav_.renderData.colStatus) {
+		resolved += status != COL_STATUS_NOT_INVESTIGATED ? 1 : 0;
+	}
+	if (resolved > redraw_resolved_cols_) {
+		redraw_resolved_cols_ = resolved;
+		redraw_progress_ms_ = now;
+	}
+	if (static_cast<int32_t>(now - redraw_progress_ms_) < static_cast<int32_t>(kWaveformRedrawGiveUpMs)) {
+		f.grid_gate().request_repaint_after(kListingPollMs, now);
+	}
 }
 
 void BrowserScene::leds(deluge::ui::LedFrame& f) {

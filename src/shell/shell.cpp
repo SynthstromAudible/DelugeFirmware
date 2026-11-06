@@ -1192,6 +1192,19 @@ void Shell::flush(uint32_t now_ms) {
 	}
 }
 
+void Shell::reconsider_wake(uint32_t now_ms) {
+	for (Scene* scene : stack_.scenes()) {
+		const std::optional<uint32_t> in = scene->next_timer();
+		if (!in.has_value()) {
+			continue;
+		}
+		const uint32_t at = now_ms + *in;
+		if (!next_wake_.has_value() || static_cast<int32_t>(at - *next_wake_) < 0) {
+			next_wake_ = at;
+		}
+	}
+}
+
 std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	std::optional<uint32_t> best;
 	// Difference form, not `*at < *best`: these are absolute clocks that wrap at ~49.7 days of

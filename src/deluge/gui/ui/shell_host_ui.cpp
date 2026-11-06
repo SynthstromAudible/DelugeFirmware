@@ -582,6 +582,10 @@ ActionResult ShellHostUI::timerCallback() {
 
 	syncPads();
 
+	// The drains above handed scenes their answers after `Shell::tick` computed its wake (a preview settling changes
+	// the browser's pads, and its timer asks for the repaint).
+	shell_.reconsider_wake(now);
+
 	// Unconditional here, but **not unconditional inside**: `rearmTimer` refuses when this guest is
 	// no longer the current UI, which is exactly what the drain above leaves behind when an arm ends
 	// in `openUI(...)`. The whole argument, including why the guard is in the callee, is at
