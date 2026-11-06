@@ -514,6 +514,26 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(l0 != l1 && l1 != l2 && l0 != l2).to_be_true();
 	});
 
+	it("labels a note below C-2 in the octave under it, as MultiRange::getText does", _ {
+		// A range's top note can sit below note code 0 once a clip is transposed down. The octave is the floor of
+		// the twelfths, not their truncation: note -1 is B-3, a line below note 11's B-2.
+		RangeFixture f{3};
+		spec::menu_engine(f.ctx).source->ranges.getElement(0)->topNote = -14; // A#-4
+		spec::menu_engine(f.ctx).source->ranges.getElement(1)->topNote = -1;  // B-3
+		spec::menu_engine(f.ctx).source->ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*static_cast<SoundInstrument*>(f.song.instrument), 0);
+
+		for (int32_t i = 0; i < 3; i++) {
+			char buf[32];
+			deluge::ui::shell::TextScratch scratch;
+			const std::string got{nodes::range_row_label(f.ctx, i, buf, sizeof(buf), scratch)};
+			expect(got).to_equal(RangePeek::text_of_range(legacy::multiRangeMenu, i));
+		}
+		char buf[32];
+		deluge::ui::shell::TextScratch scratch;
+		expect(std::string{nodes::range_row_label(f.ctx, 1, buf, sizeof(buf), scratch)}).to_equal(std::string("B-4    - B-3"));
+	});
+
 	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
 		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:334-336`),
 		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1804`). The port's
