@@ -36,6 +36,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/playhead_checks.h"
 #include "processing/sound/sound_instrument.h"
@@ -1090,6 +1091,8 @@ bool Clip::wantsToBeginLinearRecording(Song* song) {
 }
 
 void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {
+	// The direction and position the render's tick reads, and the resume from them, with the render held off
+	deluge::playback::MoveSection section{"Clip::setSequenceDirectionMode"};
 	bool reversedBefore = currentlyPlayingReversed;
 	setSequenceDirectionModeRaw(newMode);
 

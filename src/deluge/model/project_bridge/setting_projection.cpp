@@ -23,6 +23,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "plugin-api/types/arp.h"
 #include "plugin-api/types/sync.h"
@@ -339,6 +340,7 @@ void withVoiceReseated(::AudioClip& clip, ::Song& song, const std::function<void
 	}
 	clip.sampleHolder.claimClusterReasons(clip.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 	if (active) {
+		deluge::playback::MoveSection section{"withVoiceReseated"};
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		clip.resumePlayback(setupModelStackWithTimelineCounter(memory, &song, &clip), true);
 	}

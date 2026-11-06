@@ -454,6 +454,8 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 		return;
 	}
 
+	// Where the render's tick has reached and the clip's move to it, with the render held off between them
+	deluge::playback::MoveSection section{"Arrangement::reSyncClip"};
 	int32_t actualPos = getLivePos();
 
 	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;
@@ -471,6 +473,7 @@ void Arrangement::resyncToSongTicks(Song* song) {
 // I wish we could easily just do this to the Clips that need it, but we don't store an easy list of just the Clips
 // affected by each Action. Check playbackHandler.isEitherClockActive() before calling this.
 void Arrangement::reversionDone() {
+	deluge::playback::MoveSection section{"Arrangement::reversionDone"};
 
 	int32_t actualPos = getLivePos();
 
@@ -511,6 +514,7 @@ bool Arrangement::isOutputAvailable(Output* output) {
 // For the purpose of stopping or starting sounds during playback if we edited the stuff
 void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
                             ClipInstance* clipInstanceAdded) {
+	deluge::playback::MoveSection section{"Arrangement::rowEdited"};
 
 	int32_t actualPos = getLivePos();
 

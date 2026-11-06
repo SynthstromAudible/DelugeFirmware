@@ -845,6 +845,9 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 		return;
 	}
 
+	// The render's tick count and the clip's move, with the render held off between them
+	deluge::playback::MoveSection section{"Session::reSyncClipToSongTicks"};
+
 	// I've sort of forgotten why this bit here is necessary (well, I know it deals with the skipping of ticks). Could
 	// it just be put into the setPos() function? I basically copied this from Editor::launchClip()
 	int32_t modifiedStartPos = (int32_t)playbackHandler.lastSwungTickActioned;
@@ -875,6 +878,8 @@ void Session::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSet
 	}
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+		// What the render's tick has reached and the clip's move to it, with the render held off between them
+		deluge::playback::MoveSection section{"Session::reSyncClip"};
 
 		// If following external clock...
 		if (playbackHandler.isExternalClockActive()) {
@@ -2122,6 +2127,7 @@ void Session::reversionDone() {
 	if (!currentSong) {
 		return;
 	}
+	deluge::playback::MoveSection section{"Session::reversionDone"};
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
 			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];

@@ -51,6 +51,7 @@
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -1895,6 +1896,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// NoteRows yet - that happens as Drums are set, below
 	if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()
 	    && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::changeInstrument"};
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 		paramManager.setPlayPos(getLivePos(), modelStackWithThreeMainThings, currentlyPlayingReversed);
@@ -3673,6 +3675,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 	}
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::shiftHorizontally"};
 		expectEvent();
 		reGetParameterAutomation(modelStack); // Re-gets all NoteRow-level param automation too
 	}
@@ -3686,6 +3689,7 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 	noteRow->shiftHorizontally(shiftAmount, modelStack, shiftAutomation, shiftSequenceAndMPE);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::shiftOnlyOneNoteRowHorizontally"};
 		expectEvent();
 
 		if (noteRow->paramManager.mightContainAutomation()) {

@@ -2633,6 +2633,8 @@ void PlaybackHandler::toggleMetronomeStatus() {
 // tempo, or sync scaling is activated
 void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 	if (isExternalClockActive()) {
+		// The render's tick count and every clip's move to it, with the render held off between them
+		deluge::playback::MoveSection section{"PlaybackHandler::resyncInternalTicksToInputTicks"};
 		// This works. Although it doesn't do anything special to account for swing, no long-term out-of-sync-ness
 		// results - I tested.
 		lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();
@@ -3116,6 +3118,8 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 }
 
 void PlaybackHandler::expectEvent() {
+	// The next-event schedule is the render's tick's: an edit on the interaction tier sets it with the render held off.
+	deluge::playback::MoveSection section{"PlaybackHandler::expectEvent"};
 	deluge::playback::notePositionWrite();
 	if (!currentlyActioningSwungTickOrResettingPlayPos && isEitherClockActive()) {
 		int32_t newSwungTicksTilNextEvent = getNumSwungTicksInSinceLastActionedSwungTick() + 1;
