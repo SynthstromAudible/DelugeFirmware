@@ -68,12 +68,13 @@ _LINE = re.compile(
 def _check(gate, result) -> None:
     effects = [line for line in result.lines if line.startswith("PM-EFFECTS ")]
     if not effects or not re.match(
-        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 drain=1 render=1$",
+        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 drain=1 render=1 retire=1$",
         effects[0],
     ):
         gate.fail(
             f"{effects[0] if effects else 'no PM-EFFECTS line'}: a move's effects must run in order, once the"
-            " outermost section ends and the render runs again, and never on the render"
+            " outermost section ends and the render runs again, and never on the render; retired memory must outlive the"
+            " render block it may be read in"
         )
         return
     lines = {}

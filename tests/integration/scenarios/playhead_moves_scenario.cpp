@@ -308,6 +308,31 @@ void logRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
 	g_runnerLog.masked = g_runnerLog.masked || deluge_audio_excluded_depth() > 0;
 }
 
+/// Whether the retired marker has been freed.
+bool g_markerFreed = false;
+
+void freeMarker(void* marker) {
+	g_markerFreed = true;
+	deluge::memory::dealloc(marker);
+}
+
+/// Memory retired while the render may read it is freed only once two render blocks have begun since.
+bool selfTestRetire() {
+	static DelugeStereoSample silence[kRenderBlockFrames]{};
+	static DelugeStereoSample output[kRenderBlockFrames]{};
+	// The render has to have run for retirement to wait on it
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	g_markerFreed = false;
+	AudioEngine::retireMemory(deluge::memory::alloc_sdram(16), &freeMarker);
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	AudioEngine::reclaimRetired();
+	const bool keptOneBlock = !g_markerFreed;
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	AudioEngine::reclaimRetired();
+	return keptOneBlock && g_markerFreed;
+}
+
 /// As logRunner, and the notify 10 makes a move of its own that defers 20 and 21.
 void nestingRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
 	logRunner(notify);
@@ -392,9 +417,11 @@ void selfTestEffects() {
 	MoveEffects::setRunnerForTest(nullptr);
 
 	char line[128];
-	snprintf(line, sizeof(line), "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d\n",
+	const bool retire = selfTestRetire();
+	snprintf(line, sizeof(line),
+	         "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d retire=%d\n",
 	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
-	         render ? 1 : 0);
+	         render ? 1 : 0, retire ? 1 : 0);
 	std::fputs(line, stdout);
 }
 

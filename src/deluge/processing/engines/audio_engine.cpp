@@ -359,6 +359,25 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 	deluge::runtime::appLoop.request(AudioEngine::reclaimJob);
 }
 
+} // namespace
+
+namespace AudioEngine {
+void retireMemory(void* object, void (*destroy)(void*)) {
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		FREEZE_WITH_ERROR("E455");
+	}
+	if (renderDomain_.audio_epoch() == 0) {
+		destroy(object);
+		return;
+	}
+	// No let-go request: memory the render reads only within a block (it holds no pointer into it across blocks) is
+	// free once two blocks have begun since this.
+	retireList.retire(object, destroy);
+	deluge::runtime::appLoop.request(AudioEngine::reclaimJob);
+}
+} // namespace AudioEngine
+
+namespace {
 /// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
 /// last block -- before any walk of this block can reach it, and publish how far it got. The epoch's and the let-go
 /// sequence's release stores are what let reclaim free an object. Run by every block the render starts, and by a block

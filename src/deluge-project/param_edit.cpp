@@ -43,9 +43,13 @@ int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpola
 }
 
 int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, bool reversed) {
-	const auto& nodes = p.nodes;
+	return getValueAtPos(LaneView::of(p), pos, loopLength, reversed);
+}
+
+int32_t getValueAtPos(LaneView lane, uint32_t pos, int32_t loopLength, bool reversed) {
+	const auto nodes = lane.nodes;
 	if (nodes.empty()) {
-		return p.current_value;
+		return lane.base;
 	}
 
 	const auto size = static_cast<int32_t>(nodes.size());
@@ -58,13 +62,13 @@ int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, b
 	if (rightI >= size) {
 		rightI = 0; // wrap: past the last node, the "right" neighbour is the first (loop point)
 	}
-	const ParamNode& rightNode = nodes[rightI];
+	const ParamNode& rightNode = nodes[static_cast<size_t>(rightI)];
 
 	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
 		leftI += size; // wrap: before the first node, the "left" neighbour is the last (loop point)
 	}
-	const ParamNode& leftNode = nodes[leftI];
+	const ParamNode& leftNode = nodes[static_cast<size_t>(leftI)];
 	if (!rightNode.interpolated) {
 		return leftNode.value; // stepped node: hold the left value
 	}
