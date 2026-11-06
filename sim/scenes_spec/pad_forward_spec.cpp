@@ -49,6 +49,7 @@
 #include "processing/sound/sound_instrument.h"
 
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
+#include "notify/dirty_set.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -701,9 +702,45 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		whichSideRowsNeedRendering = 0;
 		deluge::gui::ui::refreshShellRangeDisplay(); // unchanged: none
 		expect(whichSideRowsNeedRendering).to_equal(0u);
+		{
+			// The same range, on the oscillator's page, which is not range-dependent: the highlight goes.
+			const deluge::scenes::menu::MenuContext ctx = menu_scene().menu_context();
+			menu_scene().open(nodes::source0, ctx);
+			shellHostUI.shell().tick(1);
+			expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false();
+			deluge::gui::ui::refreshShellRangeDisplay();
+			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			whichSideRowsNeedRendering = 0;
+			menu_scene().open(nodes::multi_range, ctx);
+			shellHostUI.shell().tick(1);
+			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
+			expect(whichSideRowsNeedRendering != 0).to_be_true();
+		}
+		{
+			// A range deleted under the same index: the root re-renders, as `deletePress` has it do.
+			whichSideRowsNeedRendering = 0;
+			deluge::gui::ui::refreshShellRangeDisplay();
+			expect(whichSideRowsNeedRendering).to_equal(0u);
+			const int32_t before = menu_scene().menu_context().range_index;
+			sound->deleteMultiRange(0, 2);
+			deluge::edits::recordRanges(*sound, 0);
+			expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(before);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			(void)sound->sources[0].ranges.insertMultiRange(2);
+			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
+			sound->sources[0].ranges.getElement(2)->topNote = 32767;
+			deluge::edits::recordRanges(*sound, 0);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			whichSideRowsNeedRendering = 0;
+		}
 
 		// This spec records the forward rather than performing it (`seen`); what it performs is the clip view's pad.
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
 		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 64); // an audition note in range 2
+		// The note arrives between the guest's ticks: the picker asks for a frame of its own.
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
 		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 0);
 		shellHostUI.shell().tick(2);
 		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(2);

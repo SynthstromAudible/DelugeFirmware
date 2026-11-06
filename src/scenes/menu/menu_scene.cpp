@@ -286,13 +286,18 @@ void MenuScene::delete_range_press() {
 		return;
 	}
 	nodes::range_delete_press(ctx_, st_);
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 bool MenuScene::select_range_for_note(int32_t note) {
 	if (focused() != &nodes::multi_range) {
 		return false;
 	}
-	return nodes::range_note_press(ctx_, st_, note);
+	if (!nodes::range_note_press(ctx_, st_, note)) {
+		return false;
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // a note the root played, between the guest's ticks
+	return true;
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {

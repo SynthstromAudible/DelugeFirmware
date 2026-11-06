@@ -1815,7 +1815,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(2)->topNote)).to_equal(60);
 		expect(cursor_of(1)).to_equal(2);
 
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
 		menu_scene().delete_range_press(); // the range below takes the mean of the two tops
+		// SAVE is the host's press, between the menu's ticks: the picker asks for a frame of its own.
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
 		r.shell.tick(150);
 		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(55);

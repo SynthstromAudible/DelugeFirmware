@@ -93,7 +93,9 @@ bool shellNoteWithinCurrentRange(int32_t untransposed);
 void shellChangeRangeForNote(int32_t note);
 
 /// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the ported menu's selected
-///        range changed: `SoundEditor::possibleChangeToCurrentRangeDisplay`, for the guest.
+///        range or the source's number of ranges changed (`SoundEditor::possibleChangeToCurrentRangeDisplay`, which
+///        legacy's picker calls after every pick, insert and delete), or when the range highlight turned on or off, as
+///        a move through legacy's menu re-renders the root.
 void refreshShellRangeDisplay();
 
 /// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press

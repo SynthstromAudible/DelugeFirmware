@@ -205,6 +205,11 @@ namespace {
 /// The ported menu's source and range at the last guest tick, which `refreshShellRangeDisplay` compares against.
 int32_t lastRangeShown = -1;
 int32_t lastRangeSource = -1;
+/// Whether the root drew the range highlight at the last guest tick: it goes when the guest leaves the range-dependent
+/// item, as a menu move re-renders legacy's root.
+bool lastHighlighting = false;
+/// How many ranges the source had: an insert or delete re-renders the root even where the range index stays.
+int32_t lastRangeCount = -1;
 } // namespace
 
 void refreshShellRangeDisplay() {
@@ -212,11 +217,16 @@ void refreshShellRangeDisplay() {
 	const bool open = shellSoundMenuOpen();
 	const int32_t range = open ? ctx.range_index : -1;
 	const int32_t source = open ? ctx.source_index : -1;
-	if (range == lastRangeShown && source == lastRangeSource) {
+	const bool highlighting = shellRangeDependentOpen();
+	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
+	if (range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
+	    && count == lastRangeCount) {
 		return;
 	}
 	lastRangeShown = range;
 	lastRangeSource = source;
+	lastHighlighting = highlighting;
+	lastRangeCount = count;
 	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
 	RootUI* root = getRootUI();
 	if (root == &keyboardScreen) {
