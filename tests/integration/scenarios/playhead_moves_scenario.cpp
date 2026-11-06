@@ -277,17 +277,30 @@ NoteRow* addNotes(InstrumentClip* clip, int32_t* index) {
 /// What the effects self-test's runner saw.
 struct RunnerLog {
 	int32_t runs = 0;
-	int32_t order[4]{};
+	int32_t order[8]{};
 	bool masked = false;
 };
 RunnerLog g_runnerLog;
 
 void logRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
-	if (g_runnerLog.runs < 4) {
+	if (g_runnerLog.runs < 8) {
 		g_runnerLog.order[g_runnerLog.runs] = notify.oldValue;
 	}
 	g_runnerLog.runs++;
 	g_runnerLog.masked = g_runnerLog.masked || deluge_audio_excluded_depth() > 0;
+}
+
+/// As logRunner, and the notify 10 makes a move of its own that defers 20 and 21.
+void nestingRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
+	logRunner(notify);
+	if (notify.oldValue == 10) {
+		deluge::playback::MoveSection section{"selftest nested"};
+		deluge::playback::MoveEffects::DelayNotify inner{};
+		for (int32_t value : {20, 21}) {
+			inner.oldValue = value;
+			(void)deluge::playback::MoveEffects::defer(inner);
+		}
+	}
 }
 
 /// MoveEffects and MoveSection on their own: order, room, nesting, the render, and the run after the mask lifts.
@@ -336,6 +349,21 @@ void selfTestEffects() {
 	const bool unmasked = inside && g_runnerLog.runs == 1 && !g_runnerLog.masked && deluge_audio_excluded_depth() == 0
 	                      && !deluge::memory::inNoAllocationScope();
 
+	// A notify run when a section ends may itself make a move: that move runs its own effects, and the rest of the
+	// first section's still run, once each, in order.
+	g_runnerLog = {};
+	MoveEffects::setRunnerForTest(&nestingRunner);
+	{
+		MoveSection section{"selftest drain"};
+		for (int32_t value : {10, 11, 12}) {
+			notify.oldValue = value;
+			(void)MoveEffects::defer(notify);
+		}
+	}
+	const bool drain = g_runnerLog.runs == 5 && g_runnerLog.order[0] == 10 && g_runnerLog.order[1] == 20
+	                   && g_runnerLog.order[2] == 21 && g_runnerLog.order[3] == 11 && g_runnerLog.order[4] == 12;
+	MoveEffects::setRunnerForTest(&logRunner);
+
 	// On the render a scope collects nothing.
 	bool render = false;
 	{
@@ -346,8 +374,9 @@ void selfTestEffects() {
 	MoveEffects::setRunnerForTest(nullptr);
 
 	char line[128];
-	snprintf(line, sizeof(line), "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d render=%d\n",
-	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, render ? 1 : 0);
+	snprintf(line, sizeof(line), "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d\n",
+	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
+	         render ? 1 : 0);
 	std::fputs(line, stdout);
 }
 

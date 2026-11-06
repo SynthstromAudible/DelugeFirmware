@@ -34,6 +34,7 @@
 #include "model/song/song.h"
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -124,7 +125,7 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
-		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, afterNumRepeats, quantization);
+		scheduleLaunchTiming(launchReadAtTick_ + ticksTilSwap, afterNumRepeats, quantization);
 	}
 
 	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
@@ -762,7 +763,10 @@ void Session::justAbortedSomeLinearRecording() {
 
 void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil,
                                    int32_t armedLaunchLengthForOneRepeat) {
+	// The launch's schedule is the render's tick's: read and written with the render held off
+	deluge::playback::MoveSection section{"Session::scheduleLaunchTiming"};
 	if (atTickCount > launchEventAtSwungTickCount) {
+		deluge::playback::notePositionWrite();
 		playbackHandler.stopOutputRecordingAtLoopEnd = false;
 		switchToArrangementAtLaunchEvent = false;
 		launchEventAtSwungTickCount = atTickCount;
@@ -791,6 +795,9 @@ int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
 }
 
 void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
+	// The fill's schedule is the render's tick's: read and written with the render held off
+	deluge::playback::MoveSection section{"Session::scheduleFillEvent"};
+	deluge::playback::notePositionWrite();
 	clip->fillEventAtTickCount = atTickCount;
 	int32_t ticksTilFillEvent = atTickCount - playbackHandler.lastSwungTickActioned;
 	if (playbackHandler.swungTicksTilNextEvent > ticksTilFillEvent) {
@@ -1374,7 +1381,7 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 	else { // LaunchStatus::LAUNCH_USING_QUANTIZATION
 		currentPosWithinQuantization = currentPosWithinQuantization % quantization;
 		uint32_t ticksTilStart = quantization - currentPosWithinQuantization;
-		int64_t launchTime = playbackHandler.getActualSwungTickCount() + ticksTilStart;
+		int64_t launchTime = launchReadAtTick_ + ticksTilStart;
 
 		scheduleLaunchTiming(launchTime, 1, quantization);
 	}
@@ -1479,15 +1486,9 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	LaunchStatus launchStatus;
-	int64_t posReadAtTick;
-	{
-		// The launch position and the tick count it was read at, together: a late start moves on from it
-		deluge::playback::MoveSection section{"Session::userWantsToArmClipsToStartOrSolo"};
-		launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
-		                                       longestStartingClipLength, allowSubdividedQuantization);
-		posReadAtTick = playbackHandler.getActualSwungTickCount();
-	}
+	LaunchStatus launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
+	                                                    longestStartingClipLength, allowSubdividedQuantization);
+	const int64_t posReadAtTick = launchReadAtTick_;
 	deluge::playback::injectRenderAt(deluge::playback::InjectAt::LaunchBeforeMove);
 
 	// If nothing to sync to, which means no other Clips playing...
@@ -1517,6 +1518,9 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
                                               uint32_t* quantization, uint32_t longestStartingClipLength,
                                               bool allowSubdividedQuantization) {
+	// What the clips have reached and the tick count it was read at, together: a launch is timed from that count
+	deluge::playback::MoveSection section{"Session::investigateSyncedLaunch"};
+	launchReadAtTick_ = playbackHandler.getActualSwungTickCount();
 
 	// If no Clips are playing...
 	if (!waitForClip) {
@@ -1615,7 +1619,7 @@ bool Session::armForSongSwap() {
 	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
-		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
+		scheduleLaunchTiming(launchReadAtTick_ + ticksTilSwap, 1, quantization);
 		D_PRINTLN("ticksTilSwap:  %d", ticksTilSwap);
 	}
 	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
@@ -1643,7 +1647,7 @@ bool Session::armForSwitchToArrangement() {
 	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
-		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
+		scheduleLaunchTiming(launchReadAtTick_ + ticksTilSwap, 1, quantization);
 		switchToArrangementAtLaunchEvent = true;
 	}
 	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
@@ -1844,7 +1848,10 @@ weWantThisClipInactive:
 
 	if (!doLateStart) {
 		uint32_t ticksTilStart = quantization - pos;
-		int64_t launchTime = playbackHandler.getActualSwungTickCount() + ticksTilStart;
+		// From when pos was read: the arming above may have taken ticks
+		int64_t launchTime =
+		    ((posReadAtTick != kPosNotStamped) ? posReadAtTick : playbackHandler.getActualSwungTickCount())
+		    + ticksTilStart;
 
 		scheduleLaunchTiming(launchTime, newNumRepeatsTilLaunch, quantization);
 	}
@@ -1876,8 +1883,12 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
 
 		// The ticks the render has counted since the launch position was read
+		// (none if the render's count started again since, at a count-in's end or a song swap)
 		if (posReadAtTick != kPosNotStamped) {
-			pos += static_cast<uint32_t>(playbackHandler.getActualSwungTickCount() - posReadAtTick);
+			const int64_t ticksSince = playbackHandler.getActualSwungTickCount() - posReadAtTick;
+			if (ticksSince > 0) {
+				pos += static_cast<uint32_t>(ticksSince);
+			}
 		}
 
 		bool move = true;
@@ -1953,23 +1964,17 @@ void Session::scheduleFillClip(Clip* clip) {
 	int64_t fillStartTime = launchEventAtSwungTickCount - clip->getMaxLength()
 	                        + (numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat;
 	std::optional<int32_t> instancePos;
-	bool launchLater = false;
-	{
-		// Where the playhead has reached and the fill's move there, with the render held off between them
-		deluge::playback::MoveSection section{"Session::scheduleFillClip"};
-
-		// Work out if a 'launchEvent' is already scheduled,
-		// and if closer than the fill clip length, do immediate launch */
-		// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
-		launchLater = fillStartTime >= playbackHandler.getActualSwungTickCount();
-	}
-	if (launchLater) {
+	// Work out if a 'launchEvent' is already scheduled,
+	// and if closer than the fill clip length, do immediate launch */
+	// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
+	if (fillStartTime >= playbackHandler.getActualSwungTickCount()) {
 		scheduleFillEvent(clip, fillStartTime);
 		armClipLowLevel(clip, ArmState::ON_NORMAL, false);
 		return;
 	}
 	{
-		deluge::playback::MoveSection section{"Session::scheduleFillClip launch"};
+		// Where the playhead has reached and the fill's move there, with the render held off between them
+		deluge::playback::MoveSection section{"Session::scheduleFillClip"};
 		if (clip->output->getActiveClip()) {
 			if (clip->output->getActiveClip()->launchStyle() == LaunchStyle::FILL) {
 				/* A fill clip is already here, steal the output */

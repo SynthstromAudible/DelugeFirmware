@@ -285,6 +285,17 @@ private:
 	/// [interaction] -> [render] Set while setupPlayback() positions the clips, cleared when the clock is published;
 	/// written only with the render held off.
 	bool ticksHeld_ = false;
+	/// @brief [render] or [interaction] Bring the next-event schedule forward to the next swung tick, if one is due.
+	void scheduleNextEvent();
+	/// @brief [interaction] A hold of the ticks begins: when, for the span reported when they resume.
+	void noteTicksHeld();
+	/// @brief [interaction] The ticks resume: record how long they were held.
+	void noteTicksResumed();
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	/// When the ticks were last held from the interaction tier, in the spans' µs; 0 when not held, or held by the
+	/// render.
+	uint64_t ticksHeldSinceUs_ = 0;
+#endif
 
 	// These are all only relevant while playing synced.
 	uint32_t timePerInternalTickMovingAverage{};        // Recalculated every ~24 clocks

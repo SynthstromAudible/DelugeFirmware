@@ -491,19 +491,44 @@ void PlaybackHandler::releaseTicks() {
 	}
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some
 	                            // recent call to expectEvent()
+	noteTicksResumed();
 	ticksHeld_ = false;
 }
 
 bool PlaybackHandler::holdTicks() {
 	deluge::playback::MoveSection section{"PlaybackHandler::holdTicks"};
 	const bool wasHeld = ticksHeld_;
+	if (!wasHeld) {
+		noteTicksHeld();
+	}
 	ticksHeld_ = true;
 	return wasHeld;
 }
 
 void PlaybackHandler::resumeTicks(bool wasHeld) {
 	deluge::playback::MoveSection section{"PlaybackHandler::resumeTicks"};
+	if (!wasHeld) {
+		noteTicksResumed();
+	}
 	ticksHeld_ = wasHeld;
+}
+
+void PlaybackHandler::noteTicksHeld() {
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	ticksHeldSinceUs_ = deluge::memory::onRenderTier() ? 0 : deluge::playback::MaskedSpan::nowUs();
+#endif
+}
+
+void PlaybackHandler::noteTicksResumed() {
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	// Ticks that fell due meanwhile run together when they resume: how long they waited is reported with the spans
+	if (ticksHeldSinceUs_ != 0) {
+		deluge::playback::MaskedSpan::record(
+		    "PlaybackHandler ticks held",
+		    static_cast<uint32_t>(deluge::playback::MaskedSpan::nowUs() - ticksHeldSinceUs_));
+		ticksHeldSinceUs_ = 0;
+	}
+#endif
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
@@ -567,6 +592,9 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	{
 		deluge::playback::MoveSection section{"PlaybackHandler::setupPlayback"};
 		// No tick until releaseTicks(): the clips are positioned, and may begin recording, first.
+		if (!ticksHeld_) {
+			noteTicksHeld();
+		}
 		ticksHeld_ = true;
 
 		ignoringMidiClockInput = false;
@@ -1720,7 +1748,10 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 			return;
 		}
 
+		// No tick between the clips' moves and what follows them (linear recording from pos 0)
+		const bool wasHeld = holdTicks();
 		currentPlaybackMode->resetPlayPos((int32_t)pos);
+		resumeTicks(wasHeld);
 	}
 
 	// Otherwise, even if playing to internal clock, just store the position, to use if we receive a "continue"
@@ -3119,8 +3150,16 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 
 void PlaybackHandler::expectEvent() {
 	// The next-event schedule is the render's tick's: an edit on the interaction tier sets it with the render held off.
+	if (deluge::memory::onRenderTier()) {
+		scheduleNextEvent();
+		return;
+	}
 	deluge::playback::MoveSection section{"PlaybackHandler::expectEvent"};
 	deluge::playback::notePositionWrite();
+	scheduleNextEvent();
+}
+
+void PlaybackHandler::scheduleNextEvent() {
 	if (!currentlyActioningSwungTickOrResettingPlayPos && isEitherClockActive()) {
 		int32_t newSwungTicksTilNextEvent = getNumSwungTicksInSinceLastActionedSwungTick() + 1;
 		if (newSwungTicksTilNextEvent < swungTicksTilNextEvent) {

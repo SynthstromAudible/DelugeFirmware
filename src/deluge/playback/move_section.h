@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/model_stack.h"
@@ -53,7 +54,8 @@ public:
 	static void setRunnerForTest(void (*runner)(const DelayNotify&));
 #endif
 
-	/// While it lives, the interaction tier's effects are collected; the outermost one's end runs them, in order.
+	/// While it lives, the interaction tier's effects are collected; the outermost one's end runs them, in order. A
+	/// move one of them makes is a scope of its own, which runs its own effects when it ends.
 	class Scope {
 	public:
 		Scope();
@@ -63,6 +65,8 @@ public:
 
 	private:
 		bool collecting_;
+		/// Where this scope's effects begin, if it is the outermost.
+		size_t begin_ = 0;
 	};
 };
 
@@ -89,6 +93,12 @@ public:
 	};
 	/// @brief [interaction] Call @p visit with each site measured so far, in the order first seen.
 	static void forEachSite(void (*visit)(const Site&));
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	/// @brief [interaction] Record a span of @p us at @p site (a static name) measured some other way.
+	static void record(const char* site, uint32_t us);
+	/// @brief [interaction] The clock spans are measured on, in µs.
+	static uint64_t nowUs();
+#endif
 
 private:
 #if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
@@ -98,7 +108,8 @@ private:
 };
 
 /// @brief One playhead move on the interaction tier: its effects collected, the render held off, nothing allocated,
-///        the span timed. The members end in reverse: the render runs again, then the collected effects.
+///        the span timed inside the hold-off (so it counts no render block run as the mask lifts). The members end in
+///        reverse: the span, the render runs again, then the collected effects.
 ///
 /// On the render (which calls the same move code) it holds nothing off and collects nothing.
 class MoveSection {
@@ -110,9 +121,9 @@ public:
 
 private:
 	MoveEffects::Scope effects_;
-	MaskedSpan span_;
 	AudioExcludedSection masked_;
 	deluge::memory::NoAllocationScope noAllocation_;
+	MaskedSpan span_;
 };
 
 /// Points in the interaction tier's playhead moves where the render may land between two steps that belong together:

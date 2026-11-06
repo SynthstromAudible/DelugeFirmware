@@ -68,6 +68,9 @@ public:
 	bool armForSwitchToArrangement();
 	/// No swung-tick count stamped on a launch position: it is moved to as given.
 	static constexpr int64_t kPosNotStamped = INT64_MIN;
+	/// [interaction] The swung-tick count investigateSyncedLaunch() last read the clips' positions at: a launch is
+	/// timed from it.
+	int64_t launchReadAtTick_ = 0;
 	/// @param posReadAtTick the swung-tick count when @p pos was read (kPosNotStamped if not stamped): a late start
 	///        moves the clip on by the ticks the render has counted since
 	void armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
@@ -100,9 +103,8 @@ public:
 	///        clips' resumes, their outputs' active clips. Nothing that allocates or logs undo.
 	void moveToPos(int32_t newPos, bool doingComplete);
 	/// @brief [render] or [interaction] What resetPlayPos() does once the clips are positioned: a start from 0 gives
-	/// each
-	///        playing clip its chance to begin linear recording (then sets its output's active clip), and launch timing
-	///        follows what armed.
+	///        each playing clip its chance to begin linear recording (then sets its output's active clip), and launch
+	///        timing follows what armed.
 	void afterMoveToPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency);
 	void resyncToSongTicks(Song* song) override;
 	void reversionDone() override;

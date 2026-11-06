@@ -68,7 +68,7 @@ _LINE = re.compile(
 def _check(gate, result) -> None:
     effects = [line for line in result.lines if line.startswith("PM-EFFECTS ")]
     if not effects or not re.match(
-        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 render=1$",
+        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 drain=1 render=1$",
         effects[0],
     ):
         gate.fail(

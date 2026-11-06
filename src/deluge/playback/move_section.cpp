@@ -71,8 +71,8 @@ void MoveEffects::setRunnerForTest(void (*runner)(const DelayNotify&)) {
 #endif
 
 MoveEffects::Scope::Scope() : collecting_(!deluge::memory::onRenderTier()) {
-	if (collecting_) {
-		g_collected.depth++;
+	if (collecting_ && g_collected.depth++ == 0) {
+		begin_ = g_collected.count;
 	}
 }
 
@@ -80,12 +80,12 @@ MoveEffects::Scope::~Scope() {
 	if (!collecting_ || --g_collected.depth > 0) {
 		return;
 	}
-	// Taken before running: a notify run here acts at once (no scope is collecting), and may run another move.
-	const size_t count = g_collected.count;
-	g_collected.count = 0;
-	for (size_t i = 0; i < count; i++) {
+	// No scope collects while these run, so a notify acts at once. One may make a move, which is then the outermost
+	// scope: it collects after these and runs its own before this loop goes on.
+	for (size_t i = begin_; i < g_collected.count; i++) {
 		g_runner(g_collected.notifies[i]);
 	}
+	g_collected.count = begin_;
 }
 
 #if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
@@ -115,21 +115,27 @@ MaskedSpan::MaskedSpan(const char* site)
 }
 
 MaskedSpan::~MaskedSpan() {
-	if (site_ == nullptr) {
-		return;
+	if (site_ != nullptr) {
+		record(site_, static_cast<uint32_t>(spanClockUs() - startUs_));
 	}
-	const auto elapsed = static_cast<uint32_t>(spanClockUs() - startUs_);
+}
+
+void MaskedSpan::record(const char* site, uint32_t us) {
 	for (size_t i = 0; i < g_spans.count; i++) {
 		MaskedSpan::Site& known = g_spans.sites[i];
-		if (known.name == site_) {
-			known.longestUs = std::max(known.longestUs, elapsed);
+		if (known.name == site) {
+			known.longestUs = std::max(known.longestUs, us);
 			known.count++;
 			return;
 		}
 	}
 	if (g_spans.count < kSpanSites) {
-		g_spans.sites[g_spans.count++] = {.name = site_, .longestUs = elapsed, .count = 1};
+		g_spans.sites[g_spans.count++] = {.name = site, .longestUs = us, .count = 1};
 	}
+}
+
+uint64_t MaskedSpan::nowUs() {
+	return spanClockUs();
 }
 
 void MaskedSpan::forEachSite(void (*visit)(const Site&)) {
