@@ -390,6 +390,10 @@ public:
 	///        `open` carries over. An entry that opens the parameter page on a param of its own sets it first, as
 	///        legacy sets `dxParam.param` before `soundEditor.setup`.
 	void land_dx(const DxState& dx) { st_.dx = dx; }
+	/// @brief Land on the DX7 cartridge page when the `.syx` browser over the menu closes, in place of going up: the
+	///        browser read a bank. `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)` then cleared
+	///        `shouldGoUpOneLevelOnBegin`, so the page sits under "load DX7 .syx file", whose BACK reopens the browser.
+	void land_dx_cartridge() { land_dx_cartridge_ = true; }
 
 	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
 	///
@@ -568,6 +572,8 @@ private:
 	MenuPads pads_;
 	/// A landing `shortcut_jump` armed for the scene above, which the resume its removal brings must keep.
 	bool landing_survives_resume_ = false;
+	/// The `.syx` browser over the menu read a bank: its resume lands on the cartridge page (`land_dx_cartridge`).
+	bool land_dx_cartridge_ = false;
 
 	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
 	///        `beginScreen` -- a new screen.

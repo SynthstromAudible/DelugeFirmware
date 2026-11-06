@@ -898,11 +898,32 @@ void tap(Rig& r, uint8_t x, uint8_t y) {
 
 // clang-format off
 describe browser_descriptors("scenes::browser descriptor table", $ {
-	it("covers exactly the two browsers the ported menu tree reaches", _ {
-		// Legacy has nine `Browser` subclasses. Only `SampleBrowser` and
-		// `LoadMidiDeviceDefinitionUI` are opened from a menu item; the load/save family is opened
-		// from root UIs and is not ported. See `BrowserId`.
-		expect(static_cast<int>(BrowserId::Count)).to_equal(2);
+	it("covers exactly the three browsers the ported menu tree reaches", _ {
+		// Legacy has nine `Browser` subclasses. Only `SampleBrowser`, `LoadMidiDeviceDefinitionUI` and
+		// `DxSyxBrowser` are opened from a menu item; the load/save family is opened from root UIs and is not
+		// ported. See `BrowserId`.
+		expect(static_cast<int>(BrowserId::Count)).to_equal(3);
+	});
+
+	it("carries DxSyxBrowser's title, extension, folder and rules, opening on DX7's first entry", _ {
+		const browser::Descriptor& syx = browser::descriptor(BrowserId::DxSyx);
+		// `DxSyxBrowser::DxSyxBrowser` and `opened` (`dx_browser.cpp`).
+		expect(std::string{syx.title}).to_equal(std::string{"DX7 syx files"});
+		expect(std::string{syx.extensions[0]}).to_equal(std::string{"SYX"});
+		expect(syx.extensions[1] == nullptr).to_be_true();
+		expect(std::string{syx.default_dir}).to_equal(std::string{"DX7"});
+		expect(syx.interpret_note_names).to_be_false();
+		expect(syx.allow_folders_sharing_name_with_file).to_be_true();
+		expect(syx.folder_refusal == nullptr).to_be_true();
+		std::string dir = "ELSEWHERE";
+		std::string name = "REMEMBERED";
+		syx.start_at(menu::MenuContext{}, dir, name);
+		expect(dir).to_equal(std::string{"DX7"});
+		expect(name.empty()).to_be_true();
+		Error error = Error::NONE;
+		expect(syx.accept(menu::MenuContext{}, "DX7/A.SYX", error) == browser::AcceptOutcome::DeferAndWait)
+		    .to_be_true();
+		expect(syx.can(menu::MenuContext{})).to_be_false(); // no sound to load a bank into
 	});
 
 	it("carries each subclass's own extensions, folder and note-name rule", _ {

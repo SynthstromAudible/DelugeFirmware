@@ -477,10 +477,6 @@ void dispatchShellActions() {
 			keyboardScreen.exitAuditionMode();
 		}
 		break;
-
-	case MenuAction::OpenDxBrowser:
-		// The `.syx` browser has no port; the menu has already gone up a level.
-		break;
 	}
 }
 

@@ -42,6 +42,7 @@
 
 #include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
+#include "support/dx_rig.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -65,154 +66,15 @@ namespace dx = deluge::scenes::menu::dx;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace legacy = deluge::gui::menu_item;
 
-/// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
-namespace Buttons {
-extern bool shiftCurrentlyPressed;
-extern bool shiftCurrentlyStuck;
-} // namespace Buttons
-
 namespace {
 
-/// @brief A synth whose first oscillator is DX7, set up for legacy's DX7 items.
-///
-/// Legacy's items read `soundEditor.currentSound`; `setOscType` gives the source its patch, as it does on the device.
-struct DxRig {
-	spec::SongFixture song = spec::make_synth_song();
-	Song* saved = currentSong;
-	Sound* sound = nullptr;
-
-	DxRig() {
-		currentSong = song.song;
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
-		sound->sources[0].setOscType(OscType::DX7);
-		soundEditor.currentSound = sound;
-		soundEditor.currentSource = &sound->sources[0];
-		soundEditor.currentSourceIndex = 0;
-	}
-	~DxRig() {
-		set_shift(false);
-		currentSong = saved;
-	}
-	DxRig(const DxRig&) = delete;
-	DxRig& operator=(const DxRig&) = delete;
-
-	DxPatch& patch() { return *sound->sources[0].ensureDxPatch(); }
-
-	deluge::project::SlotAddress slot() {
-		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
-		            .addresses.slot;
-	}
-
-	/// @brief Hold or release Shift on legacy's side, which is all `isShiftButtonPressed` reads.
-	static void set_shift(bool on) {
-		::Buttons::shiftCurrentlyPressed = on;
-		::Buttons::shiftCurrentlyStuck = false;
-	}
-};
+using namespace deluge::scenes::spec::dx_rig;
 
 /// @brief Legacy's param page on @p param, as `readValueAgain` leaves it.
 void legacy_on(int16_t param) {
 	legacy::dxParam.param = param;
 	legacy::dxParam.readValueAgain();
 }
-
-/// @brief The language the port's and legacy's text come from, and no notice left over from another example.
-void select_language() {
-	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
-}
-
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
-}
-
-/// @brief @p pbm without the five rows above the 48-row panel's visible top, which the port's root frame cannot ink.
-std::string below_bezel(const std::string& pbm) {
-	size_t pos = 0;
-	for (int newlines = 0; pos < pbm.size() && newlines < 2; pos++) {
-		newlines += pbm[pos] == '\n' ? 1 : 0;
-	}
-	std::string out = pbm.substr(0, pos);
-	for (int i = 0; i < 5 && pos < pbm.size(); i++) {
-		const size_t next = pbm.find('\n', pos);
-		pos = next == std::string::npos ? pbm.size() : next + 1;
-	}
-	return out + pbm.substr(pos);
-}
-
-/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
-constexpr uint8_t kSelectEncoder = 3;
-constexpr uint8_t kHorizontalEncoder = 1;
-constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-constexpr uint8_t kBackX = 7, kBackY = 1;
-constexpr uint8_t kShiftX = 8, kShiftY = 0;
-
-constexpr const Node* kRoots[] = {&nodes::sound_root, &nodes::source0, &nodes::osc0_type, &nodes::osc1_type,
-                                  &nodes::dx_menu};
-
-/// @brief The DX7 synth with the ported menu over it, on a `Shell` over the fake surfaces.
-struct MenuRig : DxRig {
-	const BoardProfile& profile = deluge_profile();
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge_profile()};
-	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
-	uint32_t now = 0;
-
-	MenuRig() = default;
-	~MenuRig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-		menu_scene().reset_process_state();
-	}
-	MenuRig(const MenuRig&) = delete;
-	MenuRig& operator=(const MenuRig&) = delete;
-
-	MenuContext menu_context() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
-	}
-	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), and draw it once.
-	void open(const Node& root, bind::WriteSink* sink = nullptr) {
-		MenuContext ctx = menu_context();
-		if (sink != nullptr) {
-			ctx.sink = sink;
-		}
-		(void)menu::assign_node_ids(kRoots);
-		while (shell.stack().depth() > 0) { // a fresh push, so the first frame is drawn whole
-			shell.stack().pop(SceneKind::Null);
-		}
-		menu_scene().open(root, ctx);
-		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
-		tick();
-	}
-	void tick() { shell.tick(now += 10); }
-	void button(uint8_t x, uint8_t y, bool on) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)},
-		                     now += 10);
-	}
-	void select() {
-		button(kSelectEncButtonX, kSelectEncButtonY, true);
-		button(kSelectEncButtonX, kSelectEncButtonY, false);
-		tick();
-	}
-	void back() {
-		button(kBackX, kBackY, true);
-		button(kBackX, kBackY, false);
-		tick();
-	}
-	/// @brief @p detents clicks of a detented encoder: two A-pin edges each.
-	void turn(int32_t detents, uint8_t encoder = kSelectEncoder) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, encoder, 0, static_cast<int16_t>(detents * 2)},
-		                     now += 10);
-		tick();
-	}
-	const Node* focused() const { return menu_scene().focused(); }
-	const menu::MenuState& state() const { return menu_scene().state(); }
-	int16_t cursor() const { return state().list[state().depth].cursor; }
-};
 
 } // namespace
 
@@ -397,15 +259,6 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(-3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2); // legacy drops a turn that would leave the modes
 		expect(sink.gestures.size()).to_equal(size_t{1});
-	});
-
-	it("goes up from DX7 source's browse row and files the browser's action, opening nothing", _ {
-		MenuRig r;
-		r.open(nodes::dx_menu);
-		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
-		r.select();
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
-		expect(menu_scene().take_action().action == MenuAction::OpenDxBrowser).to_be_true();
 	});
 
 	it("opens the parameter page or an operator's list from DX7 parameters, as legacy's rows do", _ {

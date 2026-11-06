@@ -6,6 +6,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 
@@ -13,6 +14,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/dx/cartridge.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
+#include "gui/ui/shell_choice_dispatch.h"
 #include "hid/display/display.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
@@ -20,6 +22,8 @@
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 
+#include "support/card_access.h"
+#include "support/dx_rig.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -36,8 +40,12 @@
 #include <vector>
 
 using namespace deluge::scenes;
+using namespace deluge::scenes::spec::dx_rig;
 using deluge::gui::ui::DxCartridgeRead;
+using deluge::scenes::browser::browser_scene;
+using deluge::scenes::browser::BrowserId;
 namespace legacy = deluge::gui::menu_item;
+namespace nodes = deluge::scenes::menu::nodes;
 
 namespace {
 
@@ -163,6 +171,46 @@ struct DxSong {
 	}
 	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sources[0]).value(); }
 };
+
+/// @brief The card these examples list: `tests/fixtures/scenes_spec/dx_cartridge`, installed for this file before boot
+///        (`tests/integration/checks/scenes_spec_cards.txt`).
+///
+/// ```
+/// DX7/BANK1.SYX      a 32-program bank whose programs are "PROG 0" to "PROG 31", as make_bank() builds it
+/// DX7/BROKEN.SYX     ten bytes, no bank
+/// DX7/SUB/BANK2.SYX  the same voices named "SUB 0" to "SUB 31"
+/// ```
+struct DxCard {
+	spec::SdRoot root{std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/dx_cartridge"};
+};
+
+/// @brief Whether the browser is the scene taking input over @p r's menu.
+bool browser_up(MenuRig& r) {
+	return &r.shell.stack().input_top() == &browser_scene();
+}
+
+/// @brief Tick @p r until the browser's listing has landed and its result been collected.
+void settle(MenuRig& r) {
+	for (int32_t i = 0; i < 8 || (browser_scene().listing_in_flight() && i < 400); i++) {
+		r.tick();
+	}
+}
+
+/// @brief Run the host's choice dispatch on @p r's ticks until the `.syx` read the browser parked has ended.
+void read_bank(MenuRig& r) {
+	for (int32_t i = 0; i < 2000 && (browser_scene().awaiting_deferred_load() || i < 4); i++) {
+		deluge::gui::ui::dispatchShellChoices();
+		r.tick();
+	}
+	settle(r);
+}
+
+/// @brief Put the browser's selection on @p name in the folder it lists.
+void select_file(MenuRig& r, std::string_view name) {
+	for (int32_t i = 0; i < 8 && std::string_view{browser_scene().entered_text()} != name; i++) {
+		r.turn(1);
+	}
+}
 
 } // namespace
 
@@ -299,6 +347,136 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(read.start("DX7/NO_SUCH_BANK.SYX") == DxCartridgeRead::Status::Failed).to_be_true();
 		expect(read.busy()).to_be_false();
 		expect(FakeChannel::requests).to_equal(0);
+	});
+	it("opens the .syx browser on DX7 from DX7 source's browse row, whose BACK returns to DX7 source", _ {
+		DxCard card;
+		select_language();
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
+		r.select();
+		settle(r);
+		expect(browser_up(r)).to_be_true();
+		expect(static_cast<int32_t>(browser_scene().browser_id())).to_equal(static_cast<int32_t>(BrowserId::DxSyx));
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"DX7"});
+		expect(browser_scene().file_index()).to_equal(0);
+		int32_t lit = 0; // `qwertyVisible = false`: no keys drawn on the main pads
+		for (uint8_t x = 0; x < 16; x++) {
+			for (uint8_t y = 0; y < 8; y++) {
+				lit += r.fake.grid().grid().at(x, y) == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit).to_equal(0);
+		r.back();
+		settle(r);
+		expect(browser_up(r)).to_be_false();
+		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {
+		DxCard card;
+		select_language();
+		MenuRig r;
+		r.song.instrument->mightExistOnCard = false;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "BANK1");
+		r.select();
+		expect(browser_up(r)).to_be_true(); // up until the read ends, as `DxSyxBrowser`'s is
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
+		read_bank(r);
+		expect(browser_up(r)).to_be_false();
+		expect(r.focused() == &nodes::dx_cartridge).to_be_true();
+		expect(r.state().path[r.state().depth - 1] == &nodes::dx_browse).to_be_true();
+		expect(r.song.instrument->name).to_equal(std::string{"PROG 0"}); // the first program, loaded on entry
+		r.back();
+		settle(r);
+		expect(browser_up(r)).to_be_true();
+		expect(r.focused() == &nodes::dx_browse).to_be_true();
+		r.back();
+		settle(r);
+		expect(browser_up(r)).to_be_false();
+		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("leaves the browser up with the read error when the file is no bank", _ {
+		DxCard card;
+		select_language();
+		Popups p;
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "BROKEN");
+		r.select();
+		read_bank(r);
+		expect(browser_up(r)).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_false();
+		expect(p.mine.popups.empty()).to_be_false();
+		r.back();
+		settle(r);
+		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("lists the bank's programs as legacy's cartridge page draws them", _ {
+		select_language();
+		load_bank();
+		MenuRig r;
+		for (const int32_t cursor : {0, 1, 2, 5, 30, 31}) {
+			legacy::dxCartridge.currentValue = cursor;
+			legacy::dxCartridge.scrollPos = std::clamp(cursor - 1, 0, legacy::dxCartridge.pd->numPatches() - 3);
+			deluge::hid::display::OLED::main.clear();
+			legacy::dxCartridge.renderOLED();
+			const std::string legacy_panel = below_bezel(legacy_panel_pbm());
+			r.open(nodes::dx_cartridge);
+			r.turn(cursor);
+			r.tick();
+			const std::string tag = "cursor " + std::to_string(cursor) + "\n";
+			expect(tag + below_bezel(r.fake.pbm(0))).to_equal(tag + legacy_panel);
+		}
+	});
+
+	it("loads the first program on entry, and a program per turn only where the cursor moved", _ {
+		load_bank();
+		MenuRig r;
+		bind::RecordingSink sink;
+		r.open(nodes::dx_cartridge, &sink);
+		const auto programs = [&] {
+			std::vector<int64_t> out;
+			for (const bind::GestureRequest& g : sink.gestures) {
+				if (g.kind == bind::GestureRequest::Kind::DX_PROGRAM) {
+					out.push_back(g.value);
+				}
+			}
+			return out;
+		};
+		expect(programs().empty()).to_be_false();
+		expect(programs().back()).to_equal(int64_t{0});
+		sink.gestures.clear();
+		r.turn(-1);
+		expect(programs().empty()).to_be_true();
+		r.turn(3);
+		r.turn(40);
+		r.turn(1);
+		expect(programs() == std::vector<int64_t>{3, 31}).to_be_true();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
+	});
+
+	it("closes the whole menu on SELECT, as legacy's exitCompletely does, rather than going up a level", _ {
+		DxCard card;
+		select_language();
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "BANK1");
+		r.select();
+		read_bank(r);
+		expect(r.focused() == &nodes::dx_cartridge).to_be_true();
+		r.select();
+		settle(r);
+		expect(r.shell.stack().depth()).to_equal(size_t{0});
 	});
 });
 // clang-format on

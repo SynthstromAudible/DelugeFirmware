@@ -23,6 +23,7 @@
 #include "gui/ui/shell_slice_ops.h"
 
 #include "gui/l10n/strings.h"
+#include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -443,6 +444,37 @@ void adoptShellMenuContext() {
 
 namespace {
 
+/// @brief Act on where the `.syx` read stands: a bank read lands the menu on the cartridge page and closes the browser
+///        (`DxSyxBrowser`'s `enterLoadedCartridge`); a failure leaves the browser up for another file.
+void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
+	switch (status) {
+	case DxCartridgeRead::Status::Loaded:
+		deluge::scenes::menu_scene().land_dx_cartridge();
+		browser_scene().deferred_load_done(true);
+		break;
+	case DxCartridgeRead::Status::Failed:
+	case DxCartridgeRead::Status::Idle: // nothing started: the browser must not wait for it
+		browser_scene().deferred_load_done(false);
+		break;
+	case DxCartridgeRead::Status::Pending:
+		break;
+	}
+}
+
+/// @brief Collect the ported `.syx` browser's read on the guest's tick, as `DxSyxBrowser::browserGraphicsRoutine`
+///        does on the browser's; a browser that has gone takes its read with it (`DxSyxBrowser::close`).
+void pollDxCartridgeRead() {
+	DxCartridgeRead& read = dxCartridgeRead();
+	if (!read.busy()) {
+		return;
+	}
+	if (!browser_scene().awaiting_deferred_load()) {
+		read.cancel();
+		return;
+	}
+	dxCartridgeReadSettled(read.poll());
+}
+
 /// @brief Perform a choice the ported browser parked: the claim, import, slice or MIDI definition load it names.
 void dispatchChoice(const BrowserChoice& choice) {
 	switch (choice.id) {
@@ -492,6 +524,10 @@ void dispatchChoice(const BrowserChoice& choice) {
 		requestMidiDefinitionLoad(choice.path);
 		break;
 
+	case BrowserId::DxSyx:
+		dxCartridgeReadSettled(dxCartridgeRead().start(choice.path));
+		break;
+
 	case BrowserId::Count:
 		// Not a browser -- it is the table's size (`BrowserId::Count`). Unreachable:
 		// `BrowserScene::enter_key_press` files `id_`, and `BrowserScene::on_enter`
@@ -511,6 +547,7 @@ void dispatchShellChoices() {
 	if (const std::optional<BrowserChoice> choice = browser_scene().take_choice()) {
 		dispatchChoice(*choice);
 	}
+	pollDxCartridgeRead();
 	dispatchPreview();
 	dispatchScroll();
 }

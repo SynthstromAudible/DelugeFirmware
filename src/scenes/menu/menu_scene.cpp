@@ -253,6 +253,11 @@ void MenuScene::on_resume() {
 	}
 	visit_.use_up_select = true;
 	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
+	if (std::exchange(land_dx_cartridge_, false) && focused() == &nodes::dx_browse) {
+		// `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)`, with `shouldGoUpOneLevelOnBegin` cleared: no going up.
+		st_.walk.go_up_on_resume = false;
+		walk_.descend_to(core(), visit_.session, nodes::dx_cartridge);
+	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -624,6 +629,12 @@ Result MenuScene::after_render_navigation() {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
 	}
+	if (std::exchange(st_.walk.exit_completely, false)) {
+		// An item's `soundEditor.exitCompletely()`.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+		return r;
+	}
 	const Node* node = focused();
 	if (node == nullptr) {
 		return r;
@@ -842,7 +853,6 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::SetClipLengthToSampleLength:
 		case MenuAction::OpenSongMidiLearn:
 		case MenuAction::OpenSongMacros:
-		case MenuAction::OpenDxBrowser: // `DxBrowseMenu::beginSession`'s `shouldGoUpOneLevelOnBegin`
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:

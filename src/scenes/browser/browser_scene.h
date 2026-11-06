@@ -4,10 +4,11 @@
 ///        catalogue and the async listing seam.
 ///
 /// Legacy has a `Browser` base (`gui/ui/browser/browser.{h,cpp}`) over `QwertyUI` and a family of
-/// subclasses. **Two of them are reachable from the ported menu tree** and are the two descriptors
+/// subclasses. **Three of them are reachable from the ported menu tree** and are the three descriptors
 /// below: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`), opened by the sample-file items,
-/// and `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by
-/// `midi_device_linked`. Everything the two differ in -- title, extensions, where they start, which
+/// `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by
+/// `midi_device_linked`, and `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`), opened by "load DX7 .syx file".
+/// Everything the three differ in -- title, extensions, where they start, which
 /// icon a row draws, what accepting a file does -- is `Descriptor`, and `SceneId::arg` selects one,
 /// exactly as `rename::Target` and `context_menu::Descriptor` turned their own legacy hierarchies
 /// into tables.
@@ -97,9 +98,9 @@ namespace deluge::scenes::browser {
 
 /// @brief Which browser `SceneId::arg` names.
 ///
-/// **Two, not legacy's nine.** These are every legacy `Browser` subclass a node in the ported menu
+/// **Three, not legacy's nine.** These are every legacy `Browser` subclass a node in the ported menu
 /// tree opens. Every other one -- `LoadSongUI`, `LoadInstrumentPresetUI`, `LoadPatternUI`,
-/// `SaveSongUI`, `SaveInstrumentPresetUI`, `SaveKitRowUI`, `DxSyxBrowser` -- is opened from a root
+/// `SaveSongUI`, `SaveInstrumentPresetUI`, `SaveKitRowUI` -- is opened from a root
 /// UI or a view the port does not have, so adding an entry for one now would be an untested,
 /// unreachable code path.
 enum class BrowserId : uint16_t {
@@ -117,6 +118,8 @@ enum class BrowserId : uint16_t {
 	///       `CustomItem::on_focus_is_press()` -- because a restore replaying the ON arm would
 	///       silently clear a user's setting.
 	MidiDeviceDefinition = 1,
+	/// `dxBrowser` (`gui/ui/browser/dx_browser.cpp`), the DX7 `.syx` bank browser "load DX7 .syx file" opens.
+	DxSyx = 2,
 	Count,
 };
 
@@ -129,9 +132,12 @@ enum class AcceptOutcome : uint8_t {
 	Stay,
 	/// The descriptor cannot act from this layer: park the choice in `take_choice()` and close.
 	///
-	/// Exactly one descriptor answers this, and it is not a placeholder -- see
-	/// `Descriptor::accept`.
+	/// The sample and MIDI descriptors answer this, and it is not a placeholder -- see `Descriptor::accept`.
 	Defer,
+	/// The descriptor cannot act from this layer and its load has to end before the browser may close: park the choice
+	/// in `take_choice()` and stay up, taking no other file, until the host calls `BrowserScene::deferred_load_done`.
+	/// `DxSyxBrowser`'s read, which leaves the browser up on a failure and closes it on a success.
+	DeferAndWait,
 };
 
 /// @brief What one browser is for -- one legacy `Browser` subclass, as data.
@@ -199,7 +205,8 @@ struct Descriptor {
 
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
 	///
-	/// @note **Both descriptors answer `Defer`, and that is a finding rather than a stub.**
+	/// @note **The sample and MIDI descriptors answer `Defer`, and that is a finding rather than a stub.** (The `.syx`
+	///       one answers `DeferAndWait`, for the same reason: its read goes through `dxCartridge`.)
 	///       `SampleBrowser`'s file arm requests a sample claim (`gui/ui/browser/sample_claim.h`),
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
@@ -501,6 +508,13 @@ public:
 	///        as `closeOnFailure` and the load's own exit do in `main`. Filed on this scene's next render.
 	/// @param success Whether the load or import succeeded.
 	void long_press_done(bool success);
+	/// @brief How the load a `DeferAndWait` accept parked ended: a success closes this browser, a failure leaves it up
+	///        for another file, as `DxSyxBrowser` does once its read ends. Filed on this scene's next render; ignored
+	///        unless such a load is out.
+	/// @param success Whether the load succeeded.
+	void deferred_load_done(bool success);
+	/// @brief Whether a `DeferAndWait` accept's load is out: the host has not yet answered `deferred_load_done`.
+	[[nodiscard]] bool awaiting_deferred_load() const { return awaiting_deferred_; }
 	/// @brief The host's answer to a parked `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
 	///        could not): the next `after_render` pushes `SlicerScene`, with main's `"SLICER"` popup on the
 	///        Shift+Select door. A slice that did not open pushes nothing (the host showed why). Ignored unless a slice
@@ -785,6 +799,9 @@ private:
 	std::optional<uint32_t> hold_deadline_ms_{};
 	/// A folder menu's load has ended: true closes the menu and this browser, false the menu only.
 	std::optional<bool> long_press_done_{};
+	/// A `DeferAndWait` accept's load is out, then (`deferred_done_`) has ended: true closes this browser.
+	bool awaiting_deferred_ = false;
+	std::optional<bool> deferred_done_{};
 	/// A parked slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
 	/// whether it came through the Shift+Select door.
 	bool slice_out_ = false;

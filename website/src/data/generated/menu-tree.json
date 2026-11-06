@@ -13294,5 +13294,11 @@
     "name": "Row Editor",
     "title": "Row Editor",
     "type": "submenu"
+  },
+  {
+    "id": 560,
+    "name": "DX7 presets",
+    "title": "DX7 presets",
+    "type": "basic"
   }
 ]

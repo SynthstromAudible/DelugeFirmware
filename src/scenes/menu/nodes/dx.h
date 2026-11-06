@@ -5,14 +5,15 @@
 /// The port of `gui/menu_item/dx/`: `dxMenu`, the `Submenu` oscillator 1's type opens when it is DX7
 /// (`osc::Type::selectButtonPress`, `gui/menu_item/osc/type.h:103-108`), with three rows:
 ///
-/// - **load DX7 .syx file** (`DxBrowseMenu`): legacy goes up a level and opens the `.syx` browser. The browser has
-///   no port, so the row files `MenuAction::OpenDxBrowser`, which the app does nothing with, and goes up as legacy
-///   does: the menu stays on "DX7 source".
+/// - **load DX7 .syx file** (`DxBrowseMenu`): opens the `.syx` browser (`browser::BrowserId::DxSyx`) over the menu.
+///   BACK from it returns to "DX7 source"; a bank it reads lands on the cartridge page under this row, whose BACK
+///   reopens the browser, as legacy's `enterSubmenu(&dxCartridge)` does.
 /// - **DX7 parameters** (`DxGlobalParams`): a list of the globals and the six operators. A global row opens the
 ///   parameter page on it, an operator row opens "DX7 operator N", the list of that operator's params.
 /// - **engine version** (`DxEngineSelect`): auto, modern or vintage, written to the patch.
 ///
-/// The parameter page (`DxParam`) shows one param and its neighbours in one of six layouts and edits it.
+/// The parameter page (`DxParam`) shows one param and its neighbours in one of six layouts and edits it. The cartridge
+/// page (`DxCartridge`) lists the read bank's programs: a turn loads one into the sound, SELECT closes the menu.
 ///
 /// ## State
 ///
@@ -27,14 +28,34 @@
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief "load DX7 .syx file": goes up as soon as it is entered, filing the browser's action.
+/// @brief "load DX7 .syx file": opens the `.syx` browser over the menu as soon as it is entered, and again when BACK
+///        from the cartridge page returns to it.
 class DxBrowseItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief `DxBrowseMenu::beginSession` (`gui/menu_item/dx/browse.cpp:27-37`): up a level, and the browser.
+	/// @brief `DxBrowseMenu::beginSession` (`gui/menu_item/dx/browse.cpp:27-37`): the browser, going up a level when
+	///        it closes.
+	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// @brief `beginSession` runs on a backward navigation too: BACK from the cartridge page reopens the browser.
+	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
+};
+
+/// @brief The DX7 cartridge page: the programs of the bank the `.syx` browser read (`DxCartridge`,
+///        `gui/menu_item/dx/cartridge.cpp`), from `RuntimeFacts::dx_cartridge`.
+///
+/// Entering loads the first program; a turn moves the cursor within the bank and loads the program it lands on, through
+/// `WriteSink::load_dx_program`; SELECT closes the menu.
+class DxCartridgeItem final : public CustomItem {
+public:
+	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
+	                                 MenuState& state) const override;
+	/// @brief `beginSession`: the first program, loaded.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 };
 
@@ -53,6 +74,7 @@ public:
 
 inline const DxBrowseItem kDxBrowse{};
 inline const DxEngineSelectItem kDxEngineSelect{};
+inline const DxCartridgeItem kDxCartridge{};
 
 /// @brief "DX7 parameters": the globals and the six operators (`DxGlobalParams`,
 ///        `gui/menu_item/dx/global_params.cpp`). Its cursor outlives the page, as legacy's member does.
@@ -132,6 +154,9 @@ inline constexpr Node dx_global_params =
 
 /// @brief "load DX7 .syx file" -- `dxBrowseMenu`.
 inline constexpr Node dx_browse = custom(sid(deluge::l10n::String::STRING_FOR_DX_BROWSER), &kDxBrowse);
+/// @brief The cartridge page -- `dxCartridge`. No list names it: the `.syx` browser lands on it
+///        (`MenuScene::land_dx_cartridge`), so it has a place in `kAllRoots`.
+inline constexpr Node dx_cartridge = custom(sid(deluge::l10n::String::STRING_FOR_DX_CARTRIDGE), &kDxCartridge);
 /// @brief "engine version" -- `dxEngineSelect`.
 inline constexpr Node dx_engine_select =
     custom(sid(deluge::l10n::String::STRING_FOR_DX_ENGINE_SELECT), &kDxEngineSelect);
