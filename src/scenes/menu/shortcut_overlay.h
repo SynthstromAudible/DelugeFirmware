@@ -16,9 +16,11 @@
 
 namespace deluge::scenes::menu {
 
-/// @brief `main`'s `shortcut_colours`, [x][y]: each shortcut pad's colour by what it edits. The DX7 layout's
-///        `dx_shortcut_colours` is not here; its overlay belongs with the DX7 port.
+/// @brief `main`'s `shortcut_colours`, [x][y]: each shortcut pad's colour by what it edits.
 extern const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kShortcutColours;
+/// @brief `main`'s `dx_shortcut_colours`, [x][y]: the DX7 parameter page's own pad layout, coloured by what each pad
+///        picks (`nodes::dx_pad_layout`).
+extern const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kDxShortcutColours;
 
 /// @brief `SoundEditor::should_render_shortcut_overlay`: the setting is on, @p shift is held (latched or not), and
 ///        the menu edits a sound-editor root -- not the settings, note or note-row editor.
@@ -44,7 +46,9 @@ constexpr bool is_patching_source_pad(uint8_t x, uint8_t y) {
 ///        in @p held.
 bool other_source_pad_held(const deluge::ui::PadMask& held, uint8_t x, uint8_t y);
 
-/// @brief The whole overlay: the colour map, then the source column over it.
+/// @brief `renderMainShortcutsOnly` under `isDxShortcutLayoutActive`: every main-grid pad its `kDxShortcutColours`.
+void paint_dx_shortcut_colours(deluge::ui::grid::GridFrame& f);
+/// @brief The whole overlay: the colour map (the DX7 layout's on its parameter page), then the source column over it.
 void render_overlay(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st, const Node* focused);
 
 } // namespace deluge::scenes::menu

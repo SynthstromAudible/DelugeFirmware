@@ -79,41 +79,6 @@ void load_bank() {
 	(void)legacy::dxCartridge.tryLoadFromBuffer(bank);
 }
 
-/// @brief A `Display` that keeps the popups legacy shows: `display` is null in a spec process.
-struct PopupDisplay final : deluge::hid::Display {
-	std::vector<std::string> popups;
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
-		popups.emplace_back(text);
-	}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief The popups shown while it lives, in English.
-struct Popups {
-	PopupDisplay mine;
-	deluge::hid::Display* saved = display;
-	Popups() {
-		display = &mine;
-		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	}
-	~Popups() { display = saved; }
-	Popups(const Popups&) = delete;
-	Popups& operator=(const Popups&) = delete;
-	static std::string read_error() { return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR); }
-};
-
 /// @brief The scripted channel: each collect answers the next status (the last one repeating), READY with the bank.
 struct FakeChannel {
 	static inline std::deque<DelugeChannelStatus> answers;

@@ -118,6 +118,9 @@ public:
 	/// @brief The DX7 bank the last `.syx` read loaded, which the cartridge page lists; none before one has loaded or
 	/// for a host that reads none.
 	[[nodiscard]] virtual std::optional<DxCartridgeNames> dx_cartridge() const { return std::nullopt; }
+	/// @brief Whether the DX7 engine community feature is on (`RuntimeFeatureSettingType::EnableDX7Engine`), which
+	/// gives the DX7 parameter page its own pad layout. Off for a host that keeps no settings.
+	[[nodiscard]] virtual bool dx7_engine_enabled() const { return false; }
 	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
 	/// Slow for a host that keeps none.
 	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }

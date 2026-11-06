@@ -202,4 +202,29 @@ std::optional<Pad> param_pad(int16_t param) {
 	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
 }
 
+std::optional<int16_t> pad_param(uint8_t x, uint8_t y) {
+	constexpr uint8_t kMainColumns = 16;
+	if (x >= kMainColumns) {
+		return std::nullopt; // the sidebar
+	}
+	if (y > 1) {
+		const int32_t op = 8 - y - 1;
+		int32_t idx = 28 - x; // velocity sensitivity, amp mod, rate scale, from the right
+		if (x < 8) {
+			idx = x; // envelope rates and levels
+		}
+		else if (x < 13) {
+			idx = x - 8 + 16; // level, mode, coarse, fine, detune
+		}
+		return static_cast<int16_t>(op * kOperatorParams + idx);
+	}
+	if (y == 1) {
+		return x < 11 ? std::optional{static_cast<int16_t>(kFirstGlobal + x)} : std::nullopt;
+	}
+	if (x < 7) {
+		return static_cast<int16_t>(kFirstGlobal + 11 + x);
+	}
+	return x == 7 ? std::optional{static_cast<int16_t>(kRandomDetune)} : std::nullopt;
+}
+
 } // namespace deluge::scenes::menu::dx

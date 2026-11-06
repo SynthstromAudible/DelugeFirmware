@@ -742,6 +742,13 @@ struct CustomItem {
 		return std::nullopt;
 	}
 
+	/// @brief A Shift + main-pad press on this item's page, asked before the pad is a shortcut at all -- an item with a
+	///        pad layout of its own, as `DxParam::potentialShortcutPadAction` is.
+	/// @return True when the press is the item's: the menu takes it and goes nowhere.
+	virtual bool shortcut_pad(const MenuContext& /*ctx*/, MenuState& /*state*/, uint8_t /*x*/, uint8_t /*y*/) const {
+		return false;
+	}
+
 	/// @brief How the patching-source pad for @p source blinks while this item is focused --
 	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:1034-1064`).
 	/// @param colour Set to the flash colour when it is not the default.

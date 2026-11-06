@@ -124,11 +124,19 @@ public:
 	/// @brief The param's own pad, every other cycle, once a horizontal step has set it up; none for the scaling params
 	///        (`readValueAgain`'s `setupShortcutBlink(x, y, 1)`).
 	std::optional<ItemBlink> own_blink(const MenuContext& ctx, const MenuState& state) const override;
+	/// @brief The page's own pad layout while the DX7 engine feature is on (`DxParam::potentialShortcutPadAction`): a
+	///        pad picks its param (`dx::pad_param`) and blinks it, and every press is the page's, a pad with no param
+	///        included.
+	bool shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const override;
 };
 
 inline const DxGlobalParamsItem kDxGlobalParams{};
 inline const DxOperatorParamsItem kDxOperatorParams{};
 inline const DxParamItem kDxParam{};
+
+/// @brief Whether the pads under the menu are the DX7 layout: the parameter page is focused and the DX7 engine feature
+///        is on (`isDxShortcutLayoutActive`, `gui/ui/sound_editor.cpp:159-162`).
+bool dx_pad_layout(const MenuContext& ctx, const MenuState& state);
 
 /// @brief Where SELECT on "DX7 parameters" goes: the parameter page, or "DX7 operator N" (`global_row_param`).
 const Node* dx_global_params_chain(const MenuContext& ctx, const MenuState& state);

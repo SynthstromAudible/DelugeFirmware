@@ -353,7 +353,7 @@ reach past the page.
 `dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
 MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
 "DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
-`DxParamItem`. Six points reach past the pages.
+`DxParamItem`. Seven points reach past the pages.
 
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
@@ -367,6 +367,10 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
+* **The parameter page has its own pads** while the DX7 engine feature is on (`RuntimeFacts::dx7_engine_enabled`):
+  `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
+  first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
+  the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
 * **The browse row opens the `.syx` browser** (`browser::BrowserId::DxSyx`) over the menu. Accepting a file parks it
   and keeps the browser up (`AcceptOutcome::DeferAndWait`) while the host reads the bank through
   `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the cartridge
@@ -721,7 +725,7 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| the keyboard's DX column and the DX pad grid | the keyboard's DX column opens legacy's parameter page, and the pads under the parameter page are the menu's shortcuts, not the DX layout | a DX column gate, and a pad layout for the parameter page |
+| the keyboard's DX column | Shift + a DX column pad opens legacy's parameter page | a DX column gate |
 | two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |

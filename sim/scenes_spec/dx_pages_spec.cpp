@@ -15,6 +15,7 @@
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -29,11 +30,14 @@
 #include "gui/menu_item/dx/operator_params.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/ui/menus.h"
+#include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "model/action/action_logger.h"
 #include "model/project_bridge/source_bridge.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
@@ -42,6 +46,7 @@
 
 #include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
+#include "spec/ui/support/frames.h"
 #include "support/dx_rig.h"
 #include "support/song_fixture.h"
 
@@ -66,6 +71,9 @@ namespace dx = deluge::scenes::menu::dx;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace legacy = deluge::gui::menu_item;
 
+/// @brief How many UIs legacy's stack holds (`gui/ui/ui.cpp`), which no header declares.
+extern int32_t numUIsOpen;
+
 namespace {
 
 using namespace deluge::scenes::spec::dx_rig;
@@ -74,6 +82,48 @@ using namespace deluge::scenes::spec::dx_rig;
 void legacy_on(int16_t param) {
 	legacy::dxParam.param = param;
 	legacy::dxParam.readValueAgain();
+}
+
+/// @brief A runtime feature set for one example, put back as it was after.
+struct Feature {
+	RuntimeFeatureSettingType type;
+	uint32_t saved;
+	Feature(RuntimeFeatureSettingType t, uint32_t value) : type(t), saved(runtimeFeatureSettings.get(t)) {
+		runtimeFeatureSettings.set(t, value);
+	}
+	~Feature() { runtimeFeatureSettings.set(type, saved); }
+	Feature(const Feature&) = delete;
+	Feature& operator=(const Feature&) = delete;
+};
+
+/// @brief The DX7 engine feature on, which gives the parameter page its own pads.
+struct DxEngineOn : Feature {
+	DxEngineOn() : Feature(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::On) {}
+};
+
+/// @brief Legacy's `renderMainShortcutsOnly` with `soundEditor` the current UI on @p item: the overlay `main` paints.
+std::array<std::array<RGB, 18>, 8> legacy_overlay(::MenuItem& item) {
+	RootUI* const root = getRootUI();
+	const int32_t open = numUIsOpen;
+	setRootUILowLevel(&soundEditor);
+	const uint8_t depth = soundEditor.navigationDepth;
+	::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+	soundEditor.menuItemNavigationRecord[depth] = &item;
+	RGB image[8][18]{};
+	uint8_t occupancy[8][18]{};
+	SoundEditor::renderMainShortcutsOnly(nullptr, image, occupancy, false);
+	soundEditor.menuItemNavigationRecord[depth] = was;
+	if (root != nullptr) {
+		setRootUILowLevel(root);
+	}
+	numUIsOpen = open;
+	std::array<std::array<RGB, 18>, 8> out{};
+	for (int32_t y = 0; y < 8; y++) {
+		for (int32_t x = 0; x < 18; x++) {
+			out[y][x] = image[y][x];
+		}
+	}
+	return out;
 }
 
 } // namespace
@@ -526,6 +576,115 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
 		r.open(nodes::dx_operator_params);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
+	});
+	it("picks the param legacy's DX7 pad layout picks for every main pad, the inverse of the blink's pad", _ {
+		DxRig r;
+		Popups p; // `flashParamName` asks the display whether it is a 7-segment one
+		constexpr int16_t kUntouched = 2 * 21 + 8; // a scaling param: no pad picks it
+		for (uint8_t x = 0; x < 16; x++) {
+			for (uint8_t y = 0; y < 8; y++) {
+				legacy_on(kUntouched);
+				(void)legacy::dxParam.potentialShortcutPadAction(x, y, true);
+				const std::optional<int16_t> mine = dx::pad_param(x, y);
+				const std::string tag = "pad " + std::to_string(x) + "," + std::to_string(y) + " ";
+				expect(tag + std::to_string(mine.value_or(kUntouched)))
+				    .to_equal(tag + std::to_string(legacy::dxParam.param));
+				if (mine) {
+					if (const std::optional<dx::Pad> back = dx::param_pad(*mine)) {
+						expect(*back == dx::Pad{x, y}).to_be_true();
+					}
+				}
+			}
+		}
+		expect(dx::pad_param(16, 4).has_value()).to_be_false(); // the sidebar
+	});
+
+	it("takes every Shift + pad on the parameter page with the DX7 engine on: a pad picks its param and blinks", _ {
+		select_language();
+		DxEngineOn on;
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		r.shift_pad(3, 4); // operator index 3's rate 4
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(3 * 21 + 3);
+		expect(r.state().dx.pad_blink).to_be_true();
+		r.shift_pad(5, 1); // the pitch envelope's level 2
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(131);
+		r.shift_pad(7, 0); // random detune
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
+		r.shift_pad(12, 0); // no param: swallowed, the page stays on the param
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
+	});
+
+	it("leaves the pads the menu's shortcuts on the parameter page with the DX7 engine off", _ {
+		select_language();
+		Feature off(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::Off);
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		r.shift_pad(3, 4);
+		expect(r.focused() == &nodes::dx_param).to_be_false();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(16);
+	});
+
+	it("paints main's DX7 colour map as the overlay on the parameter page, and the ordinary one elsewhere", _ {
+		select_language();
+		DxEngineOn on;
+		MenuRig r;
+		const MenuContext ctx = r.menu_context();
+		const auto painted = [&](const Node& page) {
+			menu::MenuState st{};
+			st.path[0] = &page;
+			deluge::ui::test::GridRig rig;
+			menu::render_overlay(rig.frame, ctx, st, nullptr);
+			std::array<std::array<RGB, 18>, 8> out{};
+			for (uint8_t y = 0; y < 8; y++) {
+				for (uint8_t x = 0; x < 16; x++) {
+					out[y][x] = rig.frame.peek(x, y);
+				}
+			}
+			return out;
+		};
+		std::array<std::array<RGB, 18>, 8> want = legacy_overlay(legacy::dxParam);
+		for (auto& row : want) {
+			row[16] = RGB{}; // the overlay paints the main pads only
+			row[17] = RGB{};
+		}
+		const auto dx_map = painted(nodes::dx_param);
+		expect(dx_map == want).to_be_true();
+		expect(painted(nodes::dx_global_params) == dx_map).to_be_false();
+	});
+
+	it("shows the DX7 colour map under Shift on the parameter page", _ {
+		select_language();
+		DxEngineOn on;
+		Feature overlay(RuntimeFeatureSettingType::ShortcutOverlay,
+		                static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly));
+		MenuRig r;
+		const auto shown = [&] {
+			r.button(kShiftX, kShiftY, true);
+			r.tick();
+			r.tick();
+			std::array<std::array<RGB, 16>, 8> out{};
+			for (uint8_t y = 0; y < 8; y++) {
+				for (uint8_t x = 0; x < 16; x++) {
+					out[y][x] = r.fake.grid().grid().at(x, y);
+				}
+			}
+			r.button(kShiftX, kShiftY, false);
+			r.tick();
+			return out;
+		};
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		const auto on_page = shown();
+		r.open(nodes::dx_global_params);
+		const auto elsewhere = shown();
+		expect(on_page == elsewhere).to_be_false();
+		// The LFO row's first pad: pastel blue in the DX7 map, dimmed as every overlay pad is.
+		expect(on_page[0][0] == elsewhere[0][0]).to_be_false();
 	});
 });
 // clang-format on

@@ -94,4 +94,10 @@ struct Pad {
 /// @return The pad, or nothing for the keyboard scaling params (8-12), which blink none.
 std::optional<Pad> param_pad(int16_t param);
 
+/// @brief The param a pad picks on the parameter page's own pad layout (`DxParam::potentialShortcutPadAction`,
+///        `param.cpp:228-267`): an operator's row from the top, row 1 the pitch envelope, algorithm, feedback and sync,
+///        row 0 the LFO and the random detune.
+/// @return The param, or nothing for a pad that picks none (row 1 past column 10, row 0 past column 7).
+std::optional<int16_t> pad_param(uint8_t x, uint8_t y);
+
 } // namespace deluge::scenes::menu::dx

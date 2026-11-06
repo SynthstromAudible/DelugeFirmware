@@ -205,6 +205,16 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		// second layer at all. On any other root the flag is left exactly as it was, rather than
 		// being cleared by a press legacy never looked at.
 		const bool sound_arm = ctx.root == MenuContext::Root::Sound || ctx.root == MenuContext::Root::Drum;
+		// An item with a pad layout of its own takes the press before it is a shortcut at all (the DX7 parameter page,
+		// `isDxShortcutLayoutActive` ahead of every other sound check).
+		if (const Node* page = focused(st); sound_arm && page != nullptr && page->kind == Kind::Custom
+		                                    && page->custom != nullptr
+		                                    && page->custom->shortcut_pad(ctx, st, event.x, event.y)) {
+			Result r;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+			return r;
+		}
 		// The patching-source column patches a source to the focused item before it is a shortcut at all.
 		if (sound_arm && is_patching_source_pad(event.x, event.y)) {
 			if (std::optional<Result> r = source_press(core, walk, session, event.x, event.y, ui)) {

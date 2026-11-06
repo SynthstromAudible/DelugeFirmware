@@ -19,6 +19,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
@@ -31,6 +32,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 /// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
 namespace Buttons {
@@ -120,6 +122,41 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
 
+/// @brief A `Display` that keeps the popups legacy shows: `display` is null in a spec process.
+struct PopupDisplay final : deluge::hid::Display {
+	std::vector<std::string> popups;
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
+		popups.emplace_back(text);
+	}
+	void popupText(char const*, PopupType) override {}
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType) override { return false; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief The popups shown while it lives, in English.
+struct Popups {
+	PopupDisplay mine;
+	deluge::hid::Display* saved = display;
+	Popups() {
+		display = &mine;
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	}
+	~Popups() { display = saved; }
+	Popups(const Popups&) = delete;
+	Popups& operator=(const Popups&) = delete;
+	static std::string read_error() { return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR); }
+};
+
 /// @brief The DX7 synth with the ported menu over it, on a `Shell` over the fake surfaces. Node ids come from every
 ///        root, as the app numbers them.
 struct MenuRig : DxRig {
@@ -169,6 +206,20 @@ struct MenuRig : DxRig {
 	void back() {
 		button(kBackX, kBackY, true);
 		button(kBackX, kBackY, false);
+		tick();
+	}
+	/// @brief A main-grid or sidebar pad, pressed (`on`) or released, then a tick.
+	void pad(uint8_t x, uint8_t y, bool on) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(on ? 64 : 0)}, now += 10);
+		tick();
+	}
+	/// @brief Shift held, a tick, the pad pressed and released, Shift let go: a shortcut press.
+	void shift_pad(uint8_t x, uint8_t y) {
+		button(kShiftX, kShiftY, true);
+		tick();
+		pad(x, y, true);
+		pad(x, y, false);
+		button(kShiftX, kShiftY, false);
 		tick();
 	}
 	/// @brief @p detents clicks of a detented encoder: two A-pin edges each.

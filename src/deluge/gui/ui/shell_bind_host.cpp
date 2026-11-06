@@ -266,6 +266,9 @@ public:
 		}
 		return false;
 	}
+	[[nodiscard]] bool dx7_engine_enabled() const override {
+		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
+	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
 		DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
 		if (bank == nullptr) {

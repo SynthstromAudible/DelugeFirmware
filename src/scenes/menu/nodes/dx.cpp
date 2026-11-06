@@ -513,6 +513,22 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& /*ctx*/, cons
 	return pad ? ItemBlink{.x = pad->x, .y = pad->y, .valid = true} : ItemBlink{};
 }
 
+bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
+	if (ctx.facts == nullptr || !ctx.facts->dx7_engine_enabled()) {
+		return false;
+	}
+	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
+		state.dx.param = *param;
+		state.dx.pad_blink = true; // `readValueAgain` sets the new param's blink up
+	}
+	// "even if we didn't find param, we want to return true so that we ignore other non-dx shortcut presses".
+	return true;
+}
+
+bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
+	return focused_of(state) == &dx_param && ctx.facts != nullptr && ctx.facts->dx7_engine_enabled();
+}
+
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
                                               const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                               const MenuContext& /*ctx*/, MenuState& /*state*/) const {
