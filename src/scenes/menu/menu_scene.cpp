@@ -273,8 +273,12 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 		return std::nullopt;
 	}
 	if (!shortcut_applies(*target, ctx_)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		return std::nullopt;
+		target = nodes::dx_shortcut_fallback(*target, ctx_, x);
+		if (target == nullptr) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return std::nullopt;
+		}
 	}
 	const uint16_t id = arm_shortcut_landing(*target);
 	if (id == 0) {

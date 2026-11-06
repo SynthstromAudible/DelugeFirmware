@@ -337,6 +337,10 @@ describe dx_pages("the DX7 menu pages", ${
 		DxRig r;
 		const deluge::instrument::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
 		expect(menu::host_write_sink().write_dx_patch(r.slot(), 1, want)).to_be_false();
+	expect(menu::host_write_sink().write_dx_patch(r.slot(), 2, want)).to_be_false(); // past the two sources
+	deluge::project::SlotAddress nowhere = r.slot();
+	nowhere.id += 1000;
+	expect(menu::host_write_sink().write_dx_patch(nowhere, 0, want)).to_be_false();
 	});
 
 	it("enters DX7 source on SELECT from oscillator 1's type set to DX7, on its page and on the source page", _ {
@@ -566,6 +570,38 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(1, kHorizontalEncoder);
 		r.button(kShiftX, kShiftY, false);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(dx::kFirstGlobal);
+	});
+
+	it("leaves the param and the blink alone under Shift outside the operators and the pitch envelope's first rate", _ {
+		MenuRig r;
+		for (const int16_t param : {int16_t{137}, dx::kRandomDetune}) {
+			menu_scene().land_dx(menu::DxState{.param = param});
+			r.open(nodes::dx_param);
+			r.button(kShiftX, kShiftY, true);
+			r.turn(1, kHorizontalEncoder);
+			r.button(kShiftX, kShiftY, false);
+			expect(static_cast<int32_t>(r.state().dx.param)).to_equal(static_cast<int32_t>(param));
+			expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::BlinkPlan{}).to_be_true();
+		}
+	});
+
+	it("opens the parameter page from the modulator's shortcut inside the menu, on a DX7 sound only", _ {
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 40});
+		r.open(nodes::dx_global_params);
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4) == &nodes::dx_param).to_be_true();
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 5) == nullptr).to_be_true();
+		expect(nodes::dx_shortcut_fallback(nodes::modulator1_volume, r.menu_context(), 4) == nullptr).to_be_true();
+		r.button(kShiftX, kShiftY, true);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 4, 0, 64}, r.now += 10);
+		r.tick();
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 4, 0, 0}, r.now += 10);
+		r.button(kShiftX, kShiftY, false);
+		r.tick();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(40);
+		r.sound->sources[0].setOscType(OscType::SAW);
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4) == nullptr).to_be_true();
 	});
 
 	it("goes up from the parameter page on SELECT and on BACK", _ {

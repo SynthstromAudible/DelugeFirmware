@@ -8,6 +8,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/dx_tables.h"
+#include "scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
 #include "scenes/profile.h"
 
 #include "gfx/oled/font.h"
@@ -116,7 +117,7 @@ void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t co
 	show(p, digits, row, column, inverted);
 }
 
-/// `renderEnvelope` (`param.cpp:341-350`): rates over levels; `op` 6 is the pitch envelope.
+/// @brief `renderEnvelope` (`param.cpp:341-350`): rates over levels; `op` 6 is the pitch envelope.
 void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate", 0, 0);
 	show(p, "levl", 1, 0);
@@ -126,7 +127,7 @@ void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int
 	}
 }
 
-/// `renderScaling` (`param.cpp:352-396`): the two depths over the two curves, the breakpoint between them.
+/// @brief `renderScaling` (`param.cpp:352-396`): the two depths over the two curves, the breakpoint between them.
 void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	using namespace deluge::gfx::oled;
 	for (int32_t i = 0; i < 2; i++) {
@@ -143,7 +144,7 @@ void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int3
 	}
 }
 
-/// `renderSensParams` (`param.cpp:398-407`).
+/// @brief `renderSensParams` (`param.cpp:398-407`).
 void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate scale", 0, 1);
 	show(p, params[op * 21 + 13], 0, 12, idx == 13);
@@ -153,7 +154,7 @@ void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, 
 	show(p, params[op * 21 + 15], 1, 16, idx == 15);
 }
 
-/// `renderTuning` (`param.cpp:409-425`): the mode, coarse, fine and detune (shown from -7), then the level.
+/// @brief `renderTuning` (`param.cpp:409-425`): the mode, coarse, fine and detune (shown from -7), then the level.
 void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, params[op * 21 + 17] != 0 ? "fixed" : "ratio", 0, 1, idx == 17);
 	for (int32_t i = 0; i < 3; i++) {
@@ -167,7 +168,7 @@ void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32
 	show(p, params[op * 21 + 16], 1, 7, idx == 16);
 }
 
-/// `renderLFO` (`param.cpp:427-455`).
+/// @brief `renderLFO` (`param.cpp:427-455`).
 void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[137 + i], 0, 1 + i * 3, 137 + i == param);
@@ -183,7 +184,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 	show(p, digits, 1, 10, param == 143);
 }
 
-/// `renderAlgorithm` (`param.cpp:457-473`): a "#NN" badge inverted at the title's right, and the diagram.
+/// @brief `renderAlgorithm` (`param.cpp:457-473`): a "#NN" badge inverted at the title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::gfx::oled;
 	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
@@ -414,6 +415,8 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 			state.dx.pad_blink = true;
 		}
 		else if (patch && param >= 0 && param <= dx::kFirstGlobal) {
+			// `patch` is legacy's `!patch` test, which never fires: a DX7 source always has a patch, and so do its
+			// facts.
 			param = dx::step_operator(param, h, patch->params).value_or(param);
 			state.dx.pad_blink = true;
 		}
@@ -462,6 +465,12 @@ const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& /*state*/) 
 
 const Node* osc1_type_chain(const MenuContext& ctx, const MenuState& /*state*/) {
 	return source_is_dx(ctx, 1) ? &dx_menu : nullptr;
+}
+
+const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x) {
+	// Legacy tests `soundEditor.currentSource`, which the refused `setup()` has not yet set, so it is the source the
+	// previous menu left; this tests the pad's own source on this sound (DIFFERENCES D90).
+	return &refused == &modulator0_volume && source_is_dx(ctx, x & 1) ? &dx_param : nullptr;
 }
 
 } // namespace deluge::scenes::menu::nodes

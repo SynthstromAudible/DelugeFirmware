@@ -140,10 +140,20 @@ inline constexpr const Node* kDxMenuChildren[] = {&dx_browse, &dx_global_params,
 /// @brief "DX7 source" -- `dxMenu` (`gui/ui/menus.cpp`).
 inline constexpr Node dx_menu = submenu(sid(deluge::l10n::String::STRING_FOR_DX_1), kDxMenuChildren);
 
-/// @brief `osc::Type::selectButtonPress` (`gui/menu_item/osc/type.h:103-108`) for oscillator @p source: "DX7
-///        source" when its type is DX7, else nothing, so SELECT ascends.
+/// @brief `osc::Type::selectButtonPress` (`gui/menu_item/osc/type.h:103-108`) for oscillator 1: "DX7 source" when its
+///        type is DX7, else nothing, so SELECT ascends.
 const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& state);
+/// @brief The same for oscillator 2, which legacy's type list never offers DX7.
 const Node* osc1_type_chain(const MenuContext& ctx, const MenuState& state);
+
+/// @brief `potentialShortcutPadAction`'s fallback (`gui/ui/sound_editor.cpp:1662-1665`) for a shortcut whose node does
+///        not apply: modulator 1's volume, refused on a sound whose source `x & 1` is DX7, opens the DX7 parameter page
+///        instead, on the param it showed last.
+/// @param refused The node the pad names, which does not apply.
+/// @param ctx     What the menu edits.
+/// @param x       The pad's column; its low bit names the source.
+/// @return `dx_param`, or nothing where legacy shows "PARAMETER NOT APPLICABLE".
+const Node* dx_shortcut_fallback(const Node& refused, const MenuContext& ctx, uint8_t x);
 inline constexpr const Node* kOscTypeChainArray[] = {&dx_menu};
 inline constexpr std::span<const Node* const> kOscTypeChain{kOscTypeChainArray};
 
