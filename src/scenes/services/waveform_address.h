@@ -1,7 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What a waveform shows, by address: a sound's source range's file, or an audio clip's.
+/// @brief What a waveform shows, by address: a sound's source range's file, an audio clip's, or the sample being
+/// previewed.
 
 #include "deluge-project/clip_address.h"
 #include "deluge-project/instrument_slot.h"
@@ -15,6 +16,7 @@ struct WaveformAddress {
 	enum class Kind : uint8_t {
 		RANGE,      ///< a sound's source @ref source, range @ref range, at @ref slot
 		AUDIO_CLIP, ///< the audio clip @ref clip
+		PREVIEW,    ///< the file the sample browser is previewing; no other field is read
 	};
 	Kind kind{Kind::RANGE};
 	project::SlotAddress slot{};

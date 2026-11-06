@@ -116,6 +116,8 @@ add_library(deluge_scenes STATIC
     services/knob_push.cpp
     # A patch source's short and full names, which the popup, the mod matrix and the push all show.
     services/source_names.cpp
+    # A sample's full-screen waveform on the main pads, for the marker editor, the slicer and the sample browser.
+    services/waveform_paint.cpp
     # the transport-and-global half of legacy's `View`, plus the tail of
     # `Buttons::buttonAction`. Here for the same reason `mod_knobs.cpp` is. See
     # `services/global_controls.h`.

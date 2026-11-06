@@ -50,7 +50,7 @@
 ///
 ///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
 ///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> `deluge::sample::find_peaks_per_col` +
-///     `ui::grid::waveform_full`.
+///     `services::paint_columns` (`ui::grid::waveform_full` over the scanned columns).
 ///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).

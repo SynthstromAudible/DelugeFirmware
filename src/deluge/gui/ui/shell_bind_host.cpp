@@ -264,8 +264,9 @@ public:
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
-/// The waveforms of the current song: the sample a sound's source range holds, or an audio clip's (its recorder's
-/// take while it records linearly, as legacy's audio clip view draws it).
+/// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
+/// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which
+/// `SampleBrowser::showPreview` draws from its source 0, range 0.
 class ShellWaveforms final : public deluge::scenes::services::Waveforms {
 public:
 	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -297,6 +298,17 @@ private:
 	};
 	static Resolved resolve(const deluge::scenes::services::WaveformAddress& address) {
 		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		if (address.kind == Kind::PREVIEW) {
+			if (AudioEngine::sampleForPreview == nullptr) {
+				return {};
+			}
+			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
+				return {};
+			}
+			return {static_cast<::Sample*>(
+			    static_cast<MultisampleRange*>(source.ranges.getElement(0))->sampleHolder.audioFile)};
+		}
 		if (currentSong == nullptr) {
 			return {};
 		}

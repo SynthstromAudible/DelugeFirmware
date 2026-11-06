@@ -15,6 +15,7 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/view_state.h"
+#include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
 
 #include "deluge-project/setting_group.h"
@@ -945,32 +946,10 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
 
-	// `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`), split into its two halves:
-	// the scan (model) and the paint (toolkit).
-	//
-	// The scan can read the card, exactly as legacy's does from inside `renderMainPads`. A column
-	// it could not load stays `COL_STATUS_NOT_INVESTIGATED` and paints black, which is
-	// `waveform_full`'s own fallback -- the return value is not consulted for that reason.
-	(void)menu::host_waveforms().peaks(where_, nav_.xScroll, static_cast<uint64_t>(nav_.xZoom), nav_.renderData);
-
-	std::array<deluge::ui::grid::PeakCol, kDisplayWidth> peaks{};
-	const int32_t centre = info->centre;
-	const int32_t span = info->span;
-	for (int32_t x = 0; x < main_cols; x++) {
-		if (nav_.renderData.colStatus[x] != COL_STATUS_INVESTIGATED) {
-			continue;
-		}
-		int32_t min24 = 0;
-		int32_t max24 = 0;
-		deluge::sample::col_bar_positions(x, &nav_.renderData, &min24, &max24, centre, span);
-		peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
-	}
-
-	// `renderOneCol`'s monochrome arm: `rgb` is `nullopt` on this path, so `brightness` is 128
-	// (`waveform_renderer.cpp:244`). `waveform_full`'s precondition, honoured.
-
+	// `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`). A column the scan could not load paints black,
+	// which is legacy's own fallback, so the scan's result is not consulted.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
+		(void)services::paint_full(main, menu::host_waveforms(), where_, *info, nav_);
 
 		if (marker_type_ == MarkerType::NONE) {
 			return;
