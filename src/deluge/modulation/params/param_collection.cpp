@@ -22,6 +22,7 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
@@ -36,7 +37,12 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 	}
 }
 
+ParamCollection::ParamCollection(const ParamCollection& other)
+    : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent) {
+}
+
 ParamCollection::~ParamCollection() {
+	deluge::modulation::LanePublication::gone(*this);
 }
 
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

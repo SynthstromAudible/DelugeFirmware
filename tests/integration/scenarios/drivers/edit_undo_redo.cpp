@@ -270,7 +270,6 @@ void laneAgreementTarget(Song* song) {
 	check(mismatches == 0, "the collection's lane is the one its address resolves to");
 }
 
-// Script apply(SetParamValue) -> undo -> redo over one resolved param lane, asserting the invariants.
 /// Every collection's published snapshot must still equal its model after an edit, an undo or a redo.
 void checkLanesPublished(int line) {
 	const int32_t stale = deluge::modulation::checkPublished(*currentSong);
@@ -281,6 +280,7 @@ void checkLanesPublished(int line) {
 	}
 }
 
+// Script apply(SetParamValue) -> undo -> redo over one resolved param lane, asserting the invariants.
 void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* msap) {
 	std::fprintf(io.out, "# target %s\n", label);
 

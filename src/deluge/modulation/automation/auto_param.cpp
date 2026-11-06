@@ -166,6 +166,9 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 #endif
 		return &g_unheldLane;
 	}
+	// Every interaction-tier access to a lane may be a write: its collection republishes at the next publish point if
+	// the lane changed.
+	deluge::modulation::markLanesChanged(*paramCollection);
 	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
 		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
 			return sameAsRender(*paramCollection, paramId, resolved);

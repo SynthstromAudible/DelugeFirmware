@@ -16,6 +16,10 @@
  */
 
 #pragma once
+
+#include "foundation/function_ref.h"
+
+#include <atomic>
 #include <cstdint>
 
 #include "modulation/params/param.h"
@@ -41,10 +45,19 @@ class ParamCollectionSummary;
 namespace deluge::project {
 struct DocAutoParam;
 }
+namespace deluge::modulation {
+struct LaneSnapshot;
+class LanePublication;
+} // namespace deluge::modulation
 
 class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
+	/// @brief A copy of @p other's lanes' owner, with no snapshot of its own yet. A subclass's constructor ends with
+	///        LanePublication::made() and its destructor begins with LanePublication::gone(), so the publication never
+	///        walks a collection whose members are not all alive.
+	ParamCollection(const ParamCollection& other);
+	ParamCollection& operator=(const ParamCollection&) = delete;
 	virtual ~ParamCollection();
 
 	/// @brief Resolve the DOM node-store handle for the param identified by @p paramId (as carried on a
@@ -133,6 +146,23 @@ public:
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 	virtual deluge::modulation::params::Kind getParamKind() = 0;
 
+	/// @brief [interaction] Call @p visit with each of this collection's lanes that has nodes, by its paramId (the key
+	///        its published snapshot is searched by), in any order.
+	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
+
+	/// @brief [render] or [interaction] The snapshot the render plays this collection's lanes from; nullptr before its
+	///        first publish.
+	[[nodiscard]] const deluge::modulation::LaneSnapshot* published() const {
+		return published_.load(std::memory_order_acquire);
+	}
+
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent{};
+
+private:
+	friend class deluge::modulation::LanePublication;
+	/// [interaction] -> [render] Swapped only with the render held off; read by the render once per collection event.
+	std::atomic<const deluge::modulation::LaneSnapshot*> published_{nullptr};
+	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
+	bool lanesDirty_ = false;
 };

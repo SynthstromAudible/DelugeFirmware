@@ -21,6 +21,8 @@
 #include <cstdint>
 
 class Song;
+class ParamCollection;
+class ParamManagerForTimeline;
 
 /// Lanes as the render plays them. Outside record mode the render reads each collection's lanes from an immutable
 /// snapshot the interaction tier publishes after every edit; it reads no model lane and writes none.
@@ -48,9 +50,55 @@ void noteRenderModelRead();
 /// @brief [render] or [interaction] Count a write to a lane made on the render outside record mode.
 void noteRenderLaneWrite();
 
-/// @brief [interaction] Compare every collection of @p song's snapshot with its model (automated bits, key order, each
-///        lane's base and nodes).
-/// @return The collections that differ (0 while no snapshot exists: a collection with none is not compared).
+/// @brief [interaction] Compare every published collection's snapshot with its model: the same lanes, each with the
+/// same
+///        base and nodes.
+/// @return The collections that differ.
 int32_t checkPublished(Song& song);
+
+/// @brief [interaction] @p collection's lanes may have changed: it republishes at the next publish point. Every path
+///        that hands out a collection's lane to write, or rebinds its store, marks it; a mark on the render is ignored.
+void markLanesChanged(ParamCollection& collection);
+/// @brief [interaction] Republish every collection marked changed whose lanes differ from its snapshot. A publish
+/// point:
+///        nothing happens on the render, or while a section holds the render off (the build allocates).
+/// @param settle Whether the job is done with its lanes (the app loop, after each job): the marks are cleared. Within a
+///        job (an edit's guard closing, a move's end) they stay, so a write through a lane still held is published at
+///        the next point.
+void publishDirtyLanes(bool settle = false);
+
+/// @brief [interaction] A whole operation on the model -- an Edit applied, an undo or redo -- whose lanes the outermost
+///        one publishes when it ends: between its steps a collection's storage may be mid-change.
+class LaneOperation {
+public:
+	LaneOperation();
+	~LaneOperation();
+	LaneOperation(const LaneOperation&) = delete;
+	LaneOperation& operator=(const LaneOperation&) = delete;
+};
+
+/// How the interaction tier publishes collections' lanes; the parts ParamCollection's private state is for.
+class LanePublication {
+public:
+	/// @brief [render] or [interaction] A collection was made: the next publish point walks the song for it.
+	static void made(ParamCollection& collection);
+	/// @brief [render] or [interaction] A collection is going, out of the render's reach: its snapshot and lanes are
+	///        freed.
+	static void gone(ParamCollection& collection);
+	/// @brief [interaction] As markLanesChanged().
+	static void mark(ParamCollection& collection);
+	/// @brief [interaction] As publishDirtyLanes().
+	static void publishDirty(bool settle);
+	/// @brief [interaction] As checkPublished().
+	static int32_t check(Song& song);
+
+private:
+	/// @brief Publish @p collection if its lanes differ from its snapshot.
+	/// @param manager The manager that schedules @p collection: its next event is brought forward to the next block.
+	/// @return False when out of memory: the previous snapshot stays.
+	static bool publish(ParamCollection& collection, ParamManagerForTimeline& manager);
+	/// @brief Whether @p collection's snapshot holds exactly its lanes.
+	static bool matches(ParamCollection& collection);
+};
 
 } // namespace deluge::modulation

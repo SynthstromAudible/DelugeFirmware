@@ -16,7 +16,6 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/lane_view.h"
 
 #include <cstdint>
@@ -42,16 +41,14 @@ struct PublishedLane {
 	static void destroy(void* lane);
 };
 
-/// @brief A collection's lanes as the render plays them, immutable once published: which of its lanes are automated, in
-///        the collection summary's word layout, and each automated lane by the key the collection's cursors use. One
-///        allocation in SDRAM, the entries after the header.
+/// @brief A collection's lanes as the render plays them, immutable once published: each lane that has nodes, by its
+///        paramId, which no re-patch or MIDI learn changes. One allocation in SDRAM, the entries after the header.
 struct alignas(alignof(void*)) LaneSnapshot {
 	struct Entry {
-		int32_t key; ///< param index (ParamSet), cable index (PatchCableSet), CC number (MIDIParamCollection)
+		int32_t key; ///< the lane's paramId
 		const PublishedLane* lane;
 	};
 
-	uint32_t automated[kMaxNumUnsignedIntegerstoRepAllParams];
 	uint32_t count; ///< entries, ascending by key; only lanes with nodes
 
 	/// @brief The lane published under @p key.
@@ -60,7 +57,7 @@ struct alignas(alignof(void*)) LaneSnapshot {
 	/// @brief Every entry, ascending by key.
 	[[nodiscard]] std::span<const Entry> entries() const;
 
-	/// @brief [interaction] Room for @p count entries, the bits cleared, for a builder to fill before it is published.
+	/// @brief [interaction] Room for @p count entries, for a builder to fill before it is published.
 	/// @return It, or nullptr when out of memory.
 	static LaneSnapshot* make(uint32_t count);
 	/// @brief The entries of a snapshot being built.

@@ -121,6 +121,8 @@ public:
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 	/// @copydoc ParamCollection::findDocParamForId
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::forEachLane
+	void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
 
 private:
 	/// DOM-owned node store (nullptr = unbound). RAII-freed with the collection.

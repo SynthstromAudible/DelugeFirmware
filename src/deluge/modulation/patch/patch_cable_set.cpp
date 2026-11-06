@@ -27,6 +27,7 @@
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "plugin-api/types/param_mapping.h"
@@ -95,9 +96,11 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
+	deluge::modulation::LanePublication::made(*this);
 }
 
 PatchCableSet::~PatchCableSet() {
+	deluge::modulation::LanePublication::gone(*this);
 	freeDestinationMemory(true);
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		patchCables[c].~PatchCable();
@@ -290,6 +293,7 @@ void PatchCableSet::permuteCables(std::span<const uint8_t> order) {
 }
 
 deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, deluge::synth::CableTarget target) {
+	deluge::modulation::markLanesChanged(*this);
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	std::vector<deluge::project::DocCableDepth>& table = depths();
 	for (deluge::project::DocCableDepth& lane : table) {
@@ -304,6 +308,7 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, deluge::
 }
 
 void PatchCableSet::eraseLane(PatchSource from, deluge::synth::CableTarget target) {
+	deluge::modulation::markLanesChanged(*this);
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	// The lane's nodes are moved out inside the section and freed after it.
 	deluge::project::DocAutoParam dropped;
@@ -887,6 +892,7 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		deluge::memory::dealloc(patchCables);
 		throw;
 	}
+	deluge::modulation::LanePublication::made(*this);
 }
 
 Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {
@@ -1158,4 +1164,14 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 		return nullptr;
 	}
 	return &patchCables[i];
+}
+
+void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
+		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(paramId, *lane);
+		}
+	}
 }
