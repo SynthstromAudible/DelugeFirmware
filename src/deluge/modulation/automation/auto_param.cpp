@@ -47,7 +47,9 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -146,8 +148,9 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// The render reads a lane where its collection keeps it: the tree's block once the owner is relocated, the
 	// collection's own store before that (and always, for an MPE note row's lanes). It builds no address and reads no
 	// tree map. Only the interaction tier relocates or changes that storage, each change in a section, so a lookup here
-	// never sees one half made. A lane nothing holds yet reads as unautomated, and nothing writes it.
-	if (deluge::memory::onRenderTier()) {
+	// never sees one half made. A lane nothing holds yet reads as unautomated, and nothing writes it. A playhead move
+	// on the interaction tier reads lanes the same way: it holds the render off, and must not relocate or allocate.
+	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
 		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
 			return own;
 		}
@@ -1412,6 +1415,7 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 
 // Returns whether a change was made to played_
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
+	deluge::playback::notePositionWrite();
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	if (nodesRef.empty()) {
@@ -1424,6 +1428,7 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
+	deluge::playback::notePositionWrite();
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 

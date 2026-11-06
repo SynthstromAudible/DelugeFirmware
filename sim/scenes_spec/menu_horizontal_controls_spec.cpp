@@ -1839,7 +1839,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("an unrelated Console notice survives a menu cancel", _ {
-		// Undo/Redo (`action_logger.cpp:827`, `:840`) and the startup banner are `Kind::Console`
+		// Undo/Redo (`action_logger.cpp:827`, `:842`) and the startup banner are `Kind::Console`
 		// lines, and legacy's cancel of the menu's notification never touches the console:
 		// `cancelPopup` -> `removePopup` clears only the popup slot (`oled.h:164`,
 		// `oled.cpp:253-258`). The menu's notification is its own `Notification` banner now, so

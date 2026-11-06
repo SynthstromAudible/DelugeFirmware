@@ -70,6 +70,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -1223,6 +1224,8 @@ void ArrangerView::outputActivated(Output* output) {
 		return;
 	}
 
+	// Where the render's tick has reached and the clip's move to it, with the render held off between them
+	deluge::playback::MoveSection section{"ArrangerView::outputActivated"};
 	int32_t actualPos = arrangement.getLivePos();
 
 	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;

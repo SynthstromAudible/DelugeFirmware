@@ -56,6 +56,18 @@ struct ParamBefore {
 /// @param visit Called once per (owner, param manager) pair.
 void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit);
 
+/// What a param is to its owner's delay, for onDelayParamModified().
+enum class DelayParamRole : uint8_t {
+	NONE,     ///< nothing the delay reacts to
+	RATE,     ///< the delay's rate: its reserve follows it
+	FEEDBACK, ///< its feedback (or amount), or a patch cable reaching the feedback: may lift the delay from OFF
+};
+
+/// @brief [render] or [interaction] What @p modelStack's param is to its owner's delay. Reads only the stack.
+/// @param modelStack The param.
+/// @return Its role; NONE without an owner (or, for the feedback, without a param manager).
+DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack);
+
 /// @brief [task] After an interaction-tier change to a param: when it is an owner's delay feedback, or a patch cable
 /// reaching it, and the change took the delay from unable to sound to able while its type is OFF, steps the type by
 /// the Edit a press of the feedback knob makes, OFF to DIGITAL; when it is the delay's rate, refreshes its reserve.

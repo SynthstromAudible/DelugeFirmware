@@ -28,6 +28,7 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "synth/matrix/param_format.h"
+#include "util/exceptions.h"
 #include "util/functions.h"
 #include <cstdint>
 
@@ -98,6 +99,13 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 }
 
 Arpeggiator::Arpeggiator() {
+	try {
+		notes.reserve(kArpNotesReserved);
+		notesAsPlayed.reserve(kArpNotesReserved);
+		notesByPattern.reserve(kArpNotesReserved);
+	} catch (deluge::exception&) {
+		// No room now: the lists grow as notes arrive instead.
+	}
 }
 
 void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_t drumIndex) {

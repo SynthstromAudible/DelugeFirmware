@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
+#include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
 
 ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
@@ -55,6 +56,13 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	// Edit made from the render would allocate there. The host renders on a thread its audio-context check does not
 	// see, so the render block is checked too.
 	if (!deluge_in_audio_context() && !deluge::memory::inRenderBlock()) {
+		// A playhead move holds the render off, and the delay's reaction may grow its reserve or log an Edit: it runs
+		// once the move's section ends.
+		if (deluge::playback::MoveEffects::collecting()
+		    && deluge::model::delayParamRole(*modelStack) != deluge::model::DelayParamRole::NONE
+		    && deluge::playback::MoveEffects::defer({*modelStack, oldValue, automatedBefore})) {
+			return;
+		}
 		deluge::model::onDelayParamModified(*modelStack, oldValue, automatedBefore);
 	}
 }

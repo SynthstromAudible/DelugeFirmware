@@ -71,6 +71,8 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
+#include "playback/playhead_checks.h"
 #include "playback/render_requests.h"
 #include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
@@ -476,13 +478,57 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// reads from this.
 	nextTimerTickScheduled = 0;
 
-	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
+	setupPlayback(newPlaybackState, newPos, true, buttonPressLatency);
+	deluge::playback::injectRenderAt(deluge::playback::InjectAt::StartBeforeClock);
+	releaseTicks();
+}
 
-	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
-	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
-
+void PlaybackHandler::releaseTicks() {
+	deluge::playback::MoveSection section{"PlaybackHandler::releaseTicks"};
+	if (isInternalClockActive()) {
+		// The first tick is due now, after everything setupPlayback() did
+		timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
+	}
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some
 	                            // recent call to expectEvent()
+	noteTicksResumed();
+	ticksHeld_ = false;
+}
+
+bool PlaybackHandler::holdTicks() {
+	deluge::playback::MoveSection section{"PlaybackHandler::holdTicks"};
+	const bool wasHeld = ticksHeld_;
+	if (!wasHeld) {
+		noteTicksHeld();
+	}
+	ticksHeld_ = true;
+	return wasHeld;
+}
+
+void PlaybackHandler::resumeTicks(bool wasHeld) {
+	deluge::playback::MoveSection section{"PlaybackHandler::resumeTicks"};
+	if (!wasHeld) {
+		noteTicksResumed();
+	}
+	ticksHeld_ = wasHeld;
+}
+
+void PlaybackHandler::noteTicksHeld() {
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	ticksHeldSinceUs_ = deluge::memory::onRenderTier() ? 0 : deluge::playback::MaskedSpan::nowUs();
+#endif
+}
+
+void PlaybackHandler::noteTicksResumed() {
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	// Ticks that fell due meanwhile run together when they resume: how long they waited is reported with the spans
+	if (ticksHeldSinceUs_ != 0) {
+		deluge::playback::MaskedSpan::record(
+		    "PlaybackHandler ticks held",
+		    static_cast<uint32_t>(deluge::playback::MaskedSpan::nowUs() - ticksHeldSinceUs_));
+		ticksHeldSinceUs_ = 0;
+	}
+#endif
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
@@ -523,15 +569,17 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	    && (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1
 	        || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
+		deluge::playback::notePositionWrite();
 		currentPlaybackMode = &arrangement;
 	}
 	else {
+		deluge::playback::notePositionWrite();
 		currentPlaybackMode = &session;
 	}
 }
 
 // Call decideOnCurrentPlaybackMode() before this
-void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
+void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos,
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
 
@@ -541,56 +589,52 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		playFromPos += currentSong->persistentView.lastClipInstanceEnteredStartPos;
 	}
 
-	ignoringMidiClockInput = false;
-	stopOutputRecordingAtLoopEnd = false;
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::setupPlayback"};
+		// No tick until releaseTicks(): the clips are positioned, and may begin recording, first.
+		if (!ticksHeld_) {
+			noteTicksHeld();
+		}
+		ticksHeld_ = true;
 
-	lastSwungTickActioned = 0;
-	firstSwungTickPending = true;
-	lastTriggerClockOutTickDone = -1;
-	lastMIDIClockOutTickDone = -1;
-	timeLastMIDIClockOutTickSent = 0;
-	timeLastTriggerClockOutTickSent = 0;
+		ignoringMidiClockInput = false;
+		stopOutputRecordingAtLoopEnd = false;
 
-	swungTickScheduled = false;
-	triggerClockOutTickScheduled = false;
-	midiClockOutTickScheduled = false;
+		lastSwungTickActioned = 0;
+		firstSwungTickPending = true;
+		lastTriggerClockOutTickDone = -1;
+		lastMIDIClockOutTickDone = -1;
+		timeLastMIDIClockOutTickSent = 0;
+		timeLastTriggerClockOutTickSent = 0;
 
-	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember
-	                            // and insanely most stuff worked
+		swungTickScheduled = false;
+		triggerClockOutTickScheduled = false;
+		midiClockOutTickScheduled = false;
 
-	playbackState = newPlaybackState;
-	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
+		swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't
+		                            // remember and insanely most stuff worked
 
-	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
+		deluge::playback::notePositionWrite();
+		playbackState = newPlaybackState;
+		cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
+
+		currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
+
+		// Start synced global LFOs with fresh state, including sounds without an active clip.
+		// Periodic timer ticks only realign their phase.
+		currentSong->resyncLFOs(true);
+	}
 
 	arrangerView.reassessWhetherDoingAutoScroll(playFromPos);
 
 	setLedStates();
 
-	if (doOneLastAudioRoutineCall) {
-		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
-		// happening so it doesn't do the first tick yet
-		playbackState = 0;
-		AudioEngine::routineWithClusterLoading();
-		playbackState = newPlaybackState;
-	}
-
-	// Raise unconditionally, after the transient `playbackState = 0` window above, or a drain
-	// landing inside that window would read 0 and miss the begin edge, silently losing the paired
-	// playbackEnded() dispatch later.
 	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
-	// May not call audio routine during this, cos that'd try doing ticks before everything's set up
-	bool oldState = AudioEngine::audioRoutineLocked;
-	AudioEngine::audioRoutineLocked = true;
+	// The render holds its ticks until releaseTicks(), so nothing but this writes the flag meanwhile.
 	currentlyActioningSwungTickOrResettingPlayPos = true;
-	// Start synced global LFOs with fresh state, including sounds without an active clip.
-	// Periodic timer ticks only realign their phase.
-	currentSong->resyncLFOs(true);
-	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
-	AudioEngine::audioRoutineLocked = oldState;
 
 	posToNextContinuePlaybackFrom = playFromPos;
 
@@ -656,6 +700,9 @@ void PlaybackHandler::endPlayback() {
 	}
 
 	setLedStates();
+
+	// How long each playhead move held the render off, so far (ALPHA builds' debug output)
+	deluge::playback::MaskedSpan::report();
 }
 
 void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer,
@@ -1532,6 +1579,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because
 	// resyncInternalTicksToInputTicks() references it
 	if (isEitherClockActive()) {
+		// The incoming song's clock position, its LFOs and (beginning in the arranger) its arrangement are set in
+		// steps: no tick runs until they all are.
+		const bool wasHeld = holdTicks();
 
 		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do
 		// this anyway)
@@ -1546,6 +1596,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// Otherwise, reset play position
 		else {
+			deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap ticks"};
 			lastTimerTickActioned = 0;
 			lastInputTickReceived = 0;
 			lastSwungTickActioned = 0;
@@ -1557,17 +1608,25 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			swungTicksTilNextEvent = 0;
 		}
 
-		// A live song swap bypasses setupPlayback(). Reset the incoming song's
-		// synced LFO state after establishing its clock position, before starting clips.
-		currentSong->resyncLFOs(true);
+		{
+			// A live song swap bypasses setupPlayback(). Reset the incoming song's
+			// synced LFO state after establishing its clock position, before starting clips.
+			deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap LFOs"};
+			currentSong->resyncLFOs(true);
+		}
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
 		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
-			currentPlaybackMode = &arrangement;
-			arrangement.setupPlayback();
+			{
+				deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap arranger"};
+				deluge::playback::notePositionWrite();
+				currentPlaybackMode = &arrangement;
+				arrangement.setupPlayback();
+			}
 			arrangement.resetPlayPos(currentSong->persistentView.lastClipInstanceEnteredStartPos);
 		}
+		resumeTicks(wasHeld);
 
 		// Or if we weren't switching to the arranger, the equivalent of that would get called from
 		// Session::considerLaunchEvent()
@@ -1660,10 +1719,12 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 	if (!switchingFromInternalClock) {
 		bool shouldShiftAccordingToClipInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
 		decideOnCurrentPlaybackMode();
-		setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, false, shouldShiftAccordingToClipInstance);
+		setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, shouldShiftAccordingToClipInstance);
 		posToNextContinuePlaybackFrom = 0;
+		releaseTicks();
 	}
 	else {
+		deluge::playback::notePositionWrite();
 		playbackState = newPlaybackState;
 		setLedStates();
 	}
@@ -1690,7 +1751,10 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 			return;
 		}
 
+		// No tick between the clips' moves and what follows them (linear recording from pos 0)
+		const bool wasHeld = holdTicks();
 		currentPlaybackMode->resetPlayPos((int32_t)pos);
+		resumeTicks(wasHeld);
 	}
 
 	// Otherwise, even if playing to internal clock, just store the position, to use if we receive a "continue"
@@ -2603,6 +2667,8 @@ void PlaybackHandler::toggleMetronomeStatus() {
 // tempo, or sync scaling is activated
 void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 	if (isExternalClockActive()) {
+		// The render's tick count and every clip's move to it, with the render held off between them
+		deluge::playback::MoveSection section{"PlaybackHandler::resyncInternalTicksToInputTicks"};
 		// This works. Although it doesn't do anything special to account for swing, no long-term out-of-sync-ness
 		// results - I tested.
 		lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();
@@ -3086,6 +3152,17 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 }
 
 void PlaybackHandler::expectEvent() {
+	// The next-event schedule is the render's tick's: an edit on the interaction tier sets it with the render held off.
+	if (deluge::memory::onRenderTier()) {
+		scheduleNextEvent();
+		return;
+	}
+	deluge::playback::MoveSection section{"PlaybackHandler::expectEvent"};
+	deluge::playback::notePositionWrite();
+	scheduleNextEvent();
+}
+
+void PlaybackHandler::scheduleNextEvent() {
 	if (!currentlyActioningSwungTickOrResettingPlayPos && isEitherClockActive()) {
 		int32_t newSwungTicksTilNextEvent = getNumSwungTicksInSinceLastActionedSwungTick() + 1;
 		if (newSwungTicksTilNextEvent < swungTicksTilNextEvent) {
@@ -3105,11 +3182,22 @@ bool PlaybackHandler::isCurrentlyRecording() {
 }
 
 void PlaybackHandler::switchToArrangement() {
-	currentPlaybackMode = &arrangement;
+	// The session ends (its overdubs deleted, its sound stopped) between the mode's switch and the arrangement's
+	// moves, so no tick runs until the arrangement is positioned.
+	const bool wasHeld = holdTicks();
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToArrangement"};
+		deluge::playback::notePositionWrite();
+		currentPlaybackMode = &arrangement;
+	}
 	stopOutputRecordingAtLoopEnd = false;
 	session.endPlayback();
-	arrangement.setupPlayback();
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToArrangement setup"};
+		arrangement.setupPlayback();
+	}
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
+	resumeTicks(wasHeld);
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
@@ -3125,14 +3213,19 @@ void PlaybackHandler::switchToSession() {
 	if (recording != RecordingMode::OFF) {
 		arrangement.endAnyLinearRecording();
 	}
-	currentPlaybackMode = &session;
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToSession"};
+		deluge::playback::notePositionWrite();
+		currentPlaybackMode = &session;
 
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-	currentSong->paramManager.expectNoFurtherTicks(modelStack);
+		currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
-	session.setupPlayback();
+		session.setupPlayback();
+	}
 	stopOutputRecordingAtLoopEnd = false;
 
 	if (getCurrentUI() == &sessionView) {

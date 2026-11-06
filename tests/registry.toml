@@ -573,6 +573,23 @@ group = "app"
 runtime = "~1m"
 
 [[harness]]
+name = "playhead-moves"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "The interaction tier moves the playhead only with the render excluded. The render ticks the sequencer, so a write the interaction tier makes to playback position state while a clock runs -- a lane cursor, a clip's or note row's position, the next-event schedule, the playback mode or state -- can be seen half made by a render block that preempts it; each such move runs in one section that holds the render off (src/deluge/playback/move_section.h), and nothing in it allocates or logs undo, since on the device a section masks interrupts for its length. Each leg makes one move through the app's own entry point and reports PM-<LEG> stray=<n> masked_alloc=<n> masked_actions=<n> hash=<h>, all three counts required 0: START, RESTART, CONTINUE (external clock, mid-loop), SPP (a MIDI song position pointer), TOARRANGER, TOSESSION, UNDO, CLIPLENGTH, CLIPSHIFT, ROWMUTE, ROWLENGTH, ROWDIRECTION, LATESTART and UNSOLO (the launched or restarted clips in phase), the injection legs, which run a render block inside a move: INJECTSTART and INJECTAFTERMOVE (no tick before the clock is published) and INJECTLAUNCH (the launched clip in phase), and ARRANGERRECORD (a switch to the arranger beginning arrangement recording), CLONE and RESUME (a clip cloned for a recorded change and the original resumed). First PM-EFFECTS checks the section on its own: effects deferred in order and run once the outermost section ends with the render running again, none collected on the render. PM-SPAN lines report each section site's longest host wall time (and how long ticks were held), not judged; each leg's hash= is informational, for comparing a change's run with its base's by hand. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran."
+scenario = "playhead_moves"
+result = "PM-RESULT failures=0"
+check = "tests/integration/checks/playhead_moves.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "app"
+runtime = "~30s"
+
+[[harness]]
 name = "card-reinsert"
 path = "."
 level = "integration"

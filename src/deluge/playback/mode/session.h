@@ -66,13 +66,23 @@ public:
 	                                     bool allowSubdividedQuantization);
 	bool armForSongSwap();
 	bool armForSwitchToArrangement();
+	/// No swung-tick count stamped on a launch position: it is moved to as given.
+	static constexpr int64_t kPosNotStamped = INT64_MIN;
+	/// [interaction] The swung-tick count investigateSyncedLaunch() last read the clips' positions at: a launch is
+	/// timed from it.
+	int64_t launchReadAtTick_ = 0;
+	/// @param posReadAtTick the swung-tick count when @p pos was read (kPosNotStamped if not stamped): a late start
+	///        moves the clip on by the ticks the render has counted since
 	void armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
 	                                           bool stopAllOtherClips, Clip* clip, bool forceLateStart,
 	                                           bool allowLateStart, int32_t numRepeatsTilLaunch,
-	                                           ArmState armState = ArmState::ON_NORMAL);
+	                                           ArmState armState = ArmState::ON_NORMAL,
+	                                           int64_t posReadAtTick = kPosNotStamped);
+	/// @param posReadAtTick as armClipsToStartOrSoloWithQuantization()'s
 	void armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateStart, uint32_t pos,
 	                                           ArmState armState = ArmState::ON_NORMAL,
-	                                           bool mustUnarmOtherClipsWithSameOutput = true);
+	                                           bool mustUnarmOtherClipsWithSameOutput = true,
+	                                           int64_t posReadAtTick = kPosNotStamped);
 	void cancelAllArming();
 	void armClipLowLevel(Clip* loopableToArm, ArmState armState, bool mustUnarmOtherClipsWithSameOutput = true);
 	int32_t userWantsToArmNextSection(int32_t numRepetitions = -1);
@@ -89,6 +99,13 @@ public:
 	bool endPlayback() override; // Returns whether to do an instant song swap
 	void doTickForward(int32_t posIncrement) override;
 	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) override;
+	/// @brief [render] or [interaction] The moves of resetPlayPos(): every playing clip's and lane's position, the
+	///        clips' resumes, their outputs' active clips. Nothing that allocates or logs undo.
+	void moveToPos(int32_t newPos, bool doingComplete);
+	/// @brief [render] or [interaction] What resetPlayPos() does once the clips are positioned: a start from 0 gives
+	///        each playing clip its chance to begin linear recording (then sets its output's active clip), and launch
+	///        timing follows what armed.
+	void afterMoveToPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency);
 	void resyncToSongTicks(Song* song) override;
 	void reversionDone() override;
 	bool isOutputAvailable(Output* output) override;
