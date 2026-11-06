@@ -33,6 +33,9 @@ public:
 		return real_.dx_cartridge();
 	}
 	[[nodiscard]] bool dx7_engine_enabled() const override { return real_.dx7_engine_enabled(); }
+	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
+		return real_.isomorphic_keyboard();
+	}
 	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override {
 		return real_.kit_takes_whole_folder(slot);
 	}

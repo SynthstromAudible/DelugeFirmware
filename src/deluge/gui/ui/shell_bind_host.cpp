@@ -12,6 +12,7 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -265,6 +266,15 @@ public:
 			}
 		}
 		return false;
+	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (getRootUI() != &keyboardScreen || clip == nullptr
+		    || clip->keyboardState.currentLayout != KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
+			return std::nullopt;
+		}
+		return deluge::scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
+		                                                .row_interval = clip->keyboardState.isomorphic.rowInterval};
 	}
 	[[nodiscard]] bool dx7_engine_enabled() const override {
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;

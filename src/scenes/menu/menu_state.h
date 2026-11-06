@@ -13,6 +13,7 @@
 #include "ui/core/state.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 
 /// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
@@ -267,6 +268,11 @@ struct DxState {
 	/// Open the parameter page with its pad blinking: the keyboard's DX column opens it with `setup()` and then sets
 	/// the param (`openForOpOrGlobal`'s `readValueAgain`, after `beginScreen`). Spent by the page's focus.
 	bool blink_on_focus = false;
+	/// The keyboard DX column's flash starts again on the page's next draw: every `readValueAgain` restarts legacy's
+	/// `blinkSideColumn` alternation, white first.
+	bool flash_restart = false;
+	/// When the column's flash alternation started, on the guest's clock; none before the page has drawn.
+	std::optional<uint32_t> flash_anchor_ms;
 	bool operator==(const DxState&) const = default;
 };
 

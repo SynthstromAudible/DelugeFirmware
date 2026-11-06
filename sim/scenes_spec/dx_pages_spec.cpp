@@ -29,13 +29,16 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/operator_params.h"
 #include "gui/menu_item/dx/param.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
@@ -125,6 +128,26 @@ std::array<std::array<RGB, 18>, 8> legacy_overlay(::MenuItem& item) {
 	}
 	return out;
 }
+
+/// @brief The keyboard screen as the root UI on the isomorphic layout, over the rig's clip, put back after.
+struct IsomorphicRoot {
+	RootUI* saved = getRootUI();
+	InstrumentClip* clip;
+	deluge::gui::ui::keyboard::KeyboardState saved_state;
+	explicit IsomorphicRoot(InstrumentClip* c) : clip(c), saved_state(c->keyboardState) {
+		currentSong->setCurrentClip(clip);
+		setRootUILowLevel(&keyboardScreen);
+		clip->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+	}
+	~IsomorphicRoot() {
+		clip->keyboardState = saved_state;
+		if (saved != nullptr) {
+			setRootUILowLevel(saved);
+		}
+	}
+	IsomorphicRoot(const IsomorphicRoot&) = delete;
+	IsomorphicRoot& operator=(const IsomorphicRoot&) = delete;
+};
 
 } // namespace
 
@@ -728,6 +751,96 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(r.focused() == &nodes::dx_param).to_be_true();
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
 		expect(r.state().dx.pad_blink).to_be_true();
+	});
+	it("flashes the row legacy's readValueAgain flashes for every param", _ {
+		DxRig r;
+		for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+			legacy_on(p);
+			const std::string tag = "param " + std::to_string(p) + " ";
+			expect(tag + std::to_string(dx::flash_row(p))).to_equal(tag + std::to_string(legacy::dxParam.flash_row));
+		}
+	});
+
+	it("blinks the breakpoint note's pad where legacy's renderScaling does, over every layout of the keyboard", _ {
+		select_language();
+		DxRig r;
+		IsomorphicRoot root{r.song.clip};
+		for (const int32_t scroll : {0, 12, 40, 60}) {
+			for (int32_t interval = 1; interval <= 16; interval++) {
+				r.song.clip->keyboardState.isomorphic.scrollOffset = scroll;
+				r.song.clip->keyboardState.isomorphic.rowInterval = interval;
+				for (int32_t breakpoint = 0; breakpoint < 100; breakpoint += 3) {
+					r.patch().params[2 * 21 + 8] = static_cast<uint8_t>(breakpoint);
+					legacy_on(2 * 21 + 8);
+					soundEditor.currentParamShortcutX = 255;
+					uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 1000);
+					legacy::dxParam.renderOLED();
+					const std::optional<dx::Pad> mine = dx::breakpoint_pad(static_cast<uint8_t>(breakpoint), scroll,
+					                                                       interval);
+					const std::string tag = std::to_string(scroll) + "/" + std::to_string(interval) + "/"
+					                        + std::to_string(breakpoint) + " ";
+					if (mine) {
+						expect(tag + std::to_string(mine->x) + "," + std::to_string(mine->y))
+						    .to_equal(tag + std::to_string(soundEditor.currentParamShortcutX) + ","
+						              + std::to_string(soundEditor.currentParamShortcutY));
+						expect(static_cast<int32_t>(soundEditor.paramShortcutBlinkFrequency)).to_equal(2);
+					}
+					else {
+						expect(tag + std::to_string(uiTimerManager.isTimerSet(TimerName::SHORTCUT_BLINK)))
+						    .to_equal(tag + "0");
+					}
+				}
+			}
+		}
+	});
+
+	it("blinks the breakpoint's pad on a keyboard scaling param over the isomorphic keyboard, at legacy's frequency", _ {
+		select_language();
+		MenuRig r;
+		IsomorphicRoot root{r.song.clip};
+		r.song.clip->keyboardState.isomorphic.scrollOffset = 40;
+		r.song.clip->keyboardState.isomorphic.rowInterval = 5;
+		r.patch().params[1 * 21 + 8] = 45;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 10});
+		r.open(nodes::dx_param);
+		const std::optional<menu::ItemBlink> blink = nodes::kDxParam.own_blink(r.menu_context(), r.state());
+		const std::optional<dx::Pad> want = dx::breakpoint_pad(45, 40, 5);
+		expect(want.has_value()).to_be_true();
+		expect(blink.has_value() && blink->valid).to_be_true();
+		expect(blink->x == want->x && blink->y == want->y).to_be_true();
+		expect(static_cast<int32_t>(blink->freq_mask)).to_equal(2);
+		// Off the scaling params the page's own rule holds.
+		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 3});
+		r.open(nodes::dx_param);
+		const std::optional<menu::ItemBlink> other = nodes::kDxParam.own_blink(r.menu_context(), r.state());
+		expect(other.has_value() && !other->valid).to_be_true(); // the page opens with no blink
+	});
+
+	it("flashes the edited operator's column row white for 100 ms in every 400 over the keyboard, from each change", _ {
+		select_language();
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 2 * 21 + 16});
+		r.open(nodes::dx_param, nullptr, /*keyboard_root=*/true);
+		expect(r.state().dx.flash_anchor_ms.has_value()).to_be_true();
+		const uint32_t anchor = *r.state().dx.flash_anchor_ms;
+		const auto row = [&](uint32_t at) { return menu_scene().dx_column_flash(anchor + at).value_or(-1); };
+		expect(row(0)).to_equal(5); // operator index 2's row, `7 - op`
+		expect(row(99)).to_equal(5);
+		expect(row(100)).to_equal(-1);
+		expect(row(399)).to_equal(-1);
+		expect(row(400)).to_equal(5);
+		// A horizontal step restarts it, on the new param's row.
+		r.now += 250;
+		r.turn(1, kHorizontalEncoder);  // to the operator's mode...
+		r.turn(-1, kHorizontalEncoder); // ...and back to its level
+		expect(*r.state().dx.flash_anchor_ms > anchor).to_be_true();
+		const uint32_t again = *r.state().dx.flash_anchor_ms;
+		expect(menu_scene().dx_column_flash(again).value_or(-1)).to_equal(5);
+		// Not over another root.
+		r.open(nodes::dx_param);
+		expect(menu_scene().dx_column_flash(*r.state().dx.flash_anchor_ms).has_value()).to_be_false();
 	});
 });
 // clang-format on

@@ -353,7 +353,7 @@ reach past the page.
 `dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
 MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
 "DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
-`DxParamItem`. Seven points reach past the pages.
+`DxParamItem`. Eight points reach past the pages.
 
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
@@ -371,6 +371,12 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'
   `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
   first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
   the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
+* **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or
+  with the page open toggles and carries the param as `openForOpOrGlobal` does (`dx::column_param`,
+  `MenuScene::dx_column_press`, which re-targets the menu from another page). The column flashes the edited
+  operator's row white, 100 ms in every 400 from each param change (`MenuScene::dx_column_flash`, read by the column
+  through `util/sound_menu_open.h`'s `dxColumnFlashRow`), and over the isomorphic keyboard a keyboard scaling param
+  blinks its breakpoint note's pad (`dx::breakpoint_pad`, frequency 2) in place of its own.
 * **The browse row opens the `.syx` browser** (`browser::BrowserId::DxSyx`) over the menu. Accepting a file parks it
   and keeps the browser up (`AcceptOutcome::DeferAndWait`) while the host reads the bank through
   `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the cartridge
@@ -725,7 +731,6 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| the keyboard DX column's flash and the breakpoint blink | the column's edited-operator row does not flash white under the ported page, and a keyboard scaling breakpoint does not blink its note's pad | the flash row read through `util/sound_menu_open.h`, and the breakpoint pad in the page's own blink |
 | two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |

@@ -179,12 +179,14 @@ struct MenuRig : DxRig {
 	MenuContext menu_context() {
 		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 	}
-	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), and draw it once.
-	void open(const Node& root, bind::WriteSink* sink = nullptr) {
+	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), over the keyboard screen when
+	///        @p keyboard_root, and draw it once.
+	void open(const Node& root, bind::WriteSink* sink = nullptr, bool keyboard_root = false) {
 		MenuContext ctx = menu_context();
 		if (sink != nullptr) {
 			ctx.sink = sink;
 		}
+		ctx.root_is_keyboard = keyboard_root;
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		while (shell.stack().depth() > 0) { // a fresh push, so the first frame is drawn whole
 			shell.stack().pop(SceneKind::Null);

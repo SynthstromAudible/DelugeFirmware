@@ -220,6 +220,27 @@ int16_t column_param(int16_t current, int32_t op, bool on_page) {
 	return static_cast<int16_t>(level);
 }
 
+int32_t flash_row(int16_t param) {
+	return param >= 0 && param < kFirstGlobal ? 7 - param / kOperatorParams : 1;
+}
+
+std::optional<Pad> breakpoint_pad(uint8_t breakpoint, int32_t scroll_offset, int32_t row_interval) {
+	int32_t x = breakpoint + 17 - scroll_offset;
+	int32_t y = 0;
+	while (x > 16 && y < 7) {
+		x -= row_interval;
+		y += 1;
+	}
+	if (x > 10 && y < 7 && row_interval <= 7) {
+		x -= row_interval;
+		y += 1;
+	}
+	if (x < 0 || x >= 16) {
+		return std::nullopt;
+	}
+	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
+}
+
 std::optional<int16_t> pad_param(uint8_t x, uint8_t y) {
 	constexpr uint8_t kMainColumns = 16;
 	if (x >= kMainColumns) {

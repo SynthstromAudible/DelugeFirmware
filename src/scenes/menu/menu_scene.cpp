@@ -301,12 +301,26 @@ void MenuScene::dx_column_press(int32_t op) {
 	st_.dx.param = dx::column_param(st_.dx.param, op, on_page);
 	if (on_page) {
 		st_.dx.pad_blink = true;
+		st_.dx.flash_restart = true;
 	}
 	else {
 		st_.dx.blink_on_focus = true;
 		pending_retarget_ = node_id(nodes::dx_param);
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
+	if (!dx_column_flashing()) {
+		return std::nullopt;
+	}
+	const uint32_t phase = (now_ms - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+	return phase < dx::kColumnFlashOnMs ? std::optional{dx::flash_row(st_.dx.param)} : std::nullopt;
+}
+
+bool MenuScene::dx_column_flashing() const {
+	// `DxParam::hasSideColumn`: the parameter page over the keyboard screen.
+	return focused() == &nodes::dx_param && ctx_.root_is_keyboard && st_.dx.flash_anchor_ms.has_value();
 }
 
 void MenuScene::delete_range_press() {
@@ -552,6 +566,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 }
 
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	render_ms_ = f.now_ms();
 	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
 	// input, and a menu under another scene shows no overlay.
 	if (!f.covered) {
@@ -1088,7 +1103,15 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
 		return sample;
 	}
-	return pad_next_timer(ctx_, st_);
+	std::optional<uint32_t> next = pad_next_timer(ctx_, st_);
+	if (dx_column_flashing()) {
+		// The keyboard DX column's next flip, which the host reads after the tick (`dx_column_flash`).
+		const uint32_t phase = (render_ms_ - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+		const uint32_t flip =
+		    phase < dx::kColumnFlashOnMs ? dx::kColumnFlashOnMs - phase : dx::kColumnFlashPeriodMs - phase;
+		next = next.has_value() ? std::min(*next, flip) : flip;
+	}
+	return next;
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {

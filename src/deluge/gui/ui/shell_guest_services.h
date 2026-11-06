@@ -98,6 +98,15 @@ void shellChangeRangeForNote(int32_t note);
 ///        a move through legacy's menu re-renders the root.
 void refreshShellRangeDisplay();
 
+/// @brief The keyboard DX column's white row under the ported menu now (`MenuScene::dx_column_flash` on the guest's
+///        clock), or nothing.
+std::optional<int32_t> shellDxColumnFlashRow();
+
+/// @brief After a guest tick, re-render the keyboard's sidebar when the DX column's white row changed: legacy's
+///        `blinkSideColumn` re-renders it on every flip of the parameter page's flash, and a move off the page clears
+///        it.
+void refreshShellDxColumn();
+
 /// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press
 ///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
 ///        the guest closes.

@@ -497,7 +497,8 @@ inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true
 struct ItemBlink {
 	uint8_t x = 0;
 	uint8_t y = 0;
-	bool valid = false; ///< false: no pad blinks at all
+	bool valid = false;    ///< false: no pad blinks at all
+	uint8_t freq_mask = 1; ///< `setupShortcutBlink`'s frequency: the pad flashes on cycles where `(c & mask) == 0`
 };
 
 /// @brief The escape hatch (capped at `kMaxCustomNodes` across the whole tree) for a bespoke item that

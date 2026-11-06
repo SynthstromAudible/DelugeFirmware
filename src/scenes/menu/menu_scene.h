@@ -400,6 +400,12 @@ public:
 	///        param's pad blinks.
 	/// @param op The operator, 0-5; 6 and 7 for the column's two global pads.
 	void dx_column_press(int32_t op);
+	/// @brief The keyboard DX column row that shows white at @p now_ms: the param's operator row (`dx::flash_row`)
+	///        during the 100 ms white half of `blinkSideColumn`'s alternation, which every param change restarts,
+	///        while the parameter page is open over the keyboard screen.
+	/// @param now_ms The guest's clock.
+	/// @return The row, or nothing when no row is white.
+	std::optional<int32_t> dx_column_flash(uint32_t now_ms) const;
 
 	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
 	///
@@ -582,6 +588,10 @@ private:
 	bool land_dx_cartridge_ = false;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
+	/// The clock of the last grid render, which `next_timer` measures the DX column's next flip from.
+	uint32_t render_ms_ = 0;
+	/// Whether the keyboard DX column flashes: the parameter page over the keyboard, drawn at least once.
+	bool dx_column_flashing() const;
 
 	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
 	///        `beginScreen` -- a new screen.

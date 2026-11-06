@@ -85,6 +85,13 @@ struct DxCartridgeNames {
 	int32_t count = 0;                            ///< how many programs the bank holds
 };
 
+/// @brief The isomorphic keyboard's layout state, as the current clip keeps it (`KeyboardState::isomorphic`).
+struct IsomorphicKeyboard {
+	int32_t scroll_offset = 0; ///< the note on the bottom-left pad
+	int32_t row_interval = 5;  ///< the semitones from one row to the next
+	bool operator==(const IsomorphicKeyboard&) const = default;
+};
+
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
 class RuntimeFacts {
@@ -121,6 +128,9 @@ public:
 	/// @brief Whether the DX7 engine community feature is on (`RuntimeFeatureSettingType::EnableDX7Engine`), which
 	/// gives the DX7 parameter page its own pad layout. Off for a host that keeps no settings.
 	[[nodiscard]] virtual bool dx7_engine_enabled() const { return false; }
+	/// @brief The keyboard screen's isomorphic layout under the menu: its state when the root UI is the keyboard on
+	/// that layout, else none. None for a host with no keyboard screen.
+	[[nodiscard]] virtual std::optional<IsomorphicKeyboard> isomorphic_keyboard() const { return std::nullopt; }
 	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
 	/// Slow for a host that keeps none.
 	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }
