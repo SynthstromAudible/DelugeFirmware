@@ -81,7 +81,8 @@ pub unsafe extern "C" fn deluge_heap_destroy(_h: *mut DelugeHeap) {}
 ///
 /// `h` must be null or a live handle from [`deluge_heap_create`].
 pub unsafe fn deluge_alloc(h: *mut DelugeHeap, size: usize, align: usize) -> *mut u8 {
-    if h.is_null() {
+    // A size no block can be is refused before reclaim: nothing evicted could make room for it.
+    if h.is_null() || size > tlsf::BLOCK_SIZE_MAX {
         return ptr::null_mut();
     }
     let p = {
@@ -327,6 +328,26 @@ mod tests {
         let mut buf = vec![0u128; words];
         let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         (buf, h)
+    }
+
+    /// A size no block can be is refused, at any alignment, and leaves the heap as it was.
+    ///
+    /// Each first-level class covers a power of two up to `FL_INDEX_MAX`; a size past the largest
+    /// must come back null (out of memory) rather than index past the class tables or overflow
+    /// while it is rounded up to a class.
+    #[test]
+    fn a_size_no_block_can_be_is_refused() {
+        let (_buf, h) = aligned_arena(1 << 16);
+        for size in [1usize << 31, usize::MAX, usize::MAX - 8] {
+            for align in [16usize, 64] {
+                assert!(
+                    unsafe { deluge_alloc(h, size, align) }.is_null(),
+                    "size {size:#x} align {align}"
+                );
+            }
+        }
+        assert!(unsafe { deluge_heap_check(h) });
+        assert!(!unsafe { deluge_alloc(h, 100, 16) }.is_null());
     }
 
     /// A fresh heap passes its own check even when the region's end is not 16-aligned.
