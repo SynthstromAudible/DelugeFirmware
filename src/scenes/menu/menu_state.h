@@ -13,6 +13,7 @@
 #include "ui/core/state.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 
 /// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
@@ -96,7 +97,7 @@ struct MenuWalkState {
 	bool range_picker_pending = false;
 	/// The node that will be entered once a range is chosen -- legacy's
 	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:360-362`).
+	/// `selectButtonPress` returns (`multi_range.cpp:334-336`).
 	const Node* pending_after_range = nullptr;
 	/// @brief A range index the focused picker chose this tick, or -1 for none.
 	///
@@ -247,6 +248,32 @@ struct MenuWalkState {
 	/// this scene can walk its own tables, so only half the pair is stored and the other half is
 	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
 	const Node* scene_opener = nullptr;
+	/// @brief Close the whole menu after this tick -- legacy's `soundEditor.exitCompletely()` from an item's
+	///        `selectButtonPress` (the DX7 cartridge page's). Written by a `CustomItem`'s `render`, drained by
+	///        `MenuScene::after_render` into a `Remove`.
+	bool exit_completely = false;
+};
+
+/// @brief What the DX7 pages keep on legacy's singletons, which outlive the editor: the param `DxParam` shows, the
+///        operator "DX7 operator N" lists, and the cursors of "DX7 parameters" and "DX7 operator N"
+///        (`DxGlobalParams::currentValue`, and `DxOperatorParams::currentValue`, one shared by the six operators).
+struct DxState {
+	int16_t param = 0;           ///< `DxParam::param`
+	int8_t op = 0;               ///< `DxOperatorParams::op`, 0-5: operator `6 - op`
+	int16_t global_cursor = 0;   ///< `DxGlobalParams::currentValue`
+	int16_t operator_cursor = 0; ///< `DxOperatorParams::currentValue`
+	/// Whether the parameter page's pad blinks. Legacy's `beginScreen` unsets the blink `readValueAgain` has just set
+	/// up (`updatePadLightsFor`), so the page opens with none, and a horizontal step sets it up again.
+	bool pad_blink = false;
+	/// Open the parameter page with its pad blinking: the keyboard's DX column opens it with `setup()` and then sets
+	/// the param (`openForOpOrGlobal`'s `readValueAgain`, after `beginScreen`). Spent by the page's focus.
+	bool blink_on_focus = false;
+	/// The keyboard DX column's flash starts again on the page's next draw: every `readValueAgain` restarts legacy's
+	/// `blinkSideColumn` alternation, white first.
+	bool flash_restart = false;
+	/// When the column's flash alternation started, on the guest's clock; none before the page has drawn.
+	std::optional<uint32_t> flash_anchor_ms;
+	bool operator==(const DxState&) const = default;
 };
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
@@ -399,6 +426,10 @@ struct MenuState {
 	/// this is the second one: updated on every real-output press and nothing else, read only by
 	/// `GateSelectionItem::on_focus_backward`.
 	int8_t real_output_choice = 0;
+
+	/// @brief The DX7 pages' state. `MenuScene::open` carries it from one menu to the next, as legacy's singletons
+	///        keep it; a boot forgets it (`MenuScene::reset_process_state`).
+	DxState dx{};
 
 	/// @}
 

@@ -57,7 +57,7 @@
 ///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
 ///          `definitions_cxx.hpp:584`) and so takes `int` as its underlying type, making the two
 ///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
-///          == 0, `view.cpp:417`) the same bits as the `0` the dead-code twin writes at `:436`.
+///          == 0, `view.cpp:418`) the same bits as the `0` the dead-code twin writes at `:437`.
 ///          Declared with the *defining* type here, and 0 written, rather than reproducing the pun.
 /// @{
 extern GlobalMIDICommand pendingGlobalMIDICommand;
@@ -156,10 +156,10 @@ GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	return view_.ui_mode;
 }
 
-// -- `View::buttonAction` (`gui/views/view.cpp:140-487`) -----------------------------------------
+// -- `View::buttonAction` (`gui/views/view.cpp:141-488`) -----------------------------------------
 
 bool GlobalControls::load_save_allowed(const UiContext& ctx) const {
-	// `view.cpp:234-237` and its identical twin at `:279-282`. Note the guard wraps the WHOLE arm
+	// `view.cpp:235-238` and its identical twin at `:280-283`. Note the guard wraps the WHOLE arm
 	// body: when it fails, legacy does nothing at all and still falls through to `:469`'s
 	// `return ActionResult::DEALT_WITH`, so the caller reports handled either way.
 	if (ctx.held.has(ButtonId::Synth) || ctx.held.has(ButtonId::Kit) || ctx.held.has(ButtonId::Midi)
@@ -263,10 +263,10 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 	}
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	    == RuntimeFeatureStateSyncScalingAction::Fill) { // `:335-336`
-		// `gui/views/view.cpp:340-343` (the note editor / note-row editor test) needs no port here: in a
+		// `gui/views/view.cpp:341-344` (the note editor / note-row editor test) needs no port here: in a
 		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`)
 		// and gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test.
-		// The fill adjustments (`gui/views/view.cpp:345-354`) name `instrumentClipView`, whose scene is unported.
+		// The fill adjustments (`gui/views/view.cpp:346-355`) name `instrumentClipView`, whose scene is unported.
 		//
 		// @warning **Not ported.** In this port the arm always takes legacy's "otherwise" branch,
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases
@@ -338,7 +338,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// this call always takes the `else` at `sound_editor.cpp:1815`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
-	// Buttons::isShiftButtonPressed()` (`view.cpp:450`). So the root is `settingsRootMenu`
+	// Buttons::isShiftButtonPressed()` (`view.cpp:451`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
 	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
@@ -360,7 +360,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	const UiMode mode = effective_ui_mode();
 
 	switch (button) {
-	case ButtonId::TapTempo: { // `view.cpp:147-183`
+	case ButtonId::TapTempo: { // `view.cpp:148-184`
 		if (mode == UiMode::MidiLearn) {
 			// `:148-166` is learn work end to end -- `deleteMidiCommandOnRelease`,
 			// `endMidiLearnPressSession`, `learnedThing`. `MidiLearn`'s; see the class doc's
@@ -418,7 +418,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 		if (on) {
 #ifndef undoButtonX
 			// `:407`'s `#ifndef undoButtonX`, and `undoButtonX` is defined nowhere in this tree --
-			// see the class doc. This is the live undo/redo; `view.cpp:424-447`'s dedicated undo
+			// see the class doc. This is the live undo/redo; `view.cpp:425-448`'s dedicated undo
 			// and redo buttons are dead code.
 			if (actionLogger.allowedToDoReversion()) { // `:409`
 				// `:411-417` -- legacy pends the command rather than performing it, reusing the

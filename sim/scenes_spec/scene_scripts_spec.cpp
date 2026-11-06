@@ -372,7 +372,7 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way `SampleBrowser::renderPreviewForTarget` does.
+/// @brief Open the slicer on @p sample, the way `SampleBrowser::showPreview` does.
 /// @param sample The sample the scene is opened on.
 /// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
@@ -697,7 +697,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		//
 		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
 		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
-		// (`view.cpp:893-900`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
+		// (`view.cpp:894-901`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
 		// it compares the turn's param against `menu_scene().focused()->bind.param`. `nodes::saturation`
 		// is built with `int_item()` (`nodes/sound_fx.h`), which never sets `bind.param` at all
 		// (`node.h`'s `int_item` builder) -- so `bind.param.valid()` is false, `popup_suppressed`
@@ -747,7 +747,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
 		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed`, the port
-		// of legacy's same-param popup guard (`view.cpp:893-900`), compares the turn's param against
+		// of legacy's same-param popup guard (`view.cpp:894-901`), compares the turn's param against
 		// `menu_scene().focused()->bind.param` -- and `nodes::saturation` has none (see above), so
 		// the guard cannot suppress here and the popup goes up: `idle` carries one `scene` line,
 		// `after_gold_turn` carries two (the popup pushed over the menu), and `after_back` carries

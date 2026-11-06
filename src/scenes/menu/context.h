@@ -25,6 +25,7 @@
 #include "scenes/services/view_state.h"
 
 #include <cstdint>
+#include <vector>
 
 class MIDICable;
 class Song;
@@ -160,6 +161,10 @@ struct MenuContext {
 	/// Not read from `root_greyout`, which is also `Nothing` under the automation view's editor.
 	bool root_is_keyboard = false;
 
+	/// @brief Whether the root UI under the menu is the automation view (`getRootUI() == &automationView`), which
+	///        this layer may not read: the menu's opener sets it, and the host again whenever the root changes.
+	bool root_is_automation = false;
+
 	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected
 	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).
@@ -208,8 +213,8 @@ struct MenuContext {
 ///                                the kit's own global FX, false to edit the selected row. Callers
 ///                                normally pass the clip's `affectEntire`, which is exactly what
 ///                                both writers of that member set it from
-///                                (`model/clip/instrument_clip_minder.cpp:393-417`,
-///                                `gui/views/automation_view.cpp:1623-1625`); the kit-row grid
+///                                (`model/clip/instrument_clip_minder.cpp:466-467`,
+///                                `gui/views/automation_view.cpp:1643-1645`); the kit-row grid
 ///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
@@ -252,10 +257,14 @@ int32_t range_count(const MenuContext& ctx);
 ///        top one") when @p index is out of range.
 ///
 /// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
-/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:313-358`). `MultiRange` is a
+/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:287-332`). `MultiRange` is a
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
+
+/// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
+///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
+std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
 ///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1991`.
@@ -280,9 +289,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///         `MenuPermission::NO` arm at `:1939-1942`.
 bool ensure_first_range(MenuContext& ctx);
 
-/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
-///        (`sound_editor.cpp`), plus `Source::defaultRangeI`, which the picker keeps in
-///        step with its own cursor (`multi_range.cpp:239`).
+/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
 /// unchecked, and every caller here has already clamped against `range_count`.

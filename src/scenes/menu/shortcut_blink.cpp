@@ -173,6 +173,11 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node
 	if (item == &nodes::multi_range && state.walk.pending_after_range != nullptr) {
 		item = state.walk.pending_after_range;
 	}
+	if (item->custom != nullptr) {
+		if (const std::optional<ItemBlink> blink = item->custom->own_blink(ctx, state)) {
+			return blink->valid ? exclusive_blink(blink->x, blink->y, blink->freq_mask) : BlinkPlan{};
+		}
+	}
 	plan.param = own_pad(ctx, *item);
 	if (!plan.param.valid) {
 		// Failing that, the patched param the item is patching (`:1171-1183`).
@@ -186,9 +191,9 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node
 	return plan;
 }
 
-BlinkPlan exclusive_blink(uint8_t x, uint8_t y) {
+BlinkPlan exclusive_blink(uint8_t x, uint8_t y, uint8_t freq_mask) {
 	BlinkPlan plan;
-	plan.param = ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = 1, .colour = FlashColour::Default};
+	plan.param = ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = freq_mask, .colour = FlashColour::Default};
 	return plan;
 }
 

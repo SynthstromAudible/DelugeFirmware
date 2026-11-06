@@ -372,7 +372,6 @@ struct Rig {
 			shell.stack().pop(SceneKind::Null);
 		}
 		audio_clip_scene().open(std::nullopt, nullptr);
-		audio_clip_scene().set_flash_cursor(FlashCursor::Slow);
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		PadLEDs::flashCursor = saved_flash_cursor;
 		playbackHandler.playbackState = saved_playback_state;
@@ -505,7 +504,7 @@ LegacyPads legacy_pads() {
 ///        shown, as a PBM.
 ///
 /// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp:2105-2115`), so that is what is read back.
+/// into `hid::display::OLED::main` (`gui/views/view.cpp:2106-2116`), so that is what is read back.
 std::string legacy_oled() {
 	deluge::hid::display::OLED::clearMainImage();
 	legacy_view.renderOLED(deluge::hid::display::OLED::main);
@@ -1233,12 +1232,34 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // Legacy's setting and the port's copy, each set on its own side.
+		        // The one setting, which legacy reads directly and the port through `RuntimeFacts::flash_cursor`.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
-		        r.scene().set_flash_cursor(FlashCursor::Off);
 		        r.tick(1);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
+		        playbackHandler.playbackState = 0;
+	        });
+
+	    it(
+	        "flashes the cursor through the PIC with the flash cursor FAST, once per square, and paints none", _ {
+		        // `PadLEDs::setTickSquares`' fast arm: `flashMainPad` for each row whose square moved.
+		        Rig r;
+		        PadLEDs::flashCursor = FLASH_CURSOR_FAST;
+		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		        r.seed(Sentinel{.last_processed_pos = 240});
+		        const size_t from = r.fake.flashes_sent.size();
+		        r.open();
+		        r.tick(0);
+		        expect(r.scene().last_tick_square()).to_equal(5);
+		        size_t at_five = 0;
+		        for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			        at_five += r.fake.flashes_sent[i].x == 5 ? 1 : 0;
+		        }
+		        expect(at_five).to_equal(static_cast<size_t>(kDisplayHeight));
+		        expect(cursor_pads(r)).to_equal(0);
+		        const size_t after = r.fake.flashes_sent.size();
+		        r.tick(1);
+		        expect(r.fake.flashes_sent.size()).to_equal(after);
 		        playbackHandler.playbackState = 0;
 	        });
 

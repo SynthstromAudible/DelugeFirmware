@@ -7,7 +7,7 @@
 ///
 /// **Through a recording seam, mostly, and why.** The legacy handlers these functions forward into
 /// dereference `soundEditor.getCurrentMenuItem()` -- `menuItemNavigationRecord[navigationDepth]`,
-/// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3677`,
+/// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3678`,
 /// `:3905`, `:3946`, `:3982-3984`), `goUpOneLevel` (`:3720-3721`) and `toggleNoteEditorParamMenu`
 /// (`:3894`). Each has an `activeNoteMode()` arm ahead of it, and `note_mode_reads_spec.cpp`
 /// drives those; no example here takes a handler down one of those paths with the ported menu
@@ -19,7 +19,7 @@
 /// `:3762`; `handleNoteRowEditorButtonAction`'s kit toggle, `:4043-4049`) and every swallowed button
 /// (`:3762`, `:4057`). X_ENC and SYNC_SCALING are pinned through the seam only: their `return
 /// buttonAction(...)` arm (`:3752-3754`) reaches `InstrumentClipView::buttonAction`, whose SYNC_SCALING fill arm asks
-/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:340`) -- one of the reads
+/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:341`) -- one of the reads
 /// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
@@ -292,7 +292,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("answers nothing in either mode for SYNTH, KIT, MIDI and CV -- the column focus is the menu's", _ {
 		// Both handlers send these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-		// (`instrument_clip_view.cpp:3746-3748`, `:4033-4035`), i.e. to the horizontal menu's column
+		// (`instrument_clip_view.cpp:3747-3749`, `:4034-4036`), i.e. to the horizontal menu's column
 		// focus -- which `MenuScene` owns -- through a record that is null here.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
@@ -327,7 +327,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	   "returns its result", _ {
 		// Both handlers' `:3752-3754` / `:4039-4041` arm is `return buttonAction(b, on)`
 		// -- `InstrumentClipView::buttonAction`, whose answer is the handler's answer. Seam only: see
-		// the file's note on `view.cpp:340`.
+		// the file's note on `view.cpp:341`.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
@@ -379,7 +379,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("the note editor's real handler swallows AFFECT_ENTIRE on a kit: DEALT_WITH, affectEntire untouched", _ {
 		// `handleNoteEditorButtonAction` names no AFFECT_ENTIRE arm and falls to
-		// `instrument_clip_view.cpp:3762`.
+		// `instrument_clip_view.cpp:3763`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
@@ -392,7 +392,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	});
 
 	it("the note-row editor's real handler toggles a kit clip's affectEntire on the press, not the release", _ {
-		// `instrument_clip_view.cpp:4043-4049`: `if (on && b == AFFECT_ENTIRE)`, then `if (KIT) { affectEntire = !affectEntire;
+		// `instrument_clip_view.cpp:4044-4050`: `if (on && b == AFFECT_ENTIRE)`, then `if (KIT) { affectEntire = !affectEntire;
 		// view.setActiveModControllableTimelineCounter(clip); }`, and `DEALT_WITH` at `:4057`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
@@ -566,7 +566,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		// `sound_editor.cpp:751-752`: `uiNeedsRendering(this, 0xFFFFFFFF, 0)`, where `this` is the menu
 		// UI that is about to close -- the guest, here. The note-row arm (`:754`) has no repaint. The
 		// recorder stands in for `exitNoteEditor`, so its own `uiNeedsRendering(this, ...)`
-		// (`instrument_clip_view.cpp:3639-3640`) is not what sets the rows below.
+		// (`instrument_clip_view.cpp:3640-3641`) is not what sets the rows below.
 		RecordingCalls recording;
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

@@ -146,39 +146,7 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 	if (modelStack) {
-		int32_t knobPos = automationView.getAutomationParameterKnobPos(modelStack, view.modPos()) + kKnobPosOffset;
-		automationView.setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
-
-		int32_t p = modelStack->paramId;
-		modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
-
-		Clip* clip = getCurrentClip();
-
-		if (clipMinder) {
-			clip->lastSelectedParamID = p;
-			clip->lastSelectedParamKind = kind;
-			clip->lastSelectedOutputType = clip->output->type;
-			clip->lastSelectedPatchSource = getPatchSource();
-			clip->lastSelectedParamShortcutX = kNoSelection;
-			clip->lastSelectedParamShortcutY = kNoSelection;
-			clip->lastSelectedParamArrayPosition = 0;
-		}
-		else {
-			currentSong->lastSelectedParamID = p;
-			currentSong->lastSelectedParamKind = kind;
-			currentSong->lastSelectedParamShortcutX = kNoSelection;
-			currentSong->lastSelectedParamShortcutY = kNoSelection;
-			currentSong->lastSelectedParamArrayPosition = 0;
-			automationView.onArrangerView = true;
-		}
-		// not blinking any shortcuts for patch cables
-		// no scroll selection for patch cables
-		if (kind != deluge::modulation::params::Kind::PATCH_CABLE) {
-			automationView.getLastSelectedParamShortcut(clip);
-			automationView.getLastSelectedParamArrayPosition(clip);
-		}
-
-		automationView.automationParamType = AutomationParamType::PER_SOUND;
+		automationView.selectParam(modelStack, clipMinder, getPatchSource());
 	}
 }
 

@@ -99,7 +99,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, n - 1));
 	f.claim_turn();
 	f.claim_select();
-	if (f.turn() != 0 && n > 0) {
+	if (f.turn() != 0 && n > 0 && !state.hide_cursor && !state.freeze_cursor) {
 		cursor = move_cursor(cursor, f.turn(), rows, n);
 	}
 	resp.changed = cursor != state.cursor;
@@ -116,7 +116,15 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		return resp;
 	}
 
-	const int32_t start = list_window_start(cursor, n, visible);
+	int32_t start = 0;
+	if (state.keep_scroll) {
+		start = state.scroll < 0 ? cursor - visible + 1 : state.scroll;
+		start = std::clamp<int32_t>(start, cursor - visible + 1, cursor);
+		start = std::max<int32_t>(start, 0);
+	}
+	else {
+		start = list_window_start(cursor, n, visible);
+	}
 	state.scroll = static_cast<int16_t>(start);
 	resp.entered = f.select_pressed() && rows[cursor].selectable;
 
@@ -144,7 +152,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 			content_end = std::max<int32_t>(label_x, content_end - (value_w + kIconGapX));
 		}
 
-		const bool selected = start + o == cursor;
+		const bool selected = !state.hide_cursor && start + o == cursor;
 		const Rect label_box{label_x, y, content_end - label_x, row_h};
 		if (selected) {
 			// Collapsed into the draw itself, since this layer re-renders every frame instead of
@@ -162,6 +170,9 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		}
 		if (row.icon != nullptr) {
 			f.icon(*row.icon, icon_x, y);
+		}
+		if (row.invert_to > row.invert_from) {
+			f.invert(Rect{rect.x + row.invert_from, y, row.invert_to - row.invert_from, row_h});
 		}
 		if (!selected) {
 			continue;

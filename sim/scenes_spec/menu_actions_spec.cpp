@@ -65,6 +65,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/menus.h"   // paramShortcutsForSounds and friends -- ShortcutsVersionGuard's cells
 #include "gui/ui/root_ui.h" // PerformExitStubUI's base, for the arms that close()
 #include "gui/ui/shell_action_dispatch.h"
@@ -966,7 +967,7 @@ constexpr int32_t kModeDelugeIndex = 3;
 /// guards (`:56-66`), for the same reason: twenty-odd specs share this process. The fourth is
 /// `TimerName::SCREENSAVER`, which `Screensaver::settingsChanged()` arms -- put back by unsetting it
 /// rather than by restoring `Timer`'s two fields, because `UITimerManager::timeNextEvent` is a
-/// private cache only `unsetTimer` recomputes (`gui/ui_timer_manager.cpp:275-278`). That is
+/// private cache only `unsetTimer` recomputes (`gui/ui_timer_manager.cpp:274-277`). That is
 /// `menu_entry_spec.cpp`'s teardown, verbatim.
 struct ScreensaverGuard {
 	ScreensaverMode mode = FlashStorage::screensaverMode;
@@ -989,7 +990,7 @@ struct ScreensaverGuard {
 ///        is unarmed.
 ///
 /// `menu_entry_spec.cpp`'s helper, verbatim and for the same reason: `setTimer` stores
-/// `AudioEngine::audioSampleTimer + ms * 44` (`gui/ui_timer_manager.cpp:253-260`), so the arm is read
+/// `AudioEngine::audioSampleTimer + ms * 44` (`gui/ui_timer_manager.cpp:252-259`), so the arm is read
 /// back by undoing that. Nothing in this group advances the sample clock, so the read is exact rather
 /// than approximate -- `menu_action_perform_mirror` is the only group in this file that moves
 /// `audioSampleTimer`, and it runs after all of these.
@@ -1366,6 +1367,33 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// Deliberately NOT drained by hand here -- the dispatcher is the only thing that reads it.
 		deluge::gui::ui::dispatchShellActions();
 		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("files the file selector's opening, which leaves the keyboard's audition mode", _ {
+		// `FileSelector::beginSession` (`menu_item/file_selector.cpp:40-42`): with the keyboard at the root and a note
+		// auditioning, opening the file selector stops it; anywhere else it does nothing.
+		select_language();
+		menu::MenuState state{};
+		const menu::MenuContext ctx{};
+		nodes::file0_selector.custom->on_focus(ctx, state);
+		expect(state.walk.pending_action.action == MenuAction::FileSelectorOpened).to_be_true();
+
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&keyboardScreen);
+		currentUIMode = UI_MODE_AUDITIONING;
+		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
+
+		(void)scene().after_render(); // the tick's after-render posts the filed action to the outbox
+		deluge::gui::ui::dispatchShellActions();
+		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_false();
+
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_true();
+		currentUIMode = UI_MODE_NONE;
 	});
 
 	it("takes nothing when nothing was filed, and does not eat the next request", _ {
@@ -2311,7 +2339,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      below -- so nothing here observes a half-open stack either way.
 	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
 	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
-	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:815`). Neither clears the other.
+	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:816`). Neither clears the other.
 	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
 	//      order observable, which is why it belongs in the argument rather than being left out of
 	//      it.** It recomputes from `getUIGreyoutColsAndRows`, which walks the
@@ -2329,7 +2357,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
-	//      blinks (`gui/views/view.cpp:495`).
+	//      blinks (`gui/views/view.cpp:496`).
 	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
 	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.
@@ -2485,7 +2513,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `ShellHostUI` -- and legacy's `NO_NAVIGATION` semantics correctly leave the ported menu on
 		// the shell stack, so `timerCallback`'s `depth() == 0` close does not fire and `rearmTimer`
 		// runs. `TimerName::UI_SPECIFIC` is dispatched to `getCurrentUI()->timerCallback()`
-		// (`gui/ui_timer_manager.cpp:142-148`), so re-arming there hands this guest's tick to the UI
+		// (`gui/ui_timer_manager.cpp:143-149`), so re-arming there hands this guest's tick to the UI
 		// that was just opened over it. For `performanceView` that is not inert:
 		// `PerformanceView::timerCallback` forwards into `sessionView`/`arrangerView`
 		// (`gui/views/performance_view.cpp:383-391`).

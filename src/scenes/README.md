@@ -10,7 +10,7 @@ reaches them through `scenes/bind` and a `MenuContext` rather than through legac
 
 The library is linked into the firmware and the host app, and runs behind the **`ShellMenu`
 community feature, which is Off by default**. With it off the device runs legacy's `SoundEditor` and
-its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, eleven of the fourteen
+its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, thirteen of the fifteen
 `openUI(&soundEditor)` sites open this tree instead, inside `ShellHostUI` (see "Coexistence with
 legacy" below).
 
@@ -31,7 +31,7 @@ legacy" below).
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
 | `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
-| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, waveforms) |
+| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, waveforms, favourites) |
 
 | `SceneKind` | scene |
 |---|---|
@@ -239,9 +239,9 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 
 `Kind::Custom` is the escape hatch for a bespoke item. **The cap counts nodes that point at a custom
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
-count of one. The shipped tree has **55** custom nodes behind 55 distinct, real items
+count of one. The shipped tree has **60** custom nodes behind 60 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **56**, one above: a ratchet,
+`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **61**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 
@@ -251,7 +251,8 @@ so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 
    `row_icon` (`renderSubmenuItemTypeForOled`; the default is the submenu arrow), the learn hooks
    (`learnNoteOn`/`learnCC`/`learnProgramChange`/`unlearnAction`/`shouldBlinkLearnLed`), the blink
    and patching-source hooks (`patched_param_to_blink`, `source_blink`, `source_press`,
-   `blink_delay_ms`), and the automation hooks (`is_automation_item`, `automation_address`).
+   `blink_delay_ms`), and the automation hooks (`is_automation_item`, `automation_address`; a cable item's `learn_descriptor` is also its
+   identity to the automation view, `menu::automation_param`).
 2. Point the node at a `static`/`inline const` instance through `custom(name, &item, relevant)`. A
    null item is a validator error. An item that must know which node it is focused as needs one
    instance per node, because `on_focus` is handed a `MenuContext`, never its own `Node`.
@@ -314,9 +315,74 @@ skips it. If it ever wants to be lazy, the slot has to become a queue first.
 The noun side is the same shape: `BrowserScene::take_choice()` parks a chosen file, and
 `gui::ui::dispatchShellChoices` performs the claim below `dispatchShellActions`.
 
+The automation view is the third: `MenuScene::take_transition()` parks one change of the value node per tick with
+its cause (a select release, BACK, a column button, a pad's jump; `menu/transition.h`), and
+`gui::ui::dispatchMenuTransitions` (`gui/ui/shell_automation_glue.{h,cpp}`) does to `automationView` what legacy's
+sound editor does for that change. The buttons and encoders the view takes from under the menu (CLIP, X_ENC,
+KEYBOARD over the view, the gold knobs in its editor, the horizontal and vertical turns) are forwarded by the host
+ahead of the shell from the same file; `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
+
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
 mirror holds in either toggle state. `menu/action.h` has the writer list.
+
+### The note-range picker (`menu/nodes/multi_range.h`)
+
+`MultiRangeItem` ports `MultiRange`, the page that stands in front of a range-dependent item while a
+source has more than one range and none is chosen. The header has the whole of it; four points
+reach past the page.
+
+* **Its inputs arrive in `render`.** The horizontal turn (the edge), BACK while an edge is on, and
+  Shift + a select turn (insert) are owned inputs, so the picker reads them from the frame snapshot.
+  At depth 0 (a shortcut opens it at the root) the menu leaves BACK to `handle()`;
+  `menu::owned_input` merges the item's `back` claim so the picker sees it there too.
+* **The range memory is the source's own** (`Source::defaultRangeI`), read through
+  `RuntimeFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
+  `beginSession` and flick do. Insert and delete are their own sink verbs, which kill the voices and
+  keep the other ranges' samples.
+* **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
+  `gui/ui/shell_guest_services.cpp`) hands the press to `MenuScene::delete_range_press`.
+* **The root views ask the guest through `util/sound_menu_open.h`.** `rangePickerOpen`,
+  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for legacy's
+  `SoundEditor` or the ported menu, so a note played under the picker selects its range and the
+  sidebar highlights the range's notes; `refreshShellRangeDisplay` repaints the root after each
+  guest tick when the range, the source, the highlight or the range count changed.
+
+### The DX7 pages (`menu/nodes/dx.h`)
+
+`dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
+MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
+"DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
+`DxParamItem`. Eight points reach past the pages.
+
+* **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
+  which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
+* **The tables are legacy's own**, in `nodes/dx_tables.h`, compared with legacy row by row in `dx_pages_spec`. The
+  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where both menus may include them and they keep
+  their SDRAM placement.
+* **Every write is the whole patch**, `WriteSink::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
+  auto engine mode is not chosen again for a new algorithm, as `main` does not.
+* **The pad blink is the item's own** (`CustomItem::own_blink`): none as the page opens, because legacy's screen entry
+  unsets the blink the page sets up; the param's pad after a horizontal step. Shift + a horizontal turn where legacy
+  searches the operators forever stays put (DIFFERENCES D87).
+* **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
+  and inside the menu alike (`nodes::dx_shortcut_fallback`).
+* **The parameter page has its own pads** while the DX7 engine feature is on (`RuntimeFacts::dx7_engine_enabled`):
+  `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
+  first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
+  the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
+* **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or
+  with the page open toggles and carries the param as `openForOpOrGlobal` does (`dx::column_param`,
+  `MenuScene::dx_column_press`, which re-targets the menu from another page). The column flashes the edited
+  operator's row white, 100 ms in every 400 from each param change (`MenuScene::dx_column_flash`, read by the column
+  through `util/sound_menu_open.h`'s `dxColumnFlashRow`), and over the isomorphic keyboard a keyboard scaling param
+  blinks its breakpoint note's pad (`dx::breakpoint_pad`, frequency 2) in place of its own.
+* **The browse row opens the `.syx` browser** (`browser::BrowserId::DxSyx`) over the menu. Accepting a file parks it
+  and keeps the browser up (`AcceptOutcome::DeferAndWait`) while the host reads the bank through
+  `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the cartridge
+  page (`dx_cartridge`, `MenuScene::land_dx_cartridge`) under the browse row, so BACK reopens the browser, as `main`'s
+  `enterSubmenu` does. The page lists `RuntimeFacts::dx_cartridge`, loads a program per turn through
+  `WriteSink::load_dx_program`, and closes the menu on SELECT (`MenuWalkState::exit_completely`).
 
 ## The scenes
 
@@ -341,9 +407,10 @@ by the automation view. The pixels are the toolkit's (`ui::grid::text_keyboard`,
 ### The context menu (`context_menu/`)
 
 `context_menu::ContextMenuScene` is one scene plus a `Descriptor` table, opened with
-`Action::Kind::Push` and a `DescriptorId` argument. Eight descriptors ship: the five settings resets,
-the audio clip's source selector, and the sample browser's two long-press menus (SAMPLES for a kit,
-LOAD FILES for a synth). The browser menus use the last three hooks: `options_now` (legacy's
+`Action::Kind::Push` and a `DescriptorId` argument. Nine descriptors ship: the five settings resets,
+the audio clip's source selector, the sample browser's two long-press menus (SAMPLES for a kit,
+LOAD FILES for a synth), and its DELETE? menu, which blinks SAVE as `main`'s saving menus do
+(`Descriptor::for_saving`). The browser's folder menus use the last three hooks: `options_now` (legacy's
 `isCurrentOptionAvailable`, re-asked before every render, turn and accept), `pad` (the keyboard
 beneath reads the press; `passes_pads_beneath`) and `busy` (BACK, Select and pads refused while
 their load runs). The window is `ui::oled::option_window`, not `ui::oled::list`: legacy insets the
@@ -352,13 +419,15 @@ does. The box is a fixed 100×40 `PopupStyle::Permanent` square with the title d
 
 ### The file browser (`browser/`)
 
-`browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Two ship, the two the
-menu tree reaches: `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition`.
+`browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Three ship, the three the
+menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `BrowserId::DxSyx`.
 
-* **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
+* **`accept` has four outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
   `take_choice()` and closes, because the sample claim reaches the sound and the audio-file manager
-  through paths this layer may not name. `gui::ui::dispatchShellChoices` performs it (with
-  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the source page.
+  through paths this layer may not name; `DeferAndWait` parks it and stays up until the host answers
+  `deferred_load_done`, as the `.syx` browser stays up while its bank is read. `gui::ui::dispatchShellChoices` performs it (with
+  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the page the chain lists the file
+  selector on: an oscillator's `source_group`, focused on the selector.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
   read with the press: a brand-new kit parks `BrowserChoice::Op::Slice` and the host opens the slicer
   once the file has loaded; any other kit refuses with legacy's popup; a synth claims.
@@ -368,6 +437,34 @@ menu tree reaches: `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition`.
   `BrowserChoice::Op` and stays up; the host performs it and calls `BrowserScene::long_press_done`.
   While a sample load runs (`RuntimeFacts::sample_load_in_flight`) the browser refuses every button
   and key, as legacy's gate does.
+* **The preview.** Wherever legacy's `SampleBrowser` calls `previewIfPossible` (a folder's listing
+  landing, a move, a typed search that lands on another file) and on leaving, the sample browser files
+  a `PreviewRequest` in `take_preview()`: the file's path, or an empty path to stop. The host drains it
+  after `take_choice()` and previews it with the shared `gui::ui::SamplePreviewer` (the legacy
+  browser's own load and sound), answering through `preview_settled`; `next_timer` polls while the
+  answer is owed. Each load's path becomes `SampleBrowser::lastFilePathLoaded`, which the browser
+  opens beside when its holder names no file in SAMPLES/ (`menu::host_last_sample_path`).
+* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed, the BROWSE pad
+  blinking), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
+  legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
+  legacy's image does not always follow them. The keyboard appears on the first main-pad press (typing only below
+  the favourites row) or a horizontal turn, and hides on every move and every folder listing unless KEYBOARD keeps
+  it. The audition column stays the instrument clip view's (`GridPadClaim::AllButAudition`), and the mute column
+  closes the browser.
+* **The scroll-in.** Where `SampleBrowser` calls `PadLEDs::horizontal::setupScroll`, the scene files a
+  `ScrollRequest` in `take_scroll()`; the host runs legacy's own animation from the image store (the root view, or
+  the guest grid's main columns once the waveform is drawn there), leaving the guest's main columns to it until
+  `ShellHostUI::scrollFinished`.
+* **The buttons.** LOAD's release toggles auto-load (not for an audio clip): each landed preview is claimed with
+  `BrowserChoice::keep_open`, which neither closes the browser nor re-roots the menu. RECORD opens the recorder in
+  the browser's place, and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
+  the host to free it (`menu::host_release_sample_file`), refusing with `main`'s popup when the song uses it, and
+  otherwise opens the DELETE? menu, whose OK the host performs (`BrowserChoice::Op::DeleteFile`) before the file
+  leaves the list (`BrowserScene::file_deleted`). The vertical encoder goes to the instrument clip view beneath
+  (`forwardBrowserVertical`), or recolours the current favourite with SHIFT.
+* **The favourites.** While the keyboard shows, row 7 (row 6 with banks, which take row 7) draws the "SAMPLES"
+  favourites through `services::Favourites` (`menu::host_favourites`, over `favouritesManager`): a press recalls
+  one, Shift+press sets or unsets it, the current one flashes every 500 ms.
 
 #### The listing seam and the catalogue claim
 
@@ -399,7 +496,16 @@ OLED** — a title, a lock badge, a duration and a sample count — so the OLED 
 `model/sample/waveform_scan.h` and `waveform_navigator.h` (arithmetic in `model/`, drawing in the
 toolkit). One legacy render bug is fixed in the port: `renderOLED` draws the h/m unit letters at a
 fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws them at the
-cursor. `marker_scene.h` lists what is not ported.
+cursor.
+
+A zoom slides as `PadLEDs::renderZoom` does, through `ui::grid::ZoomTransition`: from the last settled
+frame to the new view's bare waveform over 110 ms, a step every 50 ms, every input refused while it slides.
+The playhead is the newest voice's column on every row, painted with the flash cursor Slow and flashed with it Fast; the host walks
+the voices (`Waveforms::play_position`). A vertical turn reaches the clip view beneath through the host
+(`forwardMarkerVertical`), and SHIFT + a main pad with no mode up is the menu's shortcut jump
+(`MenuScene::shortcut_jump`), leaving the editor for that item's page. The audition column is the host's
+(`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
+(`RuntimeFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
 
@@ -533,9 +639,9 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: eleven of the fourteen
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: thirteen of the fifteen
 `openUI(&soundEditor)` sites call it when `shellMenuEnabled()`, and run their exact legacy statements
-otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
+otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -570,12 +676,9 @@ otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
-* **The play-cursor flash is unwired.** `PadLEDs::flashCursor` (flash byte 36) lives on `hid/`,
-  `FlashStorage::readSettings` writes it there, and nothing in `model/` or `storage/` holds it, so
-  `AudioClipScene` keeps its own copy (`set_flash_cursor`, defaulting to the factory `Slow`) and
-  nothing calls the setter: a user who turns the cursor off still sees it in the ported audio clip
-  view. Wire it the way the shortcut layout is wired — from legacy's own writer — not with a call in
-  `deluge_boot`.
+* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
+  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+  paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware
 
@@ -604,10 +707,7 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 |---|---|
 | The first gold-knob turn after boot is swallowed by the lowering's debounce, as legacy's `timeModEncoderLastTurned` starts at 0 too; accepted, and whether the mechanism is a defect needs a device (see the ledger). | `src/shell/input_lowering.h` |
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
-| The slicer's and the audio clip view's play cursor is always the slow flash: this layer cannot read the flash-cursor setting (see the boot wiring above). | `slicing/slicer_scene.cpp`, `audio_clip/audio_clip_scene.h` |
-| The ported browser opens on the default folder where legacy reopens on `SampleBrowser::lastFilePathLoaded`'s folder; the value lives on a `gui/` object. | `browser/browser_scene.cpp` |
 | A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp` |
-| Under the menu, the automation view's two interpolation pads (x 0, y 6/7) are claimed as shortcuts with shift held; legacy exempts them when the root UI is the automation view. | `ShellHostUI::claimsGridPad` |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad` |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback` |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp` |
@@ -615,6 +715,8 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | Legacy's `drain_notifications` and the shell's `Notices::drain` pop the same queue, so which consumer shows a notice is the scheduler's call for every kind but `Notification`, which ends in legacy's call either way. | `shell/notices.h`'s notification sink |
 | A popup re-targeted in place changes no stack, so on a tick with no input the panel can keep the old text. | `Notices::show_popup_with_timeout` |
 | A notification's 2000 ms starts when a consumer pops it, not when it was raised, and its title and value are fitted into 46 bytes value-first, where `OLED::displayNotification` measures the untruncated title. | `Notices::drain`, `notice_notification` |
+| Shift + a horizontal turn on the DX7 parameter page at the pitch envelope's first rate, every operator off: legacy hangs, the port stays on the param. | `tests/ui-scripts/parity/DIFFERENCES.md` D87 |
+| The DX7 shortcut fallback tests the pad's source on this sound, where legacy tests the source the previous menu left. | `tests/ui-scripts/parity/DIFFERENCES.md` D90 |
 | The marker editor draws the h/m unit letters beside their digits; legacy draws them at a fixed `x = 6`, over the digits, past a minute. | `ui/oled/sample_position.h` |
 | The note leaves' `get`, `adjust`, `permitted` and `value_text` hooks call the note bridge unguarded: a harness that opens a note root without `wireShellNoteBridge()` crashes on the first read. | `menu/nodes/note.cpp` |
 | Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
@@ -629,8 +731,7 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| `dxMenu` | the three bespoke DX items have no port, so the DX7 oscillator type's select chain and `InstrumentClipMinder::createNewInstrument`'s DX entry open legacy's menu | three items and the chain |
-| three `openUI(&soundEditor)` sites | sites 10, 11 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a ported node (or a decision) per site, then its gate |
+| two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |
 | `Linked`'s second row | under a checked box, legacy draws the linked file's name; `ui::oled::ListRow` has one label | a second text row in `list` |
@@ -643,9 +744,7 @@ it leaves both lists.
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
 | the MIDI follow channel's screen | `midi::FollowChannel::drawInteger` (input differentiation, device, channel) has no port; the node draws a bare number (`parity/DIFFERENCES.md` D73) | a drawing for the nineteen nodes |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
-| automation retargeting | `SoundEditor::handlePotentialParamMenuChange` re-selects the automation view's param after a BACK, a SELECT or a horizontal column move; it is keyed on the root UI | an automation scene, or a seam telling the guest the focused param changed |
 | select editing gated by UI mode | `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes`; `MenuScene` edits on every turn | a UI-mode fact handed to the scene |
 | `Submenu::shouldForwardButtons`' `buttonAction` | legacy forwards a horizontal page's buttons to its focused value column; the port routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column |
 | the firmware-version diagnostics | on the firmware-version item, pads 13–15 of row 7 pop up the SRAM size, the voice count and the PIC version; the guest keeps the menu open on them, as legacy does, but shows no popup | three popups |
-| the marker editor's zoom transition, playhead, vertical encoder and shortcut-pad jump | see `marker_scene.h`'s "What is deliberately not ported" | tick squares and a transition surface |
-| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | a transition surface |
+| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | the zoom through `ui::grid::ZoomTransition`, as the marker editor's; a scroll transition |

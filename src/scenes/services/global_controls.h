@@ -4,7 +4,7 @@
 /// @brief `GlobalControls` -- the transport-and-global half of `View`, plus the tail of
 ///        `Buttons::buttonAction`, as a `shell::Service`.
 ///
-/// The port of `View::buttonAction`'s global arms (`gui/views/view.cpp:140-487`) and of the
+/// The port of `View::buttonAction`'s global arms (`gui/views/view.cpp:141-488`) and of the
 /// button tail `Buttons::buttonAction` runs *after* the current UI has declined an event
 /// (`hid/buttons.cpp:143-231`), together with the LEDs those two decide:
 /// `View::setLedStates`, `View::setTimeBaseScaleLedState` and
@@ -72,12 +72,12 @@
 /// jump straight to `dealtWith` and the tail never runs. The one place that matters is `PLAY` and
 /// `RECORD`: under MIDI learn `View` claims them (`View::buttonAction`'s PLAY and RECORD arms) and the transport tail
 /// is skipped; outside learn the arm's `&& currentUIMode == UI_MODE_MIDI_LEARN` fails, the chain
-/// falls to `view.cpp:482-484`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
+/// falls to `view.cpp:483-485`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
 ///
 /// @par The MIDI-learn boundary
 ///
 /// Four arms of `View::buttonAction` are learn-mode work end to end and belong to `MidiLearn`,
-/// not here: the `TAP_TEMPO` learn branch (`view.cpp:149-167`), the `LEARN` button
+/// not here: the `TAP_TEMPO` learn branch (`view.cpp:150-168`), the `LEARN` button
 /// (`:185-196`), `PLAY` under learn (`:199-212`) and `RECORD` under learn (`:215-228`). The rule
 /// is: **the service that owns the mode owns the arm, and the other asks
 /// it.** This service asks, through `LearnMode::active()` (`services/learn_mode.h`) -- one
@@ -132,7 +132,7 @@
 ///     behaviour difference, not merely a missing call**: with that popup up, legacy's short
 ///     RECORD tap dismisses it and does nothing else, while this port falls through to
 ///     `PlaybackHandler::recordButtonPressed()` and toggles recording.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`). The note-editor test
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:341-355`). The note-editor test
 ///     (`:340-343`) needs no port here: it holds only in a note mode, and the ported note mode never lets
 ///     this service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler,
 ///     whose `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
@@ -157,7 +157,7 @@
 ///   * `:109-113`'s `AFFECT_ENTIRE` -> `display->cancelPopup()` -- **not ported**. It belongs to
 ///     the notice seam (`notify::Notice::Kind::CancelPopup`), not to this service.
 ///   * `:114-121`'s `BACK` -> `TimerName::BACK_MENU_EXIT` long-press, whose callback is
-///     `getCurrentUI()->exitUI()` (`gui/ui_timer_manager.cpp:149-155`) -- **not ported**. It is a
+///     `getCurrentUI()->exitUI()` (`gui/ui_timer_manager.cpp:150-156`) -- **not ported**. It is a
 ///     scene-exit gesture, so it belongs to whoever owns "hold BACK to leave", not here.
 ///   * `:122-127`'s `CROSS_SCREEN_EDIT` arming `considerCrossScreenReleaseForCrossScreenMode` --
 ///     **not ported**. Cross-screen mode is a clip-view fact.
@@ -174,7 +174,7 @@
 /// @par `#ifdef undoButtonX` is dead code
 ///
 /// Undo (`:425-441`) and redo (`:442-448`) look like arms this service must port, but they are
-/// inside `#ifdef undoButtonX` (`view.cpp:424-447`), and **`undoButtonX` is
+/// inside `#ifdef undoButtonX` (`view.cpp:425-448`), and **`undoButtonX` is
 /// defined nowhere in this repository** -- the only two occurrences are that `#ifdef` and the
 /// `#ifndef` on the `BACK` arm at `:407`. The `BACK` arm (`:404-421`) *is* the undo/redo, and it
 /// is what this service ports.
@@ -247,9 +247,9 @@ public:
 		None,          ///< `UI_MODE_NONE` (`gui/ui/ui.h:34`, which is 0).
 		MidiLearn,     ///< `UI_MODE_MIDI_LEARN`. Never set through `ViewState`; see `LearnMode`.
 		RecordCountIn, ///< `UI_MODE_RECORD_COUNT_IN` -- read by the `TAP_TEMPO` arm (`View::buttonAction`).
-		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm (`view.cpp:327`).
-		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`view.cpp:241`). Owned here.
-		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:298`). Owned here.
+		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm (`view.cpp:328`).
+		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`view.cpp:242`). Owned here.
+		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`). Owned here.
 		Other,         ///< Any other mode: active, and none of the above.
 	};
 
@@ -265,10 +265,10 @@ public:
 		/// here: `effective_ui_mode()` takes that from `LearnMode::active()` instead, so there is
 		/// one owner of the mode and not two.
 		UiMode ui_mode = UiMode::None;
-		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp:521`, `:374`). Decides whether
+		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp:522`, `:375`). Decides whether
 		/// the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
 		bool current_ui_is_clip_minder = false;
-		/// `getRootUI() == &performanceView` (`view.cpp:237`, `:282`) -- the fifth term of the
+		/// `getRootUI() == &performanceView` (`view.cpp:238`, `:283`) -- the fifth term of the
 		/// SAVE/LOAD guard, which lets KEYBOARD+SAVE through only in performance view.
 		bool root_is_performance = false;
 		/// `loadSongUI.isLoadingSong()` (`Buttons::buttonAction`). Suppresses the tempo popup while
@@ -284,7 +284,7 @@ public:
 	};
 
 	/// @param stack    The scene stack this service pushes the settings menu onto
-	///                 (`view.cpp:477-478`).
+	///                 (`view.cpp:478-479`).
 	/// @param lowering The input lowering it reads and writes the used-up bit and the press clock
 	///                 on.
 	/// @param learn    MIDI learn, asked before the `PLAY`/`RECORD`/`TAP_TEMPO` arms. A real
@@ -383,7 +383,7 @@ public:
 	/// @brief Is the SAVE button being held down for the save gesture? `UI_MODE_HOLDING_SAVE_BUTTON`
 	///        (`View::buttonAction`).
 	bool holding_save() const { return holding_save_; }
-	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:298`,
+	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`,
 	///        cleared at `:310`).
 	bool holding_load() const { return holding_load_; }
 	/// @brief The five call sites this port reaches but cannot make -- see the class doc's
@@ -462,7 +462,7 @@ private:
 		LearnOwns,
 	};
 
-	/// @brief `View::buttonAction`'s arms (`gui/views/view.cpp:140-487`).
+	/// @brief `View::buttonAction`'s arms (`gui/views/view.cpp:141-488`).
 	/// @param button The button.
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
@@ -478,26 +478,26 @@ private:
 	deluge::ui::shell::Result tail_button_action(deluge::ui::shell::ButtonId button, bool on,
 	                                             const deluge::ui::shell::UiContext& ctx);
 
-	/// @brief The `SAVE` arm (`view.cpp:232-274`).
+	/// @brief The `SAVE` arm (`view.cpp:233-275`).
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
 	/// @param result Where the pending-overdubs refusal popup (`:257-258`) is appended.
 	void handle_save(bool on, const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
-	/// @brief The `LOAD` arm (`view.cpp:277-332`).
+	/// @brief The `LOAD` arm (`view.cpp:278-333`).
 	/// @param on  Press or release.
 	/// @param ctx The world around it.
 	void handle_load(bool on, const deluge::ui::shell::UiContext& ctx);
-	/// @brief The four-button guard both share (`view.cpp:234-237`, `:279-282`).
+	/// @brief The four-button guard both share (`view.cpp:235-238`, `:280-283`).
 	/// @param ctx The world around it.
 	/// @return True when neither SYNTH/KIT/MIDI/CV is held and KEYBOARD is not held in performance
 	///         view -- i.e. when the arm's body may run.
 	bool load_save_allowed(const deluge::ui::shell::UiContext& ctx) const;
-	/// @brief The `SYNC_SCALING` arm (`view.cpp:335-402`).
+	/// @brief The `SYNC_SCALING` arm (`view.cpp:336-403`).
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
 	/// @param result Where a refusal popup is appended.
 	void handle_sync_scaling(bool on, const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
-	/// @brief The `SELECT_ENC`+shift arm (`view.cpp:450-481`): open the settings menu.
+	/// @brief The `SELECT_ENC`+shift arm (`view.cpp:451-482`): open the settings menu.
 	/// @param ctx    The world around it.
 	/// @param result Where the refusal popup or the push is appended.
 	void handle_settings_menu(const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
@@ -507,7 +507,7 @@ private:
 	void count_unported(UnportedOpen which);
 
 	/// @brief Is the SYNC_SCALING LED in `View::setTimeBaseScaleLedState`'s blink arm
-	///        (`view.cpp:521-523`) right now?
+	///        (`view.cpp:522-524`) right now?
 	///
 	/// Asked by `leds()` and by `next_timer()`, which has to request a wake for it -- see the note
 	/// there.
@@ -521,11 +521,11 @@ private:
 	Song* song_ = nullptr;
 	ViewState view_{};
 
-	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:241`, `:298`).
+	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:242`, `:299`).
 	bool holding_save_ = false;
 	bool holding_load_ = false;
 	/// `View::timeSaveButtonPressed` (`gui/views/view.h:128`) -- **one** member, shared by both
-	/// arms exactly as legacy shares it: the LOAD press writes the same variable (`view.cpp:299`)
+	/// arms exactly as legacy shares it: the LOAD press writes the same variable (`view.cpp:300`)
 	/// the SAVE press does (`:241`). They can never both be held, because each arm's press branch
 	/// requires `UI_MODE_NONE`.
 	uint32_t save_pressed_ms_ = 0;

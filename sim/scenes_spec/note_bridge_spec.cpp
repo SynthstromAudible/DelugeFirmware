@@ -29,7 +29,7 @@
 ///
 /// **The offset-write gate, pinned rather than assumed.** `adjustVelocity` only actually changes a
 /// note when `display->hasPopup() || inAutomationView || inSoundEditor`
-/// (`instrument_clip_view.cpp:2852-2859`); outside all three (this fixture's own state: no popup,
+/// (`instrument_clip_view.cpp:2853-2860`); outside all three (this fixture's own state: no popup,
 /// `getCurrentUI()` is neither `&automationView` nor `&soundEditor`), the write is a no-op --  but
 /// `adjustVelocity`'s own tail unconditionally calls `displayVelocity`
 /// (`:2931-2935`), which raises a popup regardless of whether anything changed. So the FIRST
@@ -132,7 +132,7 @@ struct RealNoteSelectionGuard {
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->persistentView.xZoom[NAVIGATION_CLIP]`
-		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3669`); square 0 is where the
+		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3670`); square 0 is where the
 		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
 		                                 currentSong->persistentView.xZoom[NAVIGATION_CLIP]);

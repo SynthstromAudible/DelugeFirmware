@@ -120,6 +120,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 #include "util/try.h"
 #include <new>
 #include <string.h>
@@ -4688,9 +4689,9 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 				}
 
 				if (outputType == OutputType::SYNTH) {
-					if (inSoundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.noteOnToChangeRange(clip->getYNoteFromYDisplay(yDisplay, currentSong)
-						                                              + ((SoundInstrument*)output)->getTranspose());
+					if (deluge::gui::ui::rangePickerOpen()) {
+						deluge::gui::ui::changeRangeForNote(clip->getYNoteFromYDisplay(yDisplay, currentSong)
+						                                    + ((SoundInstrument*)output)->getTranspose());
 					}
 				}
 
@@ -5397,10 +5398,9 @@ void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* 
 // if you're in a multi range menu, you can use audition pads to set the note range
 void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument) {
 	if (velocity != 0) {
-		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-			menu_item::multiRangeMenu.noteOnToChangeRange(
-			    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
-			    + ((SoundInstrument*)instrument)->getTranspose());
+		if (deluge::gui::ui::rangePickerOpen()) {
+			deluge::gui::ui::changeRangeForNote(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+			                                    + ((SoundInstrument*)instrument)->getTranspose());
 		}
 	}
 }
@@ -6225,10 +6225,9 @@ drawNormally:
 
 checkIfSelectingRanges:
 				// If we're selecting ranges...
-				if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
+				if (deluge::gui::ui::rangeDependentMenuOpen()) {
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if (soundEditor.isUntransposedNoteWithinRange(yNote)) {
+					if (deluge::gui::ui::noteWithinCurrentRange(yNote)) {
 						thisColour = thisColour.transform([](RGB::channel_type channel) {
 							return std::clamp<uint32_t>((uint32_t)channel + 30, 0, RGB::channel_max);
 						});

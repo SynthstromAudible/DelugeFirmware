@@ -39,6 +39,8 @@ namespace fakelegacyui {
 extern std::vector<UI*> closed;
 /// How many times `renderUIsForOled()` was asked for a redraw.
 extern int oled_redraws;
+/// @brief Each UI mode `exitUIMode` was asked to leave, in order.
+extern std::vector<uint32_t> modes_exited;
 /// Every `UI::modEncoderAction` / `modButtonAction` / `modEncoderButtonAction` / `graphicsRoutine`
 /// call, as a running count -- the four base implementations a guest must not silently inherit
 /// without meaning to.
@@ -142,6 +144,14 @@ extern int service_wirings;
 /// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
 /// binary where the real scene exists.
 extern int action_dispatches;
+/// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
+///        writes the menu and the knobs, none of which this suite builds.
+extern int root_fact_refreshes;
+/// @brief What the fake `rootTakesAuditionPad` answers: whether the root is the instrument clip view.
+extern bool root_takes_audition;
+/// @brief How many times `deluge::gui::ui::dispatchMenuTransitions()` was called: the poll of the menu's transition
+///        record, on the same terms as `action_dispatches`.
+extern int transition_dispatches;
 
 /// @brief Called by the fake `dispatchShellActions()`, after it bumps `action_dispatches`.
 ///
@@ -177,6 +187,9 @@ struct PadCall {
 	int32_t x, y, velocity;
 	bool operator==(const PadCall&) const = default;
 };
+/// @brief How many pads `forwardClipAuditionPad` was handed, and the last one.
+extern int clip_audition_forwards;
+extern PadCall last_clip_audition;
 extern PadCall last_pad_forward;
 
 /// How many times `deluge::gui::ui::renderClipViewSidebarUnderMarker()` was called. The real one
@@ -227,6 +240,9 @@ extern int note_vertical_forwards;
 extern NoteVerticalCall last_note_vertical;
 /// What `forwardNoteVerticalEncoder()` answers. `std::nullopt` by default.
 extern std::optional<ActionResult> note_vertical_answer;
+/// How many times `forwardMenuSaveButton()` was called, and what it answers (`std::nullopt` by default).
+extern int menu_save_forwards;
+extern std::optional<ActionResult> menu_save_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;
@@ -266,7 +282,7 @@ extern bool note_exit_saw_knob_clear;
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
 /// under which the real `UITimerManager` would have called `timerCallback()` at all
-/// (`gui/ui_timer_manager.cpp:142-148`). A spec driving `timerCallback()` by hand is standing in for
+/// (`gui/ui_timer_manager.cpp:143-149`). A spec driving `timerCallback()` by hand is standing in for
 /// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
 ///
 /// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes

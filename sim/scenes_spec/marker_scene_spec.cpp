@@ -34,10 +34,9 @@
 /// `tests/spec/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
 /// drift from them.
 ///
-/// Two divergences are **measured** here rather than only written down: `renderMainPads`'
-/// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`), and
-/// legacy's zoom transition holding `UI_MODE_HORIZONTAL_ZOOM` across a second detent. Both are
-/// asserted in both directions at their examples.
+/// One divergence is **measured** here rather than only written down: `renderMainPads`'
+/// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`). It is
+/// asserted in both directions at its example.
 ///
 /// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
 ///       `browser_scene_spec.cpp` runs under.
@@ -47,6 +46,10 @@
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_core.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
@@ -54,14 +57,20 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/columns.h"
 
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "model/edits/setting_edit.h"
+#include "model/note/note_row.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
@@ -75,6 +84,8 @@
 #include "integration/scenarios/slot_coherence.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
+#include "support/global_guest_menu.h"
+#include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -92,6 +103,11 @@
 #include <string>
 
 #include "spec/support/spec_main.h"
+
+/// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
+namespace Buttons {
+extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
+} // namespace Buttons
 
 using namespace deluge::scenes;
 using deluge::scenes::marker::kMarkerSceneKind;
@@ -296,6 +312,19 @@ struct Rig {
 	}
 
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
+
+	/// @brief Open the menu at the sample start item, whose entry opens the editor over it: a shortcut's real door.
+	void open_through_menu() {
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
+		menu_scene().open(menu::nodes::sample0_start, ctx());
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(menu::nodes::sample0_start)});
+	}
+	/// @brief The scene on top of the stack.
+	SceneKind top() { return shell.stack().input_top().kind(); }
+	void shift(bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
 	///        (`shell/profiles/deluge.cpp`).
@@ -523,6 +552,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
+	it("claims every pad but the audition column, which the host hands to the clip view", _ {
+		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp:358-364`).
+		expect(marker_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition).to_be_true();
 	});
 
 	// --- opening ------------------------------------------------------------------------------
@@ -936,6 +970,395 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().holding_marker()).to_be_false();
 	});
 
+	it("refuses BACK and the mute column while a marker is held or a note auditions, and exits on them otherwise", _ {
+		// `buttonAction`'s BACK arm and `padAction`'s mute arm exit only with no UI mode
+		// (`sample_marker_editor.cpp:661-668`, `:366-370`); a held marker and auditioning are UI modes.
+		const auto on_stack = [](Rig& r) {
+			for (const deluge::ui::shell::Scene* sc : r.shell.stack().scenes()) {
+				if (sc->kind() == kMarkerSceneKind) {
+					return true;
+				}
+			}
+			return false;
+		};
+		{
+			Rig r;
+			r.range->sampleHolder.startPos = 2 * kZoomMax;
+			r.open(MarkerType::START);
+			r.tick(0);
+			r.pad(2, 3, true, 10); // hold START
+			r.tick(10);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 20);
+			r.tick(20);
+			r.pad(kDisplayWidth, 0, true, 30);
+			r.tick(30);
+			expect(on_stack(r)).to_be_true();
+			r.pad(2, 3, false, 40);
+			r.tick(40);
+			r.pad(kDisplayWidth, 0, false, 45);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 45);
+			currentUIMode = UI_MODE_AUDITIONING;
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 50);
+			r.tick(50);
+			expect(on_stack(r)).to_be_true();
+			currentUIMode = UI_MODE_NONE;
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 55);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 60);
+			r.tick(60);
+			expect(on_stack(r)).to_be_false();
+		}
+		{
+			Rig r;
+			r.open(MarkerType::START);
+			r.tick(0);
+			r.pad(kDisplayWidth, 0, true, 10);
+			r.tick(10);
+			expect(on_stack(r)).to_be_false();
+		}
+	});
+
+	it("neither zooms nor scrolls while a marker is held, and holds X_ENC only with no other mode", _ {
+		// `horizontalEncoderAction`'s `zoomUIModes` (`:697`, `:752-770`) and `buttonAction`'s X_ENC arm (`:672-681`).
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(2, 3, true, 10); // hold START
+		r.tick(10);
+		r.turn_select(1, 15); // `selectEncoderAction`'s guard (`:269`): refused with a marker held
+		r.tick(15);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
+		r.x_enc_button(true, 20);
+		r.tick(20);
+		expect(marker_scene().holding_xenc()).to_be_false();
+		r.turn_horizontal(1, 30);
+		r.tick(30);
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax);
+		r.x_enc_button(false, 40);
+		r.pad(2, 3, false, 40);
+		r.tick(40);
+		r.x_enc_button(true, 50);
+		r.tick(50);
+		expect(marker_scene().holding_xenc()).to_be_true();
+		r.turn_horizontal(1, 60); // zoom in
+		r.tick(60);
+		expect(static_cast<int32_t>(marker_scene().x_zoom()) < kZoomMax).to_be_true();
+		const int32_t zoomed = static_cast<int32_t>(marker_scene().x_zoom());
+		for (uint32_t t = 70; t <= 70 + 150; t += 50) { // the slide runs out (110 ms, drawn every 50 ms)
+			r.tick(t);
+		}
+		expect(marker_scene().sliding()).to_be_false();
+		r.pad(9, 3, true, 230); // refused with X_ENC held: nothing selected or moved
+		r.tick(230);
+		expect(marker_scene().holding_marker()).to_be_false();
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
+		r.pad(9, 3, false, 235);
+		r.x_enc_button(false, 240);
+		r.tick(240);
+		currentUIMode = UI_MODE_AUDITIONING; // a turn scrolls while auditioning
+		const int64_t scroll = r.view().has_value() ? r.view()->scroll : -1;
+		r.turn_horizontal(1, 250);
+		r.tick(250);
+		currentUIMode = UI_MODE_NONE;
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(zoomed);
+		expect(r.view().has_value() && r.view()->scroll != scroll).to_be_true();
+		// Zoomed in, with START held in view, a turn does not scroll.
+		const int64_t s = r.view().has_value() ? r.view()->scroll : 0;
+		const int32_t col = static_cast<int32_t>((2 * kZoomMax - s) / zoomed);
+		expect(col >= 0 && col < kDisplayWidth).to_be_true();
+		r.pad(col, 3, true, 260);
+		r.tick(260);
+		expect(marker_scene().holding_marker()).to_be_true();
+		r.turn_horizontal(1, 270);
+		r.tick(270);
+		expect(r.view().has_value() && r.view()->scroll == s).to_be_true();
+		r.pad(col, 3, false, 280);
+	});
+
+	it("slides a zoom over 110 ms from the old view to the new one, refusing every input while it slides", _ {
+		// `WaveformBasicNavigator::zoom` (`:30-69`) and `PadLEDs::renderZoom`, drawn every 50 ms; under
+		// `UI_MODE_HORIZONTAL_ZOOM` the select encoder (`:269`), the horizontal encoder (`zoomUIModes`), BACK and the
+		// mute column (`!currentUIMode`), a pad press (`:368`) and X_ENC (`:656`) are all refused.
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		const deluge::gfx::grid::PadGrid old = r.fake.grid().grid();
+		r.x_enc_button(true, 10);
+		r.tick(10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		r.x_enc_button(false, 25);
+		r.tick(25);
+		r.turn_select(1, 30);
+		r.turn_horizontal(1, 35);
+		r.x_enc_button(true, 40); // held past the slide, and still never the editor's
+		r.pad(9, 3, true, 45);
+		r.pad(9, 3, false, 47);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 50); // BACK
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 52);
+		r.pad(kDisplayWidth, 3, true, 55);
+		r.pad(kDisplayWidth, 3, false, 57);
+		r.tick(60);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(4 * kZoomMax);
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
+		expect(marker_scene().holding_xenc()).to_be_false();
+		expect(marker_scene().holding_marker()).to_be_false();
+		expect(&r.shell.stack().input_top() == &marker_scene()).to_be_true();
+
+		// Halfway (the step at 70 ms), neither view.
+		r.tick(70);
+		const deluge::gfx::grid::PadGrid mid = r.fake.grid().grid();
+		r.tick(120);
+		expect(marker_scene().sliding()).to_be_true();
+		// The first step at or past 110 ms ends it: the settled frame, with its marker.
+		r.tick(170);
+		expect(marker_scene().sliding()).to_be_false();
+		// The settled frame re-arms the blink's whole period, which the slide held still.
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{200}).to_be_true();
+		expect(marker_scene().holding_xenc()).to_be_false();
+		r.x_enc_button(false, 175);
+		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
+		bool from_is_old = marker_scene().zoom_slide().from.has_value();
+		for (uint8_t y = 0; from_is_old && y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				from_is_old = from_is_old && marker_scene().zoom_slide().from->at(x, y) == old.at(x, y);
+			}
+		}
+		expect(from_is_old).to_be_true();
+		bool mid_is_old = true;
+		bool mid_is_settled = true;
+		for (uint8_t y = 0; y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				mid_is_old = mid_is_old && mid.at(x, y) == old.at(x, y);
+				mid_is_settled = mid_is_settled && mid.at(x, y) == settled.at(x, y);
+			}
+		}
+		expect(mid_is_old).to_be_false();
+		expect(mid_is_settled).to_be_false();
+		// START, at 4 * kZoomMax, is column 8 at half the zoom, and is drawn again.
+		const int32_t col = static_cast<int32_t>((4 * kZoomMax - static_cast<int32_t>(marker_scene().x_scroll()))
+		                                         / static_cast<int32_t>(marker_scene().x_zoom()));
+		expect(settled.at(static_cast<uint8_t>(col), 0).g > settled.at(static_cast<uint8_t>(col), 0).r).to_be_true();
+		r.turn_select(1, 180);
+		r.tick(180);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos) != 4 * kZoomMax).to_be_true();
+	});
+
+	it("leaves no slide behind when it closes mid-slide, or when its waveform goes away", _ {
+		// Legacy's `currentUIMode` is dropped on the way out of every UI; a slide left running would refuse every
+		// input of the next visit, or of this one with nothing left to draw.
+		{
+		Rig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.x_enc_button(true, 10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		marker_scene().on_exit();
+		expect(marker_scene().sliding()).to_be_false();
+		expect(marker_scene().holding_xenc()).to_be_false();
+		expect(marker_scene().zoom_slide().active).to_be_false();
+		r.x_enc_button(false, 30);
+		}
+
+		struct Gone final : deluge::scenes::services::Waveforms {
+			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+			info(const deluge::scenes::services::WaveformAddress&) const override {
+				return std::nullopt;
+			}
+			bool peaks(const deluge::scenes::services::WaveformAddress&, int64_t, uint64_t, WaveformRenderData&, int32_t,
+			           int32_t) const override {
+				return false;
+			}
+		};
+		Rig q;
+		q.open(MarkerType::START);
+		q.tick(0);
+		q.x_enc_button(true, 10);
+		q.turn_horizontal(1, 20);
+		q.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		Gone gone;
+		marker_scene().set_waveforms(&gone);
+		q.tick(80);
+		expect(marker_scene().sliding()).to_be_false();
+		marker_scene().set_waveforms(nullptr);
+		q.x_enc_button(false, 90);
+	});
+
+	it("jumps with SHIFT to a shortcut's item, and stays on an empty cell, with a marker held, or auditioning", _ {
+		// `SampleMarkerEditor::padAction`'s `soundEditor.potentialShortcutPadAction` (`:350-356`).
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.open_through_menu();
+		for (uint32_t t = 0; t <= 40; t += 10) {
+			r.tick(t);
+		}
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		r.pad(2, 3, true, 50); // hold START
+		r.tick(50);
+		r.shift(true, 60);
+		r.pad(8, 7, true, 70); // with START held, LPF frequency is the marker's own press
+		r.tick(70);
+		r.pad(8, 7, false, 75);
+		r.pad(2, 3, false, 75);
+		r.tick(80);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		const SampleHolderForVoice& h = r.range->sampleHolder;
+		const std::array<uint64_t, 4> before{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
+		r.pad(7, 6, true, 90); // an empty cell: the editor stays, and no marker moves
+		r.tick(90);
+		r.pad(7, 6, false, 95);
+		r.tick(100);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		const std::array<uint64_t, 4> after{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
+		expect(after == before).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		r.pad(8, 7, true, 110); // LPF frequency while auditioning: the marker's own press
+		r.tick(110);
+		r.pad(8, 7, false, 115);
+		currentUIMode = UI_MODE_NONE;
+		r.tick(120);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		r.pad(8, 7, true, 130); // LPF frequency: the menu, on its page, focused on it
+		for (uint32_t t = 130; t <= 170; t += 10) {
+			r.tick(t);
+		}
+		r.pad(8, 7, false, 175);
+		r.shift(false, 175);
+		r.tick(180);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::lpf_freq)
+		    .to_be_true();
+	});
+
+	it("hands a vertical turn to the instrument clip view under the editor, and keeps it with SHIFT or X_ENC held", _ {
+		// `SampleMarkerEditor::verticalEncoderAction` (`:883-901`).
+		Rig r;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		currentUIMode = UI_MODE_NONE;
+		expect(spec::open_shortcut_over(&instrumentClipView, r.song.clip, 0, 7)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &marker_scene()).to_be_true();
+		const int32_t before = r.song.clip->yScroll;
+		(void)shellHostUI.verticalEncoderAction(1);
+		expect(r.song.clip->yScroll != before).to_be_true();
+		const int32_t moved = r.song.clip->yScroll;
+		// With SHIFT or X_ENC held the clip view would move or transpose the notes on screen; the editor keeps the
+		// turn.
+		NoteRow* row = r.song.clip->createNewNoteRowForYVisual(moved + 2, r.song.song);
+		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			return;
+		}
+		{
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* stack = r.song.song->setupModelStackWithCurrentClip(memory);
+			ModelStackWithNoteRow* with_row = r.song.clip->getNoteRowForYNote(row->y(), stack);
+			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+		}
+		r.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
+		r.song.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;
+		const int32_t note_y = row->y();
+		const int32_t colour = r.song.clip->colourOffset();
+		{
+			spec::ShiftHeld shift;
+			(void)shellHostUI.verticalEncoderAction(1);
+		}
+		expect(r.song.clip->yScroll).to_equal(moved);
+		expect(r.song.clip->colourOffset()).to_equal(colour); // the clip view would shift its colours
+		expect(r.song.clip->getNoteRowForYNote(note_y) != nullptr
+		       && !r.song.clip->getNoteRowForYNote(note_y)->hasNoNotes())
+		    .to_be_true();
+		const auto xy = deluge::hid::button::toXY(deluge::hid::button::X_ENC);
+		Buttons::buttonStates[xy.x][xy.y] = true;
+		(void)shellHostUI.verticalEncoderAction(1);
+		Buttons::buttonStates[xy.x][xy.y] = false;
+		NoteRow* still = r.song.clip->getNoteRowForYNote(note_y);
+		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
+	});
+
+	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
+		// `graphicsRoutine` (`:977-1027`): `(pos - xScroll) / xZoom`, all eight rows, through `PadLEDs::setTickSquares`.
+		struct Playing final : deluge::scenes::services::Waveforms {
+			std::optional<int64_t> pos;
+			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+			info(const deluge::scenes::services::WaveformAddress& a) const override {
+				return menu::host_waveforms().info(a);
+			}
+			bool peaks(const deluge::scenes::services::WaveformAddress& a, int64_t scroll, uint64_t zoom,
+			           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
+				return menu::host_waveforms().peaks(a, scroll, zoom, cache, x_start, x_end);
+			}
+			[[nodiscard]] std::optional<int64_t>
+			play_position(const deluge::scenes::services::WaveformAddress&) const override {
+				return pos;
+			}
+		};
+		Playing playing;
+		marker_scene().set_waveforms(&playing);
+		const uint8_t saved = PadLEDs::flashCursor;
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		Rig r;
+		r.open(MarkerType::END);
+		r.tick(0);
+		expect(marker_scene().next_timer().has_value() && *marker_scene().next_timer() <= 15).to_be_false();
+		// A voice that starts after a render is found by the timer, with no other event (`graphicsRoutine` runs every
+		// pass).
+		playing.pos = 7 * kZoomMax;
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		r.tick(1);
+		r.tick(20);
+		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		for (uint8_t y = 0; y < 8; y++) {
+			expect(r.fake.grid().grid().at(7, y) == tick).to_be_true();
+		}
+		// Fast: nothing painted; the PIC flashes each row's square when it moves (`setTickSquares`' fast arm), and
+		// only then -- the square it is on was already handed over under Slow.
+		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
+		size_t from = r.fake.flashes_sent.size();
+		r.tick(40);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		expect(r.fake.flashes_sent.size()).to_equal(from);
+		playing.pos = 9 * kZoomMax;
+		r.tick(60);
+		size_t at_nine = 0;
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			at_nine += r.fake.flashes_sent[i].x == 9 ? 1 : 0;
+		}
+		expect(at_nine).to_equal(size_t{8});
+		expect(r.fake.grid().grid().at(9, 0) == tick).to_be_false();
+		// Off: nothing, and nothing asked for.
+		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
+		from = r.fake.flashes_sent.size();
+		playing.pos = 11 * kZoomMax;
+		r.tick(80);
+		expect(r.fake.grid().grid().at(11, 0) == tick).to_be_false();
+		expect(r.fake.flashes_sent.size()).to_equal(from);
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
+		// The voice ends under Slow: one more frame, which clears the playhead, and then no more.
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		playing.pos = 7 * kZoomMax;
+		r.tick(100);
+		r.tick(120);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_true();
+		playing.pos.reset();
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		r.tick(140);
+		r.tick(160);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
+		PadLEDs::flashCursor = saved;
+		marker_scene().set_waveforms(nullptr);
+	});
+
 	it("adds a loop start by holding START and tapping to its right", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
@@ -950,6 +1373,46 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
 		expect(static_cast<int32_t>(marker_scene().marker_type()))
 		    .to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
+	});
+
+	it("refuses a tap and the held pad's release once a note auditions under the hold", _ {
+		// `padAction` refuses a press unless `currentUIMode` is exactly AUDITIONING or HOLDING_SAMPLE_MARKER, and ends
+		// the hold only under HOLDING_SAMPLE_MARKER exactly (`:368-370`, `:632`). The hold assigns the mode (`:534`), so
+		// an audition already sounding when the marker went down no longer counts.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(2, 3, true, 10); // hold START
+		r.tick(10);
+		currentUIMode = UI_MODE_AUDITIONING; // a note auditioned under the hold
+		r.pad(6, 3, true, 20);
+		r.pad(6, 3, false, 25);
+		r.pad(2, 3, false, 30); // the held pad's release, refused too
+		r.tick(30);
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+		expect(marker_scene().holding_marker()).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("takes a tap and the held pad's release under an audition that was already sounding when the hold began", _ {
+		Rig q;
+		q.range->sampleHolder.startPos = 2 * kZoomMax;
+		q.range->sampleHolder.endPos = 12 * kZoomMax;
+		q.open(MarkerType::START);
+		q.tick(0);
+		currentUIMode = UI_MODE_AUDITIONING; // already sounding when START goes down
+		q.pad(2, 3, true, 10);
+		q.tick(10);
+		q.pad(6, 3, true, 20);
+		q.tick(20);
+		expect(static_cast<int32_t>(q.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
+		q.pad(6, 3, false, 25);
+		q.pad(2, 3, false, 30);
+		q.tick(30);
+		expect(marker_scene().holding_marker()).to_be_false();
+		currentUIMode = UI_MODE_NONE;
 	});
 
 	it("removes the loop start by holding it and tapping START", _ {
@@ -1337,9 +1800,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `sample_marker_editor.cpp:661-671`), and
 		// both sides are driven through that gate rather than around it.
 		// `WaveformBasicNavigator::zoom` runs `PadLEDs::renderZoom()` on success
-		// (`waveform_basic_navigator.cpp:67`) -- the transition animation the port deliberately does
-		// not carry -- and that pumps `AudioEngine::routineWithClusterLoading()`, which segfaults in
-		// a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
+		// (`waveform_basic_navigator.cpp:67`), and that pumps `AudioEngine::routineWithClusterLoading()`, which
+		// segfaults in a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
 		// without it this example does not fail, it takes the process down.
 		spec::QuietAudio quiet;
 		Rig r;
@@ -1354,6 +1816,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		const int32_t ported_zoom = static_cast<int32_t>(marker_scene().x_zoom());
 		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
+		const deluge::ui::grid::ZoomTransition slide = marker_scene().zoom_slide();
+		// A second detent while the first slides.
+		r.turn_horizontal(1, 30);
+		r.tick(30);
+		const int32_t ported_second = static_cast<int32_t>(marker_scene().x_zoom());
 
 		restore(r, before);
 		open_legacy(r, MarkerType::START);
@@ -1363,24 +1830,27 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
 		// ...and it really did zoom, so a port that refused the turn could not pass this.
 		expect(ported_zoom).to_equal(kZoomMax / 2);
+		// The slide legacy hands `PadLEDs::renderZoom`: its pin square, step and direction, and the new view's bare
+		// waveform (`renderFullScreen` into `imageStore[0]`, the old image going to the other half).
+		expect(slide.params.pin_square_from).to_equal(PadLEDs::zoomPinSquare[0]);
+		expect(slide.params.pin_square_to).to_equal(PadLEDs::zoomPinSquare[0]);
+		expect(slide.params.magnitude).to_equal(static_cast<int32_t>(PadLEDs::zoomMagnitude));
+		expect(slide.params.new_zoom < slide.params.old_zoom).to_equal(PadLEDs::zoomingIn);
+		expect(slide.params.pin_square_from != 0).to_be_true(); // a pin of 0 would match a port that forgot it
+		bool to_matches = slide.to.has_value();
+		for (uint8_t y = 0; to_matches && y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				to_matches = to_matches && slide.to->at(x, y) == PadLEDs::imageStore[y][x];
+			}
+		}
+		expect(to_matches).to_be_true();
 
-		// **One detent, and that is the ceiling, not an oversight.** A successful legacy zoom leaves
-		// `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the `PadLEDs` transition finishes, and
-		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate then refuses the next
-		// detent (`sample_marker_editor.cpp:745-752`). Nothing runs that animation to completion in
-		// a spec process, so a second detent compares the port's second zoom against legacy's
-		// refusal. Measured: port 8192, legacy 16384. The animation is the one part of
-		// `WaveformBasicNavigator::zoom` the port deliberately does not carry
-		// (`waveform_basic_navigator.h`), so this is the divergence working as recorded, not a bug.
-		//
-		// **And clearing the mode by hand does not buy the second detent.** That is the obvious next
-		// move -- the mode is what the gate reads, and the device clears it a few tens of
-		// milliseconds later anyway -- and it was tried, with `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`
-		// put back between legacy's two calls so the second turn still reads as a zoom. It gets past
-		// the gate and then hangs: the second `WaveformBasicNavigator::zoom` blocks on the `PadLEDs`
-		// transition state the first one left behind, which is the very thing a spec process cannot
-		// finish. The suite ran 6 seconds; that probe was killed at 600. The ceiling is the
-		// animation, not the gate.
+		// A successful zoom leaves `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
+		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent
+		// (`sample_marker_editor.cpp:745-752`); the port's slide refuses it the same way. Nothing runs legacy's slide
+		// to completion in a spec process, so a detent after it is the port's alone ("slides a zoom ...").
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		expect(ported_second).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
 		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
 		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false);
 		currentUIMode = UI_MODE_NONE;

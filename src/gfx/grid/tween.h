@@ -117,8 +117,9 @@ void smear_scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t
 ///       `renderZoomedSquare` pair it drives.
 ///
 /// Zoom direction is derived from the parameters: zooming in when `new_zoom < old_zoom`. The zoom
-/// magnitude is `abs(bit_width(new_zoom) - bit_width(old_zoom))` -- zoom levels are ticks-per-square
-/// and always differ by a power of two, so the bit-width difference is the log2 step. The
+/// magnitude is `ZoomParams::magnitude` where given, else `abs(bit_width(new_zoom) - bit_width(old_zoom))` --
+/// a timeline's zoom levels are ticks-per-square and always differ by a power of two, so the bit-width
+/// difference is the log2 step. The
 /// more-zoomed-in frame is `to` when zooming in, otherwise `from`; the other parameter is the
 /// more-zoomed-out frame.
 ///
@@ -158,6 +159,10 @@ struct ZoomParams {
 	int32_t pin_square_to;
 	/// Transition progress, 0..65535 (65536 would end the animation).
 	uint16_t t;
+	/// The log2 zoom step legacy's `zoomMagnitude` names, or 0 to derive it from the two levels. A waveform's levels
+	/// need not be powers of two (`WaveformBasicNavigator::zoom` sets `zoomMagnitude` from its encoder offset), so a
+	/// caller zooming one passes its step here.
+	int32_t magnitude = 0;
 };
 void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& out);
 

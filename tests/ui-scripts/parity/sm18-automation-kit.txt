@@ -1,0 +1,69 @@
+# ShellMenu: the automation view on a kit. KIT makes the boot clip a kit and Select loads kit 001; with drum row 0
+# selected, CLIP opens the row's automation overview and SelectEnc its sound menu, where SHIFT + the LPF frequency
+# shortcut selects the row's param in the view. With AFFECT ENTIRE on the same steps reach the kit's own params. Then
+# from the clip view, the row's LPF page opened with AFFECT ENTIRE off, AFFECT ENTIRE turned on and CLIP: the view
+# edits the row's automation, not the kit's. Every snapshot has a 1 s window (blinks). Run on the ShellMenu card.
+100   snapshot boot
+300   button Kit down
+320   button Kit up
+2320  encoder Select +1
+6320  pad 17 0 down
+6360  pad 17 0 up
+7060  snapshot kit_loaded
+8060  button Clip down
+8080  button Clip up
+8780  snapshot row_overview
+9780  button SelectEnc down
+9800  button SelectEnc up
+10500 snapshot row_menu
+11500 button Shift down
+11700 pad 8 7 down
+11740 pad 8 7 up
+11940 button Shift up
+12640 snapshot row_lpf
+13640 button Back down
+13660 button Back up
+13860 button Back down
+13880 button Back up
+14580 snapshot row_closed
+15580 button AffectEntire down
+15600 button AffectEntire up
+16300 snapshot entire_overview
+17300 button SelectEnc down
+17320 button SelectEnc up
+18020 snapshot entire_menu
+19020 button Shift down
+19220 pad 8 7 down
+19260 pad 8 7 up
+19460 button Shift up
+20160 snapshot entire_lpf
+21160 button Back down
+21180 button Back up
+21380 button Back down
+21400 button Back up
+22100 snapshot entire_closed
+23100 button Clip down
+23120 button Clip up
+23820 snapshot clip_view
+24820 button AffectEntire down
+24840 button AffectEntire up
+25540 snapshot entire_off
+26540 button Shift down
+26740 pad 8 7 down
+26780 pad 8 7 up
+26980 button Shift up
+27680 snapshot row_page
+28680 button AffectEntire down
+28700 button AffectEntire up
+29400 snapshot entire_on_in_menu
+30400 button Clip down
+30420 button Clip up
+31120 snapshot row_menu_view
+32120 button Clip down
+32140 button Clip up
+32840 snapshot row_menu_view_off
+33840 button Back down
+33860 button Back up
+34060 button Back down
+34080 button Back up
+34780 snapshot closed

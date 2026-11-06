@@ -24,6 +24,8 @@
 #include "hid/buttons.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 #include <algorithm>
 
 using namespace deluge::gui::ui::keyboard::layout;
@@ -42,7 +44,6 @@ DxPatch* getCurrentDxPatch() {
 }
 
 void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
-	using menu_item::dxParam;
 	DxPatch* patch = getCurrentDxPatch();
 	if (!patch) {
 		return;
@@ -50,7 +51,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 	const int algid = std::min<uint8_t>(patch->params[134], 31); // a song can carry any byte
 	const auto& ops = deluge::dsp::fixed::dx7::kAlgorithms[algid];
 
-	bool is_editing = (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &dxParam);
+	const std::optional<int32_t> flash = deluge::gui::ui::dxColumnFlashRow();
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		int op = 8 - y - 1; // op 0-5
@@ -70,7 +71,7 @@ void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t 
 			image[y][column] = {0, 0, 0};
 		}
 
-		if (is_editing && dxParam.flash_row == y && dxParam.blink_next) {
+		if (flash == y) {
 			image[y][column] = {255, 255, 255};
 		}
 	}
@@ -98,7 +99,12 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 
 	int op = 8 - pad.y - 1; // op 0-5
 	if (Buttons::isShiftButtonPressed()) {
-		menu_item::dxParam.openForOpOrGlobal(op);
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			(void)deluge::gui::ui::openShellDxColumn(op);
+		}
+		else {
+			menu_item::dxParam.openForOpOrGlobal(op);
+		}
 	}
 	else if (op < 6) {
 		// The column's patch is the current synth's first source's (getCurrentDxPatch).

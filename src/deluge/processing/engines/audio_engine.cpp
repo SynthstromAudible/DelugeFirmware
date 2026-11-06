@@ -33,12 +33,8 @@
 #include "effects/reverb.h"
 #include "effects/sidechain.h"
 #include "extern.h"
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/slicer.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -89,6 +85,7 @@
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/sample_preview_open.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -1561,8 +1558,7 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
-	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
-	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
+	if (deluge::gui::ui::samplePreviewUIOpen()) {
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(

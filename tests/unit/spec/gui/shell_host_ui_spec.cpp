@@ -426,7 +426,7 @@ void set_clock_ms(uint32_t ms) {
 ///
 /// Nothing here decides when the guest should run. Each round reads the duration the guest last
 /// asked `uiTimerManager` for, advances the clock by exactly that, clears the timer the way
-/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp:62-66`), and calls
+/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp:63-67`), and calls
 /// `timerCallback()` the way that function's `UI_SPECIFIC` arm does (`:142-148`). A guest that
 /// re-arms nothing ends the loop early -- which is what makes "the blink froze on an idle system" a
 /// failed expectation rather than a slow test.
@@ -891,6 +891,21 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::greyout_reassessments).to_equal(1);
 	});
 
+	it("on refreshing the root facts, re-reads them and then the greyout they decide", _ {
+		// The facts change under an open menu when the root or the automation view's editor does; the greyout the
+		// menu answers moves with them, and legacy re-reads it on every greyout.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = deluge::ui::grid::GreyoutMask{0xFFFFFFFC, 0};
+		expect(r.open()).to_be_true();
+		const int reassessments = fakelegacy::greyout_reassessments;
+		r.base.greyout = {};
+		r.guest.refreshRootFacts();
+		expect(fakelegacyui::root_fact_refreshes).to_equal(1);
+		expect(fakelegacy::greyout_reassessments).to_equal(reassessments + 1);
+	});
+
 	it("greys at once when a scene takes the main pads and greys every column, as the SHIFT overlay does", _ {
 		// `renderMainShortcutsOnly` calls `PadLEDs::doGreyoutInstantly()`: the overlay's greyout does not fade in.
 		Rig r;
@@ -1262,7 +1277,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	//
 	// `exitUI` above is the LONG press only: `Buttons` arms `TimerName::BACK_MENU_EXIT` on Back
 	// down (`hid/buttons.cpp:114-121`) and the manager calls `exitUI` from that arm alone
-	// (`gui/ui_timer_manager.cpp:149-155`). A short Back is fed into the shell like any other
+	// (`gui/ui_timer_manager.cpp:150-156`). A short Back is fed into the shell like any other
 	// button and routed inside `Shell::tick`, where a scene can take itself off the stack --
 	// `MenuScene`'s `Action::Kind::Remove` at depth 0. If nothing closed the guest
 	// when that emptied the stack, `shellHostUI` would stay current, drawing nothing and swallowing
@@ -1527,6 +1542,64 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
+	it("hands the audition column to the clip audition forward under AllButClipAudition, press and release", _ {
+		// `SampleMarkerEditor::padAction`'s audition arm: whatever the root, the host decides on the clip's type.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::AllButClipAudition;
+		fakelegacyui::root_takes_audition = false;
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 0);
+		expect(fakelegacyui::clip_audition_forwards).to_equal(2);
+		expect(fakelegacyui::last_clip_audition.velocity).to_equal(int32_t(0));
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+		(void)r.guest.padAction(3, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::clip_audition_forwards).to_equal(2);
+	});
+
+	it("forwards the audition column and keeps the rest under AllButAudition", _ {
+		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
+		// root, and the browser's (which swallows it) otherwise.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::AllButAudition;
+
+		fakelegacyui::root_takes_audition = true;
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64);
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		(void)r.guest.padAction(3, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+
+		fakelegacyui::root_takes_audition = false;
+		(void)r.guest.padAction(kDisplayWidth + 1, 5, 64);
+		r.guest.shell().tick(2);
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		expect(r.base.seen.size()).to_equal(size_t(3));
+	});
+
+	it("takes the main columns back when legacy's scroll finishes", _ {
+		// `SampleBrowser::scrollFinished` leaves the scroll's UI mode; the guest then repaints what it owns.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.guest.surfaces().hold_main_columns(true);
+		fakelegacy::column_sends.clear();
+		r.guest.scrollFinished();
+		expect(r.guest.surfaces().main_columns_held()).to_be_false();
+		expect(fakelegacyui::modes_exited.size()).to_equal(size_t(1));
+		expect(fakelegacyui::modes_exited.empty() ? 0u : fakelegacyui::modes_exited[0])
+		    .to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
+		expect(fakelegacy::column_sends.empty()).to_be_false();
+	});
+
 	it("reopens with no pad held when the guest closed between a fed press and its release", _ {
 		// SHIFT + a pad fed to the menu, the menu closed with the pad still down, the release then legacy's: the next
 		// visit's shell must not still hold the pad (LEARN refuses while one is held).
@@ -1696,6 +1769,23 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::note_button_forwards).to_equal(2);
 		expect(fakelegacyui::last_note_button == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, false})
 		    .to_be_true();
+	});
+
+	it("hands a button to the menu's SAVE arm before the shell, and takes its answer", _ {
+		// `SoundEditor::buttonAction`'s SAVE arm is legacy's, as the note mode's buttons are (`forwardMenuSaveButton`).
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+		fakelegacyui::menu_save_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+		expect(fakelegacyui::menu_save_forwards).to_equal(1);
+		// Declined, the button goes on to the shell as before.
+		fakelegacyui::menu_save_answer = std::nullopt;
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, false);
+		expect(fakelegacyui::menu_save_forwards).to_equal(2);
 	});
 
 	it("does not consult the note mode for the two gold-knob pushes, whose early return comes first", _ {
@@ -2436,7 +2526,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// **The guard at `ShellHostUI::rearmTimer`'s top**.
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
-		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
+		// (`gui/ui_timer_manager.cpp:143-149`) -- so arming it while something else is current hands
 		// this guest's tick to that something else.
 		//
 		// This is not hypothetical, and it is not a state the guest puts itself into: three of the
@@ -2520,7 +2610,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(40'000'000));
 
 		// Past it, the arm saturates. Unclamped, `ms * 44` is 4.4e9 and overflows
-		// (`gui/ui_timer_manager.cpp:253-255`); waking early instead costs one tick, because the
+		// (`gui/ui_timer_manager.cpp:252-254`); waking early instead costs one tick, because the
 		// next tick recomputes `next_wake()` from scratch.
 		Rig far;
 		far.base.timer = 100'000'000; // ~27 hours
@@ -2599,7 +2689,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		(void)run_quiet(survive.guest, now, 3);
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
-		// Reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:149-155`), not from
+		// Reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:150-156`), not from
 		// `UI_SPECIFIC`, so nothing has re-armed the tick and the stack has just changed.
 		expect(survive.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));

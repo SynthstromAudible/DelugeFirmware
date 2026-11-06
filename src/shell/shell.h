@@ -376,7 +376,7 @@ public:
 	///          whole of playback (`AudioClipScene::next_timer`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
-	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218`, and
+	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:212-217`, and
 	///          `Scene::next_timer`'s own doc has the measurement.) So while an audio clip is
 	///          playing this hook reports `now_ms` on
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
@@ -397,7 +397,7 @@ public:
 	///          `now` on every tick, which is a full grid *render* at up to 1 kHz, and the guest
 	///          re-arms `UI_SPECIFIC` at 1 ms, which runs legacy's whole 29-timer sweep at up to
 	///          1 kHz where `graphicsRoutine` -- the thing this is faithful to -- runs at ~66 Hz
-	///          (`gui/ui_timer_manager.cpp:213-218`). Latent rather than live: the guest's only
+	///          (`gui/ui_timer_manager.cpp:212-217`). Latent rather than live: the guest's only
 	///          tenant today is `MenuScene`, whose `next_timer()` answers `std::nullopt` for most of
 	///          the tree. It stops being latent the moment `AudioClipScene` becomes a guest tenant.
 	///
@@ -420,6 +420,13 @@ public:
 	std::optional<uint32_t> next_wake(uint32_t now_ms) const {
 		return notify::dirty().pending(notify::DirtyConsumer::Shell) ? std::optional<uint32_t>{now_ms} : next_wake_;
 	}
+	/// @brief Bring `next_wake()` forward to any scene's timer as it stands now.
+	///
+	/// For a host that acts on the scenes between ticks (the guest's drains hand a scene its answer after `tick`
+	/// returned): a timer that answer moved is otherwise unseen until something else wakes the shell. Only ever
+	/// earlier, never later: a deadline already set stands.
+	/// @param now_ms The clock now.
+	void reconsider_wake(uint32_t now_ms);
 
 	/// @name Inspection
 	/// @{

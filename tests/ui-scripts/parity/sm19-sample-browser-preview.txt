@@ -1,0 +1,48 @@
+# ShellMenu: the sample browser previews what it selects. SHIFT + BROWSE opens it from the synth clip (greyed root
+# view, the BROWSE pad blinking); Select +1 onto CLIPS and SELECT into it previews its first file and shows the
+# waveform; Select +1 scrolls the next file's waveform in (snapshots 100 ms and 300 ms after the turn); BACK onto the
+# folder scrolls back to the root view; a main-pad press shows the keyboard, a move hides it, KEYBOARD keeps it
+# shown; BACK twice closes. Run on the content ShellMenu card with --audio-wav.
+100   snapshot boot
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+2500  snapshot browser
+3600  encoder Select +1
+5000  snapshot clips
+6100  button SelectEnc down
+6120  button SelectEnc up
+8000  snapshot first_file
+9100  encoder Select +1
+9200  snapshot next_100
+9400  snapshot next_300
+9500  snapshot next_400
+11000 snapshot next_settled
+12100 button Back down
+12120 button Back up
+12220 snapshot folder_100
+12420 snapshot folder_300
+12520 snapshot folder_400
+14000 snapshot folder_settled
+15100 button SelectEnc down
+15120 button SelectEnc up
+17000 snapshot reentered
+18100 pad 3 3 down
+18140 pad 3 3 up
+19500 snapshot keyboard
+20600 encoder Select +1
+22000 snapshot keyboard_hidden
+23100 button Keyboard down
+23120 button Keyboard up
+24500 snapshot keyboard_always
+25600 encoder Select +1
+25700 snapshot always_100
+25900 snapshot always_300
+27500 snapshot always_settled
+28600 button Back down
+28620 button Back up
+30000 snapshot up_folder
+31100 button Back down
+31120 button Back up
+32500 snapshot closed

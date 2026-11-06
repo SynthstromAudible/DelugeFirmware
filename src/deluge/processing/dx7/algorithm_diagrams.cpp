@@ -1,7 +1,21 @@
-#include "algorithm_bitmaps.h"
-#include "definitions_cxx.hpp"
+#include "processing/dx7/algorithm_diagrams.h"
 
-namespace deluge::gui::menu_item::dx {
+#include "board_config.h" // PLACE_SDRAM_RODATA
+
+#include <algorithm>
+
+namespace deluge::dx7 {
+
+namespace {
+
+struct AlgorithmBitmap {
+	uint16_t offset; ///< into kAlgorithmBitmapData
+	uint8_t x;
+	uint8_t y;
+	uint8_t width;
+	uint8_t height;
+	uint8_t num_bytes_tall;
+};
 
 // clang-format off
 PLACE_SDRAM_RODATA const uint8_t kAlgorithmBitmapData[] = {
@@ -549,4 +563,16 @@ PLACE_SDRAM_RODATA const AlgorithmBitmap kAlgorithmBitmaps[kNumAlgorithms] = {
 };
 // clang-format on
 
-} // namespace deluge::gui::menu_item::dx
+} // namespace
+
+AlgorithmDiagram algorithm_diagram(int32_t n) {
+	const AlgorithmBitmap& b = kAlgorithmBitmaps[std::clamp<int32_t>(n, 0, kNumAlgorithms - 1)];
+	return {.data = &kAlgorithmBitmapData[b.offset],
+	        .x = b.x,
+	        .y = b.y,
+	        .width = b.width,
+	        .height = b.height,
+	        .num_bytes_tall = b.num_bytes_tall};
+}
+
+} // namespace deluge::dx7

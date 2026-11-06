@@ -1604,19 +1604,69 @@
             "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
+            "select_chain": [
+              {
+                "children": [
+                  {
+                    "id": 140,
+                    "name": "load DX7 .syx file",
+                    "title": "load DX7 .syx file",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 141,
+                    "name": "DX7 parameters",
+                    "select_chain": [
+                      {
+                        "id": 142,
+                        "name": "DX7 param",
+                        "title": "DX7 param",
+                        "type": "basic"
+                      },
+                      {
+                        "id": 143,
+                        "name": "DX7 parameters",
+                        "select_chain": [
+                          {
+                            "id": 142,
+                            "name": "DX7 param",
+                            "title": "DX7 param",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "DX7 operator *",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "DX7 parameters",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 144,
+                    "name": "engine version",
+                    "title": "engine version",
+                    "type": "basic"
+                  }
+                ],
+                "id": 139,
+                "name": "DX7 source",
+                "title": "DX7 source",
+                "type": "submenu"
+              }
+            ],
             "title": "Osc* type",
             "type": "basic"
           },
           {
             "available_when": "osc0_file_selector",
-            "id": 139,
+            "id": 145,
             "name": "File browser",
             "title": "File browser",
             "type": "basic"
           },
           {
             "available_when": "osc0_transpose",
-            "id": 140,
+            "id": 146,
             "name": "Transpose",
             "select_chain": [
               {
@@ -1663,7 +1713,7 @@
             "type": "basic"
           },
           {
-            "id": 141,
+            "id": 147,
             "name": "Wave-index",
             "select_chain": [
               {
@@ -1710,7 +1760,7 @@
             "type": "basic"
           },
           {
-            "id": 142,
+            "id": 148,
             "name": "Pulse Width",
             "select_chain": [
               {
@@ -1757,7 +1807,7 @@
             "type": "basic"
           },
           {
-            "id": 143,
+            "id": 149,
             "name": "Feedback",
             "select_chain": [
               {
@@ -1805,56 +1855,56 @@
           },
           {
             "available_when": "setting:osc1/retrigPhase",
-            "id": 144,
+            "id": 150,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/reversed",
-            "id": 145,
+            "id": 151,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/loopMode",
-            "id": 146,
+            "id": 152,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/timeStretchAmount",
-            "id": 147,
+            "id": 153,
             "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/timeStretchEnable",
-            "id": 148,
+            "id": 154,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/linearInterpolation",
-            "id": 149,
+            "id": 155,
             "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
-            "id": 150,
+            "id": 156,
             "name": "Start-point",
             "title": "Start-point",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
-            "id": 151,
+            "id": 157,
             "name": "End-point",
             "title": "End-point",
             "type": "basic"
@@ -1869,21 +1919,71 @@
         "children": [
           {
             "available_when": "setting:osc2/type",
-            "id": 153,
+            "id": 159,
             "name": "Type",
+            "select_chain": [
+              {
+                "children": [
+                  {
+                    "id": 140,
+                    "name": "load DX7 .syx file",
+                    "title": "load DX7 .syx file",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 141,
+                    "name": "DX7 parameters",
+                    "select_chain": [
+                      {
+                        "id": 142,
+                        "name": "DX7 param",
+                        "title": "DX7 param",
+                        "type": "basic"
+                      },
+                      {
+                        "id": 143,
+                        "name": "DX7 parameters",
+                        "select_chain": [
+                          {
+                            "id": 142,
+                            "name": "DX7 param",
+                            "title": "DX7 param",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "DX7 operator *",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "DX7 parameters",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 144,
+                    "name": "engine version",
+                    "title": "engine version",
+                    "type": "basic"
+                  }
+                ],
+                "id": 139,
+                "name": "DX7 source",
+                "title": "DX7 source",
+                "type": "submenu"
+              }
+            ],
             "title": "Osc* type",
             "type": "basic"
           },
           {
             "available_when": "osc1_file_selector",
-            "id": 154,
+            "id": 160,
             "name": "File browser",
             "title": "File browser",
             "type": "basic"
           },
           {
             "available_when": "osc1_transpose",
-            "id": 155,
+            "id": 161,
             "name": "Transpose",
             "select_chain": [
               {
@@ -1930,7 +2030,7 @@
             "type": "basic"
           },
           {
-            "id": 156,
+            "id": 162,
             "name": "Wave-index",
             "select_chain": [
               {
@@ -1977,7 +2077,7 @@
             "type": "basic"
           },
           {
-            "id": 157,
+            "id": 163,
             "name": "Pulse Width",
             "select_chain": [
               {
@@ -2024,7 +2124,7 @@
             "type": "basic"
           },
           {
-            "id": 158,
+            "id": 164,
             "name": "Feedback",
             "select_chain": [
               {
@@ -2072,62 +2172,62 @@
           },
           {
             "available_when": "setting:osc2/retrigPhase",
-            "id": 159,
+            "id": 165,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/reversed",
-            "id": 160,
+            "id": 166,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/loopMode",
-            "id": 161,
+            "id": 167,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/timeStretchAmount",
-            "id": 162,
+            "id": 168,
             "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/timeStretchEnable",
-            "id": 163,
+            "id": 169,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/linearInterpolation",
-            "id": 164,
+            "id": 170,
             "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
-            "id": 165,
+            "id": 171,
             "name": "Start-point",
             "title": "Start-point",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
-            "id": 166,
+            "id": 172,
             "name": "End-point",
             "title": "End-point",
             "type": "basic"
           }
         ],
-        "id": 152,
+        "id": 158,
         "name": "Oscillator 2",
         "title": "Oscillator 2",
         "type": "submenu"
@@ -2137,7 +2237,7 @@
         "children": [
           {
             "available_when": "setting:modulator1/transpose",
-            "id": 168,
+            "id": 174,
             "name": "Transpose",
             "select_chain": [
               {
@@ -2184,7 +2284,7 @@
             "type": "basic"
           },
           {
-            "id": 169,
+            "id": 175,
             "name": "Feedback",
             "select_chain": [
               {
@@ -2232,13 +2332,13 @@
           },
           {
             "available_when": "setting:modulator1/retrigPhase",
-            "id": 170,
+            "id": 176,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           }
         ],
-        "id": 167,
+        "id": 173,
         "name": "FM mod 1",
         "title": "FM mod 1",
         "type": "submenu"
@@ -2248,7 +2348,7 @@
         "children": [
           {
             "available_when": "setting:modulator2/transpose",
-            "id": 172,
+            "id": 178,
             "name": "Transpose",
             "select_chain": [
               {
@@ -2295,7 +2395,7 @@
             "type": "basic"
           },
           {
-            "id": 173,
+            "id": 179,
             "name": "Feedback",
             "select_chain": [
               {
@@ -2343,20 +2443,20 @@
           },
           {
             "available_when": "setting:modulator2/retrigPhase",
-            "id": 174,
+            "id": 180,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           },
           {
             "available_when": "setting:modulator2/toModulator1",
-            "id": 175,
+            "id": 181,
             "name": "Destination",
             "title": "FM Mod2 dest",
             "type": "basic"
           }
         ],
-        "id": 171,
+        "id": 177,
         "name": "FM mod 2",
         "title": "FM mod 2",
         "type": "submenu"
@@ -2364,7 +2464,7 @@
       {
         "children": [
           {
-            "id": 177,
+            "id": 183,
             "name": "Osc* level",
             "select_chain": [
               {
@@ -2411,7 +2511,7 @@
             "type": "basic"
           },
           {
-            "id": 178,
+            "id": 184,
             "name": "Osc* level",
             "select_chain": [
               {
@@ -2458,7 +2558,7 @@
             "type": "basic"
           },
           {
-            "id": 179,
+            "id": 185,
             "name": "FM Mod* level",
             "select_chain": [
               {
@@ -2505,7 +2605,7 @@
             "type": "basic"
           },
           {
-            "id": 180,
+            "id": 186,
             "name": "FM Mod* level",
             "select_chain": [
               {
@@ -2600,13 +2700,13 @@
           },
           {
             "available_when": "setting:osc2/oscillatorSync",
-            "id": 181,
+            "id": 187,
             "name": "Oscillator sync",
             "title": "Oscillator sync",
             "type": "basic"
           }
         ],
-        "id": 176,
+        "id": 182,
         "name": "Osc mixer",
         "title": "Osc mixer",
         "type": "submenu"
@@ -2614,251 +2714,8 @@
       {
         "children": [
           {
-            "id": 183,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 184,
-            "name": "Decay",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* decay",
-            "type": "basic"
-          },
-          {
-            "id": 185,
-            "name": "Sustain",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* sustain",
-            "type": "basic"
-          },
-          {
-            "id": 186,
-            "name": "Release",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* release",
-            "type": "basic"
-          }
-        ],
-        "id": 182,
-        "name": "Envelope *",
-        "title": "Envelope *",
-        "type": "submenu"
-      },
-      {
-        "children": [
-          {
-            "id": 188,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
             "id": 189,
-            "name": "Decay",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -2900,12 +2757,12 @@
                 "type": "basic"
               }
             ],
-            "title": "Env* decay",
+            "title": "Env* attack",
             "type": "basic"
           },
           {
             "id": 190,
-            "name": "Sustain",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -2947,11 +2804,58 @@
                 "type": "basic"
               }
             ],
-            "title": "Env* sustain",
+            "title": "Env* decay",
             "type": "basic"
           },
           {
             "id": 191,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 192,
             "name": "Release",
             "select_chain": [
               {
@@ -2998,7 +2902,7 @@
             "type": "basic"
           }
         ],
-        "id": 187,
+        "id": 188,
         "name": "Envelope *",
         "title": "Envelope *",
         "type": "submenu"
@@ -3006,7 +2910,7 @@
       {
         "children": [
           {
-            "id": 193,
+            "id": 194,
             "name": "Attack",
             "select_chain": [
               {
@@ -3050,206 +2954,10 @@
               }
             ],
             "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 194,
-            "name": "Decay",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* decay",
             "type": "basic"
           },
           {
             "id": 195,
-            "name": "Sustain",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* sustain",
-            "type": "basic"
-          },
-          {
-            "id": 196,
-            "name": "Release",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* release",
-            "type": "basic"
-          }
-        ],
-        "id": 192,
-        "name": "Envelope *",
-        "title": "Envelope *",
-        "type": "submenu"
-      },
-      {
-        "children": [
-          {
-            "id": 198,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 199,
             "name": "Decay",
             "select_chain": [
               {
@@ -3296,7 +3004,7 @@
             "type": "basic"
           },
           {
-            "id": 200,
+            "id": 196,
             "name": "Sustain",
             "select_chain": [
               {
@@ -3343,7 +3051,7 @@
             "type": "basic"
           },
           {
-            "id": 201,
+            "id": 197,
             "name": "Release",
             "select_chain": [
               {
@@ -3390,7 +3098,7 @@
             "type": "basic"
           }
         ],
-        "id": 197,
+        "id": 193,
         "name": "Envelope *",
         "title": "Envelope *",
         "type": "submenu"
@@ -3398,19 +3106,411 @@
       {
         "children": [
           {
-            "id": 203,
+            "id": 199,
+            "name": "Attack",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* attack",
+            "type": "basic"
+          },
+          {
+            "id": 200,
+            "name": "Decay",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* decay",
+            "type": "basic"
+          },
+          {
+            "id": 201,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 202,
+            "name": "Release",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* release",
+            "type": "basic"
+          }
+        ],
+        "id": 198,
+        "name": "Envelope *",
+        "title": "Envelope *",
+        "type": "submenu"
+      },
+      {
+        "children": [
+          {
+            "id": 204,
+            "name": "Attack",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* attack",
+            "type": "basic"
+          },
+          {
+            "id": 205,
+            "name": "Decay",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* decay",
+            "type": "basic"
+          },
+          {
+            "id": 206,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 207,
+            "name": "Release",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* release",
+            "type": "basic"
+          }
+        ],
+        "id": 203,
+        "name": "Envelope *",
+        "title": "Envelope *",
+        "type": "submenu"
+      },
+      {
+        "children": [
+          {
+            "id": 209,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 204,
+            "id": 210,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 205,
+            "id": 211,
             "name": "Rate",
             "select_chain": [
               {
@@ -3457,7 +3557,7 @@
             "type": "basic"
           }
         ],
-        "id": 202,
+        "id": 208,
         "name": "LFO 1",
         "title": "LFO 1",
         "type": "submenu"
@@ -3465,19 +3565,19 @@
       {
         "children": [
           {
-            "id": 207,
+            "id": 213,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 208,
+            "id": 214,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 209,
+            "id": 215,
             "name": "Rate",
             "select_chain": [
               {
@@ -3524,7 +3624,7 @@
             "type": "basic"
           }
         ],
-        "id": 206,
+        "id": 212,
         "name": "LFO 2",
         "title": "LFO 2",
         "type": "submenu"
@@ -3532,19 +3632,19 @@
       {
         "children": [
           {
-            "id": 211,
+            "id": 217,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 212,
+            "id": 218,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 213,
+            "id": 219,
             "name": "Rate",
             "select_chain": [
               {
@@ -3591,7 +3691,7 @@
             "type": "basic"
           }
         ],
-        "id": 210,
+        "id": 216,
         "name": "LFO 3",
         "title": "LFO 3",
         "type": "submenu"
@@ -3599,19 +3699,19 @@
       {
         "children": [
           {
-            "id": 215,
+            "id": 221,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 216,
+            "id": 222,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 217,
+            "id": 223,
             "name": "Rate",
             "select_chain": [
               {
@@ -3658,7 +3758,7 @@
             "type": "basic"
           }
         ],
-        "id": 214,
+        "id": 220,
         "name": "LFO 4",
         "title": "LFO 4",
         "type": "submenu"
@@ -3666,18 +3766,18 @@
       {
         "children": [
           {
-            "id": 219,
+            "id": 225,
             "name": "Priority",
             "title": "Priority",
             "type": "basic"
           },
           {
-            "id": 220,
+            "id": 226,
             "name": "Polyphony",
             "select_chain": [
               {
                 "available_when": "setting:maxVoices",
-                "id": 221,
+                "id": 227,
                 "name": "Max Voices",
                 "title": "Max Voices",
                 "type": "basic"
@@ -3688,13 +3788,13 @@
           },
           {
             "available_when": "setting:maxVoices",
-            "id": 221,
+            "id": 227,
             "name": "Max Voices",
             "title": "Max Voices",
             "type": "basic"
           },
           {
-            "id": 222,
+            "id": 228,
             "name": "Portamento",
             "title": "Portamento",
             "type": "basic"
@@ -3702,11 +3802,11 @@
           {
             "children": [
               {
-                "id": 224,
+                "id": 230,
                 "name": "Number",
                 "select_chain": [
                   {
-                    "id": 225,
+                    "id": 231,
                     "name": "Spread",
                     "title": "Unison stereo spread",
                     "type": "basic"
@@ -3716,25 +3816,25 @@
                 "type": "basic"
               },
               {
-                "id": 226,
+                "id": 232,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
-                "id": 225,
+                "id": 231,
                 "name": "Spread",
                 "title": "Unison stereo spread",
                 "type": "basic"
               }
             ],
-            "id": 223,
+            "id": 229,
             "name": "Unison",
             "title": "Unison",
             "type": "submenu"
           }
         ],
-        "id": 218,
+        "id": 224,
         "name": "Voice",
         "title": "Voice",
         "type": "submenu"
@@ -3743,31 +3843,31 @@
         "available_when": "bend_submenu",
         "children": [
           {
-            "id": 228,
+            "id": 234,
             "name": "Normal",
             "title": "Normal",
             "type": "basic"
           },
           {
-            "id": 229,
+            "id": 235,
             "name": "Poly / Finger / MPE",
             "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
-        "id": 227,
+        "id": 233,
         "name": "Bend range",
         "title": "Bend range",
         "type": "submenu"
       },
       {
-        "id": 230,
+        "id": 236,
         "name": "Bend range",
         "title": "Bend range",
         "type": "basic"
       },
       {
-        "id": 231,
+        "id": 237,
         "name": "Mod matrix",
         "select_chain": [
           {
@@ -3829,7 +3929,7 @@
         "type": "basic"
       },
       {
-        "id": 232,
+        "id": 238,
         "name": "Play direction",
         "title": "Play direction",
         "type": "basic"
@@ -3837,20 +3937,20 @@
       {
         "children": [
           {
-            "id": 234,
+            "id": 240,
             "name": "Channel",
             "title": "Channel",
             "type": "basic"
           },
           {
             "available_when": "setting:midiOutput/noteForDrum",
-            "id": 235,
+            "id": 241,
             "name": "Note",
             "title": "Note",
             "type": "basic"
           }
         ],
-        "id": 233,
+        "id": 239,
         "name": "MIDI",
         "title": "MIDI",
         "type": "submenu"
@@ -3866,7 +3966,7 @@
       {
         "children": [
           {
-            "id": 238,
+            "id": 244,
             "name": "Rename drum",
             "title": "Rename drum",
             "type": "basic"
@@ -3886,7 +3986,7 @@
             "type": "basic"
           }
         ],
-        "id": 237,
+        "id": 243,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -5452,19 +5552,69 @@
             "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
+            "select_chain": [
+              {
+                "children": [
+                  {
+                    "id": 140,
+                    "name": "load DX7 .syx file",
+                    "title": "load DX7 .syx file",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 141,
+                    "name": "DX7 parameters",
+                    "select_chain": [
+                      {
+                        "id": 142,
+                        "name": "DX7 param",
+                        "title": "DX7 param",
+                        "type": "basic"
+                      },
+                      {
+                        "id": 143,
+                        "name": "DX7 parameters",
+                        "select_chain": [
+                          {
+                            "id": 142,
+                            "name": "DX7 param",
+                            "title": "DX7 param",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "DX7 operator *",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "DX7 parameters",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 144,
+                    "name": "engine version",
+                    "title": "engine version",
+                    "type": "basic"
+                  }
+                ],
+                "id": 139,
+                "name": "DX7 source",
+                "title": "DX7 source",
+                "type": "submenu"
+              }
+            ],
             "title": "Osc* type",
             "type": "basic"
           },
           {
             "available_when": "osc0_file_selector",
-            "id": 139,
+            "id": 145,
             "name": "File browser",
             "title": "File browser",
             "type": "basic"
           },
           {
             "available_when": "osc0_transpose",
-            "id": 140,
+            "id": 146,
             "name": "Transpose",
             "select_chain": [
               {
@@ -5511,7 +5661,7 @@
             "type": "basic"
           },
           {
-            "id": 141,
+            "id": 147,
             "name": "Wave-index",
             "select_chain": [
               {
@@ -5558,7 +5708,7 @@
             "type": "basic"
           },
           {
-            "id": 142,
+            "id": 148,
             "name": "Pulse Width",
             "select_chain": [
               {
@@ -5605,7 +5755,7 @@
             "type": "basic"
           },
           {
-            "id": 143,
+            "id": 149,
             "name": "Feedback",
             "select_chain": [
               {
@@ -5653,56 +5803,56 @@
           },
           {
             "available_when": "setting:osc1/retrigPhase",
-            "id": 144,
+            "id": 150,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/reversed",
-            "id": 145,
+            "id": 151,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/loopMode",
-            "id": 146,
+            "id": 152,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/timeStretchAmount",
-            "id": 147,
+            "id": 153,
             "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/timeStretchEnable",
-            "id": 148,
+            "id": 154,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/linearInterpolation",
-            "id": 149,
+            "id": 155,
             "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
-            "id": 150,
+            "id": 156,
             "name": "Start-point",
             "title": "Start-point",
             "type": "basic"
           },
           {
             "available_when": "osc0_is_sample",
-            "id": 151,
+            "id": 157,
             "name": "End-point",
             "title": "End-point",
             "type": "basic"
@@ -5717,21 +5867,71 @@
         "children": [
           {
             "available_when": "setting:osc2/type",
-            "id": 153,
+            "id": 159,
             "name": "Type",
+            "select_chain": [
+              {
+                "children": [
+                  {
+                    "id": 140,
+                    "name": "load DX7 .syx file",
+                    "title": "load DX7 .syx file",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 141,
+                    "name": "DX7 parameters",
+                    "select_chain": [
+                      {
+                        "id": 142,
+                        "name": "DX7 param",
+                        "title": "DX7 param",
+                        "type": "basic"
+                      },
+                      {
+                        "id": 143,
+                        "name": "DX7 parameters",
+                        "select_chain": [
+                          {
+                            "id": 142,
+                            "name": "DX7 param",
+                            "title": "DX7 param",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "DX7 operator *",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "DX7 parameters",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 144,
+                    "name": "engine version",
+                    "title": "engine version",
+                    "type": "basic"
+                  }
+                ],
+                "id": 139,
+                "name": "DX7 source",
+                "title": "DX7 source",
+                "type": "submenu"
+              }
+            ],
             "title": "Osc* type",
             "type": "basic"
           },
           {
             "available_when": "osc1_file_selector",
-            "id": 154,
+            "id": 160,
             "name": "File browser",
             "title": "File browser",
             "type": "basic"
           },
           {
             "available_when": "osc1_transpose",
-            "id": 155,
+            "id": 161,
             "name": "Transpose",
             "select_chain": [
               {
@@ -5778,7 +5978,7 @@
             "type": "basic"
           },
           {
-            "id": 156,
+            "id": 162,
             "name": "Wave-index",
             "select_chain": [
               {
@@ -5825,7 +6025,7 @@
             "type": "basic"
           },
           {
-            "id": 157,
+            "id": 163,
             "name": "Pulse Width",
             "select_chain": [
               {
@@ -5872,7 +6072,7 @@
             "type": "basic"
           },
           {
-            "id": 158,
+            "id": 164,
             "name": "Feedback",
             "select_chain": [
               {
@@ -5920,62 +6120,62 @@
           },
           {
             "available_when": "setting:osc2/retrigPhase",
-            "id": 159,
+            "id": 165,
             "name": "Retrigger phase",
             "title": "Osc* r. phase",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/reversed",
-            "id": 160,
+            "id": 166,
             "name": "Reverse",
             "title": "Samp* reverse",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/loopMode",
-            "id": 161,
+            "id": 167,
             "name": "Repeat Mode",
             "title": "Samp* repeat",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/timeStretchAmount",
-            "id": 162,
+            "id": 168,
             "name": "Speed",
             "title": "Samp* speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/timeStretchEnable",
-            "id": 163,
+            "id": 169,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "setting:osc2/linearInterpolation",
-            "id": 164,
+            "id": 170,
             "name": "Interpolation",
             "title": "Samp* interp",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
-            "id": 165,
+            "id": 171,
             "name": "Start-point",
             "title": "Start-point",
             "type": "basic"
           },
           {
             "available_when": "osc1_is_sample",
-            "id": 166,
+            "id": 172,
             "name": "End-point",
             "title": "End-point",
             "type": "basic"
           }
         ],
-        "id": 152,
+        "id": 158,
         "name": "Oscillator 2",
         "title": "Oscillator 2",
         "type": "submenu"
@@ -5985,7 +6185,7 @@
         "children": [
           {
             "available_when": "setting:modulator1/transpose",
-            "id": 168,
+            "id": 174,
             "name": "Transpose",
             "select_chain": [
               {
@@ -6032,7 +6232,7 @@
             "type": "basic"
           },
           {
-            "id": 169,
+            "id": 175,
             "name": "Feedback",
             "select_chain": [
               {
@@ -6080,13 +6280,13 @@
           },
           {
             "available_when": "setting:modulator1/retrigPhase",
-            "id": 170,
+            "id": 176,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           }
         ],
-        "id": 167,
+        "id": 173,
         "name": "FM mod 1",
         "title": "FM mod 1",
         "type": "submenu"
@@ -6096,7 +6296,7 @@
         "children": [
           {
             "available_when": "setting:modulator2/transpose",
-            "id": 172,
+            "id": 178,
             "name": "Transpose",
             "select_chain": [
               {
@@ -6143,7 +6343,7 @@
             "type": "basic"
           },
           {
-            "id": 173,
+            "id": 179,
             "name": "Feedback",
             "select_chain": [
               {
@@ -6191,20 +6391,20 @@
           },
           {
             "available_when": "setting:modulator2/retrigPhase",
-            "id": 174,
+            "id": 180,
             "name": "Retrigger phase",
             "title": "FM Mod* retrig",
             "type": "basic"
           },
           {
             "available_when": "setting:modulator2/toModulator1",
-            "id": 175,
+            "id": 181,
             "name": "Destination",
             "title": "FM Mod2 dest",
             "type": "basic"
           }
         ],
-        "id": 171,
+        "id": 177,
         "name": "FM mod 2",
         "title": "FM mod 2",
         "type": "submenu"
@@ -6212,7 +6412,7 @@
       {
         "children": [
           {
-            "id": 177,
+            "id": 183,
             "name": "Osc* level",
             "select_chain": [
               {
@@ -6259,7 +6459,7 @@
             "type": "basic"
           },
           {
-            "id": 178,
+            "id": 184,
             "name": "Osc* level",
             "select_chain": [
               {
@@ -6306,7 +6506,7 @@
             "type": "basic"
           },
           {
-            "id": 179,
+            "id": 185,
             "name": "FM Mod* level",
             "select_chain": [
               {
@@ -6353,7 +6553,7 @@
             "type": "basic"
           },
           {
-            "id": 180,
+            "id": 186,
             "name": "FM Mod* level",
             "select_chain": [
               {
@@ -6448,13 +6648,13 @@
           },
           {
             "available_when": "setting:osc2/oscillatorSync",
-            "id": 181,
+            "id": 187,
             "name": "Oscillator sync",
             "title": "Oscillator sync",
             "type": "basic"
           }
         ],
-        "id": 176,
+        "id": 182,
         "name": "Osc mixer",
         "title": "Osc mixer",
         "type": "submenu"
@@ -6462,251 +6662,8 @@
       {
         "children": [
           {
-            "id": 183,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 184,
-            "name": "Decay",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* decay",
-            "type": "basic"
-          },
-          {
-            "id": 185,
-            "name": "Sustain",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* sustain",
-            "type": "basic"
-          },
-          {
-            "id": 186,
-            "name": "Release",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* release",
-            "type": "basic"
-          }
-        ],
-        "id": 182,
-        "name": "Envelope *",
-        "title": "Envelope *",
-        "type": "submenu"
-      },
-      {
-        "children": [
-          {
-            "id": 188,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
             "id": 189,
-            "name": "Decay",
+            "name": "Attack",
             "select_chain": [
               {
                 "id": 11,
@@ -6748,12 +6705,12 @@
                 "type": "basic"
               }
             ],
-            "title": "Env* decay",
+            "title": "Env* attack",
             "type": "basic"
           },
           {
             "id": 190,
-            "name": "Sustain",
+            "name": "Decay",
             "select_chain": [
               {
                 "id": 11,
@@ -6795,11 +6752,58 @@
                 "type": "basic"
               }
             ],
-            "title": "Env* sustain",
+            "title": "Env* decay",
             "type": "basic"
           },
           {
             "id": 191,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 192,
             "name": "Release",
             "select_chain": [
               {
@@ -6846,7 +6850,7 @@
             "type": "basic"
           }
         ],
-        "id": 187,
+        "id": 188,
         "name": "Envelope *",
         "title": "Envelope *",
         "type": "submenu"
@@ -6854,7 +6858,7 @@
       {
         "children": [
           {
-            "id": 193,
+            "id": 194,
             "name": "Attack",
             "select_chain": [
               {
@@ -6898,206 +6902,10 @@
               }
             ],
             "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 194,
-            "name": "Decay",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* decay",
             "type": "basic"
           },
           {
             "id": 195,
-            "name": "Sustain",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* sustain",
-            "type": "basic"
-          },
-          {
-            "id": 196,
-            "name": "Release",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* release",
-            "type": "basic"
-          }
-        ],
-        "id": 192,
-        "name": "Envelope *",
-        "title": "Envelope *",
-        "type": "submenu"
-      },
-      {
-        "children": [
-          {
-            "id": 198,
-            "name": "Attack",
-            "select_chain": [
-              {
-                "id": 11,
-                "name": "Modulate with",
-                "select_chain": [
-                  {
-                    "id": 12,
-                    "name": "Modulate with",
-                    "select_chain": [
-                      {
-                        "id": 13,
-                        "name": "Modulate depth",
-                        "select_chain": [
-                          {
-                            "id": 14,
-                            "name": "Modulate depth",
-                            "select_chain": [
-                              {
-                                "id": 13,
-                                "name": "Modulate depth",
-                                "ref": true,
-                                "title": "Modulate depth",
-                                "type": "basic"
-                              }
-                            ],
-                            "title": "Modulate depth",
-                            "type": "basic"
-                          }
-                        ],
-                        "title": "Modulate depth",
-                        "type": "basic"
-                      }
-                    ],
-                    "title": "Modulate with",
-                    "type": "basic"
-                  }
-                ],
-                "title": "Modulate with",
-                "type": "basic"
-              }
-            ],
-            "title": "Env* attack",
-            "type": "basic"
-          },
-          {
-            "id": 199,
             "name": "Decay",
             "select_chain": [
               {
@@ -7144,7 +6952,7 @@
             "type": "basic"
           },
           {
-            "id": 200,
+            "id": 196,
             "name": "Sustain",
             "select_chain": [
               {
@@ -7191,7 +6999,7 @@
             "type": "basic"
           },
           {
-            "id": 201,
+            "id": 197,
             "name": "Release",
             "select_chain": [
               {
@@ -7238,7 +7046,7 @@
             "type": "basic"
           }
         ],
-        "id": 197,
+        "id": 193,
         "name": "Envelope *",
         "title": "Envelope *",
         "type": "submenu"
@@ -7246,19 +7054,411 @@
       {
         "children": [
           {
-            "id": 203,
+            "id": 199,
+            "name": "Attack",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* attack",
+            "type": "basic"
+          },
+          {
+            "id": 200,
+            "name": "Decay",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* decay",
+            "type": "basic"
+          },
+          {
+            "id": 201,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 202,
+            "name": "Release",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* release",
+            "type": "basic"
+          }
+        ],
+        "id": 198,
+        "name": "Envelope *",
+        "title": "Envelope *",
+        "type": "submenu"
+      },
+      {
+        "children": [
+          {
+            "id": 204,
+            "name": "Attack",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* attack",
+            "type": "basic"
+          },
+          {
+            "id": 205,
+            "name": "Decay",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* decay",
+            "type": "basic"
+          },
+          {
+            "id": 206,
+            "name": "Sustain",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* sustain",
+            "type": "basic"
+          },
+          {
+            "id": 207,
+            "name": "Release",
+            "select_chain": [
+              {
+                "id": 11,
+                "name": "Modulate with",
+                "select_chain": [
+                  {
+                    "id": 12,
+                    "name": "Modulate with",
+                    "select_chain": [
+                      {
+                        "id": 13,
+                        "name": "Modulate depth",
+                        "select_chain": [
+                          {
+                            "id": 14,
+                            "name": "Modulate depth",
+                            "select_chain": [
+                              {
+                                "id": 13,
+                                "name": "Modulate depth",
+                                "ref": true,
+                                "title": "Modulate depth",
+                                "type": "basic"
+                              }
+                            ],
+                            "title": "Modulate depth",
+                            "type": "basic"
+                          }
+                        ],
+                        "title": "Modulate depth",
+                        "type": "basic"
+                      }
+                    ],
+                    "title": "Modulate with",
+                    "type": "basic"
+                  }
+                ],
+                "title": "Modulate with",
+                "type": "basic"
+              }
+            ],
+            "title": "Env* release",
+            "type": "basic"
+          }
+        ],
+        "id": 203,
+        "name": "Envelope *",
+        "title": "Envelope *",
+        "type": "submenu"
+      },
+      {
+        "children": [
+          {
+            "id": 209,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 204,
+            "id": 210,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 205,
+            "id": 211,
             "name": "Rate",
             "select_chain": [
               {
@@ -7305,7 +7505,7 @@
             "type": "basic"
           }
         ],
-        "id": 202,
+        "id": 208,
         "name": "LFO 1",
         "title": "LFO 1",
         "type": "submenu"
@@ -7313,19 +7513,19 @@
       {
         "children": [
           {
-            "id": 207,
+            "id": 213,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 208,
+            "id": 214,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 209,
+            "id": 215,
             "name": "Rate",
             "select_chain": [
               {
@@ -7372,7 +7572,7 @@
             "type": "basic"
           }
         ],
-        "id": 206,
+        "id": 212,
         "name": "LFO 2",
         "title": "LFO 2",
         "type": "submenu"
@@ -7380,19 +7580,19 @@
       {
         "children": [
           {
-            "id": 211,
+            "id": 217,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 212,
+            "id": 218,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 213,
+            "id": 219,
             "name": "Rate",
             "select_chain": [
               {
@@ -7439,7 +7639,7 @@
             "type": "basic"
           }
         ],
-        "id": 210,
+        "id": 216,
         "name": "LFO 3",
         "title": "LFO 3",
         "type": "submenu"
@@ -7447,19 +7647,19 @@
       {
         "children": [
           {
-            "id": 215,
+            "id": 221,
             "name": "Shape",
             "title": "LFO* shape",
             "type": "basic"
           },
           {
-            "id": 216,
+            "id": 222,
             "name": "Sync",
             "title": "LFO* sync",
             "type": "basic"
           },
           {
-            "id": 217,
+            "id": 223,
             "name": "Rate",
             "select_chain": [
               {
@@ -7506,7 +7706,7 @@
             "type": "basic"
           }
         ],
-        "id": 214,
+        "id": 220,
         "name": "LFO 4",
         "title": "LFO 4",
         "type": "submenu"
@@ -7514,18 +7714,18 @@
       {
         "children": [
           {
-            "id": 219,
+            "id": 225,
             "name": "Priority",
             "title": "Priority",
             "type": "basic"
           },
           {
-            "id": 220,
+            "id": 226,
             "name": "Polyphony",
             "select_chain": [
               {
                 "available_when": "setting:maxVoices",
-                "id": 221,
+                "id": 227,
                 "name": "Max Voices",
                 "title": "Max Voices",
                 "type": "basic"
@@ -7536,13 +7736,13 @@
           },
           {
             "available_when": "setting:maxVoices",
-            "id": 221,
+            "id": 227,
             "name": "Max Voices",
             "title": "Max Voices",
             "type": "basic"
           },
           {
-            "id": 222,
+            "id": 228,
             "name": "Portamento",
             "title": "Portamento",
             "type": "basic"
@@ -7550,11 +7750,11 @@
           {
             "children": [
               {
-                "id": 224,
+                "id": 230,
                 "name": "Number",
                 "select_chain": [
                   {
-                    "id": 225,
+                    "id": 231,
                     "name": "Spread",
                     "title": "Unison stereo spread",
                     "type": "basic"
@@ -7564,25 +7764,25 @@
                 "type": "basic"
               },
               {
-                "id": 226,
+                "id": 232,
                 "name": "Detune",
                 "title": "Unison detune",
                 "type": "basic"
               },
               {
-                "id": 225,
+                "id": 231,
                 "name": "Spread",
                 "title": "Unison stereo spread",
                 "type": "basic"
               }
             ],
-            "id": 223,
+            "id": 229,
             "name": "Unison",
             "title": "Unison",
             "type": "submenu"
           }
         ],
-        "id": 218,
+        "id": 224,
         "name": "Voice",
         "title": "Voice",
         "type": "submenu"
@@ -7591,31 +7791,31 @@
         "available_when": "bend_submenu",
         "children": [
           {
-            "id": 228,
+            "id": 234,
             "name": "Normal",
             "title": "Normal",
             "type": "basic"
           },
           {
-            "id": 229,
+            "id": 235,
             "name": "Poly / Finger / MPE",
             "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
-        "id": 227,
+        "id": 233,
         "name": "Bend range",
         "title": "Bend range",
         "type": "submenu"
       },
       {
-        "id": 230,
+        "id": 236,
         "name": "Bend range",
         "title": "Bend range",
         "type": "basic"
       },
       {
-        "id": 231,
+        "id": 237,
         "name": "Mod matrix",
         "select_chain": [
           {
@@ -7677,7 +7877,7 @@
         "type": "basic"
       },
       {
-        "id": 232,
+        "id": 238,
         "name": "Play direction",
         "title": "Play direction",
         "type": "basic"
@@ -7685,26 +7885,26 @@
       {
         "children": [
           {
-            "id": 234,
+            "id": 240,
             "name": "Channel",
             "title": "Channel",
             "type": "basic"
           },
           {
             "available_when": "setting:midiOutput/noteForDrum",
-            "id": 235,
+            "id": 241,
             "name": "Note",
             "title": "Note",
             "type": "basic"
           }
         ],
-        "id": 233,
+        "id": 239,
         "name": "MIDI",
         "title": "MIDI",
         "type": "submenu"
       }
     ],
-    "id": 236,
+    "id": 242,
     "name": "Sound",
     "title": "Sound",
     "type": "submenu"
@@ -7734,7 +7934,7 @@
             "type": "submenu"
           }
         ],
-        "id": 240,
+        "id": 246,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -7744,19 +7944,19 @@
         "children": [
           {
             "available_when": "is_midi_out",
-            "id": 242,
+            "id": 248,
             "name": "File Linked",
             "title": "File Linked",
             "type": "basic"
           },
           {
-            "id": 243,
+            "id": 249,
             "name": "Hide Unlabeled CC",
             "title": "Hide Unlabeled CC",
             "type": "basic"
           }
         ],
-        "id": 241,
+        "id": 247,
         "name": "Device Definition",
         "title": "Device Definition",
         "type": "submenu"
@@ -7764,25 +7964,25 @@
       {
         "children": [
           {
-            "id": 245,
+            "id": 251,
             "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
           {
-            "id": 246,
+            "id": 252,
             "name": "Sub",
             "title": "MIDI sub-bank",
             "type": "basic"
           },
           {
-            "id": 247,
+            "id": 253,
             "name": "Pgm",
             "title": "MIDI PGM number",
             "type": "basic"
           }
         ],
-        "id": 244,
+        "id": 250,
         "name": "MIDI Program",
         "title": "MIDI Program",
         "type": "submenu"
@@ -7834,7 +8034,7 @@
                 "type": "basic"
               },
               {
-                "id": 250,
+                "id": 256,
                 "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
@@ -7846,13 +8046,13 @@
                 "type": "basic"
               },
               {
-                "id": 251,
+                "id": 257,
                 "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
             ],
-            "id": 249,
+            "id": 255,
             "name": "Basic",
             "title": "Arp basic",
             "type": "submenu"
@@ -7947,7 +8147,7 @@
             "type": "basic"
           }
         ],
-        "id": 248,
+        "id": 254,
         "name": "Arpeggiator",
         "title": "Arpeggiator",
         "type": "submenu"
@@ -8108,31 +8308,31 @@
         "available_when": "bend_submenu",
         "children": [
           {
-            "id": 228,
+            "id": 234,
             "name": "Normal",
             "title": "Normal",
             "type": "basic"
           },
           {
-            "id": 229,
+            "id": 235,
             "name": "Poly / Finger / MPE",
             "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
-        "id": 227,
+        "id": 233,
         "name": "Bend range",
         "title": "Bend range",
         "type": "submenu"
       },
       {
-        "id": 252,
+        "id": 258,
         "name": "CV 2 Source",
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
-        "id": 253,
+        "id": 259,
         "name": "Send Y as CC1",
         "title": "Send Y as CC1",
         "type": "basic"
@@ -8141,31 +8341,31 @@
         "available_when": "is_midi_out",
         "children": [
           {
-            "id": 255,
+            "id": 261,
             "name": "Aftertouch",
             "title": "Aftertouch",
             "type": "basic"
           },
           {
-            "id": 256,
+            "id": 262,
             "name": "MPE",
             "title": "MPE",
             "type": "basic"
           }
         ],
-        "id": 254,
+        "id": 260,
         "name": "Poly Expression to Mono",
         "title": "Poly Expression to Mono",
         "type": "submenu"
       },
       {
-        "id": 232,
+        "id": 238,
         "name": "Play direction",
         "title": "Play direction",
         "type": "basic"
       }
     ],
-    "id": 239,
+    "id": 245,
     "name": "MIDI instr",
     "title": "MIDI instr",
     "type": "submenu"
@@ -8175,7 +8375,7 @@
       {
         "children": [
           {
-            "id": 238,
+            "id": 244,
             "name": "Rename drum",
             "title": "Rename drum",
             "type": "basic"
@@ -8195,7 +8395,7 @@
             "type": "basic"
           }
         ],
-        "id": 237,
+        "id": 243,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -8247,7 +8447,7 @@
                 "type": "basic"
               },
               {
-                "id": 250,
+                "id": 256,
                 "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
@@ -8259,13 +8459,13 @@
                 "type": "basic"
               },
               {
-                "id": 251,
+                "id": 257,
                 "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
             ],
-            "id": 249,
+            "id": 255,
             "name": "Basic",
             "title": "Arp basic",
             "type": "submenu"
@@ -8360,7 +8560,7 @@
             "type": "basic"
           }
         ],
-        "id": 248,
+        "id": 254,
         "name": "Arpeggiator",
         "title": "Arpeggiator",
         "type": "submenu"
@@ -8518,7 +8718,7 @@
         "type": "submenu"
       }
     ],
-    "id": 257,
+    "id": 263,
     "name": "MIDI",
     "title": "MIDI",
     "type": "submenu"
@@ -8528,7 +8728,7 @@
       {
         "children": [
           {
-            "id": 238,
+            "id": 244,
             "name": "Rename drum",
             "title": "Rename drum",
             "type": "basic"
@@ -8548,7 +8748,7 @@
             "type": "basic"
           }
         ],
-        "id": 237,
+        "id": 243,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -8600,7 +8800,7 @@
                 "type": "basic"
               },
               {
-                "id": 250,
+                "id": 256,
                 "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
@@ -8612,13 +8812,13 @@
                 "type": "basic"
               },
               {
-                "id": 251,
+                "id": 257,
                 "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
             ],
-            "id": 249,
+            "id": 255,
             "name": "Basic",
             "title": "Arp basic",
             "type": "submenu"
@@ -8713,7 +8913,7 @@
             "type": "basic"
           }
         ],
-        "id": 248,
+        "id": 254,
         "name": "Arpeggiator",
         "title": "Arpeggiator",
         "type": "submenu"
@@ -8871,7 +9071,7 @@
         "type": "submenu"
       }
     ],
-    "id": 258,
+    "id": 264,
     "name": "Gate",
     "title": "Gate",
     "type": "submenu"
@@ -8901,26 +9101,26 @@
             "type": "submenu"
           },
           {
-            "id": 261,
+            "id": 267,
             "name": "Set Clip Length Equal to Sample Length",
             "title": "Set Clip Length Equal to Sample Length",
             "type": "basic"
           }
         ],
-        "id": 260,
+        "id": 266,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
       },
       {
-        "id": 262,
+        "id": 268,
         "name": "Audio source",
         "title": "Audio source",
         "type": "basic"
       },
       {
         "available_when": "audio_source_is_specific",
-        "id": 263,
+        "id": 269,
         "name": "Specific Track",
         "title": "Specific Track",
         "type": "basic"
@@ -8928,19 +9128,19 @@
       {
         "children": [
           {
-            "id": 265,
+            "id": 271,
             "name": "Volume",
             "title": "Volume",
             "type": "basic"
           },
           {
-            "id": 266,
+            "id": 272,
             "name": "Pan",
             "title": "Pan",
             "type": "basic"
           }
         ],
-        "id": 264,
+        "id": 270,
         "name": "Master",
         "title": "Master",
         "type": "submenu"
@@ -9005,25 +9205,25 @@
                 "type": "basic"
               },
               {
-                "id": 269,
+                "id": 275,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "id": 270,
+                "id": 276,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "id": 271,
+                "id": 277,
                 "name": "Morph",
                 "title": "LPF morph",
                 "type": "basic"
               }
             ],
-            "id": 268,
+            "id": 274,
             "name": "Lpf",
             "title": "Lpf",
             "type": "submenu"
@@ -9037,25 +9237,25 @@
                 "type": "basic"
               },
               {
-                "id": 273,
+                "id": 279,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "id": 274,
+                "id": 280,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "id": 275,
+                "id": 281,
                 "name": "Morph",
                 "title": "HPF Morph",
                 "type": "basic"
               }
             ],
-            "id": 272,
+            "id": 278,
             "name": "Hpf",
             "title": "Hpf",
             "type": "submenu"
@@ -9067,7 +9267,7 @@
             "type": "basic"
           }
         ],
-        "id": 267,
+        "id": 273,
         "name": "Filters",
         "title": "Filters",
         "type": "submenu"
@@ -9109,7 +9309,7 @@
           {
             "children": [
               {
-                "id": 278,
+                "id": 284,
                 "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
@@ -9127,7 +9327,7 @@
                 "type": "basic"
               },
               {
-                "id": 279,
+                "id": 285,
                 "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
@@ -9139,7 +9339,7 @@
                 "type": "basic"
               }
             ],
-            "id": 277,
+            "id": 283,
             "name": "Delay",
             "title": "Delay",
             "type": "submenu"
@@ -9147,7 +9347,7 @@
           {
             "children": [
               {
-                "id": 281,
+                "id": 287,
                 "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
@@ -9234,7 +9434,7 @@
                 "type": "submenu"
               }
             ],
-            "id": 280,
+            "id": 286,
             "name": "Reverb",
             "title": "Reverb",
             "type": "submenu"
@@ -9275,13 +9475,13 @@
                 "type": "basic"
               },
               {
-                "id": 283,
+                "id": 289,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "id": 284,
+                "id": 290,
                 "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
@@ -9299,7 +9499,7 @@
                 "type": "basic"
               }
             ],
-            "id": 282,
+            "id": 288,
             "name": "Mod-FX",
             "title": "Mod-FX",
             "type": "submenu"
@@ -9326,13 +9526,13 @@
                 "type": "basic"
               }
             ],
-            "id": 285,
+            "id": 291,
             "name": "Distortion",
             "title": "Distortion",
             "type": "submenu"
           }
         ],
-        "id": 276,
+        "id": 282,
         "name": "FX",
         "title": "FX",
         "type": "submenu"
@@ -9340,7 +9540,7 @@
       {
         "children": [
           {
-            "id": 287,
+            "id": 293,
             "name": "Volume ducking",
             "title": "Volume ducking",
             "type": "basic"
@@ -9373,7 +9573,7 @@
             "type": "basic"
           }
         ],
-        "id": 286,
+        "id": 292,
         "name": "Sidechain",
         "title": "Sidechain",
         "type": "submenu"
@@ -9382,63 +9582,63 @@
         "children": [
           {
             "available_when": "osc0_file_selector",
-            "id": 139,
+            "id": 145,
             "name": "File browser",
             "title": "File browser",
             "type": "basic"
           },
           {
-            "id": 289,
+            "id": 295,
             "name": "Transpose",
             "title": "Transpose",
             "type": "basic"
           },
           {
-            "id": 290,
+            "id": 296,
             "name": "Reverse",
             "title": "Reverse",
             "type": "basic"
           },
           {
             "available_when": "setting:osc1/timeStretchEnable",
-            "id": 148,
+            "id": 154,
             "name": "Pitch/Speed",
             "title": "Pitch/Speed",
             "type": "basic"
           },
           {
             "available_when": "audio_clip_has_sample",
-            "id": 291,
+            "id": 297,
             "name": "Waveform",
             "title": "Waveform",
             "type": "basic"
           },
           {
-            "id": 292,
+            "id": 298,
             "name": "Interpolation",
             "title": "AUDIO INTERP.",
             "type": "basic"
           }
         ],
-        "id": 288,
+        "id": 294,
         "name": "Sample",
         "title": "Sample",
         "type": "submenu"
       },
       {
-        "id": 293,
+        "id": 299,
         "name": "Attack",
         "title": "Attack",
         "type": "basic"
       },
       {
-        "id": 219,
+        "id": 225,
         "name": "Priority",
         "title": "Priority",
         "type": "basic"
       }
     ],
-    "id": 259,
+    "id": 265,
     "name": "Audio clip",
     "title": "Audio clip",
     "type": "submenu"
@@ -9446,7 +9646,7 @@
   {
     "children": [
       {
-        "id": 295,
+        "id": 301,
         "name": "Editing Mode",
         "title": "Editing Mode",
         "type": "basic"
@@ -9462,25 +9662,25 @@
                 "type": "basic"
               },
               {
-                "id": 269,
+                "id": 275,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "id": 270,
+                "id": 276,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "id": 271,
+                "id": 277,
                 "name": "Morph",
                 "title": "LPF morph",
                 "type": "basic"
               }
             ],
-            "id": 268,
+            "id": 274,
             "name": "Lpf",
             "title": "Lpf",
             "type": "submenu"
@@ -9494,25 +9694,25 @@
                 "type": "basic"
               },
               {
-                "id": 273,
+                "id": 279,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "id": 274,
+                "id": 280,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "id": 275,
+                "id": 281,
                 "name": "Morph",
                 "title": "HPF Morph",
                 "type": "basic"
               }
             ],
-            "id": 272,
+            "id": 278,
             "name": "Hpf",
             "title": "Hpf",
             "type": "submenu"
@@ -9524,7 +9724,7 @@
             "type": "basic"
           }
         ],
-        "id": 267,
+        "id": 273,
         "name": "Filters",
         "title": "Filters",
         "type": "submenu"
@@ -9566,7 +9766,7 @@
           {
             "children": [
               {
-                "id": 278,
+                "id": 284,
                 "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
@@ -9584,7 +9784,7 @@
                 "type": "basic"
               },
               {
-                "id": 279,
+                "id": 285,
                 "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
@@ -9596,7 +9796,7 @@
                 "type": "basic"
               }
             ],
-            "id": 277,
+            "id": 283,
             "name": "Delay",
             "title": "Delay",
             "type": "submenu"
@@ -9604,7 +9804,7 @@
           {
             "children": [
               {
-                "id": 281,
+                "id": 287,
                 "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
@@ -9691,7 +9891,7 @@
                 "type": "submenu"
               }
             ],
-            "id": 280,
+            "id": 286,
             "name": "Reverb",
             "title": "Reverb",
             "type": "submenu"
@@ -9732,13 +9932,13 @@
                 "type": "basic"
               },
               {
-                "id": 283,
+                "id": 289,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "id": 284,
+                "id": 290,
                 "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
@@ -9756,7 +9956,7 @@
                 "type": "basic"
               }
             ],
-            "id": 282,
+            "id": 288,
             "name": "Mod-FX",
             "title": "Mod-FX",
             "type": "submenu"
@@ -9776,19 +9976,19 @@
                 "type": "basic"
               }
             ],
-            "id": 297,
+            "id": 303,
             "name": "Distortion",
             "title": "Distortion",
             "type": "submenu"
           }
         ],
-        "id": 296,
+        "id": 302,
         "name": "FX",
         "title": "FX",
         "type": "submenu"
       }
     ],
-    "id": 294,
+    "id": 300,
     "name": "Perform FX",
     "title": "Perform FX",
     "type": "submenu"
@@ -9798,19 +9998,19 @@
       {
         "children": [
           {
-            "id": 265,
+            "id": 271,
             "name": "Volume",
             "title": "Volume",
             "type": "basic"
           },
           {
-            "id": 266,
+            "id": 272,
             "name": "Pan",
             "title": "Pan",
             "type": "basic"
           }
         ],
-        "id": 264,
+        "id": 270,
         "name": "Master",
         "title": "Master",
         "type": "submenu"
@@ -9826,25 +10026,25 @@
                 "type": "basic"
               },
               {
-                "id": 269,
+                "id": 275,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "id": 270,
+                "id": 276,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "id": 271,
+                "id": 277,
                 "name": "Morph",
                 "title": "LPF morph",
                 "type": "basic"
               }
             ],
-            "id": 268,
+            "id": 274,
             "name": "Lpf",
             "title": "Lpf",
             "type": "submenu"
@@ -9858,25 +10058,25 @@
                 "type": "basic"
               },
               {
-                "id": 273,
+                "id": 279,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "id": 274,
+                "id": 280,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "id": 275,
+                "id": 281,
                 "name": "Morph",
                 "title": "HPF Morph",
                 "type": "basic"
               }
             ],
-            "id": 272,
+            "id": 278,
             "name": "Hpf",
             "title": "Hpf",
             "type": "submenu"
@@ -9888,7 +10088,7 @@
             "type": "basic"
           }
         ],
-        "id": 267,
+        "id": 273,
         "name": "Filters",
         "title": "Filters",
         "type": "submenu"
@@ -9930,7 +10130,7 @@
           {
             "children": [
               {
-                "id": 278,
+                "id": 284,
                 "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
@@ -9948,7 +10148,7 @@
                 "type": "basic"
               },
               {
-                "id": 279,
+                "id": 285,
                 "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
@@ -9960,7 +10160,7 @@
                 "type": "basic"
               }
             ],
-            "id": 277,
+            "id": 283,
             "name": "Delay",
             "title": "Delay",
             "type": "submenu"
@@ -9968,7 +10168,7 @@
           {
             "children": [
               {
-                "id": 281,
+                "id": 287,
                 "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
@@ -10055,7 +10255,7 @@
                 "type": "submenu"
               }
             ],
-            "id": 280,
+            "id": 286,
             "name": "Reverb",
             "title": "Reverb",
             "type": "submenu"
@@ -10096,13 +10296,13 @@
                 "type": "basic"
               },
               {
-                "id": 283,
+                "id": 289,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "id": 284,
+                "id": 290,
                 "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
@@ -10120,7 +10320,7 @@
                 "type": "basic"
               }
             ],
-            "id": 282,
+            "id": 288,
             "name": "Mod-FX",
             "title": "Mod-FX",
             "type": "submenu"
@@ -10140,25 +10340,25 @@
                 "type": "basic"
               }
             ],
-            "id": 297,
+            "id": 303,
             "name": "Distortion",
             "title": "Distortion",
             "type": "submenu"
           }
         ],
-        "id": 296,
+        "id": 302,
         "name": "FX",
         "title": "FX",
         "type": "submenu"
       },
       {
-        "id": 299,
+        "id": 305,
         "name": "Swing Interval",
         "title": "Swing Interval",
         "type": "basic"
       },
       {
-        "id": 300,
+        "id": 306,
         "name": "Active Scales",
         "title": "Active Scales",
         "type": "basic"
@@ -10166,27 +10366,27 @@
       {
         "children": [
           {
-            "id": 302,
+            "id": 308,
             "name": "Mode",
             "title": "Mode",
             "type": "basic"
           }
         ],
-        "id": 301,
+        "id": 307,
         "name": "Threshold Recording",
         "title": "Threshold Recording",
         "type": "submenu"
       },
       {
         "available_when": "is_session_view",
-        "id": 303,
+        "id": 309,
         "name": "Configure Macros",
         "title": "Configure Macros",
         "type": "basic"
       },
       {
         "available_when": "is_session_view",
-        "id": 304,
+        "id": 310,
         "name": "Midi Learn",
         "title": "Midi Learn",
         "type": "basic"
@@ -10194,7 +10394,7 @@
       {
         "children": [
           {
-            "id": 306,
+            "id": 312,
             "name": "Start Export",
             "title": "Start Export",
             "type": "basic"
@@ -10202,49 +10402,49 @@
           {
             "children": [
               {
-                "id": 308,
+                "id": 314,
                 "name": "Normalization",
                 "title": "Normalization",
                 "type": "basic"
               },
               {
-                "id": 309,
+                "id": 315,
                 "name": "Export to Silence",
                 "title": "Export to Silence",
                 "type": "basic"
               },
               {
-                "id": 310,
+                "id": 316,
                 "name": "Song FX",
                 "title": "Song FX",
                 "type": "basic"
               },
               {
-                "id": 311,
+                "id": 317,
                 "name": "Offline Rendering",
                 "title": "Offline Rendering",
                 "type": "basic"
               },
               {
-                "id": 312,
+                "id": 318,
                 "name": "Export Mixdown",
                 "title": "Export Mixdown",
                 "type": "basic"
               }
             ],
-            "id": 307,
+            "id": 313,
             "name": "Configure Export",
             "title": "Configure Export",
             "type": "submenu"
           }
         ],
-        "id": 305,
+        "id": 311,
         "name": "Export Audio",
         "title": "Export Audio",
         "type": "submenu"
       }
     ],
-    "id": 298,
+    "id": 304,
     "name": "Song",
     "title": "Song",
     "type": "submenu"
@@ -10276,7 +10476,7 @@
           {
             "children": [
               {
-                "id": 306,
+                "id": 312,
                 "name": "Start Export",
                 "title": "Start Export",
                 "type": "basic"
@@ -10284,49 +10484,49 @@
               {
                 "children": [
                   {
-                    "id": 317,
+                    "id": 323,
                     "name": "Kit FX",
                     "title": "Kit FX",
                     "type": "basic"
                   },
                   {
-                    "id": 318,
+                    "id": 324,
                     "name": "Normalization",
                     "title": "Normalization",
                     "type": "basic"
                   },
                   {
-                    "id": 309,
+                    "id": 315,
                     "name": "Export to Silence",
                     "title": "Export to Silence",
                     "type": "basic"
                   },
                   {
-                    "id": 310,
+                    "id": 316,
                     "name": "Song FX",
                     "title": "Song FX",
                     "type": "basic"
                   },
                   {
-                    "id": 311,
+                    "id": 317,
                     "name": "Offline Rendering",
                     "title": "Offline Rendering",
                     "type": "basic"
                   }
                 ],
-                "id": 316,
+                "id": 322,
                 "name": "Configure Export",
                 "title": "Configure Export",
                 "type": "submenu"
               }
             ],
-            "id": 315,
+            "id": 321,
             "name": "Export Audio",
             "title": "Export Audio",
             "type": "submenu"
           }
         ],
-        "id": 314,
+        "id": 320,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -10334,25 +10534,25 @@
       {
         "children": [
           {
-            "id": 265,
+            "id": 271,
             "name": "Volume",
             "title": "Volume",
             "type": "basic"
           },
           {
-            "id": 266,
+            "id": 272,
             "name": "Pan",
             "title": "Pan",
             "type": "basic"
           },
           {
-            "id": 320,
+            "id": 326,
             "name": "Pitch",
             "title": "Pitch",
             "type": "basic"
           }
         ],
-        "id": 319,
+        "id": 325,
         "name": "Master",
         "title": "Master",
         "type": "submenu"
@@ -10416,13 +10616,13 @@
                 "type": "basic"
               },
               {
-                "id": 323,
+                "id": 329,
                 "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
             ],
-            "id": 322,
+            "id": 328,
             "name": "Basic",
             "title": "Arp basic",
             "type": "submenu"
@@ -10648,7 +10848,7 @@
             "type": "submenu"
           }
         ],
-        "id": 321,
+        "id": 327,
         "name": "Kit Arpeggiator",
         "title": "Kit Arpeggiator",
         "type": "submenu"
@@ -10713,25 +10913,25 @@
                 "type": "basic"
               },
               {
-                "id": 269,
+                "id": 275,
                 "name": "Frequency",
                 "title": "LPF frequency",
                 "type": "basic"
               },
               {
-                "id": 270,
+                "id": 276,
                 "name": "Resonance",
                 "title": "LPF resonance",
                 "type": "basic"
               },
               {
-                "id": 271,
+                "id": 277,
                 "name": "Morph",
                 "title": "LPF morph",
                 "type": "basic"
               }
             ],
-            "id": 268,
+            "id": 274,
             "name": "Lpf",
             "title": "Lpf",
             "type": "submenu"
@@ -10745,25 +10945,25 @@
                 "type": "basic"
               },
               {
-                "id": 273,
+                "id": 279,
                 "name": "Frequency",
                 "title": "HPF frequency",
                 "type": "basic"
               },
               {
-                "id": 274,
+                "id": 280,
                 "name": "Resonance",
                 "title": "HPF resonance",
                 "type": "basic"
               },
               {
-                "id": 275,
+                "id": 281,
                 "name": "Morph",
                 "title": "HPF Morph",
                 "type": "basic"
               }
             ],
-            "id": 272,
+            "id": 278,
             "name": "Hpf",
             "title": "Hpf",
             "type": "submenu"
@@ -10775,7 +10975,7 @@
             "type": "basic"
           }
         ],
-        "id": 267,
+        "id": 273,
         "name": "Filters",
         "title": "Filters",
         "type": "submenu"
@@ -10817,7 +11017,7 @@
           {
             "children": [
               {
-                "id": 278,
+                "id": 284,
                 "name": "Amount",
                 "title": "Delay amount",
                 "type": "basic"
@@ -10835,7 +11035,7 @@
                 "type": "basic"
               },
               {
-                "id": 279,
+                "id": 285,
                 "name": "Rate",
                 "title": "Delay rate",
                 "type": "basic"
@@ -10847,7 +11047,7 @@
                 "type": "basic"
               }
             ],
-            "id": 277,
+            "id": 283,
             "name": "Delay",
             "title": "Delay",
             "type": "submenu"
@@ -10855,7 +11055,7 @@
           {
             "children": [
               {
-                "id": 281,
+                "id": 287,
                 "name": "Amount",
                 "title": "Reverb amount",
                 "type": "basic"
@@ -10942,7 +11142,7 @@
                 "type": "submenu"
               }
             ],
-            "id": 280,
+            "id": 286,
             "name": "Reverb",
             "title": "Reverb",
             "type": "submenu"
@@ -10983,13 +11183,13 @@
                 "type": "basic"
               },
               {
-                "id": 283,
+                "id": 289,
                 "name": "Depth",
                 "title": "MOD FX depth",
                 "type": "basic"
               },
               {
-                "id": 284,
+                "id": 290,
                 "name": "Rate",
                 "title": "MOD FX rate",
                 "type": "basic"
@@ -11007,7 +11207,7 @@
                 "type": "basic"
               }
             ],
-            "id": 282,
+            "id": 288,
             "name": "Mod-FX",
             "title": "Mod-FX",
             "type": "submenu"
@@ -11027,13 +11227,13 @@
                 "type": "basic"
               }
             ],
-            "id": 297,
+            "id": 303,
             "name": "Distortion",
             "title": "Distortion",
             "type": "submenu"
           }
         ],
-        "id": 296,
+        "id": 302,
         "name": "FX",
         "title": "FX",
         "type": "submenu"
@@ -11041,7 +11241,7 @@
       {
         "children": [
           {
-            "id": 287,
+            "id": 293,
             "name": "Volume ducking",
             "title": "Volume ducking",
             "type": "basic"
@@ -11074,13 +11274,13 @@
             "type": "basic"
           }
         ],
-        "id": 286,
+        "id": 292,
         "name": "Sidechain",
         "title": "Sidechain",
         "type": "submenu"
       }
     ],
-    "id": 313,
+    "id": 319,
     "name": "Kit FX",
     "title": "Kit FX",
     "type": "submenu"
@@ -11092,67 +11292,67 @@
           {
             "children": [
               {
-                "id": 327,
+                "id": 333,
                 "name": "Reset Flash",
                 "title": "Reset Flash",
                 "type": "basic"
               },
               {
-                "id": 328,
+                "id": 334,
                 "name": "Reset Community Features",
                 "title": "Reset Community Features",
                 "type": "basic"
               },
               {
-                "id": 329,
+                "id": 335,
                 "name": "Reset MIDI Follow",
                 "title": "Reset MIDI Follow",
                 "type": "basic"
               },
               {
-                "id": 330,
+                "id": 336,
                 "name": "Reset MIDI Devices",
                 "title": "Reset MIDI Devices",
                 "type": "basic"
               },
               {
-                "id": 331,
+                "id": 337,
                 "name": "Factory Reset",
                 "title": "Factory Reset",
                 "type": "basic"
               }
             ],
-            "id": 326,
+            "id": 332,
             "name": "Reset Settings",
             "title": "Reset Settings",
             "type": "submenu"
           }
         ],
-        "id": 325,
+        "id": 331,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
       },
       {
-        "id": 332,
+        "id": 338,
         "name": "CV",
         "select_chain": [
           {
             "children": [
               {
-                "id": 334,
+                "id": 340,
                 "name": "Volts per Octave",
                 "title": "CV* V/octave",
                 "type": "basic"
               },
               {
-                "id": 335,
+                "id": 341,
                 "name": "Transpose",
                 "title": "CV* transpose",
                 "type": "basic"
               }
             ],
-            "id": 333,
+            "id": 339,
             "name": "CV output *",
             "title": "CV output *",
             "type": "submenu"
@@ -11162,17 +11362,17 @@
         "type": "basic"
       },
       {
-        "id": 336,
+        "id": 342,
         "name": "Gate",
         "select_chain": [
           {
-            "id": 337,
+            "id": 343,
             "name": "Gate out* mode",
             "title": "Gate out* mode",
             "type": "basic"
           },
           {
-            "id": 338,
+            "id": 344,
             "name": "Minimum Off-Time",
             "title": "Minimum Off-Time",
             "type": "basic"
@@ -11186,19 +11386,19 @@
           {
             "children": [
               {
-                "id": 341,
+                "id": 347,
                 "name": "PPQN",
                 "title": "Input PPQN",
                 "type": "basic"
               },
               {
-                "id": 342,
+                "id": 348,
                 "name": "Auto-Start",
                 "title": "Auto-Start",
                 "type": "basic"
               }
             ],
-            "id": 340,
+            "id": 346,
             "name": "Input",
             "title": "Trig clock in",
             "type": "submenu"
@@ -11206,19 +11406,19 @@
           {
             "children": [
               {
-                "id": 344,
+                "id": 350,
                 "name": "PPQN",
                 "title": "Output PPQN",
                 "type": "basic"
               }
             ],
-            "id": 343,
+            "id": 349,
             "name": "Output",
             "title": "Trig clock out",
             "type": "submenu"
           }
         ],
-        "id": 339,
+        "id": 345,
         "name": "Trigger Clock",
         "title": "Trigger Clock",
         "type": "submenu"
@@ -11228,25 +11428,25 @@
           {
             "children": [
               {
-                "id": 347,
+                "id": 353,
                 "name": "Output",
                 "title": "MIDI clock out",
                 "type": "basic"
               },
               {
-                "id": 348,
+                "id": 354,
                 "name": "Input",
                 "title": "MIDI clock in",
                 "type": "basic"
               },
               {
-                "id": 349,
+                "id": 355,
                 "name": "Tempo Magnitude Matching",
                 "title": "Tempo Magnitude Matching",
                 "type": "basic"
               }
             ],
-            "id": 346,
+            "id": 352,
             "name": "Clock",
             "title": "MIDI clock",
             "type": "submenu"
@@ -11256,57 +11456,21 @@
               {
                 "children": [
                   {
-                    "id": 352,
+                    "id": 358,
                     "name": "Channel A",
                     "title": "Channel A",
                     "type": "basic"
                   },
                   {
-                    "id": 353,
+                    "id": 359,
                     "name": "Channel B",
                     "title": "Channel B",
                     "type": "basic"
                   },
                   {
-                    "id": 354,
+                    "id": 360,
                     "name": "Channel C",
                     "title": "Channel C",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 355,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 356,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 357,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 358,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 359,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
-                    "type": "basic"
-                  },
-                  {
-                    "id": 360,
-                    "name": "Channel Track**",
-                    "title": "Channel Track**",
                     "type": "basic"
                   },
                   {
@@ -11368,15 +11532,51 @@
                     "name": "Channel Track**",
                     "title": "Channel Track**",
                     "type": "basic"
+                  },
+                  {
+                    "id": 371,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 372,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 373,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 374,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 375,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
+                  },
+                  {
+                    "id": 376,
+                    "name": "Channel Track**",
+                    "title": "Channel Track**",
+                    "type": "basic"
                   }
                 ],
-                "id": 351,
+                "id": 357,
                 "name": "Channel",
                 "title": "Channel",
                 "type": "submenu"
               },
               {
-                "id": 371,
+                "id": 377,
                 "name": "Kit Root Note",
                 "title": "Kit Root Note",
                 "type": "basic"
@@ -11384,61 +11584,61 @@
               {
                 "children": [
                   {
-                    "id": 373,
+                    "id": 379,
                     "name": "Channel",
                     "title": "Channel",
                     "type": "basic"
                   },
                   {
-                    "id": 374,
+                    "id": 380,
                     "name": "Automation Feedback",
                     "title": "Automation Feedback",
                     "type": "basic"
                   },
                   {
-                    "id": 375,
+                    "id": 381,
                     "name": "Filter Responses",
                     "title": "Filter Responses",
                     "type": "basic"
                   }
                 ],
-                "id": 372,
+                "id": 378,
                 "name": "Feedback",
                 "title": "Feedback",
                 "type": "submenu"
               },
               {
-                "id": 376,
+                "id": 382,
                 "name": "Display Param",
                 "title": "Display Param",
                 "type": "basic"
               }
             ],
-            "id": 350,
+            "id": 356,
             "name": "MIDI-Follow",
             "title": "MIDI-Follow",
             "type": "submenu"
           },
           {
-            "id": 377,
+            "id": 383,
             "name": "Select Kit Row",
             "title": "Select Kit Row",
             "type": "basic"
           },
           {
-            "id": 378,
+            "id": 384,
             "name": "MIDI-Thru",
             "title": "MIDI-Thru",
             "type": "basic"
           },
           {
-            "id": 379,
+            "id": 385,
             "name": "Transpose",
             "title": "Transpose",
             "type": "basic"
           },
           {
-            "id": 380,
+            "id": 386,
             "name": "Takeover",
             "title": "Takeover",
             "type": "basic"
@@ -11446,105 +11646,105 @@
           {
             "children": [
               {
-                "id": 382,
+                "id": 388,
                 "name": "Play",
                 "title": "Play",
                 "type": "basic"
               },
               {
-                "id": 383,
+                "id": 389,
                 "name": "Restart",
                 "title": "Restart",
                 "type": "basic"
               },
               {
-                "id": 384,
+                "id": 390,
                 "name": "Record",
                 "title": "Record",
                 "type": "basic"
               },
               {
-                "id": 385,
+                "id": 391,
                 "name": "Tap tempo",
                 "title": "Tap tempo",
                 "type": "basic"
               },
               {
-                "id": 386,
+                "id": 392,
                 "name": "Undo",
                 "title": "Undo",
                 "type": "basic"
               },
               {
-                "id": 387,
+                "id": 393,
                 "name": "Redo",
                 "title": "Redo",
                 "type": "basic"
               },
               {
-                "id": 388,
+                "id": 394,
                 "name": "Loop",
                 "title": "Loop",
                 "type": "basic"
               },
               {
-                "id": 389,
+                "id": 395,
                 "name": "Layering Loop",
                 "title": "Layering Loop",
                 "type": "basic"
               },
               {
-                "id": 390,
+                "id": 396,
                 "name": "Fill",
                 "title": "Fill",
                 "type": "basic"
               },
               {
-                "id": 391,
+                "id": 397,
                 "name": "Transpose",
                 "title": "Transpose",
                 "type": "basic"
               },
               {
-                "id": 392,
+                "id": 398,
                 "name": "Load Next Song",
                 "title": "Load Next Song",
                 "type": "basic"
               },
               {
-                "id": 393,
+                "id": 399,
                 "name": "Shift",
                 "title": "Shift",
                 "type": "basic"
               }
             ],
-            "id": 381,
+            "id": 387,
             "name": "Commands",
             "title": "MIDI commands",
             "type": "submenu"
           },
           {
-            "id": 394,
+            "id": 400,
             "name": "Differentiate inputs",
             "title": "Differentiate inputs",
             "type": "basic"
           },
           {
-            "id": 395,
+            "id": 401,
             "name": "Devices",
             "select_chain": [
               {
                 "children": [
                   {
-                    "id": 397,
+                    "id": 403,
                     "name": "MPE",
                     "select_chain": [
                       {
-                        "id": 398,
+                        "id": 404,
                         "name": "MPE",
                         "select_chain": [
                           {
-                            "id": 399,
+                            "id": 405,
                             "name": "Num member ch",
                             "title": "Num member ch",
                             "type": "basic"
@@ -11558,37 +11758,37 @@
                     "type": "basic"
                   },
                   {
-                    "id": 400,
+                    "id": 406,
                     "name": "Velocity",
                     "title": "Velocity",
                     "type": "basic"
                   },
                   {
-                    "id": 401,
+                    "id": 407,
                     "name": "Clock Out",
                     "title": "Clock Out",
                     "type": "basic"
                   },
                   {
-                    "id": 402,
+                    "id": 408,
                     "name": "Clock In",
                     "title": "Clock In",
                     "type": "basic"
                   },
                   {
-                    "id": 403,
+                    "id": 409,
                     "name": "Use Relative CC",
                     "title": "Use Relative CC",
                     "type": "basic"
                   },
                   {
-                    "id": 404,
+                    "id": 410,
                     "name": "MIDI-Thru",
                     "title": "MIDI-Thru",
                     "type": "basic"
                   }
                 ],
-                "id": 396,
+                "id": 402,
                 "name": "MIDI devices",
                 "title": "MIDI devices",
                 "type": "submenu"
@@ -11598,7 +11798,7 @@
             "type": "basic"
           }
         ],
-        "id": 345,
+        "id": 351,
         "name": "MIDI",
         "title": "MIDI",
         "type": "submenu"
@@ -11606,25 +11806,25 @@
       {
         "children": [
           {
-            "id": 406,
+            "id": 412,
             "name": "Enabled",
             "title": "USB audio",
             "type": "basic"
           },
           {
-            "id": 407,
+            "id": 413,
             "name": "Input",
             "title": "USB input",
             "type": "basic"
           },
           {
-            "id": 408,
+            "id": 414,
             "name": "Output",
             "title": "USB output",
             "type": "basic"
           }
         ],
-        "id": 405,
+        "id": 411,
         "name": "USB audio",
         "title": "USB audio",
         "type": "submenu"
@@ -11636,19 +11836,19 @@
               {
                 "children": [
                   {
-                    "id": 412,
+                    "id": 418,
                     "name": "Shortcuts",
                     "title": "Shortcuts",
                     "type": "basic"
                   },
                   {
-                    "id": 413,
+                    "id": 419,
                     "name": "Menu Highlighting",
                     "title": "Menu Highlighting",
                     "type": "basic"
                   }
                 ],
-                "id": 411,
+                "id": 417,
                 "name": "Accessibility",
                 "title": "Accessibility",
                 "type": "submenu"
@@ -11656,7 +11856,7 @@
               {
                 "children": [
                   {
-                    "id": 415,
+                    "id": 421,
                     "name": "Layout",
                     "title": "Layout",
                     "type": "basic"
@@ -11664,13 +11864,13 @@
                   {
                     "children": [
                       {
-                        "id": 417,
+                        "id": 423,
                         "name": "Default active mode",
                         "title": "Default active mode",
                         "type": "basic"
                       },
                       {
-                        "id": 418,
+                        "id": 424,
                         "name": "Select in green mode",
                         "title": "Select in green mode",
                         "type": "basic"
@@ -11678,31 +11878,31 @@
                       {
                         "children": [
                           {
-                            "id": 420,
+                            "id": 426,
                             "name": "Unarm",
                             "title": "Unarm",
                             "type": "basic"
                           },
                           {
-                            "id": 421,
+                            "id": 427,
                             "name": "Create + Record",
                             "title": "Create + Record",
                             "type": "basic"
                           }
                         ],
-                        "id": 419,
+                        "id": 425,
                         "name": "Empty pads",
                         "title": "Empty pads",
                         "type": "submenu"
                       }
                     ],
-                    "id": 416,
+                    "id": 422,
                     "name": "Grid",
                     "title": "Grid",
                     "type": "submenu"
                   }
                 ],
-                "id": 414,
+                "id": 420,
                 "name": "Song",
                 "title": "Song",
                 "type": "submenu"
@@ -11710,7 +11910,7 @@
               {
                 "children": [
                   {
-                    "id": 423,
+                    "id": 429,
                     "name": "Layout",
                     "title": "Layout",
                     "type": "basic"
@@ -11718,31 +11918,31 @@
                   {
                     "children": [
                       {
-                        "id": 425,
+                        "id": 431,
                         "name": "Momentary Velocity",
                         "title": "Momentary Velocity",
                         "type": "basic"
                       },
                       {
-                        "id": 426,
+                        "id": 432,
                         "name": "Momentary Modwheel",
                         "title": "Momentary Modwheel",
                         "type": "basic"
                       }
                     ],
-                    "id": 424,
+                    "id": 430,
                     "name": "Sidebar Controls",
                     "title": "Sidebar Controls",
                     "type": "submenu"
                   },
                   {
-                    "id": 427,
+                    "id": 433,
                     "name": "Favourites",
                     "title": "Favourites",
                     "type": "basic"
                   }
                 ],
-                "id": 422,
+                "id": 428,
                 "name": "Keyboard",
                 "title": "Keyboard",
                 "type": "submenu"
@@ -11750,31 +11950,31 @@
               {
                 "children": [
                   {
-                    "id": 429,
+                    "id": 435,
                     "name": "New Clip Type",
                     "title": "New Clip Type",
                     "type": "basic"
                   },
                   {
-                    "id": 430,
+                    "id": 436,
                     "name": "Use Last Clip Type",
                     "title": "Use Last Clip Type",
                     "type": "basic"
                   }
                 ],
-                "id": 428,
+                "id": 434,
                 "name": "Clip Type",
                 "title": "Clip Type",
                 "type": "submenu"
               },
               {
-                "id": 431,
+                "id": 437,
                 "name": "Use Sharps (#)",
                 "title": "Use Sharps (#)",
                 "type": "basic"
               }
             ],
-            "id": 410,
+            "id": 416,
             "name": "UI",
             "title": "UI",
             "type": "submenu"
@@ -11782,61 +11982,61 @@
           {
             "children": [
               {
-                "id": 433,
+                "id": 439,
                 "name": "Interpolation",
                 "title": "Interpolation",
                 "type": "basic"
               },
               {
-                "id": 434,
+                "id": 440,
                 "name": "Clear",
                 "title": "Clear",
                 "type": "basic"
               },
               {
-                "id": 435,
+                "id": 441,
                 "name": "Shift",
                 "title": "Shift",
                 "type": "basic"
               },
               {
-                "id": 436,
+                "id": 442,
                 "name": "Nudge Note",
                 "title": "Nudge Note",
                 "type": "basic"
               },
               {
-                "id": 437,
+                "id": 443,
                 "name": "Disable Audition Pad Shortcuts",
                 "title": "Disable Audition Pad Shortcuts",
                 "type": "basic"
               }
             ],
-            "id": 432,
+            "id": 438,
             "name": "Automation",
             "title": "Automation",
             "type": "submenu"
           },
           {
-            "id": 438,
+            "id": 444,
             "name": "Tempo",
             "title": "Default tempo",
             "type": "basic"
           },
           {
-            "id": 439,
+            "id": 445,
             "name": "Swing Amount",
             "title": "Default swing",
             "type": "basic"
           },
           {
-            "id": 440,
+            "id": 446,
             "name": "Swing Interval",
             "title": "Default swing",
             "type": "basic"
           },
           {
-            "id": 441,
+            "id": 447,
             "name": "Key",
             "title": "Default key",
             "type": "basic"
@@ -11844,79 +12044,79 @@
           {
             "children": [
               {
-                "id": 443,
+                "id": 449,
                 "name": "Init Scale",
                 "title": "Init Scale",
                 "type": "basic"
               },
               {
-                "id": 444,
+                "id": 450,
                 "name": "Active Scales",
                 "title": "Active Scales",
                 "type": "basic"
               }
             ],
-            "id": 442,
+            "id": 448,
             "name": "Scale",
             "title": "Scale",
             "type": "submenu"
           },
           {
-            "id": 445,
+            "id": 451,
             "name": "Velocity",
             "title": "Default veloc",
             "type": "basic"
           },
           {
-            "id": 446,
+            "id": 452,
             "name": "Resolution",
             "title": "Default resol",
             "type": "basic"
           },
           {
-            "id": 447,
+            "id": 453,
             "name": "Bend range",
             "title": "Default bend r",
             "type": "basic"
           },
           {
-            "id": 448,
+            "id": 454,
             "name": "Metronome",
             "title": "Default metro",
             "type": "basic"
           },
           {
-            "id": 449,
+            "id": 455,
             "name": "Patch cable polarity",
             "title": "Patch cable polarity",
             "type": "basic"
           },
           {
-            "id": 450,
+            "id": 456,
             "name": "Startup Song",
             "title": "Startup Song",
             "type": "basic"
           },
           {
-            "id": 451,
+            "id": 457,
             "name": "Pad Brightness",
             "title": "Pad brightness",
             "type": "basic"
           },
           {
-            "id": 452,
+            "id": 458,
             "name": "Sample Slice Mode",
             "title": "Sample Slice Mode",
             "type": "basic"
           },
           {
-            "id": 453,
+            "id": 459,
             "name": "High CPU Indicator",
             "title": "High CPU Indicator",
             "type": "basic"
           },
           {
-            "id": 454,
+            "id": 460,
             "name": "Hold Press Time",
             "title": "Hold Press Time",
             "type": "basic"
@@ -11924,25 +12124,25 @@
           {
             "children": [
               {
-                "id": 456,
+                "id": 462,
                 "name": "Mode",
                 "title": "Mode",
                 "type": "basic"
               },
               {
-                "id": 457,
+                "id": 463,
                 "name": "Timeout",
                 "title": "Timeout",
                 "type": "basic"
               }
             ],
-            "id": 455,
+            "id": 461,
             "name": "Screensaver",
             "title": "Screensaver",
             "type": "submenu"
           }
         ],
-        "id": 409,
+        "id": 415,
         "name": "Defaults",
         "title": "Defaults",
         "type": "submenu"
@@ -11950,13 +12150,13 @@
       {
         "children": [
           {
-            "id": 459,
+            "id": 465,
             "name": "Shortcut Version",
             "title": "Shortcuts vers",
             "type": "basic"
           },
           {
-            "id": 460,
+            "id": 466,
             "name": "Keyboard for Text",
             "title": "Key layout",
             "type": "basic"
@@ -11964,61 +12164,61 @@
           {
             "children": [
               {
-                "id": 462,
+                "id": 468,
                 "name": "Active",
                 "title": "Active",
                 "type": "basic"
               },
               {
-                "id": 463,
+                "id": 469,
                 "name": "Stopped",
                 "title": "Stopped",
                 "type": "basic"
               },
               {
-                "id": 464,
+                "id": 470,
                 "name": "Muted",
                 "title": "Muted",
                 "type": "basic"
               },
               {
-                "id": 465,
+                "id": 471,
                 "name": "Soloed",
                 "title": "Soloed",
                 "type": "basic"
               },
               {
-                "id": 466,
+                "id": 472,
                 "name": "Fill",
                 "title": "Fill",
                 "type": "basic"
               },
               {
-                "id": 467,
+                "id": 473,
                 "name": "Once",
                 "title": "Once",
                 "type": "basic"
               }
             ],
-            "id": 461,
+            "id": 467,
             "name": "Colours",
             "title": "Colours",
             "type": "submenu"
           }
         ],
-        "id": 458,
+        "id": 464,
         "name": "Pads",
         "title": "Pads",
         "type": "submenu"
       },
       {
-        "id": 468,
+        "id": 474,
         "name": "Sample Preview",
         "title": "Sample Preview",
         "type": "basic"
       },
       {
-        "id": 469,
+        "id": 475,
         "name": "Play-Cursor",
         "title": "Play-Cursor",
         "type": "basic"
@@ -12026,25 +12226,25 @@
       {
         "children": [
           {
-            "id": 471,
+            "id": 477,
             "name": "Count-in bars",
             "title": "Rec count-in bars",
             "type": "basic"
           },
           {
-            "id": 472,
+            "id": 478,
             "name": "Quantization",
             "title": "Quantization",
             "type": "basic"
           },
           {
-            "id": 473,
+            "id": 479,
             "name": "Loop margins",
             "title": "Loop margins",
             "type": "basic"
           },
           {
-            "id": 474,
+            "id": 480,
             "name": "Sampling monitoring",
             "title": "Monitoring",
             "type": "basic"
@@ -12052,19 +12252,19 @@
           {
             "children": [
               {
-                "id": 476,
+                "id": 482,
                 "name": "Mode",
                 "title": "Mode",
                 "type": "basic"
               }
             ],
-            "id": 475,
+            "id": 481,
             "name": "Threshold Recording",
             "title": "Threshold Recording",
             "type": "submenu"
           }
         ],
-        "id": 470,
+        "id": 476,
         "name": "Recording",
         "title": "Recording",
         "type": "submenu"
@@ -12072,158 +12272,158 @@
       {
         "children": [
           {
-            "id": 478,
+            "id": 484,
             "name": "Drum Randomizer",
             "title": "Drum Randomizer",
             "type": "basic"
           },
           {
-            "id": 479,
+            "id": 485,
             "name": "Fine Tempo Knob",
             "title": "Fine Tempo Knob",
             "type": "basic"
           },
           {
-            "id": 480,
+            "id": 486,
             "name": "Quantize",
             "title": "Quantize",
             "type": "basic"
           },
           {
-            "id": 481,
+            "id": 487,
             "name": "Catch Notes",
             "title": "Catch Notes",
             "type": "basic"
           },
           {
-            "id": 482,
+            "id": 488,
             "name": "Delete Unused Kit Rows",
             "title": "Delete Unused Kit Rows",
             "type": "basic"
           },
           {
-            "id": 483,
+            "id": 489,
             "name": "Alternative Golden Knob Delay Params",
             "title": "Alternative Golden Knob Delay Params",
             "type": "basic"
           },
           {
-            "id": 484,
+            "id": 490,
             "name": "Sync Scaling Action",
             "title": "Sync Scaling Action",
             "type": "basic"
           },
           {
-            "id": 485,
+            "id": 491,
             "name": "Highlight Incoming Notes",
             "title": "Highlight Incoming Notes",
             "type": "basic"
           },
           {
-            "id": 486,
+            "id": 492,
             "name": "Display Norns Layout",
             "title": "Display Norns Layout",
             "type": "basic"
           },
           {
-            "id": 487,
+            "id": 493,
             "name": "Sticky Shift",
             "title": "Sticky Shift",
             "type": "basic"
           },
           {
-            "id": 488,
+            "id": 494,
             "name": "Light Shift",
             "title": "Light Shift",
             "type": "basic"
           },
           {
-            "id": 489,
+            "id": 495,
             "name": "DX7 Engine",
             "title": "DX7 Engine",
             "type": "basic"
           },
           {
-            "id": 490,
+            "id": 496,
             "name": "KB View Sidebar Menu Exit",
             "title": "KB View Sidebar Menu Exit",
             "type": "basic"
           },
           {
-            "id": 491,
+            "id": 497,
             "name": "Launch Event Playhead",
             "title": "Launch Event Playhead",
             "type": "basic"
           },
           {
-            "id": 492,
+            "id": 498,
             "name": "Chord Keyboards",
             "title": "Chord Keyboards",
             "type": "basic"
           },
           {
-            "id": 493,
+            "id": 499,
             "name": "Alternative Playback Start Behaviour",
             "title": "Alternative Playback Start Behaviour",
             "type": "basic"
           },
           {
-            "id": 494,
+            "id": 500,
             "name": "Grid View Loop Layer Pads",
             "title": "Grid View Loop Layer Pads",
             "type": "basic"
           },
           {
-            "id": 495,
+            "id": 501,
             "name": "Alternative Tap Tempo Behaviour",
             "title": "Alternative Tap Tempo Behaviour",
             "type": "basic"
           },
           {
-            "id": 496,
+            "id": 502,
             "name": "Horizontal Menus",
             "title": "Horizontal Menus",
             "type": "basic"
           },
           {
-            "id": 497,
+            "id": 503,
             "name": "Rounded Corners",
             "title": "Rounded Corners",
             "type": "basic"
           },
           {
-            "id": 498,
+            "id": 504,
             "name": "Trim From Start Of Audio Clips",
             "title": "Trim From Start Of Audio Clips",
             "type": "basic"
           },
           {
-            "id": 499,
+            "id": 505,
             "name": "Show Battery Level",
             "title": "Show Battery Level",
             "type": "basic"
           },
           {
-            "id": 500,
+            "id": 506,
             "name": "Shortcut Overlay",
             "title": "Shortcut Overlay",
             "type": "basic"
           },
           {
-            "id": 501,
+            "id": 507,
             "name": "Shell Menu",
             "title": "Shell Menu",
             "type": "basic"
           }
         ],
-        "id": 477,
+        "id": 483,
         "name": "Community Features",
         "title": "Community feat",
         "type": "submenu"
       },
       {
         "available_when": "battery_shown",
-        "id": 502,
+        "id": 508,
         "name": "Battery level",
         "title": "Battery level",
         "type": "basic"
@@ -12231,37 +12431,37 @@
       {
         "children": [
           {
-            "id": 504,
+            "id": 510,
             "name": "Live Voice Count",
             "title": "Live Voice Count",
             "type": "basic"
           },
           {
-            "id": 505,
+            "id": 511,
             "name": "Avg Voice Count",
             "title": "Avg Voice Count",
             "type": "basic"
           },
           {
-            "id": 506,
+            "id": 512,
             "name": "Max Voice Count",
             "title": "Max Voice Count",
             "type": "basic"
           }
         ],
-        "id": 503,
+        "id": 509,
         "name": "Voice usage",
         "title": "Voice usage",
         "type": "submenu"
       },
       {
-        "id": 507,
+        "id": 513,
         "name": "Firmware Version",
         "title": "Firmware vers",
         "type": "basic"
       }
     ],
-    "id": 324,
+    "id": 330,
     "name": "Settings",
     "title": "Settings",
     "type": "submenu"
@@ -12291,7 +12491,7 @@
             "type": "submenu"
           }
         ],
-        "id": 240,
+        "id": 246,
         "name": "Actions",
         "title": "Actions",
         "type": "submenu"
@@ -12301,19 +12501,19 @@
         "children": [
           {
             "available_when": "is_midi_out",
-            "id": 242,
+            "id": 248,
             "name": "File Linked",
             "title": "File Linked",
             "type": "basic"
           },
           {
-            "id": 243,
+            "id": 249,
             "name": "Hide Unlabeled CC",
             "title": "Hide Unlabeled CC",
             "type": "basic"
           }
         ],
-        "id": 241,
+        "id": 247,
         "name": "Device Definition",
         "title": "Device Definition",
         "type": "submenu"
@@ -12321,25 +12521,25 @@
       {
         "children": [
           {
-            "id": 245,
+            "id": 251,
             "name": "Bank",
             "title": "MIDI bank",
             "type": "basic"
           },
           {
-            "id": 246,
+            "id": 252,
             "name": "Sub",
             "title": "MIDI sub-bank",
             "type": "basic"
           },
           {
-            "id": 247,
+            "id": 253,
             "name": "Pgm",
             "title": "MIDI PGM number",
             "type": "basic"
           }
         ],
-        "id": 244,
+        "id": 250,
         "name": "MIDI Program",
         "title": "MIDI Program",
         "type": "submenu"
@@ -12391,7 +12591,7 @@
                 "type": "basic"
               },
               {
-                "id": 250,
+                "id": 256,
                 "name": "Gate",
                 "title": "Arp gate",
                 "type": "basic"
@@ -12403,13 +12603,13 @@
                 "type": "basic"
               },
               {
-                "id": 251,
+                "id": 257,
                 "name": "Rate",
                 "title": "Arp rate",
                 "type": "basic"
               }
             ],
-            "id": 249,
+            "id": 255,
             "name": "Basic",
             "title": "Arp basic",
             "type": "submenu"
@@ -12504,7 +12704,7 @@
             "type": "basic"
           }
         ],
-        "id": 248,
+        "id": 254,
         "name": "Arpeggiator",
         "title": "Arpeggiator",
         "type": "submenu"
@@ -12665,31 +12865,31 @@
         "available_when": "bend_submenu",
         "children": [
           {
-            "id": 228,
+            "id": 234,
             "name": "Normal",
             "title": "Normal",
             "type": "basic"
           },
           {
-            "id": 229,
+            "id": 235,
             "name": "Poly / Finger / MPE",
             "title": "Poly / Finger / MPE",
             "type": "basic"
           }
         ],
-        "id": 227,
+        "id": 233,
         "name": "Bend range",
         "title": "Bend range",
         "type": "submenu"
       },
       {
-        "id": 252,
+        "id": 258,
         "name": "CV 2 Source",
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
-        "id": 253,
+        "id": 259,
         "name": "Send Y as CC1",
         "title": "Send Y as CC1",
         "type": "basic"
@@ -12698,37 +12898,37 @@
         "available_when": "is_midi_out",
         "children": [
           {
-            "id": 255,
+            "id": 261,
             "name": "Aftertouch",
             "title": "Aftertouch",
             "type": "basic"
           },
           {
-            "id": 256,
+            "id": 262,
             "name": "MPE",
             "title": "MPE",
             "type": "basic"
           }
         ],
-        "id": 254,
+        "id": 260,
         "name": "Poly Expression to Mono",
         "title": "Poly Expression to Mono",
         "type": "submenu"
       },
       {
-        "id": 232,
+        "id": 238,
         "name": "Play direction",
         "title": "Play direction",
         "type": "basic"
       }
     ],
-    "id": 508,
+    "id": 514,
     "name": "CV instrument",
     "title": "CV instrument",
     "type": "submenu"
   },
   {
-    "id": 509,
+    "id": 515,
     "name": "Note range",
     "select_chain": [
       {
@@ -12747,21 +12947,21 @@
       },
       {
         "available_when": "osc0_file_selector",
-        "id": 139,
+        "id": 145,
         "name": "File browser",
         "title": "File browser",
         "type": "basic"
       },
       {
         "available_when": "osc1_file_selector",
-        "id": 154,
+        "id": 160,
         "name": "File browser",
         "title": "File browser",
         "type": "basic"
       },
       {
         "available_when": "osc0_transpose",
-        "id": 140,
+        "id": 146,
         "name": "Transpose",
         "select_chain": [
           {
@@ -12809,7 +13009,7 @@
       },
       {
         "available_when": "osc1_transpose",
-        "id": 155,
+        "id": 161,
         "name": "Transpose",
         "select_chain": [
           {
@@ -12857,28 +13057,28 @@
       },
       {
         "available_when": "osc0_is_sample",
-        "id": 150,
+        "id": 156,
         "name": "Start-point",
         "title": "Start-point",
         "type": "basic"
       },
       {
         "available_when": "osc0_is_sample",
-        "id": 151,
+        "id": 157,
         "name": "End-point",
         "title": "End-point",
         "type": "basic"
       },
       {
         "available_when": "osc1_is_sample",
-        "id": 165,
+        "id": 171,
         "name": "Start-point",
         "title": "Start-point",
         "type": "basic"
       },
       {
         "available_when": "osc1_is_sample",
-        "id": 166,
+        "id": 172,
         "name": "End-point",
         "title": "End-point",
         "type": "basic"
@@ -12890,87 +13090,87 @@
   {
     "children": [
       {
-        "id": 511,
+        "id": 517,
         "name": "Velocity",
         "title": "Velocity",
         "type": "basic"
       },
       {
-        "id": 512,
+        "id": 518,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 513,
+        "id": 519,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 515,
+                "id": 521,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_1",
-                "id": 516,
+                "id": 522,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_2",
-                "id": 517,
+                "id": 523,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_3",
-                "id": 518,
+                "id": 524,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_4",
-                "id": 519,
+                "id": 525,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_5",
-                "id": 520,
+                "id": 526,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_6",
-                "id": 521,
+                "id": 527,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_7",
-                "id": 522,
+                "id": 528,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_8",
-                "id": 523,
+                "id": 529,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 514,
+            "id": 520,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -12980,13 +13180,13 @@
         "type": "basic"
       },
       {
-        "id": 524,
+        "id": 530,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 510,
+    "id": 516,
     "name": "Note Editor",
     "title": "Note Editor",
     "type": "submenu"
@@ -12994,87 +13194,87 @@
   {
     "children": [
       {
-        "id": 232,
+        "id": 238,
         "name": "Play direction",
         "title": "Play direction",
         "type": "basic"
       },
       {
-        "id": 526,
+        "id": 532,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 527,
+        "id": 533,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 529,
+                "id": 535,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_1",
-                "id": 530,
+                "id": 536,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_2",
-                "id": 531,
+                "id": 537,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_3",
-                "id": 532,
+                "id": 538,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_4",
-                "id": 533,
+                "id": 539,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_5",
-                "id": 534,
+                "id": 540,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_6",
-                "id": 535,
+                "id": 541,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_7",
-                "id": 536,
+                "id": 542,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_8",
-                "id": 537,
+                "id": 543,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 528,
+            "id": 534,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -13084,15 +13284,21 @@
         "type": "basic"
       },
       {
-        "id": 538,
+        "id": 544,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 525,
+    "id": 531,
     "name": "Row Editor",
     "title": "Row Editor",
     "type": "submenu"
+  },
+  {
+    "id": 560,
+    "name": "DX7 presets",
+    "title": "DX7 presets",
+    "type": "basic"
   }
 ]

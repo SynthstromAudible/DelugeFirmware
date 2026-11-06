@@ -20,3 +20,21 @@ toggle its LED, once per message, on both images.
 `sm14-learn-commands` and `sm15-learn-params` cover MIDI learn in the menus, ShellMenu on and off: the MIDI commands
 (from the list and on an item, FILL's refusal), a param's gold-knob, CC and pitch-bend learn and unlearn, and the MIDI
 follow channel.
+
+`sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
+menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
+that reach it, CLIP's "menu view" and KEYBOARD from it, a patch cable's page, and a kit's rows and affect-entire. Every
+snapshot has a 1 s window, for the interpolation and shortcut blinks, except the boot and two snapshots over the
+scrolling preset name. Their walks rest on how `main`'s menus move: a single large Select turn is capped, so long
+moves are several turns; the sound menu reopens on the row it last showed; BACK from a page a shortcut opened leaves
+the menu.
+
+`sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
+`sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
+root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
+keyboard on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete
+prompt and refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. They run on
+the content card with ShellMenu on (`.superpowers/emu-card/content-shellmenu`: the content card plus the ShellMenu
+card's `SETTINGS/CommunityFeatures.XML`), ShellMenu off on `content`, and `sm19` with `--audio-wav`. Windows over a
+blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
+100 ms after the press, before it times out.

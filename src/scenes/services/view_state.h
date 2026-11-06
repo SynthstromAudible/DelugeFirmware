@@ -51,7 +51,6 @@ public:
 	void forget_unless(uint64_t song) {
 		if (song != song_) {
 			sample_views_.clear();
-			last_ranges_.clear();
 			song_ = song;
 		}
 	}
@@ -77,23 +76,6 @@ public:
 		}
 		sample_views_.emplace_back(address, view);
 	}
-	[[nodiscard]] std::optional<uint16_t> last_range(project::SlotAddress slot, uint8_t source) const {
-		for (const auto& [at, range] : last_ranges_) {
-			if (at.first == slot && at.second == source) {
-				return range;
-			}
-		}
-		return std::nullopt;
-	}
-	void set_last_range(project::SlotAddress slot, uint8_t source, uint16_t range) {
-		for (auto& [at, held] : last_ranges_) {
-			if (at.first == slot && at.second == source) {
-				held = range;
-				return;
-			}
-		}
-		last_ranges_.emplace_back(std::pair{slot, source}, range);
-	}
 	/// @brief The clip the views have open, as a menu would open over it: what the global buttons and MIDI learn ask
 	///        of "the current clip". The app tells the store; none until it does.
 	[[nodiscard]] const MenuView& current_view() const { return current_view_; }
@@ -102,7 +84,6 @@ public:
 private:
 	uint64_t song_{0};
 	std::vector<std::pair<WaveformAddress, SampleView>> sample_views_;
-	std::vector<std::pair<std::pair<project::SlotAddress, uint8_t>, uint16_t>> last_ranges_;
 	MenuView current_view_{};
 };
 

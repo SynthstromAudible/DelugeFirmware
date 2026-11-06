@@ -125,6 +125,47 @@ describe list_w("ui::oled::list", $ {
 		}
 	});
 
+	it("with the cursor hidden selects no row and ignores the turn, and inverts a row's span", _ {
+		// The note-range picker while an edge is edited (`MultiRange::drawPixelsForOled`): no selected row, and the
+		// edited half of one row inverted.
+		const ListRow rows[] = {{"ONE"}, {.label = "TWO", .invert_from = 6, .invert_to = 42}, {"THREE"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		st.cursor = 1;
+		st.hide_cursor = true;
+		r.input.turn = 1;
+		const Response resp = list(r.frame, menu_rect(r.frame), st, rows, sc);
+		expect(resp.changed).to_be_false();
+		expect(st.cursor).to_equal(int16_t(1));
+		// No highlight: row 1 (canvas rows 28..36) is not inverted across the width.
+		expect(r.lit(127, 30)).to_be_false();
+		// Its span is: the blank top line of the row is lit from x = 6 up to x = 41, and nowhere else.
+		expect(r.lit(5, 28)).to_be_false();
+		expect(r.lit(6, 28)).to_be_true();
+		expect(r.lit(41, 28)).to_be_true();
+		expect(r.lit(42, 28)).to_be_false();
+	});
+
+	it("keeps its own scroll when asked, moving the window only as far as the cursor needs", _ {
+		// `MultiRange::currentScroll`: the window opens with the cursor on its last row, and a move keeps it in view
+		// without re-centring it.
+		const ListRow rows[] = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		const Rect m = menu_rect(r.frame);
+		st.keep_scroll = true;
+		st.scroll = -1;
+		st.cursor = 4;
+		list(r.frame, m, st, rows, sc);
+		expect(st.scroll).to_equal(int16_t(2));
+		r.input.turn = -1;
+		list(r.frame, m, st, rows, sc);
+		expect(st.cursor).to_equal(int16_t(3));
+		expect(st.scroll).to_equal(int16_t(2)); // still in view: the window stays
+		r.input.turn = -2;
+		list(r.frame, m, st, rows, sc);
+		expect(st.cursor).to_equal(int16_t(1));
+		expect(st.scroll).to_equal(int16_t(1)); // just far enough
+	});
+
 	it("moves the cursor with turn, clamps, and keeps it visible", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;

@@ -1,7 +1,7 @@
 /// @file
 /// @brief `services::GlobalControls` -- driven against the real legacy it ports,
 ///        `Buttons::buttonAction` (`hid/buttons.cpp:75-235`) and `View::buttonAction`
-///        (`gui/views/view.cpp:140-487`), on a real `Song` built by `support/song_fixture.h`.
+///        (`gui/views/view.cpp:141-488`), on a real `Song` built by `support/song_fixture.h`.
 ///
 /// @par The oracle, and what "each side from its own sentinel" can mean here
 ///
@@ -37,15 +37,15 @@
 ///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`). Not ported, and
 ///     it is a behaviour difference rather than a missing call; there is no port-side state that
 ///     could be driven into it.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`). The note-editor test
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:341-355`). The note-editor test
 ///     needs no port (`global_controls.h`); the fill adjustments name `instrumentClipView`, unported.
 ///   * **`View::buttonAction`'s four MIDI-learn arms** (`:148-166`, `:185-196`, `:199-212`,
 ///     `:215-228`). `MidiLearn`'s; this spec asserts only that they are declined here, and that the
 ///     transport arms they share a button with are correctly suppressed while learn is active.
-///   * **The dedicated undo/redo buttons** (`view.cpp:424-447`). Dead code: they are inside
+///   * **The dedicated undo/redo buttons** (`view.cpp:425-448`). Dead code: they are inside
 ///     `#ifdef undoButtonX` and `undoButtonX` is defined nowhere in this tree, so there is nothing
 ///     to drive on either side.
-///   * **The UNDO-vs-REDO choice** at `view.cpp:415-416`. `playbackHandler.slowRoutine()` at
+///   * **The UNDO-vs-REDO choice** at `view.cpp:416-417`. `playbackHandler.slowRoutine()` at
 ///     `:417` consumes the pending command inside the same call
 ///     (`playback/playback_handler.cpp:201-202`) and a spec cannot make `deluge::sync::sd_busy()`
 ///     true, so both spellings read `NONE` by the time control returns. The arm's *body running*
@@ -513,7 +513,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: declines PLAY and RECORD while MIDI learn is active, and claims them otherwise", _ {
-		// `view.cpp:200` and the RECORD arm after it -- both arms are `&& currentUIMode == UI_MODE_MIDI_LEARN`,
+		// `view.cpp:201` and the RECORD arm after it -- both arms are `&& currentUIMode == UI_MODE_MIDI_LEARN`,
 		// so under learn `View` claims the button and `hid/buttons.cpp:139-141` skips the
 		// transport tail entirely. `MidiLearn` owns those arms; this service
 		// declines rather than swallowing them, so a future routed `MidiLearn` still gets them.
@@ -586,7 +586,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, false, 41'010);
 
 		// And BACK, which is the arm that made the pre-gate divergence live: it is claimed
-		// unconditionally by `view.cpp:405-422`, so an ungated service would fire undo/redo from
+		// unconditionally by `view.cpp:406-423`, so an ungated service would fire undo/redo from
 		// inside any non-root scene that does not claim BACK for itself.
 		//
 		// @warning The only thing that masked that before the gate was
@@ -601,7 +601,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		pending_global_midi_clusters() = kPoison;
 		const Result back_off_root = rig.press(ButtonId::Back, true, 42'000);
 		expect(back_off_root.handled).to_be_false();
-		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // `view.cpp:417` never ran
+		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // `view.cpp:418` never ran
 		rig.press(ButtonId::Back, false, 42'010);
 
 		// The tail is NOT gated: a RECORD tap from the same non-root scene still toggles recording,
@@ -614,7 +614,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("tap tempo / tempo encoder: toggles the metronome on shift+TAP_TEMPO, both sides", _ {
-		// `view.cpp:171-173`.
+		// `view.cpp:172-174`.
 		static spec::SongFixture fixture = spec::make_synth_song();
 
 		release_all_legacy_buttons();
@@ -728,7 +728,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("SAVE/LOAD decision: holds, then reaches the unported open on a short press", _ {
-		// `view.cpp:239-264`. The open itself is not ported; what is compared is
+		// `view.cpp:240-265`. The open itself is not ported; what is compared is
 		// every decision above it.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
@@ -819,7 +819,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("sync scaling: sets and clears the song's sync-scaling clip exactly as legacy does", _ {
-		// `view.cpp:373-395`. The model write is `Song::setInputTickScaleClip`, and it is what
+		// `view.cpp:374-396`. The model write is `Song::setInputTickScaleClip`, and it is what
 		// both sides are compared on.
 		static spec::SongFixture legacy_fixture = spec::make_synth_song();
 		currentSong = legacy_fixture.song;
@@ -921,7 +921,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("BACK undo/redo: runs the reversion arm exactly where legacy's live one does", _ {
-		// `view.cpp:405-422`. The dedicated undo/redo arms at `:426-446` are inside
+		// `view.cpp:406-423`. The dedicated undo/redo arms at `:427-447` are inside
 		// `#ifdef undoButtonX`, which is defined nowhere in this tree, so `BACK` is the only live
 		// spelling and this is the whole of the port's undo/redo.
 		//
@@ -950,7 +950,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), true);
 		const int32_t legacy_result = pending_global_midi_clusters();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), false);
-		expect(legacy_result == 0).to_be_true(); // `view.cpp:417` ran
+		expect(legacy_result == 0).to_be_true(); // `view.cpp:418` ran
 
 		// Re-poison, so a port that writes nothing cannot inherit legacy's zero.
 		pending_global_midi_clusters() = kPoison;
@@ -979,7 +979,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("shift+SELECT_ENC: pushes the menu scene at the settings root", _ {
-		// `view.cpp:450-481`. `soundEditor.setup()`'s default `clip` is null
+		// `view.cpp:451-482`. `soundEditor.setup()`'s default `clip` is null
 		// (`SoundEditor::setup`) and shift is held by this arm's own condition, so
 		// legacy always lands on `settingsRootMenu` (`sound_editor.cpp:1824`).
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -1066,7 +1066,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2591`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
-		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:324`
+		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:325`
 		};
 		expect(got == want).to_be_true();
 	});
@@ -1109,7 +1109,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f3);
 		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::LedState::Kind::On)).to_be_true();
 
-		// `view.cpp:521-523`: blinking once the clip minder showing it IS that clip.
+		// `view.cpp:522-524`: blinking once the clip minder showing it IS that clip.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
@@ -1123,7 +1123,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("LEDs: blinks the CLIP_VIEW LED for the sync-scaling alert, then hands it back", _ {
-		// `view.cpp:374-377`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)`
+		// `view.cpp:375-378`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)`
 		// (`hid/led/indicator_leds.cpp:160-162`).
 		//
 		// **The duration is pinned against legacy's own countdown, not derived on paper** (fix
