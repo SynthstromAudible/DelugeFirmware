@@ -32,6 +32,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
@@ -174,9 +175,9 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		bool loopSong = currentSong->loopSong && playbackHandler.recording == RecordingMode::OFF
-		                && !audioRecorder.isCurrentlyResampling() && !stemExport.processStarted
-		                && !playbackHandler.stopOutputRecordingAtLoopEnd;
+		bool loopSong = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong) && currentSong->loopSong
+		                && playbackHandler.recording == RecordingMode::OFF && !audioRecorder.isCurrentlyResampling()
+		                && !stemExport.processStarted && !playbackHandler.stopOutputRecordingAtLoopEnd;
 		bool sectionPopulated[kMaxNumSections] = {};
 		if (loopSong) {
 			for (int32_t clipIndex = 0; clipIndex < currentSong->sessionClips.getNumElements(); ++clipIndex) {

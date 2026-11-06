@@ -29,6 +29,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/session.h"
@@ -320,9 +321,9 @@ justDoArp:
 	}
 
 	if (playbackHandler.swungTicksTilNextEvent == 2147483647 && posIncrement > 0 && lastProcessedPos > 0
-	    && currentSong->loopSong && playbackHandler.recording == RecordingMode::OFF
-	    && !audioRecorder.isCurrentlyResampling() && !stemExport.processStarted
-	    && !playbackHandler.stopOutputRecordingAtLoopEnd) {
+	    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong) && currentSong->loopSong
+	    && playbackHandler.recording == RecordingMode::OFF && !audioRecorder.isCurrentlyResampling()
+	    && !stemExport.processStarted && !playbackHandler.stopOutputRecordingAtLoopEnd) {
 		resetPlayPos(0);
 		playbackStartedAtPos = -playbackHandler.lastSwungTickActioned;
 		doTickForward(0);
