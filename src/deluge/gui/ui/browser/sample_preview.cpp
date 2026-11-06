@@ -4,6 +4,8 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
+#include "model/global_effectable/output_stage_gain.h"
+#include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -37,12 +39,12 @@ PatchCable* targetVelocityToVolumeCable(ParamManagerForTimeline* paramManager) {
 } // namespace
 
 /// The volume the sample will play at once it's loaded into the current instrument / kit-row, so the preview can
-/// match it (issue #1591). The song master volume is applied to the preview downstream, so this only needs the target
-/// Sound's own volume, plus - for a kit - the kit's output volume.
+/// match it (issue #1591). That's the target Sound's own volume, plus the output stages the preview skips by rendering
+/// outside the song: the song's volume stage and, for a kit, the kit's output volume and the fixed gain of its output
+/// stage. Master FX apply to both.
 ///
-/// Not modelled: the kit's x1.25 postFX baseline and setupFilterSetConfig()'s resonance scaling, both applied in
-/// GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off. Modelling them would couple
-/// the preview path to the kit render chain.
+/// Not modelled: the kit's filter resonance, which its chain folds into its post-FX volume. A resonant kit will still
+/// preview slightly off.
 AudioEngine::PreviewVolume targetPreviewVolume(const PreviewSound& target) {
 	AudioEngine::PreviewVolume previewVolume = AudioEngine::PreviewVolume::neutral();
 
@@ -66,21 +68,31 @@ AudioEngine::PreviewVolume targetPreviewVolume(const PreviewSound& target) {
 		previewVolume.velocityCableDepth = 0;
 	}
 
+	// The output stages' combined gain, in the pos domain of util/volume_param_gain.h. The song's volume stage halves
+	// its volume - about -6 dB at neutral song volume.
+	int32_t outputGainPos = kVolumeParamUnityPos;
+	if (currentSong != nullptr) {
+		int32_t songVolumeParam = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+		outputGainPos = multiplyGainPos(volumeParamToGainPos(songVolumeParam), songOutputStageGainPos());
+	}
+
 	if (target.kit && target.clip != nullptr) {
 		ParamManagerForTimeline& kitParamManager = target.clip->paramManager;
 		if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
 			int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
-			int32_t kitGainPos = volumeParamToGainPos(kitVolumeParam);
-
-			// Fold the kit's output volume into LOCAL_VOLUME first: it sits at neutral by default, so it has exactly
-			// the 4x of headroom the kit's maximum gain demands. Anything that doesn't fit - only possible when the
-			// drum's own local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
-			VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, kitGainPos);
-			previewVolume.localVolume = local.param;
-			previewVolume.volumePostFX =
-			    applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
+			// The kit's output stage halves its volume, adds a baseline and passes through the filter set's gain
+			// adjustment - about -6 dB at neutral kit volume.
+			outputGainPos = multiplyGainPos(
+			    outputGainPos, multiplyGainPos(volumeParamToGainPos(kitVolumeParam), kitOutputStageGainPos()));
 		}
 	}
+
+	// Fold the output gain into LOCAL_VOLUME first: it sits at neutral by default, so it has more than the headroom the
+	// maximum output gain demands. Anything that doesn't fit - only possible when the Sound's own local volume is
+	// already boosted - spills into GLOBAL_VOLUME_POST_FX.
+	VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, outputGainPos);
+	previewVolume.localVolume = local.param;
+	previewVolume.volumePostFX = applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
 	return previewVolume;
 }
 

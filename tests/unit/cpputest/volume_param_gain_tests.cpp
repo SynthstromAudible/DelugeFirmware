@@ -85,8 +85,8 @@ TEST(VolumeParamGainTests, neutralLocalVolumeAbsorbsFullKitRange) {
 }
 
 TEST(VolumeParamGainTests, kitOutputStageGainMatchesRenderChain) {
-	// Mirror GlobalEffectableForClip::renderOutput() for a kit at neutral volume with its filters off: halve the
-	// volume gain, add a quarter back, then FilterSet::setConfig()'s gain adjustment. 2^27 is unity.
+	// Mirror a kit's track chain at neutral volume with its filters off: halve the volume gain, add a quarter back,
+	// then the filter set's gain adjustment. 2^27 is unity.
 	int64_t volumeAdjustment = int64_t{134217728} >> 1;
 	int64_t volumePostFX = volumeAdjustment + (volumeAdjustment >> 2);
 	volumePostFX = ((volumePostFX * 1720000000) >> 32) << 1;

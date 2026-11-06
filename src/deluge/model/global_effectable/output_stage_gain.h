@@ -1,21 +1,22 @@
 #pragma once
 #include <cstdint>
 
-/// The fixed gain stages a Sound's output passes through after Sound::render() but before the master FX in
-/// AudioEngine::renderSongFX(): a kit's in GlobalEffectableForClip::renderOutput(), and the song's in
-/// Song::renderAudio(). The sample preview renders outside the song and skips both, so these are shared with the
-/// sample browser to let a preview match a sample loaded into the current instrument (issue #1591).
+/// The fixed gain stages a Sound's output passes through after Sound::render() but before the master FX: a kit's in
+/// its track chain (deluge::model::trackChainInputs() and the chain's filter set), and the song's in
+/// Song::renderAudio(). The sample preview renders outside the song and skips both, so these let a preview match a
+/// sample loaded into the current instrument (issue #1591).
 
-/// Song::renderAudio() halves the gain from the song's UNPATCHED_VOLUME before applying it to every output.
+/// Song::renderAudio() halves the gain from the song's UNPATCHED_VOLUME (deluge::model::volume_from_knob()) before
+/// applying it to every output.
 constexpr int32_t kSongVolumeAdjustmentShift = 1;
-/// GlobalEffectableForClip::renderOutput() halves the gain from UNPATCHED_VOLUME, because the preset default already
+/// A kit's chain halves the gain from its UNPATCHED_VOLUME (volume_from_knob()), because the preset default already
 /// doubles it.
 constexpr int32_t kClipVolumeAdjustmentShift = 1;
-/// renderOutput() then raises a kit's post-FX volume by volumeAdjustment >> this, so default filter resonance doesn't
-/// reduce volume overall.
+/// trackChainInputs() then raises a kit's post-FX volume by the halved volume >> this, so default filter resonance
+/// doesn't reduce volume overall.
 constexpr int32_t kKitPostFXBaselineShift = 2;
-/// FilterSet::setConfig() scales every filter set's gain by this, applied as multiply_32x32_rshift32() << 1 (~0.801),
-/// whether or not any filter is on.
+/// The filter set (deluge::dsp::fixed FilterSet) scales its gain by this as a Q31 factor (~0.801), whether or not any
+/// filter is on.
 constexpr int32_t kFilterSetGainAdjust = 1720000000;
 
 namespace output_stage_gain_detail {
