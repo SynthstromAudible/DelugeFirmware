@@ -47,6 +47,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/sample.h"
+#include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -572,17 +573,29 @@ struct MidiRig {
 /// itself. `Node::relevant` is public data (`scenes/menu/node.h`), so this is the same rule the
 /// interpreter applies, spelled independently of it.
 int32_t visible_index_of(const MenuContext& ctx, const Node& page, const Node& item) {
+	// A group's columns are its member pages' children, in order.
 	int32_t index = 0;
-	for (const Node* kid : page.children) {
-		if (kid == nullptr || !menu::bindings::relevant(*kid, ctx)) {
-			continue;
+	const auto walk = [&](const Node& p) {
+		for (const Node* kid : p.children) {
+			if (kid == nullptr || !menu::bindings::relevant(*kid, ctx)) {
+				continue;
+			}
+			if (kid == &item) {
+				return true;
+			}
+			index++;
 		}
-		if (kid == &item) {
-			return index;
+		return false;
+	};
+	if (page.is_group) {
+		for (const Node* member : page.children) {
+			if (member != nullptr && walk(*member)) {
+				return index;
+			}
 		}
-		index++;
+		return -1;
 	}
-	return -1;
+	return walk(page) ? index : -1;
 }
 
 std::string split_of(std::string_view path) {
@@ -1019,8 +1032,8 @@ describe browser_choice_reroot(
 	    // Legacy's return affordance, in the port's own terms:
 	    // `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
 	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:974-976`).
-	    // The page is `sourceMenuGroup` focused on `source0Menu` (`gui/ui/menus.cpp:1748-1749`), which
-	    // this port models as the ordinary submenu `nodes::source0`.
+	    // The page is `sourceMenuGroup` focused on `source0Menu`'s file selector (`gui/ui/menus.cpp:1748-1749`):
+	    // `nodes::source_group`, whose columns run across its five member pages.
 	    //
 	    // @par Why the entry point is called by name here, and the claim is not run
 	    //
@@ -1072,8 +1085,8 @@ describe browser_choice_reroot(
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
 
-		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) ...
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`), the chain's `sourceMenuGroup` ...
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 		        // ... and `navigationDepth = 0` (`:1118`). This is the assertion the "one extra BACK
 		        // press" was: a re-root that left the page one level in would still satisfy the line
 		        // above.
@@ -1081,12 +1094,17 @@ describe browser_choice_reroot(
 		        // ... and `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`), which is a
 		        // separate failure mode: the right page with the wrong column focused is exactly what
 		        // legacy's `focusChild` exists to prevent.
-		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source0, nodes::file0_selector);
+		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source_group, nodes::file0_selector);
 		        // Pinned as a number too, so "the focus was never moved" cannot pass by agreeing with a
 		        // page whose selector happens to sit first. `osc0_type` is column 0 on a subtractive
 		        // source (`nodes/sound_osc.h`'s `kSource0Children`).
 		        expect(column).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(column);
+		        // The group pages across its members, so the counter reads `main`'s 1/6, not the member page's 1/3.
+		        const deluge::ui::oled::Paging paging =
+		            menu::horizontal_paging(menu_scene().menu_context(), menu_scene().state());
+		        expect(static_cast<int32_t>(paging.page)).to_equal(0);
+		        expect(static_cast<int32_t>(paging.total_pages)).to_equal(6);
 	        });
 
 	    it(
@@ -1105,11 +1123,11 @@ describe browser_choice_reroot(
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
 		        // And a refusal is a no-op, not a reset: the menu is exactly where the first call left it.
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 		        expect(menu_scene().state().depth).to_equal(0);
 	        });
 

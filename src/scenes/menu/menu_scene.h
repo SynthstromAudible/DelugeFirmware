@@ -411,7 +411,7 @@ public:
 	///          The one-slot mailbox's warning above applies unchanged.
 	void request_action(MenuActionRequest request) { st_.walk.pending_action = request; }
 
-	/// @brief Re-root the menu onto the horizontal page that lists `MenuWalkState::scene_opener`, with
+	/// @brief Re-root the menu onto the horizontal page or group that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
 	///        (`gui/ui/browser/sample_browser.cpp:974-976`).
 	///
@@ -436,12 +436,12 @@ public:
 	/// (`gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
 	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` (`:2084`) over
 	/// `getCurrentHorizontalMenusChain(false)` (`:2079`, dispatched on the root at `:2108-2130`).
-	/// This scene has the root (`MenuContext::root`) and the tables, so it answers the same
-	/// question by walking the current root's own subtree for the `Layout::Horizontal` submenu that
-	/// lists the item -- which is `hasItem` with the chain spelled as reachability instead of as a
-	/// curated `deluge::vector` (`gui/ui/menus.cpp:2270`). Carrying a resolved page in would have
-	/// meant paying that walk on every scene push, including the four that have no return
-	/// affordance at all.
+	/// This scene has the root (`MenuContext::root`) and the chains (`chain_for`), so it answers the
+	/// same question: the first chain entry that lists the item, which for an oscillator's file
+	/// selector is the whole `source_group` (`sourceMenuGroup`), paged across its five members. A
+	/// root whose chain lists the item nowhere falls back to the horizontal page in its subtree that
+	/// does (`horizontal_page_listing`). Carrying a resolved page in would have meant paying that
+	/// search on every scene push, including the four that have no return affordance at all.
 	///
 	/// @par Why an immediate mutator, and not `request_action`'s mailbox
 	///

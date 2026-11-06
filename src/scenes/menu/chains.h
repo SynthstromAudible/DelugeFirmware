@@ -46,28 +46,12 @@ bool page_lists(const Node& page, const Node& column);
 
 /// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
 ///
-/// `SoundEditor::maybeGetParentMenu`'s one statement of substance
-/// (`gui/ui/sound_editor.cpp`): `find_if(chain, [](HorizontalMenu* menu) { return
-/// menu->hasItem(item); })`, over the chain `getCurrentHorizontalMenusChain(false)` picks for the
-/// current root (`:2079`, the dispatch at `:2108-2130`).
+/// The fallback of `MenuScene::reroot_to_scene_opener_page`, which first searches the root's chain as
+/// `SoundEditor::maybeGetParentMenu` does (`find_if(chain, hasItem)`): a root whose chain lists the item nowhere --
+/// the audio clip's, whose `file0_selector` is listed by `audio_clip_sample` -- lands on the page that does.
 ///
-/// **The chain is spelled as reachability rather than as a list**, and that is the one liberty
-/// taken. Legacy's chains are curated `deluge::vector`s -- `horizontalMenusChainForSound` is
-/// `{&sourceMenuGroup, &voiceMenuGroup, ...}` (`gui/ui/menus.cpp:2270-2272`) -- and there is no
-/// port of them, nor of `HorizontalMenuGroup` (`gui/menu_item/horizontal_menu_group.h:26`), whose
-/// five members this port models as five ordinary sibling submenus. What both spellings answer for
-/// the two items this is reached for is the same page: `file0_selector` is listed by `source0`
-/// under the Sound and Drum roots (`nodes/sound_osc.h`'s `kSource0Children`) and by
-/// `audio_clip_sample` under the audio-clip root (`nodes/roots.h`'s `kAudioClipSampleChildren`),
-/// which is `sourceMenuGroup` focused on `source0Menu` (`menus.cpp:1748-1749`, `:333-349`) and
-/// `audioClipSampleMenu` (`:1186-1196`) respectively.
-///
-/// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and
-/// none of the roots reaches either file selector through one, so resolving them here would be
-/// machinery with no caller.
-///
-/// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2110-2112`) is the
-/// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
+/// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and none of the roots
+/// reaches either file selector through one.
 /// @param node The subtree to search.
 /// @param item The node the page must list.
 /// @return The horizontal submenu, or null.

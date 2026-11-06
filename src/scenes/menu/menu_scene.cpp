@@ -278,10 +278,21 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (i >= r.size() || r[i] == nullptr) {
 		return false;
 	}
-	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`). Legacy answers `nullptr`
-	// when no menu in the chain lists the item, and its caller then does nothing at all -- which is
-	// this `false`.
-	const Node* page = horizontal_page_listing(*r[i], *item);
+	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`): the first menu of the root's chain that
+	// lists the item, which for an oscillator's file selector is the whole `sourceMenuGroup`, paged across its five
+	// members, not the member page. A root whose chain lists the item nowhere falls back to the page that does (the
+	// audio clip's sample page). Legacy answers `nullptr` when no menu lists the item, and its caller then does
+	// nothing at all -- which is this `false`.
+	const Node* page = nullptr;
+	for (const Node* candidate : chain_for(ctx_.root)) {
+		if (candidate != nullptr && page_lists(*candidate, *item)) {
+			page = candidate;
+			break;
+		}
+	}
+	if (page == nullptr) {
+		page = horizontal_page_listing(*r[i], *item);
+	}
 	if (page == nullptr) {
 		return false;
 	}
