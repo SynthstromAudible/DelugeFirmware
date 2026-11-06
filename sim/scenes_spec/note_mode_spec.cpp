@@ -566,7 +566,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		// `sound_editor.cpp:751-752`: `uiNeedsRendering(this, 0xFFFFFFFF, 0)`, where `this` is the menu
 		// UI that is about to close -- the guest, here. The note-row arm (`:754`) has no repaint. The
 		// recorder stands in for `exitNoteEditor`, so its own `uiNeedsRendering(this, ...)`
-		// (`instrument_clip_view.cpp:3641-3640`) is not what sets the rows below.
+		// (`instrument_clip_view.cpp:3640-3641`) is not what sets the rows below.
 		RecordingCalls recording;
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
