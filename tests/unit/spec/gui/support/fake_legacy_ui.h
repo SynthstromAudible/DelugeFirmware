@@ -145,6 +145,8 @@ extern int action_dispatches;
 /// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
 ///        writes the menu and the knobs, none of which this suite builds.
 extern int root_fact_refreshes;
+/// @brief What the fake `rootTakesAuditionPad` answers: whether the root is the instrument clip view.
+extern bool root_takes_audition;
 /// @brief How many times `deluge::gui::ui::dispatchMenuTransitions()` was called: the poll of the menu's transition
 ///        record, on the same terms as `action_dispatches`.
 extern int transition_dispatches;

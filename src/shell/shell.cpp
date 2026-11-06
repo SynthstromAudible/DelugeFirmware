@@ -370,6 +370,13 @@ void Shell::tick(uint32_t now_ms) {
 		surfaces_.grid().gate.request_repaint();
 		lowering_.widgets_gate().request_repaint();
 	}
+	else if (const grid::GreyoutMask now = stack_.topmost_greyout();
+	         now.cols != greyout_.cols || now.rows != greyout_.rows) {
+		// A scene whose mask follows its own state (the sample browser's, as its pads change) changes the greyout
+		// with no stack change.
+		greyout_ = now;
+		surfaces_.grid().gate.request_repaint();
+	}
 	rendered_this_tick_.clear();
 	// `model_dirty` is deliberately `false` at all three `needs_frame` sites below. The gate's
 	// third argument fires *every* gate, which would make step 1's careful attribution dead

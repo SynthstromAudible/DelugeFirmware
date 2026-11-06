@@ -1,6 +1,7 @@
 scene app19
 scene app16/139
 led Back blink 110
+led Synth on
 pad 1 2 0 0 255
 pad 10 1 160 160 160
 pad 10 2 10 10 10
@@ -56,3 +57,4 @@ pad 9 2 10 10 10
 pad 9 3 160 160 160
 pad 9 4 10 10 10
 pad 9 5 64 64 64
+flash 0 5 0

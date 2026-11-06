@@ -318,6 +318,9 @@ enum class GridPadClaim : uint8_t {
 	ShortcutsOnly,
 	/// The scene owns no grid pad. The port of the shortcut arm not running.
 	None,
+	/// The scene owns every pad but the audition column (`kDisplayWidth + 1`), which goes to the root view when the
+	/// host's root is one that auditions: the sample browser's `padAction`.
+	AllButAudition,
 };
 
 /// @brief The parts of the pad grid a scene draws itself -- `Scene::pad_regions()`'s return type.
@@ -553,6 +556,10 @@ public:
 	/// @brief Which pad rows and columns this scene wants greyed out.
 	/// @return The mask; all-zero (the default) greys nothing.
 	virtual grid::GreyoutMask greyout_mask() const { return {}; }
+	/// @brief Whether a change of this scene's greyout applies at once rather than fading: legacy's
+	///        `PadLEDs::reassessGreyout(true)`, which the sample browser asks for at every change of its pads.
+	/// @return False (the default): the change fades, as `reassessGreyout()` does.
+	virtual bool greyout_changes_instantly() const { return false; }
 	/// @brief Is this scene a **root view** -- one of the things legacy calls a `RootUI`?
 	///
 	/// Not a composition question like the rest of this group, but it lives here because it is a

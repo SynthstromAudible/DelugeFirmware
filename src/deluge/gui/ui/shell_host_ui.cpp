@@ -352,7 +352,7 @@ void ShellHostUI::syncPads() {
 		// A scene that takes the main pads and greys every column is the menu's SHIFT overlay, whose greyout
 		// `renderMainShortcutsOnly` applies at once (`PadLEDs::doGreyoutInstantly()`) rather than fading it in.
 		const bool overlay = deluge::ui::shell::holds(gained, PadRegions::Main) && mask.cols == 0xFFFFFFFFu;
-		PadLEDs::reassessGreyout(overlay);
+		PadLEDs::reassessGreyout(overlay || shell_.stack().input_top().greyout_changes_instantly());
 	}
 }
 
@@ -767,6 +767,10 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		return true;
 	case deluge::ui::shell::GridPadClaim::None:
 		return false;
+	case deluge::ui::shell::GridPadClaim::AllButAudition:
+		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
+		// root, and swallowed by the browser otherwise.
+		return x != kDisplayWidth + 1 || !rootTakesAuditionPad();
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
 		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
 		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,

@@ -109,6 +109,10 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 /// @return True when the pad is the root view's.
 bool rootKeepsShortcutPad(int32_t x, int32_t y);
 
+/// @brief Whether the root view takes the audition column under the sample browser: the instrument clip view, which
+///        `SampleBrowser::padAction` hands it to.
+bool rootTakesAuditionPad();
+
 /// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the ported menu: whether the param the menu edits is
 ///        the one the automation view has selected.
 bool menuShowsAutomationViewParam();

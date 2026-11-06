@@ -36,6 +36,7 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/services/waveform_paint.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -382,10 +383,19 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	edit_ = deluge::ui::oled::TextEditState{};
 	kb_ = deluge::ui::grid::TextKeyboardState{};
 	resp_ = {};
+	reveal_press_.reset();
 	pending_.reset();
 	choice_.reset();
 	searching_ = false;
 	select_after_listing_.clear();
+	// `SampleBrowser::opened`: no keyboard and no preview yet, so the root view shows and the BROWSE pad blinks. The
+	// MIDI device definition browser shows its keyboard for good (`qwertyAlwaysVisible`).
+	pads_ = id_ == BrowserId::Sample ? BrowserPads::Root : BrowserPads::Keyboard;
+	nav_identity_ = 0;
+	pads_changed_ = false;
+	blink_ = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index), 5);
+	blink_anchor_ms_.reset();
+	blink_fired_step_ = UINT32_MAX;
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
@@ -445,8 +455,24 @@ std::optional<PreviewRequest> BrowserScene::take_preview() {
 }
 
 void BrowserScene::preview_settled(bool has_sample) {
-	(void)has_sample;
 	preview_outstanding_ = false;
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	if (has_sample) {
+		// `showPreview`: the waveform takes the pads unless the keyboard is up.
+		if (pads_ == BrowserPads::Root) {
+			pads_ = BrowserPads::Waveform;
+			pads_changed_ = true;
+		}
+		return;
+	}
+	// `clearPreviewDisplay`: back to the root view, whose BROWSE pad blinks again (`possiblySetUpBlinking`).
+	if (pads_ == BrowserPads::Waveform) {
+		pads_ = BrowserPads::Root;
+		blink_anchor_ms_.reset();
+		pads_changed_ = true;
+	}
 }
 
 void BrowserScene::file_preview(int8_t direction) {
@@ -1096,21 +1122,77 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 }
 
 void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`), already ported. The sidebar is deliberately
-	// untouched -- legacy clears the *main* pads only.
-	//
-	// @note Legacy's `qwertyVisible` toggle is not ported. `SampleBrowser` starts with the keyboard
-	//       hidden and the sample's waveform on the pads instead (`sample_browser.cpp:113`,
-	//       `SampleBrowser::renderMainPads`), and swaps between the two as the selection moves. That
-	//       half is the sample *preview*, which needs `AudioEngine::previewSample`, `PadLEDs`'
-	//       horizontal scroll transition and the marker editor -- none of it reachable from here,
-	//       and the marker editor is its own scene. The keyboard is therefore always
-	//       drawn, which is `LoadMidiDeviceDefinitionUI`'s own behaviour
-	//       (`load_midi_device_definition_ui.cpp:129-134 onBrowserOpened`) and the base `Browser`'s
-	//       (`qwertyAlwaysVisible = true`, `browser.cpp:89`).
-	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 	grid_pass_ = true;
 	last_render_ms_ = f.now_ms();
+	if (pads_ != BrowserPads::Keyboard) {
+		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, acted on by `after_render`.
+		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight});
+	}
+	switch (pads_) {
+	case BrowserPads::Root:
+		render_root_blink(f);
+		return;
+	case BrowserPads::Waveform:
+		render_waveform(f);
+		return;
+	case BrowserPads::Keyboard:
+		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
+		// *main* pads only.
+		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+		return;
+	}
+}
+
+void BrowserScene::render_root_blink(deluge::ui::grid::GridFrame& f) {
+	// `SoundEditor::setupExclusiveShortcutBlink(x, 5)` from `possiblySetUpBlinking`: the BROWSE pad of the source being
+	// edited (column 0 for an audio clip) flashes on every other cycle of legacy's blink counter, which starts when the
+	// root view comes back.
+	const uint32_t now = f.now_ms();
+	if (!blink_anchor_ms_.has_value()) {
+		blink_anchor_ms_ = now;
+		blink_fired_step_ = UINT32_MAX;
+	}
+	const uint32_t step = menu::blink_step(*blink_anchor_ms_, now);
+	if (step != blink_fired_step_) {
+		menu::fire_blink_step(f, blink_, step);
+		blink_fired_step_ = step;
+	}
+	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
+}
+
+void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
+	// `showPreview`'s `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new
+	// sample as `waveformBasicNavigator.opened()` does.
+	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
+	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
+	if (!info) {
+		return;
+	}
+	if (info->identity != nav_identity_) {
+		nav_identity_ = info->identity;
+		nav_.sample = nullptr;
+		nav_.length_samples = info->length_samples;
+		nav_.opened(0, 0);
+	}
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
+		(void)services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
+	});
+}
+
+void BrowserScene::leds(deluge::ui::LedFrame& f) {
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	// `SampleBrowser::opened`'s LEDs: SYNTH for a synth, KIT while editing a kit, the three view LEDs off.
+	const auto state = [](bool on) {
+		return deluge::ui::LedState{on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0};
+	};
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), state(!ctx_.is_kit && !ctx_.is_audio_clip));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), state(ctx_.is_kit));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), state(false));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), state(false));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), state(false));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1127,6 +1209,13 @@ Result BrowserScene::after_render() {
 	grid_pass_ = false;
 
 	Result r;
+
+	// The host settled a preview between ticks (`preview_settled`): the pads change with no input to repaint them.
+	if (pads_changed_) {
+		pads_changed_ = false;
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
 
 	// 1. **No input lock, deliberately -- see `handle()`.** Filing `Action::Kind::LockInput` while
 	//    `in_flight()` would be a whole-device failure waiting for an external `Pop`: `on_exit()`
@@ -1209,23 +1298,36 @@ Result BrowserScene::after_render() {
 
 	bool changed = false;
 
+	// A main pad with the keyboard hidden reveals it, the cursor at the start, and types only below the favourites
+	// row, so a blind press on a favourite does nothing else.
+	const std::optional<deluge::ui::PadEvent> reveal = reveal_press_;
+	reveal_press_.reset();
+	if (grid_pass && reveal.has_value() && pads_ != BrowserPads::Keyboard) {
+		pads_ = BrowserPads::Keyboard;
+		edit_.cursor = 0;
+		const char c = reveal->y < kFavouriteRow
+		                   ? deluge::ui::grid::text_keyboard_char_at(layout_, reveal->x, reveal->y,
+		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
+		                   : 0;
+		const Result typed = c != 0 ? press_key(c) : repaint_all();
+		r.handled = true;
+		for (const Action& a : typed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
+
 	if (grid_pass && resp.index >= 0) {
 		const char c = static_cast<char>(resp.index);
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
-			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
-			const Result done = enter_key_press(shift_);
+			const Result done = press_key(c);
 			r.handled = true;
 			for (const Action& a : done.actions) {
 				(void)r.actions.push_back(a);
 			}
 			return r;
 		}
-		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
-			backspace();
-		}
-		else {
-			type_char(c);
-		}
+		(void)press_key(c);
 		changed = true;
 	}
 
@@ -1234,6 +1336,20 @@ Result BrowserScene::after_render() {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
 	return r;
+}
+
+Result BrowserScene::press_key(char c) {
+	if (c == deluge::ui::grid::kTextKeyboardEnter) {
+		// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
+		return enter_key_press(shift_);
+	}
+	if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+		backspace();
+	}
+	else {
+		type_char(c);
+	}
+	return repaint_all();
 }
 
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
@@ -1301,6 +1417,21 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Pad:
+		// A main pad with the keyboard hidden was read by `render_grid` (`reveal_press_`), beneath a context menu too.
+		if (id_ == BrowserId::Sample && event.x < kDisplayWidth && pads_ != BrowserPads::Keyboard) {
+			Result r;
+			r.handled = true;
+			return r;
+		}
+		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
+		if (id_ == BrowserId::Sample && event.x == kDisplayWidth) {
+			if (event.velocity != 0 && !holding_) {
+				return close();
+			}
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		// `Browser::padAction` -> `QwertyUI::padAction`: a main pad belongs to the keyboard, which
 		// has already claimed it while `render_grid` painted it, so anything arriving here is
 		// outside the keyboard's columns. Legacy's sidebar arms are the favourites row and the bank
@@ -1467,7 +1598,7 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	}
 
 	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.
-	if (long_press_done_.has_value() || slice_ready_.has_value()) {
+	if (long_press_done_.has_value() || slice_ready_.has_value() || pads_changed_) {
 		return 0;
 	}
 

@@ -33,6 +33,7 @@ bool knob_clear_saw_close = false;
 int service_wirings = 0;
 int action_dispatches = 0;
 int root_fact_refreshes = 0;
+bool root_takes_audition = false;
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
@@ -95,6 +96,7 @@ void reset() {
 	service_wirings = 0;
 	action_dispatches = 0;
 	root_fact_refreshes = 0;
+	root_takes_audition = false;
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
@@ -464,6 +466,10 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 // view.
 bool rootKeepsShortcutPad(int32_t, int32_t) {
 	return false;
+}
+
+bool rootTakesAuditionPad() {
+	return fakelegacyui::root_takes_audition;
 }
 
 // The same file's root-UI question for the marker's sidebar: the real one reads `getRootUI()` and

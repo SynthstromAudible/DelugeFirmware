@@ -49,13 +49,20 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/sample/sample.h"
+#include "model/sample/waveform_navigator.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
+#include "storage/multi_range/multisample_range.h"
 #include "util/name_compare.h"
 
 #include "support/song_fixture.h"
@@ -84,6 +91,7 @@ using deluge::l10n::String;
 using deluge::scenes::browser::AcceptOutcome;
 using deluge::scenes::browser::browser_scene;
 using deluge::scenes::browser::BrowserId;
+using deluge::scenes::browser::BrowserPads;
 using deluge::scenes::browser::BrowserScene;
 using deluge::scenes::browser::kBrowserSceneKind;
 using deluge::scenes::browser::kListingPollMs;
@@ -676,6 +684,55 @@ bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }
 
+/// @brief A 16-bit mono sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
+Sample* make_overview_sample() {
+	constexpr size_t kClusterBytes = 32768;
+	constexpr int32_t kClusters = 32;
+	constexpr uint64_t kLength = static_cast<uint64_t>(kClusterBytes) * kClusters / 2;
+	Cluster::set_size(kClusterBytes);
+	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	auto* s = new (memory) Sample();
+	s->byteDepth = 2;
+	s->numChannels = 1;
+	s->sampleRate = 44100;
+	s->audioDataStartPosBytes = 0;
+	s->audioDataLengthBytes = kLength * 2;
+	s->lengthInSamples = kLength;
+	s->maxValueFound = 127 << 24;
+	s->minValueFound = -128 << 24;
+	s->resizeOverviewCache(kClusters);
+	for (int32_t i = 0; i < kClusters; i++) {
+		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
+		e.min = static_cast<int8_t>(-(16 + 3 * i));
+		e.max = static_cast<int8_t>(16 + 3 * i);
+		e.investigated = true;
+	}
+	return s;
+}
+
+/// @brief Put @p sample in the preview drum's range for an example, as a landed preview does; the drum's range is
+///        emptied after.
+struct PreviewHeld {
+	MultisampleRange* range;
+	explicit PreviewHeld(Sample* sample)
+	    : range(static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange())) {
+		range->sampleHolder.audioFile = sample;
+	}
+	~PreviewHeld() { range->sampleHolder.audioFile = nullptr; }
+	PreviewHeld(const PreviewHeld&) = delete;
+	PreviewHeld& operator=(const PreviewHeld&) = delete;
+};
+
+/// @brief The pad flashes the rig's grid surface was sent since @p from.
+std::vector<deluge::ui::grid::PadFlash> flashes_since(Rig& r, size_t from) {
+	return {r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
+}
+
+/// @brief Whether the rig's LED for @p b is declared on.
+bool led_on(Rig& r, ButtonId b) {
+	return r.fake.leds().desired_on[static_cast<size_t>(b)];
+}
+
 /// @brief The first action of kind @p k in @p r, or null.
 const ShellAction* find_action(const Result& r, ShellAction::Kind k) {
 	for (const ShellAction& a : r.actions) {
@@ -904,11 +961,21 @@ describe browser_composition("scenes::browser::BrowserScene composition", $ {
 		expect(s.input_transparent()).to_be_false();
 	});
 
-	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
+	it("draws the keyboard on the main pads only, greying the mute column, leaving the sidebar to the view beneath", _ {
 		// The keyboard is `QwertyUI::drawKeys`'s, main pads only (`gui/ui/qwerty_ui.cpp:76-125`), and
 		// `SampleBrowser::getGreyoutColsAndRows` greys the mute column while it shows
-		// (`gui/ui/browser/sample_browser.cpp:536-546`).
+		// (`gui/ui/browser/sample_browser.cpp:576-587`).
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.pad(9, 7, 64, r.clock + 10); // the favourites row: reveals the keyboard and types nothing
+		r.step();
+		r.pad(9, 7, 0, r.clock + 10);
+		r.step();
 		const deluge::ui::shell::Scene& s = browser_scene();
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
 		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
@@ -1271,7 +1338,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 	it("files none for the MIDI device definition browser", _ {
 		CleanBrowser clean;
 		ScratchCard card;
-		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		spec::SongFixture f = spec::make_midi_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
 		expect(browser_scene().take_preview().has_value()).to_be_false();
@@ -1300,6 +1367,149 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK1"});
+	});
+});
+
+describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ {
+	it("opens in the root state: no pads, every column but the audition column greyed, the BROWSE pad flashing", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const deluge::ui::shell::Scene& s = browser_scene();
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		expect(seen.empty()).to_be_false();
+		for (const deluge::ui::grid::PadFlash& fl : seen) {
+			expect(fl.x == 0 && fl.y == 5).to_be_true();
+		}
+		// every other 200 ms cycle: two or three flashes in a second, never one per cycle
+		expect(seen.size() >= 2 && seen.size() <= 3).to_be_true();
+	});
+
+	it("greys only the mute column over the keyboard screen", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		ctx.root_is_keyboard = true;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(static_cast<uint64_t>(browser_scene().greyout_mask().cols)).to_equal(uint64_t{0b10});
+	});
+
+	it("shows the waveform once the preview settles with a sample", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample();
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50); // the settle asks for the repaint on the next tick
+		const deluge::ui::shell::Scene& s = browser_scene();
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
+		// `showPreview`'s `renderFullScreen`, zoomed all the way out.
+		deluge::sample::WaveformNav nav;
+		nav.length_samples = sample->lengthInSamples;
+		nav.opened(0, 0);
+		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		WaveformRenderData data{};
+		data.xScroll = -1;
+		(void)waveformRenderer.renderFullScreen(sample, nav.xScroll, nav.xZoom, legacy, &data);
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				differ += r.fake.grid().grid().at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == legacy[y][x] ? 0 : 1;
+				lit += legacy[y][x] == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit > 0).to_be_true();
+		expect(differ).to_equal(0);
+	});
+
+	it("returns to the root state, blinking again, when the preview settles with no sample", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 500);
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		expect(flashes_since(r, from).empty()).to_be_true(); // no blink over the waveform
+		browser_scene().preview_settled(false);
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		run_until(r, r.clock + 1000);
+		expect(flashes_since(r, from).empty()).to_be_false();
+	});
+
+	it("declares SYNTH and KIT from the context and turns CROSS_SCREEN, SESSION and SCALE off", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		{
+			spec::SongFixture f = spec::make_synth_song();
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			expect(led_on(r, ButtonId::Synth)).to_be_true();
+			expect(led_on(r, ButtonId::Kit)).to_be_false();
+			expect(led_on(r, ButtonId::CrossScreen) || led_on(r, ButtonId::Session) || led_on(r, ButtonId::Scale))
+			    .to_be_false();
+			expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Scale)]).to_be_true();
+		}
+		CleanBrowser::reset();
+		{
+			spec::SongFixture f = spec::make_kit_song();
+			(void)spec::add_drum<SoundDrum>(f);
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			expect(led_on(r, ButtonId::Synth)).to_be_false();
+			expect(led_on(r, ButtonId::Kit)).to_be_true();
+		}
+		CleanBrowser::reset();
+		{
+			spec::AudioSongFixture f = spec::make_audio_clip_song();
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			expect(led_on(r, ButtonId::Synth) || led_on(r, ButtonId::Kit)).to_be_false();
+		}
+	});
+
+	it("the mute column exits and stops the preview", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		r.pad(kDisplayWidth, 0, 64, r.clock + 10);
+		r.step();
+		expect(r.browser_on_stack()).to_be_false();
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+	});
+
+	it("keeps the MIDI definition browser on its keyboard", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_midi_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		browser_scene().preview_settled(false);
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
 	});
 });
 
@@ -2370,4 +2580,4 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
-                browser_long_press, browser_slicer_doors, browser_preview)
+                browser_long_press, browser_slicer_doors, browser_preview, browser_pads)

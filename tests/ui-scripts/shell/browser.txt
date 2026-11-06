@@ -20,8 +20,8 @@
 100   pad 0 5 down 64
 120   pad 0 5 up
 130   button Shift up
-200   snapshot after_shortcut        # "Audio files": SAMPLES/ listed, cursor on CLAP, and the
-                                     # QWERTY keyboard on the pads with CLAP's own letters lit
+200   snapshot after_shortcut        # "Audio files": SAMPLES/ listed, cursor on CLAP; no keyboard and no
+                                     # preview yet, so the pads are the view beneath's and the BROWSE pad blinks
 300   encoder Select +1
 320   snapshot after_select_turn     # cursor on the KICKS folder, and its folder icon
 400   button SelectEnc down
@@ -30,8 +30,9 @@
                                      # on a FOLDER row that descends, and the second listing landed
 600   pad 4 3 down 64
 620   pad 4 3 up
-700   snapshot after_typed_s         # 'S' at the QWERTY home row (keyboard.cpp:12-20): the in-memory
-                                     # `predictExtendedText` search jumps to SUB
+700   snapshot after_typed_s         # 'S' at the QWERTY home row (keyboard.cpp:12-20): the first press shows
+                                     # the keyboard and types, and the in-memory `predictExtendedText` search
+                                     # jumps to SUB
 800   button Back down
 820   button Back up
 900   snapshot after_back            # `backButtonAction` -> up a level; the third listing landed,

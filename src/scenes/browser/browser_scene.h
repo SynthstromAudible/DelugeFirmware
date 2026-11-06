@@ -74,6 +74,7 @@
 
 #include "scenes/browser/listing.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/shortcut_blink.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
@@ -82,6 +83,7 @@
 #include "ui/oled/text_edit.h"
 
 #include "gfx/oled/icon.h"
+#include "model/sample/waveform_navigator.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -240,6 +242,14 @@ struct Descriptor {
 /// @return Its title, extensions, icons and hooks.
 const Descriptor& descriptor(BrowserId id);
 
+/// @brief What the sample browser's main pads show: `SampleBrowser`'s `qwertyVisible` and
+/// `currentlyShowingSamplePreview`.
+enum class BrowserPads : uint8_t {
+	Root,     ///< Nothing of its own: the root view shows through, greyed, and the BROWSE pad blinks.
+	Waveform, ///< The previewed sample's waveform.
+	Keyboard, ///< The text keyboard.
+};
+
 /// @brief What the sample browser asks the host to preview: the file the selection landed on, or nothing.
 ///
 /// Filed wherever legacy's `SampleBrowser` calls `previewIfPossible`: a folder's listing landing
@@ -339,6 +349,10 @@ inline constexpr int32_t kRowIconX = 1;
 /// what both APIs take.
 inline constexpr uint32_t kListingPollMs = 10;
 
+/// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`, the default layout without banks): a
+///        first press there reveals the keyboard and does nothing else.
+inline constexpr int32_t kFavouriteRow = 7;
+
 /// @brief The file browser. One instance for the whole application (`registry.h`).
 class BrowserScene final : public deluge::ui::shell::Scene {
 public:
@@ -363,9 +377,21 @@ public:
 	///        it does not own keep showing the view underneath -- what `QwertyUI::drawKeys`'s
 	///        `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
-	/// @brief `Main`: the keyboard is drawn on the main pads, and the sidebar is the view
-	///        beneath's (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`).
-	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
+	/// @brief `Main` while the keyboard or a waveform is drawn on the main pads, the sidebar being the view beneath's
+	///        (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`); `None` in the root state, where
+	///        `SampleBrowser::renderMainPads` answers false and the root view's pads show.
+	deluge::ui::shell::PadRegions pad_regions() const override {
+		return pads_ == BrowserPads::Root ? deluge::ui::shell::PadRegions::None : deluge::ui::shell::PadRegions::Main;
+	}
+	/// @brief True for the sample browser: `SampleBrowser` greys at once (`reassessGreyout(true)`) whenever its pads
+	///        change, in `showPreview`, `clearPreviewDisplay` and the keyboard's reveal.
+	bool greyout_changes_instantly() const override { return id_ == BrowserId::Sample; }
+	/// @brief Everything but the audition column, which `SampleBrowser::padAction` hands to the instrument clip view.
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return id_ == BrowserId::Sample ? deluge::ui::shell::GridPadClaim::AllButAudition
+		                                : deluge::ui::shell::GridPadClaim::All;
+	}
+	void leds(deluge::ui::LedFrame& frame) override;
 	/// @brief False: the base view still paints its sidebar, and that is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief False: `Browser::renderOLED` starts with `drawScreenTitle` and fills the rows below
@@ -375,20 +401,22 @@ public:
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	/// @brief Each legacy browser's own mask.
 	///
-	/// The sample browser greys the mute column only, `SampleBrowser::getGreyoutColsAndRows`'s
-	/// answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:536-546`); this scene
-	/// always shows its keyboard, so that arm is the one that applies. The MIDI device definition
-	/// browser greys every column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
-	/// (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
-	/// @return `{0b10, 0}` for `BrowserId::Sample`, `{0xFFFFFFFF, 0}` for
-	///         `BrowserId::MidiDeviceDefinition`.
+	/// The sample browser greys the mute column only while its keyboard or a waveform shows, or over the keyboard
+	/// screen, and every column but the audition column otherwise: `SampleBrowser::getGreyoutColsAndRows`
+	/// (`gui/ui/browser/sample_browser.cpp:576-587`). The MIDI device definition browser greys every column, keyboard
+	/// included, as `LoadMidiDeviceDefinitionUI` does (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override {
-		return id_ == BrowserId::MidiDeviceDefinition ? deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0}
-		                                              : deluge::ui::grid::GreyoutMask{0b10u, 0};
+		if (id_ == BrowserId::MidiDeviceDefinition) {
+			return deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0};
+		}
+		return pads_ != BrowserPads::Root || ctx_.root_is_keyboard ? deluge::ui::grid::GreyoutMask{0b10u, 0}
+		                                                           : deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
 	}
 
 	/// @name Observable state, for specs and for whoever wires this up.
 	/// @{
+	/// @brief What the main pads show.
+	BrowserPads pads() const { return pads_; }
 	/// @brief Which descriptor the last `on_enter` selected.
 	BrowserId browser_id() const { return id_; }
 	/// @brief `QwertyUI::enteredText` -- the name shown on the selected row.
@@ -507,6 +535,12 @@ private:
 	/// @brief `Browser::setEnteredTextFromCurrentFilename`: the selected
 	///        entry's name with its extension cut off.
 	void set_entered_text_from_current_filename();
+	/// @brief Apply one keyboard key: enter enters, backspace deletes, anything else types and searches.
+	deluge::ui::shell::Result press_key(char c);
+	/// @brief The root state's BROWSE blink.
+	void render_root_blink(deluge::ui::grid::GridFrame& f);
+	/// @brief The previewed sample's waveform across the main pads.
+	void render_waveform(deluge::ui::grid::GridFrame& f);
 	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible` asks for one: the file's
 	///        path, or an empty path for a folder or no selection. Only the sample browser previews.
 	/// @param direction The selection's move: -1, 0 or 1.
@@ -619,6 +653,19 @@ private:
 	std::optional<BrowserChoice> choice_{};
 	std::optional<PreviewRequest> preview_{};
 	bool preview_outstanding_ = false;
+	BrowserPads pads_ = BrowserPads::Root;
+	/// The host changed the pads between ticks; the next tick repaints them.
+	bool pads_changed_ = false;
+	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.
+	std::optional<deluge::ui::PadEvent> reveal_press_{};
+	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
+	deluge::sample::WaveformNav nav_{};
+	uint64_t nav_identity_ = 0;
+	/// The BROWSE pad's blink in the root state (`possiblySetUpBlinking`): its plan, the cycle's start, re-armed on
+	/// each entry to the root state, and the last step flashed.
+	deluge::scenes::menu::BlinkPlan blink_{};
+	std::optional<uint32_t> blink_anchor_ms_{};
+	uint32_t blink_fired_step_ = UINT32_MAX;
 
 	deluge::ui::oled::TextEditState edit_{};
 	deluge::ui::grid::TextKeyboardState kb_{};
