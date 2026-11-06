@@ -42,6 +42,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -2693,6 +2694,7 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 	setLoopLengthIfIndependent((newLength == clip->loopLength()) ? 0 : newLength);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+		deluge::playback::notePositionWrite();
 		lastProcessedPosIfIndependent = oldPos;
 		currentlyPlayingReversedIfIndependent =
 		    playingReversedBefore; // Will have no effect if is/was in fact obeying parent Clip
@@ -4503,6 +4505,7 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
 	setSequenceDirectionModeRaw(newMode);
+	deluge::playback::notePositionWrite();
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...

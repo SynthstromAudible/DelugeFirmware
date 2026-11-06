@@ -37,6 +37,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -435,6 +436,7 @@ Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStack
 // and are also required to call setPosForParamManagers() or do something equivalent - and that "something equivalent"
 // allows InstrumentClip to save time by iterating through NoteRows only once.
 void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) {
+	deluge::playback::notePositionWrite();
 
 	// It's a bit complex and maybe not the best way for stuff to work, but newPos may be negative because
 	// Session::armClipToStartOrSoloUsingQuantization() subtracts

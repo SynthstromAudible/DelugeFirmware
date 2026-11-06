@@ -220,18 +220,42 @@ bool inRenderBlock() {
 	return tier == DELUGE_TIER_AUDIO || (g_renderBlockDepth > 0 && tier == g_renderBlockTier);
 }
 
+namespace {
+// Stretches the caller holds that must not allocate. A host harness renders on its own thread, so it is the thread's.
+#ifdef DELUGE_HOST
+thread_local int32_t g_noAllocationDepth = 0;
+#else
+int32_t g_noAllocationDepth = 0;
+#endif
+} // namespace
+
+void noteNoAllocationScope(bool entering) {
+	g_noAllocationDepth += entering ? 1 : -1;
+}
+bool inNoAllocationScope() {
+	return g_noAllocationDepth > 0;
+}
+
 #ifdef DELUGE_HOST
 namespace {
 std::atomic<uint32_t> g_audioTierAllocations{0};
+std::atomic<uint32_t> g_maskedAllocations{0};
 /// Count an allocation made by the render: it must not allocate (it shares the heap with every other tier, unlocked).
+/// Count one made inside a NoAllocationScope too.
 void countIfAudioTier() {
 	if (inRenderBlock()) {
 		g_audioTierAllocations.fetch_add(1, std::memory_order_relaxed);
+	}
+	else if (inNoAllocationScope()) {
+		g_maskedAllocations.fetch_add(1, std::memory_order_relaxed);
 	}
 }
 } // namespace
 uint32_t audioTierAllocations() {
 	return g_audioTierAllocations.load(std::memory_order_relaxed);
+}
+uint32_t maskedAllocations() {
+	return g_maskedAllocations.load(std::memory_order_relaxed);
 }
 void countRenderAllocation() {
 	countIfAudioTier();
@@ -255,6 +279,9 @@ inline void countIfAudioTier() {
 }
 } // namespace
 uint32_t audioTierAllocations() {
+	return 0;
+}
+uint32_t maskedAllocations() {
 	return 0;
 }
 void countRenderAllocation() {

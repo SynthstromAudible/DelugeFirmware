@@ -42,6 +42,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "util/structural_edit_probe.h"
 
@@ -824,6 +825,7 @@ void report() {
 	if (storeEdits != 0) {
 		fail("RS-STORE", "the render changed a lane store");
 	}
+	printf("RS-POSITIONS stray=%u\n", deluge::playback::strayPositionWrites);
 #endif
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;

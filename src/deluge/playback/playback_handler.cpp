@@ -71,6 +71,8 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
+#include "playback/playhead_checks.h"
 #include "playback/render_requests.h"
 #include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
@@ -477,6 +479,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	nextTimerTickScheduled = 0;
 
 	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
+	deluge::playback::injectRenderAt(deluge::playback::InjectAt::StartBeforeClock);
 
 	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
 	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
@@ -523,9 +526,11 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	    && (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1
 	        || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
+		deluge::playback::notePositionWrite();
 		currentPlaybackMode = &arrangement;
 	}
 	else {
+		deluge::playback::notePositionWrite();
 		currentPlaybackMode = &session;
 	}
 }
@@ -558,6 +563,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember
 	                            // and insanely most stuff worked
 
+	deluge::playback::notePositionWrite();
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
@@ -1564,6 +1570,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
 		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
+			deluge::playback::notePositionWrite();
 			currentPlaybackMode = &arrangement;
 			arrangement.setupPlayback();
 			arrangement.resetPlayPos(currentSong->persistentView.lastClipInstanceEnteredStartPos);
@@ -1664,6 +1671,7 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 		posToNextContinuePlaybackFrom = 0;
 	}
 	else {
+		deluge::playback::notePositionWrite();
 		playbackState = newPlaybackState;
 		setLedStates();
 	}
@@ -3086,6 +3094,7 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 }
 
 void PlaybackHandler::expectEvent() {
+	deluge::playback::notePositionWrite();
 	if (!currentlyActioningSwungTickOrResettingPlayPos && isEitherClockActive()) {
 		int32_t newSwungTicksTilNextEvent = getNumSwungTicksInSinceLastActionedSwungTick() + 1;
 		if (newSwungTicksTilNextEvent < swungTicksTilNextEvent) {
@@ -3105,6 +3114,7 @@ bool PlaybackHandler::isCurrentlyRecording() {
 }
 
 void PlaybackHandler::switchToArrangement() {
+	deluge::playback::notePositionWrite();
 	currentPlaybackMode = &arrangement;
 	stopOutputRecordingAtLoopEnd = false;
 	session.endPlayback();
@@ -3125,6 +3135,7 @@ void PlaybackHandler::switchToSession() {
 	if (recording != RecordingMode::OFF) {
 		arrangement.endAnyLinearRecording();
 	}
+	deluge::playback::notePositionWrite();
 	currentPlaybackMode = &session;
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];

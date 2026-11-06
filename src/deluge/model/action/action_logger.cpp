@@ -48,6 +48,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include "util/note_editor_open.h"
@@ -92,6 +93,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		++deluge::modulation::renderUndoCalls;
 	}
 #endif
+	deluge::playback::noteActionBegun();
 
 	if (!currentSong) {
 		return nullptr;

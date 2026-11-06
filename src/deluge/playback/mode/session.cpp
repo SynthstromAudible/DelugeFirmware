@@ -32,6 +32,7 @@
 #include "model/note/note_row.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
@@ -1889,6 +1890,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 			currentSong->assertActiveness(modelStack, playbackHandler.getActualArrangementRecordPos() - pos);
 
 setPosAndStuff:
+			deluge::playback::injectRenderAt(deluge::playback::InjectAt::LaunchBeforeMove);
 			// pos is a "live" pos, so we have to subtract swungTicksSkipped before setting the Clip's lastProcessedPos,
 			// because it's soon going to be jumped forward by that many ticks
 			int32_t modifiedStartPos = (int32_t)pos - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
@@ -2267,6 +2269,7 @@ yeahNahItsOn:
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			clip->setPos(modelStackWithTimelineCounter, newPos, true);
+			deluge::playback::injectRenderAt(deluge::playback::InjectAt::AfterMove);
 
 			if (doingComplete) {
 				// If starting after 0, must do the "resume" function, to get samples playing from right point, etc
