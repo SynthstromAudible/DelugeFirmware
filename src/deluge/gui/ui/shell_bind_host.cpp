@@ -1,5 +1,6 @@
 #include "gui/ui/shell_bind_host.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/ui.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
@@ -229,6 +230,7 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
+	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*

@@ -35,6 +35,8 @@ int service_wirings = 0;
 int action_dispatches = 0;
 int root_fact_refreshes = 0;
 bool root_takes_audition = false;
+int clip_audition_forwards = 0;
+PadCall last_clip_audition{};
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
@@ -99,6 +101,8 @@ void reset() {
 	action_dispatches = 0;
 	root_fact_refreshes = 0;
 	root_takes_audition = false;
+	clip_audition_forwards = 0;
+	last_clip_audition = {};
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
@@ -474,6 +478,12 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	fakelegacyui::pad_forwards++;
 	fakelegacyui::last_pad_forward = fakelegacyui::PadCall{x, y, velocity};
 	return PadForwardTarget::None;
+}
+
+// The clip-type half of the marker's audition arm is the real file's; here only that the pad was handed over.
+void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity) {
+	fakelegacyui::clip_audition_forwards++;
+	fakelegacyui::last_clip_audition = fakelegacyui::PadCall{x, y, velocity};
 }
 
 // The same file's root-UI question for the shortcut gate: no root view keeps a pad here, as none is the automation

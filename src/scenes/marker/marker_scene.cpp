@@ -836,10 +836,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (x > kDisplayWidth) {
-			// The audition column, which legacy passes down to `instrumentClipView` (`:353-358`)
-			// and returns DEALT_WITH for. This layer may not name a root UI, so the press is
-			// swallowed rather than delegated -- auditioning from inside the marker editor is the
-			// one input this port drops outright.
+			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
+			// swallows it on an audio clip.
 			r.handled = true;
 			return r;
 		}

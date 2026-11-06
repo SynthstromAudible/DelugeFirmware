@@ -220,6 +220,24 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		    .to_equal(PadForwardTarget::AuditionColumn);
 	});
 
+	it("hands the marker's audition column to the clip view on an instrument clip, whatever the root", _ {
+		// `SampleMarkerEditor::padAction` (`sample_marker_editor.cpp:358-364`): no root test, only the clip's type.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&keyboardScreen);
+		deluge::gui::ui::forwardClipAuditionPad(kDisplayWidth + 1, 4, 64);
+		expect(seen).to_equal(PadForwardTarget::AuditionColumn);
+		expect(seen_v).to_equal(64);
+	});
+
+	it("swallows the marker's audition column on an audio clip", _ {
+		UiStackGuard ui_guard;
+		spec::AudioSongFixture fx = spec::make_audio_clip_song();
+		setRootUILowLevel(&instrumentClipView);
+		deluge::gui::ui::forwardClipAuditionPad(kDisplayWidth + 1, 4, 64);
+		expect(seen).to_equal(PadForwardTarget::None);
+	});
+
 	it("lets a main-grid pad on a clip root fall through to the tail", _ {
 		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
 		// tail at `:1520-1545`. This is NOT the note-editor arms -- no ported menu is on the

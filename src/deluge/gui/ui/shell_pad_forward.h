@@ -113,6 +113,12 @@ bool rootKeepsShortcutPad(int32_t x, int32_t y);
 ///        `SampleBrowser::padAction` hands it to.
 bool rootTakesAuditionPad();
 
+/// @brief `SampleMarkerEditor::padAction`'s audition arm: the audition column to the instrument clip view, press and
+///        release, when the clip is an instrument clip, whatever the root view; swallowed on an audio clip.
+/// @param x,y The pad, in `MatrixDriver` coordinates.
+/// @param velocity Legacy's `on`.
+void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity);
+
 /// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the ported menu: whether the param the menu edits is
 ///        the one the automation view has selected.
 bool menuShowsAutomationViewParam();

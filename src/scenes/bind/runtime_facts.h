@@ -86,6 +86,9 @@ public:
 	/// @brief Whether an explicit sample load or a folder import is running: either one closes the sample browser to
 	/// the presses that would start another. False for a host that loads nothing.
 	[[nodiscard]] virtual bool sample_load_in_flight() const { return false; }
+	/// @brief Whether a note is being auditioned: legacy's `currentUIMode` holds `UI_MODE_AUDITIONING`, a mode the
+	/// marker editor's gates read. False for a host that auditions nothing.
+	[[nodiscard]] virtual bool auditioning() const { return false; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

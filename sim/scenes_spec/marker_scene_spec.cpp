@@ -525,6 +525,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
 
+	it("claims every pad but the audition column, which the host hands to the clip view", _ {
+		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp:358-364`).
+		expect(marker_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition).to_be_true();
+	});
+
 	// --- opening ------------------------------------------------------------------------------
 
 	it("opens zoomed all the way out, on the marker SceneId::arg names", _ {

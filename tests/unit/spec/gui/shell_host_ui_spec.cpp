@@ -1542,6 +1542,25 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
+	it("hands the audition column to the clip audition forward under AllButClipAudition, press and release", _ {
+		// `SampleMarkerEditor::padAction`'s audition arm: whatever the root, the host decides on the clip's type.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::AllButClipAudition;
+		fakelegacyui::root_takes_audition = false;
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 0);
+		expect(fakelegacyui::clip_audition_forwards).to_equal(2);
+		expect(fakelegacyui::last_clip_audition.velocity).to_equal(int32_t(0));
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+		(void)r.guest.padAction(3, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::clip_audition_forwards).to_equal(2);
+	});
+
 	it("forwards the audition column and keeps the rest under AllButAudition", _ {
 		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
 		// root, and the browser's (which swallows it) otherwise.

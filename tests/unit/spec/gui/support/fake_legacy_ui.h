@@ -187,6 +187,9 @@ struct PadCall {
 	int32_t x, y, velocity;
 	bool operator==(const PadCall&) const = default;
 };
+/// @brief How many pads `forwardClipAuditionPad` was handed, and the last one.
+extern int clip_audition_forwards;
+extern PadCall last_clip_audition;
 extern PadCall last_pad_forward;
 
 /// How many times `deluge::gui::ui::renderClipViewSidebarUnderMarker()` was called. The real one

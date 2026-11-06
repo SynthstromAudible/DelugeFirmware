@@ -171,6 +171,11 @@ public:
 	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the sidebar underneath still needs to paint.
 	bool occludes_grid() const override { return false; }
+	/// @brief Every pad but the audition column, which `SampleMarkerEditor::padAction` hands to the instrument clip
+	///        view on an instrument clip (the host does, `GridPadClaim::AllButClipAudition`).
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return deluge::ui::shell::GridPadClaim::AllButClipAudition;
+	}
 	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows` (`:106-109`): `*cols = 0b10`, rows 0.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
 
