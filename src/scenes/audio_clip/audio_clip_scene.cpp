@@ -1031,7 +1031,7 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// (`audio_clip_view.cpp:270-274`): with no playback, no active clip, or a count-in running, the
 	// column is a constant 255 and nothing animates.
 	const bool cursor_live =
-	    flash_cursor_ != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
+	    flash_cursor() != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1101,7 +1101,7 @@ int32_t AudioClipScene::compute_tick_square() {
 
 	// `:296-309`. The latch is `AudioClipView`'s own two private fields, which `timeline/timeline.h`'s
 	// table assigns here by name.
-	if (flash_cursor_ != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
+	if (flash_cursor() != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
 		last_tick_square_ = square;
 		must_redraw_tick_squares_ = false;
 	}
@@ -1236,7 +1236,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares` (`:305`), which the driver applies to the whole
 	// rendered image on its way out (`PadLEDs::prepareColour`, `hid/led/pad_leds.cpp:283-298`) --
 	// hence last, and over the root frame rather than the main-column region.
-	if (flash_cursor_ == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
+	if (flash_cursor() == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
 		// `:300-303`: every row gets the same column, and the colour is red (2) while recording
 		// linearly, normal (0) otherwise.
 		const deluge::ui::grid::TickColour colour =

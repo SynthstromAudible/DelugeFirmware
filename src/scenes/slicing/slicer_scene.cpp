@@ -3,6 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
 
 #include "ui/grid/columns.h"
@@ -625,7 +626,9 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	render_pads(f);
 	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, substituted over what
 	// the pads show (`PadLEDs::setTickSquares`, slow flash cursor).
-	if (nav_.sample == nullptr || ops_ == nullptr) {
+	// Only where the flash cursor reaches a pixel (Slow): none with it Off or Fast, as the audio clip view.
+	if (nav_.sample == nullptr || ops_ == nullptr
+	    || menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Slow) {
 		return;
 	}
 	const std::optional<int32_t> pos = ops_->play_position();

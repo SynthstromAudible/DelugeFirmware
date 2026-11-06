@@ -4,6 +4,7 @@
 #include "scenes/marker/marker_scene.h"
 
 #include "ui/core/metrics.h"
+#include "ui/grid/columns.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/sample_position.h"
 #include "ui/oled/text.h"
@@ -238,7 +239,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
 	nav_.sample = nullptr;
 	waveform_identity_ = 0;
-	follow_waveform(*menu::host_waveforms().info(where_));
+	follow_waveform(*waveforms().info(where_));
 	const services::SampleView remembered = view();
 	nav_.opened(remembered.scroll, remembered.zoom); // `:126`
 
@@ -795,7 +796,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	Result r;
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
-	if (const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_)) {
+	if (const std::optional<services::WaveformInfo> info = waveforms().info(where_)) {
 		follow_waveform(*info);
 	}
 
@@ -914,10 +915,15 @@ void MarkerScene::tick(uint32_t dt_ms) {
 }
 
 std::optional<uint32_t> MarkerScene::next_timer() const {
-	if (!marker_on_screen_) {
-		return std::nullopt;
+	std::optional<uint32_t> next;
+	if (marker_on_screen_) {
+		next = kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
 	}
-	return kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
+	// The playhead moves while a voice plays: asked again as the slicer asks for its own.
+	if (playing_) {
+		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
+	}
+	return next;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -925,7 +931,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
 		return;
 	}
@@ -972,7 +978,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
 		return;
 	}
@@ -983,7 +989,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`). A column the scan could not load paints black,
 	// which is legacy's own fallback, so the scan's result is not consulted.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		(void)services::paint_full(main, menu::host_waveforms(), where_, *info, nav_);
+		(void)services::paint_full(main, waveforms(), where_, *info, nav_);
 
 		if (marker_type_ == MarkerType::NONE) {
 			return;
@@ -1053,6 +1059,30 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
 		}
 	});
+
+	// `graphicsRoutine`'s playhead (`:1003-1053`): the column a voice is playing at, on every row, where the flash
+	// cursor reaches a pixel (Slow); none with it Off, and none off screen.
+	playing_ = false;
+	if (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Slow) {
+		return;
+	}
+	const std::optional<int64_t> pos = waveforms().play_position(where_);
+	playing_ = pos.has_value();
+	if (!pos.has_value() || *pos < nav_.xScroll || nav_.xZoom <= 0) {
+		return;
+	}
+	const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+	if (col >= main_cols) {
+		return;
+	}
+	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	per_row.fill(
+	    deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col), .colour = deluge::ui::grid::TickColour::Normal});
+	deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+}
+
+const services::Waveforms& MarkerScene::waveforms() const {
+	return waveforms_override_ != nullptr ? *waveforms_override_ : menu::host_waveforms();
 }
 
 MarkerScene& marker_scene() {

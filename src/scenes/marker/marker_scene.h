@@ -194,6 +194,8 @@ public:
 	bool holding_marker() const { return holding_; }
 	/// @brief Whether X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
 	bool holding_xenc() const { return xenc_held_; }
+	/// @brief Read waveforms from @p waveforms in place of the host's, or the host's again with null. For specs.
+	void set_waveforms(const services::Waveforms* waveforms) { waveforms_override_ = waveforms; }
 	/// @}
 
 private:
@@ -284,6 +286,14 @@ private:
 	bool holding_ = false;
 	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
 	bool xenc_held_ = false;
+	/// A spec's waveforms, in place of the host's.
+	const services::Waveforms* waveforms_override_ = nullptr;
+	/// The waveforms the editor reads: the host's, unless a spec gave its own.
+	const services::Waveforms& waveforms() const;
+	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
+	bool playing_ = false;
+	/// How often a moving playhead is redrawn: the slicer's period.
+	static constexpr uint32_t kPlayheadMs = 15;
 	int8_t press_x_ = -1;
 	int8_t press_y_ = -1;
 	/// @}

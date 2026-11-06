@@ -79,6 +79,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -1622,6 +1623,30 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			}
 			expect(g.at(5, 3) == tick).to_be_false();
 		}
+	});
+
+	it("draws the playhead only with the flash cursor Slow, the one setting the host answers", _ {
+		// `PadLEDs::flashCursor`: Off draws none, Fast only flashes the pad (no pixel), Slow substitutes one.
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		ops.next_play_position = static_cast<int32_t>(slicer_scene().x_scroll() + 5 * slicer_scene().x_zoom());
+		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const uint8_t saved = PadLEDs::flashCursor;
+		slicer_scene().set_mode(Mode::Region);
+		// Each leg waits out the 15 ms playhead tick, so each reads a frame drawn under its own setting.
+		uint32_t at = 0;
+		for (const auto [setting, drawn] : {std::pair{uint8_t{FLASH_CURSOR_SLOW}, true},
+		                                    std::pair{uint8_t{FLASH_CURSOR_FAST}, false},
+		                                    std::pair{uint8_t{FLASH_CURSOR_SLOW}, true},
+		                                    std::pair{uint8_t{FLASH_CURSOR_OFF}, false}}) {
+			PadLEDs::flashCursor = setting;
+			r.settle(at);
+			at += 20;
+			expect(r.fake.grid().grid().at(5, 7) == tick).to_equal(drawn);
+		}
+		PadLEDs::flashCursor = saved;
 	});
 
 	it("asks for a tick every 15 ms while something plays, and for none when nothing does", _ {

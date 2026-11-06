@@ -58,6 +58,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/columns.h"
 
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/shell_host_ui.h"
@@ -68,6 +69,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "model/edits/setting_edit.h"
 #include "model/note/note_row.h"
 #include "model/sample/sample.h"
@@ -1160,6 +1162,56 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Buttons::buttonStates[xy.x][xy.y] = false;
 		NoteRow* still = r.song.clip->getNoteRowForYNote(note_y);
 		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
+	});
+
+	it("draws the playhead on every row at the playing column with the flash cursor Slow, and none Off or Fast", _ {
+		// `graphicsRoutine` (`:1003-1053`): `(pos - xScroll) / xZoom`, all eight rows; nothing unless FLASH_CURSOR_SLOW.
+		struct Playing final : deluge::scenes::services::Waveforms {
+			std::optional<int64_t> pos;
+			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+			info(const deluge::scenes::services::WaveformAddress& a) const override {
+				return menu::host_waveforms().info(a);
+			}
+			bool peaks(const deluge::scenes::services::WaveformAddress& a, int64_t scroll, uint64_t zoom,
+			           WaveformRenderData& cache, int32_t x_start, int32_t x_end) const override {
+				return menu::host_waveforms().peaks(a, scroll, zoom, cache, x_start, x_end);
+			}
+			[[nodiscard]] std::optional<int64_t>
+			play_position(const deluge::scenes::services::WaveformAddress&) const override {
+				return pos;
+			}
+		};
+		Playing playing;
+		marker_scene().set_waveforms(&playing);
+		const uint8_t saved = PadLEDs::flashCursor;
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		Rig r;
+		r.open(MarkerType::END);
+		r.tick(0);
+		expect(marker_scene().next_timer().has_value() && *marker_scene().next_timer() <= 15).to_be_false();
+		// A voice starting asks for no frame of its own: the blink timer's next frame finds it.
+		playing.pos = 7 * kZoomMax;
+		r.tick(250);
+		r.tick(260);
+		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		for (uint8_t y = 0; y < 8; y++) {
+			expect(r.fake.grid().grid().at(7, y) == tick).to_be_true();
+		}
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
+		r.tick(280);
+		r.tick(300);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		r.tick(450);
+		r.tick(500);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_true();
+		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
+		r.tick(520);
+		r.tick(540);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		PadLEDs::flashCursor = saved;
+		marker_scene().set_waveforms(nullptr);
 	});
 
 	it("adds a loop start by holding START and tapping to its right", _ {

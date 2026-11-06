@@ -608,12 +608,8 @@ otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
-* **The play-cursor flash is unwired.** `PadLEDs::flashCursor` (flash byte 36) lives on `hid/`,
-  `FlashStorage::readSettings` writes it there, and nothing in `model/` or `storage/` holds it, so
-  `AudioClipScene` keeps its own copy (`set_flash_cursor`, defaulting to the factory `Slow`) and
-  nothing calls the setter: a user who turns the cursor off still sees it in the ported audio clip
-  view. Wire it the way the shortcut layout is wired — from legacy's own writer — not with a call in
-  `deluge_boot`.
+* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
+  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame.
 
 ## Defects this port found in shipping firmware
 

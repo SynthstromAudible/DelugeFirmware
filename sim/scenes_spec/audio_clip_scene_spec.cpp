@@ -372,7 +372,6 @@ struct Rig {
 			shell.stack().pop(SceneKind::Null);
 		}
 		audio_clip_scene().open(std::nullopt, nullptr);
-		audio_clip_scene().set_flash_cursor(FlashCursor::Slow);
 		PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		PadLEDs::flashCursor = saved_flash_cursor;
 		playbackHandler.playbackState = saved_playback_state;
@@ -1233,10 +1232,9 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // Legacy's setting and the port's copy, each set on its own side.
+		        // The one setting, which legacy reads directly and the port through `RuntimeFacts::flash_cursor`.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
-		        r.scene().set_flash_cursor(FlashCursor::Off);
 		        r.tick(1);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 		        playbackHandler.playbackState = 0;
