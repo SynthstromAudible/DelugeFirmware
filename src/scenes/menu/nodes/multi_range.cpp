@@ -20,7 +20,6 @@
 
 #include "scenes/menu/nodes/multi_range.h"
 #include "deluge-project/song.h"
-#include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -35,6 +34,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 // `util/lookuptables/lookuptables.h` is outside this layer's include allowance
@@ -177,22 +177,28 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out) {
 }
 
 void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `MultiRange::beginSession` (`multi_range.cpp:39-65`).
-	// The default is the range last chosen for this source -- the scenes' view state, by slot and source.
+	// `MultiRange::beginSession` (`multi_range.cpp:40-67`), on the source's remembered range (`Source::defaultRangeI`,
+	// which every played note moves too).
 	const int32_t count = range_count(ctx);
 	int32_t cursor = 0;
 	if (ctx.addresses.slot) {
-		if (ctx.model != nullptr) {
-			services::view_state().forget_unless(ctx.model->identity());
-		}
 		const auto source = static_cast<uint8_t>(ctx.source_index);
-		if (ctx.range_index >= 0) { // `:41-44` -- a range is already selected, so it is the default
-			services::view_state().set_last_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
+		std::optional<int32_t> remembered;
+		if (ctx.range_index >= 0) { // `:42-45` -- a range is already selected, so it is the default
+			remembered = ctx.range_index;
+			if (ctx.sink != nullptr) {
+				ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
+			}
 		}
-		const std::optional<uint16_t> last = services::view_state().last_range(*ctx.addresses.slot, source);
-		cursor = last && *last < count ? *last : count >> 1; // `:46-50`, which writes the default back
-		if (count > 0) {
-			services::view_state().set_last_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
+		else if (ctx.facts != nullptr) {
+			if (const std::optional<uint16_t> held = ctx.facts->default_range(*ctx.addresses.slot, source)) {
+				remembered = *held;
+			}
+		}
+		const bool valid = remembered && *remembered >= 0 && *remembered < count;
+		cursor = valid ? *remembered : count >> 1;
+		if (!valid && count > 0 && ctx.sink != nullptr) { // `:48-50`: an invalid default is worked out afresh
+			ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
 		}
 	}
 
@@ -243,6 +249,11 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	const int32_t cursor = state.list[depth_of(state)].cursor;
 	if (count > 0 && cursor >= 0 && cursor < count) {
 		state.walk.range_choice = static_cast<int16_t>(cursor);
+		// `:212`: a flick is remembered; a note played under the open picker moves the memory and not the cursor.
+		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.sink != nullptr) {
+			ctx.sink->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+			                            static_cast<uint16_t>(cursor));
+		}
 	}
 	if (count == 0 && f.select_pressed()) {
 		state.tick.render_resp.entered = true; // nothing to pick: the press ascends

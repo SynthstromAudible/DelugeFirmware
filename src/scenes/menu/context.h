@@ -284,9 +284,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///         `MenuPermission::NO` arm at `:1939-1942`.
 bool ensure_first_range(MenuContext& ctx);
 
-/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
-///        (`sound_editor.cpp`), plus `Source::defaultRangeI`, which the picker keeps in
-///        step with its own cursor (`multi_range.cpp:239`).
+/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
 /// unchecked, and every caller here has already clamped against `range_count`.

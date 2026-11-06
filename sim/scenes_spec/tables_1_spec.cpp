@@ -529,14 +529,11 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
 	});
 
-	it("selects a range the way setCurrentMultiRange does, and remembers it in the scenes' view state", _ {
+	it("selects a range the way setCurrentMultiRange does", _ {
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
 		expect(spec::menu_engine(f.ctx).range == spec::menu_engine(f.ctx).source->ranges.getElement(2)).to_be_true();
-		// `multi_range.cpp:239` -- the choice sticks for the source, which is what `on_focus` reads
-		// back on the next visit.
-		expect(services::view_state().last_range(*f.ctx.addresses.slot, 0)).to_equal(std::optional<uint16_t>{2});
 		// Out of range is ignored rather than clamped -- every caller has clamped already.
 		menu::select_range(f.ctx, 7);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);

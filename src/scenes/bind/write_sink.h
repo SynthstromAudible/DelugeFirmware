@@ -113,6 +113,9 @@ public:
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
+	/// @brief Make @p range the range source @p source of the sound at @p slot remembers (`Source::defaultRangeI`):
+	/// runtime state, as legacy's picker writes it, not an edit.
+	virtual void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) = 0;
 	/// @brief Attach the recorded take at @p path (a sample in memory, never read from the card) to range @p range of
 	/// source @p source of the sound at @p slot, which becomes a sample source.
 	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
@@ -198,6 +201,7 @@ struct GestureRequest {
 		CLEAR,
 		MARKER,
 		DEFAULT_INPUT_CHANNEL,
+		DEFAULT_RANGE,
 		ATTACH,
 		RESIZE,
 		LEARN,
@@ -265,6 +269,7 @@ public:
 	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;

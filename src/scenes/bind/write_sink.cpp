@@ -55,6 +55,10 @@ void RecordingSink::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
 }
 
+void RecordingSink::set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) {
+	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_RANGE, .slot = slot, .source = source, .range = range});
+}
+
 bool RecordingSink::attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) {
 	gestures.push_back({.kind = GestureRequest::Kind::ATTACH,
 	                    .text = std::string{path},

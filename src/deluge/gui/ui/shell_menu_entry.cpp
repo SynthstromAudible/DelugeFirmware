@@ -201,7 +201,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// past a menu edit where legacy stops them.
 	//
 	// Remembering the previously selected range across sessions (`:1784-1788`) is not done here
-	// either: the scenes' view state keeps it by slot and source (`view_state().last_range`).
+	// either: the source keeps it (`Source::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
 	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`:1993`)

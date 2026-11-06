@@ -1617,12 +1617,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
-		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
-		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
+		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
+		// `Source::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
-		expect(services::view_state().last_range(
-		           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, *r.song.instrument->id()}, 0))
-		    .to_equal(std::optional<uint16_t>{1});
+		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
 		// returning `menuItemHeadingTo` (`multi_range.cpp:360-362`) -- and this time the permission
@@ -1637,6 +1635,45 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
+	});
+
+	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
+		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:212`); a voice start writes it too
+		// (`Source::getRange`), and the open picker's cursor stays where it was.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1);
+
+		r.turn(1, 120);
+		r.shell.tick(125);
+		expect(cursor_of(1)).to_equal(2);
+		expect(sound->sources[0].defaultRangeI).to_equal(2);
+
+		(void)sound->sources[0].getRange(30); // a voice starting in range 0
+		expect(sound->sources[0].defaultRangeI).to_equal(0);
+		r.shell.tick(140);
+		r.shell.tick(160);
+		expect(cursor_of(1)).to_equal(2);
+		expect(sound->sources[0].defaultRangeI).to_equal(0);
 	});
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {

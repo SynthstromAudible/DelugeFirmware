@@ -171,6 +171,12 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
+	void set_default_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t range) override {
+		::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound != nullptr && source < kNumSources) {
+			sound->sources[source].defaultRangeI = range;
+		}
+	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
 	                      std::string_view path) override;
 	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
@@ -236,6 +242,18 @@ public:
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
 		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
+	}
+	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
+	                                                    uint8_t source) const override {
+		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound == nullptr || source >= kNumSources) {
+			return std::nullopt;
+		}
+		const int32_t i = sound->sources[source].defaultRangeI;
+		if (i < 0 || i >= std::ssize(sound->sources[source].ranges)) {
+			return std::nullopt;
+		}
+		return static_cast<uint16_t>(i);
 	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
