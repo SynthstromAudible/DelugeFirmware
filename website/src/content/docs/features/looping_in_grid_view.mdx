@@ -99,3 +99,29 @@ This video demonstrates using the Magenta LAYERING LOOP pad in grid view which w
     Create and record a clip in new Grid View track with loop pads demo
   </a>
 </video>
+
+## Record successive takes on one track
+
+Learn `Loop Take` (`LOOP_TAKE`) or `Layering Loop Take` (`LOOP_CONTINUOUS_LAYERING_TAKE`) under `SETTINGS > MIDI > COMMANDS`.
+
+You can also enable `Grid View Loop Pads (LOOP)` in the Community Features menu and use the bottom two pads in the right sidebar:
+
+- **Orange**, second from bottom: Loop Take.
+- **Cyan**, bottom: Layering Loop Take.
+
+These pads brighten while pressed and are below the existing red Loop and magenta Layering Loop pads.
+
+Select an audio, synth, kit, MIDI, or CV clip by holding its pad in Grid View or entering the clip. The clip must be armed for recording; audio clips also need an audio input, as with the existing loop commands.
+
+- **Loop Take** follows the Loop command's start/stop workflow and records one take with a length you determine by ending the recording.
+- **Layering Loop Take** follows the Layering Loop workflow and repeatedly records new takes of the source clip's length. Trigger the command again to cancel the pending next take and end continuous recording.
+
+Each new take occupies the first unused section on the selected track: a new pad in the same column. Starting the next take stops the previous clip on that track. Clips on other tracks can still provide accompaniment.
+
+Takes always create fresh clips, including when the track is set to overdub in place. Once all 24 sections on that track are occupied, no further take is created and a message appears; existing clips are preserved. Free a section to record more takes. The original Loop and Layering Loop commands and their Grid View sidebar pads keep their behavior, except for the changes below.
+
+### Notes for all loop commands
+
+- Loop commands can't create new clips while any clip is soloed. A `Can't create overdub while clips soloing` message (`SOLO` on 7-segment displays) appears. Stop soloing and try again.
+- If a loop command can't create a clip (for example because clips are soloed, all sections are full, or there isn't enough memory), it no longer turns on `RECORD`.
+- Continuous layering only continues for recordings started by `Layering Loop`, `Layering Loop Take`, or :key[Record + Section Pad] on a clip in Song Row View. Launching a previously layered clip by hand with `RECORD` on records it once, without starting a new chain of layers.

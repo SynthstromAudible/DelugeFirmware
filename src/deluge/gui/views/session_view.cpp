@@ -840,10 +840,6 @@ holdingRecord:
 								playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency, false);
 							}
 						}
-						else if (currentSong->anyClipsSoloing) {
-							display->displayPopup(deluge::l10n::get(
-							    deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
-						}
 					}
 				}
 
@@ -3481,6 +3477,20 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		}
 		break;
 	}
+	case GridMode::ORANGE: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, GridMode::ORANGE);
+			modeColour = colours::orange;
+		}
+		break;
+	}
+	case GridMode::CYAN: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, GridMode::CYAN);
+			modeColour = colours::cyan;
+		}
+		break;
+	}
 
 	default: {
 		modeExists = false;
@@ -4212,6 +4222,18 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			case GridMode::MAGENTA: {
 				if (enableLoopPads) {
 					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING);
+				}
+				break;
+			}
+			case GridMode::ORANGE: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_TAKE);
+				}
+				break;
+			}
+			case GridMode::CYAN: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE);
 				}
 				break;
 			}
