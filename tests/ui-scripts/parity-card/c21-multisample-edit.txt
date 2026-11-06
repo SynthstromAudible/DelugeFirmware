@@ -1,0 +1,68 @@
+# Range editing in the note-range picker on a multisample: a horizontal turn picks an edge and the select encoder moves
+# it, BACK cancels the edge, Shift+turn inserts a range, Shift+SAVE deletes one down to the last; plain SAVE under a
+# sound menu opens the save-preset screen.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+30000 snapshot imported
+32000 button Shift down
+32100 pad 2 1 down
+32150 pad 2 1 up
+32200 button Shift up
+33000 snapshot picker
+33500 encoder Horizontal -1
+34000 snapshot edge-left
+34500 encoder Select +1
+35000 snapshot edge-moved
+35500 encoder Horizontal +1
+36000 snapshot edge-off
+36500 encoder Horizontal +1
+36700 button Back down
+36720 button Back up
+37200 snapshot edge-cancel
+37500 button Shift down
+37600 encoder Select +1
+37700 button Shift up
+38200 snapshot inserted
+39000 button Shift down
+39100 button Save down
+39120 button Save up
+39200 button Shift up
+39600 snapshot deleted
+41000 button Shift down
+41100 button Save down
+41120 button Save up
+41200 button Shift up
+43000 button Shift down
+43100 button Save down
+43120 button Save up
+43200 button Shift up
+45000 button Shift down
+45100 button Save down
+45120 button Save up
+45200 button Shift up
+47000 button Shift down
+47100 button Save down
+47120 button Save up
+47200 button Shift up
+47600 snapshot last-range
+48500 button Back down
+48520 button Back up
+49000 button Back down
+49020 button Back up
+50000 button Shift down
+50100 pad 0 1 down
+50150 pad 0 1 up
+50200 button Shift up
+51000 button Save down
+51020 button Save up
+52000 snapshot save-preset

@@ -11,3 +11,9 @@ script reaches before trusting a MATCH from it.
 load: a marker is held by pressing its own column (the start marker is column 0 there), and a second pad tapped while
 holding can end the hold, so BACK and the mute column are pressed before any such tap. `c18-synth-multisamples` imports
 a folder as ranges; `c19-kit-load-all-empty` runs LOAD ALL on `SAMPLES/Artists`, which holds only folders (D54).
+
+`c20` to `c22` build a multisample as c18 does (MULTISAMPLES on the drums folder, the import landing on the clip view)
+and open the note-range picker with Shift + pad (2,1), OSC1's transpose: `c20` the picker, its memory of the played
+range and the root's range highlight; `c21` the edge, insert and delete edits and SAVE; `c22` the keyboard screen,
+entered before any menu. `c23` walks the sample source items on one sample loaded as c10 loads it, and the recorder's
+return. Popups and console text last about a second, so their snapshots sit inside that window on both firmwares.
