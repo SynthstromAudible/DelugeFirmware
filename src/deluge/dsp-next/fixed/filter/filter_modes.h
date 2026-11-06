@@ -55,6 +55,8 @@ struct LowPassSlot {
 	LowPassLadderMode ladder{};
 	/// The SVF's mode, read when @ref kind is SVF.
 	SvfMode svf{};
+
+	bool operator==(const LowPassSlot&) const = default;
 };
 
 /// @brief What a set's high-pass slot runs: the ladder, an SVF mode, or nothing.
@@ -64,6 +66,8 @@ struct HighPassSlot {
 	Kind kind{Kind::OFF};
 	/// The SVF's mode, read when @ref kind is SVF.
 	SvfMode svf{};
+
+	bool operator==(const HighPassSlot&) const = default;
 };
 
 /// @brief One block's settings of a filter (each as the param's final value).
@@ -77,6 +81,8 @@ struct FilterConfig {
 	Q<29> morph;
 	/// Whether the drive ladder may oversample: false under CPU load. Filters that never oversample have no use for it.
 	bool allow_oversampling;
+
+	bool operator==(const FilterConfig&) const = default;
 };
 
 /// @brief A cutoff warped onto the filters' frequency scale, with the reciprocals the filters build on.

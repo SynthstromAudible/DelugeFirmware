@@ -110,6 +110,7 @@ void FilterSet::reset() {
 	low_last_ = LowPassSlot::Kind::LADDER;
 	high_last_ = {.kind = HighPassSlot::Kind::LADDER};
 	route_ = FilterRoute::HIGH_TO_LOW;
+	last_args_.reset();
 }
 
 void FilterSet::hold_low_pass(LowPassSlot::Kind kind) {
@@ -140,6 +141,11 @@ void FilterSet::hold_high_pass(HighPassSlot::Kind kind) {
 
 int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
                              HighPassSlot high_slot, FilterRoute route) {
+	const ConfigureArgs args{
+	    .gain = gain, .low = low, .low_slot = low_slot, .high = high, .high_slot = high_slot, .route = route};
+	if (last_args_ == args) {
+		return last_gain_;
+	}
 	low_slot_ = low_slot;
 	high_slot_ = high_slot;
 	route_ = route;
@@ -201,6 +207,8 @@ int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot 
 	}
 	high_last_ = high_slot;
 
+	last_args_ = args;
+	last_gain_ = gain;
 	return gain;
 }
 
