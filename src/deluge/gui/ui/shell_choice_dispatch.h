@@ -131,6 +131,14 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 
+/// @brief What cancels an auto-load claim: `SampleClaim::cancelAutoLoad`'s shape.
+using SampleClaimCancel = void (*)();
+
+/// @brief Install an auto-load cancel other than `deluge::gui::sampleClaim`'s `cancelAutoLoad`, for specs, which
+///        cannot run a claim to cancel. Nothing outside a spec calls this.
+/// @param cancel The cancel, or null to put the shipped one back.
+void setSampleClaimCancel(SampleClaimCancel cancel);
+
 /// @brief The completion of a claim a sample browser folder menu asked for (BASIC, SINGLE-CYCLE, WAVETABLE).
 /// A failure closes the menu and leaves the browser (`Synth`'s `closeOnFailure`); a success closes both, as the claim's
 /// own exit does in `main`, and pays back what `shellSampleClaimDone` does.

@@ -24,6 +24,7 @@
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/misc.h"
+#include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
 #include "gfx/oled/icons.h"
@@ -391,6 +392,15 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	// `SampleBrowser::opened`: no keyboard and no preview yet, so the root view shows and the BROWSE pad blinks. The
 	// MIDI device definition browser shows its keyboard for good (`qwertyAlwaysVisible`).
 	pads_ = id_ == BrowserId::Sample ? BrowserPads::Root : BrowserPads::Keyboard;
+	keyboard_visible_ = id_ != BrowserId::Sample;
+	keys_drawn_ = keyboard_visible_;
+	keyboard_always_visible_ = id_ != BrowserId::Sample;
+	showing_preview_ = false;
+	auto_load_ = false;
+	xenc_held_ = false;
+	preview_path_.clear();
+	preview_direction_ = 0;
+	row_scroll_ = deluge::ui::ScrollText{};
 	nav_identity_ = 0;
 	pads_changed_ = false;
 	blink_ = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index), 5);
@@ -426,7 +436,10 @@ void BrowserScene::on_exit() {
 	if (id_ == BrowserId::Sample) {
 		preview_ = PreviewRequest{.id = id_};
 		preview_outstanding_ = true;
+		preview_path_.clear();
+		preview_direction_ = 0;
 	}
+	xenc_held_ = false;
 	FileCatalogue::emptyFileItems();
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
@@ -459,18 +472,41 @@ void BrowserScene::preview_settled(bool has_sample) {
 	if (id_ != BrowserId::Sample) {
 		return;
 	}
-	if (has_sample) {
-		// `showPreview`: the waveform takes the pads unless the keyboard is up.
-		if (pads_ == BrowserPads::Root) {
-			pads_ = BrowserPads::Waveform;
-			pads_changed_ = true;
-		}
-		return;
+	const int8_t direction = preview_direction_;
+	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the
+	// browser open. A choice already waiting (a press this tick) is not overwritten.
+	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty() && !choice_.has_value()) {
+		choice_ = BrowserChoice{.id = id_, .path = preview_path_, .op = BrowserChoice::Op::Enter, .keep_open = true};
 	}
-	// `clearPreviewDisplay`: back to the root view, whose BROWSE pad blinks again (`possiblySetUpBlinking`).
-	if (pads_ == BrowserPads::Waveform) {
-		pads_ = BrowserPads::Root;
+	const BrowserPads before = pads_;
+	if (has_sample) {
+		// `showPreview`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are drawn
+		// if they should be and are not, or the waveform if the keyboard is hidden.
+		showing_preview_ = true;
+		if (direction != 0 && !keyboard_always_visible_) {
+			pads_ = BrowserPads::Waveform;
+		}
+		else {
+			if ((keyboard_visible_ && !keys_drawn_) || keyboard_always_visible_) {
+				pads_ = BrowserPads::Keyboard;
+			}
+			else if (!keyboard_visible_) {
+				pads_ = BrowserPads::Waveform;
+			}
+			keys_drawn_ = keyboard_visible_;
+		}
+	}
+	else if ((showing_preview_ || (keys_drawn_ && !keyboard_visible_)) && !keyboard_always_visible_) {
+		// `clearPreviewDisplay`: a move scrolls the root view in; otherwise it shows unless the keyboard still claims
+		// the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
+		showing_preview_ = false;
+		keys_drawn_ = keyboard_visible_;
+		if (direction != 0 || !keyboard_visible_) {
+			pads_ = BrowserPads::Root;
+		}
 		blink_anchor_ms_.reset();
+	}
+	if (pads_ != before) {
 		pads_changed_ = true;
 	}
 }
@@ -486,8 +522,16 @@ void BrowserScene::file_preview(int8_t direction) {
 		const std::string_view dir = current_dir();
 		request.path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
 	}
+	preview_path_ = request.path;
+	preview_direction_ = direction;
 	preview_ = std::move(request);
 	preview_outstanding_ = true;
+}
+
+void BrowserScene::reveal_keyboard() {
+	keyboard_visible_ = true;
+	keys_drawn_ = true;
+	pads_ = BrowserPads::Keyboard;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -842,8 +886,12 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 	edit_.cursor = 0;
 	edit_.scroll = 0;
 	set_entered_text_from_current_filename();
-	// `currentFileChanged`, given only the move's sign.
-	file_preview(static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0)));
+	// `currentFileChanged`, given only the move's sign: a move hides the keyboard unless it is always up.
+	const int8_t direction = static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0));
+	if (direction != 0 && (showing_preview_ || keyboard_visible_) && !keyboard_always_visible_) {
+		keyboard_visible_ = false;
+	}
+	file_preview(direction);
 }
 
 void BrowserScene::step_selection(int32_t offset) {
@@ -1104,13 +1152,20 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 			// (`:992`): the rect's right edge is legacy's `xPixelMax` and its width in whole
 			// characters is legacy's `maxChars`.
 			//
-			// @note Legacy also arms a side-scroller for this row when the cursor is at 0 (`:993-997`).
-			//       That is NOT part of `renderOLED`'s output at all -- `OLED::setupSideScroller`
-			//       registers a scroller that `OLED::sendMainImage` composites afterwards
-			//       (`hid/display/oled.cpp`) -- so it is not ported here and its absence is exactly
-			//       why the pixel comparison against the legacy canvas can be exact.
-			//       `ui::oled::scroll_text` is the widget that would do it.
-			deluge::ui::oled::text_edit(f, Rect{text_x, y, width - text_x, kTextSpacingY}, entered_text(), edit_);
+			const Rect row{text_x, y, width - text_x, kTextSpacingY};
+			deluge::ui::oled::text_edit(f, row, entered_text(), edit_);
+			// With the cursor at the start a name too wide for the row side-scrolls, highlighted, over what was just
+			// drawn (`OLED::setupSideScroller`, which legacy arms only for a name that does not fit).
+			const bool scrolls =
+			    edit_.cursor == 0
+			    && gfx::oled::string_width_px(entered_text(), deluge::ui::oled::text_height_for(f.style.row_font))
+			           > row.w;
+			if (scrolls) {
+				(void)deluge::ui::oled::scroll_text(f, row, entered_text(), f.style.row_font, row_scroll_, true, true);
+			}
+			else {
+				row_scroll_ = deluge::ui::ScrollText{};
+			}
 		}
 		else {
 			// `canvas.drawString(name[0..displayStringLength), textStartX, yPixel, ...)` (`:1000`).
@@ -1124,13 +1179,17 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	grid_pass_ = true;
 	last_render_ms_ = f.now_ms();
-	if (pads_ != BrowserPads::Keyboard) {
-		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, acted on by `after_render`.
+	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
+		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
+		// `qwertyVisible`, acted on by `after_render`.
 		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight});
 	}
 	switch (pads_) {
 	case BrowserPads::Root:
-		render_root_blink(f);
+		// `possiblySetUpBlinking`: not while the keyboard still claims the pads.
+		if (!keyboard_visible_) {
+			render_root_blink(f);
+		}
 		return;
 	case BrowserPads::Waveform:
 		render_waveform(f);
@@ -1213,6 +1272,9 @@ void BrowserScene::leds(deluge::ui::LedFrame& f) {
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), state(false));
+	// `SampleBrowser::buttonAction`'s two toggles light their buttons.
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1319,12 +1381,15 @@ Result BrowserScene::after_render() {
 	bool changed = false;
 
 	// A main pad with the keyboard hidden reveals it, the cursor at the start, and types only below the favourites
-	// row, so a blind press on a favourite does nothing else.
+	// row, so a blind press on a favourite does nothing else. With the keyboard visible but not on the pads (a waveform
+	// scrolled in over it) the press types blind, as `Browser::padAction` does.
 	const std::optional<deluge::ui::PadEvent> reveal = reveal_press_;
 	reveal_press_.reset();
-	if (grid_pass && reveal.has_value() && pads_ != BrowserPads::Keyboard) {
-		pads_ = BrowserPads::Keyboard;
-		edit_.cursor = 0;
+	if (grid_pass && reveal.has_value()) {
+		if (!keyboard_visible_) {
+			reveal_keyboard();
+			edit_.cursor = 0;
+		}
 		const char c = reveal->y < kFavouriteRow
 		                   ? deluge::ui::grid::text_keyboard_char_at(layout_, reveal->x, reveal->y,
 		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
@@ -1374,6 +1439,11 @@ Result BrowserScene::press_key(char c) {
 
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	shift_ = ctx.shift;
+	// The hold ends on its release whatever else refuses the event, so it never sticks.
+	if ((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	    && event.button == ButtonId::XEnc && !event.on) {
+		xenc_held_ = false;
+	}
 
 	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
 	// `after_render` instead -- see the class docstring), and legacy's own first line:
@@ -1405,6 +1475,11 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
+		if (id_ == BrowserId::Sample) {
+			if (std::optional<Result> taken = sample_button(event.button, event.on)) {
+				return *taken;
+			}
+		}
 		if (event.button == ButtonId::Back) {
 			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1174-1178`) is press-only.
 			if (event.on) {
@@ -1438,7 +1513,8 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Pad:
 		// A main pad with the keyboard hidden was read by `render_grid` (`reveal_press_`), beneath a context menu too.
-		if (id_ == BrowserId::Sample && event.x < kDisplayWidth && pads_ != BrowserPads::Keyboard) {
+		if (id_ == BrowserId::Sample && event.x < kDisplayWidth
+		    && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
 			Result r;
 			r.handled = true;
 			return r;
@@ -1477,26 +1553,12 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
-			// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at
-			// either end do nothing. Legacy's two `predictExtendedText()` calls at the ends are what
-			// extend a prediction further; here the search runs on every keystroke instead, so
-			// re-running it on a turn that moves nothing would only re-read the card.
-			const int32_t at = edit_.cursor;
-			Result r;
-			r.handled = true;
-			if ((event.delta > 0 && at >= entered_len_) || (event.delta < 0 && at == 0) || event.delta == 0) {
-				return r;
-			}
-			// Legacy adds the offset unclamped, which an accelerated turn can push past the end of
-			// the string. Clamped here; every in-range turn lands where legacy's does.
-			edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, entered_len_));
-			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
-			return r;
+			return horizontal_turn(event.delta);
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `Browser::verticalEncoderAction` only ever recolours a
-			// favourite, which this scene does not draw; it still answers `DEALT_WITH`, so the turn
-			// does not scroll whatever is underneath.
+			// `SampleBrowser::verticalEncoderAction`: with SHIFT, `Browser::verticalEncoderAction` recolours a
+			// favourite, which this scene does not draw; without, the host hands the turn to the instrument clip view
+			// before it reaches here (`forwardBrowserVertical`). Either way the turn scrolls nothing else.
 			Result r;
 			r.handled = true;
 			return r;
@@ -1515,6 +1577,72 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 	}
 	return Result::unhandled();
+}
+
+Result BrowserScene::horizontal_turn(int32_t delta) {
+	Result r;
+	r.handled = true;
+	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || nav_.is_zoomed_in())) {
+		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
+		// mode up. Either draws the waveform over whatever the pads showed.
+		if (!holding_ && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
+			pads_ = BrowserPads::Waveform;
+			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		}
+		return r;
+	}
+	if (id_ == BrowserId::Sample) {
+		// Otherwise the keys are drawn, and the turn walks the cursor.
+		reveal_keyboard();
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+	// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at either end do nothing. Legacy's two
+	// `predictExtendedText()` calls at the ends are what extend a prediction further; here the search runs on every
+	// keystroke instead, so re-running it on a turn that moves nothing would only re-read the card.
+	const int32_t at = edit_.cursor;
+	if ((delta > 0 && at >= entered_len_) || (delta < 0 && at == 0) || delta == 0) {
+		return r;
+	}
+	// Legacy clamps the accumulated delta to the string (`QwertyUI::horizontalEncoderAction`).
+	edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + delta, 0, entered_len_));
+	(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+	return r;
+}
+
+std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
+	Result r;
+	r.handled = true;
+	switch (button) {
+	case ButtonId::XEnc:
+		// A held state, entered only with no other mode up; its release is read at the top of `handle`.
+		if (on && !holding_) {
+			xenc_held_ = true;
+		}
+		return r;
+	case ButtonId::Load:
+		// Auto-load toggles on the release, and never for an audio clip, whose LOAD goes on to the base browser.
+		if (ctx_.is_audio_clip) {
+			return std::nullopt;
+		}
+		if (!on) {
+			auto_load_ = !auto_load_;
+		}
+		return r;
+	case ButtonId::Keyboard:
+		if (!on) {
+			return std::nullopt;
+		}
+		keyboard_always_visible_ = !keyboard_always_visible_;
+		keyboard_visible_ = keyboard_always_visible_;
+		if (keyboard_visible_) {
+			reveal_keyboard();
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	default:
+		return std::nullopt;
+	}
 }
 
 void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {

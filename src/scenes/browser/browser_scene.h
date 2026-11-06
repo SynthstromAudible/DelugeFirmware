@@ -80,6 +80,7 @@
 #include "ui/core/state.h"
 #include "ui/grid/effects.h"
 #include "ui/grid/keyboard.h"
+#include "ui/oled/scroll_text.h"
 #include "ui/oled/text_edit.h"
 
 #include "gfx/oled/icon.h"
@@ -296,6 +297,9 @@ struct BrowserChoice {
 	std::string dir;
 	std::string filename;
 	bool is_folder = false;
+	/// The auto-load claim of a landed preview (`ClaimOrigin::AutoLoad`): the browser stays open and the menu where
+	/// it is. Only an `Op::Enter` carries it.
+	bool keep_open = false;
 };
 
 /// @brief The longest name or path this scene will build.
@@ -413,8 +417,9 @@ public:
 		if (id_ == BrowserId::MidiDeviceDefinition) {
 			return deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0};
 		}
-		return pads_ != BrowserPads::Root || ctx_.root_is_keyboard ? deluge::ui::grid::GreyoutMask{0b10u, 0}
-		                                                           : deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
+		return pads_ != BrowserPads::Root || keyboard_visible_ || ctx_.root_is_keyboard
+		           ? deluge::ui::grid::GreyoutMask{0b10u, 0}
+		           : deluge::ui::grid::GreyoutMask{0xFFFFFFFEu, 0};
 	}
 
 	/// @name Observable state, for specs and for whoever wires this up.
@@ -442,6 +447,12 @@ public:
 	bool holding() const { return holding_; }
 	/// @brief Whether the selected item is a folder; false with nothing selected.
 	bool current_is_folder() const;
+	/// @brief `SampleBrowser::qwertyAlwaysVisible`: KEYBOARD keeps the keyboard up through every move.
+	bool keyboard_always_visible() const { return keyboard_always_visible_; }
+	/// @brief `SampleBrowser::autoLoadEnabled`: LOAD has the browser claim each preview that lands.
+	bool auto_load() const { return auto_load_; }
+	/// @brief The previewed waveform's scroll and zoom.
+	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
 	/// @}
 
 	/// @brief Collect the file the scene could not load itself, exactly once.
@@ -541,6 +552,14 @@ private:
 	void set_entered_text_from_current_filename();
 	/// @brief Apply one keyboard key: enter enters, backspace deletes, anything else types and searches.
 	deluge::ui::shell::Result press_key(char c);
+	/// @brief Reveal the keyboard: `qwertyVisible`, and the keys drawn.
+	void reveal_keyboard();
+	/// @brief `SampleBrowser::horizontalEncoderAction`: zoom or scroll the preview, or reveal the keyboard and walk the
+	///        cursor.
+	deluge::ui::shell::Result horizontal_turn(int32_t delta);
+	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD and KEYBOARD arms.
+	/// @return The answer, or nullopt for a button those arms do not take.
+	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
 	/// @brief The root state's BROWSE blink.
 	void render_root_blink(deluge::ui::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
@@ -657,7 +676,23 @@ private:
 	std::optional<BrowserChoice> choice_{};
 	std::optional<PreviewRequest> preview_{};
 	bool preview_outstanding_ = false;
+	/// What the main pads show. Legacy's flags beside it, which the image does not always follow
+	/// (`SampleBrowser::showPreview` scrolls a waveform in over the keys and leaves them "drawn"):
+	/// `qwertyVisible` (a pad types rather than reveals), `qwertyCurrentlyDrawnOnscreen`,
+	/// `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
 	BrowserPads pads_ = BrowserPads::Root;
+	bool keyboard_visible_ = false;
+	bool keys_drawn_ = false;
+	bool showing_preview_ = false;
+	bool keyboard_always_visible_ = false;
+	bool auto_load_ = false;
+	/// X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, entered only with no other mode.
+	bool xenc_held_ = false;
+	/// The file the outstanding preview names (empty for a stop) and its direction, which its answer acts on.
+	std::string preview_path_{};
+	int8_t preview_direction_ = 0;
+	/// The selected row's side-scroller, armed while the cursor is at the start.
+	deluge::ui::ScrollText row_scroll_{};
 	/// The host changed the pads between ticks; the next tick repaints them.
 	bool pads_changed_ = false;
 	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.

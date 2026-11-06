@@ -78,4 +78,10 @@ std::optional<ActionResult> forwardMenuHorizontal(int32_t offset, uint32_t now_m
 /// @return The root's answer, or `DEALT_WITH`; nullopt when the menu is not what takes input.
 std::optional<ActionResult> forwardMenuVertical(int32_t offset);
 
+/// @brief `SampleBrowser::verticalEncoderAction` for the ported sample browser: with it frontmost and SHIFT up, a
+///        vertical turn goes to the instrument clip view beneath, or nowhere with X_ENC held.
+/// @param offset The turn's detents.
+/// @return The clip view's answer, or `DEALT_WITH`; nullopt to feed the turn to the browser.
+std::optional<ActionResult> forwardBrowserVertical(int32_t offset);
+
 } // namespace deluge::gui::ui

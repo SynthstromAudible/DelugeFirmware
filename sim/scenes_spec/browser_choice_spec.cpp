@@ -64,8 +64,11 @@
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -99,6 +102,11 @@
 #include <string_view>
 
 #include "spec/support/spec_main.h"
+
+/// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
+namespace Buttons {
+extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
+} // namespace Buttons
 
 using namespace deluge::scenes;
 using deluge::gui::ui::SampleClaimTarget;
@@ -194,6 +202,19 @@ private:
 ///          examples below prove.** Honouring it means running the claim -- a card read and an
 ///          `AudioFileManager` allocation -- which is the thing the seam exists to keep out. So WHAT
 ///          is requested is pinned; what the claim then does is `SampleClaim`'s own.
+/// @brief Records each auto-load cancel the drain asks for, in place of `SampleClaim::cancelAutoLoad`.
+struct CancelSpy {
+	static inline int32_t cancels = 0;
+	static void record() { cancels++; }
+	CancelSpy() {
+		cancels = 0;
+		deluge::gui::ui::setSampleClaimCancel(&record);
+	}
+	~CancelSpy() { deluge::gui::ui::setSampleClaimCancel(nullptr); }
+	CancelSpy(const CancelSpy&) = delete;
+	CancelSpy& operator=(const CancelSpy&) = delete;
+};
+
 struct ClaimSpy {
 	static inline int32_t dispatches = 0;
 	static inline deluge::gui::ClaimRequest last{};
@@ -1163,6 +1184,99 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(&shellHostUI.shell().stack().input_top() == &menu_scene()).to_be_true();
 		deluge::gui::ui::refreshShellSamplePreviewSounds();
 		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
+	});
+
+	it("claims an auto-loaded preview keeping the browser open and the menu where it was", _ {
+		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, `loadWithoutExiting`, and no completion to
+		// close or re-root anything.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		const menu::MenuState before = menu_scene().state();
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 6, 1, 255}, r.clock + 5); // LOAD
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 6, 1, 0}, r.clock + 6);
+		r.step();
+		expect(browser::browser_scene().auto_load()).to_be_true();
+		browser::browser_scene().preview_settled(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(spy.dispatches).to_equal(1);
+		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
+		expect(ClaimSpy::last.origin == deluge::gui::ClaimOrigin::AutoLoad).to_be_true();
+		expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
+		expect(ClaimSpy::last.completion == nullptr).to_be_true();
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(menu_scene().state().depth).to_equal(before.depth);
+		expect(menu_scene().state().path[before.depth] == before.path[before.depth]).to_be_true();
+	});
+
+	it("cancels an auto-load claim whenever the selection asks for another preview", _ {
+		// `SampleBrowser::previewFile` and `cancelPreview`: a move supersedes the auto-load of the file it left.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		CancelSpy cancel;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices(); // the file the browser opened on
+		expect(CancelSpy::cancels).to_equal(1);
+		deluge::gui::ui::dispatchShellChoices(); // nothing asked
+		expect(CancelSpy::cancels).to_equal(1);
+		browser::browser_scene().on_exit(); // a stop
+		deluge::gui::ui::dispatchShellChoices();
+		expect(CancelSpy::cancels).to_equal(2);
+	});
+
+	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {
+		// `SampleBrowser::verticalEncoderAction`.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		const int32_t before = model.song.clip->yScroll;
+		(void)shellHostUI.verticalEncoderAction(1);
+		expect(model.song.clip->yScroll != before).to_be_true();
+		const int32_t moved = model.song.clip->yScroll;
+		// With X_ENC held the clip view would transpose the notes on screen; the browser keeps the turn.
+		NoteRow* row = model.song.clip->createNewNoteRowForYVisual(moved + 2, model.song.song);
+		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			return;
+		}
+		{
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* stack = model.song.song->setupModelStackWithCurrentClip(memory);
+			ModelStackWithNoteRow* with_row = model.song.clip->getNoteRowForYNote(row->y(), stack);
+			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+		}
+		expect(static_cast<int32_t>(row->notes.size())).to_equal(1);
+		model.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
+		model.song.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;
+		const int32_t note_y = row->y();
+		const auto xy = deluge::hid::button::toXY(deluge::hid::button::X_ENC);
+		Buttons::buttonStates[xy.x][xy.y] = true;
+		(void)shellHostUI.verticalEncoderAction(1);
+		Buttons::buttonStates[xy.x][xy.y] = false;
+		expect(model.song.clip->yScroll).to_equal(moved);
+		NoteRow* still = model.song.clip->getNoteRowForYNote(note_y);
+		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
 	});
 });
 // clang-format on

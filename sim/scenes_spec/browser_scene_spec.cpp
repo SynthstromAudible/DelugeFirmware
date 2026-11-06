@@ -392,7 +392,7 @@ struct CleanBrowser {
 ///
 /// ```
 /// SAMPLES/CLAP.WAV  SAMPLES/SNARE.WAV  SAMPLES/TOM.WAV
-/// SAMPLES/KICKS/KICK1.WAV
+/// SAMPLES/KICKS/KICK1.WAV  SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV   (wider than the row: side-scrolls)
 /// SAMPLES/CLIPS/TEMP/            (the folder SampleBrowser refuses to enter)
 /// SAMPLES/CLIPS/{A3,C3,C4}.WAV   (note names -- see below)
 /// MIDI_DEVICES/DEFINITION/DEVICE1.XML
@@ -436,6 +436,11 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 /// SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
 constexpr uint8_t kBackX = 7, kBackY = 1;
+/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`shell/profiles/deluge.cpp`).
+constexpr uint8_t kXEncX = 0, kXEncY = 1;
+constexpr uint8_t kLoadX = 6, kLoadY = 1;
+constexpr uint8_t kKeyboardX = 3, kKeyboardY = 3;
+constexpr uint8_t kHorizontalEncoder = 1, kVerticalEncoder = 0;
 constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
 
 struct Pad {
@@ -533,6 +538,21 @@ struct Rig {
 	void turn(int32_t detents, uint32_t at) {
 		shell.on_board_event(
 		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, at);
+	}
+
+	/// @brief One detent of the horizontal encoder, then a tick.
+	void horizontal(int32_t detents) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kHorizontalEncoder, 0, static_cast<int16_t>(detents * 2)},
+		    clock + 10);
+		step();
+	}
+	/// @brief Press and release a button, one tick each.
+	void click(uint8_t x, uint8_t y) {
+		button(x, y, true, clock + 10);
+		step();
+		button(x, y, false, clock + 10);
+		step();
 	}
 
 	/// @brief Press and release the pad that types @p c, one tick each.
@@ -1550,7 +1570,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 
 		// `Browser::goIntoFolderImpl`: the folder name is appended to `currentDir`.
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
-		expect(catalogue_order()).to_equal(std::string("KICK1.WAV"));
+		expect(catalogue_order()).to_equal(std::string("KICK1.WAV,KICK2 WITH A LONG ROOM TAIL.WAV"));
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK1"});
 
 		// BACK ascends. `goUpOneDirectoryLevelImpl` assigns the segment it dropped to `enteredText`
@@ -2593,8 +2613,222 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		expect(r.browser_on_stack()).to_be_true();
 	});
 });
+describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand, the encoders, KEYBOARD and LOAD", $ {
+	it("the first main-pad press reveals the keyboard and types, unless it is on the favourites row", _ {
+		// `SampleBrowser::padAction`: the reveal puts the cursor at the start, and passes the press on only below
+		// `favouriteRow`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		{
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			r.pad(9, 7, 64, r.clock + 10);
+			r.step();
+			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
+			expect(browser_scene().cursor()).to_equal(0);
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			const Pad t = pad_for('T');
+			expect(t.y < browser::kFavouriteRow).to_be_true();
+			r.pad(static_cast<uint8_t>(t.x), static_cast<uint8_t>(t.y), 64, r.clock + 10);
+			r.step();
+			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TOM"});
+		}
+	});
+
+	it("a selection move hides the keyboard unless it is always visible", _ {
+		// `SampleBrowser::currentFileChanged`: a move clears `qwertyVisible` unless `qwertyAlwaysVisible`; what the
+		// preview then shows replaces the keys (`clearPreviewDisplay` here: the move lands on a folder).
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		{
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			r.pad(9, 7, 64, r.clock + 10);
+			r.step();
+			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			r.turn(1, r.clock + 10);
+			r.step();
+			browser_scene().preview_settled(false);
+			expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+			expect(static_cast<uint64_t>(browser_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			r.click(kKeyboardX, kKeyboardY);
+			r.turn(1, r.clock + 10);
+			r.step();
+			browser_scene().preview_settled(false);
+			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		}
+	});
+
+	it("keeps the keyboard over a typed search, which moves the selection without a direction", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.type('T');
+		browser_scene().preview_settled(true);
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+	});
+
+	it("KEYBOARD toggles always-visible and its LED, on the press", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(browser_scene().keyboard_always_visible()).to_be_false();
+		r.button(kKeyboardX, kKeyboardY, true, r.clock + 10);
+		r.step();
+		expect(browser_scene().keyboard_always_visible()).to_be_true();
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(led_on(r, ButtonId::Keyboard)).to_be_true();
+		r.button(kKeyboardX, kKeyboardY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().keyboard_always_visible()).to_be_true();
+		r.click(kKeyboardX, kKeyboardY);
+		expect(browser_scene().keyboard_always_visible()).to_be_false();
+		expect(led_on(r, ButtonId::Keyboard)).to_be_false();
+	});
+
+	it("LOAD toggles auto-load and its LED on the release, but not on an audio clip", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		{
+			spec::SongFixture f = spec::make_synth_song();
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			r.button(kLoadX, kLoadY, true, r.clock + 10);
+			r.step();
+			expect(browser_scene().auto_load()).to_be_false();
+			r.button(kLoadX, kLoadY, false, r.clock + 10);
+			r.step();
+			expect(browser_scene().auto_load()).to_be_true();
+			expect(led_on(r, ButtonId::Load)).to_be_true();
+			r.click(kLoadX, kLoadY);
+			expect(browser_scene().auto_load()).to_be_false();
+			expect(led_on(r, ButtonId::Load)).to_be_false();
+		}
+		CleanBrowser::reset();
+		{
+			spec::AudioSongFixture f = spec::make_audio_clip_song();
+			Rig r;
+			r.open_and_land(context_of(f), BrowserId::Sample);
+			r.click(kLoadX, kLoadY);
+			expect(browser_scene().auto_load()).to_be_false();
+			expect(led_on(r, ButtonId::Load)).to_be_false();
+		}
+	});
+
+	it("with auto-load on, a landed preview files a claim that keeps the browser open; a stop files none", _ {
+		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, with `loadWithoutExiting`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.click(kLoadX, kLoadY);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value()).to_be_true();
+		expect(choice.has_value() && choice->keep_open && choice->op == browser::BrowserChoice::Op::Enter).to_be_true();
+		expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{"SAMPLES/CLAP.WAV"});
+		expect(r.browser_on_stack()).to_be_true();
+		select_folder(r, true);
+		browser_scene().preview_settled(false);
+		expect(browser_scene().take_choice().has_value()).to_be_false();
+	});
+
+	it("zooms with X_ENC held, scrolls once zoomed in, and otherwise reveals the keyboard", _ {
+		// `SampleBrowser::horizontalEncoderAction`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		const std::string zoomed_out = r.fake.state();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		r.settle();
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		expect(r.fake.state() != zoomed_out).to_be_true();
+		const int64_t scroll = browser_scene().waveform_nav().xScroll;
+		r.horizontal(1);
+		r.settle();
+		expect(browser_scene().waveform_nav().xScroll != scroll).to_be_true();
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(-8);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_false();
+		r.horizontal(1);
+		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().cursor()).to_equal(1);
+	});
+
+	it("redraws a zoomed view the card has not caught up with, after the last view's redraw gave up", _ {
+		// `tickPreviewRedraw` counts a new render's columns afresh: the zoom's render is its own.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 500);
+		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.settle();
+		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_true();
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+	});
+
+	it("side-scrolls the selected row's name while the cursor is at its start", _ {
+		// `Browser::renderOLED` arms `OLED::setupSideScroller` for the selected row when `enteredTextEditPos` is 0.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV";
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK2 WITH A LONG ROOM TAIL"});
+		const std::string still = r.fake.pbm(0);
+		run_until(r, r.clock + 1000);
+		expect(r.fake.pbm(0) != still).to_be_true();
+		r.horizontal(1); // the cursor off the start: the row stops scrolling
+		const std::string moved = r.fake.pbm(0);
+		run_until(r, r.clock + 1000);
+		expect(r.fake.pbm(0)).to_equal(moved);
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
-                browser_long_press, browser_slicer_doors, browser_preview, browser_pads)
+                browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard)

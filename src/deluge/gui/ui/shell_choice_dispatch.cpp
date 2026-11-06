@@ -69,6 +69,14 @@ void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
 /// @brief What the claim is requested from. `setSampleClaimDispatch`'s subject.
 SampleClaimDispatch claimDispatch = &requestSampleClaim;
 
+/// @brief The shipped auto-load cancel.
+void cancelSampleAutoLoad() {
+	deluge::gui::sampleClaim.cancelAutoLoad();
+}
+
+/// @brief What cancels an auto-load claim. `setSampleClaimCancel`'s subject.
+SampleClaimCancel claimCancel = &cancelSampleAutoLoad;
+
 /// @brief The shipped folder-import dispatcher.
 void requestFolderImport(deluge::gui::FolderImportRequest request) {
 	deluge::gui::folderImport.request(std::move(request));
@@ -153,8 +161,10 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 /// @param target @p path split; its filename names the entered text.
 /// @param args       The detection choices: the browser's own for an Enter, a folder menu's for its claims.
 /// @param completion Told how the claim ended.
+/// @param origin     Explicit, or the auto-load of a landed preview, which the next move cancels.
 void claimSampleFile(std::string_view path, const SampleClaimTarget& target, const SampleClaimArgs& args,
-                     void (*completion)(bool success)) {
+                     void (*completion)(bool success),
+                     deluge::gui::ClaimOrigin origin = deluge::gui::ClaimOrigin::Explicit) {
 	adoptShellMenuContext();
 	claimDispatch({
 	    .path = std::string{path},
@@ -163,7 +173,7 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	    .mayDoSingleCycle = args.mayDoSingleCycle,
 	    .mayDoWaveTable = args.mayDoWaveTable,
 	    .loadWithoutExiting = args.loadWithoutExiting,
-	    .origin = deluge::gui::ClaimOrigin::Explicit,
+	    .origin = origin,
 	    .completion = completion,
 	});
 }
@@ -176,7 +186,7 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 		return; // the gate refuses the presses that would ask; nothing that does is left to answer
 	}
 	// An auto-load claim would bind into the sound the import is replacing.
-	deluge::gui::sampleClaim.cancelAutoLoad();
+	claimCancel();
 	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
 	deluge::gui::FolderImportRequest request{
 	    .kind = kind, .completion = &shellLongPressImportDone, .exitBrowser = false};
@@ -244,6 +254,8 @@ PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 void dispatchPreview() {
 	SamplePreviewer& previewer = shellPreviewer();
 	if (const std::optional<PreviewRequest> request = browser_scene().take_preview()) {
+		// A move supersedes an auto-load claim of the file it has left (`previewFile`, `cancelPreview`).
+		claimCancel();
 		if (request->path.empty()) {
 			previewer.cancel();
 			AudioEngine::stopAnyPreviewing();
@@ -291,6 +303,10 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch) {
 	claimDispatch = dispatch != nullptr ? dispatch : &requestSampleClaim;
 }
 
+void setSampleClaimCancel(SampleClaimCancel cancel) {
+	claimCancel = cancel != nullptr ? cancel : &cancelSampleAutoLoad;
+}
+
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 	// `SampleBrowser::getCurrentFilePath` run backwards: it appends the separator only when
 	// `currentDir` is non-empty, so a path with no separator is a file at the card root and the whole
@@ -329,7 +345,14 @@ void dispatchChoice(const BrowserChoice& choice) {
 		switch (choice.op) {
 		case BrowserChoice::Op::Enter:
 			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice.path)) {
-				claimSampleFile(choice.path, *target, kShellSampleClaimArgs, &shellSampleClaimDone);
+				if (choice.keep_open) {
+					// Auto-load: nothing to close and nothing to re-root, so no completion.
+					claimSampleFile(choice.path, *target, kShellSampleClaimArgs, nullptr,
+					                deluge::gui::ClaimOrigin::AutoLoad);
+				}
+				else {
+					claimSampleFile(choice.path, *target, kShellSampleClaimArgs, &shellSampleClaimDone);
+				}
 			}
 			break;
 		case BrowserChoice::Op::Claim:
