@@ -5,13 +5,27 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/l10n_bridge.h"
+#include "scenes/menu/action.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx.h"
 #include "scenes/menu/nodes/dx_tables.h"
+#include "scenes/menu/nodes/nodes.h"
+#include "scenes/profile.h"
+#include "scenes/registry.h"
 
+#include "shell/profiles/deluge.h"
+#include "shell/shell.h"
+
+#include "gui/menu_item/dx/browse.h"
+#include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/operator_params.h"
 #include "gui/menu_item/dx/param.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "model/action/action_logger.h"
@@ -21,6 +35,7 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
+#include "spec/shell/support/fake_surfaces.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -32,7 +47,16 @@
 #include <string>
 
 using namespace deluge::scenes;
+using deluge::scenes::menu::MenuAction;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Node;
+using deluge::ui::shell::BoardProfile;
+using deluge::ui::shell::SceneId;
+using deluge::ui::shell::SceneKind;
+using deluge::ui::shell::Shell;
+using deluge::ui::shell::ShellConfig;
 namespace dx = deluge::scenes::menu::dx;
+namespace nodes = deluge::scenes::menu::nodes;
 namespace legacy = deluge::gui::menu_item;
 
 /// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
@@ -85,6 +109,74 @@ void legacy_on(int16_t param) {
 	legacy::dxParam.param = param;
 	legacy::dxParam.readValueAgain();
 }
+
+/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
+constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kHorizontalEncoder = 1;
+constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+constexpr uint8_t kBackX = 7, kBackY = 1;
+constexpr uint8_t kShiftX = 8, kShiftY = 0;
+
+constexpr const Node* kRoots[] = {&nodes::sound_root, &nodes::source0, &nodes::osc0_type, &nodes::osc1_type,
+                                  &nodes::dx_menu};
+
+/// @brief The DX7 synth with the ported menu over it, on a `Shell` over the fake surfaces.
+struct MenuRig : DxRig {
+	const BoardProfile& profile = deluge_profile();
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge_profile()};
+	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	uint32_t now = 0;
+
+	MenuRig() = default;
+	~MenuRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(SceneKind::Null);
+		}
+		menu_scene().reset_process_state();
+	}
+	MenuRig(const MenuRig&) = delete;
+	MenuRig& operator=(const MenuRig&) = delete;
+
+	MenuContext menu_context() {
+		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+	}
+	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), and draw it once.
+	void open(const Node& root, bind::WriteSink* sink = nullptr) {
+		MenuContext ctx = menu_context();
+		if (sink != nullptr) {
+			ctx.sink = sink;
+		}
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(root, ctx);
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+		tick();
+	}
+	void tick() { shell.tick(now += 10); }
+	void button(uint8_t x, uint8_t y, bool on) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)},
+		                     now += 10);
+	}
+	void select() {
+		button(kSelectEncButtonX, kSelectEncButtonY, true);
+		button(kSelectEncButtonX, kSelectEncButtonY, false);
+		tick();
+	}
+	void back() {
+		button(kBackX, kBackY, true);
+		button(kBackX, kBackY, false);
+		tick();
+	}
+	/// @brief @p detents clicks of a detented encoder: two A-pin edges each.
+	void turn(int32_t detents, uint8_t encoder = kSelectEncoder) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, encoder, 0, static_cast<int16_t>(detents * 2)},
+		                     now += 10);
+		tick();
+	}
+	const Node* focused() const { return menu_scene().focused(); }
+	const menu::MenuState& state() const { return menu_scene().state(); }
+	int16_t cursor() const { return state().list[state().depth].cursor; }
+};
 
 } // namespace
 
@@ -209,6 +301,106 @@ describe dx_pages("the DX7 menu pages", ${
 		DxRig r;
 		const deluge::instrument::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
 		expect(menu::host_write_sink().write_dx_patch(r.slot(), 1, want)).to_be_false();
+	});
+
+	it("enters DX7 source on SELECT from oscillator 1's type set to DX7, on its page and on the source page", _ {
+		{
+			MenuRig r;
+			r.open(nodes::osc0_type);
+			r.select();
+			expect(r.focused() == &nodes::dx_menu).to_be_true();
+		}
+		{
+			MenuRig r;
+			r.open(nodes::source0); // the page opens on its first column, the type
+			r.select();
+			expect(r.focused() == &nodes::dx_menu).to_be_true();
+		}
+	});
+
+	it("goes up on SELECT from any other oscillator type, as legacy's type answers nothing", _ {
+		MenuRig r;
+		r.sound->sources[0].setOscType(OscType::SAW);
+		r.open(nodes::source0);
+		r.select();
+		expect(r.focused() != &nodes::dx_menu).to_be_true();
+		expect(nodes::osc1_type_chain(r.menu_context(), r.state()) == nullptr).to_be_true();
+	});
+
+	it("lists DX7 source's three rows as legacy's dxMenu does", _ {
+		const ::MenuItem* const legacy_rows[] = {&legacy::dxBrowseMenu, &legacy::dxGlobalParams, &legacy::dxEngineSelect};
+		expect(std::size(nodes::kDxMenuChildren)).to_equal(std::size(legacy_rows));
+		for (size_t i = 0; i < std::size(legacy_rows); i++) {
+			const std::string mine{text_lookup(nodes::kDxMenuChildren[i]->name)};
+			expect(mine).to_equal(std::string{legacy_rows[i]->getName()});
+		}
+		expect(std::string{text_lookup(nodes::dx_menu.title)}).to_equal(std::string{::dxMenu.getTitle()});
+	});
+
+	it("puts the engine version's cursor on the patch's mode and writes a turn's mode, stopping at either end", _ {
+		MenuRig r;
+		deluge::instrument::DxPatchState modern = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		modern.engine_mode = 1;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, modern)).to_be_true();
+		bind::RecordingSink sink;
+		r.open(nodes::dx_engine_select, &sink);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(1);
+		r.turn(1);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
+		expect(sink.gestures.size()).to_equal(size_t{1});
+		expect(sink.gestures.back().kind == bind::GestureRequest::Kind::DX_PATCH).to_be_true();
+		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->engine_mode)).to_equal(2);
+		expect(sink.gestures.back().dx_patch->params == r.patch().params).to_be_true();
+		r.turn(1);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
+		expect(sink.gestures.size()).to_equal(size_t{1});
+		r.turn(-3);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(2); // legacy drops a turn that would leave the modes
+		expect(sink.gestures.size()).to_equal(size_t{1});
+	});
+
+	it("goes up from DX7 source's browse row and files the browser's action, opening nothing", _ {
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
+		r.select();
+		expect(r.focused() == &nodes::dx_menu).to_be_true();
+		expect(menu_scene().take_action().action == MenuAction::OpenDxBrowser).to_be_true();
+	});
+
+	it("opens the parameter page or an operator's list from DX7 parameters, as legacy's rows do", _ {
+		MenuRig r;
+		r.open(nodes::dx_global_params);
+		r.select();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(134);
+		r.back();
+		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+		r.turn(4); // "operator 2", which is operator index 4: the DX7 counts its operators from the other end
+		r.select();
+		expect(r.focused() == &nodes::dx_operator_params).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.op)).to_equal(4);
+		r.turn(1); // "level"
+		r.select();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
+	});
+
+	it("keeps both lists' cursors across leaving them and across another menu, the operators sharing one", _ {
+		MenuRig r;
+		r.open(nodes::dx_global_params);
+		r.turn(4); // "operator 2"
+		r.select();
+		r.turn(3); // "velocity sense"
+		r.back();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(4);
+		r.turn(1); // "operator 3"
+		r.select();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(3); // the one cursor the six operators share
+		r.open(nodes::dx_global_params); // a new menu, as legacy's singletons outlive the editor
+		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
+		r.open(nodes::dx_operator_params);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 	});
 });
 // clang-format on

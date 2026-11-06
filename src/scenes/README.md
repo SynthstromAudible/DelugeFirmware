@@ -239,9 +239,9 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 
 `Kind::Custom` is the escape hatch for a bespoke item. **The cap counts nodes that point at a custom
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
-count of one. The shipped tree has **55** custom nodes behind 55 distinct, real items
+count of one. The shipped tree has **60** custom nodes behind 60 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **56**, one above: a ratchet,
+`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **61**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 
@@ -692,7 +692,7 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| `dxMenu` | the three bespoke DX items have no port, so the DX7 oscillator type's select chain and `InstrumentClipMinder::createNewInstrument`'s DX entry open legacy's menu | three items and the chain |
+| `dxMenu`'s browser, the cartridge page, the keyboard's DX column and the DX pad grid | the ported "DX7 source" lists "load DX7 .syx file", which goes up and opens nothing; the `.syx` browser and the cartridge page have no port, the keyboard's DX column opens legacy's parameter page, and the pads under the parameter page are the menu's shortcuts, not the DX layout; `InstrumentClipMinder::createNewInstrument`'s DX entry and the DX shortcut pad's fallback open legacy's menu | a browser entry and a cartridge page, a DX column gate, a pad layout for the parameter page, and the two entry sites |
 | three `openUI(&soundEditor)` sites | sites 10, 11 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a ported node (or a decision) per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |

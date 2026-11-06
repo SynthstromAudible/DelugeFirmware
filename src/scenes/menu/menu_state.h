@@ -249,6 +249,17 @@ struct MenuWalkState {
 	const Node* scene_opener = nullptr;
 };
 
+/// @brief What the DX7 pages keep on legacy's singletons, which outlive the editor: the param `DxParam` shows, the
+///        operator "DX7 operator N" lists, and the cursors of "DX7 parameters" and "DX7 operator N"
+///        (`DxGlobalParams::currentValue`, and `DxOperatorParams::currentValue`, one shared by the six operators).
+struct DxState {
+	int16_t param = 0;           ///< `DxParam::param`
+	int8_t op = 0;               ///< `DxOperatorParams::op`, 0-5: operator `6 - op`
+	int16_t global_cursor = 0;   ///< `DxGlobalParams::currentValue`
+	int16_t operator_cursor = 0; ///< `DxOperatorParams::currentValue`
+	bool operator==(const DxState&) const = default;
+};
+
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
 ///        render observed for `after_render()` to act on.
 ///
@@ -399,6 +410,10 @@ struct MenuState {
 	/// this is the second one: updated on every real-output press and nothing else, read only by
 	/// `GateSelectionItem::on_focus_backward`.
 	int8_t real_output_choice = 0;
+
+	/// @brief The DX7 pages' state. `MenuScene::open` carries it from one menu to the next, as legacy's singletons
+	///        keep it; a boot forgets it (`MenuScene::reset_process_state`).
+	DxState dx{};
 
 	/// @}
 
