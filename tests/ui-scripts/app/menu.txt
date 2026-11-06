@@ -206,7 +206,7 @@
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
-# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:871`) which
+# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:729`) which
 # no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
 6500   button Back down
 6520   button Back up
@@ -241,7 +241,7 @@
 #
 # **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
 # are byte-identical; the *pads* are not. Legacy `SampleBrowser` opens with the keyboard hidden and
-# the sample's waveform on the main grid (`sample_browser.cpp:112`,
+# the sample's waveform on the main grid (`sample_browser.cpp:113`,
 # `SampleBrowser::renderMainPads` at `:2129`), swapping between the two as the selection moves; the
 # ported scene always draws the text keyboard, because the swap needs `AudioEngine::previewSample`,
 # `PadLEDs`' scroll transition and the marker editor. That is `BrowserScene::render_grid`'s own
@@ -255,7 +255,7 @@
 11300  pad 17 4 up
 
 # **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
-# (`sample_browser.cpp:392`) with the toggle off, and with it on it is `BrowserScene`'s deferred
+# (`sample_browser.cpp:393`) with the toggle off, and with it on it is `BrowserScene`'s deferred
 # choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.

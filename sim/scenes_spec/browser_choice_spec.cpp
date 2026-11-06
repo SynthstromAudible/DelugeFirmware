@@ -943,7 +943,7 @@ describe browser_choice_claim(
 	    it(
 	        "claims without exiting, because there is no legacy browser open to close", _ {
 		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
-		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:1108`), and its first
+		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:966`), and its first
 		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
 		        // `Browser::close()`, `UI::close()` and finally
 		        // `closeUI(this)` (`gui/ui/ui.cpp:86-88`). Under the guest `sampleBrowser` was never
@@ -959,7 +959,7 @@ describe browser_choice_claim(
 		        // here. Flip `loadWithoutExiting` and this reddens.
 		        //
 		        // The values are legacy's own, from the one call site that already needed this: the
-		        // auto-load feature's `claimCurrentFile(1, 1, 1, true)` (`sample_browser.cpp:640`),
+		        // auto-load feature's claim in `SampleBrowser::tickPreview` (`sample_browser.cpp:654-659`),
 		        // "load it into the instrument as if you had confirmed, but keep the browser open".
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
@@ -972,7 +972,7 @@ describe browser_choice_reroot(
     "MenuScene::reroot_to_scene_opener_page", $ {
 	    // Legacy's return affordance, in the port's own terms:
 	    // `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
-	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:1116-1118`).
+	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:974-976`).
 	    // The page is `sourceMenuGroup` focused on `source0Menu` (`gui/ui/menus.cpp:1748-1749`), which
 	    // this port models as the ordinary submenu `nodes::source0`.
 	    //
@@ -1047,7 +1047,7 @@ describe browser_choice_reroot(
 	        "spends the recorded opener, so a second claim does not re-root a menu that has moved on", _ {
 		        // The control leg, varying exactly one thing against the example above: the entry point
 		        // is called a second time, with everything else identical. Legacy clears its pair at the
-		        // same point (`gui/ui/browser/sample_browser.cpp:1121-1122`), and the reason is the same
+		        // same point (`gui/ui/browser/sample_browser.cpp:979-980`), and the reason is the same
 		        // -- the pair belongs to one trip through the browser, and a stale one re-roots a menu
 		        // the user has since navigated somewhere else entirely.
 		        CleanBrowser clean;

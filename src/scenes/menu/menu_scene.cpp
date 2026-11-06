@@ -286,7 +286,7 @@ bool MenuScene::reroot_to_scene_opener_page() {
 		return false;
 	}
 	// `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo; soundEditor.navigationDepth =
-	// 0` (`gui/ui/browser/sample_browser.cpp:1117-1118`). `retarget` is the port's spelling of both
+	// 0` (`gui/ui/browser/sample_browser.cpp:975-976`). `retarget` is the port's spelling of both
 	// at once, and it is the right one rather than a convenient one: legacy's two statements throw
 	// away everything above index 0 of the record, which is exactly the per-visit state `retarget`
 	// drops (see its body).

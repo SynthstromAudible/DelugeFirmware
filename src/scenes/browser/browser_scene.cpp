@@ -130,7 +130,7 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 // ---------------------------------------------------------------------------------------------
 // The two descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
-/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:85`).
+/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:86`).
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
@@ -174,7 +174,7 @@ bool sample_can(const menu::MenuContext& ctx) {
 }
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
-	// `SampleBrowser::opened` (`sample_browser.cpp:135-170`): take the holder's path, and if it is
+	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path, and if it is
 	// blank or outside SAMPLES/ fall through to the default folder. Then dissect it into a
 	// directory and the filename to select.
 	//
@@ -207,7 +207,7 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 }
 
 uint16_t sample_folder_refusal(std::string_view dir, std::string_view name) {
-	// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:345-350`).
+	// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:346-351`).
 	if (caseless_equals(name, "TEMP") && caseless_equals(dir, "SAMPLES/CLIPS")) {
 		return sid(String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED);
 	}
@@ -286,7 +286,7 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 }
 
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
-    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:87-94`) plus `SampleBrowser::opened`
+    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`) plus `SampleBrowser::opened`
     // (`:110-113`): the wave icon, "Audio files", the audio extensions, note names interpreted, and
     // folders allowed to share a name with a file.
     {
@@ -881,7 +881,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	}
 
 	// Shift+Select on a file in a kit's sample browser opens the slicer instead of claiming
-	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:389-400`); on anything else shift changes nothing.
+	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`); on anything else shift changes nothing.
 	if (shift && id_ == BrowserId::Sample && ctx_.is_kit) {
 		Result r;
 		r.handled = true;
@@ -1052,7 +1052,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// untouched -- legacy clears the *main* pads only.
 	//
 	// @note Legacy's `qwertyVisible` toggle is not ported. `SampleBrowser` starts with the keyboard
-	//       hidden and the sample's waveform on the pads instead (`sample_browser.cpp:112`,
+	//       hidden and the sample's waveform on the pads instead (`sample_browser.cpp:113`,
 	//       `SampleBrowser::renderMainPads`), and swaps between the two as the selection moves. That
 	//       half is the sample *preview*, which needs `AudioEngine::previewSample`, `PadLEDs`'
 	//       horizontal scroll transition and the marker editor -- none of it reachable from here,
@@ -1144,7 +1144,7 @@ Result BrowserScene::after_render() {
 	}
 
 	// 5. The long press, answered once at its deadline. While a sample load runs the hold stays and nothing answers
-	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:306-309`).
+	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:307-310`).
 	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
 		hold_deadline_ms_.reset();
 		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
@@ -1386,7 +1386,7 @@ Result BrowserScene::long_press() {
 		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
 	}
 	if (ctx_.is_kit) {
-		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:550-554`).
+		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:551-555`).
 		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
 		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}

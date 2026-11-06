@@ -413,7 +413,7 @@ public:
 
 	/// @brief Re-root the menu onto the horizontal page that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
-	///        (`gui/ui/browser/sample_browser.cpp:1116-1118`).
+	///        (`gui/ui/browser/sample_browser.cpp:974-976`).
 	///
 	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and
 	/// it exists because legacy's answer to "where does accepting a file land you" is spelled in

@@ -99,7 +99,7 @@ namespace deluge::scenes::browser {
 /// UI or a view the port does not have, so adding an entry for one now would be an untested,
 /// unreachable code path.
 enum class BrowserId : uint16_t {
-	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:83`), the audio-file browser the sample
+	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:84`), the audio-file browser the sample
 	/// menu items open.
 	Sample = 0,
 	/// `loadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), which
@@ -161,7 +161,7 @@ struct Descriptor {
 	bool interpret_note_names;
 
 	/// @brief `Browser::allowFoldersSharingNameWithFile`. `SampleBrowser::opened` sets it true
-	///        (`sample_browser.cpp:112`); the base leaves it false (`browser.cpp:182`).
+	///        (`sample_browser.cpp:113`); the base leaves it false (`browser.cpp:182`).
 	bool allow_folders_sharing_name_with_file;
 
 	/// @brief May the browser open on this context at all?
@@ -176,7 +176,7 @@ struct Descriptor {
 	/// @brief Where the browser opens: the directory to list, and the entry to land on inside it.
 	///
 	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s
-	/// `currentPath`/`searchFilename` split (`sample_browser.cpp:135-170`) and
+	/// `currentPath`/`searchFilename` split (`sample_browser.cpp:136-171`) and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`:83-124`). Both end in
 	/// "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
 	///
@@ -188,7 +188,7 @@ struct Descriptor {
 	/// @brief Why this folder may not be entered, as an l10n string id; 0 to allow it.
 	///
 	/// One legacy refusal, and it is `SampleBrowser`'s: `TEMP` inside `SAMPLES/CLIPS`
-	/// (`sample_browser.cpp:345-350`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null means "every
+	/// (`sample_browser.cpp:346-351`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null means "every
 	/// folder may be entered", which is what `LoadMidiDeviceDefinitionUI::enterKeyPress` does
 	/// (`load_midi_device_definition_ui.cpp:150-154`).
 	uint16_t (*folder_refusal)(std::string_view dir, std::string_view name);
@@ -263,7 +263,7 @@ struct BrowserChoice {
 
 	BrowserId id = BrowserId::Sample;
 	/// The chosen file's full path, as `getCurrentFilePath()` would have spelled it
-	/// (`sample_browser.h:172 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
+	/// (`sample_browser.h:163 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
 	std::string path;
 	Op op = Op::Enter;
 	ClaimArgs claim{};
@@ -361,7 +361,7 @@ public:
 	/// @brief Each legacy browser's own mask.
 	///
 	/// The sample browser greys the mute column only, `SampleBrowser::getGreyoutColsAndRows`'s
-	/// answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:535-545`); this scene
+	/// answer while its keyboard shows (`gui/ui/browser/sample_browser.cpp:536-546`); this scene
 	/// always shows its keyboard, so that arm is the one that applies. The MIDI device definition
 	/// browser greys every column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
 	/// (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
@@ -512,13 +512,13 @@ private:
 	void request_reload(bool from_end, int32_t direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
-	///              (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:389-400`).
+	///              (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`).
 	/// @return What the shell should do.
 	deluge::ui::shell::Result enter_key_press(bool shift);
 	/// @brief `SampleBrowser::canImportWholeKit`: a kit whose only drum is the one edited, on source 0.
 	/// @return Whether this kit may take a whole folder or a slice.
 	bool fresh_kit() const;
-	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:309-355`): a popup, or one of the
+	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:310-356`): a popup, or one of the
 	///        two folder menus, for the item Select is held on.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result long_press();

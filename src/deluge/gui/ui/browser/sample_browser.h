@@ -19,9 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/sample_preview.h"
 #include "hid/button.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
-#include "storage/audio/latest_sample_load.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -117,14 +117,14 @@ public:
 	///
 	/// Exposed so a gate can tell "the preview settled" apart from "the preview was dropped and
 	/// nothing will ever finish it" -- from outside, the two look identical.
-	[[nodiscard]] bool previewLoadPending() const { return previewWanted_.has_value() || previewLoad_.pending(); }
+	[[nodiscard]] bool previewLoadPending() const { return previewer_.pending(); }
 
 	/// @brief How many previews gave up on a load that stopped moving.
 	///
 	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledUs of walks with nothing settled) gives
-	/// up with the card error; see finishPreviewLoad(). Exposed for the A/B gate, which holds a load far past the
+	/// up with the card error; see SamplePreviewer::tick(). Exposed for the A/B gate, which holds a load far past the
 	/// bound.
-	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
+	[[nodiscard]] int32_t previewGiveUps() const { return previewer_.giveUps(); }
 	/// @name Counts for the A/B gate's preview-draw legs.
 	/// @{
 	/// @brief Preview draws made (showPreview calls).
@@ -160,15 +160,6 @@ protected:
 private:
 	void displayCurrentFilename();
 
-	/// @brief Snapshot of the file to preview, captured at trigger time.
-	///
-	/// Lets the preview's tick load the file the user pointed at, and its show animate in the direction the cursor
-	/// moved, even if the selection moves on before either runs.
-	struct PreviewTarget {
-		std::string path;
-		int32_t movementDirection;
-	};
-
 	/// @brief Ask for the current file's preview. A folder or empty selection cancels any preview and clears it.
 	/// @param movementDirection Scroll direction driving the preview's teardown/entry animation.
 	void previewIfPossible(int32_t movementDirection = 1);
@@ -179,25 +170,12 @@ private:
 		uint32_t generation = 0;
 	};
 
-	/// @brief One tick of the preview: start the wanted file's load, tick the load in hand, and act on its end.
+	/// @brief One tick of the preview: the previewer's tick at the sound editor's sound's volume, then, for a load
+	///        that landed, the auto-load claim and the draw.
 	///
 	/// Runs on the interaction tier, from browserGraphicsRoutine(). No sample is read from the card here: the load
 	/// finds its file through the async loader.
 	void tickPreview();
-	/// @brief Start @p target's load, replacing any load in hand.
-	///
-	/// Records the path as the last one loaded, stops the preview sounding (which also unbinds its holder), and asks
-	/// for the file in the preview drum's first range. Moves the generation, so a show dispatched for an earlier file
-	/// does nothing and the display stays as it is until this one lands.
-	/// @param target The file to preview.
-	void startPreviewLoad(PreviewTarget target);
-	/// @brief Act on the end of a preview's load.
-	///
-	/// A load that found its file, or settled without one, shows any lookup error, sounds the preview if the browser
-	/// should, and draws the preview. A load that stalled, or found the card unusable, gives up with the
-	/// card error and leaves the display as it is; nothing is asked for again until the next move onto the file.
-	/// @param outcome How the load ended, with the target it was started for.
-	void finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewTarget>::Outcome outcome);
 	/// @brief Draw the preview drum's sample, or clear the preview display
 	///        when the drum holds none.
 	/// @param show The show to draw.
@@ -214,24 +192,17 @@ private:
 	///        waveform's end).
 	[[nodiscard]] int32_t previewResolvedColumns() const;
 
-	/// @brief The file a cursor move asked to preview, until the next tick starts its load.
-	std::optional<PreviewTarget> previewWanted_{};
-	/// @brief The preview's load, ticked by tickPreview(). Holds the target it was started for.
-	deluge::storage::LatestSampleLoad<PreviewTarget> previewLoad_{};
-	/// @brief Moves each time a preview's load starts or the preview is cancelled. A show from an earlier generation
-	///        does nothing.
-	uint32_t previewGeneration_{0};
+	/// @brief The preview's load and sound. Records each load's path in lastFilePathLoaded as it starts.
+	deluge::gui::ui::SamplePreviewer previewer_{&lastFilePathLoaded};
 
-	/// @brief Previews that gave up on a stalled load. See previewGiveUps().
-	int32_t previewGiveUps_{0};
 	int32_t previewDraws_{0};
 	int32_t previewRedraws_{0};
 	int32_t previewDrawsComplete_{0};
 	int32_t previewDrawGiveUps_{0};
 	/// Set by a draw that renderFullScreen left incomplete; see tickPreviewRedraw().
 	bool previewRedrawPending_{false};
-	/// The generation the pending redraw belongs to: a newer preview's start or a cancel moves previewGeneration_,
-	/// and a redraw for an older one is dropped.
+	/// The generation the pending redraw belongs to: a newer preview's start or a cancel moves the previewer's
+	/// generation, and a redraw for an older one is dropped.
 	uint32_t previewRedrawGeneration_{0};
 	/// Columns of the view resolved at the last attempt: progress is more of them than this.
 	int32_t previewResolvedCols_{0};

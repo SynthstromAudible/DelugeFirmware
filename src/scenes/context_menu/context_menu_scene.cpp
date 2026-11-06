@@ -353,7 +353,7 @@ Result sample_browser_pad(const UiEvent&, const UiContext&) {
 	return r;
 }
 
-/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:465-468`): a claim or a folder import the
+/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:466-469`): a claim or a folder import the
 /// menu started is still running.
 bool sample_load_busy(const menu::MenuContext& ctx) {
 	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();

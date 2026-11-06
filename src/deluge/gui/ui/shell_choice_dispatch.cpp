@@ -164,7 +164,7 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	});
 }
 
-/// @brief `SampleBrowser::requestFolderImport` (`sample_browser.cpp:436-452`) for a folder menu's choice: the item's
+/// @brief `SampleBrowser::requestFolderImport` (`sample_browser.cpp:437-453`) for a folder menu's choice: the item's
 ///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
 ///        not.
 void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {

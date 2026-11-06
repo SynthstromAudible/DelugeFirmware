@@ -103,9 +103,9 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// The shipped audio-extension list itself (`sample_browser.cpp:85`), which has no header. Declared
+/// The shipped audio-extension list itself (`sample_browser.cpp:86`), which has no header. Declared
 /// here at global scope -- where its definition lives -- rather than re-spelled, so `SpecBrowser`
-/// lists through the same array `SampleBrowser::opened` installs (`sample_browser.cpp:110`).
+/// lists through the same array `SampleBrowser::opened` installs (`sample_browser.cpp:111`).
 extern char const* allowedFileExtensionsAudio[];
 
 namespace {
@@ -202,7 +202,7 @@ struct BrowserDisplay final : deluge::hid::Display {
 class SpecBrowser : public Browser {
 public:
 	SpecBrowser() {
-		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp:87-94`), minus the two members
+		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`), minus the two members
 		// `legacy_pbm()` renders through `sampleBrowser` instead (`fileIcon`, `title`).
 		shouldWrapFolderContents = false;
 		qwertyAlwaysVisible = false;
@@ -214,7 +214,7 @@ public:
 	std::string getCurrentFilePath() override { return {}; }
 	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
 
-	/// @brief `SampleBrowser::enterKeyPress`'s folder arm (`sample_browser.cpp:333-360`).
+	/// @brief `SampleBrowser::enterKeyPress`'s folder arm (`sample_browser.cpp:334-361`).
 	///
 	/// Two things from that body are deliberately absent. `AudioEngine::stopAnyPreviewing()` (`:342`)
 	/// tears down a preview only `SampleBrowser::currentFileChanged` ever starts, and `Browser`'s
@@ -239,7 +239,7 @@ public:
 	/// `Browser::isFavouritesVisible` opens with `getCurrentUI()`, which indexes
 	/// `uiNavigationHierarchy[numUIsOpen - 1]` with `numUIsOpen == 0` in a spec process. Both answers
 	/// are false in legacy too through every state this spec drives, because `SampleBrowser::opened`
-	/// leaves `qwertyVisible` false (`sample_browser.cpp:113`) and the layout defaults to
+	/// leaves `qwertyVisible` false (`sample_browser.cpp:114`) and the layout defaults to
 	/// `FavouritesDefaultLayoutOff`; the override is what makes them *reachable*, not what makes them
 	/// false. The favourites row itself has no port counterpart -- it is uncovered
 	/// by the migration.
@@ -254,19 +254,19 @@ public:
 	/// `SampleBrowser::opened`'s own, cited line by line.
 	///
 	/// The `currentDir`/`filenameToStartAt` pair is the *blank-path* arm of that function's
-	/// dissection (`sample_browser.cpp:135-146`): with the holder's `filePath` empty and
+	/// dissection (`sample_browser.cpp:136-147`): with the holder's `filePath` empty and
 	/// `lastFilePathLoaded` empty, legacy takes `currentDir = "SAMPLES"` and a null search filename.
 	/// `expects_blank_start_path()` below is what holds the fixture to that arm, so the arm is
 	/// chosen by the fixture rather than assumed.
 	void open_samples() {
 		Browser::opened();
-		allowedFileExtensions = allowedFileExtensionsAudio; // `sample_browser.cpp:110`
+		allowedFileExtensions = allowedFileExtensionsAudio; // `sample_browser.cpp:111`
 		allowFoldersSharingNameWithFile = true;             // `:111`
 		outputTypeToLoad = OutputType::NONE;                // `:112`
 		qwertyVisible = false;                              // `:113`
 		fileIndexSelected = 0;                              // `:119`
 		currentDir = "SAMPLES";                             // `:145`
-		// `sample_browser.cpp:165-170`, settled at once: the comparison is of where each side lands,
+		// `sample_browser.cpp:166-171`, settled at once: the comparison is of where each side lands,
 		// not of the ticks between.
 		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
 		settle();
@@ -627,7 +627,7 @@ BrowserState legacy_run(Drive&& drive) {
 	drive(browser);
 
 	// `sampleBrowser` is the shipped object -- its constructor set `fileIcon` to `OLED::waveIcon` and
-	// `title` to "Audio files" (`sample_browser.cpp:88-89`) -- and every number it renders from is a
+	// `title` to "Audio files" (`sample_browser.cpp:89-90`) -- and every number it renders from is a
 	// `Browser`/`QwertyUI` static that the `SpecBrowser` run above computed. This is
 	// `Browser::renderOLED` itself, over legacy's own state.
 	static deluge::hid::display::oled_canvas::Canvas canvas;
@@ -660,7 +660,7 @@ void expect_same(Self& self, const BrowserState& port, const BrowserState& legac
 }
 
 /// @brief Hold the fixture to the arm of `SampleBrowser::opened`'s dissection that `open_samples()`
-///        spells (`sample_browser.cpp:135-146`).
+///        spells (`sample_browser.cpp:136-147`).
 ///
 /// If a future fixture gave the audio clip a real sample path, legacy would enter on that file's
 /// folder and the transcription in `open_samples()` would silently stop matching. This fails first.
@@ -822,7 +822,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 
-		// `allowedFileExtensionsAudio` (`sample_browser.cpp:85`) vs the base's
+		// `allowedFileExtensionsAudio` (`sample_browser.cpp:86`) vs the base's
 		// `allowedFileExtensionsXML` (`browser.cpp:181`).
 		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
 		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
@@ -833,13 +833,13 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 
-		// `shouldInterpretNoteNamesForThisBrowser = true` (`sample_browser.cpp:92`); the base leaves
+		// `shouldInterpretNoteNamesForThisBrowser = true` (`sample_browser.cpp:93`); the base leaves
 		// it false.
 		expect(sample.interpret_note_names).to_be_true();
 		expect(midi.interpret_note_names).to_be_false();
 
 		// `SampleBrowser::opened` sets `allowFoldersSharingNameWithFile = true`
-		// (`sample_browser.cpp:112`); `Browser::opened` leaves it false (`browser.cpp:182`).
+		// (`sample_browser.cpp:113`); `Browser::opened` leaves it false (`browser.cpp:182`).
 		expect(sample.allow_folders_sharing_name_with_file).to_be_true();
 		expect(midi.allow_folders_sharing_name_with_file).to_be_false();
 
@@ -848,7 +848,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 	});
 
 	it("gives each browser its own row icon, and only the MIDI one a second piece", _ {
-		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`sample_browser.cpp:88`);
+		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`sample_browser.cpp:89`);
 		// `LoadMidiDeviceDefinitionUI`'s `fileIcon = OLED::midiIcon` plus `fileIconPt2 =
 		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:87-90`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
@@ -901,7 +901,7 @@ describe browser_composition("scenes::browser::BrowserScene composition", $ {
 	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
 		// The keyboard is `QwertyUI::drawKeys`'s, main pads only (`gui/ui/qwerty_ui.cpp:76-125`), and
 		// `SampleBrowser::getGreyoutColsAndRows` greys the mute column while it shows
-		// (`gui/ui/browser/sample_browser.cpp:535-545`).
+		// (`gui/ui/browser/sample_browser.cpp:536-546`).
 		const deluge::ui::shell::Scene& s = browser_scene();
 		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
@@ -918,7 +918,7 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 
 		// `SampleBrowser::opened` with a blank holder path defaults to the SAMPLES folder
-		// (`sample_browser.cpp:141-143`).
+		// (`sample_browser.cpp:142-144`).
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
 		// Three files and two folders, sorted. `CLIPS` and `KICKS` are directories.
 		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,KICKS,SNARE.WAV,TOM.WAV"));
@@ -1277,7 +1277,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		}
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TEMP"});
 
-		// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:345-350`): the popup
+		// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:346-351`): the popup
 		// is raised, the directory does not change, and no listing is dispatched.
 		DirectCtx d(r.clock);
 		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc},
