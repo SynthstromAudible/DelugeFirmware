@@ -40,6 +40,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include <iterator>
+#include <optional>
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
@@ -1478,8 +1479,16 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	LaunchStatus launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
-	                                                    longestStartingClipLength, allowSubdividedQuantization);
+	LaunchStatus launchStatus;
+	int64_t posReadAtTick;
+	{
+		// The launch position and the tick count it was read at, together: a late start moves on from it
+		deluge::playback::MoveSection section{"Session::userWantsToArmClipsToStartOrSolo"};
+		launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
+		                                       longestStartingClipLength, allowSubdividedQuantization);
+		posReadAtTick = playbackHandler.getActualSwungTickCount();
+	}
+	deluge::playback::injectRenderAt(deluge::playback::InjectAt::LaunchBeforeMove);
 
 	// If nothing to sync to, which means no other Clips playing...
 	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
@@ -1493,7 +1502,8 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 
 	else { // LaunchStatus::LAUNCH_USING_QUANTIZATION
 		armClipsToStartOrSoloWithQuantization(currentPosWithinQuantization, quantization, section, stopAllOtherClips,
-		                                      clip, forceLateStart, allowLateStart, newNumRepeatsTilLaunch, armState);
+		                                      clip, forceLateStart, allowLateStart, newNumRepeatsTilLaunch, armState,
+		                                      posReadAtTick);
 
 		if (clip) {
 			scheduleFillClip(clip);
@@ -1646,7 +1656,7 @@ bool Session::armForSwitchToArrangement() {
 void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
                                                     bool stopAllOtherClips, Clip* clip, bool forceLateStart,
                                                     bool allowLateStart, int32_t newNumRepeatsTilLaunch,
-                                                    ArmState armState) {
+                                                    ArmState armState, int64_t posReadAtTick) {
 
 	// We want to allow the launch point to be a point "within" the longest Clip, at multiple lengths of our shortest
 	// launching Clip
@@ -1666,7 +1676,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 				doLateStart = (timeAgo < kAmountNoteOnLatenessAllowed);
 			}
 
-			armClipToStartOrSoloUsingQuantization(clip, doLateStart, pos, armState);
+			armClipToStartOrSoloUsingQuantization(clip, doLateStart, pos, armState, true, posReadAtTick);
 		}
 	}
 
@@ -1842,17 +1852,38 @@ weWantThisClipInactive:
 
 // (I'm fairly sure) this shouldn't be / isn't called if the Clip is soloing
 void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateStart, uint32_t pos, ArmState armState,
-                                                    bool mustUnarmOtherClipsWithSameOutput) {
+                                                    bool mustUnarmOtherClipsWithSameOutput, int64_t posReadAtTick) {
 
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack =
-	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
+	// Arm to start, to begin at the next launch
+	if (!doLateStart) {
+		if (armState == ArmState::ON_TO_SOLO) {
+			armClipLowLevel(thisClip, ArmState::ON_TO_SOLO);
+		}
+		else {
+			armClipLowLevel(thisClip, ArmState::ON_NORMAL, mustUnarmOtherClipsWithSameOutput);
+		}
+		return;
+	}
 
-	// Arm to start soloing
-	if (armState == ArmState::ON_TO_SOLO) {
-		// If need to enact change instantly...
-		if (doLateStart) {
+	// Or enact the change now: a late start. The clip is moved to where the playhead has reached, so the render must
+	// not tick between reading that and the move.
+	std::optional<int32_t> instancePos;
+	{
+		deluge::playback::MoveSection section{"Session::lateStart"};
 
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
+
+		// The ticks the render has counted since the launch position was read
+		if (posReadAtTick != kPosNotStamped) {
+			pos += static_cast<uint32_t>(playbackHandler.getActualSwungTickCount() - posReadAtTick);
+		}
+
+		bool move = true;
+
+		// Start soloing
+		if (armState == ArmState::ON_TO_SOLO) {
 			// If that was already armed, un-arm it
 			if (thisClip->armState != ArmState::OFF) {
 				thisClip->armState = ArmState::OFF;
@@ -1866,23 +1897,11 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 
 			soloClipRightNow(modelStack);
 
-			if (!wasAlreadyActive) {
-				goto setPosAndStuff;
-			}
+			move = !wasAlreadyActive;
 		}
 
-		// Otherwise, arm it
+		// Start regular play
 		else {
-			armClipLowLevel(thisClip, ArmState::ON_TO_SOLO);
-		}
-	}
-
-	// Arm to start regular play
-	else {
-
-		// If late start...
-		if (doLateStart) {
-
 			if (thisClip->armState != ArmState::OFF
 			    && thisClip->launchStyle() == LaunchStyle::DEFAULT) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
@@ -1893,26 +1912,25 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 
 			// Must call this before setPos, because that does stuff with ParamManagers
 			currentSong->assertActiveness(modelStack, playbackHandler.getActualArrangementRecordPos() - pos);
+		}
 
-setPosAndStuff:
-			deluge::playback::injectRenderAt(deluge::playback::InjectAt::LaunchBeforeMove);
-			// pos is a "live" pos, so we have to subtract swungTicksSkipped before setting the Clip's lastProcessedPos,
-			// because it's soon going to be jumped forward by that many ticks
+		if (move) {
+			// pos is a "live" pos, so we have to subtract swungTicksSkipped before setting the Clip's
+			// lastProcessedPos, because it's soon going to be jumped forward by that many ticks
 			int32_t modifiedStartPos = (int32_t)pos - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 			thisClip->setPos(modelStack, modifiedStartPos);
 
 			thisClip->resumePlayback(modelStack);
 
-			// If recording session to arranger, do that
+			// If recording session to arranger, do that (once the render runs again: its instance is allocated)
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-				thisClip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos() - pos);
+				instancePos = playbackHandler.getActualArrangementRecordPos() - pos;
 			}
 		}
+	}
 
-		// Or if normal start...
-		else {
-			armClipLowLevel(thisClip, ArmState::ON_NORMAL, mustUnarmOtherClipsWithSameOutput);
-		}
+	if (instancePos) {
+		thisClip->beginInstance(currentSong, *instancePos);
 	}
 }
 
@@ -1928,61 +1946,72 @@ setPosAndStuff:
  */
 void Session::scheduleFillClip(Clip* clip) {
 
-	if (clip->launchStyle() == LaunchStyle::FILL) {
-		if (launchEventAtSwungTickCount > 0) {
+	if (clip->launchStyle() != LaunchStyle::FILL || launchEventAtSwungTickCount <= 0) {
+		return;
+	}
 
-			int64_t fillStartTime = launchEventAtSwungTickCount - clip->getMaxLength()
-			                        + (numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat;
-			// Work out if a 'launchEvent' is already scheduled,
-			// and if closer than the fill clip length, do immediate launch */
-			// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
-			if (fillStartTime < playbackHandler.getActualSwungTickCount()) {
-				if (clip->output->getActiveClip()) {
-					if (clip->output->getActiveClip()->launchStyle() == LaunchStyle::FILL) {
-						/* A fill clip is already here, steal the output */
-					}
-					else {
-						/* Something else is on this output and is not a fill, leave it alone.*/
-						return;
-					}
-				}
+	int64_t fillStartTime = launchEventAtSwungTickCount - clip->getMaxLength()
+	                        + (numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat;
+	std::optional<int32_t> instancePos;
+	bool launchLater = false;
+	{
+		// Where the playhead has reached and the fill's move there, with the render held off between them
+		deluge::playback::MoveSection section{"Session::scheduleFillClip"};
 
-				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-				uint32_t pos;
-				pos = clip->getMaxLength() - (launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount());
-
-				if (clip->armState != ArmState::OFF) { // In case also already armed
-					clip->armState = ArmState::OFF;
-				}
-
-				clip->activeIfNoSolo = true;
-
-				// Must call this before setPos, because that does stuff with ParamManagers
-				currentSong->assertActiveness(modelStack, playbackHandler.getActualArrangementRecordPos() - pos);
-
-				// pos is a "live" pos, so we have to subtract swungTicksSkipped before setting the Clip's
-				// lastProcessedPos, because it's soon going to be jumped forward by that many ticks
-				int32_t modifiedStartPos =
-				    (int32_t)pos - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
-				clip->setPos(modelStack, modifiedStartPos);
-
-				clip->resumePlayback(modelStack);
-
-				// If recording session to arranger, do that
-				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-					clip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos() - pos);
-				}
-
-				/* Arm to stop once started */
-				clip->armState = ArmState::ON_NORMAL;
+		// Work out if a 'launchEvent' is already scheduled,
+		// and if closer than the fill clip length, do immediate launch */
+		// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
+		launchLater = fillStartTime >= playbackHandler.getActualSwungTickCount();
+	}
+	if (launchLater) {
+		scheduleFillEvent(clip, fillStartTime);
+		armClipLowLevel(clip, ArmState::ON_NORMAL, false);
+		return;
+	}
+	{
+		deluge::playback::MoveSection section{"Session::scheduleFillClip launch"};
+		if (clip->output->getActiveClip()) {
+			if (clip->output->getActiveClip()->launchStyle() == LaunchStyle::FILL) {
+				/* A fill clip is already here, steal the output */
 			}
 			else {
-				scheduleFillEvent(clip, fillStartTime);
-				armClipLowLevel(clip, ArmState::ON_NORMAL, false);
+				/* Something else is on this output and is not a fill, leave it alone.*/
+				return;
 			}
 		}
+
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+		uint32_t pos;
+		pos = clip->getMaxLength() - (launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount());
+
+		if (clip->armState != ArmState::OFF) { // In case also already armed
+			clip->armState = ArmState::OFF;
+		}
+
+		clip->activeIfNoSolo = true;
+
+		// Must call this before setPos, because that does stuff with ParamManagers
+		currentSong->assertActiveness(modelStack, playbackHandler.getActualArrangementRecordPos() - pos);
+
+		// pos is a "live" pos, so we have to subtract swungTicksSkipped before setting the Clip's
+		// lastProcessedPos, because it's soon going to be jumped forward by that many ticks
+		int32_t modifiedStartPos = (int32_t)pos - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
+		clip->setPos(modelStack, modifiedStartPos);
+
+		clip->resumePlayback(modelStack);
+
+		// If recording session to arranger, do that (once the render runs again: its instance is allocated)
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+			instancePos = playbackHandler.getActualArrangementRecordPos() - pos;
+		}
+
+		/* Arm to stop once started */
+		clip->armState = ArmState::ON_NORMAL;
+	}
+	if (instancePos) {
+		clip->beginInstance(currentSong, *instancePos);
 	}
 }
 
@@ -2599,6 +2628,8 @@ void Session::resyncToSongTicks(Song* song) {
 }
 
 void Session::unsoloClip(Clip* clip) {
+	// The soloed clip's position and every clip restarted from it, with the render held off between them
+	deluge::playback::MoveSection section{"Session::unsoloClip"};
 	clip->soloingInSessionMode = false;
 
 	currentSong->reassessWhetherAnyClipsSoloing();

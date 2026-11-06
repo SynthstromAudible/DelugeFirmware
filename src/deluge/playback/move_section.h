@@ -101,7 +101,7 @@ private:
 enum class InjectAt : uint8_t {
 	StartBeforeClock, ///< playback start, after the clips are positioned and before the clock is published
 	AfterMove,        ///< a reset, after the clips are positioned and before linear recording reads them
-	LaunchBeforeMove, ///< a late launch, after the start position is read and before the clip is moved there
+	LaunchBeforeMove, ///< a launch, after the playhead is read and before a late start moves the clip there
 	kCount,
 };
 

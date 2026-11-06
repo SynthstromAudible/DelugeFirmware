@@ -424,11 +424,10 @@ void prepareMove() {
 	}
 }
 
-/// Launch g_second late at the playing clip's position, as a pad pressed just after the launch point does.
+/// Launch g_second late, as a pad pressed just after the launch point does: the gesture reads where the playing clip
+/// has reached and starts g_second there at once.
 void lateStart() {
-	const uint32_t loop = static_cast<uint32_t>(g_clip->loopLength());
-	session.armClipsToStartOrSoloWithQuantization(g_clip->getLivePos() % loop, loop, 0, false, g_second, true, true, 1,
-	                                              ArmState::ON_NORMAL);
+	session.userWantsToArmClipsToStartOrSolo(0, g_second, false, true);
 }
 
 void move() {
