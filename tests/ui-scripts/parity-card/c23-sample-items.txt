@@ -1,6 +1,7 @@
 # The sample source items on one loaded sample (BASIC, as c10): a turn on each enum and value shortcut shows main's
 # notification, CROSS-SCREEN pages the oscillator; the file selector opened while a keyboard note is held leaves
-# audition mode; a recording returns to the source page with the file selector focused.
+# audition mode; the recorder opened from inside the menu (Shift + (0,4) on the oscillator page) returns, after a
+# take, to the source page with the file selector focused.
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down
@@ -57,14 +58,10 @@
 36500 button CrossScreen down
 36520 button CrossScreen up
 37000 snapshot page-3
-37500 button Back down
-37520 button Back up
-38000 button Back down
-38020 button Back up
-38500 button Shift down
-38600 pad 1 5 down
-38650 pad 1 5 up
-38700 button Shift up
+37500 button Shift down
+37600 pad 0 4 down
+37650 pad 0 4 up
+37700 button Shift up
 39500 snapshot recorder
 40000 button Record down
 40020 button Record up

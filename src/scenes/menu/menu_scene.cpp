@@ -845,6 +845,7 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::ShiftStickyOff:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:
+		case MenuAction::FileSelectorOpened:
 		case MenuAction::None:
 			break;
 		}
