@@ -17,6 +17,7 @@ namespace fakelegacyui {
 
 std::vector<UI*> closed;
 int oled_redraws = 0;
+std::vector<uint32_t> modes_exited;
 int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
@@ -80,6 +81,7 @@ UI* current_ui = nullptr;
 void reset() {
 	closed.clear();
 	oled_redraws = 0;
+	modes_exited.clear();
 	mod_encoder_actions = 0;
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
@@ -280,6 +282,10 @@ void closeUI(UI* uiToClose) {
 // `fakelegacyui::current_ui` for why that declaration is the honest model rather than a shim.
 UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
+}
+
+void exitUIMode(uint32_t uiMode) {
+	fakelegacyui::modes_exited.push_back(uiMode);
 }
 
 void renderUIsForOled() {

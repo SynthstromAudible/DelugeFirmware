@@ -28,9 +28,11 @@
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
+#include "hid/led/pad_leds.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
@@ -48,6 +50,7 @@
 #include "scenes/registry.h"
 #include "util/notify.h"
 
+#include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -274,6 +277,48 @@ void dispatchPreview() {
 	}
 }
 
+/// @brief Start legacy's horizontal scroll for the ported browser, as `SampleBrowser` does where it calls
+///        `PadLEDs::horizontal::setupScroll`: the root view, or the browser's main pads off the guest's grid, into the
+///        image store (or nothing, for the scroll out), and the guest's main columns left to the animation until
+///        `ShellHostUI::scrollFinished`.
+void startBrowserScroll(const deluge::scenes::browser::ScrollRequest& scroll) {
+	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
+	if (scroll.to_root) {
+		getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+	}
+	else if (!scroll.into_nothing) {
+		const deluge::gfx::grid::PadGrid& grid = surfaces.grid().grid();
+		const int32_t rows = std::min<int32_t>(grid.dims().rows, kDisplayHeight);
+		for (int32_t y = 0; y < rows; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				PadLEDs::imageStore[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+			}
+		}
+	}
+	std::memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+	surfaces.hold_main_columns(true);
+	PadLEDs::horizontal::setupScroll(scroll.direction, kDisplayWidth, scroll.into_nothing);
+	currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
+}
+
+/// @brief Run the browser's scroll, or keep the main columns for one it has asked for and not yet drawn; hand them
+///        back if nothing scrolls or will (the browser left before its scroll began).
+void dispatchScroll() {
+	GuestSurfaceSet& surfaces = shellHostUI.surfaces();
+	if (const std::optional<deluge::scenes::browser::ScrollRequest> scroll = browser_scene().take_scroll()) {
+		startBrowserScroll(*scroll);
+		return;
+	}
+	if (browser_scene().scroll_pending()) {
+		surfaces.hold_main_columns(true);
+		return;
+	}
+	if (surfaces.main_columns_held() && !isUIModeActive(UI_MODE_HORIZONTAL_SCROLL)) {
+		surfaces.hold_main_columns(false);
+		surfaces.take_grid();
+	}
+}
+
 } // namespace
 
 void shellSampleClaimDone(bool success) {
@@ -402,6 +447,7 @@ void dispatchShellChoices() {
 		dispatchChoice(*choice);
 	}
 	dispatchPreview();
+	dispatchScroll();
 }
 
 } // namespace deluge::gui::ui

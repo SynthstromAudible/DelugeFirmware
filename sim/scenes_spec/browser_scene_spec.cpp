@@ -96,6 +96,7 @@ using deluge::scenes::browser::BrowserScene;
 using deluge::scenes::browser::kBrowserSceneKind;
 using deluge::scenes::browser::kListingPollMs;
 using deluge::scenes::browser::PreviewRequest;
+using deluge::scenes::browser::ScrollRequest;
 using deluge::scenes::context_menu::context_menu_scene;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::spec::QuietAudio;
@@ -2827,8 +2828,85 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		expect(r.fake.pbm(0)).to_equal(moved);
 	});
 });
+describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal scroll-in", $ {
+	it("files a scroll toward the waveform once a moved-to preview lands and the waveform is drawn", _ {
+		// `showPreview` with a move: the waveform, rendered into the image store, scrolls in.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(false); // the file it opened on: nothing to show
+		r.turn(1, r.clock + 10);
+		r.step();
+		expect(browser_scene().take_scroll().has_value()).to_be_false(); // nothing showed: no scroll out
+		browser_scene().preview_settled(true);
+		expect(browser_scene().scroll_pending()).to_be_true();
+		const Result oled_only = browser_scene().after_render(); // a tick that drew no pads
+		expect(browser_scene().take_scroll().has_value()).to_be_false(); // the waveform is not on the grid yet
+		expect(find_action(oled_only, ShellAction::Kind::RepaintAll) != nullptr).to_be_true();
+		deluge::notify::raise(deluge::notify::Dirty::GridMain); // the repaint that after_render asked for
+		run_until(r, r.clock + 30);
+		expect(browser_scene().take_scroll() == ScrollRequest{.direction = 1}).to_be_true();
+		expect(browser_scene().scroll_pending()).to_be_false();
+	});
+
+	it("files a scroll out at once when the selection moves with a waveform or the keyboard showing", _ {
+		// `currentFileChanged`: the pads scroll out into nothing while the next preview loads.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.pad(9, 7, 64, r.clock + 10);
+		r.step();
+		r.turn(-1, r.clock + 10);
+		r.step();
+		expect(browser_scene().take_scroll() == ScrollRequest{.direction = -1, .into_nothing = true}).to_be_true();
+	});
+
+	it("files a scroll to the root view when a move lands on nothing to show", _ {
+		// `clearPreviewDisplay` with a move.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 30);
+		(void)browser_scene().take_scroll();
+		select_folder(r, true);
+		(void)browser_scene().take_scroll(); // the scroll out
+		browser_scene().preview_settled(false);
+		const std::optional<ScrollRequest> scroll = browser_scene().take_scroll();
+		expect(scroll.has_value() && scroll->to_root && !scroll->into_nothing).to_be_true();
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+	});
+
+	it("files none with the keyboard always visible, nor on open", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 30);
+		expect(browser_scene().take_scroll().has_value()).to_be_false();
+		r.click(kKeyboardX, kKeyboardY);
+		r.turn(1, r.clock + 10);
+		r.step();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 30);
+		expect(browser_scene().take_scroll().has_value()).to_be_false();
+		expect(browser_scene().scroll_pending()).to_be_false();
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
-                browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard)
+                browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard,
+                browser_scroll)

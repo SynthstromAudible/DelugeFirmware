@@ -266,6 +266,18 @@ struct PreviewRequest {
 	bool operator==(const PreviewRequest&) const = default;
 };
 
+/// @brief What the sample browser asks the host to scroll onto the main pads, where `SampleBrowser` calls
+///        `PadLEDs::horizontal::setupScroll`: legacy's own animation runs it, from the host.
+struct ScrollRequest {
+	/// The selection's move: -1 or 1.
+	int8_t direction = 0;
+	/// Scroll the root view in (`clearPreviewDisplay`); otherwise the browser's own main pads.
+	bool to_root = false;
+	/// Scroll what is shown out into nothing (`currentFileChanged`, while the next preview loads).
+	bool into_nothing = false;
+	bool operator==(const ScrollRequest&) const = default;
+};
+
 /// @brief A file the scene could not load itself, waiting for the application-side dispatcher.
 ///
 /// The noun half of the same seam `menu::MenuActionRequest` is the verb half of. See
@@ -498,6 +510,13 @@ public:
 	///        preview was stopped.
 	/// @param has_sample Whether the preview drum holds a sample to draw.
 	void preview_settled(bool has_sample);
+	/// @brief Take the scroll the browser last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains it
+	///        after the preview. A scroll of the browser's own pads is handed over only once they hold what scrolls in.
+	/// @return The request, or `std::nullopt` when none is ready.
+	std::optional<ScrollRequest> take_scroll();
+	/// @brief Whether a scroll is asked for and not yet taken: the host keeps the main columns from then, so the
+	///        pads the scroll brings in are not first sent whole.
+	[[nodiscard]] bool scroll_pending() const { return pad_scroll_.has_value() || waveform_scroll_ != 0; }
 	/// @brief Whether a preview was asked for and the host has not yet answered; `next_timer()` polls meanwhile, so the
 	///        host's dispatcher keeps ticking the load.
 	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
@@ -675,6 +694,10 @@ private:
 
 	std::optional<BrowserChoice> choice_{};
 	std::optional<PreviewRequest> preview_{};
+	std::optional<ScrollRequest> pad_scroll_{};
+	/// A waveform to scroll in once drawn: the move's direction, or 0. `after_render` files it after a grid pass
+	/// that drew the waveform.
+	int8_t waveform_scroll_ = 0;
 	bool preview_outstanding_ = false;
 	/// What the main pads show. Legacy's flags beside it, which the image does not always follow
 	/// (`SampleBrowser::showPreview` scrolls a waveform in over the keys and leaves them "drawn"):

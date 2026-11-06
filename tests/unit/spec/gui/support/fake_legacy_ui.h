@@ -39,6 +39,8 @@ namespace fakelegacyui {
 extern std::vector<UI*> closed;
 /// How many times `renderUIsForOled()` was asked for a redraw.
 extern int oled_redraws;
+/// @brief Each UI mode `exitUIMode` was asked to leave, in order.
+extern std::vector<uint32_t> modes_exited;
 /// Every `UI::modEncoderAction` / `modButtonAction` / `modEncoderButtonAction` / `graphicsRoutine`
 /// call, as a running count -- the four base implementations a guest must not silently inherit
 /// without meaning to.

@@ -67,11 +67,13 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
@@ -1229,6 +1231,74 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		browser::browser_scene().on_exit(); // a stop
 		deluge::gui::ui::dispatchShellChoices();
 		expect(CancelSpy::cancels).to_equal(2);
+	});
+
+	it("starts legacy's horizontal scroll with the waveform in the image store, the main columns left to it", _ {
+		// `showPreview` with a move: `PadLEDs::horizontal::setupScroll` from the image store, in
+		// `UI_MODE_HORIZONTAL_SCROLL`; the guest sends no main column until `scrollFinished`.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		shellHostUI.selectEncoderAction(1);
+		(void)shellHostUI.timerCallback();
+		// The landed preview, as the previewer leaves it: its sample in the preview drum.
+		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		Sample* sample = make_sample();
+		sample->addReason();
+		preview->sampleHolder.audioFile = sample;
+		browser::browser_scene().preview_settled(true);
+		for (int32_t i = 0; i < 4 && currentUIMode != UI_MODE_HORIZONTAL_SCROLL; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(currentUIMode).to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
+		const deluge::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				const RGB c = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				differ += PadLEDs::imageStore[y][x] == c ? 0 : 1;
+				lit += c == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit > 0).to_be_true();
+		expect(differ).to_equal(0);
+		shellHostUI.scrollFinished();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
+		expect(currentUIMode == UI_MODE_HORIZONTAL_SCROLL).to_be_false();
+		preview->sampleHolder.audioFile = nullptr;
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("hands the main columns back when nothing scrolls or is about to", _ {
+		// The browser left between asking for a scroll and drawing it: no `scrollFinished` will come.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		currentUIMode = UI_MODE_NONE;
+		shellHostUI.surfaces().hold_main_columns(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
+		currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // legacy's scroll still running keeps them
+		shellHostUI.surfaces().hold_main_columns(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		shellHostUI.surfaces().hold_main_columns(false);
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {

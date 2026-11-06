@@ -971,6 +971,12 @@ void ShellHostUI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
+void ShellHostUI::scrollFinished() {
+	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
+	surfaces_.hold_main_columns(false);
+	surfaces_.take_grid();
+}
+
 void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
 	if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
 		return;

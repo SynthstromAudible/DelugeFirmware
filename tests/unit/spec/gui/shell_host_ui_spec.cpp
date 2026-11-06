@@ -1566,6 +1566,21 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.seen.size()).to_equal(size_t(3));
 	});
 
+	it("takes the main columns back when legacy's scroll finishes", _ {
+		// `SampleBrowser::scrollFinished` leaves the scroll's UI mode; the guest then repaints what it owns.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.guest.surfaces().hold_main_columns(true);
+		fakelegacy::column_sends.clear();
+		r.guest.scrollFinished();
+		expect(r.guest.surfaces().main_columns_held()).to_be_false();
+		expect(fakelegacyui::modes_exited.size()).to_equal(size_t(1));
+		expect(fakelegacyui::modes_exited.empty() ? 0u : fakelegacyui::modes_exited[0])
+		    .to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
+		expect(fakelegacy::column_sends.empty()).to_be_false();
+	});
+
 	it("reopens with no pad held when the guest closed between a fed press and its release", _ {
 		// SHIFT + a pad fed to the menu, the menu closed with the pad still down, the release then legacy's: the next
 		// visit's shell must not still hold the pad (LEARN refuses while one is held).

@@ -401,6 +401,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	preview_path_.clear();
 	preview_direction_ = 0;
 	row_scroll_ = deluge::ui::ScrollText{};
+	pad_scroll_.reset();
+	waveform_scroll_ = 0;
 	nav_identity_ = 0;
 	pads_changed_ = false;
 	blink_ = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index), 5);
@@ -440,6 +442,8 @@ void BrowserScene::on_exit() {
 		preview_direction_ = 0;
 	}
 	xenc_held_ = false;
+	pad_scroll_.reset();
+	waveform_scroll_ = 0;
 	FileCatalogue::emptyFileItems();
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
@@ -458,6 +462,12 @@ std::string_view BrowserScene::current_dir() const {
 std::optional<BrowserChoice> BrowserScene::take_choice() {
 	std::optional<BrowserChoice> out = std::move(choice_);
 	choice_.reset();
+	return out;
+}
+
+std::optional<ScrollRequest> BrowserScene::take_scroll() {
+	std::optional<ScrollRequest> out = pad_scroll_;
+	pad_scroll_.reset();
 	return out;
 }
 
@@ -485,6 +495,8 @@ void BrowserScene::preview_settled(bool has_sample) {
 		showing_preview_ = true;
 		if (direction != 0 && !keyboard_always_visible_) {
 			pads_ = BrowserPads::Waveform;
+			pad_scroll_.reset();
+			waveform_scroll_ = direction;
 		}
 		else {
 			if ((keyboard_visible_ && !keys_drawn_) || keyboard_always_visible_) {
@@ -503,6 +515,10 @@ void BrowserScene::preview_settled(bool has_sample) {
 		keys_drawn_ = keyboard_visible_;
 		if (direction != 0 || !keyboard_visible_) {
 			pads_ = BrowserPads::Root;
+		}
+		if (direction != 0) {
+			waveform_scroll_ = 0;
+			pad_scroll_ = ScrollRequest{.direction = direction, .to_root = true};
 		}
 		blink_anchor_ms_.reset();
 	}
@@ -889,7 +905,10 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 	// `currentFileChanged`, given only the move's sign: a move hides the keyboard unless it is always up.
 	const int8_t direction = static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0));
 	if (direction != 0 && (showing_preview_ || keyboard_visible_) && !keyboard_always_visible_) {
+		// The pads scroll out at once, while the next preview loads.
 		keyboard_visible_ = false;
+		waveform_scroll_ = 0;
+		pad_scroll_ = ScrollRequest{.direction = direction, .into_nothing = true};
 	}
 	file_preview(direction);
 }
@@ -1291,6 +1310,12 @@ Result BrowserScene::after_render() {
 	grid_pass_ = false;
 
 	Result r;
+
+	// A waveform to scroll in is on the shell's grid now: hand the scroll to the host.
+	if (waveform_scroll_ != 0 && grid_pass && pads_ == BrowserPads::Waveform) {
+		pad_scroll_ = ScrollRequest{.direction = waveform_scroll_};
+		waveform_scroll_ = 0;
+	}
 
 	// The host settled a preview between ticks (`preview_settled`): the pads change with no input to repaint them.
 	if (pads_changed_) {
