@@ -24,6 +24,10 @@ struct ListRow {
 	std::string_view value = {};
 	const gfx::oled::Icon* icon = nullptr;
 	bool selectable = true;
+	/// A span of the row drawn inverted, in pixels from the list rect's left edge, `[invert_from, invert_to)`; none
+	/// when `invert_to <= invert_from`. The note-range picker's edited edge (`MultiRange::drawPixelsForOled`).
+	int16_t invert_from = 0;
+	int16_t invert_to = 0;
 };
 
 /// @brief The rect a vertical menu occupies in @p f: the whole frame below the menu base-y.

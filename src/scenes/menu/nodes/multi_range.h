@@ -32,6 +32,12 @@
 /// picker from the picker, forever. `nodes::kRangeDependentArray` accordingly still holds ten nodes,
 /// not eleven, and `nodes.h` says so.
 ///
+/// ## Editing a range edge
+///
+/// A horizontal turn picks an edge (`MenuState::edit_edge`, legacy's `soundEditor.editingRangeEdge`), the select
+/// encoder moves it a note at a time through one ranges write, and BACK cancels it before it would go up; the edited
+/// half of the row is inverted and no row is selected. All of it is read in `render`, where the turns and BACK arrive.
+///
 /// ## What did NOT come across
 ///
 ///   * **Inserting a range** (shift + select encoder, `multi_range.cpp:158-228`) and **deleting one**
@@ -39,9 +45,6 @@
 ///     mutate `Source::ranges` under a `killAllVoices` + `AudioEngine::audioRoutineLocked` window,
 ///     and neither has an input route here: legacy reaches `deletePress` from `SoundEditor`'s own
 ///     BACK handling, which in this port is `MenuTick::back_claimed` -> `MenuScene::ascend`.
-///   * **Editing a range edge** (`soundEditor.editingRangeEdge`, `:74-154`, and the `invertArea`
-///     highlight at `:415-433`): a `SoundEditor` mode this layer has no equivalent of, and the
-///     highlight is a frame primitive.
 ///   * `noteOnToChangeRange` (`:364-381`): live MIDI note-in re-selecting the range. Nothing routes
 ///     MIDI into the scene stack yet (`MenuScene`'s learn entry points carry the same warning).
 ///   * `possibleChangeToCurrentRangeDisplay` / `uiNeedsRendering(keyboardScreen)` (`:250-258`):
@@ -51,11 +54,15 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/sound_osc.h" // the ten `range_dependent` nodes this page chains to
 
+#include "instruments/deluge/sound_state.h"
+#include "ui/oled/values.h" // RangeEdge
+
 #include "shell/profile.h" // ui::shell::TextScratch
 
 #include <cstddef>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -66,9 +73,9 @@ public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
-		return kListInput;
-	}
+	/// @brief The list's turn and select, the horizontal encoder (`MultiRange::horizontalEncoderAction`, every turn),
+	///        and BACK while an edge is edited (`SoundEditor::buttonAction` cancels the edge before going up).
+	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -98,6 +105,36 @@ inline const MultiRangeItem kMultiRangeItem{};
 /// @return A view over @p buf.
 std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* buf, size_t cap,
                                  deluge::ui::shell::TextScratch& scratch);
+
+/// @brief `MultiRange::mayEditRangeEdge` (`multi_range.cpp`): the left edge of any range but the first, the right
+///        edge of any but the last.
+/// @param ctx   What is being edited.
+/// @param index The range whose edge.
+/// @param edge  Which edge; `Off` is never editable.
+bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge);
+
+/// @brief `Range::horizontalEncoderAction` (`gui/menu_item/range.cpp`): the edge a horizontal turn leaves edited.
+///
+/// A left turn takes the left edge where it may, else turns the right one off; a right turn the mirror; a turn
+/// towards the edge already edited turns it off.
+/// @param ctx     What is being edited.
+/// @param index   The picker's range.
+/// @param current The edge edited now.
+/// @param offset  The turn; only its sign counts.
+/// @return The edge edited after the turn.
+deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge current,
+                                            int32_t offset);
+
+/// @brief `MultiRange::selectEncoderAction`'s edge arm (`multi_range.cpp`): move the edited edge one note.
+///
+/// The left edge is the range below's `topNote`, the right edge this range's; each moves by one and stops one note
+/// short of its neighbours, at 0 and 127 for the left edge and 1 and 126 for the right.
+/// @param ranges The source's ranges, rewritten in place.
+/// @param index  The picker's range.
+/// @param edge   The edge edited; `Off` changes nothing.
+/// @param offset The turn; only its sign counts (raising for 0 too, as legacy's `offset >= 0`).
+void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_t index,
+                     deluge::ui::oled::RangeEdge edge, int32_t offset);
 
 /// @brief `MultiRange::selectButtonPress` (`multi_range.cpp`): whatever the picker was
 ///        substituted for.

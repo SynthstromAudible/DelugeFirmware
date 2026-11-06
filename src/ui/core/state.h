@@ -13,6 +13,9 @@ struct ListState {
 	///       when the first such widget lands. `list` itself has no edit mode -- a turn moves the
 	///       cursor and a select press reports `entered`, with no third state between them.
 	bool editing = false;
+	/// Draw no row as selected and leave the cursor where it is: the turn belongs to something else on the row (the
+	/// note-range picker's edge editing, `MultiRange::drawPixelsForOled`'s `selectedOption = -1`).
+	bool hide_cursor = false;
 };
 /// State a horizontal columns/tab widget owns: which column has focus and which page is shown.
 struct ColumnsState {

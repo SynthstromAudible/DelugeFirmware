@@ -1676,6 +1676,79 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(sound->sources[0].defaultRangeI).to_equal(0);
 	});
 
+	it("edits a range edge on a horizontal turn, moves it with the select encoder, and cancels it with BACK", _ {
+		// `Range::horizontalEncoderAction`, `MultiRange::selectEncoderAction`'s edge arm, and `SoundEditor::buttonAction`
+		// asking the item to cancel the edge before going up.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1); // range 1, 41..60
+
+		r.edges(1, -2, 120); // one detent of the horizontal encoder (`shell/profiles/deluge.cpp`)
+		r.shell.tick(125);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		expect(menu_scene().state().list[1].hide_cursor).to_be_true();
+		{
+			// `drawPixelsForOled`'s left-edge highlight: x = kTextSpacingX for six characters, on the range's row
+			// (canvas rows 28..36 for the second row on a 48-row panel); the row's blank top line shows it.
+			deluge::ui::test::Rig48 rig;
+			rig.begin_tick(127);
+			menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+			expect(rig.lit(5, 28)).to_be_false();
+			expect(rig.lit(6, 28)).to_be_true();
+			expect(rig.lit(41, 28)).to_be_true();
+			expect(rig.lit(42, 28)).to_be_false();
+		}
+		r.turn(1, 130); // the left edge is range 0's top
+		r.shell.tick(135);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(41);
+		expect(cursor_of(1)).to_equal(1);
+
+		r.button(7, 1, true, 140); // BACK: cancels the edge, stays on the picker
+		r.button(7, 1, false, 140);
+		r.shell.tick(145);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+
+		r.edges(1, 2, 146); // the right edge: from x = 10 * kTextSpacingX to the panel's edge
+		r.shell.tick(147);
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.begin_tick(147);
+			menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+			expect(rig.lit(59, 28)).to_be_false();
+			expect(rig.lit(60, 28)).to_be_true();
+			expect(rig.lit(127, 28)).to_be_true();
+		}
+		r.edges(1, 2, 148); // turned towards the edge already edited: off
+		r.shell.tick(149);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		r.button(8, 0, true, 150); // SHIFT: a horizontal turn then does nothing
+		r.edges(1, 2, 155);
+		r.shell.tick(160);
+		r.button(8, 0, false, 165);
+		r.shell.tick(170);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+	});
+
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
 		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1991`), so a

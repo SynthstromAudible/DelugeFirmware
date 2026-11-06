@@ -125,6 +125,26 @@ describe list_w("ui::oled::list", $ {
 		}
 	});
 
+	it("with the cursor hidden selects no row and ignores the turn, and inverts a row's span", _ {
+		// The note-range picker while an edge is edited (`MultiRange::drawPixelsForOled`): no selected row, and the
+		// edited half of one row inverted.
+		const ListRow rows[] = {{"ONE"}, {.label = "TWO", .invert_from = 6, .invert_to = 42}, {"THREE"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		st.cursor = 1;
+		st.hide_cursor = true;
+		r.input.turn = 1;
+		const Response resp = list(r.frame, menu_rect(r.frame), st, rows, sc);
+		expect(resp.changed).to_be_false();
+		expect(st.cursor).to_equal(int16_t(1));
+		// No highlight: row 1 (canvas rows 28..36) is not inverted across the width.
+		expect(r.lit(127, 30)).to_be_false();
+		// Its span is: the blank top line of the row is lit from x = 6 up to x = 41, and nowhere else.
+		expect(r.lit(5, 28)).to_be_false();
+		expect(r.lit(6, 28)).to_be_true();
+		expect(r.lit(41, 28)).to_be_true();
+		expect(r.lit(42, 28)).to_be_false();
+	});
+
 	it("moves the cursor with turn, clamps, and keeps it visible", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;

@@ -87,6 +87,11 @@ int32_t range_count(const MenuContext& ctx) {
 	return source != nullptr ? static_cast<int32_t>(source->ranges.size()) : 0;
 }
 
+std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
+	const deluge::instrument::SourceState* source = source_state(ctx);
+	return source != nullptr ? source->ranges : std::vector<deluge::instrument::RangeState>{};
+}
+
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
 		return deluge::instrument::kOpenTopNote; // `Source::getOrCreateFirstRange`'s "top of the keyboard"

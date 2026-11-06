@@ -25,6 +25,7 @@
 #include "scenes/services/view_state.h"
 
 #include <cstdint>
+#include <vector>
 
 class MIDICable;
 class Song;
@@ -260,6 +261,10 @@ int32_t range_count(const MenuContext& ctx);
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
+
+/// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
+///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
+std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
 ///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1991`.

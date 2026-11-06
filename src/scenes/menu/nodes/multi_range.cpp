@@ -25,6 +25,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "gfx/oled/font.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
@@ -34,8 +35,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 // `util/lookuptables/lookuptables.h` is outside this layer's include allowance
 // (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the three note-name tables
@@ -222,6 +225,30 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, title_scratch)
 	                                           : std::string_view{});
 
+	deluge::ui::ListState& list_state = state.list[depth_of(state)];
+	const int32_t index = list_state.cursor;
+	// `SoundEditor::buttonAction`'s BACK arm asks a range item to cancel its edge first (`Range::cancelEditingIfItsOn`,
+	// `range.cpp:87-95`), and goes up only when there was none.
+	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off && state.tick.back_claimed) {
+		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		state.tick.back_claimed = false;
+	}
+	// `Range::horizontalEncoderAction` (`range.cpp:35-84`): every turn is the item's, and with Shift it does nothing.
+	if (const int8_t h = f.horizontal(); h != 0 && !f.shift()) {
+		state.edit_edge = next_range_edge(ctx, index, state.edit_edge, h);
+	}
+	// `selectEncoderAction`'s edge arm (`multi_range.cpp:76-124`): one note per turn, issued as one ranges write.
+	if (const int32_t t = f.turn(); t != 0 && state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
+		std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
+		if (index >= 0 && index < std::ssize(ranges)) {
+			step_range_edge(ranges, index, state.edit_edge, t);
+			if (ctx.sink != nullptr && ctx.addresses.slot) {
+				(void)ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), ranges);
+			}
+		}
+		f.gate().request_repaint();
+	}
+
 	// `drawPixelsForOled` (`:390-434`) builds `kOLEDMenuNumOptionsVisible` labels around its own
 	// `currentScroll` and calls `drawItemsForOled`. `ui::oled::list` owns the window and the scroll,
 	// so this builds every row and lets the widget pick the slice -- the same simplification
@@ -237,6 +264,21 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		const auto row = static_cast<size_t>(i);
 		rows[row].label = range_row_label(ctx, i, bufs[row], kRowChars, scratch[row]);
 		rows[row].selectable = true;
+	}
+	// `:383-406`: while an edge is edited no row is selected, and the edited half of the range's row is inverted --
+	// the left end's six characters from x = kTextSpacingX, or the right end from x = 10 * kTextSpacingX to the edge.
+	const deluge::ui::oled::RangeEdge edge = state.edit_edge;
+	list_state.hide_cursor = edge != deluge::ui::oled::RangeEdge::Off;
+	if (list_state.hide_cursor && list_state.cursor >= 0 && list_state.cursor < count) {
+		deluge::ui::oled::ListRow& span = rows[static_cast<size_t>(list_state.cursor)];
+		if (edge == deluge::ui::oled::RangeEdge::Left) {
+			span.invert_from = gfx::oled::kTextSpacingX;
+			span.invert_to = gfx::oled::kTextSpacingX * 7;
+		}
+		else {
+			span.invert_from = gfx::oled::kTextSpacingX * 10;
+			span.invert_to = static_cast<int16_t>(f.bounds().w);
+		}
 	}
 
 	state.tick.render_resp = deluge::ui::oled::list(
@@ -260,10 +302,85 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	}
 }
 
+deluge::ui::InputClaims MultiRangeItem::owned_input(const MenuContext& /*ctx*/, const MenuState& state) const {
+	deluge::ui::InputClaims claims = kListInput;
+	claims.horizontal = true;
+	claims.back = state.edit_edge != deluge::ui::oled::RangeEdge::Off;
+	return claims;
+}
+
 deluge::ui::shell::Result MultiRangeItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
                                                  const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                                  const MenuContext& /*ctx*/, MenuState& /*state*/) const {
-	return {};
+	return {}; // every input the picker owns is read in `render`
+}
+
+bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge) {
+	// `MultiRange::mayEditRangeEdge` (`multi_range.cpp:357-362`).
+	switch (edge) {
+	case deluge::ui::oled::RangeEdge::Left:
+		return index != 0;
+	case deluge::ui::oled::RangeEdge::Right:
+		return index != range_count(ctx) - 1;
+	case deluge::ui::oled::RangeEdge::Off:
+		break;
+	}
+	return false;
+}
+
+deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge current,
+                                            int32_t offset) {
+	using deluge::ui::oled::RangeEdge;
+	// `Range::horizontalEncoderAction`'s two arms, mirrored.
+	const RangeEdge towards = offset < 0 ? RangeEdge::Left : RangeEdge::Right;
+	const RangeEdge away = offset < 0 ? RangeEdge::Right : RangeEdge::Left;
+	if (current == towards) {
+		return RangeEdge::Off;
+	}
+	if (may_edit_range_edge(ctx, index, towards)) {
+		return towards;
+	}
+	return current == away ? RangeEdge::Off : current;
+}
+
+void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_t index,
+                     deluge::ui::oled::RangeEdge edge, int32_t offset) {
+	using deluge::ui::oled::RangeEdge;
+	const auto count = static_cast<int32_t>(ranges.size());
+	if (index < 0 || index >= count) {
+		return;
+	}
+	const auto at = [&](int32_t i) -> deluge::instrument::RangeState& { return ranges[static_cast<size_t>(i)]; };
+	if (edge == RangeEdge::Left && index >= 1) {
+		deluge::instrument::RangeState& lower = at(index - 1);
+		if (offset >= 0) {
+			const int32_t maximum = index < count - 1 ? at(index).top_note - 1 : 127;
+			if (lower.top_note < maximum) {
+				lower.top_note++;
+			}
+		}
+		else {
+			const int32_t minimum = index >= 2 ? at(index - 2).top_note + 1 : 0;
+			if (lower.top_note > minimum) {
+				lower.top_note--;
+			}
+		}
+	}
+	else if (edge == RangeEdge::Right) {
+		deluge::instrument::RangeState& current = at(index);
+		if (offset >= 0) {
+			const int32_t maximum = index < count - 2 ? at(index + 1).top_note - 1 : 126;
+			if (current.top_note < maximum) {
+				current.top_note++;
+			}
+		}
+		else {
+			const int32_t minimum = index >= 1 ? at(index - 1).top_note + 1 : 1;
+			if (current.top_note > minimum) {
+				current.top_note--;
+			}
+		}
+	}
 }
 
 const Node* multi_range_chain(const MenuContext& /*ctx*/, const MenuState& state) {

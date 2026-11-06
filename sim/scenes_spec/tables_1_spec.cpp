@@ -529,6 +529,70 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
 	});
 
+	it("moves an edge one note per turn, clamped, exactly as MultiRange's edge arm does", _ {
+		// `MultiRange::selectEncoderAction` with `editingRangeEdge` on, on the same four ranges, against the port's
+		// arithmetic: every range, both edges, both directions, turned far enough to reach every clamp.
+		using deluge::ui::oled::RangeEdge;
+		RangeFixture f{4};
+		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+		const int16_t tops[] = {40, 41, 60, 32767};
+		const auto reset = [&] {
+			for (int32_t i = 0; i < 4; i++) {
+				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+			}
+			deluge::edits::recordRanges(*sound, 0);
+		};
+		int32_t compared = 0;
+		for (int32_t index = 0; index < 4; index++) {
+			for (const RangeEdge edge : {RangeEdge::Left, RangeEdge::Right}) {
+				if (!nodes::may_edit_range_edge(f.ctx, index, edge)) {
+					continue;
+				}
+				for (const int32_t offset : {1, -1}) {
+					reset();
+					std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+					for (int32_t k = 0; k < 130; k++) {
+						nodes::step_range_edge(ported, index, edge, offset);
+					}
+					legacy::multiRangeMenu.setValue(index);
+					soundEditor.editingRangeEdge = edge == RangeEdge::Left ? legacy::RangeEdit::LEFT : legacy::RangeEdit::RIGHT;
+					for (int32_t k = 0; k < 130; k++) {
+						legacy::multiRangeMenu.selectEncoderAction(offset);
+					}
+					soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
+					for (int32_t i = 0; i < 4; i++) {
+						expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
+						    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
+					}
+					compared++;
+				}
+			}
+		}
+		expect(compared).to_equal(12); // three left edges and three right edges, each both ways
+		reset();
+	});
+
+	it("picks an edge on a horizontal turn exactly as Range::horizontalEncoderAction does", _ {
+		using deluge::ui::oled::RangeEdge;
+		RangeFixture f{3};
+		const auto to_legacy = [](RangeEdge e) {
+			return e == RangeEdge::Left ? legacy::RangeEdit::LEFT : e == RangeEdge::Right ? legacy::RangeEdit::RIGHT : legacy::RangeEdit::OFF;
+		};
+		for (int32_t index = 0; index < 3; index++) {
+			for (const RangeEdge start : {RangeEdge::Off, RangeEdge::Left, RangeEdge::Right}) {
+				for (const int32_t offset : {1, -1}) {
+					legacy::multiRangeMenu.setValue(index);
+					soundEditor.editingRangeEdge = to_legacy(start);
+					legacy::multiRangeMenu.horizontalEncoderAction(offset);
+					const RangeEdge ported = nodes::next_range_edge(f.ctx, index, start, offset);
+					expect(static_cast<int32_t>(to_legacy(ported)))
+					    .to_equal(static_cast<int32_t>(soundEditor.editingRangeEdge));
+				}
+			}
+		}
+		soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
+	});
+
 	it("selects a range the way setCurrentMultiRange does", _ {
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
