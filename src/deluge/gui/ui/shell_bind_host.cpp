@@ -1,5 +1,9 @@
 #include "gui/ui/shell_bind_host.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/ui.h"
+#include "hid/led/pad_leds.h"
+#include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
@@ -229,6 +233,10 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
+	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
+	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
+		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
+	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
@@ -292,6 +300,54 @@ public:
 		const Resolved at = resolve(address);
 		return at.sample != nullptr
 		       && deluge::sample::find_peaks_per_col(at.sample, scroll, zoom, &cache, at.recorder, x_start, x_end);
+	}
+	[[nodiscard]] std::optional<int64_t>
+	play_position(const deluge::scenes::services::WaveformAddress& address) const override {
+		// `SampleMarkerEditor::graphicsRoutine`'s walk: an instrument clip's newest voice (`orderSounded`) on the
+		// range's holder, its middle unison part; an audio clip's own voice sample.
+		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		const Resolved at = resolve(address);
+		if (at.sample == nullptr || currentSong == nullptr) {
+			return std::nullopt;
+		}
+		VoiceSample* voiceSample = nullptr;
+		SamplePlaybackGuide* guide = nullptr;
+		if (address.kind == Kind::AUDIO_CLIP) {
+			::AudioClip* clip = audioClipAt(address.clip);
+			if (clip == nullptr) {
+				return std::nullopt;
+			}
+			voiceSample = clip->voiceSample;
+			guide = &clip->guide;
+		}
+		else if (address.kind == Kind::RANGE) {
+			::Sound* sound = deluge::bridge::soundAt(*currentSong, address.slot);
+			if (sound == nullptr || !sound->hasActiveVoices()) {
+				return std::nullopt;
+			}
+			auto* range =
+			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
+			VoiceSlot* newest = nullptr;
+			for (const Sound::ActiveVoice& voice : sound->voices()) {
+				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
+				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
+					newest = &*voice;
+				}
+			}
+			if (newest == nullptr) {
+				return std::nullopt;
+			}
+			const int32_t u = sound->snapshot().num_unison >> 1;
+			if (!newest->kernel.unison_parts[u].slots[address.source].active) {
+				return std::nullopt;
+			}
+			voiceSample = newest->ports(u, address.source).sample.voiceSample();
+			guide = &newest->guides[address.source];
+		}
+		if (voiceSample == nullptr) {
+			return std::nullopt;
+		}
+		return voiceSample->getPlaySample(at.sample, guide);
 	}
 
 private:

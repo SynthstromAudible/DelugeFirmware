@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <array>
 #include <span>
+#include <utility>
 
 // `util/functions.h` is not reachable from this layer (`check_layer_rules.py`'s
 // `scenes-includes-outside` row lists no `util/`), and this is the one free function in it the OLED
@@ -184,6 +185,7 @@ bool AudioClipScene::on_enter(const SceneId& id) {
 	// `scenes-no-root-ui`'s forbidden list and nothing in this layer reads the flag either. What is
 	// left is the tick-square latch and `focusRegained`, in legacy's own order.
 	must_redraw_tick_squares_ = true;
+	flashed_ticks_ = filled_no_tick(); // the PIC's latch, as `clearTickSquares` leaves it between views
 	focus_regained();
 	return true;
 }
@@ -1031,7 +1033,7 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// (`audio_clip_view.cpp:270-274`): with no playback, no active clip, or a count-in running, the
 	// column is a constant 255 and nothing animates.
 	const bool cursor_live =
-	    flash_cursor_ != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
+	    flash_cursor() != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1101,9 +1103,10 @@ int32_t AudioClipScene::compute_tick_square() {
 
 	// `:296-309`. The latch is `AudioClipView`'s own two private fields, which `timeline/timeline.h`'s
 	// table assigns here by name.
-	if (flash_cursor_ != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
+	if (flash_cursor() != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
 		last_tick_square_ = square;
 		must_redraw_tick_squares_ = false;
+		tick_squares_set_ = true;
 	}
 	return last_tick_square_;
 }
@@ -1236,14 +1239,17 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares` (`:305`), which the driver applies to the whole
 	// rendered image on its way out (`PadLEDs::prepareColour`, `hid/led/pad_leds.cpp:283-298`) --
 	// hence last, and over the root frame rather than the main-column region.
-	if (flash_cursor_ == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
-		// `:300-303`: every row gets the same column, and the colour is red (2) while recording
-		// linearly, normal (0) otherwise.
-		const deluge::ui::grid::TickColour colour =
-		    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
-		std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
-		per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
+	// `:300-303`: every row gets the same column, and the colour is red (2) while recording linearly, normal (0)
+	// otherwise. With the cursor Fast the PIC flashes the square when `setTickSquares` is handed a new one.
+	const deluge::ui::grid::TickColour colour =
+	    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
+	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
+	if (flash_cursor() == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
 		deluge::ui::grid::tick_squares(f, per_row, kUnreachableMutedColour);
+	}
+	if (std::exchange(tick_squares_set_, false)) {
+		deluge::ui::grid::flash_tick_squares(f, per_row, flashed_ticks_, flash_cursor() == FlashCursor::Fast);
 	}
 }
 

@@ -108,6 +108,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/waveform_navigator.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -410,6 +411,10 @@ private:
 	bool committing_ = false;
 	/// A landed commit, waiting for `after_render` to remove the slicer.
 	bool landed_ = false;
+	/// A voice played the sample at the last grid render, so the frame that clears its playhead is asked for.
+	bool playing_ = false;
+	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
+	std::array<uint8_t, kDisplayHeight> last_ticks_{};
 };
 
 /// @brief The application's one slicer.

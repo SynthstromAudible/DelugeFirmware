@@ -50,19 +50,14 @@
 ///     by `sessionView`/`arrangerView` setting `collapseAnimationToWhichRow`
 ///     (`gui/views/session_view.cpp`, several sites). **`SampleMarkerEditor` never reaches
 ///     either**, so this is not this scene's to port -- not a judgement call, a call-graph fact.
-///   * **The zoom transition animation.** `WaveformBasicNavigator::zoom` follows its arithmetic with
-///     a `PadLEDs` zoom transition (`waveform_basic_navigator.cpp:44-67` after the split). The shell
-///     has no transition surface, so the scene holds a plain `deluge::sample::WaveformNav` and gets
-///     the arithmetic alone: a zoom lands on the new view immediately instead of sliding into it.
-///   * **The playhead.** `graphicsRoutine` (`:899`) walks the sound's voices for a `VoiceSample` and
-///     sets `PadLEDs::setTickSquares`. Tick squares are a `PadLEDs` facility with no shell
-///     equivalent yet, and the walk needs `Sound::voices()`; both are left for whoever ports tick
-///     squares.
-///   * **`verticalEncoderAction`** (`:871`), which is a straight delegation to
-///     `instrumentClipView` -- a root UI this layer may not name (`scenes-no-root-ui`).
-///   * **`soundEditor.potentialShortcutPadAction`** (`:346`), the shortcut-pad jump out of the
-///     editor. `MenuScene` owns the shortcut tables; a marker editor that jumped to another menu
-///     item would have to file that navigation, and no node points at this scene yet.
+///
+/// @par The zoom slide and the playhead
+///
+/// A zoom slides from what the pads showed to the new view's bare waveform over `ui::grid::kZoomSpeed`, as
+/// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::grid::ZoomTransition`); every
+/// input is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
+/// `graphicsRoutine`'s (`:977-1027`): the column the newest voice plays, on every row, painted with the flash cursor
+/// Slow and flashed by the PIC with it Fast.
 ///
 /// @par The blink, and a disagreement inside legacy
 ///
@@ -95,10 +90,12 @@
 #include "ui/grid/effects.h"
 #include "ui/grid/markers.h"
 #include "ui/grid/waveform.h"
+#include "ui/grid/zoom_transition.h"
 
 #include "definitions_cxx.hpp"
 #include "model/sample/waveform_navigator.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -171,6 +168,11 @@ public:
 	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the sidebar underneath still needs to paint.
 	bool occludes_grid() const override { return false; }
+	/// @brief Every pad but the audition column, which `SampleMarkerEditor::padAction` hands to the instrument clip
+	///        view on an instrument clip (the host does, `GridPadClaim::AllButClipAudition`).
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return deluge::ui::shell::GridPadClaim::AllButClipAudition;
+	}
 	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows` (`:106-109`): `*cols = 0b10`, rows 0.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
 
@@ -187,6 +189,15 @@ public:
 	int8_t blink_phase() const { return blink_phase_; }
 	/// @return Is a marker pad being held (legacy's `UI_MODE_HOLDING_SAMPLE_MARKER`)?
 	bool holding_marker() const { return holding_; }
+	/// @brief Whether X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
+	bool holding_xenc() const { return xenc_held_; }
+	/// @brief Whether a zoom is sliding: legacy's `UI_MODE_HORIZONTAL_ZOOM`, from the turn until the frame that finds
+	/// the slide over.
+	bool sliding() const { return zoom_pending_.has_value() || zoom_.active; }
+	/// @brief The last zoom slide begun, running or not.
+	const deluge::ui::grid::ZoomTransition& zoom_slide() const { return zoom_; }
+	/// @brief Read waveforms from @p waveforms in place of the host's, or the host's again with null. For specs.
+	void set_waveforms(const services::Waveforms* waveforms) { waveforms_override_ = waveforms; }
 	/// @}
 
 private:
@@ -211,6 +222,17 @@ private:
 	/// @param shift   Is shift held?
 	/// @return Actions to file (the loop-length popups).
 	deluge::ui::shell::Result horizontal_encoder(int32_t offset, bool zooming, bool shift);
+	/// @brief Whether a note is auditioned: legacy's `UI_MODE_AUDITIONING`, from the host.
+	bool auditioning() const { return ctx_.facts != nullptr && ctx_.facts->auditioning(); }
+	/// @brief Whether any UI mode is up: legacy's `currentUIMode != 0` (a held marker, X_ENC held, a zoom sliding,
+	/// auditioning).
+	bool mode_up() const { return holding_ || xenc_held_ || sliding() || auditioning(); }
+	/// @brief Legacy's `HOLDING_SAMPLE_MARKER | AUDITIONING`, under which a main-pad press and the held pad's release
+	/// are refused (`:368-370`, `:632`).
+	bool holding_and_auditioning() const { return holding_ && auditioning() && !audition_under_hold_; }
+	/// @brief Drop every UI mode and the slide, as legacy's `currentUIMode` is dropped on the way in and out.
+	void forget_modes();
+
 	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
 	bool allow_extra_scroll_right() const;
 	/// @brief `SampleMarkerEditor::recordScrollAndZoom` (`:140`).
@@ -271,6 +293,27 @@ private:
 	/// rather than a global UI mode.
 	/// @{
 	bool holding_ = false;
+	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
+	bool xenc_held_ = false;
+	/// A spec's waveforms, in place of the host's.
+	const services::Waveforms* waveforms_override_ = nullptr;
+	/// The waveforms the editor reads: the host's, unless a spec gave its own.
+	const services::Waveforms& waveforms() const;
+	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
+	bool playing_ = false;
+	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
+	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	/// A note was already auditioning when the held marker went down: legacy's hold assigns `currentUIMode`, so that
+	/// audition's bit is gone and only one begun under the hold makes `HOLDING_SAMPLE_MARKER | AUDITIONING`.
+	bool audition_under_hold_ = false;
+	/// How often a moving playhead is redrawn: the slicer's period.
+	static constexpr uint32_t kPlayheadMs = 15;
+	/// A zoom the next grid render starts sliding: the levels, pin square and step `horizontal_encoder` found.
+	std::optional<deluge::gfx::grid::ZoomParams> zoom_pending_;
+	/// The running slide.
+	deluge::ui::grid::ZoomTransition zoom_;
+	/// The main pads as the last settled frame painted them, the playhead aside: a slide's `from`.
+	std::optional<deluge::gfx::grid::PadGrid> shown_;
 	int8_t press_x_ = -1;
 	int8_t press_y_ = -1;
 	/// @}

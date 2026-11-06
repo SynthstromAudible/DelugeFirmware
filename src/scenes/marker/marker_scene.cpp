@@ -4,16 +4,21 @@
 #include "scenes/marker/marker_scene.h"
 
 #include "ui/core/metrics.h"
+#include "ui/grid/columns.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/sample_position.h"
 #include "ui/oled/text.h"
 
+#include "gfx/grid/pad_grid.h"
 #include "gfx/grid/palette.h"
+#include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
@@ -27,6 +32,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 namespace deluge::scenes::marker {
@@ -236,16 +242,16 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
 	nav_.sample = nullptr;
 	waveform_identity_ = 0;
-	follow_waveform(*menu::host_waveforms().info(where_));
+	follow_waveform(*waveforms().info(where_));
 	const services::SampleView remembered = view();
 	nav_.opened(remembered.scroll, remembered.zoom); // `:126`
 
 	blink_phase_ = 0; // `:128`
 	blink_accum_ms_ = 0;
-	holding_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
 	marker_on_screen_ = false;
+	forget_modes();
 	return true;
 }
 
@@ -254,9 +260,20 @@ void MarkerScene::on_exit() {
 	// thing worth dropping is the held-marker gesture, which must not survive into the next entry:
 	// `currentUIMode` is a global legacy clears on the way out of every UI, and this scene's copy
 	// of it is a member.
-	holding_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
+	forget_modes();
+}
+
+void MarkerScene::forget_modes() {
+	holding_ = false;
+	audition_under_hold_ = false;
+	xenc_held_ = false;
+	zoom_pending_.reset();
+	zoom_.active = false;
+	shown_.reset();
+	playing_ = false;
+	last_ticks_.fill(deluge::ui::grid::kNoTickSquare);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -421,9 +438,10 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 // Input
 
 void MarkerScene::select_encoder(int32_t offset) {
-	// `SampleMarkerEditor::selectEncoderAction` (`:268`). Legacy's `currentUIMode` guard (`:269`)
-	// has no port: the modes it excludes are global states this layer cannot read, and the one it
-	// permits (`UI_MODE_AUDITIONING`) is the ordinary case.
+	// `SampleMarkerEditor::selectEncoderAction` (`:268`): refused under any mode but auditioning (`:269`).
+	if (holding_ || xenc_held_ || sliding()) {
+		return;
+	}
 	MarkerColumn cols[kNumMarkerTypes];
 	cols_on_screen(cols);
 
@@ -490,7 +508,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	// since only it can return one.
 	if (!on) {
 		// Release (`:635-641`): the held-marker gesture ends when its own pad goes up.
-		if (holding_ && x == press_x_ && y == press_y_) {
+		if (holding_ && !holding_and_auditioning() && x == press_x_ && y == press_y_) {
 			holding_ = false;
 		}
 		return;
@@ -637,6 +655,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		blink_accum_ms_ = 0;
 		marker_type_ = marker_pressed;
 		holding_ = true;
+		audition_under_hold_ = auditioning();
 		press_x_ = static_cast<int8_t>(x);
 		press_y_ = static_cast<int8_t>(y);
 		return;
@@ -766,13 +785,37 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		to_send = cols;
 	}
 
+	// Zoom with X_ENC held, scroll without, and either only with no mode up but X_ENC held and auditioning
+	// (`zoomUIModes`, `:697`, `:752-770`): never while a marker is held. X_ENC cannot be held with a marker (each
+	// refuses the other), so only the scroll asks.
 	bool success = false;
-	if (zooming) {
-		// `WaveformBasicNavigator::zoom`'s arithmetic only -- see the class docstring on the
-		// transition animation.
-		success = nav_.zoom(offset, allow_extra_scroll_right(), to_send, marker_type_);
+	if (sliding()) {
+		// `UI_MODE_HORIZONTAL_ZOOM` is in neither of `zoomUIModes`' ranges: a turn while a zoom slides is dropped.
 	}
-	else {
+	else if (zooming) {
+		// `WaveformBasicNavigator::zoom` (`:30-69`): the arithmetic, then the slide from the old view to the new one,
+		// pinned at the square whose position both views share.
+		const uint32_t old_scroll = nav_.xScroll;
+		const uint32_t old_zoom = nav_.xZoom;
+		success = nav_.zoom(offset, allow_extra_scroll_right(), to_send, marker_type_);
+		if (success) {
+			const auto new_zoom = static_cast<int32_t>(nav_.xZoom);
+			const int32_t pin =
+			    static_cast<int32_t>((static_cast<int64_t>(static_cast<int32_t>(old_scroll - nav_.xScroll)) << 16)
+			                         / (new_zoom - static_cast<int32_t>(old_zoom)));
+			zoom_pending_ = deluge::gfx::grid::ZoomParams{
+			    .old_zoom = static_cast<int32_t>(old_zoom),
+			    .new_zoom = new_zoom,
+			    .pin_square_from = pin,
+			    .pin_square_to = pin,
+			    .t = 0,
+			    // Legacy's `|offset|`; an encoder delivers one detent per event, so the bound never bites, but it is
+			    // the step `gfx::grid::zoom` can take.
+			    .magnitude = std::min<int32_t>(std::abs(offset), deluge::gfx::grid::kMaxZoomMagnitude),
+			};
+		}
+	}
+	else if (!holding_) {
 		success = nav_.scroll(offset, allow_extra_scroll_right(), to_send);
 	}
 
@@ -787,9 +830,12 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 
 Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	Result r;
+	if (!auditioning()) {
+		audition_under_hold_ = false;
+	}
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
-	if (const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_)) {
+	if (const std::optional<services::WaveformInfo> info = waveforms().info(where_)) {
 		follow_waveform(*info);
 	}
 
@@ -807,17 +853,31 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, set by `buttonAction`'s `X_ENC` arm at
 			// `:661-671`); the shell tracks held buttons for us, so the mode is a question rather
 			// than a member.
-			return horizontal_encoder(event.delta, ctx.held.has(deluge::ui::shell::ButtonId::XEnc), ctx.shift);
+			return horizontal_encoder(event.delta, xenc_held_, ctx.shift);
 		}
-		// `verticalEncoderAction` is not ported (see the class docstring); a vertical turn falls
-		// through to whatever is beneath.
+		// A vertical turn is the host's (`forwardMarkerVertical`), which reaches the clip view this layer may not
+		// name.
 		return Result::unhandled();
 
 	case UiEvent::Kind::Button:
-		if (event.button == deluge::ui::shell::ButtonId::Back && event.on) {
-			// `buttonAction`'s BACK arm (`:651-658`) -> `exitUI()` -> `close()`.
+	case UiEvent::Kind::EncoderButton:
+		if (event.button == deluge::ui::shell::ButtonId::Back) {
+			// `buttonAction`'s BACK arm (`sample_marker_editor.cpp:661-668`): a press with no UI mode up exits.
 			r.handled = true;
-			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+			if (event.on && !mode_up()) {
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+			}
+			return r;
+		}
+		if (event.button == deluge::ui::shell::ButtonId::XEnc) {
+			// `buttonAction`'s X_ENC arm (`:672-681`): held only from no mode or auditioning alone; released always.
+			r.handled = true;
+			if (!event.on) {
+				xenc_held_ = false;
+			}
+			else if (!holding_ && !xenc_held_ && !sliding()) {
+				xenc_held_ = true;
+			}
 			return r;
 		}
 		return Result::unhandled();
@@ -825,8 +885,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Pad: {
 		const int32_t x = event.x;
 		if (x == kDisplayWidth) {
-			// The mute column: legacy exits on a press here (`:361-365`).
-			if (event.on) {
+			// The mute column: legacy exits on a press with no UI mode up (`:366-370`).
+			if (event.on && !mode_up()) {
 				r.handled = true;
 				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
 			}
@@ -836,10 +896,25 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (x > kDisplayWidth) {
-			// The audition column, which legacy passes down to `instrumentClipView` (`:353-358`)
-			// and returns DEALT_WITH for. This layer may not name a root UI, so the press is
-			// swallowed rather than delegated -- auditioning from inside the marker editor is the
-			// one input this port drops outright.
+			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
+			// swallows it on an audio clip.
+			r.handled = true;
+			return r;
+		}
+		// SHIFT + a main pad with no UI mode up is `soundEditor.potentialShortcutPadAction` (`:350-356`): a shortcut
+		// with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor, 1)`), and any other is
+		// swallowed, the editor staying.
+		if (event.on && ctx.shift && x < kDisplayWidth && !mode_up()) {
+			r.handled = true;
+			if (const std::optional<SceneId> page =
+			        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+			}
+			return r;
+		}
+		// A press under any mode but a held marker or auditioning is refused (`:376-380`).
+		if (event.on && (xenc_held_ || sliding() || holding_and_auditioning())) {
 			r.handled = true;
 			return r;
 		}
@@ -857,7 +932,6 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::MidiProgramChange:
 	case UiEvent::Kind::MidiPitchBend:
-	case UiEvent::Kind::EncoderButton:
 	case UiEvent::Kind::AllReleased:
 		return Result::unhandled();
 	}
@@ -868,8 +942,9 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Time
 
 void MarkerScene::tick(uint32_t dt_ms) {
-	if (!marker_on_screen_) {
-		// `timerCallback`'s early return (`:797-800`): no marker visible, no blink.
+	if (!marker_on_screen_ || sliding()) {
+		// `timerCallback`'s early return (`:797-800`): no marker visible, no blink; and `WaveformBasicNavigator::zoom`
+		// unsets its timer for the slide.
 		return;
 	}
 	blink_accum_ms_ += dt_ms;
@@ -880,10 +955,17 @@ void MarkerScene::tick(uint32_t dt_ms) {
 }
 
 std::optional<uint32_t> MarkerScene::next_timer() const {
-	if (!marker_on_screen_) {
-		return std::nullopt;
+	std::optional<uint32_t> next;
+	if (marker_on_screen_) {
+		next = kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
 	}
-	return kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
+	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
+	if (playing_
+	    || (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Off
+	        && waveforms().play_position(where_).has_value())) {
+		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
+	}
+	return next;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -891,7 +973,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 
 void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
 		return;
 	}
@@ -938,18 +1020,46 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_);
+	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
+		// Nothing to slide or to play: a slide left running would hold every input refused.
+		zoom_pending_.reset();
+		zoom_.active = false;
+		playing_ = false;
 		return;
 	}
 	follow_waveform(*info);
 
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	const gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(main_cols), 0, static_cast<uint8_t>(f.bounds().h)};
+
+	// The zoom slide (`PadLEDs::renderZoom`), over the main pads alone. It starts from the last settled frame and
+	// slides to the new view's bare waveform (`renderFullScreen` into the other `imageStore` half), drawn here into a
+	// grid of its own; the markers and the playhead come back with the settled frame after it.
+	if (zoom_pending_.has_value()) {
+		const gfx::grid::ZoomParams params = *zoom_pending_;
+		zoom_pending_.reset();
+		if (shown_.has_value() && shown_->dims() == main_dims) {
+			gfx::grid::PadGrid& to = deluge::ui::grid::begin_zoom(zoom_, *shown_, params, f.now_ms());
+			deluge::ui::grid::GridFrame bare =
+			    deluge::ui::grid::root_grid_frame(to, f.ctx, deluge::ui::InputMask::none(), nullptr, nullptr, true);
+			(void)services::paint_full(bare, waveforms(), where_, *info, nav_);
+		}
+	}
+	if (zoom_.active) {
+		bool slid = false;
+		f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h},
+		         [&](deluge::ui::grid::GridFrame& main) { slid = deluge::ui::grid::zoom_transition(main, zoom_); });
+		if (slid) {
+			playing_ = false;
+			return;
+		}
+	}
 
 	// `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`). A column the scan could not load paints black,
 	// which is legacy's own fallback, so the scan's result is not consulted.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
-		(void)services::paint_full(main, menu::host_waveforms(), where_, *info, nav_);
+		(void)services::paint_full(main, waveforms(), where_, *info, nav_);
 
 		if (marker_type_ == MarkerType::NONE) {
 			return;
@@ -1019,6 +1129,41 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
 		}
 	});
+
+	if (!shown_.has_value() || shown_->dims() != main_dims) {
+		shown_.emplace(main_dims);
+	}
+	for (int32_t y = 0; y < main_dims.rows; y++) {
+		for (int32_t x = 0; x < main_cols; x++) {
+			shown_->set(static_cast<uint8_t>(x), static_cast<uint8_t>(y), f.peek(x, y));
+		}
+	}
+
+	// `graphicsRoutine`'s playhead (`:977-1027`): nothing with the flash cursor Off; else the column the newest voice
+	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
+	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	playing_ = false;
+	if (cursor == bind::FlashCursor::Off) {
+		return;
+	}
+	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	const std::optional<int64_t> pos = waveforms().play_position(where_);
+	playing_ = pos.has_value();
+	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
+		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+		if (col < main_cols) {
+			per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
+			                                          .colour = deluge::ui::grid::TickColour::Normal});
+		}
+	}
+	if (cursor == bind::FlashCursor::Slow) {
+		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+	}
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+}
+
+const services::Waveforms& MarkerScene::waveforms() const {
+	return waveforms_override_ != nullptr ? *waveforms_override_ : menu::host_waveforms();
 }
 
 MarkerScene& marker_scene() {

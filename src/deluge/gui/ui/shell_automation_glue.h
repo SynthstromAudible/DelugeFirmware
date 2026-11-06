@@ -84,6 +84,13 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset);
 /// @return The clip view's answer, or `DEALT_WITH`; nullopt to feed the turn to the browser.
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset);
 
+/// @brief `SampleMarkerEditor::verticalEncoderAction` for the ported marker editor: with it frontmost, SHIFT, X_ENC
+///        held or an audio clip keep the turn; otherwise the instrument clip view takes it, whatever the root, and the
+///        sidebar is redrawn over the keyboard screen.
+/// @param offset The turn's detents.
+/// @return The clip view's answer, or `DEALT_WITH`; nullopt when the marker editor is not frontmost.
+std::optional<ActionResult> forwardMarkerVertical(int32_t offset);
+
 /// @brief `SampleBrowser::buttonAction`'s RECORD arm, which takes the press away from the global RECORD: the ported
 ///        sample browser frontmost, no recording running and no audio clip. The browser itself opens the recorder.
 /// @return Whether the press is the browser's, so the guest answers `DEALT_WITH`.

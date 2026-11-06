@@ -686,11 +686,8 @@ static void deluge_boot(const DelugeBoard* board) {
 	//     `FlashStorage::resetSettings`.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
 	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
-	//   * **The play-cursor flash** (flash byte 36, `AudioClipScene::set_flash_cursor`) is unwired in
-	//     either direction: `FlashStorage::readSettings` writes `PadLEDs::flashCursor` directly and
-	//     the scene keeps its own copy defaulting to the factory value, so a user who turns the
-	//     cursor off still sees it in the ported audio clip view. See `src/scenes/README.md`'s
-	//     boot-wiring section; the shortcut-layout wiring above is the shape to copy.
+	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
+	//     `RuntimeFacts::flash_cursor` where they draw it.
 
 	// Number the ported menu tree. Idempotent (a function-local static), and normally already done by
 	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is

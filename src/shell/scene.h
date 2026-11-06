@@ -321,6 +321,9 @@ enum class GridPadClaim : uint8_t {
 	/// The scene owns every pad but the audition column (`kDisplayWidth + 1`), which goes to the root view when the
 	/// host's root is one that auditions: the sample browser's `padAction`.
 	AllButAudition,
+	/// The scene owns every pad but the audition column, which goes to the instrument clip view whenever the clip is
+	/// an instrument clip, whatever the root view, and is swallowed otherwise: the sample marker editor's `padAction`.
+	AllButClipAudition,
 };
 
 /// @brief The parts of the pad grid a scene draws itself -- `Scene::pad_regions()`'s return type.

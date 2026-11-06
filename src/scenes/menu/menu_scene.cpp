@@ -243,8 +243,13 @@ void MenuScene::on_resume() {
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
-	pads_.forget_landing();
+	// The scene over the menu jumped (`shortcut_jump`): it is removed first, so this resume comes before the
+	// `Replace` its landing is for.
+	if (!std::exchange(landing_survives_resume_, false)) {
+		pads_.forget_landing();
+	}
 	visit_.use_up_select = true;
+	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -257,6 +262,23 @@ void MenuScene::on_resume() {
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
 	st_.tick = {};
+}
+
+std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
+	const Node* target = shortcut_node(ctx_.root, false, x, y);
+	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
+		return std::nullopt;
+	}
+	if (!shortcut_applies(*target, ctx_)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		return std::nullopt;
+	}
+	const uint16_t id = arm_shortcut_landing(*target);
+	if (id == 0) {
+		return std::nullopt;
+	}
+	landing_survives_resume_ = true;
+	return SceneId{SceneKind::FirstApp, id};
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
@@ -501,7 +523,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
 	// would light a menu that is not on screen.
-	if (focused() == nullptr) {
+	if (focused() == nullptr || visit_.leds_held_back) {
 		return;
 	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
@@ -530,6 +552,8 @@ MenuActionRequest MenuScene::take_action() {
 }
 
 Result MenuScene::after_render() {
+	const bool entering = !visit_.entered;
+	visit_.entered = true;
 	// The render consumed this tick's BACK (above depth 0) and select edges -- the select one on its release, as
 	// legacy's SELECT arm acts (`select_acts_on_release`) -- and the navigation below acts on them: note the value they
 	// leave now.
@@ -540,6 +564,11 @@ Result MenuScene::after_render() {
 		note_cause(TransitionCause::Select, focused_value());
 	}
 	Result r = after_render_navigation();
+	if (entering) {
+		for (const Action& a : r.actions) {
+			visit_.leds_held_back = visit_.leds_held_back || a.kind == Action::Kind::Push;
+		}
+	}
 	// The record an event noted (`handle`) is filed once its navigation has run, which is here.
 	if (pending_transition_) {
 		transition_ = MenuTransition{.from = transition_from_, .to = focused_value(), .cause = *pending_transition_};

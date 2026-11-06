@@ -522,4 +522,15 @@ RGB tick_colour(TickColour kind, RGB muted);
 ///                     so it travels as a parameter rather than being read from the palette.
 void tick_squares(GridFrame& f, std::span<const TickSquare> per_row, RGB muted_colour);
 
+/// @brief `PadLEDs::setTickSquares`' `FLASH_CURSOR_FAST` arm: the PIC flashes each row's square that is not the one
+///        it flashed last (`slowFlashSquares`), and nothing is painted.
+///
+/// Legacy moves `slowFlashSquares` on every call, in every mode, so a caller in another mode passes @p fast false to
+/// move the latch alone. A muted row flashes colourless, as legacy's does (see tick_colour()); a red one flashes red.
+/// @param f       The frame to flash in.
+/// @param per_row Each row's square, as tick_squares() takes it.
+/// @param last    Each row's square at the last call; set to @p per_row's.
+/// @param fast    Whether the flash cursor is Fast.
+void flash_tick_squares(GridFrame& f, std::span<const TickSquare> per_row, std::span<uint8_t> last, bool fast);
+
 } // namespace deluge::ui::grid

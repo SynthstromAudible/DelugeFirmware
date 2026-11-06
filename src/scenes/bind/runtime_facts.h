@@ -69,6 +69,16 @@ struct AudioClipFact {
 	bool operator==(const AudioClipFact&) const = default;
 };
 
+/// @brief `PadLEDs::flashCursor`'s three values (`FLASH_CURSOR_*`).
+enum class FlashCursor : uint8_t {
+	/// `FLASH_CURSOR_FAST` (0): the PIC flashes the pad; no pixel of the rendered image changes, so no cursor is drawn.
+	Fast = 0,
+	/// `FLASH_CURSOR_OFF` (1): no playhead.
+	Off = 1,
+	/// `FLASH_CURSOR_SLOW` (2): the factory default, and the one mode `PadLEDs::prepareColour` substitutes a pixel in.
+	Slow = 2,
+};
+
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
 class RuntimeFacts {
@@ -86,6 +96,12 @@ public:
 	/// @brief Whether an explicit sample load or a folder import is running: either one closes the sample browser to
 	/// the presses that would start another. False for a host that loads nothing.
 	[[nodiscard]] virtual bool sample_load_in_flight() const { return false; }
+	/// @brief Whether a note is being auditioned: legacy's `currentUIMode` holds `UI_MODE_AUDITIONING`, a mode the
+	/// marker editor's gates read. False for a host that auditions nothing.
+	[[nodiscard]] virtual bool auditioning() const { return false; }
+	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
+	/// Slow for a host that keeps none.
+	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

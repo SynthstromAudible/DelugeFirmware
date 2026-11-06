@@ -462,6 +462,16 @@ public:
 	///         root out of range, or an item no horizontal page in this root lists.
 	bool reroot_to_scene_opener_page();
 
+	/// @brief Where a Shift + main pad from a scene the menu opened (the sample marker editor) jumps:
+	///        `SoundEditor::potentialShortcutPadAction` asked from outside the editor, on the plain shortcut table
+	///        (the second layer and the patching-source column are the editor's own screen's).
+	///
+	/// Arms the landing exactly as the menu's own Shift + pad does, so the `Replace` the caller files lands the
+	/// same way (`on_enter`). An item the context refuses raises "PARAMETER NOT APPLICABLE", as legacy's `setup`.
+	/// @param x,y The pad.
+	/// @return The menu `SceneId` to replace with, or nothing: no item there, not this root's, or refused.
+	std::optional<deluge::ui::shell::SceneId> shortcut_jump(uint8_t x, uint8_t y);
+
 	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
 	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
 	///
@@ -540,6 +550,8 @@ private:
 
 	/// The shortcut pads: their blinks, the jump and the landing it arms.
 	MenuPads pads_;
+	/// A landing `shortcut_jump` armed for the scene above, which the resume its removal brings must keep.
+	bool landing_survives_resume_ = false;
 
 	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
 	///        `beginScreen` -- a new screen.
@@ -561,6 +573,11 @@ private:
 		ValueSession session;
 		/// The shift level the last event or uncovered frame brought, latched or not: the SHIFT overlay's.
 		bool shift_held = false;
+		/// The visit's first `after_render` has run: a scene pushed before it opened straight from the menu's entry.
+		bool entered = false;
+		/// A scene the entry opened at once covers the menu: legacy's `SoundEditor::opened` opened it from
+		/// `beginScreen`, before `focusRegained` set the editor's LEDs, so the menu declares none until it resumes.
+		bool leds_held_back = false;
 	};
 	Visit visit_{};
 	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).

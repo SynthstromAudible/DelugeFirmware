@@ -775,6 +775,8 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
 		// root, and swallowed by the browser otherwise.
 		return x != kDisplayWidth + 1 || !rootTakesAuditionPad();
+	case deluge::ui::shell::GridPadClaim::AllButClipAudition:
+		return x != kDisplayWidth + 1;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
 		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
 		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,
@@ -830,7 +832,12 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// arm is *required* there: the tick is what notices nothing stacked takes input and closes
 			// the guest (`timerCallback`).
 			shell_.note_activity(nowMs()); // `deluge.cpp`: every pad is activity, forwarded or not
-			(void)forwardGridPad(x, y, velocity);
+			if (shell_.stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition) {
+				forwardClipAuditionPad(x, y, velocity);
+			}
+			else {
+				(void)forwardGridPad(x, y, velocity);
+			}
 			if (getCurrentUI() == this) {
 				// A pad the root took can move it between views (the automation view's editor and overview, a kit row).
 				refreshRootFacts();
@@ -1027,6 +1034,13 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardMenuVertical(offset)) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+	if (const std::optional<ActionResult> result = forwardMarkerVertical(offset)) {
 		shell_.note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();

@@ -744,6 +744,8 @@ private:
 	/// The file the outstanding preview names (empty for a stop) and its direction, which its answer acts on.
 	std::string preview_path_{};
 	int8_t preview_direction_ = 0;
+	/// The next `leds()` restarts BACK's blink: the browser has just opened.
+	bool back_blink_restart_ = true;
 	/// A spec's favourites, in place of the host's.
 	services::Favourites* favourites_override_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.

@@ -96,19 +96,11 @@
 /// composed through legacy's own `PadLEDs::prepareColour` (`hid/led/pad_leds.cpp:283-298`), which
 /// is the driver-side substitution this widget is the port of.
 ///
-/// @warning **`PadLEDs::flashCursor` has no seam, so this scene carries its own copy.** Legacy
-///          gates the whole tick-square update on `flashCursor != FLASH_CURSOR_OFF`
-///          (`AudioClipView::graphicsRoutine`) and `PadLEDs::prepareColour` substitutes a pixel only in
-///          `FLASH_CURSOR_SLOW`. That setting lives on `PadLEDs` (`hid/`,
-///          which `src/scenes/**` may never include) and is loaded by
-///          `FlashStorage::readSettings` (`storage/flash_storage.cpp:440`) straight into it, so
-///          there is nothing in `model/` or `storage/` to read it from. `set_flash_cursor()` below
-///          is the port's copy; **nothing sets it at boot**, unlike
-///          `menu::set_shortcuts_version()` and the screensaver's idle time (see the boot-wiring
-///          note in `scenes/registry.h`). Its default is
-///          `FlashCursor::Slow`, which is the factory default (`resetSettings` in `flash_storage.cpp`) and the
-///          only mode that reaches a pixel at all -- `ui/grid/columns.h`'s own `tick_colour`
-///          warning already records why the `FLASH_CURSOR_FAST` branch cannot.
+/// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
+///       `RuntimeFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
+///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
+///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
+///       colourless for a muted row.
 ///
 /// @par What draws what
 ///
@@ -222,9 +214,11 @@
 #include "model/sample/waveform_render_data.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/services/waveform_address.h"
+#include "ui/grid/columns.h"
 
 #include "definitions_cxx.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -267,21 +261,7 @@ inline constexpr uint32_t kUiModeHoldingSongButton = 65;
 inline constexpr uint32_t kUiModeHoldingHorizontalEncoder = 1u << 31;
 /// @}
 
-/// @brief `PadLEDs::flashCursor`'s three values (`definitions.h`'s `FLASH_CURSOR_*`), as an enum.
-///
-/// See the `@warning` in the class docstring: this layer cannot read the real setting, so the scene
-/// carries a copy and nothing sets it at boot.
-enum class FlashCursor : uint8_t {
-	/// `FLASH_CURSOR_FAST` (0) -- legacy routes it to `PadLEDs::flashMainPad`, which changes no
-	/// pixel in the rendered image (`ui/grid/columns.h`'s `tick_colour` warning). Draws no cursor
-	/// here.
-	Fast = 0,
-	/// `FLASH_CURSOR_OFF` (1) -- `graphicsRoutine`'s own gate refuses the update outright.
-	Off = 1,
-	/// `FLASH_CURSOR_SLOW` (2) -- the factory default (`resetSettings` in `storage/flash_storage.cpp`) and the
-	/// only mode `PadLEDs::prepareColour` substitutes a pixel in.
-	Slow = 2,
-};
+using FlashCursor = deluge::scenes::bind::FlashCursor;
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 9` (`scenes/registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kAudioClipSceneKind =
@@ -307,10 +287,6 @@ public:
 	/// @param sink Where the scene's writes go; the app's sink when null.
 	void open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
 	          deluge::scenes::bind::WriteSink* sink = nullptr);
-
-	/// @brief `PadLEDs::flashCursor`, which this layer cannot read. See the class docstring.
-	/// @param c The cursor mode.
-	void set_flash_cursor(FlashCursor c) { flash_cursor_ = c; }
 
 	/// @name The two marker latches
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h:71-72`). They
@@ -644,10 +620,20 @@ private:
 	/// @{
 	int32_t last_tick_square_ = 0;
 	bool must_redraw_tick_squares_ = false;
+	/// `graphicsRoutine` handed `PadLEDs::setTickSquares` a new square this render, which the fast cursor flashes.
+	bool tick_squares_set_ = false;
+	/// Each row's square at the last `setTickSquares`: legacy's `slowFlashSquares`.
+	std::array<uint8_t, kDisplayHeight> flashed_ticks_ = filled_no_tick();
+	static constexpr std::array<uint8_t, kDisplayHeight> filled_no_tick() {
+		std::array<uint8_t, kDisplayHeight> a{};
+		a.fill(deluge::ui::grid::kNoTickSquare);
+		return a;
+	}
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
-	FlashCursor flash_cursor_ = FlashCursor::Slow;
+	/// @brief The flash-cursor setting, from the host (`RuntimeFacts::flash_cursor`); the factory's Slow with none.
+	FlashCursor flash_cursor() const { return facts_ != nullptr ? facts_->flash_cursor() : FlashCursor::Slow; }
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp:427`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.

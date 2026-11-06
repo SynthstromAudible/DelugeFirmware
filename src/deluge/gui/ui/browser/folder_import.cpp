@@ -49,6 +49,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -444,7 +445,9 @@ bool FolderImport::stepPrepare() {
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	const bool discardingMIDINoteFromFile = (numSamples_ > 1 && commonMIDINote_ >= 0);
 
-	sortArea_ = (Sample**)deluge::memory::alloc_fast(numSamples_ * sizeof(Sample*) * 2);
+	// At least one slot: a folder with no audio file of its own imports nothing, and our allocator answers null for
+	// zero bytes, which would read as INSUFFICIENT_RAM where main's answers a block.
+	sortArea_ = (Sample**)deluge::memory::alloc_fast(std::max<int32_t>(numSamples_, 1) * sizeof(Sample*) * 2);
 	if (!sortArea_) {
 		abort(Error::INSUFFICIENT_RAM);
 		return false;
