@@ -40,6 +40,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -623,6 +624,13 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	}
 
 	clipCases(song);
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::modulation::renderModelReads != 0) {
+		std::fprintf(io.err, "the render read %u lane(s) in the model outside record mode\n",
+		             static_cast<unsigned>(deluge::modulation::renderModelReads));
+		probeFailed = true;
+	}
+#endif
 	if (probeFailed) {
 		return 3;
 	}

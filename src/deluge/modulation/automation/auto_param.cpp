@@ -197,12 +197,15 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	return paramCollection->docParamForId(paramId);
 }
 
-bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
-	return &lane == &g_unheldLane;
+deluge::project::LaneView ModelStackWithAutoParam::laneView() const {
+	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
+		return paramCollection->playedLane(paramId);
+	}
+	return deluge::project::LaneView::of(*doc());
 }
 
-const deluge::project::DocAutoParam& unheldLane() {
-	return g_unheldLane;
+bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
+	return &lane == &g_unheldLane;
 }
 
 void AutoParam::init(deluge::project::DocAutoParam& doc) {
@@ -639,11 +642,10 @@ void AutoParam::deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc
 
 int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
                                      bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
+	const deluge::project::LaneView lane = modelStack->laneView();
 
 	// If no automation...
-	if (nodesRef.empty()) {
+	if (lane.empty()) {
 		return 2147483647;
 	}
 
@@ -654,15 +656,15 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// The search "direction" is an offset on the lower-bound index: -1 when reversed (the old LESS), else 0
 	int32_t searchDirection = -(int32_t)reversed;
 	int32_t searchPos = currentPos + (int32_t)reversed;
-	int32_t iJustReached = nodesRef.firstAtOrAfter(searchPos) + searchDirection;
+	int32_t iJustReached = lane.first_at_or_after(searchPos) + searchDirection;
 	if (iJustReached < 0) {
-		iJustReached += std::ssize(nodesRef);
+		iJustReached += lane.size();
 	}
-	else if (iJustReached >= std::ssize(nodesRef)) {
+	else if (iJustReached >= lane.size()) {
 		iJustReached = 0;
 	}
 
-	ParamNode* nodeJustReached = &nodesRef[iJustReached];
+	const ParamNode* nodeJustReached = &lane[iJustReached];
 	int32_t howFarUntilThisNode = nodeJustReached->pos - currentPos;
 
 	// If we haven't reached the next node yet...
@@ -698,18 +700,18 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
-	if (iRight >= std::ssize(nodesRef)) {
+	if (iRight >= lane.size()) {
 		iRight = 0;
 	}
 
-	ParamNode* nextNodeInOurDirection;
+	const ParamNode* nextNodeInOurDirection;
 
 	if (reversed) {
 		int32_t iLeft = iJustReached - 1;
 		if (iLeft < 0) {
-			iLeft += std::ssize(nodesRef);
+			iLeft += lane.size();
 		}
-		ParamNode* nodeToLeft = &nodesRef[iLeft];
+		const ParamNode* nodeToLeft = &lane[iLeft];
 
 		if (!noNeedToJumpToValue) {
 			valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the
@@ -722,7 +724,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		nextNodeInOurDirection = nodeToLeft;
 	}
 	else {
-		ParamNode* nodeToRight = &nodesRef[iRight];
+		const ParamNode* nodeToRight = &lane[iRight];
 		nextNodeInOurDirection = nodeToRight;
 	}
 
@@ -796,6 +798,10 @@ yesCancelOverriding:
 			// happening live, now
 			if (playbackHandler.isCurrentlyRecording()) {
 recordOverNodeJustReached:
+				// Recording: the render reads the model's lane (deluge::modulation::lanesLive()), and writes it here.
+				auto& nodesRef = modelStack->doc()->nodes;
+				ParamNode& reached = nodesRef[iJustReached];
+				nodeJustReached = &reached;
 
 				// Back up state if necessary. It normally would have already been, but not if the user only just
 				// activated recording while already overriding!
@@ -914,9 +920,9 @@ recordOverNodeJustReached:
 adjustNodeJustReached:
 				// D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
-					nodeJustReached->value = played_;
+					reached.value = played_;
 				}
-				nodeJustReached->interpolated = true;
+				reached.interpolated = true;
 				// TODO: if reversing, should we set the one to the right to interpolating too?
 				noNeedToJumpToValue = true;
 
@@ -934,9 +940,10 @@ adjustNodeJustReached:
 					                   .value_or(-1); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
-						nextNodeInOurDirection = &nodesRef[iRight];
-						nextNodeInOurDirection->value = valueOverridingEnds;
-						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
+						ParamNode& inserted = nodesRef[iRight];
+						inserted.value = valueOverridingEnds;
+						inserted.interpolated = newNodeShouldBeInterpolated;
+						nextNodeInOurDirection = &inserted;
 
 						/*
 						D_PRINTLN("new one:  %d ,  %d", posOverridingEnds, valueOverridingEnds);
@@ -978,7 +985,7 @@ adjustNodeJustReached:
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
-		if (!isAutomated(*modelStack->doc())) {
+		if (!isAutomated(modelStack->laneView())) {
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
@@ -1003,13 +1010,17 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see
 	// https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj I'm so
 	// sorry, but I'm going to just make it manually fix itself, here.
-	if (!nodesRef.empty()) {
-		int32_t i = std::ssize(nodesRef) - 1;
-		ParamNode* rightmostNode = &nodesRef[i];
-		if (rightmostNode->pos >= effectiveLength) {
-			deluge::modulation::noteRenderLaneWrite();
-			nodesRef.erase(nodesRef.begin() + i);
-			// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+	// Only while the render reads the model's lanes: outside record mode it plays a published lane it cannot change.
+	if (deluge::modulation::lanesLive()) {
+		auto& nodesRef = modelStack->doc()->nodes;
+		if (!nodesRef.empty()) {
+			int32_t i = std::ssize(nodesRef) - 1;
+			ParamNode* rightmostNode = &nodesRef[i];
+			if (rightmostNode->pos >= effectiveLength) {
+				deluge::modulation::noteRenderLaneWrite();
+				nodesRef.erase(nodesRef.begin() + i);
+				// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+			}
 		}
 	}
 
@@ -1044,7 +1055,7 @@ bool AutoParam::useFloatInterpolation(ModelStackWithAutoParam const* modelStack)
 }
 
 // You now much check before calling this that interpolation should happen at all
-void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNodeInOurDirection,
+void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, const ParamNode* nextNodeInOurDirection,
                                    int32_t effectiveLength, int32_t currentPos, bool reversed) {
 
 	if (renewedOverridingAtTime == 1) {
@@ -1417,15 +1428,13 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 	// Forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a null-deref;
 	// processCurrentPos already reads it unconditionally). The kernel special-cases the infinite length
 	// (2147483647).
-	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
+	return deluge::project::getValueAtPos(modelStack->laneView(), pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to played_
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
 	deluge::playback::notePositionWrite();
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
-	if (nodesRef.empty()) {
+	if (modelStack->laneView().empty()) {
 		return false;
 	}
 
@@ -1436,32 +1445,31 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
 	deluge::playback::notePositionWrite();
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
+	const deluge::project::LaneView lane = modelStack->laneView();
 
 	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
-	if (!nodesRef.empty()) {
+	if (!lane.empty()) {
 		int32_t oldValue = played_;
 		played_ = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int32_t rightI = nodesRef.firstAtOrAfter(pos + (int32_t)!reversed);
-		if (rightI == std::ssize(nodesRef)) {
+		int32_t rightI = lane.first_at_or_after(pos + (int32_t)!reversed);
+		if (rightI == lane.size()) {
 			rightI = 0;
 		}
-		ParamNode* nextNodeOurDirection =
-		    &nodesRef[rightI]; // This will initially point to the node to the right, regardless of direction;
-		                       // it'll be corrected to left if we're reversed below.
+		const ParamNode* nextNodeOurDirection =
+		    &lane[rightI]; // This will initially point to the node to the right, regardless of direction;
+		                   // it'll be corrected to left if we're reversed below.
 
 		if (nextNodeOurDirection->interpolated) {
 
 			if (reversed) {
 				int32_t leftI = rightI - 1;
 				if (leftI < 0) {
-					leftI += std::ssize(nodesRef);
+					leftI += lane.size();
 				}
-				nextNodeOurDirection = &nodesRef[leftI];
+				nextNodeOurDirection = &lane[leftI];
 			}
 
 			// Setup interpolation from the pos we're at now
@@ -1743,7 +1751,11 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 }
 
 bool AutoParam::containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue) {
-	if (isAutomated(doc)) {
+	return containsSomething(deluge::project::LaneView::of(doc), neutralValue);
+}
+
+bool AutoParam::containsSomething(deluge::project::LaneView lane, uint32_t neutralValue) {
+	if (isAutomated(lane)) {
 		return true;
 	}
 	uint32_t* a = (uint32_t*)&played_;

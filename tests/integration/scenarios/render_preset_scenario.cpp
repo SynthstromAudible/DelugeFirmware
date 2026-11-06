@@ -250,6 +250,9 @@ void report() {
 #if ALPHA_OR_BETA_VERSION
 	printf("RP-SNAPSHOT model_reads=%u render_writes=%u\n", deluge::modulation::renderModelReads,
 	       deluge::modulation::renderPublishedWrites);
+	if (deluge::modulation::renderModelReads != 0 || deluge::modulation::renderPublishedWrites != 0) {
+		fail("RP-SNAPSHOT", "outside record mode the render read or wrote a lane in the model");
+	}
 	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
 	       deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {

@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "deluge-project/lane_view.h"        // deluge::project::LaneView (the lane the render plays)
 #include "deluge-project/param_automation.h" // deluge::project::DocAutoParam (held by value)
 #include "deluge-project/param_edit.h"       // deluge::project::RegionWriteResult (projectRegionFromStore)
 #include "modulation/action/action_type.h"   // ActionType (used as a default-argument value below)
@@ -61,9 +62,6 @@ struct StolenParamNodes;
 /// @brief Whether @p lane is the stand-in the render reads for a lane nothing holds yet: it reads as unautomated, and
 /// nothing may be written into it.
 [[nodiscard]] bool isUnheldLane(const deluge::project::DocAutoParam& lane);
-/// @brief The lane the render reads for a param nothing holds: no nodes, base 0.
-/// @return The shared unheld lane.
-[[nodiscard]] const deluge::project::DocAutoParam& unheldLane();
 
 class AutoParam {
 public:
@@ -133,6 +131,8 @@ public:
 	                 int32_t* valueForOverride = nullptr);
 	Error readFromFile(deluge::project::DocAutoParam& doc, Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue = 0);
+	/// @brief Whether @p lane is automated or this param plays other than @p neutralValue.
+	bool containsSomething(deluge::project::LaneView lane, uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
 	void shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength);
@@ -193,6 +193,7 @@ public:
 	void setPlayed(int32_t value) { played_ = value; }
 
 	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
+	inline bool isAutomated(deluge::project::LaneView lane) { return !lane.empty(); }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;
@@ -229,8 +230,8 @@ private:
 	void writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event);
 	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
 	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
-	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
-	                        int32_t currentPos, bool reversed);
+	void setupInterpolation(ModelStackWithAutoParam const* modelStack, const ParamNode* nextNode,
+	                        int32_t effectiveLength, int32_t currentPos, bool reversed);
 
 	// interpolation to calculate current value
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);

@@ -833,8 +833,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (!((getSynthMode() == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	          paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648))))
-	    [[unlikely]] {
+	          paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648)))) [[unlikely]] {
 		return;
 	}
 
@@ -1314,7 +1313,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
 	if (getSynthMode() != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        modelStack->paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
+	        modelStack->paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 		return true;
 	}
 
@@ -1480,7 +1479,7 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
 }
 
@@ -1493,7 +1492,7 @@ bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 	return (getSynthMode() != SynthMode::FM
 	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648));
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648));
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
@@ -1515,7 +1514,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_B_VOLUME), -2147483648)
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_OSC_B_VOLUME), -2147483648)
 	        || getSynthMode() == SynthMode::RINGMOD);
 }
 
@@ -1627,9 +1626,9 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
                                                       ParamManagerForTimeline& paramManager) {
 	PatchedParamSet* patchedParams = paramManager.getPatchedParamSet();
 	if (patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
-	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT))
+	        patchedParams->playedLane(params::GLOBAL_REVERB_AMOUNT))
 	    || !patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
-	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
+	        patchedParams->playedLane(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
 		return best;
 	}
 	// We deliberately don't use the LPF'ed param here
@@ -2006,7 +2005,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .source_ever_active = sourceEverActives,
 		    .noise_volume_contains_something =
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-		            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648),
+		            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648),
 		    .local_sources_patched_to_anything =
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
@@ -3391,11 +3390,11 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
+	            patchedParams->playedLane(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
 	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_DECAY + e))
+	            patchedParams->playedLane(params::LOCAL_ENV_0_DECAY + e))
 	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_RELEASE + e))
+	            patchedParams->playedLane(params::LOCAL_ENV_0_RELEASE + e))
 	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
 	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
 }

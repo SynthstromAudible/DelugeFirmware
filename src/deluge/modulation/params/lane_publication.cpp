@@ -101,6 +101,17 @@ void noteRenderModelRead() {
 #endif
 }
 
+const LaneSnapshot* snapshotToPlay(const ParamCollection& collection) {
+	if ((!deluge::memory::onRenderTier() && !deluge::playback::MoveEffects::collecting()) || lanesLive()) {
+		return nullptr;
+	}
+	const LaneSnapshot* published = collection.published();
+	if (published == nullptr) {
+		noteRenderModelRead();
+	}
+	return published;
+}
+
 void noteRenderLaneWrite() {
 #if ALPHA_OR_BETA_VERSION
 	if (deluge::memory::onRenderTier() && !lanesLive()) {
@@ -188,7 +199,7 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		deluge::memory::NoAllocationScope noAllocation;
 		deluge::playback::MaskedSpan span{"publishLanes"};
 		collection.published_.store(next, std::memory_order_release);
-		if (old != nullptr) { // a first publish replaces nothing the render played from
+		if (old != nullptr) { // a first publish replaces the model the render read, which holds the same lanes
 			collection.ticksTilNextEvent = 0;
 			manager.ticksTilNextEvent = 0;
 		}
@@ -247,6 +258,17 @@ void LanePublication::publishDirty(bool settle) {
 	publishing = false;
 }
 
+bool LanePublication::publishSong(Song& song) {
+	if (!mayPublish()) {
+		return false;
+	}
+	bool published = true;
+	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline& manager) {
+		published = publish(collection, manager) && published;
+	});
+	return published;
+}
+
 int32_t LanePublication::check(Song& song) {
 	int32_t differing = 0;
 	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline&) {
@@ -281,13 +303,20 @@ LaneOperation::~LaneOperation() {
 }
 
 void markLanesChanged(ParamCollection& collection) {
-	if (!deluge::memory::onRenderTier()) {
+	if (deluge::memory::onRenderTier()) {
+		noteRenderModelRead(); // the render reached a lane in the model
+	}
+	else {
 		LanePublication::mark(collection);
 	}
 }
 
 void publishDirtyLanes(bool settle) {
 	LanePublication::publishDirty(settle);
+}
+
+bool publishSongLanes(Song& song) {
+	return LanePublication::publishSong(song);
 }
 
 } // namespace deluge::modulation

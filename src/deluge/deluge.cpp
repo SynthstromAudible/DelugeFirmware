@@ -360,6 +360,7 @@ void setupBlankSong() {
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
+	(void)deluge::modulation::publishSongLanes(*preLoadedSong);
 	currentSong = preLoadedSong;
 	preLoadedSong = nullptr;
 	deluge::markMappingIndexStale(); // the index is the current song's

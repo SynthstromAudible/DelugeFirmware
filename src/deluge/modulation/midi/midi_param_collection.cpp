@@ -371,7 +371,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated(*docForParam(i))) {
+		if (param->isAutomated(playedLane(params[i].cc))) {
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(params[i].cc, param);

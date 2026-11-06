@@ -28,6 +28,8 @@ class ParamManagerForTimeline;
 /// snapshot the interaction tier publishes after every edit; it reads no model lane and writes none.
 namespace deluge::modulation {
 
+struct LaneSnapshot;
+
 #if ALPHA_OR_BETA_VERSION
 /// Lanes the render resolved through the model outside record mode: must stay 0.
 extern uint32_t renderModelReads;
@@ -47,6 +49,11 @@ bool lanesLive();
 /// @brief [render] or [interaction] Count a lane the render resolved through the model, if it should have read a
 ///        snapshot.
 void noteRenderModelRead();
+
+/// @brief [render] or [interaction] The snapshot a lane read of @p collection plays now, or nullptr to read the model.
+///        The render (and a playhead move's collecting pass) plays the published lanes outside record mode, once the
+///        collection has any; a collection not yet published is read in the model, and counted.
+const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
 /// @brief [render] or [interaction] Count a write to a lane made on the render outside record mode.
 void noteRenderLaneWrite();
 
@@ -57,7 +64,8 @@ void noteRenderLaneWrite();
 int32_t checkPublished(Song& song);
 
 /// @brief [interaction] @p collection's lanes may have changed: it republishes at the next publish point. Every path
-///        that hands out a collection's lane to write, or rebinds its store, marks it; a mark on the render is ignored.
+///        that hands out a collection's lane to write, or rebinds its store, marks it. On the render it marks nothing:
+///        the render reached a lane in the model, which is counted (noteRenderModelRead()).
 void markLanesChanged(ParamCollection& collection);
 /// @brief [interaction] Republish every collection marked changed whose lanes differ from its snapshot. A publish
 /// point:
@@ -66,6 +74,11 @@ void markLanesChanged(ParamCollection& collection);
 ///        job (an edit's guard closing, a move's end) they stay, so a write through a lane still held is published at
 ///        the next point.
 void publishDirtyLanes(bool settle = false);
+
+/// @brief [interaction] Publish every collection of @p song before it is handed to the render: a song not yet current
+///        is reached by no walk after an edit or a job.
+/// @return False when out of memory: those collections are read in the model until a later walk publishes them.
+bool publishSongLanes(Song& song);
 
 /// @brief [interaction] A whole operation on the model -- an Edit applied, an undo or redo -- whose lanes the outermost
 ///        one publishes when it ends: between its steps a collection's storage may be mid-change.
@@ -89,6 +102,8 @@ public:
 	static void mark(ParamCollection& collection);
 	/// @brief [interaction] As publishDirtyLanes().
 	static void publishDirty(bool settle);
+	/// @brief [interaction] As publishSongLanes().
+	static bool publishSong(Song& song);
 	/// @brief [interaction] As checkPublished().
 	static int32_t check(Song& song);
 

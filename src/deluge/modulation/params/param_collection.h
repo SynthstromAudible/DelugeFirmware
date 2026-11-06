@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/lane_view.h"
 #include "foundation/function_ref.h"
 
 #include <atomic>
@@ -149,6 +150,11 @@ public:
 	/// @brief [interaction] Call @p visit with each of this collection's lanes that has nodes, by its paramId (the key
 	///        its published snapshot is searched by), in any order.
 	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
+
+	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
+	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty
+	///        view with base 0; every reader of one stops there.
+	deluge::project::LaneView playedLane(int32_t paramId);
 
 	/// @brief [render] or [interaction] The snapshot the render plays this collection's lanes from; nullptr before its
 	///        first publish.

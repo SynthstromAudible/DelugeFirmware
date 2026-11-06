@@ -104,16 +104,6 @@ public:
 	/// @param p Index into the set's params array.
 	/// @return The param's DOM store slot (never null; the store is created on first use).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
-	/// @brief A param's lane, read without creating the set's store: what the render reads.
-	/// @param p Index into the set's params array.
-	/// @return The bound store's lane, else the unheld lane (no nodes, base 0), as an unbound set's lane reads, or as a
-	/// param past a shorter bound store's end does.
-	[[nodiscard]] const deluge::project::DocAutoParam& findDocForParam(int32_t p) const {
-		if (domStoreRef_ == nullptr || p < 0 || static_cast<size_t>(p) >= domStoreRef_->params.size()) {
-			return unheldLane();
-		}
-		return domStoreRef_->params[p];
-	}
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
 	/// @copydoc ParamCollection::findDocParamForId
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;

@@ -31,6 +31,8 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/shift_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
@@ -598,7 +600,10 @@ void move() {
 		break;
 	case Leg::ClipShift: {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)g_clip->shiftHorizontally(setupModelStackWithTimelineCounter(memory, currentSong, g_clip), 3, true, true);
+		deluge::edits::Context context{*currentSong, currentSong->project};
+		deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*g_clip), 3, true, true,
+		                              setupModelStackWithTimelineCounter(memory, currentSong, g_clip)};
+		(void)deluge::edits::apply(context, edit);
 		break;
 	}
 	case Leg::RowMute: {
@@ -772,6 +777,8 @@ void runTick() {
 			g_stage = Stage::Summary;
 			break;
 		}
+		// The setup's lanes, published as the app loop does when a job ends: these steps run outside it.
+		deluge::modulation::publishDirtyLanes(true);
 		startClock();
 		g_timerAtStart = AudioEngine::audioSampleTimer;
 		g_blocks = 0;

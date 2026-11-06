@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
@@ -39,6 +40,15 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 
 ParamCollection::ParamCollection(const ParamCollection& other)
     : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent) {
+}
+
+deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
+	if (const deluge::modulation::LaneSnapshot* snapshot = deluge::modulation::snapshotToPlay(*this)) {
+		const deluge::modulation::PublishedLane* lane = snapshot->find(paramId);
+		return (lane != nullptr) ? lane->view() : deluge::project::LaneView{};
+	}
+	const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
 }
 
 ParamCollection::~ParamCollection() {

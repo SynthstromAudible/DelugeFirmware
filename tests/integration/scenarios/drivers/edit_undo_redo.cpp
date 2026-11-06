@@ -235,7 +235,8 @@ void laneAgreementTarget(Song* song) {
 		if (fresh.setupWithPatching() == Error::NONE) {
 			PatchedParamSet* set = fresh.getPatchedParamSet();
 			check(set->findDocParamForId(0) == nullptr, "a fresh set starts unbound");
-			check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
+			const deluge::project::LaneView unbound = set->playedLane(0);
+			check(unbound.empty() && unbound.base == 0, "an unbound set's lane plays as an unautomated one");
 			check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
 
 			// The render's lookup of an unbound set's lane misses: it gets the unheld lane, writes nothing to it,
@@ -261,8 +262,8 @@ void laneAgreementTarget(Song* song) {
 			else {
 				check(false, "the fresh set's lane is reachable");
 			}
-			(void)set->docForParam(0);
-			check(&set->findDocForParam(0) == set->findDocParamForId(0), "a bound set reads its store's lane");
+			(void)set->docForParam(0)->nodes.insertSorted(0);
+			check(set->playedLane(0).size() == 1, "a bound set's lane plays its store's");
 		}
 	}
 	std::fprintf(io.out, "LH-AGREE checked=%d mismatches=%d\n", static_cast<int>(checked),
