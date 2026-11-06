@@ -139,5 +139,74 @@ class MidiSteps(unittest.TestCase):
                 emu_parity.midi_bytes("note", [channel, "60", "100"])
 
 
+def window(*oleds, flashes=()):
+    """A snapshot window: one panel per OLED value, the last carrying @p flashes."""
+    out = []
+    for i, oled in enumerate(oleds):
+        out.append(
+            {
+                "oled": [[oled]],
+                "pads": [[[0, 0, 0]]],
+                "leds": {"BACK": 0},
+                "gold": [0, 0],
+                "flashes": list(flashes) if i == len(oleds) - 1 else [],
+                "pic": {},
+            }
+        )
+    return out
+
+
+class Verdict(unittest.TestCase):
+    """classify(): MATCH, a PHASE-only difference, or a real DIFF."""
+
+    def test_identical_windows_match(self):
+        self.assertEqual(emu_parity.classify(window(1, 2), window(1, 2), None), "MATCH")
+
+    def test_a_shifted_frame_before_the_same_last_panel_is_phase(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2, 3), window(1, 5, 3), None), "PHASE"
+        )
+
+    def test_a_different_last_panel_is_a_diff(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2, 3), window(1, 5, 4), None), "DIFF"
+        )
+
+    def test_a_different_led_in_the_last_panel_is_a_diff(self):
+        test = window(1, 2)
+        test[-1]["leds"] = {"BACK": 1}
+        self.assertEqual(emu_parity.classify(window(1, 2), test, None), "DIFF")
+
+    def test_pad_flashes_alone_with_equal_last_panels_are_phase(self):
+        self.assertEqual(
+            emu_parity.classify(
+                window(1, flashes=[[0, 4, [0, 0, 255]]]), window(1), None
+            ),
+            "PHASE",
+        )
+
+    def test_a_reference_that_differs_from_itself_makes_it_phase(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2), window(1, 7), window(1, 8)), "PHASE"
+        )
+
+    def test_a_reference_that_repeats_itself_leaves_it_a_diff(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2), window(1, 7), window(1, 2)), "DIFF"
+        )
+
+    def test_a_test_image_that_differs_from_itself_makes_it_phase(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2), window(1, 7), window(1, 2), window(1, 9)),
+            "PHASE",
+        )
+
+    def test_both_images_repeating_themselves_leave_it_a_diff(self):
+        self.assertEqual(
+            emu_parity.classify(window(1, 2), window(1, 7), window(1, 2), window(1, 7)),
+            "DIFF",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
