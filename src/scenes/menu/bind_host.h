@@ -9,6 +9,7 @@
 #include "scenes/services/waveforms.h"
 
 #include <string>
+#include <string_view>
 
 class Song;
 
@@ -29,5 +30,9 @@ const deluge::scenes::services::Waveforms& host_waveforms();
 /// @brief The file the sample browser last started to preview or load (legacy's `SampleBrowser::lastFilePathLoaded`),
 ///        which a sample browser opens beside when its holder names no file in SAMPLES/.
 std::string host_last_sample_path();
+/// @brief Stop the preview's sound and drop the sample file @p path from memory, unless the song uses it: the sample
+///        browser's Shift+SAVE, before it offers to delete the file (`SampleBrowser::buttonAction`).
+/// @return False when the song uses the file, which may then not be deleted.
+bool host_release_sample_file(std::string_view path);
 
 } // namespace deluge::scenes::menu

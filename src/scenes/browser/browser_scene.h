@@ -290,6 +290,7 @@ struct BrowserChoice {
 		ImportKit,          ///< The kit menu's LOAD ALL (`FolderImportKind::Kit`).
 		ImportMultisamples, ///< The synth menu's MULTISAMPLES (`FolderImportKind::Multisamples`).
 		Slice,              ///< The kit menu's SLICE, or Shift+Select in a fresh kit: open `SlicerScene` on the file.
+		DeleteFile, ///< The delete-file menu's OK: delete the file from the card (`BrowserScene::file_deleted`).
 	};
 	/// @brief `ClaimRequest`'s three detection choices: 0 no, 1 auto, 2 definitely.
 	struct ClaimArgs {
@@ -498,6 +499,10 @@ public:
 	///        is out.
 	/// @param opened Whether `slicing::slicer_scene()` holds the file now.
 	void slice_ready(bool opened);
+	/// @brief The host deleted @p path from the card: if it is still the selected file it leaves the list, the
+	///        selection moving on as `Browser::currentFileDeleted` moves it, and the new selection is previewed.
+	/// @param path The deleted file's full path.
+	void file_deleted(std::string_view path);
 
 	/// @brief Take the preview the selection last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains
 	/// it
@@ -716,12 +721,14 @@ private:
 	int8_t preview_direction_ = 0;
 	/// The selected row's side-scroller, armed while the cursor is at the start.
 	deluge::ui::ScrollText row_scroll_{};
-	/// The host changed the pads between ticks; the next tick repaints them.
+	/// The host changed the pads, or the list, between ticks; the next tick repaints them.
 	bool pads_changed_ = false;
 	/// A main-pad press `render_grid` saw with the keyboard hidden, for `after_render`.
 	std::optional<deluge::ui::PadEvent> reveal_press_{};
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
 	deluge::sample::WaveformNav nav_{};
+	/// The waveform last painted, kept on the pads once the preview gives its sample up.
+	RGB waveform_shown_[kDisplayHeight][kDisplayWidth]{};
 	uint64_t nav_identity_ = 0;
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;

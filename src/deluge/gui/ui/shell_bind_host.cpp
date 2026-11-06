@@ -68,6 +68,7 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -1133,6 +1134,11 @@ const deluge::scenes::services::Waveforms& host_waveforms() {
 
 std::string host_last_sample_path() {
 	return sampleBrowser.lastFilePathLoaded;
+}
+
+bool host_release_sample_file(std::string_view path) {
+	AudioEngine::stopAnyPreviewing();
+	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

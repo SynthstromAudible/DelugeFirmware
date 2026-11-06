@@ -204,6 +204,19 @@ private:
 ///          examples below prove.** Honouring it means running the claim -- a card read and an
 ///          `AudioFileManager` allocation -- which is the thing the seam exists to keep out. So WHAT
 ///          is requested is pinned; what the claim then does is `SampleClaim`'s own.
+/// @brief Records each file the drain asks the card to delete, in place of the card.
+struct DeleteSpy {
+	static inline std::vector<std::string> paths{};
+	static void record(std::string_view path) { paths.emplace_back(path); }
+	DeleteSpy() {
+		paths.clear();
+		deluge::gui::ui::setFileDeleteDispatch(&record);
+	}
+	~DeleteSpy() { deluge::gui::ui::setFileDeleteDispatch(nullptr); }
+	DeleteSpy(const DeleteSpy&) = delete;
+	DeleteSpy& operator=(const DeleteSpy&) = delete;
+};
+
 /// @brief Records each auto-load cancel the drain asks for, in place of `SampleClaim::cancelAutoLoad`.
 struct CancelSpy {
 	static inline int32_t cancels = 0;
@@ -1299,6 +1312,53 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		shellHostUI.surfaces().hold_main_columns(false);
+	});
+
+	it("deletes the file the delete menu accepts, and drops it from the list once the card has", _ {
+		// `DeleteFile::acceptCurrentOption` then `Browser::currentFileDeleted`; a refusal leaves the list alone.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		DeleteSpy deletes;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(context_menu::descriptor(context_menu::DescriptorId::DeleteFile).accept(menu_scene().menu_context(), 0))
+		    .to_be_false(); // the menu closes
+		deluge::gui::ui::dispatchShellChoices();
+		expect(DeleteSpy::paths.size()).to_equal(size_t(1));
+		expect(DeleteSpy::paths.empty() ? std::string{} : DeleteSpy::paths[0]).to_equal(std::string{kChosenPath});
+		const std::string before{browser::browser_scene().entered_text()};
+		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Failed);
+		expect(std::string{browser::browser_scene().entered_text()}).to_equal(before);
+		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Removed);
+		expect(std::string{browser::browser_scene().entered_text()} != before).to_be_true();
+		for (const FileItem& item : deluge::storage::FileCatalogue::fileItems) {
+			expect(std::string{"SAMPLES/OSC_A/"} + item.filename != std::string{kChosenPath}).to_be_true();
+		}
+	});
+
+	it("claims RECORD from the global RECORD while the sample browser is frontmost", _ {
+		// `SampleBrowser::buttonAction` answers `DEALT_WITH`, so `Buttons`' RECORD tail never arms recording.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::DEALT_WITH).to_be_true();
+		shellHostUI.shell().stack().pop();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true(); // the menu beneath leaves it to the global RECORD
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {

@@ -312,7 +312,17 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		// `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
 		// `ContextMenu` subclass is opened from a view or a browser the ported menu tree does not open. See the
 		// note on `DescriptorId`.
-		expect(static_cast<int>(DescriptorId::Count)).to_equal(8);
+		expect(static_cast<int>(DescriptorId::Count)).to_equal(9);
+	});
+
+	it("gives the delete-file menu main's heading and option, as a saving menu", _ {
+		// `context_menu::DeleteFile` (`gui/context_menu/delete_file.cpp`), a `ContextMenuForSaving`.
+		const Descriptor& del = context_menu::descriptor(DescriptorId::DeleteFile);
+		expect(static_cast<int>(del.title)).to_equal(static_cast<int>(String::STRING_FOR_DELETE_QMARK));
+		expect(del.options.size()).to_equal(size_t(1));
+		expect(static_cast<int>(del.options.empty() ? 0 : del.options[0])).to_equal(static_cast<int>(String::STRING_FOR_OK));
+		expect(del.for_saving).to_be_true();
+		expect(context_menu::descriptor(DescriptorId::SampleBrowserKit).for_saving).to_be_false();
 	});
 
 	it("gives the sample browser's two folder menus main's headings and options", _ {
@@ -483,6 +493,26 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 			blinked = blinked || (led == kBackLed && on);
 		}
 		expect(blinked).to_be_true();
+	});
+
+	it("blinks SAVE and turns LOAD off for the delete-file menu, as ContextMenuForSaving::focusRegained does", _ {
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open(context_of(f), DescriptorId::DeleteFile);
+		r.tick(0);
+		// SAVE is board LED 33 and LOAD 15 on the Deluge profile (`shell/profiles/deluge.cpp`).
+		constexpr uint8_t kSaveLed = 33;
+		constexpr uint8_t kLoadLed = 15;
+		bool save = false;
+		bool load = false;
+		for (const auto& [led, on] : r.fake.led_writes) {
+			save = save || (led == kSaveLed && on);
+			load = load || (led == kLoadLed && on);
+		}
+		expect(save).to_be_true();
+		expect(load).to_be_false();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(deluge::ui::shell::ButtonId::Load)]).to_be_true();
 	});
 
 	it("starts the back LED's blink where the menu opens: lit 250 ms, then off", _ {

@@ -924,6 +924,13 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 	                      static_cast<int16_t>(on ? 255 : 0)});
 
+	// The sample browser's RECORD opens the recorder (the browser acts on the press fed above) and is not the global
+	// RECORD's as well (`SampleBrowser::buttonAction`).
+	if (b == deluge::hid::button::RECORD && browserTakesRecord()) {
+		armTickSoon();
+		return ActionResult::DEALT_WITH;
+	}
+
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
 	// its `if`/`else if` chain has no arm for Play, Shift, Record, Tempo-enc or either mod-encoder

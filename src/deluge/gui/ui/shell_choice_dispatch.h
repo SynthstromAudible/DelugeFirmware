@@ -131,6 +131,27 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 
+/// @brief How the ported browser's file deletion ended, as `DeleteFile::applyOutcome` reads the card's answer.
+enum class FileDeleteOutcome : uint8_t {
+	Removed, ///< The card removed the file.
+	Missing, ///< The file was not on the card.
+	Failed,  ///< The card refused it, or the channel stalled.
+};
+
+/// @brief Finish the ported browser's file deletion: `main`'s popup, and the file leaves the browser's list once the
+///        card has removed it. The shipped deleter calls this when the card answers.
+/// @param path    The file asked for.
+/// @param outcome How it ended.
+void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome);
+
+/// @brief What removes a file from the card for the ported browser's delete menu.
+using FileDeleteDispatch = void (*)(std::string_view path);
+
+/// @brief Install a deleter other than the card's, for specs, which cannot complete an unlink. Nothing outside a spec
+///        calls this.
+/// @param dispatch The deleter, or null to put the shipped one back.
+void setFileDeleteDispatch(FileDeleteDispatch dispatch);
+
 /// @brief What cancels an auto-load claim: `SampleClaim::cancelAutoLoad`'s shape.
 using SampleClaimCancel = void (*)();
 

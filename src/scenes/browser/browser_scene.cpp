@@ -37,6 +37,7 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/services/waveform_paint.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "storage/file_catalogue.h"
@@ -493,6 +494,7 @@ void BrowserScene::preview_settled(bool has_sample) {
 		// `showPreview`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are drawn
 		// if they should be and are not, or the waveform if the keyboard is hidden.
 		showing_preview_ = true;
+		nav_identity_ = 0; // `showPreview` reopens the navigator: every landed preview opens zoomed out
 		if (direction != 0 && !keyboard_always_visible_) {
 			pads_ = BrowserPads::Waveform;
 			pad_scroll_.reset();
@@ -1243,7 +1245,16 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	// sample as `waveformBasicNavigator.opened()` does.
 	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
 	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
 	if (!info) {
+		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
+		// were last sent, so these keep the last one painted.
+		for (int32_t y = 0; y < rows; y++) {
+			for (int32_t x = 0; x < main_cols; x++) {
+				(void)f.pad(x, y, waveform_shown_[y][x]);
+			}
+		}
 		return;
 	}
 	const uint32_t now = f.now_ms();
@@ -1254,11 +1265,15 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 		nav_.opened(0, 0);
 		redraw_resolved_cols_ = -1;
 	}
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
 	bool complete = true;
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 		complete = services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
 	});
+	for (int32_t y = 0; y < rows; y++) {
+		for (int32_t x = 0; x < main_cols; x++) {
+			waveform_shown_[y][x] = f.peek(x, y);
+		}
+	}
 	if (complete) {
 		redraw_resolved_cols_ = -1;
 		return;
@@ -1654,6 +1669,46 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 			auto_load_ = !auto_load_;
 		}
 		return r;
+	case ButtonId::Record:
+		// The recorder replaces the browser, with no mode up, and never for an audio clip, whose RECORD goes on to the
+		// base browser and then to the global RECORD.
+		if (ctx_.is_audio_clip) {
+			return std::nullopt;
+		}
+		if (on && !holding_) {
+			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
+			// it is not what leaves) and the recorder takes its place.
+			recorder::recorder_scene().open(ctx_);
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Push, .id = SceneId{recorder::kRecorderSceneKind, 0}});
+		}
+		return r;
+	case ButtonId::Save: {
+		// Shift+SAVE on a file offers to delete it, once the song is known not to use it; the preview stops either
+		// way.
+		if (!shift_) {
+			return std::nullopt;
+		}
+		const FileItem* item = item_at(file_index_);
+		if (!on || holding_ || item == nullptr || item->isFolder) {
+			return r;
+		}
+		const std::string_view dir = current_dir();
+		const std::string path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+		if (!menu::host_release_sample_file(path)) {
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Popup,
+			           .surface = SurfaceRole::Main,
+			           .popup_string = static_cast<uint16_t>(String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG)});
+			return r;
+		}
+		context_menu::context_menu_scene().open(ctx_);
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Push,
+		                                 .id = SceneId{context_menu::kContextMenuSceneKind,
+		                                               static_cast<uint16_t>(context_menu::DescriptorId::DeleteFile)}});
+		return r;
+	}
 	case ButtonId::Keyboard:
 		if (!on) {
 			return std::nullopt;
@@ -1683,7 +1738,7 @@ void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs
 	                     .is_folder = item->isFolder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	choice_ = std::move(choice);
-	awaiting_load_ = op != BrowserChoice::Op::Enter;
+	awaiting_load_ = op != BrowserChoice::Op::Enter && op != BrowserChoice::Op::DeleteFile;
 	slice_out_ = op == BrowserChoice::Op::Slice;
 	slice_from_shift_ = false;
 }
@@ -1697,6 +1752,31 @@ void BrowserScene::slice_ready(bool opened) {
 	if (!opened) {
 		awaiting_load_ = false; // nothing more comes for this slice
 	}
+}
+
+void BrowserScene::file_deleted(std::string_view path) {
+	// `Browser::currentFileDeleted`, only while the deleted file is still the one selected.
+	const FileItem* item = item_at(file_index_);
+	if (item == nullptr || item->isFolder) {
+		return;
+	}
+	const std::string_view dir = current_dir();
+	const std::string selected = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	if (selected != path) {
+		return;
+	}
+	FileCatalogue::fileItems.erase(FileCatalogue::fileItems.begin() + file_index_);
+	if (file_index_ == static_cast<int32_t>(FileCatalogue::fileItems.size())) {
+		file_index_--; // none left: no selection
+		entered_len_ = 0;
+		edit_.cursor = 0;
+	}
+	else {
+		set_entered_text_from_current_filename();
+	}
+	clamp(visible_rows_);
+	file_preview(0); // `currentFileChanged(0)`
+	pads_changed_ = true;
 }
 
 bool BrowserScene::fresh_kit() const {

@@ -416,6 +416,10 @@ std::optional<ActionResult> forwardBrowserVertical(int32_t) {
 	return std::nullopt;
 }
 
+bool browserTakesRecord() {
+	return false;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }

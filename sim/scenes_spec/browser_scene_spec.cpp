@@ -34,6 +34,7 @@
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 
@@ -59,6 +60,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -441,6 +443,8 @@ constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kXEncX = 0, kXEncY = 1;
 constexpr uint8_t kLoadX = 6, kLoadY = 1;
 constexpr uint8_t kKeyboardX = 3, kKeyboardY = 3;
+constexpr uint8_t kRecordX = 8, kRecordY = 2;
+constexpr uint8_t kSaveX = 6, kSaveY = 3;
 constexpr uint8_t kHorizontalEncoder = 1, kVerticalEncoder = 0;
 constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
 
@@ -2790,6 +2794,27 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		expect(browser_scene().cursor()).to_equal(1);
 	});
 
+	it("opens every landed preview zoomed out, even one whose sample sits where the last one did", _ {
+		// `showPreview`'s `waveformBasicNavigator.opened()`: a freed sample's memory can hold the next.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_false();
+	});
+
 	it("redraws a zoomed view the card has not caught up with, after the last view's redraw gave up", _ {
 		// `tickPreviewRedraw` counts a new render's columns afresh: the zoom's render is its own.
 		CleanBrowser clean;
@@ -2904,9 +2929,137 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		expect(browser_scene().scroll_pending()).to_be_false();
 	});
 });
+describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+SAVE", $ {
+	it("RECORD replaces the browser with the recorder and is claimed; its release is claimed too", _ {
+		// `SampleBrowser::buttonAction`'s RECORD arm: `changeUISideways(&audioRecorder)` on the press.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(pressed.handled).to_be_true();
+		const ShellAction* removed = find_action(pressed, ShellAction::Kind::Remove);
+		const ShellAction* pushed = find_action(pressed, ShellAction::Kind::Push);
+		expect(removed != nullptr && removed->pop_to == kBrowserSceneKind).to_be_true();
+		expect(pushed != nullptr && pushed->id.kind == recorder::kRecorderSceneKind).to_be_true();
+		const Result released = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Record}, d.ctx);
+		expect(released.handled && released.actions.empty()).to_be_true();
+	});
+
+	it("leaves RECORD to the global RECORD on an audio clip", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(pressed.handled).to_be_false();
+	});
+
+	it("Shift+SAVE on a file opens the delete menu, and on a folder does nothing", _ {
+		// `Browser::buttonAction` -> `goIntoDeleteFileContextMenu`, on a file only (`SampleBrowser`'s own test).
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		DirectCtx d; // SAVE alone is not the browser's
+		expect(browser_scene()
+		           .handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Save}, d.ctx)
+		           .handled)
+		    .to_be_false();
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		r.button(kSaveX, kSaveY, true, r.clock + 10);
+		r.step();
+		r.button(kSaveX, kSaveY, false, r.clock + 10);
+		r.step();
+		r.step();
+		const auto* menu = static_cast<const context_menu::ContextMenuScene*>(
+		    on_stack(r, context_menu::kContextMenuSceneKind));
+		expect(menu != nullptr && menu->descriptor_id() == context_menu::DescriptorId::DeleteFile).to_be_true();
+		r.shell.stack().pop(context_menu::kContextMenuSceneKind);
+		select_folder(r, true);
+		r.button(kSaveX, kSaveY, true, r.clock + 10);
+		r.step();
+		r.button(kSaveX, kSaveY, false, r.clock + 10);
+		r.step();
+		r.step();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		r.button(kShiftX, kShiftY, false, r.clock + 10);
+		r.step();
+	});
+
+	it("Shift+SAVE on a file the song uses refuses with main's popup", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		// Resident and leased, as a sample the song plays is (`AudioFileManager::finishSampleFromCard`).
+		auto* sample = new (deluge::memory::alloc_external(sizeof(Sample), 16)) Sample;
+		audioFileManager.adoptAudioFileObject(sample);
+		sample->addReason();
+		sample->filePath = "SAMPLES/CLAP.WAV";
+		(void)audioFileManager.audioFiles.insertElement(sample);
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		r.button(kSaveX, kSaveY, true, r.clock + 10);
+		r.step();
+		r.step();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG)});
+		r.button(kSaveX, kSaveY, false, r.clock + 10);
+		r.button(kShiftX, kShiftY, false, r.clock + 10);
+		r.step();
+		const int32_t i = audioFileManager.audioFiles.searchForExactObject(sample);
+		if (i >= 0) {
+			audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+		}
+		sample->removeReason("spec");
+	});
+
+	it("keeps the waveform on the pads once the preview gives its sample up", _ {
+		// Shift+SAVE stops the preview to free the file; `main`'s pads keep what they were last sent.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		const std::string shown = r.fake.state();
+		held.range->sampleHolder.audioFile = nullptr;
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(r.fake.state()).to_equal(shown);
+	});
+
+	it("drops a deleted file from the list while it is still selected, and previews the next", _ {
+		// `Browser::currentFileDeleted`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().file_deleted("SAMPLES/SNARE.WAV"); // not the selection: nothing
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
+		browser_scene().file_deleted("SAMPLES/CLAP.WAV");
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
+		expect(catalogue_order().find("CLAP.WAV") == std::string::npos).to_be_true();
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
                 browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard,
-                browser_scroll)
+                browser_scroll, browser_record_delete)

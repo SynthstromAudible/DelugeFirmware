@@ -63,6 +63,9 @@ enum class DescriptorId : uint16_t {
 	SampleBrowserKit,
 	/// `context_menu::sample_browser::synth`: LOAD FILES, {MULTISAMPLES, BASIC, SINGLE-CYCLE, WAVETABLE}.
 	SampleBrowserSynth,
+	/// `context_menu::deleteFile` (`gui/context_menu/delete_file.{h,cpp}`), opened by the sample browser's
+	/// Shift+SAVE: "DELETE?", {OK}.
+	DeleteFile,
 	Count,
 };
 
@@ -149,6 +152,9 @@ struct Descriptor {
 
 	/// @brief While true, BACK, Select and pads are refused: the menu has started work that closes it once it ends.
 	bool (*busy)(const menu::MenuContext&) = nullptr;
+
+	/// @brief `ContextMenuForSaving`: SAVE blinks and LOAD is off while the menu is up.
+	bool for_saving = false;
 };
 
 /// @brief The scratch a `Descriptor::footer` hook is handed.

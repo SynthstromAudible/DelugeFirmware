@@ -33,6 +33,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/led/pad_leds.h"
+#include "io/file.hpp"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
@@ -48,6 +49,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
+#include "storage/byte_channel.h"
 #include "util/notify.h"
 
 #include <cstring>
@@ -71,6 +73,48 @@ void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
 
 /// @brief What the claim is requested from. `setSampleClaimDispatch`'s subject.
 SampleClaimDispatch claimDispatch = &requestSampleClaim;
+
+/// @brief The file the shipped deleter is removing: the card's answer names no file.
+std::string& pendingDelete() {
+	static std::string path;
+	return path;
+}
+
+/// @brief The card's answer to the shipped deleter's removal.
+void unlinkDone(void*, deluge::storage::bytes::SettingsOutcome outcome) {
+	using deluge::storage::bytes::SettingsOutcome;
+	shellFileDeleteDone(pendingDelete(), outcome == SettingsOutcome::Written  ? FileDeleteOutcome::Removed
+	                                     : outcome == SettingsOutcome::Absent ? FileDeleteOutcome::Missing
+	                                                                          : FileDeleteOutcome::Failed);
+}
+
+/// @brief During boot, where blocking on the card is legal: the removal inline.
+void unlinkInline(void*) {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+	auto removed = deluge::io::unlink(pendingDelete());
+	shellFileDeleteDone(pendingDelete(), removed.has_value() ? FileDeleteOutcome::Removed
+	                                     : removed.error() == deluge::io::Status::NOT_FOUND
+	                                         ? FileDeleteOutcome::Missing
+	                                         : FileDeleteOutcome::Failed);
+}
+
+/// @brief The shipped deleter: `DeleteFile::acceptCurrentOption`'s removal, through the card's byte channel.
+void deleteFromCard(std::string_view path) {
+	namespace bytes = deluge::storage::bytes;
+	pendingDelete() = std::string{path};
+	if (bytes::usingByteChannel()) {
+		if (!bytes::submitUnlink(pendingDelete().c_str(), &unlinkDone, nullptr)) {
+			shellFileDeleteDone(pendingDelete(), FileDeleteOutcome::Failed); // the path does not fit the channel
+		}
+		return;
+	}
+	if (!bytes::runDuringBoot(&unlinkInline, nullptr)) {
+		shellFileDeleteDone(pendingDelete(), FileDeleteOutcome::Failed);
+	}
+}
+
+/// @brief What removes a file from the card. `setFileDeleteDispatch`'s subject.
+FileDeleteDispatch deleteDispatch = &deleteFromCard;
 
 /// @brief The shipped auto-load cancel.
 void cancelSampleAutoLoad() {
@@ -348,6 +392,25 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch) {
 	claimDispatch = dispatch != nullptr ? dispatch : &requestSampleClaim;
 }
 
+void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome) {
+	switch (outcome) {
+	case FileDeleteOutcome::Removed:
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
+		browser_scene().file_deleted(path);
+		break;
+	case FileDeleteOutcome::Missing:
+		// Not on the card: a sample's list entry has no instrument to drop, so nothing changes.
+		break;
+	case FileDeleteOutcome::Failed:
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
+		break;
+	}
+}
+
+void setFileDeleteDispatch(FileDeleteDispatch dispatch) {
+	deleteDispatch = dispatch != nullptr ? dispatch : &deleteFromCard;
+}
+
 void setSampleClaimCancel(SampleClaimCancel cancel) {
 	claimCancel = cancel != nullptr ? cancel : &cancelSampleAutoLoad;
 }
@@ -418,6 +481,9 @@ void dispatchChoice(const BrowserChoice& choice) {
 			break;
 		case BrowserChoice::Op::Slice:
 			openShellSlice(choice.path);
+			break;
+		case BrowserChoice::Op::DeleteFile:
+			deleteDispatch(choice.path);
 			break;
 		}
 		break;

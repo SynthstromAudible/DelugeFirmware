@@ -20,6 +20,7 @@
 
 #include "gui/ui/shell_automation_glue.h"
 
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_pad_forward.h" // menuShowsAutomationViewParam
@@ -301,6 +302,14 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset);
+}
+
+bool browserTakesRecord() {
+	const deluge::scenes::browser::BrowserScene& browser = deluge::scenes::browser::browser_scene();
+	return &shellHostUI.shell().stack().input_top() == &browser
+	       && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample
+	       && audioRecorder.recordingSource == AudioInputChannel::NONE && getCurrentClip() != nullptr
+	       && getCurrentClip()->type != ClipType::AUDIO;
 }
 
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {

@@ -84,4 +84,9 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset);
 /// @return The clip view's answer, or `DEALT_WITH`; nullopt to feed the turn to the browser.
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset);
 
+/// @brief `SampleBrowser::buttonAction`'s RECORD arm, which takes the press away from the global RECORD: the ported
+///        sample browser frontmost, no recording running and no audio clip. The browser itself opens the recorder.
+/// @return Whether the press is the browser's, so the guest answers `DEALT_WITH`.
+bool browserTakesRecord();
+
 } // namespace deluge::gui::ui
