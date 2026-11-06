@@ -79,7 +79,8 @@ A lane's base (`DocAutoParam::current_value`, written only through `project::set
 plays where it has no automation, and what a file saves. Its played value (`AutoParam::played()`) is the engine
 cursor's: the lane at the playhead, interpolated, latched or overridden. The cursor is written by the executor
 (playback, interpolation, the latch), by the interaction tier's playhead moves (each with the render held off, reading
-lanes the render's way: [playback_moves.md](playback_moves.md)), and by four named operations:
+lanes the render's way: [playback_moves.md](playback_moves.md)), by an edit's `stopInterpolating()`, `overrideFromNow()`
+and `cancelOverriding()` (each with the render held off), and by four named operations:
 
 - `setBase(lane, v)`: an edit, a file read or a setup default; the value is the base and is played.
 - `playBase(lane)`: the cursor projected from the model after a read, a rebuild or a model-first write.
@@ -117,13 +118,34 @@ block apart, and that a write undone before the next block stays undone.
 
 ## How the render reaches a lane
 
-The render reads a lane where its collection keeps it (`ModelStackWithAutoParam::doc()` on the render tier):
-`paramCollection->findDocParamForId(paramId)`, which is the tree's block once the owner is relocated and the
-collection's own store before that (and always, for an MPE note row's lanes). It builds no address and reads no tree
-map; the interaction tier resolves by address and relocates, to the same storage. A lane nothing holds is the unheld
-lane: no nodes, base 0, read as unautomated, and never written. The render's direct reads of a set's lanes (a source's
-level, the reverb candidate, the envelopes' sustain) use `ParamSet::findDocForParam`, which never creates the set's
-store: an unbound set, or a param past a shorter store's end, reads the unheld lane.
+Outside record mode the render plays lanes it cannot change: each collection's published snapshot
+(`modulation/params/lane_snapshot.h`), an immutable copy of its lanes with nodes, one SDRAM allocation per lane and
+one per snapshot, keyed by paramId (which no re-patch or MIDI learn changes). Every lane read on the render -- the
+cursor's next node, the value at a position, whether a param is automated -- goes through `ParamCollection::playedLane()`
+(or `ModelStackWithAutoParam::laneView()`), a read-only `project::LaneView`. A lane with no nodes is an empty view,
+base 0; every reader stops there. A playhead move's section (`MoveEffects::collecting()`) reads the same way.
+
+In record mode, and from then until the first walk after it has published what was recorded
+(`modulation::lanesLive()`), the render reads and writes the model's lanes as before: where the collection keeps them
+(`findDocParamForId`), never building an address or creating a store; a lane nothing holds is the unheld lane (no
+nodes, base 0, never written). A collection not yet published is read in the model too, and counted.
+
+The interaction tier publishes (`modulation/params/lane_publication.h`). Every path that hands out a collection's lane
+to write, or rebinds its store, marks the collection. The outermost `LaneOperation` -- an Edit applied, an undo or
+redo -- publishes when it ends, and each app-loop job's end publishes and settles the marks: between the steps of an
+operation a collection's storage may be mid-change, and a caller may hold a lane across several writes. Publishing
+walks the song's param managers (the song's, each clip's, each note row's), so a collection parked in undo history is
+never read; for each marked collection whose lanes differ from its snapshot it builds a new one, sharing the lanes that
+did not change, swaps it in with the render held off, and brings the collection's next event forward so the render
+re-reads at its next block. A song is published before it is handed to the render (the load's arm, a cleared song's
+swap, the boot song). The replaced snapshot and lanes are retired (`AudioEngine::retireMemory`, freed two blocks on);
+a destroyed collection's are freed at once, being out of the render's reach with it. Out of memory, the old snapshot
+stays published and the collection stays marked.
+
+The render does not write a published lane. A node at or past a lane's length is played without it, and a value set on
+the render (a stopped synth clip's mono expression cleared) is played at once; each is posted to the interaction tier
+(`requestStrayNodeErased`, `requestLaneBase`), which does it before its next job, if the song still plays that
+collection (its address and serial).
 
 Only the interaction tier changes a collection's lane storage: a cable's or a CC's lane added or erased, a store
 created, bound to the tree's or copied out of it. Each change runs inside `EditGuard{ModelEdit::PARAM_STORE}`, which
@@ -135,9 +157,15 @@ The render tier is what `deluge::memory::onRenderTier()` says: the audio tier, o
 the offline export loop (its recorded values, ticks and render, as `deluge_app_render`'s block holds them). A storage
 task that preempts an export block is not the render.
 
-Alpha counters: `unheldLaneWrites` (a write found in the unheld lane at the render's next miss, undone) and
-`laneSplits` (a lane the interaction tier resolved that is not the one the render's lookup finds: playback would miss
-an edit to it). The goldens (`RP-LANES`), render-song (`RS-LANES`), param-record-diff and edit-undo-redo fail on
+Alpha counters: `renderModelReads` (a lane the render read in the model outside record mode), `renderPublishedWrites`
+(a lane it wrote outside record mode), `staleLanes` and `publishFailures` (a snapshot that differed from its model after
+a publish, or could not be built), `laneRequestOverflows` (a request the full queue dropped), `publishedBytes` (the bytes
+published lanes hold, reported as `LANES-MEM` at each stop), `unheldLaneWrites` (a write found in the unheld lane at the
+render's next miss, undone) and `laneSplits` (a lane the interaction tier resolved that is not the one the render's
+lookup finds: playback would miss an edit to it). render-song (`RS-SNAPSHOT`), the goldens (`RP-SNAPSHOT`) and
+param-record-diff fail on a model read or write, or a dropped request; edit-undo-redo checks every collection's snapshot
+against its model after each edit, undo and redo (`EUR-SNAPSHOT`); playhead-moves checks the out-of-memory path
+(`publish_oom`) and the two requests (`PM-SELFREPAIR`, `PM-CLIPSTOP`). The goldens (`RP-LANES`), render-song (`RS-LANES`), param-record-diff and edit-undo-redo fail on
 either; edit-undo-redo also drives a render-tier miss on an unbound set and checks the write detection. The
 structural-edit probe's `PARAM_STORE` render count gates the render's store changes (`RP-STORE`, `RS-STORE`,
 param-record-diff per block, edit-undo-redo). edit-undo-redo checks over the corpus, before and after its targets'

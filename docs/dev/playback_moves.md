@@ -26,8 +26,10 @@ excludes the render, so a render block never sees it half made.
 - a `MaskedSpan`: the time it held the render off, per site (ALPHA builds and the host).
 
 Its members end in reverse: the render runs again, then the effects. On the render, which calls the same move code,
-a section holds nothing off and collects nothing. Inside one, `ModelStackWithAutoParam::doc()` reads lanes the render's
-way (through the collection, never creating or relocating a store).
+a section holds nothing off and collects nothing. Inside one, a lane is read as the render reads it
+(`ModelStackWithAutoParam::laneView()`: the published lanes outside record mode, else through the collection, never
+creating or relocating a store). A move that changes lanes is published at the end of its Edit or its job
+([params.md](params.md)).
 
 What runs inside is only what the render's own tick does: cursors, positions, activeness, `expectEvent`, voices from
 the pool, late note-ons. Allocation, the card, undo and waits run before or after. An arpeggiator reserves room for
