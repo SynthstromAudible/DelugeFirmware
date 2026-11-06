@@ -390,6 +390,36 @@ const Node* dx_operator_params_chain(const MenuContext& /*ctx*/, const MenuState
 // `DxParam` (`gui/menu_item/dx/param.cpp`)
 
 void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+	std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+	int16_t& param = state.dx.param;
+	f.claim_turn();
+	f.claim_horizontal();
+	if (const int32_t t = f.turn(); t != 0 && patch) {
+		// `selectEncoderAction` (`param.cpp:180-195`) and `setValue` (`:56-70`): oscillator 1's patch, always.
+		if (param >= 0 && param <= dx::kLastParam) {
+			const int32_t value = patch->params[param] + t;
+			patch->params[param] = static_cast<uint8_t>(std::clamp<int32_t>(value, 0, dx::upper_limit(param)));
+		}
+		else if (param == dx::kRandomDetune) {
+			patch->random_detune = std::clamp<int32_t>(patch->random_detune + t, 0, dx::upper_limit(param));
+		}
+		write_patch(ctx, *patch);
+		f.gate().request_repaint();
+	}
+	if (const int8_t h = f.horizontal(); h != 0) {
+		// `horizontalEncoderAction` (`param.cpp:197-226`), each arm ending in `readValueAgain`, which sets the pad's
+		// blink up; the Shift arm returns before it outside the operators and the pitch envelope's first rate.
+		if (!f.shift()) {
+			param = dx::step_param(param, h);
+			state.dx.pad_blink = true;
+		}
+		else if (patch && param >= 0 && param <= dx::kFirstGlobal) {
+			param = dx::step_operator(param, h, patch->params).value_or(param);
+			state.dx.pad_blink = true;
+		}
+		f.gate().request_repaint();
+	}
+
 	std::array<char, 32> title{};
 	deluge::ui::oled::title(f, std::string_view{title.data(), dx::title(state.dx.param, title)});
 	state.tick.render_resp = {};
@@ -405,7 +435,16 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 }
 
 deluge::ui::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
-	return {.select = true};
+	return {.turn = true, .horizontal = true, .select = true};
+}
+
+void DxParamItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
+	state.dx.pad_blink = false;
+}
+
+std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& /*ctx*/, const MenuState& state) const {
+	const std::optional<dx::Pad> pad = state.dx.pad_blink ? dx::param_pad(state.dx.param) : std::nullopt;
+	return pad ? ItemBlink{.x = pad->x, .y = pad->y, .valid = true} : ItemBlink{};
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

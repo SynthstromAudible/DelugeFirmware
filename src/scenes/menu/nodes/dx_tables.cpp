@@ -167,4 +167,39 @@ std::optional<int16_t> step_operator(int16_t param, int32_t offset, std::span<co
 	return std::nullopt;
 }
 
+std::optional<Pad> param_pad(int16_t param) {
+	int32_t x = -1;
+	int32_t y = -1;
+	if (param >= 0 && param < kFirstGlobal) {
+		const int32_t op = param / kOperatorParams;
+		const int32_t idx = param % kOperatorParams;
+		y = 7 - op;
+		if (idx < 8) {
+			x = idx; // envelope rates and levels
+		}
+		else if (idx >= 16) {
+			x = idx - 16 + 8; // level, mode, coarse, fine, detune
+		}
+		else if (idx >= 13) {
+			x = 28 - idx; // velocity sensitivity, amp mod, rate scale, in that order across
+		}
+	}
+	else if (param >= kFirstGlobal && param < kFirstGlobal + 11) {
+		y = 1; // pitch envelope, algorithm, feedback, sync
+		x = param - kFirstGlobal;
+	}
+	else if (param >= kFirstGlobal + 11 && param < kFirstGlobal + 18) {
+		y = 0; // LFO rate, delay, pitch depth, amp depth, sync, waveform, pitch sensitivity
+		x = param - kFirstGlobal - 11;
+	}
+	else if (param == kRandomDetune) {
+		y = 0;
+		x = 7;
+	}
+	if (x < 0 || y < 0) {
+		return std::nullopt;
+	}
+	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
+}
+
 } // namespace deluge::scenes::menu::dx

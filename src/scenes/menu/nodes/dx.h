@@ -84,13 +84,24 @@ public:
 
 /// @brief The DX7 parameter page: `MenuState::dx.param`, drawn and edited as `DxParam` (`gui/menu_item/dx/param.cpp`)
 ///        does.
+///
+/// A select turn moves the value within its limits and writes the patch; a horizontal turn steps to the next param,
+/// wrapping; Shift + a horizontal turn steps to the same param on the next operator that is switched on. All three are
+/// read in `render`, where the turns arrive. Where legacy's operator search never ends (the pitch envelope's first rate
+/// with every operator off), the page stays where it is.
 class DxParamItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	/// @brief The select encoder's turn and press, and the horizontal encoder (`DxParam::horizontalEncoderAction`).
 	deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
+	/// @brief Opens with no pad blinking (`DxState::pad_blink`).
+	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// @brief The param's own pad, every other cycle, once a horizontal step has set it up; none for the scaling params
+	///        (`readValueAgain`'s `setupShortcutBlink(x, y, 1)`).
+	std::optional<ItemBlink> own_blink(const MenuContext& ctx, const MenuState& state) const override;
 };
 
 inline const DxGlobalParamsItem kDxGlobalParams{};

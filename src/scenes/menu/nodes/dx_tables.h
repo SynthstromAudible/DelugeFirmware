@@ -81,4 +81,17 @@ int16_t step_param(int16_t param, int32_t offset);
 /// @return The param to show, or nothing where the page stays as it is.
 std::optional<int16_t> step_operator(int16_t param, int32_t offset, std::span<const uint8_t, 156> params);
 
+/// @brief A shortcut pad, column and row.
+struct Pad {
+	uint8_t x;
+	uint8_t y;
+	bool operator==(const Pad&) const = default;
+};
+
+/// @brief The pad that blinks while the parameter page shows @p param (`DxParam::readValueAgain`, `param.cpp:100-145`):
+///        an operator's row from the top, with its envelope, tuning and sensitivities across it; the pitch envelope,
+///        algorithm, feedback and sync on row 1; the LFO and the random detune on row 0.
+/// @return The pad, or nothing for the keyboard scaling params (8-12), which blink none.
+std::optional<Pad> param_pad(int16_t param);
+
 } // namespace deluge::scenes::menu::dx

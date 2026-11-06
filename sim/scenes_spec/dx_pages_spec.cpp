@@ -14,6 +14,7 @@
 #include "scenes/menu/nodes/dx.h"
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcut_blink.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -512,6 +513,113 @@ describe dx_pages("the DX7 menu pages", ${
 			legacy::dxEngineSelect.readValueAgain();
 			expect(port_panel(nodes::dx_engine_select)).to_equal(legacy_panel(legacy::dxEngineSelect));
 		}
+	});
+
+	it("moves the value within its limits on a select turn and writes oscillator 1's patch", _ {
+		MenuRig r;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		patch.params[134] = 29;
+		patch.random_detune = 3;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		bind::RecordingSink sink;
+		menu_scene().land_dx(menu::DxState{.param = 134});
+		r.open(nodes::dx_param, &sink);
+		r.turn(5);
+		expect(sink.gestures.size()).to_equal(size_t{1});
+		expect(sink.gestures.back().source == 0).to_be_true();
+		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->params[134])).to_equal(31); // the algorithm's limit
+		menu_scene().land_dx(menu::DxState{.param = dx::kRandomDetune});
+		r.open(nodes::dx_param, &sink);
+		r.turn(-5);
+		expect(sink.gestures.back().dx_patch->random_detune).to_equal(0);
+		r.turn(2);
+		expect(sink.gestures.back().dx_patch->random_detune).to_equal(5);
+	});
+
+	it("steps the param on a horizontal turn, wrapping, and the operator under Shift, staying put where legacy hangs", _ {
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = dx::kLastParam});
+		r.open(nodes::dx_param);
+		r.turn(1, kHorizontalEncoder);
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
+		r.turn(-1, kHorizontalEncoder);
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(143);
+
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		patch.params[dx::kOperatorSwitch] = 0b100101; // operators 0, 2 and 5 on
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		menu_scene().land_dx(menu::DxState{.param = 0 * 21 + 18});
+		r.open(nodes::dx_param);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1, kHorizontalEncoder);
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(2 * 21 + 18);
+		r.turn(-1, kHorizontalEncoder);
+		r.turn(-1, kHorizontalEncoder);
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(5 * 21 + 18);
+		r.button(kShiftX, kShiftY, false);
+
+		patch.params[dx::kOperatorSwitch] = 0;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		menu_scene().land_dx(menu::DxState{.param = dx::kFirstGlobal});
+		r.open(nodes::dx_param);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1, kHorizontalEncoder);
+		r.button(kShiftX, kShiftY, false);
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(dx::kFirstGlobal);
+	});
+
+	it("goes up from the parameter page on SELECT and on BACK", _ {
+		MenuRig r;
+		r.open(nodes::dx_global_params);
+		r.select();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		r.select();
+		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+		r.select();
+		r.back();
+		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+	});
+
+	it("blinks the pad legacy's page blinks for every param, every other cycle, and none for the scaling params", _ {
+		MenuRig r;
+		const MenuContext ctx = r.menu_context();
+		for (int16_t param = dx::kRandomDetune; param <= dx::kLastParam; param++) {
+			soundEditor.currentParamShortcutX = 255; // legacy leaves the pad alone where none blinks
+			soundEditor.currentParamShortcutY = 255;
+			legacy_on(param);
+			menu::MenuState state{};
+			state.dx.param = param;
+			state.dx.pad_blink = true;
+			const menu::BlinkPlan plan = menu::plan_blinks(ctx, state, nodes::dx_param);
+			const std::optional<dx::Pad> pad = dx::param_pad(param);
+			if (soundEditor.currentParamShortcutX == 255) {
+				expect(pad.has_value()).to_be_false();
+				expect(plan == menu::BlinkPlan{}).to_be_true();
+			}
+			else {
+				expect(pad.has_value()).to_be_true();
+				expect(static_cast<int32_t>(pad.value_or(dx::Pad{}).x)).to_equal(soundEditor.currentParamShortcutX);
+				expect(static_cast<int32_t>(pad.value_or(dx::Pad{}).y)).to_equal(soundEditor.currentParamShortcutY);
+				expect(static_cast<int32_t>(soundEditor.paramShortcutBlinkFrequency)).to_equal(1);
+				expect(plan == menu::exclusive_blink(soundEditor.currentParamShortcutX, soundEditor.currentParamShortcutY))
+				    .to_be_true();
+			}
+		}
+	});
+
+	it("opens with no pad blinking, as legacy's screen entry unsets the page's blink, and blinks after a step", _ {
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 2 * 21 + 3, .pad_blink = true});
+		r.open(nodes::dx_global_params);
+		r.select(); // "algorithm"
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::BlinkPlan{}).to_be_true();
+		r.turn(1, kHorizontalEncoder);
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::exclusive_blink(9, 1))
+		    .to_be_true(); // feedback's pad
+		r.turn(1); // an edit leaves the blink as it is
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::exclusive_blink(9, 1))
+		    .to_be_true();
 	});
 
 	it("keeps both lists' cursors across leaving them and across another menu, the operators sharing one", _ {

@@ -257,6 +257,9 @@ struct DxState {
 	int8_t op = 0;               ///< `DxOperatorParams::op`, 0-5: operator `6 - op`
 	int16_t global_cursor = 0;   ///< `DxGlobalParams::currentValue`
 	int16_t operator_cursor = 0; ///< `DxOperatorParams::currentValue`
+	/// Whether the parameter page's pad blinks. Legacy's `beginScreen` unsets the blink `readValueAgain` has just set
+	/// up (`updatePadLightsFor`), so the page opens with none, and a horizontal step sets it up again.
+	bool pad_blink = false;
 	bool operator==(const DxState&) const = default;
 };
 
