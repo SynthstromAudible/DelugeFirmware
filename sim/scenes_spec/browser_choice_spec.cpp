@@ -62,6 +62,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -74,7 +75,9 @@
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/sample_preview_open.h"
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -1131,6 +1134,32 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		deluge::gui::ui::dispatchShellChoices();
 		expect(browser::browser_scene().preview_outstanding()).to_be_false();
 		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+	});
+
+	it("sounds the preview while the guest's sample browser is frontmost, and not under the menu", _ {
+		// `AudioEngine::renderSamplePreview` renders the preview drum only for the UIs `samplePreviewUIOpen` names;
+		// under the guest the current UI is `shellHostUI`, so it asks the guest which scene is frontmost.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_true();
+		shellHostUI.shell().stack().pop();
+		expect(&shellHostUI.shell().stack().input_top() == &menu_scene()).to_be_true();
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
 	});
 });
 // clang-format on
