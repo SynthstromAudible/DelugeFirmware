@@ -497,7 +497,8 @@ inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true
 struct ItemBlink {
 	uint8_t x = 0;
 	uint8_t y = 0;
-	bool valid = false; ///< false: no pad blinks at all
+	bool valid = false;    ///< false: no pad blinks at all
+	uint8_t freq_mask = 1; ///< `setupShortcutBlink`'s frequency: the pad flashes on cycles where `(c & mask) == 0`
 };
 
 /// @brief The escape hatch (capped at `kMaxCustomNodes` across the whole tree) for a bespoke item that
@@ -740,6 +741,13 @@ struct CustomItem {
 	/// @return The pad (`ItemBlink::valid` false for none), or nothing to leave the blink to the node.
 	virtual std::optional<ItemBlink> own_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
 		return std::nullopt;
+	}
+
+	/// @brief A Shift + main-pad press on this item's page, asked before the pad is a shortcut at all -- an item with a
+	///        pad layout of its own, as `DxParam::potentialShortcutPadAction` is.
+	/// @return True when the press is the item's: the menu takes it and goes nowhere.
+	virtual bool shortcut_pad(const MenuContext& /*ctx*/, MenuState& /*state*/, uint8_t /*x*/, uint8_t /*y*/) const {
+		return false;
 	}
 
 	/// @brief How the patching-source pad for @p source blinks while this item is focused --

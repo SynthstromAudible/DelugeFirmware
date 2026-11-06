@@ -15,6 +15,7 @@
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -28,12 +29,18 @@
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/operator_params.h"
 #include "gui/menu_item/dx/param.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/menus.h"
+#include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/project_bridge/source_bridge.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
@@ -42,6 +49,8 @@
 
 #include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
+#include "spec/ui/support/frames.h"
+#include "support/dx_rig.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -65,50 +74,12 @@ namespace dx = deluge::scenes::menu::dx;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace legacy = deluge::gui::menu_item;
 
-/// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
-namespace Buttons {
-extern bool shiftCurrentlyPressed;
-extern bool shiftCurrentlyStuck;
-} // namespace Buttons
+/// @brief How many UIs legacy's stack holds (`gui/ui/ui.cpp`), which no header declares.
+extern int32_t numUIsOpen;
 
 namespace {
 
-/// @brief A synth whose first oscillator is DX7, set up for legacy's DX7 items.
-///
-/// Legacy's items read `soundEditor.currentSound`; `setOscType` gives the source its patch, as it does on the device.
-struct DxRig {
-	spec::SongFixture song = spec::make_synth_song();
-	Song* saved = currentSong;
-	Sound* sound = nullptr;
-
-	DxRig() {
-		currentSong = song.song;
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
-		sound->sources[0].setOscType(OscType::DX7);
-		soundEditor.currentSound = sound;
-		soundEditor.currentSource = &sound->sources[0];
-		soundEditor.currentSourceIndex = 0;
-	}
-	~DxRig() {
-		set_shift(false);
-		currentSong = saved;
-	}
-	DxRig(const DxRig&) = delete;
-	DxRig& operator=(const DxRig&) = delete;
-
-	DxPatch& patch() { return *sound->sources[0].ensureDxPatch(); }
-
-	deluge::project::SlotAddress slot() {
-		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
-		            .addresses.slot;
-	}
-
-	/// @brief Hold or release Shift on legacy's side, which is all `isShiftButtonPressed` reads.
-	static void set_shift(bool on) {
-		::Buttons::shiftCurrentlyPressed = on;
-		::Buttons::shiftCurrentlyStuck = false;
-	}
-};
+using namespace deluge::scenes::spec::dx_rig;
 
 /// @brief Legacy's param page on @p param, as `readValueAgain` leaves it.
 void legacy_on(int16_t param) {
@@ -116,102 +87,66 @@ void legacy_on(int16_t param) {
 	legacy::dxParam.readValueAgain();
 }
 
-/// @brief The language the port's and legacy's text come from, and no notice left over from another example.
-void select_language() {
-	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-	deluge::notify::Notice discard;
-	while (deluge::notify::notices().pop(discard)) {}
+/// @brief A runtime feature set for one example, put back as it was after.
+struct Feature {
+	RuntimeFeatureSettingType type;
+	uint32_t saved;
+	Feature(RuntimeFeatureSettingType t, uint32_t value) : type(t), saved(runtimeFeatureSettings.get(t)) {
+		runtimeFeatureSettings.set(t, value);
+	}
+	~Feature() { runtimeFeatureSettings.set(type, saved); }
+	Feature(const Feature&) = delete;
+	Feature& operator=(const Feature&) = delete;
+};
+
+/// @brief The DX7 engine feature on, which gives the parameter page its own pads.
+struct DxEngineOn : Feature {
+	DxEngineOn() : Feature(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::On) {}
+};
+
+/// @brief Legacy's `renderMainShortcutsOnly` with `soundEditor` the current UI on @p item: the overlay `main` paints.
+std::array<std::array<RGB, 18>, 8> legacy_overlay(::MenuItem& item) {
+	RootUI* const root = getRootUI();
+	const int32_t open = numUIsOpen;
+	setRootUILowLevel(&soundEditor);
+	const uint8_t depth = soundEditor.navigationDepth;
+	::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+	soundEditor.menuItemNavigationRecord[depth] = &item;
+	RGB image[8][18]{};
+	uint8_t occupancy[8][18]{};
+	SoundEditor::renderMainShortcutsOnly(nullptr, image, occupancy, false);
+	soundEditor.menuItemNavigationRecord[depth] = was;
+	if (root != nullptr) {
+		setRootUILowLevel(root);
+	}
+	numUIsOpen = open;
+	std::array<std::array<RGB, 18>, 8> out{};
+	for (int32_t y = 0; y < 8; y++) {
+		for (int32_t x = 0; x < 18; x++) {
+			out[y][x] = image[y][x];
+		}
+	}
+	return out;
 }
 
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
-}
-
-/// @brief @p pbm without the five rows above the 48-row panel's visible top, which the port's root frame cannot ink.
-std::string below_bezel(const std::string& pbm) {
-	size_t pos = 0;
-	for (int newlines = 0; pos < pbm.size() && newlines < 2; pos++) {
-		newlines += pbm[pos] == '\n' ? 1 : 0;
+/// @brief The keyboard screen as the root UI on the isomorphic layout, over the rig's clip, put back after.
+struct IsomorphicRoot {
+	RootUI* saved = getRootUI();
+	InstrumentClip* clip;
+	deluge::gui::ui::keyboard::KeyboardState saved_state;
+	explicit IsomorphicRoot(InstrumentClip* c) : clip(c), saved_state(c->keyboardState) {
+		currentSong->setCurrentClip(clip);
+		setRootUILowLevel(&keyboardScreen);
+		clip->keyboardState.currentLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 	}
-	std::string out = pbm.substr(0, pos);
-	for (int i = 0; i < 5 && pos < pbm.size(); i++) {
-		const size_t next = pbm.find('\n', pos);
-		pos = next == std::string::npos ? pbm.size() : next + 1;
-	}
-	return out + pbm.substr(pos);
-}
-
-/// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
-constexpr uint8_t kSelectEncoder = 3;
-constexpr uint8_t kHorizontalEncoder = 1;
-constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-constexpr uint8_t kBackX = 7, kBackY = 1;
-constexpr uint8_t kShiftX = 8, kShiftY = 0;
-
-constexpr const Node* kRoots[] = {&nodes::sound_root, &nodes::source0, &nodes::osc0_type, &nodes::osc1_type,
-                                  &nodes::dx_menu};
-
-/// @brief The DX7 synth with the ported menu over it, on a `Shell` over the fake surfaces.
-struct MenuRig : DxRig {
-	const BoardProfile& profile = deluge_profile();
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge_profile()};
-	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
-	uint32_t now = 0;
-
-	MenuRig() = default;
-	~MenuRig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
+	~IsomorphicRoot() {
+		clip->keyboardState = saved_state;
+		if (saved != nullptr) {
+			setRootUILowLevel(saved);
 		}
-		menu_scene().reset_process_state();
 	}
-	MenuRig(const MenuRig&) = delete;
-	MenuRig& operator=(const MenuRig&) = delete;
-
-	MenuContext menu_context() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
-	}
-	/// @brief Open the menu on @p root, writing to @p sink (the app's when null), and draw it once.
-	void open(const Node& root, bind::WriteSink* sink = nullptr) {
-		MenuContext ctx = menu_context();
-		if (sink != nullptr) {
-			ctx.sink = sink;
-		}
-		(void)menu::assign_node_ids(kRoots);
-		while (shell.stack().depth() > 0) { // a fresh push, so the first frame is drawn whole
-			shell.stack().pop(SceneKind::Null);
-		}
-		menu_scene().open(root, ctx);
-		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
-		tick();
-	}
-	void tick() { shell.tick(now += 10); }
-	void button(uint8_t x, uint8_t y, bool on) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)},
-		                     now += 10);
-	}
-	void select() {
-		button(kSelectEncButtonX, kSelectEncButtonY, true);
-		button(kSelectEncButtonX, kSelectEncButtonY, false);
-		tick();
-	}
-	void back() {
-		button(kBackX, kBackY, true);
-		button(kBackX, kBackY, false);
-		tick();
-	}
-	/// @brief @p detents clicks of a detented encoder: two A-pin edges each.
-	void turn(int32_t detents, uint8_t encoder = kSelectEncoder) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, encoder, 0, static_cast<int16_t>(detents * 2)},
-		                     now += 10);
-		tick();
-	}
-	const Node* focused() const { return menu_scene().focused(); }
-	const menu::MenuState& state() const { return menu_scene().state(); }
-	int16_t cursor() const { return state().list[state().depth].cursor; }
+	IsomorphicRoot(const IsomorphicRoot&) = delete;
+	IsomorphicRoot& operator=(const IsomorphicRoot&) = delete;
 };
 
 } // namespace
@@ -397,15 +332,6 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(-3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2); // legacy drops a turn that would leave the modes
 		expect(sink.gestures.size()).to_equal(size_t{1});
-	});
-
-	it("goes up from DX7 source's browse row and files the browser's action, opening nothing", _ {
-		MenuRig r;
-		r.open(nodes::dx_menu);
-		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
-		r.select();
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
-		expect(menu_scene().take_action().action == MenuAction::OpenDxBrowser).to_be_true();
 	});
 
 	it("opens the parameter page or an operator's list from DX7 parameters, as legacy's rows do", _ {
@@ -673,6 +599,248 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
 		r.open(nodes::dx_operator_params);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
+	});
+	it("picks the param legacy's DX7 pad layout picks for every main pad, the inverse of the blink's pad", _ {
+		DxRig r;
+		Popups p; // `flashParamName` asks the display whether it is a 7-segment one
+		constexpr int16_t kUntouched = 2 * 21 + 8; // a scaling param: no pad picks it
+		for (uint8_t x = 0; x < 16; x++) {
+			for (uint8_t y = 0; y < 8; y++) {
+				legacy_on(kUntouched);
+				(void)legacy::dxParam.potentialShortcutPadAction(x, y, true);
+				const std::optional<int16_t> mine = dx::pad_param(x, y);
+				const std::string tag = "pad " + std::to_string(x) + "," + std::to_string(y) + " ";
+				expect(tag + std::to_string(mine.value_or(kUntouched)))
+				    .to_equal(tag + std::to_string(legacy::dxParam.param));
+				if (mine) {
+					if (const std::optional<dx::Pad> back = dx::param_pad(*mine)) {
+						expect(*back == dx::Pad{x, y}).to_be_true();
+					}
+				}
+			}
+		}
+		expect(dx::pad_param(16, 4).has_value()).to_be_false(); // the sidebar
+	});
+
+	it("takes every Shift + pad on the parameter page with the DX7 engine on: a pad picks its param and blinks", _ {
+		select_language();
+		DxEngineOn on;
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		r.shift_pad(3, 4); // operator index 3's rate 4
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(3 * 21 + 3);
+		expect(r.state().dx.pad_blink).to_be_true();
+		r.shift_pad(5, 1); // the pitch envelope's level 2
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(131);
+		r.shift_pad(7, 0); // random detune
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
+		r.shift_pad(12, 0); // no param: swallowed, the page stays on the param
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
+	});
+
+	it("leaves the pads the menu's shortcuts on the parameter page with the DX7 engine off", _ {
+		select_language();
+		Feature off(RuntimeFeatureSettingType::EnableDX7Engine, RuntimeFeatureStateToggle::Off);
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		r.shift_pad(3, 4);
+		expect(r.focused() == &nodes::dx_param).to_be_false();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(16);
+	});
+
+	it("paints main's DX7 colour map as the overlay on the parameter page, and the ordinary one elsewhere", _ {
+		select_language();
+		DxEngineOn on;
+		MenuRig r;
+		const MenuContext ctx = r.menu_context();
+		const auto painted = [&](const Node& page) {
+			menu::MenuState st{};
+			st.path[0] = &page;
+			deluge::ui::test::GridRig rig;
+			menu::render_overlay(rig.frame, ctx, st, nullptr);
+			std::array<std::array<RGB, 18>, 8> out{};
+			for (uint8_t y = 0; y < 8; y++) {
+				for (uint8_t x = 0; x < 16; x++) {
+					out[y][x] = rig.frame.peek(x, y);
+				}
+			}
+			return out;
+		};
+		std::array<std::array<RGB, 18>, 8> want = legacy_overlay(legacy::dxParam);
+		for (auto& row : want) {
+			row[16] = RGB{}; // the overlay paints the main pads only
+			row[17] = RGB{};
+		}
+		const auto dx_map = painted(nodes::dx_param);
+		expect(dx_map == want).to_be_true();
+		expect(painted(nodes::dx_global_params) == dx_map).to_be_false();
+	});
+
+	it("shows the DX7 colour map under Shift on the parameter page", _ {
+		select_language();
+		DxEngineOn on;
+		Feature overlay(RuntimeFeatureSettingType::ShortcutOverlay,
+		                static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly));
+		MenuRig r;
+		const auto shown = [&] {
+			r.button(kShiftX, kShiftY, true);
+			r.tick();
+			r.tick();
+			std::array<std::array<RGB, 16>, 8> out{};
+			for (uint8_t y = 0; y < 8; y++) {
+				for (uint8_t x = 0; x < 16; x++) {
+					out[y][x] = r.fake.grid().grid().at(x, y);
+				}
+			}
+			r.button(kShiftX, kShiftY, false);
+			r.tick();
+			return out;
+		};
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		const auto on_page = shown();
+		r.open(nodes::dx_global_params);
+		const auto elsewhere = shown();
+		expect(on_page == elsewhere).to_be_false();
+		// The LFO row's first pad: pastel blue in the DX7 map, dimmed as every overlay pad is.
+		expect(on_page[0][0] == elsewhere[0][0]).to_be_false();
+	});
+	it("moves the param as legacy's openForOpOrGlobal does for every DX column pad, on the page and off it", _ {
+		DxRig r;
+		RootUI* const root = getRootUI();
+		const int32_t open = numUIsOpen;
+		setRootUILowLevel(&soundEditor); // the editor is open...
+		const uint8_t depth = soundEditor.navigationDepth;
+		::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+		soundEditor.menuItemNavigationRecord[depth] = &legacy::dxParam; // ...on the parameter page
+		for (int32_t op = 0; op < 8; op++) {
+			// Off the page, legacy's `setup()` opens it and the param is the operator's level, or the algorithm.
+			expect(static_cast<int32_t>(dx::column_param(5, op, false))).to_equal(op < 6 ? op * 21 + 16 : 134);
+			for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+				legacy_on(p);
+				legacy::dxParam.openForOpOrGlobal(op);
+				const std::string tag = "op " + std::to_string(op) + " from " + std::to_string(p) + " ";
+				expect(tag + std::to_string(dx::column_param(p, op, true)))
+				    .to_equal(tag + std::to_string(legacy::dxParam.param));
+			}
+		}
+		soundEditor.menuItemNavigationRecord[depth] = was;
+		if (root != nullptr) {
+			setRootUILowLevel(root);
+		}
+		numUIsOpen = open;
+	});
+
+	it("toggles on the page and moves the menu there from elsewhere on a DX column press, its pad blinking", _ {
+		select_language();
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		menu_scene().dx_column_press(0); // operator index 0's level again: its coarse tuning
+		r.tick();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(18);
+		expect(r.state().dx.pad_blink).to_be_true();
+		r.open(nodes::dx_global_params);
+		menu_scene().dx_column_press(4); // from another page: the parameter page, on operator index 4's level
+		r.tick();
+		r.tick();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
+		expect(r.state().dx.pad_blink).to_be_true();
+	});
+	it("flashes the row legacy's readValueAgain flashes for every param", _ {
+		DxRig r;
+		for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+			legacy_on(p);
+			const std::string tag = "param " + std::to_string(p) + " ";
+			expect(tag + std::to_string(dx::flash_row(p))).to_equal(tag + std::to_string(legacy::dxParam.flash_row));
+		}
+	});
+
+	it("blinks the breakpoint note's pad where legacy's renderScaling does, over every layout of the keyboard", _ {
+		select_language();
+		DxRig r;
+		IsomorphicRoot root{r.song.clip};
+		for (const int32_t scroll : {0, 12, 40, 60}) {
+			for (int32_t interval = 1; interval <= 16; interval++) {
+				r.song.clip->keyboardState.isomorphic.scrollOffset = scroll;
+				r.song.clip->keyboardState.isomorphic.rowInterval = interval;
+				for (int32_t breakpoint = 0; breakpoint < 100; breakpoint += 3) {
+					r.patch().params[2 * 21 + 8] = static_cast<uint8_t>(breakpoint);
+					legacy_on(2 * 21 + 8);
+					soundEditor.currentParamShortcutX = 255;
+					uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 1000);
+					legacy::dxParam.renderOLED();
+					const std::optional<dx::Pad> mine = dx::breakpoint_pad(static_cast<uint8_t>(breakpoint), scroll,
+					                                                       interval);
+					const std::string tag = std::to_string(scroll) + "/" + std::to_string(interval) + "/"
+					                        + std::to_string(breakpoint) + " ";
+					if (mine) {
+						expect(tag + std::to_string(mine->x) + "," + std::to_string(mine->y))
+						    .to_equal(tag + std::to_string(soundEditor.currentParamShortcutX) + ","
+						              + std::to_string(soundEditor.currentParamShortcutY));
+						expect(static_cast<int32_t>(soundEditor.paramShortcutBlinkFrequency)).to_equal(2);
+					}
+					else {
+						expect(tag + std::to_string(uiTimerManager.isTimerSet(TimerName::SHORTCUT_BLINK)))
+						    .to_equal(tag + "0");
+					}
+				}
+			}
+		}
+	});
+
+	it("blinks the breakpoint's pad on a keyboard scaling param over the isomorphic keyboard, at legacy's frequency", _ {
+		select_language();
+		MenuRig r;
+		IsomorphicRoot root{r.song.clip};
+		r.song.clip->keyboardState.isomorphic.scrollOffset = 40;
+		r.song.clip->keyboardState.isomorphic.rowInterval = 5;
+		r.patch().params[1 * 21 + 8] = 45;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 10});
+		r.open(nodes::dx_param);
+		const std::optional<menu::ItemBlink> blink = nodes::kDxParam.own_blink(r.menu_context(), r.state());
+		const std::optional<dx::Pad> want = dx::breakpoint_pad(45, 40, 5);
+		expect(want.has_value()).to_be_true();
+		expect(blink.has_value() && blink->valid).to_be_true();
+		expect(blink->x == want->x && blink->y == want->y).to_be_true();
+		expect(static_cast<int32_t>(blink->freq_mask)).to_equal(2);
+		// Off the scaling params the page's own rule holds.
+		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 3});
+		r.open(nodes::dx_param);
+		const std::optional<menu::ItemBlink> other = nodes::kDxParam.own_blink(r.menu_context(), r.state());
+		expect(other.has_value() && !other->valid).to_be_true(); // the page opens with no blink
+	});
+
+	it("flashes the edited operator's column row white for 100 ms in every 400 over the keyboard, from each change", _ {
+		select_language();
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 2 * 21 + 16});
+		r.open(nodes::dx_param, nullptr, /*keyboard_root=*/true);
+		expect(r.state().dx.flash_anchor_ms.has_value()).to_be_true();
+		const uint32_t anchor = *r.state().dx.flash_anchor_ms;
+		const auto row = [&](uint32_t at) { return menu_scene().dx_column_flash(anchor + at).value_or(-1); };
+		expect(row(0)).to_equal(5); // operator index 2's row, `7 - op`
+		expect(row(99)).to_equal(5);
+		expect(row(100)).to_equal(-1);
+		expect(row(399)).to_equal(-1);
+		expect(row(400)).to_equal(5);
+		// A horizontal step restarts it, on the new param's row.
+		r.now += 250;
+		r.turn(1, kHorizontalEncoder);  // to the operator's mode...
+		r.turn(-1, kHorizontalEncoder); // ...and back to its level
+		expect(*r.state().dx.flash_anchor_ms > anchor).to_be_true();
+		const uint32_t again = *r.state().dx.flash_anchor_ms;
+		expect(menu_scene().dx_column_flash(again).value_or(-1)).to_equal(5);
+		// Not over another root.
+		r.open(nodes::dx_param);
+		expect(menu_scene().dx_column_flash(*r.state().dx.flash_anchor_ms).has_value()).to_be_false();
 	});
 });
 // clang-format on

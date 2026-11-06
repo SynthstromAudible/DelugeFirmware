@@ -32,6 +32,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
@@ -41,12 +42,12 @@
 #include <span>
 
 /// @file
-/// @brief The fourteen `openUI(&soundEditor)` sites, and what each one wanted open.
+/// @brief The fifteen `openUI(&soundEditor)` sites, and what each one wanted open.
 ///
-/// The fourteen are not uniform, and a reader deciding whether to add a fifteenth needs to know
+/// The fifteen are not uniform, and a reader deciding whether to add a sixteenth needs to know
 /// which shape it is.
 ///
-/// **Gated (twelve).** Each one's `else` is byte-for-byte what it ran before.
+/// **Gated (thirteen).** Each one's `else` is byte-for-byte what it ran before.
 ///
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
@@ -63,6 +64,7 @@
 /// | 13 | `gui/views/instrument_clip_view.cpp:3812-3820` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:1777-1779`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. **Only when `getCurrentUI() != &soundEditor`**: `sound_editor.cpp:1403-1409` also calls this from inside a legacy sound editor (audition + the sequence-direction shortcut, in an editor site 9's legacy fallback opened), and there the guest would stack on `soundEditor` and diverge after the first BACK, so that case keeps opening the legacy editor |
 /// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view (the current UI is neither `soundEditor` nor `sampleMarkerEditor`) | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad | `openShellMenuAtShortcut`, the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`: the horizontal page listing it, focused on it). The DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). A press from the sample-marker editor stays legacy, as does any pad the port resolves no node for |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:304-305` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`gui/ui/menus.cpp:1735`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
+/// | 15 | `gui/ui/keyboard/column_controls/dx.cpp:101-108` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`gui/menu_item/dx/param.cpp:508-536`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
 ///
 /// **Not gated (two).** Each keeps opening `soundEditor` whatever the toggle says, for the reason its row
 /// gives.
@@ -103,6 +105,9 @@ bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 		return out != 0;
 	case ShellMenuNode::Dx:
 		out = menu::node_id(menu::nodes::dx_menu);
+		return out != 0;
+	case ShellMenuNode::DxParam:
+		out = menu::node_id(menu::nodes::dx_param);
 		return out != 0;
 	}
 	return false;
@@ -272,6 +277,20 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 	}
 	// No undo-log wipe: `setup()` wipes only when it is given no item.
 	return openGuest(*root, ctx, 0, node);
+}
+
+bool openShellDxColumn(int32_t op) {
+	if (isUIOpen(&shellHostUI)) {
+		deluge::scenes::menu_scene().dx_column_press(op);
+		return true;
+	}
+	// `openForOpOrGlobal`'s `setup(getCurrentClip(), this, 0)`, then the param, set after the screen began.
+	menu::DxState dx = deluge::scenes::menu_scene().state().dx;
+	dx.param = menu::dx::column_param(dx.param, op, false);
+	dx.blink_on_focus = true;
+	deluge::scenes::menu_scene().land_dx(dx);
+	return openShellMenu(getCurrentClip(), 0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+	                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::DxParam);
 }
 
 } // namespace deluge::gui::ui

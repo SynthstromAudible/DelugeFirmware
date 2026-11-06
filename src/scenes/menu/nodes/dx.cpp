@@ -3,6 +3,7 @@
 
 #include "scenes/menu/nodes/dx.h"
 
+#include "scenes/browser/browser_scene.h" // DxBrowseItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
@@ -75,7 +76,7 @@ void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState&
 ///        DX7 lists, and publish the render's response.
 deluge::ui::Response draw_list(deluge::ui::oled::OledFrame& f, MenuState& state,
                                std::span<const std::string_view> names) {
-	constexpr size_t kMaxRows = 11;
+	constexpr size_t kMaxRows = 32;
 	std::array<deluge::ui::oled::ListRow, kMaxRows> rows{};
 	const size_t n = std::min(names.size(), kMaxRows);
 	for (size_t i = 0; i < n; i++) {
@@ -246,10 +247,12 @@ bool source_is_dx(const MenuContext& ctx, size_t source) {
 // ---------------------------------------------------------------------------------------------
 // `DxBrowseMenu` (`gui/menu_item/dx/browse.cpp`)
 
-void DxBrowseItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	// `beginSession`: `shouldGoUpOneLevelOnBegin`, then `openUI(&dxBrowser)`. The menu goes up when it drains the
-	// request.
-	state.walk.pending_action = MenuActionRequest{.action = MenuAction::OpenDxBrowser};
+void DxBrowseItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `beginSession` (`browse.cpp:27-37`): `shouldGoUpOneLevelOnBegin`, then `openUI(&dxBrowser)`. The menu sets the
+	// go-up when it pushes the browser.
+	browser::browser_scene().open(ctx);
+	state.walk.pending_scene =
+	    deluge::ui::shell::SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::DxSyx)};
 }
 
 void DxBrowseItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -259,6 +262,66 @@ void DxBrowseItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*c
 deluge::ui::shell::Result DxBrowseItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
                                                const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                                const MenuContext& /*ctx*/, MenuState& /*state*/) const {
+	return {};
+}
+
+// ---------------------------------------------------------------------------------------------
+// `DxCartridge` (`gui/menu_item/dx/cartridge.cpp`)
+
+namespace {
+
+/// @brief Load program @p program of the bank the last read loaded into the menu's source.
+void load_program(const MenuContext& ctx, int32_t program) {
+	if (ctx.sink != nullptr && ctx.addresses.slot) {
+		(void)ctx.sink->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), program);
+	}
+}
+
+} // namespace
+
+void DxCartridgeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `beginSession`'s `loadPatch()` on the first program: the read put `currentValue` there.
+	focus_list(state, 0);
+	load_program(ctx, 0);
+}
+
+void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
+	draw_title_for(f, state);
+	const std::optional<bind::DxCartridgeNames> bank =
+	    ctx.facts != nullptr ? ctx.facts->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
+	if (!bank || bank->count <= 0) {
+		return; // `drawPixelsForOled` draws nothing with no bank
+	}
+	deluge::ui::ListState& list = state.list[depth_of(state)];
+	// `selectEncoderAction`: the cursor clamps to the bank, and only a move loads the program.
+	list.freeze_cursor = true;
+	if (const int32_t t = f.turn(); t != 0) {
+		const int32_t next = std::clamp<int32_t>(list.cursor + t, 0, bank->count - 1);
+		if (next != list.cursor) {
+			list.cursor = static_cast<int16_t>(next);
+			load_program(ctx, next);
+			f.gate().request_repaint();
+		}
+	}
+	std::array<std::string_view, 32> names{};
+	for (int32_t i = 0; i < bank->count; i++) {
+		names[i] = std::string_view{bank->names[i].data()};
+	}
+	const deluge::ui::Response resp =
+	    draw_list(f, state, std::span<const std::string_view>{names.data(), static_cast<size_t>(bank->count)});
+	if (resp.entered) {
+		// `selectButtonPress`: `soundEditor.exitCompletely()`.
+		state.walk.exit_completely = true;
+	}
+}
+
+deluge::ui::InputClaims DxCartridgeItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {
+	return kListInput;
+}
+
+deluge::ui::shell::Result DxCartridgeItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
+                                                  const deluge::ui::shell::UiContext& /*ui_ctx*/,
+                                                  const MenuContext& /*ctx*/, MenuState& /*state*/) const {
 	return {};
 }
 
@@ -413,14 +476,20 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 		if (!f.shift()) {
 			param = dx::step_param(param, h);
 			state.dx.pad_blink = true;
+			state.dx.flash_restart = true;
 		}
 		else if (patch && param >= 0 && param <= dx::kFirstGlobal) {
 			// `patch` is legacy's `!patch` test, which never fires: a DX7 source always has a patch, and so do its
 			// facts.
 			param = dx::step_operator(param, h, patch->params).value_or(param);
 			state.dx.pad_blink = true;
+			state.dx.flash_restart = true;
 		}
 		f.gate().request_repaint();
+	}
+
+	if (std::exchange(state.dx.flash_restart, false)) {
+		state.dx.flash_anchor_ms = f.now_ms();
 	}
 
 	std::array<char, 32> title{};
@@ -442,12 +511,45 @@ deluge::ui::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/, con
 }
 
 void DxParamItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	state.dx.pad_blink = false;
+	state.dx.pad_blink = std::exchange(state.dx.blink_on_focus, false);
+	state.dx.flash_restart = true; // `beginSession`'s `readValueAgain`
 }
 
-std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& /*ctx*/, const MenuState& state) const {
+std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const MenuState& state) const {
+	// `renderScaling` (`param.cpp:372-395`) sets the breakpoint note's pad blinking on every draw of a keyboard scaling
+	// param over the isomorphic keyboard, after `readValueAgain` and `beginScreen` have unset it.
+	const int16_t param = state.dx.param;
+	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12
+	    && ctx.facts != nullptr) {
+		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.facts->isomorphic_keyboard()) {
+			const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+			const int32_t breakpoint = param - param % dx::kOperatorParams + 8;
+			const std::optional<dx::Pad> pad =
+			    patch ? dx::breakpoint_pad(patch->params[breakpoint], keyboard->scroll_offset, keyboard->row_interval)
+			          : std::nullopt;
+			// `setupShortcutBlink(x, y, 2)`, or the unset for a note off the grid.
+			return pad ? ItemBlink{.x = pad->x, .y = pad->y, .valid = true, .freq_mask = 2} : ItemBlink{};
+		}
+	}
 	const std::optional<dx::Pad> pad = state.dx.pad_blink ? dx::param_pad(state.dx.param) : std::nullopt;
 	return pad ? ItemBlink{.x = pad->x, .y = pad->y, .valid = true} : ItemBlink{};
+}
+
+bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
+	if (ctx.facts == nullptr || !ctx.facts->dx7_engine_enabled()) {
+		return false;
+	}
+	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
+		state.dx.param = *param;
+		state.dx.pad_blink = true; // `readValueAgain` sets the new param's blink up
+		state.dx.flash_restart = true;
+	}
+	// "even if we didn't find param, we want to return true so that we ignore other non-dx shortcut presses".
+	return true;
+}
+
+bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
+	return focused_of(state) == &dx_param && ctx.facts != nullptr && ctx.facts->dx7_engine_enabled();
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

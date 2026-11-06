@@ -134,7 +134,7 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The two descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
+// The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
 /// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:86`).
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
@@ -295,6 +295,28 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 	return AcceptOutcome::Defer;
 }
 
+// --- DX7 `.syx` banks: `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`) ---
+
+char const* kSyxExtensions[] = {"SYX", nullptr};
+
+bool dx_syx_can(const menu::MenuContext& ctx) {
+	// `DxSyxBrowser::opened` refuses nothing of its own: only "DX7 source" lists the row that opens it. A bank loads
+	// into the sound the menu edits, so there has to be one.
+	return ctx.addresses.slot.has_value();
+}
+
+void dx_syx_start_at(const menu::MenuContext& /*ctx*/, std::string& dir, std::string& name) {
+	// `DxSyxBrowser::opened`: always `DX7`, on its first entry (`fileIndexSelected = 0`; no remembered name).
+	dir = "DX7";
+	name.clear();
+}
+
+AcceptOutcome dx_syx_accept(const menu::MenuContext& /*ctx*/, std::string_view /*path*/, Error& /*error*/) {
+	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `dxCartridge`, a `gui/` object this layer may
+	// not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
+	return AcceptOutcome::DeferAndWait;
+}
+
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
     // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`) plus `SampleBrowser::opened`
     // (`:110-113`): the wave icon, "Audio files", the audio extensions, note names interpreted, and
@@ -328,6 +350,21 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .start_at = midi_device_start_at,
         .folder_refusal = nullptr,
         .accept = midi_device_accept,
+    },
+    // `DxSyxBrowser::DxSyxBrowser` and `opened`: the wave icon, "DX7 syx files", `.syx` only, note names off, and
+    // folders allowed to share a name with a file.
+    {
+        .title = "DX7 syx files",
+        .extensions = kSyxExtensions,
+        .default_dir = "DX7",
+        .file_icon = &gfx::oled::icons::browserWave,
+        .file_icon_pt2 = nullptr,
+        .interpret_note_names = false,
+        .allow_folders_sharing_name_with_file = true,
+        .can = dx_syx_can,
+        .start_at = dx_syx_start_at,
+        .folder_refusal = nullptr,
+        .accept = dx_syx_accept,
     },
 }};
 
@@ -371,6 +408,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
 	awaiting_load_ = false;
+	awaiting_deferred_ = false;
+	deferred_done_.reset();
 	slice_out_ = false;
 	slice_ready_.reset();
 	slice_from_shift_ = false;
@@ -453,6 +492,9 @@ void BrowserScene::on_exit() {
 	xenc_held_ = false;
 	pad_scroll_.reset();
 	waveform_scroll_ = 0;
+	// A load still out is the host's to cancel (`DxSyxBrowser::close`): it sees no browser waiting.
+	awaiting_deferred_ = false;
+	deferred_done_.reset();
 	FileCatalogue::emptyFileItems();
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
@@ -910,8 +952,8 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 		}
 		// Legacy's remaining arm appends up to four '0's to the search string and tries again
 		// (`:868-874`), a slot-browser behaviour whose comment says "this code is original but I
-		// don't know what it does". Neither of this scene's two descriptors is a slot browser --
-		// both were split off `Browser` directly, and `filePrefix` is null for both -- so the arm is
+		// don't know what it does". None of this scene's three descriptors is a slot browser --
+		// each was split off `Browser` directly, and `filePrefix` is null for all three -- so the arm is
 		// deliberately not ported rather than transcribed unexercised.
 		return SearchOutcome::NotFound;
 	}
@@ -936,7 +978,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 	case SearchOutcome::Found:
 		break;
 	case SearchOutcome::NotFound:
-		// `:842-846`, with `mayDefaultToBrandNewNameOnEntry` false for both descriptors: put the
+		// `:842-846`, with `mayDefaultToBrandNewNameOnEntry` false for every descriptor: put the
 		// selected file's name back and undo the cursor advance (`qwerty_ui.cpp:357-359`).
 		if (file_index_ >= 0) {
 			set_entered_text_from_current_filename();
@@ -1044,7 +1086,7 @@ void BrowserScene::step_selection(int32_t offset) {
 	//
 	// @note Legacy's shift/`numberEditPos` arm (`:576-629`) walks whole slot numbers -- "SONG12" ->
 	//       "SONG13" -- and is guarded by `nameAfterPrefix`, which returns null unless the name
-	//       starts with `filePrefix`. Both descriptors here leave `filePrefix` null (only the
+	//       starts with `filePrefix`. Every descriptor here leaves `filePrefix` null (only the
 	//       slot-based load/save browsers set it), so legacy's own guard takes the `nonNumeric`
 	//       branch for every name either of them can show, and the arm is not ported.
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
@@ -1186,6 +1228,16 @@ Result BrowserScene::enter_key_press(bool shift) {
 	case AcceptOutcome::Defer:
 		choice_ = BrowserChoice{id_, std::move(path)};
 		return close();
+	case AcceptOutcome::DeferAndWait: {
+		// One load at a time: `DxSyxBrowser::enterKeyPress` ignores an Enter while its read is in flight.
+		if (!awaiting_deferred_) {
+			choice_ = BrowserChoice{id_, std::move(path)};
+			awaiting_deferred_ = true;
+		}
+		Result r;
+		r.handled = true;
+		return r;
+	}
 	}
 	return close();
 }
@@ -1345,6 +1397,15 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
 		// *main* pads only.
 		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+		if (id_ == BrowserId::DxSyx) {
+			// `DxSyxBrowser::opened` sets `qwertyVisible = false` and never draws the keys: the pads still type, dark.
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
+					(void)f.pad(x, y, RGB{0, 0, 0});
+				}
+			}
+			return;
+		}
 		// The rows stay drawn with the keys once the keyboard is hidden, as `main`'s pads keep them; only the
 		// flash and the presses need the keyboard visible.
 		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
@@ -1492,6 +1553,18 @@ Result BrowserScene::after_render() {
 		long_press_done_.reset();
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = context_menu::kContextMenuSceneKind});
+		if (success) {
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	}
+
+	// 1b'. A `DeferAndWait` accept's load ended: a success closes this browser, a failure leaves it up.
+	if (deferred_done_.has_value()) {
+		const bool success = *deferred_done_;
+		deferred_done_.reset();
+		r.handled = true;
 		if (success) {
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
 		}
@@ -1969,6 +2042,14 @@ bool BrowserScene::fresh_kit() const {
 	       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
 }
 
+void BrowserScene::deferred_load_done(bool success) {
+	if (!awaiting_deferred_) {
+		return;
+	}
+	awaiting_deferred_ = false;
+	deferred_done_ = success;
+}
+
 void BrowserScene::long_press_done(bool success) {
 	if (!awaiting_load_) {
 		return;
@@ -2030,13 +2111,14 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 
-	// A preview the host has not answered: the host's dispatcher ticks its load only when the guest is woken.
-	if (preview_outstanding_) {
+	// A preview or a `DeferAndWait` load the host has not answered: the host's dispatcher ticks its load only when the
+	// guest is woken.
+	if (preview_outstanding_ || awaiting_deferred_) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 
 	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.
-	if (long_press_done_.has_value() || slice_ready_.has_value() || pads_changed_) {
+	if (long_press_done_.has_value() || deferred_done_.has_value() || slice_ready_.has_value() || pads_changed_) {
 		return 0;
 	}
 

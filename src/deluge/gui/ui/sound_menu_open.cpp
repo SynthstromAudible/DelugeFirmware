@@ -20,6 +20,7 @@
 
 #include "util/sound_menu_open.h"
 
+#include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
@@ -45,6 +46,17 @@ void readSoundMenuValueAgain() {
 	else if (shellSoundMenuOpen()) {
 		shellMenuReadValueAgain();
 	}
+}
+
+std::optional<int32_t> dxColumnFlashRow() {
+	if (shellSoundMenuOpen()) {
+		return shellDxColumnFlashRow();
+	}
+	if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::dxParam
+	    && menu_item::dxParam.blink_next) {
+		return menu_item::dxParam.flash_row;
+	}
+	return std::nullopt;
 }
 
 bool rangePickerOpen() {

@@ -50,6 +50,7 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/sound_menu_open.h"
 
 #include <atomic>
 
@@ -251,6 +252,23 @@ void refreshShellRangeDisplay() {
 	}
 	else if (root != nullptr && root->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 		uiNeedsRendering(root, 0, 0xFFFFFFFF);
+	}
+}
+
+std::optional<int32_t> shellDxColumnFlashRow() {
+	return deluge::scenes::menu_scene().dx_column_flash(shellHostUI.nowMs());
+}
+
+void refreshShellDxColumn() {
+	static std::optional<int32_t> lastFlashRow;
+	const std::optional<int32_t> row = dxColumnFlashRow();
+	if (row == lastFlashRow) {
+		return;
+	}
+	lastFlashRow = row;
+	// `blinkSideColumn`'s `uiNeedsRendering(&keyboardScreen, 0, 0xFFFFFFFF)`: the sidebar alone.
+	if (getRootUI() == &keyboardScreen) {
+		uiNeedsRendering(&keyboardScreen, 0, 0xFFFFFFFF);
 	}
 }
 

@@ -34,6 +34,7 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx_tables.h"
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -123,6 +124,8 @@ void MenuScene::retarget(const Node& node) {
 void MenuScene::reset_process_state() {
 	walk_.forget_rows();
 	st_.dx = DxState{};
+	pending_retarget_ = 0;
+	land_dx_cartridge_ = false;
 	view_.forget_acceleration();
 	voice_usage_ = VoiceUsageClock{};
 }
@@ -253,6 +256,11 @@ void MenuScene::on_resume() {
 	}
 	visit_.use_up_select = true;
 	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
+	if (std::exchange(land_dx_cartridge_, false) && focused() == &nodes::dx_browse) {
+		// `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)`, with `shouldGoUpOneLevelOnBegin` cleared: no going up.
+		st_.walk.go_up_on_resume = false;
+		walk_.descend_to(core(), visit_.session, nodes::dx_cartridge);
+	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -286,6 +294,33 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	}
 	landing_survives_resume_ = true;
 	return SceneId{SceneKind::FirstApp, id};
+}
+
+void MenuScene::dx_column_press(int32_t op) {
+	const bool on_page = focused() == &nodes::dx_param;
+	st_.dx.param = dx::column_param(st_.dx.param, op, on_page);
+	if (on_page) {
+		st_.dx.pad_blink = true;
+		st_.dx.flash_restart = true;
+	}
+	else {
+		st_.dx.blink_on_focus = true;
+		pending_retarget_ = node_id(nodes::dx_param);
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
+	if (!dx_column_flashing()) {
+		return std::nullopt;
+	}
+	const uint32_t phase = (now_ms - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+	return phase < dx::kColumnFlashOnMs ? std::optional{dx::flash_row(st_.dx.param)} : std::nullopt;
+}
+
+bool MenuScene::dx_column_flashing() const {
+	// `DxParam::hasSideColumn`: the parameter page over the keyboard screen.
+	return focused() == &nodes::dx_param && ctx_.root_is_keyboard && st_.dx.flash_anchor_ms.has_value();
 }
 
 void MenuScene::delete_range_press() {
@@ -531,6 +566,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 }
 
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	render_ms_ = f.now_ms();
 	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
 	// input, and a menu under another scene shows no overlay.
 	if (!f.covered) {
@@ -620,6 +656,18 @@ Result MenuScene::after_render_navigation() {
 	}
 	if (walk_.take_close_request()) {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+		return r;
+	}
+	if (const uint16_t to = std::exchange(pending_retarget_, 0); to != 0) {
+		// `dx_column_press` off the parameter page: `setup()` re-roots, as a shortcut's `Replace` does.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = SceneId{SceneKind::FirstApp, to}});
+		return r;
+	}
+	if (std::exchange(st_.walk.exit_completely, false)) {
+		// An item's `soundEditor.exitCompletely()`.
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
@@ -842,7 +890,6 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::SetClipLengthToSampleLength:
 		case MenuAction::OpenSongMidiLearn:
 		case MenuAction::OpenSongMacros:
-		case MenuAction::OpenDxBrowser: // `DxBrowseMenu::beginSession`'s `shouldGoUpOneLevelOnBegin`
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:
@@ -1056,7 +1103,15 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
 		return sample;
 	}
-	return pad_next_timer(ctx_, st_);
+	std::optional<uint32_t> next = pad_next_timer(ctx_, st_);
+	if (dx_column_flashing()) {
+		// The keyboard DX column's next flip, which the host reads after the tick (`dx_column_flash`).
+		const uint32_t phase = (render_ms_ - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+		const uint32_t flip =
+		    phase < dx::kColumnFlashOnMs ? dx::kColumnFlashOnMs - phase : dx::kColumnFlashPeriodMs - phase;
+		next = next.has_value() ? std::min(*next, flip) : flip;
+	}
+	return next;
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {

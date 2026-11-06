@@ -534,7 +534,7 @@ moveAfterClipInstance:
 				}
 				// open Song FX menu
 				//
-				// F1 task 9, site 2 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+				// Site 2 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the
 				// two legacy statements unchanged.
 				if (deluge::gui::ui::shellMenuEnabled()) {
 					// No shift (`:506`) and the session view is the root, so `setup()` picks

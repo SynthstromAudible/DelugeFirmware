@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 /// @file
 /// @brief "Is the sound menu open?" -- legacy's own question, asked so that it also sees the ported menu.
@@ -53,6 +54,12 @@ bool rangeDependentMenuOpen();
 ///        current.
 /// @param untransposed The note as the clip has it, before the sound's transpose.
 bool noteWithinCurrentRange(int32_t untransposed);
+
+/// @brief The keyboard DX column's row that shows white now: legacy's `dxParam.flash_row` while `soundEditor` is
+///        current on the parameter page and `dxParam.blink_next` is set, or the ported page's
+///        (`MenuScene::dx_column_flash`).
+/// @return The row, or nothing when no row is white.
+std::optional<int32_t> dxColumnFlashRow();
 
 /// @brief Legacy's `menu_item::multiRangeMenu.noteOnToChangeRange(note)`, or the ported picker's.
 /// @param note The note, transposed as the sound plays it.

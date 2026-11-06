@@ -24,3 +24,11 @@ without `shellMenu`). The firmware's MOD7 is the emulator's `Mod6`: held with SY
 source"; one detent at a time, since main's horizontal page takes a multi-detent turn differently. `c25` is the new FM
 synth and its browse row, `c26` the DX shortcut pad (4,0), whose modulator item does not apply to a DX7 sound, and
 `c27` every DX7 parameter page layout, the horizontal wrap, Shift+horizontal and the engine version.
+
+`c28` to `c31` use the same DX cards. `c28` is the keyboard screen's DX column (on the sidebar's right column, x 17):
+a pad switches its operator off, and Shift + a pad opens the DX7 parameter page on that operator or toggles it, with
+the edited operator's row flashing white; its keyboard scaling breakpoint is raised onto the grid so its note's pad
+blinks. `c29` presses Shift + a DX column pad with the menu already open over the keyboard. `c30` is the `.syx`
+browser and the cartridge page: BACK from the cartridge page reopens the browser, and a second BACK returns to "DX7
+source". `c31` is the parameter page's own pad layout: Shift shows the DX colour map and Shift + a pad picks its
+parameter, since a bare pad leaves the menu for the clip.

@@ -1446,7 +1446,7 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			return;
 		}
 
-		// F1 task 9, site 7 of 14 (`gui/ui/shell_menu_entry.cpp`'s table), and the one that is
+		// Site 7 of `gui/ui/shell_menu_entry.cpp`'s table, and the one that is
 		// **conditionally** gated. This arm also runs under `UI_MODE_NOTES_PRESSED &&
 		// padSelectionOn` (`:1593`), where `setup(clip)` picks `noteEditorRootMenu`
 		// (`gui/ui/sound_editor.cpp:1774-1776`) from a UI mode `src/scenes` may not read. The ported

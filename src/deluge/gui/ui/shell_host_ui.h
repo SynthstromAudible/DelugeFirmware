@@ -373,6 +373,21 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	UIType getUIType() override { return UIType::SHELL_HOST; }
 
+	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one, and for
+	///        host code that reads a scene's clock-driven state between ticks.
+	///
+	/// `getSystemTime()` is seconds since scheduler start (`OSLikeStuff/scheduler_api.h:74`,
+	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
+	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
+	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
+	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
+	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
+	///
+	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
+	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
+	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
+	uint32_t nowMs() const;
+
 private:
 	/// @brief Copy the shell's grid into legacy's pad image, for the columns \p x0 to \p x1 and the
 	///        rows \p whichRows selects, and report whether the guest owns \p region.
@@ -391,20 +406,6 @@ private:
 	///         menu alone answers false for both, as `SoundEditor` does (`gui/ui/sound_editor.cpp:217-247`).
 	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
 	               deluge::ui::shell::PadRegions region);
-
-	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one.
-	///
-	/// `getSystemTime()` is seconds since scheduler start (`OSLikeStuff/scheduler_api.h:74`,
-	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
-	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
-	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
-	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
-	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
-	///
-	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
-	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
-	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
-	uint32_t nowMs() const;
 
 	/// @brief Feed one already-detented encoder turn to the shell as A-pin edges.
 	///

@@ -448,6 +448,9 @@ void refreshShellRootFacts() {
 void refreshShellRangeDisplay() {
 }
 
+void refreshShellDxColumn() {
+}
+
 void refreshShellSamplePreviewSounds() {
 }
 

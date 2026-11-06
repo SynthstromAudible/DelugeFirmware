@@ -94,4 +94,39 @@ struct Pad {
 /// @return The pad, or nothing for the keyboard scaling params (8-12), which blink none.
 std::optional<Pad> param_pad(int16_t param);
 
+/// @brief The param a pad picks on the parameter page's own pad layout (`DxParam::potentialShortcutPadAction`,
+///        `param.cpp:228-267`): an operator's row from the top, row 1 the pitch envelope, algorithm, feedback and sync,
+///        row 0 the LFO and the random detune.
+/// @return The param, or nothing for a pad that picks none (row 1 past column 10, row 0 past column 7).
+std::optional<int16_t> pad_param(uint8_t x, uint8_t y);
+
+/// @brief The param Shift + the keyboard's DX column pad for operator @p op opens the parameter page on
+///        (`DxParam::openForOpOrGlobal`, `param.cpp:508-536`): the operator's output level, or the algorithm for the
+///        column's two global pads (@p op 6 and 7).
+///
+/// With the page already showing (@p on_page), a press repeating that param toggles to the operator's coarse tuning
+/// (the algorithm's feedback), and an operator's param carries to the same param of the pressed operator. An envelope
+/// step carries between an operator and the pitch envelope too.
+/// @param current The param the page shows now.
+/// @param op      The operator, 0-5, as `8 - y - 1` numbers the column's rows; 6 and 7 for the two below.
+/// @param on_page Whether the parameter page is the one open.
+int16_t column_param(int16_t current, int32_t op, bool on_page);
+
+/// @brief The keyboard DX column row that flashes white while the parameter page shows @p param
+///        (`DxParam::readValueAgain`'s `flash_row`, `param.cpp:98-122`): the operator's row, else row 1.
+int32_t flash_row(int16_t param);
+
+/// @brief `DxParam::blinkSideColumn`'s alternation: the flash row white for 100 ms, then its own colour for 300.
+inline constexpr uint32_t kColumnFlashOnMs = 100;
+inline constexpr uint32_t kColumnFlashPeriodMs = 400;
+
+/// @brief The pad of the isomorphic keyboard that plays a keyboard scaling breakpoint's note, which the parameter page
+///        blinks (`renderScaling`, `param.cpp:372-395`): note @p breakpoint + 17, walked up the rows as the layout lays
+///        them out.
+/// @param breakpoint    The breakpoint, 0-99.
+/// @param scroll_offset The keyboard's scroll offset, the note on its bottom-left pad.
+/// @param row_interval  The semitones between one row and the next.
+/// @return The pad, or nothing when the note is not on the grid.
+std::optional<Pad> breakpoint_pad(uint8_t breakpoint, int32_t scroll_offset, int32_t row_interval);
+
 } // namespace deluge::scenes::menu::dx

@@ -202,4 +202,68 @@ std::optional<Pad> param_pad(int16_t param) {
 	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
 }
 
+int16_t column_param(int16_t current, int32_t op, bool on_page) {
+	const int32_t level = op < 6 ? op * kOperatorParams + 16 : kFirstGlobal + 8; // output level, or the algorithm
+	if (!on_page) {
+		return static_cast<int16_t>(level);
+	}
+	if (current == level) {
+		return static_cast<int16_t>(op < 6 ? op * kOperatorParams + 18 : kFirstGlobal + 9); // coarse, or feedback
+	}
+	constexpr int32_t kCarriesBelow = kFirstGlobal + 8; // the operators' params and the pitch envelope
+	if (current >= 0 && current < kCarriesBelow) {
+		const int32_t carried = op * kOperatorParams + current % kOperatorParams;
+		if (carried != current && carried < kCarriesBelow) {
+			return static_cast<int16_t>(carried);
+		}
+	}
+	return static_cast<int16_t>(level);
+}
+
+int32_t flash_row(int16_t param) {
+	return param >= 0 && param < kFirstGlobal ? 7 - param / kOperatorParams : 1;
+}
+
+std::optional<Pad> breakpoint_pad(uint8_t breakpoint, int32_t scroll_offset, int32_t row_interval) {
+	int32_t x = breakpoint + 17 - scroll_offset;
+	int32_t y = 0;
+	while (x > 16 && y < 7) {
+		x -= row_interval;
+		y += 1;
+	}
+	if (x > 10 && y < 7 && row_interval <= 7) {
+		x -= row_interval;
+		y += 1;
+	}
+	if (x < 0 || x >= 16) {
+		return std::nullopt;
+	}
+	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
+}
+
+std::optional<int16_t> pad_param(uint8_t x, uint8_t y) {
+	constexpr uint8_t kMainColumns = 16;
+	if (x >= kMainColumns) {
+		return std::nullopt; // the sidebar
+	}
+	if (y > 1) {
+		const int32_t op = 8 - y - 1;
+		int32_t idx = 28 - x; // velocity sensitivity, amp mod, rate scale, from the right
+		if (x < 8) {
+			idx = x; // envelope rates and levels
+		}
+		else if (x < 13) {
+			idx = x - 8 + 16; // level, mode, coarse, fine, detune
+		}
+		return static_cast<int16_t>(op * kOperatorParams + idx);
+	}
+	if (y == 1) {
+		return x < 11 ? std::optional{static_cast<int16_t>(kFirstGlobal + x)} : std::nullopt;
+	}
+	if (x < 7) {
+		return static_cast<int16_t>(kFirstGlobal + 11 + x);
+	}
+	return x == 7 ? std::optional{static_cast<int16_t>(kRandomDetune)} : std::nullopt;
+}
+
 } // namespace deluge::scenes::menu::dx

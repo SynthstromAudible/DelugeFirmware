@@ -13,6 +13,7 @@
 #include "ui/core/state.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 
 /// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
@@ -247,6 +248,10 @@ struct MenuWalkState {
 	/// this scene can walk its own tables, so only half the pair is stored and the other half is
 	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
 	const Node* scene_opener = nullptr;
+	/// @brief Close the whole menu after this tick -- legacy's `soundEditor.exitCompletely()` from an item's
+	///        `selectButtonPress` (the DX7 cartridge page's). Written by a `CustomItem`'s `render`, drained by
+	///        `MenuScene::after_render` into a `Remove`.
+	bool exit_completely = false;
 };
 
 /// @brief What the DX7 pages keep on legacy's singletons, which outlive the editor: the param `DxParam` shows, the
@@ -260,6 +265,14 @@ struct DxState {
 	/// Whether the parameter page's pad blinks. Legacy's `beginScreen` unsets the blink `readValueAgain` has just set
 	/// up (`updatePadLightsFor`), so the page opens with none, and a horizontal step sets it up again.
 	bool pad_blink = false;
+	/// Open the parameter page with its pad blinking: the keyboard's DX column opens it with `setup()` and then sets
+	/// the param (`openForOpOrGlobal`'s `readValueAgain`, after `beginScreen`). Spent by the page's focus.
+	bool blink_on_focus = false;
+	/// The keyboard DX column's flash starts again on the page's next draw: every `readValueAgain` restarts legacy's
+	/// `blinkSideColumn` alternation, white first.
+	bool flash_restart = false;
+	/// When the column's flash alternation started, on the guest's clock; none before the page has drawn.
+	std::optional<uint32_t> flash_anchor_ms;
 	bool operator==(const DxState&) const = default;
 };
 

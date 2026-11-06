@@ -22,9 +22,8 @@
 ///
 /// The *first tenant* of the shell guest: every place legacy enters `soundEditor` becomes
 /// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
-/// `RuntimeFeatureSettingType::ShellMenu`**. There are fourteen such places
-/// (`grep -rn "openUI(&soundEditor)" src/deluge`); eleven of them route here and three stay on
-/// the legacy path because the node they want has no port. The table is in
+/// `RuntimeFeatureSettingType::ShellMenu`**. There are fifteen such places; thirteen of them route here and two stay
+/// on the legacy path, each for the reason its row gives. The table is in
 /// `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
@@ -97,8 +96,8 @@
 ///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
 ///     item, so it is not a thing a user can do wrong from behind this toggle. It is noted in
 ///     `src/scenes/README.md`'s boot-wiring section.
-///  5. **Three of the fourteen entry points still open the legacy `SoundEditor`** -- see
-///     `shell_menu_entry.cpp`'s table for which, and why each one's node has no port. A wrong node
+///  5. **Two of the fifteen entry points still open the legacy `SoundEditor`** -- see
+///     `shell_menu_entry.cpp`'s table for which, and why each one is not mapped. A wrong node
 ///     is worse than a legacy menu, so with the toggle on the firmware has *both* menus, reachable
 ///     by different gestures.
 
@@ -124,6 +123,9 @@ enum class ShellMenuNode : uint8_t {
 	Osc0FileSelector,
 	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source", `gui/ui/menus.cpp`).
 	Dx,
+	/// @brief `deluge::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param
+	///        `MenuScene`'s `DxState` holds.
+	DxParam,
 };
 
 /// @brief Which of the two `currentUIMode`-driven roots a caller wants, in place of whatever `context_for` resolved --
@@ -144,7 +146,7 @@ enum class NoteMode : uint8_t {
 	NoteRowEditor,
 };
 
-/// @brief Is the ported menu the one the fourteen entry points should open?
+/// @brief Is the ported menu the one the fifteen entry points should open?
 ///
 /// `RuntimeFeatureSettingType::ShellMenu`, default Off
 /// (`model/settings/runtime_feature_settings.cpp:175-178`). **With it off every gated site runs the
@@ -155,7 +157,7 @@ bool shellMenuEnabled();
 /// @brief Resolve what the menu edits, point `MenuScene` at it, and open the guest.
 ///
 /// The port of the half of `SoundEditor::setup` that decides *what* and *which root*,
-/// plus the `openUI` the fourteen sites do afterwards. The
+/// plus the `openUI` the fifteen sites do afterwards. The
 /// arguments are `menu::context_for`'s own, in its order, because they are the four UI facts
 /// `src/scenes` may not read for itself (`scenes/menu/context.h`'s "No UI reads" note) -- each
 /// caller already knows all four statically from the arm it is in.
@@ -202,5 +204,14 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 ///         makes the same refusal with its popup.
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
+
+/// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the ported menu.
+///
+/// With the guest closed it opens on the DX7 parameter page at the operator's param (`dx::column_param`), its pad
+/// blinking, over the current clip, keeping the undo log as `setup()` given an item does. With the guest open the
+/// press goes to `MenuScene::dx_column_press`, which toggles on the page or moves the menu there.
+/// @param op The operator, 0-5, as the column numbers its rows; 6 and 7 for the two pads below them.
+/// @return Whether the ported menu took the press: false where `openShellMenu` refused.
+bool openShellDxColumn(int32_t op);
 
 } // namespace deluge::gui::ui

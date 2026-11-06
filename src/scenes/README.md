@@ -10,7 +10,7 @@ reaches them through `scenes/bind` and a `MenuContext` rather than through legac
 
 The library is linked into the firmware and the host app, and runs behind the **`ShellMenu`
 community feature, which is Off by default**. With it off the device runs legacy's `SoundEditor` and
-its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, eleven of the fourteen
+its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, thirteen of the fifteen
 `openUI(&soundEditor)` sites open this tree instead, inside `ShellHostUI` (see "Coexistence with
 legacy" below).
 
@@ -353,7 +353,7 @@ reach past the page.
 `dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
 MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
 "DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
-`DxParamItem`. Five points reach past the pages.
+`DxParamItem`. Eight points reach past the pages.
 
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
@@ -367,6 +367,22 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
+* **The parameter page has its own pads** while the DX7 engine feature is on (`RuntimeFacts::dx7_engine_enabled`):
+  `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
+  first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
+  the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
+* **The keyboard's DX column** (site 15): Shift + a column pad opens the parameter page on the operator's level, or
+  with the page open toggles and carries the param as `openForOpOrGlobal` does (`dx::column_param`,
+  `MenuScene::dx_column_press`, which re-targets the menu from another page). The column flashes the edited
+  operator's row white, 100 ms in every 400 from each param change (`MenuScene::dx_column_flash`, read by the column
+  through `util/sound_menu_open.h`'s `dxColumnFlashRow`), and over the isomorphic keyboard a keyboard scaling param
+  blinks its breakpoint note's pad (`dx::breakpoint_pad`, frequency 2) in place of its own.
+* **The browse row opens the `.syx` browser** (`browser::BrowserId::DxSyx`) over the menu. Accepting a file parks it
+  and keeps the browser up (`AcceptOutcome::DeferAndWait`) while the host reads the bank through
+  `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the cartridge
+  page (`dx_cartridge`, `MenuScene::land_dx_cartridge`) under the browse row, so BACK reopens the browser, as `main`'s
+  `enterSubmenu` does. The page lists `RuntimeFacts::dx_cartridge`, loads a program per turn through
+  `WriteSink::load_dx_program`, and closes the menu on SELECT (`MenuWalkState::exit_completely`).
 
 ## The scenes
 
@@ -403,12 +419,13 @@ does. The box is a fixed 100×40 `PopupStyle::Permanent` square with the title d
 
 ### The file browser (`browser/`)
 
-`browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Two ship, the two the
-menu tree reaches: `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition`.
+`browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Three ship, the three the
+menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `BrowserId::DxSyx`.
 
-* **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
+* **`accept` has four outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
   `take_choice()` and closes, because the sample claim reaches the sound and the audio-file manager
-  through paths this layer may not name. `gui::ui::dispatchShellChoices` performs it (with
+  through paths this layer may not name; `DeferAndWait` parks it and stays up until the host answers
+  `deferred_load_done`, as the `.syx` browser stays up while its bank is read. `gui::ui::dispatchShellChoices` performs it (with
   `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the page the chain lists the file
   selector on: an oscillator's `source_group`, focused on the selector.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
@@ -622,9 +639,9 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: eleven of the fourteen
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: thirteen of the fifteen
 `openUI(&soundEditor)` sites call it when `shellMenuEnabled()`, and run their exact legacy statements
-otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
+otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -714,7 +731,6 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| `dxMenu`'s browser, the cartridge page, the keyboard's DX column and the DX pad grid | the ported "DX7 source" lists "load DX7 .syx file", which goes up and opens nothing; the `.syx` browser and the cartridge page have no port, the keyboard's DX column opens legacy's parameter page, and the pads under the parameter page are the menu's shortcuts, not the DX layout | a browser entry and a cartridge page, a DX column gate, and a pad layout for the parameter page |
 | two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |

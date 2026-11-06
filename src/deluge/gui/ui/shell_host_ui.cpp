@@ -548,6 +548,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
 	refreshShellSamplePreviewSounds();
 	refreshShellRangeDisplay(); // the root's range highlight follows the picker
+	refreshShellDxColumn();     // the keyboard's DX column flashes the edited operator
 
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//
