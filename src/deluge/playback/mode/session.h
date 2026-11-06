@@ -89,6 +89,14 @@ public:
 	bool endPlayback() override; // Returns whether to do an instant song swap
 	void doTickForward(int32_t posIncrement) override;
 	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) override;
+	/// @brief [render] or [interaction] The moves of resetPlayPos(): every playing clip's and lane's position, the
+	///        clips' resumes, their outputs' active clips. Nothing that allocates or logs undo.
+	void moveToPos(int32_t newPos, bool doingComplete);
+	/// @brief [render] or [interaction] What resetPlayPos() does once the clips are positioned: a start from 0 gives
+	/// each
+	///        playing clip its chance to begin linear recording (then sets its output's active clip), and launch timing
+	///        follows what armed.
+	void afterMoveToPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency);
 	void resyncToSongTicks(Song* song) override;
 	void reversionDone() override;
 	bool isOutputAvailable(Output* output) override;

@@ -33,6 +33,12 @@ public:
 	bool endPlayback() override; // Returns whether to do an instant song swap
 	void doTickForward(int32_t posIncrement) override;
 	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) override;
+	/// @brief [render] or [interaction] The moves of resetPlayPos(): the arrangement's and song lanes' positions, and
+	///        each output's clip instance playing there, positioned and resumed. Nothing that allocates or logs undo.
+	void moveToPos(int32_t newPos, bool doingComplete);
+	/// @brief [render] or [interaction] What resetPlayPos() does once the clips are positioned: while recording, an
+	///        output with no clip instance at @p newPos may begin arrangement recording.
+	void afterMoveToPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency);
 	void resyncToSongTicks(Song* song) override;
 	void reversionDone() override;
 	bool isOutputAvailable(Output* output) override;

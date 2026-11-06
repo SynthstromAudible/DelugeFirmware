@@ -478,14 +478,20 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// reads from this.
 	nextTimerTickScheduled = 0;
 
-	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
+	setupPlayback(newPlaybackState, newPos, true, buttonPressLatency);
 	deluge::playback::injectRenderAt(deluge::playback::InjectAt::StartBeforeClock);
+	releaseTicks();
+}
 
-	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
-	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
-
+void PlaybackHandler::releaseTicks() {
+	deluge::playback::MoveSection section{"PlaybackHandler::releaseTicks"};
+	if (isInternalClockActive()) {
+		// The first tick is due now, after everything setupPlayback() did
+		timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
+	}
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some
 	                            // recent call to expectEvent()
+	ticksHeld_ = false;
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
@@ -536,7 +542,7 @@ useArranger:
 }
 
 // Call decideOnCurrentPlaybackMode() before this
-void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
+void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos,
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
 
@@ -546,57 +552,49 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		playFromPos += currentSong->persistentView.lastClipInstanceEnteredStartPos;
 	}
 
-	ignoringMidiClockInput = false;
-	stopOutputRecordingAtLoopEnd = false;
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::setupPlayback"};
+		// No tick until releaseTicks(): the clips are positioned, and may begin recording, first.
+		ticksHeld_ = true;
 
-	lastSwungTickActioned = 0;
-	firstSwungTickPending = true;
-	lastTriggerClockOutTickDone = -1;
-	lastMIDIClockOutTickDone = -1;
-	timeLastMIDIClockOutTickSent = 0;
-	timeLastTriggerClockOutTickSent = 0;
+		ignoringMidiClockInput = false;
+		stopOutputRecordingAtLoopEnd = false;
 
-	swungTickScheduled = false;
-	triggerClockOutTickScheduled = false;
-	midiClockOutTickScheduled = false;
+		lastSwungTickActioned = 0;
+		firstSwungTickPending = true;
+		lastTriggerClockOutTickDone = -1;
+		lastMIDIClockOutTickDone = -1;
+		timeLastMIDIClockOutTickSent = 0;
+		timeLastTriggerClockOutTickSent = 0;
 
-	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember
-	                            // and insanely most stuff worked
+		swungTickScheduled = false;
+		triggerClockOutTickScheduled = false;
+		midiClockOutTickScheduled = false;
 
-	deluge::playback::notePositionWrite();
-	playbackState = newPlaybackState;
-	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
+		swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't
+		                            // remember and insanely most stuff worked
 
-	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
+		deluge::playback::notePositionWrite();
+		playbackState = newPlaybackState;
+		cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
+
+		currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
+
+		// Start synced global LFOs with fresh state, including sounds without an active clip.
+		// Periodic timer ticks only realign their phase.
+		currentSong->resyncLFOs(true);
+	}
 
 	arrangerView.reassessWhetherDoingAutoScroll(playFromPos);
 
 	setLedStates();
 
-	if (doOneLastAudioRoutineCall) {
-		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
-		// happening so it doesn't do the first tick yet
-		playbackState = 0;
-		AudioEngine::routineWithClusterLoading();
-		playbackState = newPlaybackState;
-	}
-
-	// Raise unconditionally, after the transient `playbackState = 0` window above, or a drain
-	// landing inside that window would read 0 and miss the begin edge, silently losing the paired
-	// playbackEnded() dispatch later.
 	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
-	// May not call audio routine during this, cos that'd try doing ticks before everything's set up
-	bool oldState = AudioEngine::audioRoutineLocked;
-	AudioEngine::audioRoutineLocked = true;
+	// The render holds its ticks until releaseTicks(), so nothing but this writes the flag meanwhile.
 	currentlyActioningSwungTickOrResettingPlayPos = true;
-	// Start synced global LFOs with fresh state, including sounds without an active clip.
-	// Periodic timer ticks only realign their phase.
-	currentSong->resyncLFOs(true);
-	// Have to do this after calling AudioEngine::routine()
 	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
-	AudioEngine::audioRoutineLocked = oldState;
 
 	posToNextContinuePlaybackFrom = playFromPos;
 
@@ -1667,8 +1665,9 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 	if (!switchingFromInternalClock) {
 		bool shouldShiftAccordingToClipInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
 		decideOnCurrentPlaybackMode();
-		setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, false, shouldShiftAccordingToClipInstance);
+		setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, shouldShiftAccordingToClipInstance);
 		posToNextContinuePlaybackFrom = 0;
+		releaseTicks();
 	}
 	else {
 		deluge::playback::notePositionWrite();

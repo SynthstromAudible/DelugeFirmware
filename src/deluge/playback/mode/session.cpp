@@ -2229,10 +2229,15 @@ bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 }
 
 void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency) {
+	{
+		deluge::playback::MoveSection section{"Session::moveToPos"};
+		moveToPos(newPos, doingComplete);
+	}
+	deluge::playback::injectRenderAt(deluge::playback::InjectAt::AfterMove);
+	afterMoveToPos(newPos, doingComplete, buttonPressLatency);
+}
 
-	// This function may begin a tempoless record - but it doesn't actually know or need to know whether that's the
-	// resulting outcome
-
+void Session::moveToPos(int32_t newPos, bool doingComplete) {
 	AudioEngine::bypassCulling = true;
 
 	// In case any still playing after switch from arrangement. Remember,
@@ -2248,8 +2253,6 @@ void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPre
 
 		currentSong->paramManager.setPlayPos(arrangement.playbackStartedAtPos, modelStackWithThreeMainThings, false);
 	}
-
-	int32_t distanceTilLaunchEvent = 0;
 
 	for (int32_t c = std::ssize(currentSong->live.clips.session_clips) - 1; c >= 0; c--) {
 		Clip* clip = currentSong->live.clips.session_clips[c];
@@ -2269,23 +2272,16 @@ yeahNahItsOn:
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			clip->setPos(modelStackWithTimelineCounter, newPos, true);
-			deluge::playback::injectRenderAt(deluge::playback::InjectAt::AfterMove);
 
 			if (doingComplete) {
 				// If starting after 0, must do the "resume" function, to get samples playing from right point, etc
 				if (newPos) {
 					clip->resumePlayback(modelStackWithTimelineCounter);
 				}
-
-				// Otherwise, so long as not doing count-in, begin linear recording
+				// Otherwise the clip may begin linear recording, which may give it a new output: that output's active
+				// clip is set once it has had the chance (afterMoveToPos()).
 				else {
-
-					giveClipOpportunityToBeginLinearRecording(clip, c, buttonPressLatency);
-
-					if (clip->armState == ArmState::ON_NORMAL) { // Rohan: What's this for again? Auto arming of
-						                                         // sections? I think not linear recording...
-						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
-					}
+					continue;
 				}
 			}
 
@@ -2293,19 +2289,53 @@ yeahNahItsOn:
 			clip->output->setActiveClip(modelStackWithTimelineCounter);
 		}
 	}
+}
 
-	if (doingComplete) {
-		if (!playbackHandler.isEitherClockActive()) { // If tempoless recording...
-			cancelAllArming();
+void Session::afterMoveToPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency) {
+	// This may begin a tempoless record - but it doesn't actually know or need to know whether that's the resulting
+	// outcome
+	if (!doingComplete) {
+		return;
+	}
+
+	int32_t distanceTilLaunchEvent = 0;
+
+	// Starting at 0 (so not doing a count-in), each playing clip may begin linear recording
+	if (!newPos) {
+		for (int32_t c = std::ssize(currentSong->live.clips.session_clips) - 1; c >= 0; c--) {
+			Clip* clip = currentSong->live.clips.session_clips[c];
+			if (!clip->isPendingOverdub && !currentSong->isClipActive(clip)) {
+				continue;
+			}
+
+			giveClipOpportunityToBeginLinearRecording(clip, c, buttonPressLatency);
+
+			if (clip->armState == ArmState::ON_NORMAL) { // Rohan: What's this for again? Auto arming of
+				                                         // sections? I think not linear recording...
+				distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
+			}
+
+			deluge::playback::MoveSection section{"Session::afterMoveToPos activeClip"};
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+			clip->output->setActiveClip(modelStack);
 		}
+	}
 
-		// If just became armed (audio clip began recording)... The placement of this probably isn't quite ideal...
-		else if (distanceTilLaunchEvent) {
+	if (!playbackHandler.isEitherClockActive()) { // If tempoless recording...
+		cancelAllArming();
+	}
+
+	// If just became armed (audio clip began recording)... The placement of this probably isn't quite ideal...
+	else if (distanceTilLaunchEvent) {
+		{
+			deluge::playback::MoveSection section{"Session::afterMoveToPos launch"};
 			scheduleLaunchTiming(playbackHandler.lastSwungTickActioned + distanceTilLaunchEvent, 1,
 			                     distanceTilLaunchEvent);
-			armingChanged(); // This isn't really ideal. Is here for AudioClips which just armed themselves in setPos()
-			                 // call
 		}
+		armingChanged(); // This isn't really ideal. Is here for AudioClips which just armed themselves in setPos()
+		                 // call
 	}
 }
 

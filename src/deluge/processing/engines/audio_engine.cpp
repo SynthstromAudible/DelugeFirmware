@@ -1435,8 +1435,9 @@ void flushMIDIGateBuffers() {
 }
 
 void tickSongFinalizeWindows(size_t& numSamples) {
-	// If a timer-tick is due during or directly after this window of audio samples...
-	if (playbackHandler.isEitherClockActive()) {
+	// If a timer-tick is due during or directly after this window of audio samples (and playback is not still being
+	// set up)...
+	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksHeld()) {
 
 startAgain:
 		int32_t nextTickType = 0;

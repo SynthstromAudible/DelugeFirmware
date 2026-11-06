@@ -30,6 +30,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
@@ -348,6 +349,21 @@ justDoArp:
 }
 
 void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency) {
+	{
+		deluge::playback::MoveSection section{"Arrangement::moveToPos"};
+		moveToPos(newPos, doingComplete);
+	}
+	afterMoveToPos(newPos, doingComplete, buttonPressLatency);
+}
+
+/// @return The clip instance of @p output playing at @p pos, or nullptr.
+static ClipInstance* clipInstancePlayingAt(Output* output, int32_t pos) {
+	int32_t i = output->clipInstances.firstAtOrAfter(pos + 1) - 1;
+	ClipInstance* clipInstance = output->clipInstances.tryGet(i);
+	return (clipInstance && clipInstance->pos + clipInstance->length > pos) ? clipInstance : nullptr;
+}
+
+void Arrangement::moveToPos(int32_t newPos, bool doingComplete) {
 
 	AudioEngine::bypassCulling = true;
 
@@ -371,25 +387,26 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 		if (!currentSong->isOutputActiveInArrangement(output)) {
 			continue;
 		}
-
-		int32_t i = output->clipInstances.firstAtOrAfter(lastProcessedPos + 1) - 1;
-		ClipInstance* clipInstance = output->clipInstances.tryGet(i);
-
-		// If there's a ClipInstance...
-		if (clipInstance && clipInstance->pos + clipInstance->length > lastProcessedPos) {
+		if (ClipInstance* clipInstance = clipInstancePlayingAt(output, newPos)) {
 			resumeClipInstancePlayback(clipInstance, doingComplete);
 		}
+	}
+}
 
-		// Or if no ClipInstance, shall we maybe make one and do a spot of linear recording?
-		else {
-			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
-			    && output->wantsToBeginArrangementRecording()) {
+void Arrangement::afterMoveToPos(int32_t newPos, bool doingComplete, [[maybe_unused]] int32_t buttonPressLatency) {
+	if (!doingComplete || playbackHandler.recording == RecordingMode::OFF) {
+		return;
+	}
 
-				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error != Error::NONE) {
-					deluge::notify::notice(error);
-				}
-			}
+	// An output with no clip instance here may make one and do a spot of linear recording
+	for (Output* output = currentSong->live.media.first_output; output; output = output->next) {
+		if (!currentSong->isOutputActiveInArrangement(output) || clipInstancePlayingAt(output, newPos) != nullptr
+		    || !output->wantsToBeginArrangementRecording()) {
+			continue;
+		}
+		Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
+		if (error != Error::NONE) {
+			deluge::notify::notice(error);
 		}
 	}
 }
