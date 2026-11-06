@@ -211,7 +211,7 @@ bool lastHighlighting = false;
 /// How many ranges the source had: an insert or delete re-renders the root even where the range index stays.
 int32_t lastRangeCount = -1;
 /// The edges of the range shown: an edge edit moves them and re-renders the keyboard, as legacy's
-/// `MultiRange::selectEncoderAction` does on every arm.
+/// `MultiRange::selectEncoderAction` does on every arm; the clip view is left as it was.
 int32_t lastRangeBottom = -1;
 int32_t lastRangeTop = -1;
 } // namespace
@@ -225,8 +225,9 @@ void refreshShellRangeDisplay() {
 	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
 	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
 	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
-	if (range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
-	    && count == lastRangeCount && bottom == lastRangeBottom && top == lastRangeTop) {
+	const bool edges_only = range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
+	                        && count == lastRangeCount;
+	if (edges_only && bottom == lastRangeBottom && top == lastRangeTop) {
 		return;
 	}
 	lastRangeShown = range;
@@ -235,8 +236,16 @@ void refreshShellRangeDisplay() {
 	lastRangeCount = count;
 	lastRangeBottom = bottom;
 	lastRangeTop = top;
-	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
+	// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard and nothing else, so the
+	// clip view's sidebar keeps the highlight it had.
 	RootUI* root = getRootUI();
+	if (edges_only) {
+		if (root == &keyboardScreen) {
+			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+		}
+		return;
+	}
+	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
 	if (root == &keyboardScreen) {
 		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 	}

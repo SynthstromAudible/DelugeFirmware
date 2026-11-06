@@ -195,6 +195,7 @@ constexpr Node param_node = menu::param(static_cast<uint16_t>(deluge::l10n::Stri
 
 } // namespace
 
+extern uint32_t whichMainRowsNeedRendering; // `gui/ui/ui.cpp`: the main rows a render is pending for
 extern uint32_t whichSideRowsNeedRendering; // `gui/ui/ui.cpp`: the sidebar rows a render is pending for
 
 // clang-format off
@@ -735,13 +736,13 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			whichSideRowsNeedRendering = 0;
 		}
 		{
-			// An edge moved under the same range and count: the root re-renders, as every arm of
-			// `MultiRange::selectEncoderAction` asks for.
+			// An edge moved under the same range and count: `MultiRange::selectEncoderAction`'s edge arm re-renders the
+			// keyboard only, so the clip view's sidebar keeps its highlight.
 			const int32_t top = sound->sources[0].ranges.getElement(1)->topNote;
 			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top + 1);
 			deluge::edits::recordRanges(*sound, 0);
 			deluge::gui::ui::refreshShellRangeDisplay();
-			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			expect(whichSideRowsNeedRendering).to_equal(0u);
 			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top);
 			deluge::edits::recordRanges(*sound, 0);
 			deluge::gui::ui::refreshShellRangeDisplay();
@@ -836,6 +837,14 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		}
 		expect(brighter > 0).to_be_true();
 		expect(now != start).to_be_true();
+
+		// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard.
+		deluge::gui::ui::refreshShellRangeDisplay();
+		whichMainRowsNeedRendering = 0;
+		sound->sources[0].ranges.getElement(0)->topNote = 60;
+		deluge::edits::recordRanges(*sound, 0);
+		deluge::gui::ui::refreshShellRangeDisplay();
+		expect(whichMainRowsNeedRendering != 0).to_be_true();
 	});
 });
 // clang-format on
