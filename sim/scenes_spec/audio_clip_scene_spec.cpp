@@ -1240,6 +1240,29 @@ describe audio_clip_scene_spec_body(
 		        playbackHandler.playbackState = 0;
 	        });
 
+	    it(
+	        "flashes the cursor through the PIC with the flash cursor FAST, once per square, and paints none", _ {
+		        // `PadLEDs::setTickSquares`' fast arm: `flashMainPad` for each row whose square moved.
+		        Rig r;
+		        PadLEDs::flashCursor = FLASH_CURSOR_FAST;
+		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		        r.seed(Sentinel{.last_processed_pos = 240});
+		        const size_t from = r.fake.flashes_sent.size();
+		        r.open();
+		        r.tick(0);
+		        expect(r.scene().last_tick_square()).to_equal(5);
+		        size_t at_five = 0;
+		        for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			        at_five += r.fake.flashes_sent[i].x == 5 ? 1 : 0;
+		        }
+		        expect(at_five).to_equal(static_cast<size_t>(kDisplayHeight));
+		        expect(cursor_pads(r)).to_equal(0);
+		        const size_t after = r.fake.flashes_sent.size();
+		        r.tick(1);
+		        expect(r.fake.flashes_sent.size()).to_equal(after);
+		        playbackHandler.playbackState = 0;
+	        });
+
 	    // --- timers ---------------------------------------------------------------------------------
 
 	    it(

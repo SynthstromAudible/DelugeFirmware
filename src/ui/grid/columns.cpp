@@ -246,4 +246,16 @@ void tick_squares(GridFrame& f, std::span<const TickSquare> per_row, RGB muted_c
 	}
 }
 
+void flash_tick_squares(GridFrame& f, std::span<const TickSquare> per_row, std::span<uint8_t> last, bool fast) {
+	const size_t count = std::min(per_row.size(), last.size());
+	for (size_t y = 0; y < count; y++) {
+		const TickSquare& square = per_row[y];
+		if (fast && square.col != last[y] && square.col != kNoTickSquare) {
+			f.flash(square.col, static_cast<int32_t>(y),
+			        square.colour == TickColour::Red ? FlashColour::Red : FlashColour::Default);
+		}
+		last[y] = square.col;
+	}
+}
+
 } // namespace deluge::ui::grid

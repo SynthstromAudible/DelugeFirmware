@@ -248,11 +248,10 @@ bool MarkerScene::on_enter(const SceneId& id) {
 
 	blink_phase_ = 0; // `:128`
 	blink_accum_ms_ = 0;
-	holding_ = false;
-	xenc_held_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
 	marker_on_screen_ = false;
+	forget_modes();
 	return true;
 }
 
@@ -261,10 +260,20 @@ void MarkerScene::on_exit() {
 	// thing worth dropping is the held-marker gesture, which must not survive into the next entry:
 	// `currentUIMode` is a global legacy clears on the way out of every UI, and this scene's copy
 	// of it is a member.
-	holding_ = false;
-	xenc_held_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
+	forget_modes();
+}
+
+void MarkerScene::forget_modes() {
+	holding_ = false;
+	audition_under_hold_ = false;
+	xenc_held_ = false;
+	zoom_pending_.reset();
+	zoom_.active = false;
+	shown_.reset();
+	playing_ = false;
+	last_ticks_.fill(deluge::ui::grid::kNoTickSquare);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -499,7 +508,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	// since only it can return one.
 	if (!on) {
 		// Release (`:635-641`): the held-marker gesture ends when its own pad goes up.
-		if (holding_ && x == press_x_ && y == press_y_) {
+		if (holding_ && !holding_and_auditioning() && x == press_x_ && y == press_y_) {
 			holding_ = false;
 		}
 		return;
@@ -646,6 +655,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		blink_accum_ms_ = 0;
 		marker_type_ = marker_pressed;
 		holding_ = true;
+		audition_under_hold_ = auditioning();
 		press_x_ = static_cast<int8_t>(x);
 		press_y_ = static_cast<int8_t>(y);
 		return;
@@ -799,6 +809,8 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 			    .pin_square_from = pin,
 			    .pin_square_to = pin,
 			    .t = 0,
+			    // Legacy's `|offset|`; an encoder delivers one detent per event, so the bound never bites, but it is
+			    // the step `gfx::grid::zoom` can take.
 			    .magnitude = std::min<int32_t>(std::abs(offset), deluge::gfx::grid::kMaxZoomMagnitude),
 			};
 		}
@@ -818,6 +830,9 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 
 Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	Result r;
+	if (!auditioning()) {
+		audition_under_hold_ = false;
+	}
 	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
 	// swapped under the range since the last frame must already bound what this event does.
 	if (const std::optional<services::WaveformInfo> info = waveforms().info(where_)) {
@@ -899,7 +914,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		// A press under any mode but a held marker or auditioning is refused (`:376-380`).
-		if (event.on && (xenc_held_ || sliding())) {
+		if (event.on && (xenc_held_ || sliding() || holding_and_auditioning())) {
 			r.handled = true;
 			return r;
 		}
@@ -927,8 +942,9 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Time
 
 void MarkerScene::tick(uint32_t dt_ms) {
-	if (!marker_on_screen_) {
-		// `timerCallback`'s early return (`:797-800`): no marker visible, no blink.
+	if (!marker_on_screen_ || sliding()) {
+		// `timerCallback`'s early return (`:797-800`): no marker visible, no blink; and `WaveformBasicNavigator::zoom`
+		// unsets its timer for the slide.
 		return;
 	}
 	blink_accum_ms_ += dt_ms;
@@ -943,8 +959,10 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	if (marker_on_screen_) {
 		next = kBlinkPhaseMs - std::min(blink_accum_ms_, kBlinkPhaseMs);
 	}
-	// The playhead moves while a voice plays: asked again as the slicer asks for its own.
-	if (playing_) {
+	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
+	if (playing_
+	    || (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Off
+	        && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
 	return next;
@@ -1004,6 +1022,10 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	const std::optional<services::WaveformInfo> info = waveforms().info(where_);
 	if (!info) {
+		// Nothing to slide or to play: a slide left running would hold every input refused.
+		zoom_pending_.reset();
+		zoom_.active = false;
+		playing_ = false;
 		return;
 	}
 	follow_waveform(*info);
@@ -1117,25 +1139,27 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 
-	// `graphicsRoutine`'s playhead (`:1003-1053`): the column a voice is playing at, on every row, where the flash
-	// cursor reaches a pixel (Slow); none with it Off, and none off screen.
+	// `graphicsRoutine`'s playhead (`:977-1027`): nothing with the flash cursor Off; else the column the newest voice
+	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
+	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
 	playing_ = false;
-	if (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Slow) {
-		return;
-	}
-	const std::optional<int64_t> pos = waveforms().play_position(where_);
-	playing_ = pos.has_value();
-	if (!pos.has_value() || *pos < nav_.xScroll || nav_.xZoom <= 0) {
-		return;
-	}
-	const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
-	if (col >= main_cols) {
+	if (cursor == bind::FlashCursor::Off) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
-	per_row.fill(
-	    deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col), .colour = deluge::ui::grid::TickColour::Normal});
-	deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+	const std::optional<int64_t> pos = waveforms().play_position(where_);
+	playing_ = pos.has_value();
+	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
+		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+		if (col < main_cols) {
+			per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
+			                                          .colour = deluge::ui::grid::TickColour::Normal});
+		}
+	}
+	if (cursor == bind::FlashCursor::Slow) {
+		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+	}
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
 }
 
 const services::Waveforms& MarkerScene::waveforms() const {

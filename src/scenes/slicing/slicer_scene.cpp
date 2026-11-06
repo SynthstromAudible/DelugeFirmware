@@ -116,6 +116,8 @@ bool SlicerScene::on_enter(const SceneId& id) {
 	// A new visit has no commit out.
 	committing_ = false;
 	landed_ = false;
+	playing_ = false;
+	last_ticks_.fill(deluge::ui::grid::kNoTickSquare);
 	reset_state();
 	return true;
 }
@@ -310,7 +312,8 @@ std::optional<uint32_t> SlicerScene::next_timer() const {
 	if (landed_) {
 		return 0;
 	}
-	if (ops_ != nullptr && ops_->play_position().has_value()) {
+	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
+	if (playing_ || (ops_ != nullptr && ops_->play_position().has_value())) {
 		return kPlayheadMs;
 	}
 	return std::nullopt;
@@ -624,28 +627,29 @@ void SlicerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 
 void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	render_pads(f);
-	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, substituted over what
-	// the pads show (`PadLEDs::setTickSquares`, slow flash cursor).
-	// Only where the flash cursor reaches a pixel (Slow): none with it Off or Fast, as the audio clip view.
-	if (nav_.sample == nullptr || ops_ == nullptr
-	    || menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Slow) {
-		return;
-	}
-	const std::optional<int32_t> pos = ops_->play_position();
-	if (!pos.has_value() || *pos < nav_.xScroll || nav_.xZoom <= 0) {
-		return;
-	}
-	const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
-	if (col >= kDisplayWidth) {
+	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, handed to
+	// `PadLEDs::setTickSquares` whatever the flash cursor: painted with it Slow, flashed by the PIC with it Fast.
+	playing_ = false;
+	if (nav_.sample == nullptr || ops_ == nullptr) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
-	per_row.fill(deluge::ui::grid::TickSquare{.col = deluge::ui::grid::kNoTickSquare});
-	for (int32_t y = kDisplayHeight - 4; y < kDisplayHeight; y++) {
-		per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
-		                                          .colour = deluge::ui::grid::TickColour::Normal};
+	const std::optional<int32_t> pos = ops_->play_position();
+	playing_ = pos.has_value();
+	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
+		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+		if (col < kDisplayWidth) {
+			for (int32_t y = kDisplayHeight - 4; y < kDisplayHeight; y++) {
+				per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
+				                                          .colour = deluge::ui::grid::TickColour::Normal};
+			}
+		}
 	}
-	deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	if (cursor == bind::FlashCursor::Slow) {
+		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+	}
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
 }
 
 void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {

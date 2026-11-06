@@ -1116,6 +1116,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// The first step at or past 110 ms ends it: the settled frame, with its marker.
 		r.tick(170);
 		expect(marker_scene().sliding()).to_be_false();
+		// The settled frame re-arms the blink's whole period, which the slide held still.
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{200}).to_be_true();
 		expect(marker_scene().holding_xenc()).to_be_false();
 		r.x_enc_button(false, 175);
 		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
@@ -1143,6 +1145,49 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.turn_select(1, 180);
 		r.tick(180);
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos) != 4 * kZoomMax).to_be_true();
+	});
+
+	it("leaves no slide behind when it closes mid-slide, or when its waveform goes away", _ {
+		// Legacy's `currentUIMode` is dropped on the way out of every UI; a slide left running would refuse every
+		// input of the next visit, or of this one with nothing left to draw.
+		{
+		Rig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.x_enc_button(true, 10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		marker_scene().on_exit();
+		expect(marker_scene().sliding()).to_be_false();
+		expect(marker_scene().holding_xenc()).to_be_false();
+		expect(marker_scene().zoom_slide().active).to_be_false();
+		r.x_enc_button(false, 30);
+		}
+
+		struct Gone final : deluge::scenes::services::Waveforms {
+			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
+			info(const deluge::scenes::services::WaveformAddress&) const override {
+				return std::nullopt;
+			}
+			bool peaks(const deluge::scenes::services::WaveformAddress&, int64_t, uint64_t, WaveformRenderData&, int32_t,
+			           int32_t) const override {
+				return false;
+			}
+		};
+		Rig q;
+		q.open(MarkerType::START);
+		q.tick(0);
+		q.x_enc_button(true, 10);
+		q.turn_horizontal(1, 20);
+		q.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		Gone gone;
+		marker_scene().set_waveforms(&gone);
+		q.tick(80);
+		expect(marker_scene().sliding()).to_be_false();
+		marker_scene().set_waveforms(nullptr);
+		q.x_enc_button(false, 90);
 	});
 
 	it("jumps with SHIFT to a shortcut's item, and stays on an empty cell, with a marker held, or auditioning", _ {
@@ -1240,8 +1285,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
 	});
 
-	it("draws the playhead on every row at the playing column with the flash cursor Slow, and none Off or Fast", _ {
-		// `graphicsRoutine` (`:1003-1053`): `(pos - xScroll) / xZoom`, all eight rows; nothing unless FLASH_CURSOR_SLOW.
+	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
+		// `graphicsRoutine` (`:977-1027`): `(pos - xScroll) / xZoom`, all eight rows, through `PadLEDs::setTickSquares`.
 		struct Playing final : deluge::scenes::services::Waveforms {
 			std::optional<int64_t> pos;
 			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -1265,27 +1310,51 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::END);
 		r.tick(0);
 		expect(marker_scene().next_timer().has_value() && *marker_scene().next_timer() <= 15).to_be_false();
-		// A voice starting asks for no frame of its own: the blink timer's next frame finds it.
+		// A voice that starts after a render is found by the timer, with no other event (`graphicsRoutine` runs every
+		// pass).
 		playing.pos = 7 * kZoomMax;
-		r.tick(250);
-		r.tick(260);
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		r.tick(1);
+		r.tick(20);
 		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
 		for (uint8_t y = 0; y < 8; y++) {
 			expect(r.fake.grid().grid().at(7, y) == tick).to_be_true();
 		}
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		// Fast: nothing painted; the PIC flashes each row's square when it moves (`setTickSquares`' fast arm), and
+		// only then -- the square it is on was already handed over under Slow.
 		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
-		r.tick(280);
-		r.tick(300);
+		size_t from = r.fake.flashes_sent.size();
+		r.tick(40);
 		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
-		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
-		r.tick(450);
-		r.tick(500);
-		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_true();
+		expect(r.fake.flashes_sent.size()).to_equal(from);
+		playing.pos = 9 * kZoomMax;
+		r.tick(60);
+		size_t at_nine = 0;
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			at_nine += r.fake.flashes_sent[i].x == 9 ? 1 : 0;
+		}
+		expect(at_nine).to_equal(size_t{8});
+		expect(r.fake.grid().grid().at(9, 0) == tick).to_be_false();
+		// Off: nothing, and nothing asked for.
 		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
-		r.tick(520);
-		r.tick(540);
+		from = r.fake.flashes_sent.size();
+		playing.pos = 11 * kZoomMax;
+		r.tick(80);
+		expect(r.fake.grid().grid().at(11, 0) == tick).to_be_false();
+		expect(r.fake.flashes_sent.size()).to_equal(from);
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
+		// The voice ends under Slow: one more frame, which clears the playhead, and then no more.
+		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		playing.pos = 7 * kZoomMax;
+		r.tick(100);
+		r.tick(120);
+		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_true();
+		playing.pos.reset();
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		r.tick(140);
+		r.tick(160);
 		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
 		PadLEDs::flashCursor = saved;
 		marker_scene().set_waveforms(nullptr);
 	});
@@ -1304,6 +1373,46 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
 		expect(static_cast<int32_t>(marker_scene().marker_type()))
 		    .to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
+	});
+
+	it("refuses a tap and the held pad's release once a note auditions under the hold", _ {
+		// `padAction` refuses a press unless `currentUIMode` is exactly AUDITIONING or HOLDING_SAMPLE_MARKER, and ends
+		// the hold only under HOLDING_SAMPLE_MARKER exactly (`:368-370`, `:632`). The hold assigns the mode (`:534`), so
+		// an audition already sounding when the marker went down no longer counts.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(2, 3, true, 10); // hold START
+		r.tick(10);
+		currentUIMode = UI_MODE_AUDITIONING; // a note auditioned under the hold
+		r.pad(6, 3, true, 20);
+		r.pad(6, 3, false, 25);
+		r.pad(2, 3, false, 30); // the held pad's release, refused too
+		r.tick(30);
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+		expect(marker_scene().holding_marker()).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("takes a tap and the held pad's release under an audition that was already sounding when the hold began", _ {
+		Rig q;
+		q.range->sampleHolder.startPos = 2 * kZoomMax;
+		q.range->sampleHolder.endPos = 12 * kZoomMax;
+		q.open(MarkerType::START);
+		q.tick(0);
+		currentUIMode = UI_MODE_AUDITIONING; // already sounding when START goes down
+		q.pad(2, 3, true, 10);
+		q.tick(10);
+		q.pad(6, 3, true, 20);
+		q.tick(20);
+		expect(static_cast<int32_t>(q.range->sampleHolder.loopStartPos)).to_equal(6 * kZoomMax);
+		q.pad(6, 3, false, 25);
+		q.pad(2, 3, false, 30);
+		q.tick(30);
+		expect(marker_scene().holding_marker()).to_be_false();
+		currentUIMode = UI_MODE_NONE;
 	});
 
 	it("removes the loop start by holding it and tapping START", _ {

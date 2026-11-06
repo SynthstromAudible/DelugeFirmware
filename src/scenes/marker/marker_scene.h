@@ -56,7 +56,8 @@
 /// A zoom slides from what the pads showed to the new view's bare waveform over `ui::grid::kZoomSpeed`, as
 /// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::grid::ZoomTransition`); every
 /// input is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
-/// `graphicsRoutine`'s (`:1003-1053`): the column the newest voice plays, on every row, with the flash cursor Slow.
+/// `graphicsRoutine`'s (`:977-1027`): the column the newest voice plays, on every row, painted with the flash cursor
+/// Slow and flashed by the PIC with it Fast.
 ///
 /// @par The blink, and a disagreement inside legacy
 ///
@@ -94,6 +95,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/waveform_navigator.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -225,6 +227,11 @@ private:
 	/// @brief Whether any UI mode is up: legacy's `currentUIMode != 0` (a held marker, X_ENC held, a zoom sliding,
 	/// auditioning).
 	bool mode_up() const { return holding_ || xenc_held_ || sliding() || auditioning(); }
+	/// @brief Legacy's `HOLDING_SAMPLE_MARKER | AUDITIONING`, under which a main-pad press and the held pad's release
+	/// are refused (`:368-370`, `:632`).
+	bool holding_and_auditioning() const { return holding_ && auditioning() && !audition_under_hold_; }
+	/// @brief Drop every UI mode and the slide, as legacy's `currentUIMode` is dropped on the way in and out.
+	void forget_modes();
 
 	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
 	bool allow_extra_scroll_right() const;
@@ -294,6 +301,11 @@ private:
 	const services::Waveforms& waveforms() const;
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
+	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
+	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	/// A note was already auditioning when the held marker went down: legacy's hold assigns `currentUIMode`, so that
+	/// audition's bit is gone and only one begun under the hold makes `HOLDING_SAMPLE_MARKER | AUDITIONING`.
+	bool audition_under_hold_ = false;
 	/// How often a moving playhead is redrawn: the slicer's period.
 	static constexpr uint32_t kPlayheadMs = 15;
 	/// A zoom the next grid render starts sliding: the levels, pin square and step `horizontal_encoder` found.

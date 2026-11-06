@@ -327,9 +327,6 @@ public:
 			}
 			auto* range =
 			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
-			if (range == nullptr) {
-				return std::nullopt;
-			}
 			VoiceSlot* newest = nullptr;
 			for (const Sound::ActiveVoice& voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()

@@ -98,8 +98,9 @@
 ///
 /// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
 ///       `RuntimeFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
-///       and only Slow reaches a pixel (`PadLEDs::prepareColour`); `ui/grid/columns.h`'s `tick_colour` warning
-///       records why the Fast branch cannot.
+///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
+///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
+///       colourless for a muted row.
 ///
 /// @par What draws what
 ///
@@ -213,9 +214,11 @@
 #include "model/sample/waveform_render_data.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/services/waveform_address.h"
+#include "ui/grid/columns.h"
 
 #include "definitions_cxx.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -617,6 +620,15 @@ private:
 	/// @{
 	int32_t last_tick_square_ = 0;
 	bool must_redraw_tick_squares_ = false;
+	/// `graphicsRoutine` handed `PadLEDs::setTickSquares` a new square this render, which the fast cursor flashes.
+	bool tick_squares_set_ = false;
+	/// Each row's square at the last `setTickSquares`: legacy's `slowFlashSquares`.
+	std::array<uint8_t, kDisplayHeight> flashed_ticks_ = filled_no_tick();
+	static constexpr std::array<uint8_t, kDisplayHeight> filled_no_tick() {
+		std::array<uint8_t, kDisplayHeight> a{};
+		a.fill(deluge::ui::grid::kNoTickSquare);
+		return a;
+	}
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
