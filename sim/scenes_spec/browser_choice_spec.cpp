@@ -1315,6 +1315,21 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		currentUIMode = UI_MODE_NONE;
 	});
 
+	it("lets the menu declare no LEDs while the browser its entry opened covers it", _ {
+		// `SoundEditor::opened` opens the browser from `beginScreen`, before `focusRegained` sets the editor's LEDs;
+		// they are set when the editor regains focus. SAVE is the menu's alone to declare.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(r.browser_on_stack()).to_be_true();
+		const auto save = static_cast<size_t>(deluge::ui::shell::ButtonId::Save);
+		const auto back = static_cast<size_t>(deluge::ui::shell::ButtonId::Back);
+		expect(r.fake.leds().desired_declared[save]).to_be_false();
+		expect(r.fake.leds().desired_declared[back]).to_be_true(); // the browser's own blink
+	});
+
 	it("hands the main columns back when nothing scrolls or is about to", _ {
 		// The browser left between asking for a scroll and drawing it: no `scrollFinished` will come.
 		CleanBrowser clean;

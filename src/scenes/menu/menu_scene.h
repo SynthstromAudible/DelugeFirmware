@@ -561,6 +561,11 @@ private:
 		ValueSession session;
 		/// The shift level the last event or uncovered frame brought, latched or not: the SHIFT overlay's.
 		bool shift_held = false;
+		/// The visit's first `after_render` has run: a scene pushed before it opened straight from the menu's entry.
+		bool entered = false;
+		/// A scene the entry opened at once covers the menu: legacy's `SoundEditor::opened` opened it from
+		/// `beginScreen`, before `focusRegained` set the editor's LEDs, so the menu declares none until it resumes.
+		bool leds_held_back = false;
 	};
 	Visit visit_{};
 	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).

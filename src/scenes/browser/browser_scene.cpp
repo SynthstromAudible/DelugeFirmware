@@ -416,6 +416,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	favourite_resp_ = {};
 	bank_resp_ = {};
 	favourite_flash_anchor_ms_.reset();
+	back_blink_restart_ = true;
 	if (id_ == BrowserId::Sample) {
 		favourites().set_category("SAMPLES"); // `SampleBrowser::opened`
 	}
@@ -1424,6 +1425,13 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 }
 
 void BrowserScene::leds(deluge::ui::LedFrame& f) {
+	// `QwertyUI::opened`'s `blinkLed(IndicatorLED::BACK)`, restarted as the browser opens.
+	if (back_blink_restart_) {
+		back_blink_restart_ = false;
+		f.restart(deluge::ui::BlinkRate::Normal);
+	}
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
+	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
 	if (id_ != BrowserId::Sample) {
 		return;
 	}

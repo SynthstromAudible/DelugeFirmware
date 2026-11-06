@@ -243,6 +243,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	blink_phase_ = 0; // `:128`
 	blink_accum_ms_ = 0;
 	holding_ = false;
+	xenc_held_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
 	marker_on_screen_ = false;
@@ -255,6 +256,7 @@ void MarkerScene::on_exit() {
 	// `currentUIMode` is a global legacy clears on the way out of every UI, and this scene's copy
 	// of it is a member.
 	holding_ = false;
+	xenc_held_ = false;
 	press_x_ = -1;
 	press_y_ = -1;
 }
@@ -766,13 +768,15 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		to_send = cols;
 	}
 
+	// Zoom with X_ENC held, scroll without, and either only with no mode up but X_ENC held and auditioning
+	// (`zoomUIModes`, `:697`, `:752-770`): never while a marker is held. X_ENC cannot be held with a marker (each
+	// refuses the other), so only the scroll asks.
 	bool success = false;
 	if (zooming) {
-		// `WaveformBasicNavigator::zoom`'s arithmetic only -- see the class docstring on the
-		// transition animation.
+		// `WaveformBasicNavigator::zoom`'s arithmetic only -- see the class docstring on the transition animation.
 		success = nav_.zoom(offset, allow_extra_scroll_right(), to_send, marker_type_);
 	}
-	else {
+	else if (!holding_) {
 		success = nav_.scroll(offset, allow_extra_scroll_right(), to_send);
 	}
 
@@ -807,17 +811,31 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, set by `buttonAction`'s `X_ENC` arm at
 			// `:661-671`); the shell tracks held buttons for us, so the mode is a question rather
 			// than a member.
-			return horizontal_encoder(event.delta, ctx.held.has(deluge::ui::shell::ButtonId::XEnc), ctx.shift);
+			return horizontal_encoder(event.delta, xenc_held_, ctx.shift);
 		}
 		// `verticalEncoderAction` is not ported (see the class docstring); a vertical turn falls
 		// through to whatever is beneath.
 		return Result::unhandled();
 
 	case UiEvent::Kind::Button:
-		if (event.button == deluge::ui::shell::ButtonId::Back && event.on) {
-			// `buttonAction`'s BACK arm (`:651-658`) -> `exitUI()` -> `close()`.
+	case UiEvent::Kind::EncoderButton:
+		if (event.button == deluge::ui::shell::ButtonId::Back) {
+			// `buttonAction`'s BACK arm (`sample_marker_editor.cpp:661-668`): a press with no UI mode up exits.
 			r.handled = true;
-			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+			if (event.on && !mode_up()) {
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+			}
+			return r;
+		}
+		if (event.button == deluge::ui::shell::ButtonId::XEnc) {
+			// `buttonAction`'s X_ENC arm (`:672-681`): held only from no mode or auditioning alone; released always.
+			r.handled = true;
+			if (!event.on) {
+				xenc_held_ = false;
+			}
+			else if (!holding_ && !xenc_held_) {
+				xenc_held_ = true;
+			}
 			return r;
 		}
 		return Result::unhandled();
@@ -825,8 +843,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Pad: {
 		const int32_t x = event.x;
 		if (x == kDisplayWidth) {
-			// The mute column: legacy exits on a press here (`:361-365`).
-			if (event.on) {
+			// The mute column: legacy exits on a press with no UI mode up (`:366-370`).
+			if (event.on && !mode_up()) {
 				r.handled = true;
 				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
 			}
@@ -838,6 +856,11 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		if (x > kDisplayWidth) {
 			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
 			// swallows it on an audio clip.
+			r.handled = true;
+			return r;
+		}
+		// A press under any mode but a held marker or auditioning is refused (`:376-380`).
+		if (event.on && xenc_held_) {
 			r.handled = true;
 			return r;
 		}
@@ -855,7 +878,6 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::MidiProgramChange:
 	case UiEvent::Kind::MidiPitchBend:
-	case UiEvent::Kind::EncoderButton:
 	case UiEvent::Kind::AllReleased:
 		return Result::unhandled();
 	}

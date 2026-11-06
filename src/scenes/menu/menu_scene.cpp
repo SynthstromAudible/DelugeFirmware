@@ -245,6 +245,7 @@ void MenuScene::on_resume() {
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
 	pads_.forget_landing();
 	visit_.use_up_select = true;
+	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -501,7 +502,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
 	// would light a menu that is not on screen.
-	if (focused() == nullptr) {
+	if (focused() == nullptr || visit_.leds_held_back) {
 		return;
 	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
@@ -530,6 +531,8 @@ MenuActionRequest MenuScene::take_action() {
 }
 
 Result MenuScene::after_render() {
+	const bool entering = !visit_.entered;
+	visit_.entered = true;
 	// The render consumed this tick's BACK (above depth 0) and select edges -- the select one on its release, as
 	// legacy's SELECT arm acts (`select_acts_on_release`) -- and the navigation below acts on them: note the value they
 	// leave now.
@@ -540,6 +543,11 @@ Result MenuScene::after_render() {
 		note_cause(TransitionCause::Select, focused_value());
 	}
 	Result r = after_render_navigation();
+	if (entering) {
+		for (const Action& a : r.actions) {
+			visit_.leds_held_back = visit_.leds_held_back || a.kind == Action::Kind::Push;
+		}
+	}
 	// The record an event noted (`handle`) is filed once its navigation has run, which is here.
 	if (pending_transition_) {
 		transition_ = MenuTransition{.from = transition_from_, .to = focused_value(), .cause = *pending_transition_};

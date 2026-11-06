@@ -941,6 +941,104 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().holding_marker()).to_be_false();
 	});
 
+	it("refuses BACK and the mute column while a marker is held or a note auditions, and exits on them otherwise", _ {
+		// `buttonAction`'s BACK arm and `padAction`'s mute arm exit only with no UI mode
+		// (`sample_marker_editor.cpp:661-668`, `:366-370`); a held marker and auditioning are UI modes.
+		const auto on_stack = [](Rig& r) {
+			for (const deluge::ui::shell::Scene* sc : r.shell.stack().scenes()) {
+				if (sc->kind() == kMarkerSceneKind) {
+					return true;
+				}
+			}
+			return false;
+		};
+		{
+			Rig r;
+			r.range->sampleHolder.startPos = 2 * kZoomMax;
+			r.open(MarkerType::START);
+			r.tick(0);
+			r.pad(2, 3, true, 10); // hold START
+			r.tick(10);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 20);
+			r.tick(20);
+			r.pad(kDisplayWidth, 0, true, 30);
+			r.tick(30);
+			expect(on_stack(r)).to_be_true();
+			r.pad(2, 3, false, 40);
+			r.tick(40);
+			r.pad(kDisplayWidth, 0, false, 45);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 45);
+			currentUIMode = UI_MODE_AUDITIONING;
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 50);
+			r.tick(50);
+			expect(on_stack(r)).to_be_true();
+			currentUIMode = UI_MODE_NONE;
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 55);
+			r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 60);
+			r.tick(60);
+			expect(on_stack(r)).to_be_false();
+		}
+		{
+			Rig r;
+			r.open(MarkerType::START);
+			r.tick(0);
+			r.pad(kDisplayWidth, 0, true, 10);
+			r.tick(10);
+			expect(on_stack(r)).to_be_false();
+		}
+	});
+
+	it("neither zooms nor scrolls while a marker is held, and holds X_ENC only with no other mode", _ {
+		// `horizontalEncoderAction`'s `zoomUIModes` (`:697`, `:752-770`) and `buttonAction`'s X_ENC arm (`:672-681`).
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(2, 3, true, 10); // hold START
+		r.tick(10);
+		r.x_enc_button(true, 20);
+		r.tick(20);
+		expect(marker_scene().holding_xenc()).to_be_false();
+		r.turn_horizontal(1, 30);
+		r.tick(30);
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax);
+		r.x_enc_button(false, 40);
+		r.pad(2, 3, false, 40);
+		r.tick(40);
+		r.x_enc_button(true, 50);
+		r.tick(50);
+		expect(marker_scene().holding_xenc()).to_be_true();
+		r.turn_horizontal(1, 60); // zoom in
+		r.tick(60);
+		expect(static_cast<int32_t>(marker_scene().x_zoom()) < kZoomMax).to_be_true();
+		const int32_t zoomed = static_cast<int32_t>(marker_scene().x_zoom());
+		r.pad(9, 3, true, 70); // refused with X_ENC held: nothing selected or moved
+		r.tick(70);
+		expect(marker_scene().holding_marker()).to_be_false();
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
+		r.pad(9, 3, false, 75);
+		r.x_enc_button(false, 80);
+		r.tick(80);
+		currentUIMode = UI_MODE_AUDITIONING; // a turn scrolls while auditioning
+		const int64_t scroll = r.view().has_value() ? r.view()->scroll : -1;
+		r.turn_horizontal(1, 90);
+		r.tick(90);
+		currentUIMode = UI_MODE_NONE;
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(zoomed);
+		expect(r.view().has_value() && r.view()->scroll != scroll).to_be_true();
+		// Zoomed in, with START held in view, a turn does not scroll.
+		const int64_t s = r.view().has_value() ? r.view()->scroll : 0;
+		const int32_t col = static_cast<int32_t>((2 * kZoomMax - s) / zoomed);
+		expect(col >= 0 && col < kDisplayWidth).to_be_true();
+		r.pad(col, 3, true, 100);
+		r.tick(100);
+		expect(marker_scene().holding_marker()).to_be_true();
+		r.turn_horizontal(1, 110);
+		r.tick(110);
+		expect(r.view().has_value() && r.view()->scroll == s).to_be_true();
+		r.pad(col, 3, false, 120);
+	});
+
 	it("adds a loop start by holding START and tapping to its right", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;

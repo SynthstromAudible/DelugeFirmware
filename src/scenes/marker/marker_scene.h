@@ -192,6 +192,8 @@ public:
 	int8_t blink_phase() const { return blink_phase_; }
 	/// @return Is a marker pad being held (legacy's `UI_MODE_HOLDING_SAMPLE_MARKER`)?
 	bool holding_marker() const { return holding_; }
+	/// @brief Whether X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
+	bool holding_xenc() const { return xenc_held_; }
 	/// @}
 
 private:
@@ -216,6 +218,10 @@ private:
 	/// @param shift   Is shift held?
 	/// @return Actions to file (the loop-length popups).
 	deluge::ui::shell::Result horizontal_encoder(int32_t offset, bool zooming, bool shift);
+	/// @brief Whether a note is auditioned: legacy's `UI_MODE_AUDITIONING`, from the host.
+	bool auditioning() const { return ctx_.facts != nullptr && ctx_.facts->auditioning(); }
+	/// @brief Whether any UI mode is up: legacy's `currentUIMode != 0` (a held marker, X_ENC held, auditioning).
+	bool mode_up() const { return holding_ || xenc_held_ || auditioning(); }
 	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
 	bool allow_extra_scroll_right() const;
 	/// @brief `SampleMarkerEditor::recordScrollAndZoom` (`:140`).
@@ -276,6 +282,8 @@ private:
 	/// rather than a global UI mode.
 	/// @{
 	bool holding_ = false;
+	/// X_ENC held, entered only with no UI mode or auditioning alone (`buttonAction`'s X_ENC arm).
+	bool xenc_held_ = false;
 	int8_t press_x_ = -1;
 	int8_t press_y_ = -1;
 	/// @}
