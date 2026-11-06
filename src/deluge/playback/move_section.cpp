@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "model/mod_controllable/delay_type.h"
+#include "modulation/params/lane_snapshot.h"
 #include "runtime/app_loop.h"
 
 #include <algorithm>
@@ -150,6 +151,10 @@ void MaskedSpan::report() {
 		D_PRINTLN("PM-SPAN site=%s longest_us=%u count=%u", site.name, static_cast<unsigned>(site.longestUs),
 		          static_cast<unsigned>(site.count));
 	});
+#if ALPHA_OR_BETA_VERSION
+	D_PRINTLN("LANES-MEM bytes=%u",
+	          static_cast<unsigned>(deluge::modulation::publishedBytes.load(std::memory_order_relaxed)));
+#endif
 }
 #else
 void MaskedSpan::forEachSite(void (* /*visit*/)(const Site&)) {

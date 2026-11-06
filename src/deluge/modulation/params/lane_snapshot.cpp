@@ -30,9 +30,27 @@ static_assert(std::is_trivially_copyable_v<project::ParamNode>);
 static_assert(sizeof(PublishedLane) % alignof(project::ParamNode) == 0);
 static_assert(sizeof(LaneSnapshot) % alignof(LaneSnapshot::Entry) == 0);
 
+#if ALPHA_OR_BETA_VERSION
+std::atomic<uint32_t> publishedBytes{0};
+#endif
+
 namespace {
 const project::ParamNode* nodesOf(const PublishedLane* lane) {
 	return reinterpret_cast<const project::ParamNode*>(lane + 1);
+}
+
+size_t laneBytes(uint32_t count) {
+	return sizeof(PublishedLane) + (count * sizeof(project::ParamNode));
+}
+
+size_t snapshotBytes(uint32_t count) {
+	return sizeof(LaneSnapshot) + (count * sizeof(LaneSnapshot::Entry));
+}
+
+void countBytes([[maybe_unused]] int64_t bytes) {
+#if ALPHA_OR_BETA_VERSION
+	publishedBytes.fetch_add(static_cast<uint32_t>(bytes), std::memory_order_relaxed);
+#endif
 }
 } // namespace
 
@@ -56,10 +74,11 @@ bool PublishedLane::equals(const project::DocAutoParam& lane) const {
 
 const PublishedLane* PublishedLane::copyOf(const project::DocAutoParam& lane) {
 	const auto count = static_cast<uint32_t>(lane.nodes.size());
-	void* memory = deluge::memory::alloc_sdram(sizeof(PublishedLane) + (count * sizeof(project::ParamNode)));
+	void* memory = deluge::memory::alloc_sdram(laneBytes(count));
 	if (memory == nullptr) {
 		return nullptr;
 	}
+	countBytes(static_cast<int64_t>(laneBytes(count)));
 	auto* copy = new (memory) PublishedLane{.base = lane.current_value, .count = count};
 	if (count != 0) {
 		std::memcpy(static_cast<void*>(copy + 1), &*lane.nodes.begin(), count * sizeof(project::ParamNode));
@@ -68,6 +87,7 @@ const PublishedLane* PublishedLane::copyOf(const project::DocAutoParam& lane) {
 }
 
 void PublishedLane::destroy(void* lane) {
+	countBytes(-static_cast<int64_t>(laneBytes(static_cast<PublishedLane*>(lane)->count)));
 	deluge::memory::dealloc(lane);
 }
 
@@ -86,16 +106,18 @@ std::span<LaneSnapshot::Entry> LaneSnapshot::entriesToFill() {
 }
 
 LaneSnapshot* LaneSnapshot::make(uint32_t count) {
-	void* memory = deluge::memory::alloc_sdram(sizeof(LaneSnapshot) + (count * sizeof(Entry)));
+	void* memory = deluge::memory::alloc_sdram(snapshotBytes(count));
 	if (memory == nullptr) {
 		return nullptr;
 	}
+	countBytes(static_cast<int64_t>(snapshotBytes(count)));
 	auto* snapshot = new (memory) LaneSnapshot{};
 	snapshot->count = count;
 	return snapshot;
 }
 
 void LaneSnapshot::destroy(void* snapshot) {
+	countBytes(-static_cast<int64_t>(snapshotBytes(static_cast<LaneSnapshot*>(snapshot)->count)));
 	deluge::memory::dealloc(snapshot);
 }
 

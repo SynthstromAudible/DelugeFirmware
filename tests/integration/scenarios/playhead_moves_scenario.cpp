@@ -38,6 +38,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -335,6 +336,54 @@ bool selfTestRetire() {
 	return keptOneBlock && g_markerFreed;
 }
 
+/// Out of memory building a snapshot: the old one stays published, the failure is counted, and the next publish point
+/// publishes the lane.
+bool selfTestPublishOutOfMemory() {
+	ParamSet& set = *currentSong->paramManager.getUnpatchedParamSet();
+	constexpr int32_t p = deluge::modulation::params::UNPATCHED_STUTTER_RATE;
+	// A length no other lane of the boot song has, so the failure made is this lane's copy
+	constexpr int32_t kNodes = 37;
+	const deluge::project::DocAutoParam before = *set.docForParam(p);
+	auto edit = [&](int32_t value) {
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		deluge::project::DocAutoParam& lane = *set.docForParam(p);
+		lane.nodes.clear();
+		for (int32_t n = 0; n < kNodes; n++) {
+			const int32_t i = lane.nodes.insertSorted(n * 3).value_or(-1);
+			if (i >= 0) {
+				lane.nodes[i].value = value + n;
+			}
+		}
+	};
+	edit(0);
+	deluge::modulation::publishDirtyLanes(true);
+	const deluge::modulation::LaneSnapshot* first = set.published();
+
+	edit(1000);
+	bool counted = true;
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t failuresBefore = deluge::modulation::publishFailures;
+#endif
+	deluge::memory::failNextAllocationOfSize(sizeof(deluge::modulation::PublishedLane)
+	                                         + (kNodes * sizeof(deluge::project::ParamNode)));
+	deluge::modulation::publishDirtyLanes(true);
+#if ALPHA_OR_BETA_VERSION
+	counted = deluge::modulation::publishFailures == failuresBefore + 1;
+#endif
+	const bool kept = set.published() == first;
+
+	deluge::modulation::publishDirtyLanes(true);
+	const deluge::modulation::PublishedLane* now = (set.published() != nullptr) ? set.published()->find(p) : nullptr;
+	const bool republished = set.published() != first && now != nullptr && now->equals(*set.docForParam(p));
+
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		*set.docForParam(p) = before;
+	}
+	deluge::modulation::publishDirtyLanes(true);
+	return first != nullptr && counted && kept && republished && !deluge::memory::allocationFailurePending();
+}
+
 /// As logRunner, and the notify 10 makes a move of its own that defers 20 and 21.
 void nestingRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
 	logRunner(notify);
@@ -420,10 +469,12 @@ void selfTestEffects() {
 
 	char line[128];
 	const bool retire = selfTestRetire();
-	snprintf(line, sizeof(line),
-	         "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d retire=%d\n",
-	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
-	         render ? 1 : 0, retire ? 1 : 0);
+	const bool publishOutOfMemory = selfTestPublishOutOfMemory();
+	snprintf(
+	    line, sizeof(line),
+	    "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d retire=%d publish_oom=%d\n",
+	    order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
+	    render ? 1 : 0, retire ? 1 : 0, publishOutOfMemory ? 1 : 0);
 	std::fputs(line, stdout);
 }
 
@@ -841,10 +892,12 @@ void runTick() {
 		});
 #if ALPHA_OR_BETA_VERSION
 		{
-			// Lanes the render resolved through the model, over every leg played outside record mode
-			char snapshotLine[64];
-			snprintf(snapshotLine, sizeof(snapshotLine), "PM-SNAPSHOT model_reads=%u stale=%d\n",
-			         static_cast<unsigned>(deluge::modulation::renderModelReads), static_cast<int>(g_lanesStale));
+			// Lanes the render resolved through the model, over every leg played outside record mode; the bytes the
+			// published lanes hold at the end
+			char snapshotLine[96];
+			snprintf(snapshotLine, sizeof(snapshotLine), "PM-SNAPSHOT model_reads=%u stale=%d lanes_bytes=%u\n",
+			         static_cast<unsigned>(deluge::modulation::renderModelReads), static_cast<int>(g_lanesStale),
+			         static_cast<unsigned>(deluge::modulation::publishedBytes.load(std::memory_order_relaxed)));
 			std::fputs(snapshotLine, stdout);
 		}
 #endif

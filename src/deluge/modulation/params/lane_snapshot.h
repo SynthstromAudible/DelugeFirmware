@@ -16,12 +16,19 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "deluge-project/lane_view.h"
 
+#include <atomic>
 #include <cstdint>
 #include <span>
 
 namespace deluge::modulation {
+
+#if ALPHA_OR_BETA_VERSION
+/// [render] or [interaction] The bytes of every published lane and snapshot not yet freed.
+extern std::atomic<uint32_t> publishedBytes;
+#endif
 
 /// @brief One lane as the render plays it: its base and nodes, immutable once made. One allocation in SDRAM, the nodes
 ///        after the header.
