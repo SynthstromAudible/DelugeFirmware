@@ -10,11 +10,15 @@
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/profile.h"
 
+#include "gfx/oled/font.h"
+#include "ui/oled/frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
 #include "definitions_cxx.hpp"
+#include "foundation/string_format.h"
 #include "instruments/deluge/sound_state.h"
+#include "processing/dx7/algorithm_diagrams.h"
 
 #include <algorithm>
 #include <array>
@@ -89,6 +93,146 @@ void focus_list(MenuState& state, int16_t cursor) {
 	state.list[d] = deluge::ui::ListState{};
 	state.list[d].cursor = cursor;
 	state.scroll[d] = deluge::ui::ScrollText{};
+}
+
+using PatchBytes = std::array<uint8_t, 156>;
+
+/// @brief `show` (`param.cpp:325-339`): @p text on one of the page's two rows at a character column, inverted when
+///        it is the param shown.
+void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column, bool inverted = false) {
+	using namespace deluge::gfx::oled;
+	const int32_t y = 7 + (2 + row) * (kTextSizeYUpdated + 2);
+	const int32_t x = 5 + column * kTextSpacingX;
+	p.glyphs(text, x, y, kTextSpacingX, kTextSizeYUpdated);
+	if (inverted) {
+		p.invert(Rect{x - 1, y - 1, kTextSpacingX * static_cast<int32_t>(text.size()) + 1, kTextSizeYUpdated + 2});
+	}
+}
+
+/// @brief `show`'s number form: at least two digits.
+void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t column, bool inverted = false) {
+	char digits[12];
+	intToString(value, digits, 2);
+	show(p, digits, row, column, inverted);
+}
+
+/// `renderEnvelope` (`param.cpp:341-350`): rates over levels; `op` 6 is the pitch envelope.
+void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+	show(p, "rate", 0, 0);
+	show(p, "levl", 1, 0);
+	for (int32_t i = 0; i < 4; i++) {
+		show(p, params[op * 21 + i], 0, 5 + i * 3, i == idx);
+		show(p, params[op * 21 + 4 + i], 1, 5 + i * 3, i + 4 == idx);
+	}
+}
+
+/// `renderScaling` (`param.cpp:352-396`): the two depths over the two curves, the breakpoint between them.
+void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+	using namespace deluge::gfx::oled;
+	for (int32_t i = 0; i < 2; i++) {
+		show(p, params[op * 21 + 9 + i], 0, 1 + i * 11, 9 + i == idx);
+		show(p, dx::curve_name(params[op * 21 + 11 + i]), 1, 1 + i * 11, 11 + i == idx);
+	}
+	const int32_t y = 7 + 2 * (kTextSizeYUpdated + 2) + ((kTextSizeYUpdated + 1) >> 1);
+	const int32_t x = 14 + 6 * kTextSpacingX;
+	char digits[12];
+	intToString(params[op * 21 + 8], digits, 2);
+	p.glyphs(digits, x, y, kTextSpacingX, kTextSizeYUpdated);
+	if (idx == 8) {
+		p.invert(Rect{x - 1, y - 1, kTextSpacingX * 2 + 1, kTextSizeYUpdated + 2});
+	}
+}
+
+/// `renderSensParams` (`param.cpp:398-407`).
+void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+	show(p, "rate scale", 0, 1);
+	show(p, params[op * 21 + 13], 0, 12, idx == 13);
+	show(p, "ampmod", 1, 0);
+	show(p, params[op * 21 + 14], 1, 7, idx == 14);
+	show(p, "velo", 1, 11);
+	show(p, params[op * 21 + 15], 1, 16, idx == 15);
+}
+
+/// `renderTuning` (`param.cpp:409-425`): the mode, coarse, fine and detune (shown from -7), then the level.
+void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
+	show(p, params[op * 21 + 17] != 0 ? "fixed" : "ratio", 0, 1, idx == 17);
+	for (int32_t i = 0; i < 3; i++) {
+		int32_t value = params[op * 21 + 18 + i];
+		if (i + 18 == 20) {
+			value -= 7;
+		}
+		show(p, value, 0, 7 + i * 3, i + 18 == idx);
+	}
+	show(p, "level", 1, 1);
+	show(p, params[op * 21 + 16], 1, 7, idx == 16);
+}
+
+/// `renderLFO` (`param.cpp:427-455`).
+void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
+	for (int32_t i = 0; i < 2; i++) {
+		show(p, params[137 + i], 0, 1 + i * 3, 137 + i == param);
+	}
+	for (int32_t i = 0; i < 2; i++) {
+		show(p, i == 0 ? "pitch" : "  amp", 1, 1 + i * 9);
+		show(p, params[139 + i], 1, 1 + i * 9 + 6, i + 139 == param);
+	}
+	show(p, params[141] != 0 ? "sync" : "    ", 0, 7, param == 141);
+	show(p, dx::lfo_shape(params[142]), 0, 12, param == 142);
+	char digits[12];
+	intToString(params[143], digits, 1);
+	show(p, digits, 1, 10, param == 143);
+}
+
+/// `renderAlgorithm` (`param.cpp:457-473`): a "#NN" badge inverted at the title's right, and the diagram.
+void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
+	using namespace deluge::gfx::oled;
+	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
+	char badge[12] = "#";
+	intToString(algorithm + 1, badge + 1, 2);
+	constexpr int32_t kBadgePadding = 2;
+	const int32_t width = p.canvas.get_string_width_in_pixels(badge, kTextTitleSizeY);
+	const int32_t panel_width = p.bounds().w;
+	const int32_t separator_y = 12 + top; // `kScreenTitleSeparatorY`
+	const int32_t x = panel_width - width - 2 * kBadgePadding;
+	p.glyphs(badge, x + kBadgePadding, top + 1, kTextTitleSpacingX, kTextTitleSizeY);
+	p.invert(Rect{x, top, panel_width - x, separator_y - 2 - top + 1});
+	const deluge::dx7::AlgorithmDiagram d = deluge::dx7::algorithm_diagram(algorithm);
+	p.graphic(d.data, d.x, d.y, d.width, d.height, d.num_bytes_tall);
+}
+
+/// @brief `DxParam::drawPixelsForOled` (`param.cpp:475-506`) for @p param of @p patch, on the panel frame @p p.
+/// @param top The panel's first visible row, `OLED_MAIN_TOPMOST_PIXEL` on the 48-row panel.
+void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instrument::DxPatchState& patch,
+                int16_t param) {
+	using namespace deluge::gfx::oled;
+	const PatchBytes& params = patch.params;
+	if (param < 0 || param == 135 || param == 136) {
+		// The random detune, the feedback and the sync: one huge number.
+		char digits[12];
+		intToString(param < 0 ? patch.random_detune : params[param], digits, param < 0 ? 2 : 1);
+		p.glyphs(digits, 50, 20, kTextHugeSpacingX, kTextHugeSizeY);
+		return;
+	}
+	const int32_t op = param / dx::kOperatorParams;
+	const int32_t idx = param % dx::kOperatorParams;
+	if (param < dx::kFirstGlobal + 8 && idx < 8) {
+		draw_envelope(p, params, op, idx); // `op` 6 is the pitch envelope
+	}
+	else if (param < dx::kFirstGlobal && idx < 13) {
+		draw_scaling(p, params, op, idx);
+	}
+	else if (param < dx::kFirstGlobal && idx < 16) {
+		draw_sensitivity(p, params, op, idx);
+	}
+	else if (param < dx::kFirstGlobal) {
+		draw_tuning(p, params, op, idx);
+	}
+	else if (param == 134) {
+		draw_algorithm(p, top, params);
+	}
+	else if (param >= 137 && param <= dx::kLastParam) {
+		draw_lfo(p, params, param);
+	}
 }
 
 bool source_is_dx(const MenuContext& ctx, size_t source) {
@@ -245,13 +389,18 @@ const Node* dx_operator_params_chain(const MenuContext& /*ctx*/, const MenuState
 // ---------------------------------------------------------------------------------------------
 // `DxParam` (`gui/menu_item/dx/param.cpp`)
 
-void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	std::array<char, 32> title{};
 	deluge::ui::oled::title(f, std::string_view{title.data(), dx::title(state.dx.param, title)});
 	state.tick.render_resp = {};
 	f.claim_select();
 	if (f.select_pressed()) {
 		state.tick.render_resp.entered = true; // `selectButtonPress` answers nothing: SELECT goes up
+	}
+	if (const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx)) {
+		// Legacy draws in the canvas's own coordinates, the rows above the panel's visible top included.
+		deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(f);
+		draw_param(panel, f.origin.y, *patch, state.dx.param);
 	}
 }
 

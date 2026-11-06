@@ -20,6 +20,8 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/dx/browse.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
@@ -28,13 +30,16 @@
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
+#include "hid/display/oled.h"
 #include "model/action/action_logger.h"
 #include "model/project_bridge/source_bridge.h"
+#include "notify/notice_queue.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
+#include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
 #include "support/song_fixture.h"
 
@@ -110,6 +115,33 @@ void legacy_on(int16_t param) {
 	legacy::dxParam.readValueAgain();
 }
 
+/// @brief The language the port's and legacy's text come from, and no notice left over from another example.
+void select_language() {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	deluge::notify::Notice discard;
+	while (deluge::notify::notices().pop(discard)) {}
+}
+
+/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
+std::string legacy_panel_pbm() {
+	const auto& canvas = deluge::hid::display::OLED::main;
+	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
+/// @brief @p pbm without the five rows above the 48-row panel's visible top, which the port's root frame cannot ink.
+std::string below_bezel(const std::string& pbm) {
+	size_t pos = 0;
+	for (int newlines = 0; pos < pbm.size() && newlines < 2; pos++) {
+		newlines += pbm[pos] == '\n' ? 1 : 0;
+	}
+	std::string out = pbm.substr(0, pos);
+	for (int i = 0; i < 5 && pos < pbm.size(); i++) {
+		const size_t next = pbm.find('\n', pos);
+		pos = next == std::string::npos ? pbm.size() : next + 1;
+	}
+	return out + pbm.substr(pos);
+}
+
 /// Matrix coordinates and encoder indices (`kMatrix`, `kDelugeEncoders`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kHorizontalEncoder = 1;
@@ -148,6 +180,9 @@ struct MenuRig : DxRig {
 			ctx.sink = sink;
 		}
 		(void)menu::assign_node_ids(kRoots);
+		while (shell.stack().depth() > 0) { // a fresh push, so the first frame is drawn whole
+			shell.stack().pop(SceneKind::Null);
+		}
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
 		tick();
@@ -384,6 +419,99 @@ describe dx_pages("the DX7 menu pages", ${
 		r.select();
 		expect(r.focused() == &nodes::dx_param).to_be_true();
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
+	});
+
+	it("draws every parameter layout as legacy's DxParam::renderOLED does", _ {
+		select_language();
+		MenuRig r;
+		const auto shot = [&](int16_t param) {
+			legacy_on(param);
+			deluge::hid::display::OLED::main.clear();
+			legacy::dxParam.renderOLED();
+			const std::string legacy_panel = below_bezel(legacy_panel_pbm());
+			menu_scene().land_dx(menu::DxState{.param = param});
+			r.open(nodes::dx_param);
+			r.tick();
+			expect(static_cast<int32_t>(r.state().dx.param)).to_equal(static_cast<int32_t>(param));
+			const std::string tag = "param " + std::to_string(param) + "\n";
+			expect(tag + below_bezel(r.fake.pbm(0))).to_equal(tag + legacy_panel);
+		};
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		for (size_t b = 0; b < 155; b++) {
+			patch.params[b] = static_cast<uint8_t>((b * 7 + 3) % (dx::upper_limit(static_cast<int16_t>(b)) + 1));
+		}
+		patch.random_detune = 5; // one digit, which legacy pads to two
+		const auto write = [&] { expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true(); };
+		write();
+		for (const int16_t param : {-1, 135, 136, 3 * 21 + 2, 3 * 21 + 5, 126, 129, 0 * 21 + 13, 0 * 21 + 14,
+		                            2 * 21 + 15, 5 * 21 + 16, 5 * 21 + 17, 5 * 21 + 18, 5 * 21 + 19, 5 * 21 + 20, 134,
+		                            137, 138, 139, 140, 141, 142, 143}) {
+			shot(param);
+		}
+		for (int16_t idx = 8; idx <= 12; idx++) {
+			for (uint8_t curve = 0; curve < 6; curve++) {
+				patch.params[1 * 21 + 11] = curve;
+				patch.params[1 * 21 + 12] = static_cast<uint8_t>(5 - curve);
+				write();
+				shot(static_cast<int16_t>(1 * 21 + idx));
+			}
+		}
+		for (const uint8_t mode : {0, 1}) {
+			patch.params[4 * 21 + 17] = mode;
+			write();
+			shot(4 * 21 + 18);
+		}
+		for (uint8_t algorithm = 0; algorithm < 32; algorithm++) {
+			patch.params[134] = algorithm;
+			write();
+			shot(134);
+		}
+		for (uint8_t shape = 0; shape < 7; shape++) {
+			patch.params[142] = shape;
+			patch.params[141] = shape & 1;
+			write();
+			shot(142);
+		}
+	});
+
+	it("draws DX7 source, both lists and the engine version as legacy's items do", _ {
+		select_language();
+		MenuRig r;
+		const auto legacy_panel = [](::MenuItem& item) {
+			deluge::hid::display::OLED::main.clear();
+			item.renderOLED();
+			return below_bezel(legacy_panel_pbm());
+		};
+		const auto port_panel = [&](const Node& node) {
+			r.open(node);
+			r.tick();
+			return below_bezel(r.fake.pbm(0));
+		};
+		::dxMenu.beginSession(nullptr); // its current row, as entering it on the device sets
+		expect(port_panel(nodes::dx_menu)).to_equal(legacy_panel(::dxMenu));
+		for (int32_t row = 0; row < dx::kGlobalRows; row++) {
+			legacy::dxGlobalParams.currentValue = row;
+			legacy::dxGlobalParams.scrollPos = std::clamp(row - 1, 0, dx::kGlobalRows - 3);
+			menu_scene().land_dx(menu::DxState{.global_cursor = static_cast<int16_t>(row)});
+			expect(port_panel(nodes::dx_global_params)).to_equal(legacy_panel(legacy::dxGlobalParams));
+		}
+		for (int32_t op = 0; op < 6; op++) {
+			for (int32_t row = 0; row < dx::kOperatorRows; row++) {
+				legacy::dxOperatorParams.op = op;
+				legacy::dxOperatorParams.format(6 - op);
+				legacy::dxOperatorParams.currentValue = row;
+				legacy::dxOperatorParams.scrollPos = std::clamp(row - 1, 0, dx::kOperatorRows - 3);
+				menu_scene().land_dx(menu::DxState{.op = static_cast<int8_t>(op), .operator_cursor = static_cast<int16_t>(row)});
+				expect(port_panel(nodes::dx_operator_params)).to_equal(legacy_panel(legacy::dxOperatorParams));
+			}
+		}
+		for (uint8_t mode = 0; mode < 3; mode++) {
+			deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+			patch.engine_mode = mode;
+			expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+			legacy::dxEngineSelect.readValueAgain();
+			expect(port_panel(nodes::dx_engine_select)).to_equal(legacy_panel(legacy::dxEngineSelect));
+		}
 	});
 
 	it("keeps both lists' cursors across leaving them and across another menu, the operators sharing one", _ {

@@ -386,6 +386,11 @@ public:
 	///         clears the slot.
 	MenuActionRequest take_action();
 
+	/// @brief Put the DX7 pages on @p dx: the param the parameter page shows and the two lists' cursors, which the next
+	///        `open` carries over. An entry that opens the parameter page on a param of its own sets it first, as
+	///        legacy sets `dxParam.param` before `soundEditor.setup`.
+	void land_dx(const DxState& dx) { st_.dx = dx; }
+
 	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
 	///
 	/// **The one route into `pending_action` that is not an item writing the field itself**, and it
