@@ -44,6 +44,10 @@ PoolVoice::Settings settings_of(const DxPatch& patch, int midinote, int velocity
 } // namespace
 
 bool DxVoiceAdapter::note_on(void* patch, int midinote, int velocity) {
+	// No patch when the DX engine or the patch could not be allocated: the voice does not sound
+	if (patch == nullptr) {
+		return false;
+	}
 	if (voice_ == nullptr) { // We might actually already have one, and just be restarting this voice
 		voice_ = getDxEngine()->solicitDxVoice();
 		if (voice_ == nullptr) {

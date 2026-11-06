@@ -108,6 +108,9 @@ Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchS
 	}
 	if (dxPatchOf(source) != patch) {
 		DxPatch* runtime = source.ensureDxPatch();
+		if (runtime == nullptr) {
+			return Error::INSUFFICIENT_RAM;
+		}
 		std::ranges::copy(patch.params, runtime->params.begin());
 		if (runtime->engineMode != patch.engine_mode) {
 			runtime->setEngineMode(patch.engine_mode);
