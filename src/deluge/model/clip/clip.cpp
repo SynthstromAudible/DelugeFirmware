@@ -569,6 +569,9 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 // This gets called on the "unique" copy of the original Clip
 Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
                                             ModelStackWithTimelineCounter* modelStackClone) {
+	// The original takes back over: its position, the voices and the output's active clip change together, with the
+	// render held off.
+	deluge::playback::MoveSection section{"Clip::resumeOriginalClipFromThisClone"};
 
 	// Take back control!
 	activeIfNoSolo = false;
@@ -1185,6 +1188,10 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			// Add to Song
 			(void)modelStack->song->live.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Can't fail
+
+			// The clone takes over from here: where this clip has played to, the clip instance, the voice and the
+			// output's active clip change together, with the render held off.
+			deluge::playback::MoveSection section{"Clip::possiblyCloneForArrangementRecording"};
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

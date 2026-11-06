@@ -31,6 +31,8 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          its move: phase=0 required
     PM-ARRANGERRECORD                    a switch to the arranger while recording into it, an output armed: began=1
                                          required (arrangement recording made its clip)
+    PM-CLONE / PM-RESUME                 recording session to arranger, a playing clip cloned for a recorded change
+                                         (cloned=1) and the original resumed when recording stops (resumed=1)
 """
 
 import re
@@ -54,6 +56,8 @@ LEGS = [
     "INJECTAFTERMOVE",
     "INJECTLAUNCH",
     "ARRANGERRECORD",
+    "CLONE",
+    "RESUME",
 ]
 
 _LINE = re.compile(
@@ -111,6 +115,10 @@ def _check(gate, result) -> None:
             r" active=1 phase=0\b", rest
         ):
             reasons.append(f"the launched clip is out of phase ({rest.strip()})")
+        if leg == "CLONE" and " cloned=1" not in rest:
+            reasons.append("no clone took the clip's place")
+        if leg == "RESUME" and " resumed=1" not in rest:
+            reasons.append("the clip did not take its place back")
         if leg == "ARRANGERRECORD" and " began=1" not in rest:
             reasons.append("the switch began no arrangement recording")
         if leg == "INJECTLAUNCH" and " injected=1" not in rest:

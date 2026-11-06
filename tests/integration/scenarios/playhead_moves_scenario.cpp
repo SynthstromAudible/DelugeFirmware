@@ -87,6 +87,8 @@ enum class Leg : uint8_t {
 	InjectAfterMove,
 	InjectLaunch,
 	ArrangerRecord,
+	Clone,
+	Resume,
 	Done,
 };
 
@@ -155,6 +157,10 @@ const char* legName(Leg leg) {
 		return "INJECTLAUNCH";
 	case Leg::ArrangerRecord:
 		return "ARRANGERRECORD";
+	case Leg::Clone:
+		return "CLONE";
+	case Leg::Resume:
+		return "RESUME";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -403,6 +409,19 @@ void prepareMove() {
 		playbackHandler.endPlayback();
 		playbackHandler.posToNextContinuePlaybackFrom = g_clip->loopLength() / 2;
 		break;
+	case Leg::Clone:
+	case Leg::Resume: {
+		// Recording session to arranger: the playing clip has an instance from here on, which a recorded change clones
+		// it into.
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		g_clip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos());
+		if (g_leg == Leg::Resume) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			(void)g_clip->possiblyCloneForArrangementRecording(
+			    setupModelStackWithTimelineCounter(memory, currentSong, g_clip));
+		}
+		break;
+	}
 	case Leg::ArrangerRecord:
 		// Recording session to arranger with the clip's output armed: the switch begins arrangement recording there.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
@@ -507,6 +526,17 @@ void move() {
 		deluge::playback::setRenderInjection(deluge::playback::InjectAt::LaunchBeforeMove, &injectedBlock);
 		lateStart();
 		break;
+	case Leg::Clone: {
+		// As a knob turned on the clip while recording to the arranger does
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		(void)g_clip->possiblyCloneForArrangementRecording(
+		    setupModelStackWithTimelineCounter(memory, currentSong, g_clip));
+		break;
+	}
+	case Leg::Resume:
+		// As stopping recording to the arranger does
+		currentSong->resumeClipsClonedForArrangementRecording();
+		break;
 	case Leg::Done:
 		break;
 	}
@@ -543,6 +573,13 @@ void printLine() {
 		if (g_leg == Leg::InjectLaunch) {
 			used += snprintf(line + used, sizeof(line) - used, " injected=%d", g_injectedTicks >= 0 ? 1 : 0);
 		}
+	}
+	if (g_leg == Leg::Clone || g_leg == Leg::Resume) {
+		// The clone plays in the clip's place while recording; resumed, the clip plays again.
+		Clip* active = g_clip->output->getActiveClip();
+		const bool cloned = active != nullptr && active != g_clip && active->beingRecordedFromClip == g_clip;
+		used += snprintf(line + used, sizeof(line) - used, g_leg == Leg::Clone ? " cloned=%d" : " resumed=%d",
+		                 (g_leg == Leg::Clone ? cloned : active == g_clip) ? 1 : 0);
 	}
 	if (g_leg == Leg::ArrangerRecord) {
 		const auto clips = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());
