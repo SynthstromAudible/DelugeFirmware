@@ -671,7 +671,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a main pad on a kit y with no NoteRow creates no row and leaves the selected drum alone -- editPadAction's "
 	   "`inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:2381-2384` returns before `:2387-2391` creates a row (or, failing
+		// `gui/views/instrument_clip_view.cpp:2382-2385` returns before `:2387-2392` creates a row (or, failing
 		// that, clears the kit's selected drum).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -695,7 +695,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
 	   "`preventOverScrolling`", _ {
-		// `gui/views/instrument_clip_view.cpp:4432` into `scrollVertical_limit`'s `:4508-4515`: no row at the
+		// `gui/views/instrument_clip_view.cpp:4433` into `scrollVertical_limit`'s `:4509-4516`: no row at the
 		// auditioned y once scrolled, so no scroll.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -713,7 +713,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:6310-6314`: no colour shifting in the note-row editor; the turn
+		// `gui/views/instrument_clip_view.cpp:6309-6313`: no colour shifting in the note-row editor; the turn
 		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6541-6543`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
