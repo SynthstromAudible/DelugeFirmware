@@ -17,6 +17,7 @@
 
 #include "modulation/params/lane_publication.h"
 
+#include "deluge-project/edit_guard.h"
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/heaps.h"
@@ -32,6 +33,7 @@
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "util/spsc_ring.h"
 
 #include <algorithm>
 #include <atomic>
@@ -43,6 +45,7 @@ uint32_t renderModelReads = 0;
 uint32_t staleLanes = 0;
 uint32_t publishFailures = 0;
 uint32_t renderPublishedWrites = 0;
+uint32_t laneRequestOverflows = 0;
 #endif
 
 namespace {
@@ -85,6 +88,81 @@ void forEachPlayedCollection(Song& song, deluge::function_ref<void(ParamCollecti
 }
 } // namespace
 
+namespace {
+/// What the render asks the interaction tier to do to a lane.
+struct LaneRequest {
+	enum class Kind : uint8_t { BASE, STRAY_NODE } kind = Kind::BASE;
+	/// The collection, compared by address with those the song plays, never dereferenced unless it is one of them.
+	ParamCollection* collection = nullptr;
+	uint32_t serial = 0;
+	int32_t paramId = 0;
+	int32_t value = 0; ///< BASE: the base; STRAY_NODE: the length a last node at or past is erased
+};
+
+/// [render] -> [interaction] The render's lane requests. A dropped one is counted: a dropped stray node is asked for
+/// again the next time the render reaches it; a dropped base is left as it was.
+deluge::util::SpscRing<LaneRequest, 64> g_laneRequests;
+
+void postLaneRequest(const LaneRequest& request) {
+	if (!g_laneRequests.try_push(request)) {
+#if ALPHA_OR_BETA_VERSION
+		laneRequestOverflows++;
+#endif
+	}
+}
+
+/// The collection @p request names, if @p song still plays it.
+ParamCollection* stillPlayed(Song& song, const LaneRequest& request) {
+	ParamCollection* found = nullptr;
+	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline&) {
+		if (&collection == request.collection && collection.serial() == request.serial) {
+			found = &collection;
+		}
+	});
+	return found;
+}
+} // namespace
+
+void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t value) {
+	postLaneRequest({.kind = LaneRequest::Kind::BASE,
+	                 .collection = &collection,
+	                 .serial = collection.serial(),
+	                 .paramId = paramId,
+	                 .value = value});
+}
+
+void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t length) {
+	postLaneRequest({.kind = LaneRequest::Kind::STRAY_NODE,
+	                 .collection = &collection,
+	                 .serial = collection.serial(),
+	                 .paramId = paramId,
+	                 .value = length});
+}
+
+void applyLaneRequests() {
+	LaneRequest request;
+	while (g_laneRequests.try_pop(request)) {
+		ParamCollection* collection = (currentSong != nullptr) ? stillPlayed(*currentSong, request) : nullptr;
+		if (collection == nullptr) {
+			continue;
+		}
+		project::EditGuard guard{project::ModelEdit::NODE_KERNEL};
+		if (request.kind == LaneRequest::Kind::BASE) {
+			if (project::DocAutoParam* lane = collection->docParamForId(request.paramId)) {
+				project::set_base(*lane, request.value);
+			}
+		}
+		else if (project::DocAutoParam* lane = collection->findDocParamForId(request.paramId);
+		         lane != nullptr && !lane->nodes.empty()) {
+			const int32_t last = std::ssize(lane->nodes) - 1;
+			if (lane->nodes[last].pos >= request.value) {
+				lane->nodes.erase(lane->nodes.begin() + last);
+			}
+		}
+		markLanesChanged(*collection);
+	}
+}
+
 bool lanesLive() {
 	if (playbackHandler.recording != RecordingMode::OFF) {
 		g_liveUntilSettled.store(true, std::memory_order_relaxed);
@@ -101,8 +179,12 @@ void noteRenderModelRead() {
 #endif
 }
 
+bool playsPublished() {
+	return (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) && !lanesLive();
+}
+
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection) {
-	if ((!deluge::memory::onRenderTier() && !deluge::playback::MoveEffects::collecting()) || lanesLive()) {
+	if (!playsPublished()) {
 		return nullptr;
 	}
 	const LaneSnapshot* published = collection.published();

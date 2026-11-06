@@ -29,6 +29,7 @@
 #include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "playback/mode/session.h"
 #include "util/spsc_ring.h"
 
@@ -229,6 +230,7 @@ void applyRenderRequests() {
 		view.releaseActiveModControllable();
 		midiFollow.forgetClipsNotOfCurrentSong();
 	}
+	deluge::modulation::applyLaneRequests();
 }
 
 #if defined(DELUGE_HOST)

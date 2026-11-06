@@ -657,7 +657,9 @@ void move() {
 		for (int32_t block = 0; block < kBlocksToEvent; block++) {
 			renderBlock(false);
 		}
+		// As the app loop does: the render's requests before a job, the lanes they changed published at its end
 		deluge::playback::applyRenderRequests();
+		deluge::modulation::publishDirtyLanes(true);
 		break;
 	case Leg::ClipStop: {
 		// Armed to stop: the render stops it at the next launch
@@ -666,7 +668,9 @@ void move() {
 		for (int32_t block = 0; block < kBlocksToEvent; block++) {
 			renderBlock(false);
 		}
+		// As the app loop does: the render's requests before a job, the lanes they changed published at its end
 		deluge::playback::applyRenderRequests();
+		deluge::modulation::publishDirtyLanes(true);
 		break;
 	}
 	case Leg::Done:

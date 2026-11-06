@@ -33,6 +33,12 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          required (arrangement recording made its clip)
     PM-CLONE / PM-RESUME                 recording session to arranger, a playing clip cloned for a recorded change
                                          (cloned=1) and the original resumed when recording stops (resumed=1)
+    PM-SELFREPAIR                        a lane with a node past its length played outside record mode: the render
+                                         writes no lane (render_writes=0) and the interaction tier erases the node at
+                                         its request (erased=1)
+    PM-CLIPSTOP                          a playing synth clip with expression stopped: the render writes no lane
+                                         (render_writes=0), plays 0 (played=0) and the interaction tier makes 0 the
+                                         base at its request (base=0)
 """
 
 import re
@@ -58,6 +64,8 @@ LEGS = [
     "ARRANGERRECORD",
     "CLONE",
     "RESUME",
+    "SELFREPAIR",
+    "CLIPSTOP",
 ]
 
 _LINE = re.compile(
@@ -124,6 +132,16 @@ def _check(gate, result) -> None:
             reasons.append("the switch began no arrangement recording")
         if leg == "INJECTLAUNCH" and " injected=1" not in rest:
             reasons.append("the render block was never injected")
+        if leg == "SELFREPAIR" and " render_writes=0 erased=1" not in rest:
+            reasons.append(
+                f"the render wrote the lane, or the node was never erased ({rest.strip()})"
+            )
+        if leg == "CLIPSTOP" and not re.search(
+            r" render_writes=0 stopped=1 played=0 base=0\b", rest
+        ):
+            reasons.append(
+                f"the render wrote the lane, or the expression was not cleared ({rest.strip()})"
+            )
         if reasons:
             failed.append(f"PM-{leg}: " + "; ".join(reasons))
     if failed:

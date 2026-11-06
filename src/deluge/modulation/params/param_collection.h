@@ -162,6 +162,10 @@ public:
 		return published_.load(std::memory_order_acquire);
 	}
 
+	/// @brief Which collection this is, of all made since boot: a request made on the render names it by this and its
+	///        address, so a collection made later at the same address is not taken for it.
+	[[nodiscard]] uint32_t serial() const { return serial_; }
+
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent{};
 
@@ -171,4 +175,5 @@ private:
 	std::atomic<const deluge::modulation::LaneSnapshot*> published_{nullptr};
 	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
 	bool lanesDirty_ = false;
+	uint32_t serial_; ///< see serial()
 };

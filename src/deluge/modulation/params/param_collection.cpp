@@ -28,7 +28,13 @@
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
 
-ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
+namespace {
+/// [render] or [interaction] The serial the next collection made is given.
+std::atomic<uint32_t> g_nextSerial{1};
+} // namespace
+
+ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary)
+    : objectSize(newObjectSize), serial_(g_nextSerial.fetch_add(1, std::memory_order_relaxed)) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreAutomated[i] = 0;
 	}
@@ -39,7 +45,8 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 }
 
 ParamCollection::ParamCollection(const ParamCollection& other)
-    : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent) {
+    : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent),
+      serial_(g_nextSerial.fetch_add(1, std::memory_order_relaxed)) {
 }
 
 deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {

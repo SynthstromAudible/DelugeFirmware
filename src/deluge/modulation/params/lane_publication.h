@@ -40,6 +40,8 @@ extern uint32_t staleLanes;
 extern uint32_t publishFailures;
 /// Writes the render made to a lane outside record mode: must stay 0.
 extern uint32_t renderPublishedWrites;
+/// The render's lane requests that found the queue full and were dropped: must stay 0.
+extern uint32_t laneRequestOverflows;
 #endif
 
 /// @brief [render] or [interaction] Whether the render reads lanes from the model as they are written: in record mode,
@@ -49,6 +51,10 @@ bool lanesLive();
 /// @brief [render] or [interaction] Count a lane the render resolved through the model, if it should have read a
 ///        snapshot.
 void noteRenderModelRead();
+
+/// @brief [render] or [interaction] Whether a lane read now plays published lanes: on the render (and a playhead move's
+///        collecting pass) outside record mode.
+bool playsPublished();
 
 /// @brief [render] or [interaction] The snapshot a lane read of @p collection plays now, or nullptr to read the model.
 ///        The render (and a playhead move's collecting pass) plays the published lanes outside record mode, once the
@@ -62,6 +68,16 @@ void noteRenderLaneWrite();
 ///        base and nodes.
 /// @return The collections that differ.
 int32_t checkPublished(Song& song);
+
+/// @brief [render] Outside record mode the render may not write a lane's base: it plays @p value now, and asks the
+///        interaction tier to make @p value the base of lane @p paramId before its next job.
+void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t value);
+/// @brief [render] Lane @p paramId has a last node at or past @p length, the length it plays to: the render plays the
+///        lane without it, and asks the interaction tier to erase it before its next job.
+void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t length);
+/// @brief [interaction] Do the render's lane requests, each only if the current song still plays its collection.
+///        Called by deluge::playback::applyRenderRequests().
+void applyLaneRequests();
 
 /// @brief [interaction] @p collection's lanes may have changed: it republishes at the next publish point. Every path
 ///        that hands out a collection's lane to write, or rebinds its store, marks it. On the render it marks nothing:
