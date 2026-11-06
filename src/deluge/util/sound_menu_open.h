@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 /// @file
 /// @brief "Is the sound menu open?" -- legacy's own question, asked so that it also sees the ported menu.
 ///
@@ -38,5 +40,22 @@ bool soundMenuCurrent();
 /// @brief The open menu re-reads its value: legacy's `getCurrentMenuItem()->readValueAgain()` when `soundEditor` is
 ///        current, or the ported menu's.
 void readSoundMenuValueAgain();
+
+/// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu`,
+///        or the ported menu frontmost on the note-range picker.
+bool rangePickerOpen();
+
+/// @brief Legacy's "selecting ranges" test -- the sample browser or audio recorder current, or the sound editor on a
+///        range-dependent item -- or the guest's ported browser, recorder or range-dependent item.
+bool rangeDependentMenuOpen();
+
+/// @brief Legacy's `soundEditor.isUntransposedNoteWithinRange(note)`, or the ported menu's range when the guest is
+///        current.
+/// @param untransposed The note as the clip has it, before the sound's transpose.
+bool noteWithinCurrentRange(int32_t untransposed);
+
+/// @brief Legacy's `menu_item::multiRangeMenu.noteOnToChangeRange(note)`, or the ported picker's.
+/// @param note The note, transposed as the sound plays it.
+void changeRangeForNote(int32_t note);
 
 } // namespace deluge::gui::ui

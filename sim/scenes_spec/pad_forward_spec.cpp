@@ -30,6 +30,7 @@
 /// reached.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_pad_forward.h"
 
 #include "definitions_cxx.hpp" // kDisplayWidth
@@ -61,6 +62,7 @@
 
 #include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
 #include "util/shell_menu_entry.h"  // openShellMenuAtShortcut
+#include "util/sound_menu_open.h"
 
 #include "cppspec.hpp"
 
@@ -191,6 +193,8 @@ constexpr Node param_node = menu::param(static_cast<uint16_t>(deluge::l10n::Stri
                                         {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
 
 } // namespace
+
+extern uint32_t whichSideRowsNeedRendering; // `gui/ui/ui.cpp`: the sidebar rows a render is pending for
 
 // clang-format off
 describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root switch", $ {
@@ -662,6 +666,126 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SAVE, true);
 		expect(getCurrentUI() == &saveInstrumentPresetUI).to_be_true();
+	});
+
+	it("selects the played note's range under the picker, highlights the range's notes, and re-renders the root", _ {
+		// `InstrumentClipView::potentiallyUpdateMultiRangeMenu` -> `noteOnToChangeRange`, `drawAuditionSquare`'s
+		// selecting-ranges test (`isUntransposedNoteWithinRange`), and `possibleChangeToCurrentRangeDisplay`, each
+		// asking the guest when the ported menu is up.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
+		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		for (int32_t i = 0; i < 3; i++) {
+			(void)sound->sources[0].ranges.insertMultiRange(i);
+		}
+		const int32_t row0 = fx.clip->getYNoteFromYDisplay(0, fx.song) + sound->getTranspose();
+		// Row 0's note and the one above it; two more; the rest (the clip's rows step through its scale).
+		sound->sources[0].ranges.getElement(0)->topNote = static_cast<int16_t>(row0 + 1);
+		sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false(); // no menu: legacy's own answer
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		shellHostUI.shell().tick(1);
+		expect(deluge::gui::ui::rangePickerOpen()).to_be_true();
+		expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_true();
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(1);
+		currentUIMode = UI_MODE_NONE;
+		whichSideRowsNeedRendering = 0;
+		deluge::gui::ui::refreshShellRangeDisplay(); // the range is new to the root: a sidebar render
+		expect(whichSideRowsNeedRendering != 0).to_be_true();
+		whichSideRowsNeedRendering = 0;
+		deluge::gui::ui::refreshShellRangeDisplay(); // unchanged: none
+		expect(whichSideRowsNeedRendering).to_equal(0u);
+
+		// This spec records the forward rather than performing it (`seen`); what it performs is the clip view's pad.
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 64); // an audition note in range 2
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 5, 0);
+		shellHostUI.shell().tick(2);
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(2);
+		{
+			// `drawAuditionSquare`'s selecting-ranges arm: +30 on the audition squares whose notes are in the range.
+			RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+			uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+			(void)instrumentClipView.renderSidebar(0xFF, image, occupancy);
+			expect(image[3][kDisplayWidth + 1] == RGB{30, 30, 30}).to_be_true(); // in range 2
+			expect(image[1][kDisplayWidth + 1] == RGB{0, 0, 0}).to_be_true();    // in range 1
+		}
+		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(6, fx.song))).to_be_true();
+		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(1, fx.song))).to_be_false();
+
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 0, 64); // and one in range 0
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 0, 0);
+		shellHostUI.shell().tick(3);
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(0);
+		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(0, fx.song))).to_be_true();
+		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(1, fx.song))).to_be_false();
+
+		// `scrollVertical_potentiallySwitchOnAuditionedNotes`: scrolling with row 0 held sounds its new note, which moves
+		// the picker too.
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 0, 64);
+		(void)instrumentClipView.verticalEncoderAction(4);
+		shellHostUI.shell().tick(4);
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(2);
+		(void)instrumentClipView.padAction(kDisplayWidth + 1, 0, 0);
+	});
+
+	it("selects a keyboard note's range under the picker and highlights the range on the isomorphic keyboard", _ {
+		// `KeyboardScreen::evaluateActiveNote`'s `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
+		// +35, each asking the guest when the ported menu is up over the keyboard.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
+		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		for (int32_t i = 0; i < 2; i++) {
+			(void)sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 59; // below middle C
+		sound->sources[0].ranges.getElement(1)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		fx.clip->onKeyboardScreen = true;
+		// The pads with no menu up: nothing highlighted, so every lit difference later is the +35.
+		RGB plain[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		setRootUILowLevel(&keyboardScreen);
+		(void)keyboardScreen.renderMainPads(0xFF, plain, occupancy);
+		expect(open_shortcut_over(&keyboardScreen, fx.clip, 0, 5)).to_be_true();
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		shellHostUI.shell().tick(1);
+		currentUIMode = UI_MODE_NONE;
+		const int32_t start = static_cast<int32_t>(menu_scene().menu_context().range_index);
+
+		// The pad whose note is lowest on the keyboard, then its range's other half.
+		int32_t pressed = -1;
+		for (int32_t y = 0; y < kDisplayHeight && pressed < 0; y++) {
+			for (int32_t x = 0; x < kDisplayWidth && pressed < 0; x++) {
+				(void)keyboardScreen.padAction(x, y, 64);
+				(void)keyboardScreen.padAction(x, y, 0);
+				shellHostUI.shell().tick(static_cast<uint32_t>(2 + y * kDisplayWidth + x));
+				if (static_cast<int32_t>(menu_scene().menu_context().range_index) != start) {
+					pressed = y * kDisplayWidth + x;
+				}
+			}
+		}
+		expect(pressed >= 0).to_be_true(); // some pad's note fell in the other range, and moved the picker
+		const int32_t now = static_cast<int32_t>(menu_scene().menu_context().range_index);
+
+		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		(void)keyboardScreen.renderMainPads(0xFF, image, occupancy);
+		int32_t brighter = 0;
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				brighter += image[y][x].r > plain[y][x].r ? 1 : 0;
+			}
+		}
+		expect(brighter > 0).to_be_true();
+		expect(now != start).to_be_true();
 	});
 });
 // clang-format on

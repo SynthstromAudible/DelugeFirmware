@@ -178,6 +178,15 @@ std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument:
 /// @param state The menu's state, whose picker list and range choice follow.
 void range_delete_press(const MenuContext& ctx, MenuState& state);
 
+/// @brief The range @p note falls in: `Source::getRangeIndex`, the first whose top note is at or above it, else the
+/// last.
+int32_t range_for_note(std::span<const deluge::instrument::RangeState> ranges, int32_t note);
+
+/// @brief `MultiRange::noteOnToChangeRange` (`multi_range.cpp`) on the picker: with no edge edited, the cursor moves to
+///        the range @p note falls in, and the range is selected.
+/// @return Whether the picker took the note.
+bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note);
+
 /// @brief `MultiRange::selectButtonPress` (`multi_range.cpp`): whatever the picker was
 ///        substituted for.
 ///

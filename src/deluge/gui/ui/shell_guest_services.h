@@ -76,6 +76,26 @@ void refreshShellRootFacts();
 ///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
 bool shellSoundMenuOpen();
 
+/// @brief Whether the ported menu is frontmost on the note-range picker: the guest's half of `rangePickerOpen`.
+bool shellRangePickerOpen();
+
+/// @brief Whether the guest's frontmost scene is the sample browser or the audio recorder, or the ported menu on a
+///        range-dependent item or the picker: the guest's half of `rangeDependentMenuOpen`.
+bool shellRangeDependentOpen();
+
+/// @brief Whether @p untransposed falls in the range the ported menu has selected, on a source of several: the guest's
+///        half of `noteWithinCurrentRange`. Asks `Source::getRange`, which remembers the range as legacy's test does.
+/// @param untransposed The note as the clip has it, before the sound's transpose.
+bool shellNoteWithinCurrentRange(int32_t untransposed);
+
+/// @brief A note played under the ported picker: `MenuScene::select_range_for_note`.
+/// @param note The note, transposed as the sound plays it.
+void shellChangeRangeForNote(int32_t note);
+
+/// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the ported menu's selected
+///        range changed: `SoundEditor::possibleChangeToCurrentRangeDisplay`, for the guest.
+void refreshShellRangeDisplay();
+
 /// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press
 ///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
 ///        the guest closes.

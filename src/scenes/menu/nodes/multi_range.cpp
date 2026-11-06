@@ -408,6 +408,35 @@ void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_DELETED));
 }
 
+int32_t range_for_note(std::span<const deluge::instrument::RangeState> ranges, int32_t note) {
+	const auto count = static_cast<int32_t>(ranges.size());
+	for (int32_t i = 0; i < count; i++) {
+		if (ranges[static_cast<size_t>(i)].top_note >= note) {
+			return i;
+		}
+	}
+	return count > 0 ? count - 1 : 0;
+}
+
+bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note) {
+	// `MultiRange::noteOnToChangeRange` (`multi_range.cpp:338-355`).
+	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
+		return false;
+	}
+	const std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
+	if (ranges.size() <= 1) {
+		return false;
+	}
+	const int32_t index = range_for_note(ranges, note);
+	deluge::ui::ListState& list = state.list[depth_of(state)];
+	if (index != list.cursor) {
+		list.cursor = static_cast<int16_t>(index);
+		state.walk.range_choice = static_cast<int16_t>(index);
+		select_range(ctx, index);
+	}
+	return true;
+}
+
 bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge) {
 	// `MultiRange::mayEditRangeEdge` (`multi_range.cpp:357-362`).
 	switch (edge) {

@@ -477,6 +477,12 @@ public:
 	///        selected is the picker's choice, which the next frame applies.
 	void delete_range_press();
 
+	/// @brief A note played under the note-range picker (`MultiRange::noteOnToChangeRange`): with no edge edited, the
+	///        picker moves to the range @p note falls in.
+	/// @param note The note, transposed as the sound plays it.
+	/// @return Whether the picker was focused and took the note.
+	bool select_range_for_note(int32_t note);
+
 	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
 	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
 	///

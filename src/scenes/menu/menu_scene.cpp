@@ -288,6 +288,13 @@ void MenuScene::delete_range_press() {
 	nodes::range_delete_press(ctx_, st_);
 }
 
+bool MenuScene::select_range_for_note(int32_t note) {
+	if (focused() != &nodes::multi_range) {
+		return false;
+	}
+	return nodes::range_note_press(ctx_, st_, note);
+}
+
 bool MenuScene::reroot_to_scene_opener_page() {
 	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
 	const Node* item = st_.walk.scene_opener;

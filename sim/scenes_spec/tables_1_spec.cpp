@@ -809,6 +809,28 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(want.size()).to_equal(size_t{5});
 	});
 
+	it("moves to a played note's range as noteOnToChangeRange does, a note at a range's top inside it, and not mid-edge", _ {
+		// `MultiRange::noteOnToChangeRange` and `Source::getRangeIndex`: the first range whose top is at or above the note.
+		RangeFixture f{3};
+		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+		const int16_t tops[] = {40, 60, 32767};
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+		}
+		deluge::edits::recordRanges(*sound, 0);
+		MenuContext ctx = menu::context_for(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		menu::MenuState picker{};
+		picker.list[0].cursor = 2;
+		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();
+		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
+		expect(static_cast<int32_t>(sound->sources[0].getRangeIndex(40))).to_equal(0);
+		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
+		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+	});
+
 	it("selects a range the way setCurrentMultiRange does", _ {
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);

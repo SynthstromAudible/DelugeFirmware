@@ -445,6 +445,9 @@ void refreshShellRootFacts() {
 	fakelegacyui::root_fact_refreshes++;
 }
 
+void refreshShellRangeDisplay() {
+}
+
 void refreshShellSamplePreviewSounds() {
 }
 
