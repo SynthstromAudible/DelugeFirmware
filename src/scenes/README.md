@@ -437,7 +437,16 @@ OLED** — a title, a lock badge, a duration and a sample count — so the OLED 
 `model/sample/waveform_scan.h` and `waveform_navigator.h` (arithmetic in `model/`, drawing in the
 toolkit). One legacy render bug is fixed in the port: `renderOLED` draws the h/m unit letters at a
 fixed `x = 6`, over their own digits, past a minute; `ui::oled::sample_position` draws them at the
-cursor. `marker_scene.h` lists what is not ported.
+cursor.
+
+A zoom slides as `PadLEDs::renderZoom` does, through `ui::grid::ZoomTransition`: from the last settled
+frame to the new view's bare waveform over 110 ms, a step every 50 ms, every input refused while it slides.
+The playhead is the newest voice's column on every row, painted with the flash cursor Slow and flashed with it Fast; the host walks
+the voices (`Waveforms::play_position`). A vertical turn reaches the clip view beneath through the host
+(`forwardMarkerVertical`), and SHIFT + a main pad with no mode up is the menu's shortcut jump
+(`MenuScene::shortcut_jump`), leaving the editor for that item's page. The audition column is the host's
+(`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
+(`RuntimeFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
 
@@ -609,7 +618,8 @@ otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
 * **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame.
+  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+  paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware
 
@@ -638,7 +648,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 |---|---|
 | The first gold-knob turn after boot is swallowed by the lowering's debounce, as legacy's `timeModEncoderLastTurned` starts at 0 too; accepted, and whether the mechanism is a defect needs a device (see the ledger). | `src/shell/input_lowering.h` |
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
-| The slicer's and the audio clip view's play cursor is always the slow flash: this layer cannot read the flash-cursor setting (see the boot wiring above). | `slicing/slicer_scene.cpp`, `audio_clip/audio_clip_scene.h` |
 | A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp` |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad` |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback` |
@@ -678,5 +687,4 @@ it leaves both lists.
 | select editing gated by UI mode | `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes`; `MenuScene` edits on every turn | a UI-mode fact handed to the scene |
 | `Submenu::shouldForwardButtons`' `buttonAction` | legacy forwards a horizontal page's buttons to its focused value column; the port routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column |
 | the firmware-version diagnostics | on the firmware-version item, pads 13–15 of row 7 pop up the SRAM size, the voice count and the PIC version; the guest keeps the menu open on them, as legacy does, but shows no popup | three popups |
-| the marker editor's zoom transition, playhead, vertical encoder and shortcut-pad jump | see `marker_scene.h`'s "What is deliberately not ported" | tick squares and a transition surface |
-| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | a transition surface |
+| the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | the zoom through `ui::grid::ZoomTransition`, as the marker editor's; a scroll transition |
