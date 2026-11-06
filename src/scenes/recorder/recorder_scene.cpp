@@ -40,7 +40,7 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// The two words `renderOLED` draws (`audio_recorder.cpp:117`). Literals, not l10n ids, because
+/// The two words `renderOLED` draws (`audio_recorder.cpp:193`). Literals, not l10n ids, because
 /// neither is in `gui/l10n/strings.h` -- exactly `BrowserScene::Descriptor::title`'s and
 /// `MarkerScene`'s situation and answer.
 /// @{

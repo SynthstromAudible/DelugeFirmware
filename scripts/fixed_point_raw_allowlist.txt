@@ -111,7 +111,7 @@ src/deluge/model/sample/sample.cpp raw=0 boundary=4
 src/deluge/model/sample/sample.h raw=0 boundary=1
 src/deluge/model/sample/sample_low_level_reader.cpp raw=0 boundary=7
 src/deluge/model/sample/sample_low_level_reader.h raw=0 boundary=2
-src/deluge/model/sample/sample_recorder.cpp raw=0 boundary=5
+src/deluge/model/sample/sample_recorder.cpp raw=0 boundary=7
 src/deluge/model/song/song.cpp raw=0 boundary=1
 src/deluge/model/voice/sample_playback_adapter.cpp raw=0 boundary=2
 src/deluge/model/voice/voice_sample.cpp raw=0 boundary=20

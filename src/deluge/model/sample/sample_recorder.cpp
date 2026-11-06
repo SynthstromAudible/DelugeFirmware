@@ -337,7 +337,22 @@ gotError:
 	return Error::NONE;
 }
 
+deluge::dsp::fp::StereoLevel SampleRecorder::getInputLevels() {
+	const uint32_t numSamples = pendingLevelNumSamples_.exchange(0, std::memory_order_relaxed);
+	const float meanL = pendingPeakMeanL_.exchange(0, std::memory_order_relaxed);
+	const float meanR = pendingPeakMeanR_.exchange(0, std::memory_order_relaxed);
+	if (numSamples > 0) {
+		meterLevel_ = meterFollower_.measure_means(meanL, meanR, numSamples);
+	}
+	return meterLevel_;
+}
+
 void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
+	meterLevel_ = {};
+	pendingPeakMeanL_.store(0, std::memory_order_relaxed);
+	pendingPeakMeanR_.store(0, std::memory_order_relaxed);
+	pendingLevelNumSamples_.store(0, std::memory_order_relaxed);
+
 	if (config.neverUseThreshold) {
 		D_PRINTLN("ignoring threshold");
 	}
@@ -1933,6 +1948,14 @@ doFinishCapturing:
 			}
 
 			std::byte* __restrict__ writePosNow = reinterpret_cast<std::byte*>(writePos);
+
+			// The threshold needs the input's levels while waiting; the OLED level meter needs them throughout. They
+			// are summed in the loops below rather than in a second pass over the input, usually the codec's uncached
+			// RX buffer.
+			const bool measureLevels = thresholdRecording || monitorInputLevels.load(std::memory_order_relaxed);
+			uint64_t levelSumL = 0;
+			uint64_t levelSumR = 0;
+
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we know this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
@@ -1942,11 +1965,25 @@ doFinishCapturing:
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
+
+					if (measureLevels) [[unlikely]] {
+						// The words: the level sums are 64-bit integer totals, as the unbalanced loop's recordSumL is
+						const int32_t l = sample.l.raw();
+						const int32_t r = sample.r.raw();
+						levelSumL += (l >= 0) ? l : -1 - l;
+						levelSumR += (r >= 0) ? r : -1 - r;
+					}
 				}
 			}
 
 			// Or, all other, non-balanced input types
 			else {
+				// recordSumL / recordSumR already add up the absolute values, so this block's levels come from them.
+				// They are after the gain, which only internal sources apply, and those never use the threshold or the
+				// meter.
+				const uint64_t recordSumLBefore = recordSumL;
+				const uint64_t recordSumRBefore = recordSumR;
+
 				for (const StereoSample frame : input.first(numSamplesThisCycle)) {
 					// The input gain, then the words: the stats and the 24-bit write read them.
 					const auto gained = [&](deluge::dsp::Q<31> sample) {
@@ -2011,15 +2048,35 @@ doFinishCapturing:
 						}
 					}
 				}
+				levelSumL = recordSumL - recordSumLBefore;
+				// A mono take measures only the channel it records
+				levelSumR = (recordingNumChannels == 2) ? recordSumR - recordSumRBefore : levelSumL;
 			}
 			writePos = reinterpret_cast<char*>(writePosNow);
 			numSamplesCaptured += numSamplesThisCycle;
+
+			float meanL = 0;
+			float meanR = 0;
+			if (measureLevels) [[unlikely]] {
+				const auto numSamplesFloat = static_cast<float>(numSamplesThisCycle);
+				meanL = static_cast<float>(levelSumL) / numSamplesFloat;
+				meanR = static_cast<float>(levelSumR) / numSamplesFloat;
+				// The meter's: the loudest block since the UI last read it
+				if (pendingPeakMeanL_.load(std::memory_order_relaxed) < meanL) {
+					pendingPeakMeanL_.store(meanL, std::memory_order_relaxed);
+				}
+				if (pendingPeakMeanR_.load(std::memory_order_relaxed) < meanR) {
+					pendingPeakMeanR_.store(meanR, std::memory_order_relaxed);
+				}
+				pendingLevelNumSamples_.fetch_add(numSamplesThisCycle, std::memory_order_relaxed);
+			}
 
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
-				const deluge::dsp::fp::StereoLevel approxRMSLevel = envelopeFollower.measure(input);
+				const deluge::dsp::fp::StereoLevel approxRMSLevel =
+				    envelopeFollower.measure_means(meanL, meanR, numSamplesThisCycle);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;
