@@ -671,13 +671,20 @@ void runTick() {
 		g_stage = Stage::Setup;
 		break;
 	case Stage::Summary: {
+		// Host wall time per site: not the device's, so it is reported, not judged.
+		deluge::playback::MaskedSpan::forEachSite([](const deluge::playback::MaskedSpan::Site& site) {
+			char spanLine[128];
+			snprintf(spanLine, sizeof(spanLine), "PM-SPAN site=%s longest_us=%u count=%u\n", site.name,
+			         static_cast<unsigned>(site.longestUs), static_cast<unsigned>(site.count));
+			std::fputs(spanLine, stdout);
+		});
 		char line[48];
 		snprintf(line, sizeof(line), "PM-RESULT failures=%d\n", static_cast<int>(g_failures));
 		std::fputs(line, stdout);
-	}
 		fflush(stdout);
 		g_summaryPrinted = true;
 		break;
+	}
 	}
 }
 

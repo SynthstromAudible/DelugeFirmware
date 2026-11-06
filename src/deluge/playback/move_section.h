@@ -66,16 +66,35 @@ public:
 	};
 };
 
-/// @brief The time a section holds the render off, per site.
+/// @brief The time a section holds the render off, per site: its longest and how many there were. On the interaction
+///        tier only (on the render a section holds nothing off). Kept in ALPHA builds and on the host, whose spans are
+///        wall time and catch growth only.
 class MaskedSpan {
 public:
 	/// @param site a static name for the report
-	explicit MaskedSpan(const char* site) : site_(site) {}
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	explicit MaskedSpan(const char* site);
+	~MaskedSpan();
+#else
+	explicit MaskedSpan(const char* /*site*/) {}
+#endif
 	MaskedSpan(const MaskedSpan&) = delete;
 	MaskedSpan& operator=(const MaskedSpan&) = delete;
 
+	/// One site's spans.
+	struct Site {
+		const char* name;
+		uint32_t longestUs;
+		uint32_t count;
+	};
+	/// @brief [interaction] Call @p visit with each site measured so far, in the order first seen.
+	static void forEachSite(void (*visit)(const Site&));
+
 private:
-	[[maybe_unused]] const char* site_;
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	const char* site_;
+	uint64_t startUs_;
+#endif
 };
 
 /// @brief One playhead move on the interaction tier: its effects collected, the render held off, nothing allocated,

@@ -826,6 +826,9 @@ void report() {
 		fail("RS-STORE", "the render changed a lane store");
 	}
 	printf("RS-POSITIONS stray=%u\n", deluge::playback::strayPositionWrites);
+	if (deluge::playback::strayPositionWrites != 0) {
+		fail("RS-POSITIONS", "the interaction tier moved the playhead while the render could tick, not excluding it");
+	}
 #endif
 	printf("RS-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;

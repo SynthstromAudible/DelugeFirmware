@@ -19,8 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "model/mod_controllable/delay_type.h"
+#include "runtime/app_loop.h"
 
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 
 namespace deluge::playback {
@@ -84,6 +87,60 @@ MoveEffects::Scope::~Scope() {
 		g_runner(g_collected.notifies[i]);
 	}
 }
+
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+namespace {
+/// Sites measured, in the order first seen; a site past the room is not measured. All-zero at start: .sdram_bss.
+constexpr size_t kSpanSites = 48;
+struct Spans {
+	std::array<MaskedSpan::Site, kSpanSites> sites;
+	size_t count;
+};
+PLACE_SDRAM_BSS Spans g_spans;
+
+/// µs: the app loop's clock on the device; wall time on the host, whose harness may run the loop on virtual time.
+uint64_t spanClockUs() {
+#if defined(DELUGE_HOST)
+	return static_cast<uint64_t>(
+	    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+	        .count());
+#else
+	return deluge::runtime::nowUs();
+#endif
+}
+} // namespace
+
+MaskedSpan::MaskedSpan(const char* site)
+    : site_(deluge::memory::onRenderTier() ? nullptr : site), startUs_(site_ != nullptr ? spanClockUs() : 0) {
+}
+
+MaskedSpan::~MaskedSpan() {
+	if (site_ == nullptr) {
+		return;
+	}
+	const auto elapsed = static_cast<uint32_t>(spanClockUs() - startUs_);
+	for (size_t i = 0; i < g_spans.count; i++) {
+		MaskedSpan::Site& known = g_spans.sites[i];
+		if (known.name == site_) {
+			known.longestUs = std::max(known.longestUs, elapsed);
+			known.count++;
+			return;
+		}
+	}
+	if (g_spans.count < kSpanSites) {
+		g_spans.sites[g_spans.count++] = {.name = site_, .longestUs = elapsed, .count = 1};
+	}
+}
+
+void MaskedSpan::forEachSite(void (*visit)(const Site&)) {
+	for (size_t i = 0; i < g_spans.count; i++) {
+		visit(g_spans.sites[i]);
+	}
+}
+#else
+void MaskedSpan::forEachSite(void (* /*visit*/)(const Site&)) {
+}
+#endif
 
 #if defined(DELUGE_HOST)
 namespace {
