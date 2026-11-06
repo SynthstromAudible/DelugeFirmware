@@ -75,6 +75,7 @@ public:
 		int32_t hpf_frequency;
 		int32_t hpf_resonance;
 		int32_t hpf_morph;
+		bool operator==(const Words&) const = default;
 	};
 
 	/// @brief The filters' params, in @ref Words order. Neutrals: the cutoffs Q31 of the filter's frequency scale, the

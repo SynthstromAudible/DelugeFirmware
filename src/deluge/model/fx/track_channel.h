@@ -21,6 +21,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/track_chain.h"
 #include "foundation/function_ref.h"
+#include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
 #include "model/fx/reverb_candidate.h"
@@ -110,6 +111,8 @@ private:
 	EffectsBinding binding_;
 	ChainView view_;
 	effects::TrackChain chain_;
+	/// The chain's remembered param conversions, render tier only.
+	ChainConversions conversions_;
 };
 
 } // namespace deluge::model

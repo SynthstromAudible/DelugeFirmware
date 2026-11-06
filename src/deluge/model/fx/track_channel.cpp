@@ -54,24 +54,27 @@ TrackChannel::~TrackChannel() {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
-	const dsp::Q<27> volumeAdjustment = volume_from_knob(unpatchedParams->getKnob(params::UNPATCHED_VOLUME));
+	const dsp::Q<27> volumeAdjustment =
+	    conversions_.volume(unpatchedParams->getKnob(params::UNPATCHED_VOLUME), volume_from_knob);
 
 	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
 	int32_t reverbAmountAdjustForDrums =
 	    mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust), volumeAdjustment).raw();
 
-	const dsp::Q<24> pitchAdjust = pitch_adjust_from_knob(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST));
+	const dsp::Q<24> pitchAdjust =
+	    conversions_.pitch_adjust(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST), pitch_adjust_from_knob);
 
 	// The delay starts or stops on whether the content rendered last block.
-	effects::Delay::State delay = delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,
-	                                                block.should_limit_delay_feedback, rendered_last_time);
+	effects::Delay::State delay =
+	    delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,
+	                      block.should_limit_delay_feedback, rendered_last_time, conversions_);
 	if (block.output_type == OutputType::AUDIO) {
 		delay.analog_saturation = 5;
 	}
 
 	const effects::TrackChainInputs in =
 	    trackChainInputs(*this, paramManager, volumeAdjustment, block.reverb_amount_adjust,
-	                     block.side_chain_hit_pending, delay, block.output_type);
+	                     block.side_chain_hit_pending, delay, block.output_type, conversions_);
 	effects::TrackBlock levels = chain_.begin_block(in, output.size());
 
 	alignas(CACHE_LINE_SIZE) StereoSample channel_memory[SSI_TX_BUFFER_NUM_SAMPLES];

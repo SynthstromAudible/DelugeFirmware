@@ -2613,8 +2613,8 @@ void Song::deleteSoundsWhichWontSound() {
 deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
                                                      deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
-	const deluge::dsp::Q<27> volumePostFX =
-	    deluge::model::volume_from_knob(paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME));
+	const deluge::dsp::Q<27> volumePostFX = live.master_channel.conversions().volume(
+	    paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME), deluge::model::volume_from_knob);
 	// The outputs take the halved volume's word as their reverb adjust
 	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
