@@ -288,6 +288,18 @@ describe tween("gfx::grid tweens", $ {
 		}
 	});
 
+	// A waveform zooms between levels that need not be powers of two (3000 to 2048 shares a bit width), and legacy
+	// takes the step from the encoder instead (`WaveformBasicNavigator::zoom`'s `zoomMagnitude`).
+	it("zoom takes a given step over the levels' bit widths, the levels then naming only the direction", _ {
+		PadGrid from = make_test_grid(3), to = make_test_grid(4);
+		PadGrid given(kDelugeGrid), powers(kDelugeGrid), wider(kDelugeGrid);
+		zoom(from, to, ZoomParams{3000, 2048, 9 * 65536, 9 * 65536, 32768, 1}, given);
+		zoom(from, to, ZoomParams{2, 1, 9 * 65536, 9 * 65536, 32768}, powers);
+		zoom(from, to, ZoomParams{3000, 2048, 9 * 65536, 9 * 65536, 32768, 2}, wider);
+		expect(grid_to_state(given)).to_equal(grid_to_state(powers));
+		expect(grid_to_state(wider) == grid_to_state(given)).to_be_false();
+	});
+
 	// The oracle compares above all pass `pin_square_from == pin_square_to`, which is the case
 	// legacy's two `#define`s alias to one array -- so the one thing this port adds
 	// over legacy, three independently addressable pin roles, would otherwise have no coverage.

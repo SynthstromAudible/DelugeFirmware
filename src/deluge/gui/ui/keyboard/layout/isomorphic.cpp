@@ -23,6 +23,7 @@
 #include "model/scale/note_set.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
+#include "util/sound_menu_open.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -142,9 +143,8 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 
 			// TODO: In a future revision it would be nice to add this to the API
 			//  Dim note pad if a browser is open with the note highlighted
-			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
-			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
-				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
+			if (deluge::gui::ui::rangeDependentMenuOpen()) {
+				if (deluge::gui::ui::noteWithinCurrentRange(noteCode)) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t value = (int32_t)image[y][x][colour] + 35;
 						image[y][x][colour] = std::min<int32_t>(value, std::numeric_limits<uint8_t>::max());

@@ -123,7 +123,7 @@ public:
 	///
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp:280`) but the host injector uses it; its `x` is the encoder index and its
+	/// (`deluge.cpp:281`) but the host injector uses it; its `x` is the encoder index and its
 	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
@@ -402,7 +402,7 @@ public:
 
 private:
 	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
-	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1969-1971`).
+	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1970-1972`).
 	///
 	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
 	/// compares against; one second is legacy's own number and clears it by a wide margin.

@@ -101,7 +101,7 @@
 ///     scene today, and inventing one would be a push no user could perform.
 ///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of
 ///     `playbackHandler.count_in_visual()`, and the only writer of that number is
-///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1044-1051`),
+///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1091-1098`),
 ///     which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that
 ///     reason; `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2
 ///     shape of the same stand-in. The script's own header carries the schedule, so the golden is
@@ -324,7 +324,7 @@ struct SceneReset {
 		// `services::GlobalControls`, so `playbackHandler` is genuinely running by the end of it.
 		// `setForegroundRecording` matters even though no script here starts an output recording:
 		// one left standing suppresses the RECORD LED for every later example
-		// (`playback_handler.cpp:2503-2506`), which is exactly the cross-contamination this file's
+		// (`playback_handler.cpp:2567-2570`), which is exactly the cross-contamination this file's
 		// own LED assertions would then be reading.
 		playbackHandler.playbackState = saved_playback_state;
 		playbackHandler.currentVisualCountForCountIn = saved_count_in;
@@ -372,7 +372,7 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way `SampleBrowser::renderPreviewForTarget` does.
+/// @brief Open the slicer on @p sample, the way `SampleBrowser::showPreview` does.
 /// @param sample The sample the scene is opened on.
 /// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
@@ -410,7 +410,7 @@ std::function<void(uint32_t)> slicer_seed() {
 /// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands
 /// in for wiring that does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which
 /// `count_in_scene.h` says outright. The schedule stands in for
-/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1044-1051`),
+/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1091-1098`),
 /// which needs a running `AudioEngine`; `count_in_spec.cpp` writes the same field directly for the
 /// same reason. Both are written into `tests/ui-scripts/shell/count_in.txt`'s header so the golden
 /// can be read against something.
@@ -697,7 +697,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		//
 		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
 		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
-		// (`view.cpp:893-900`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
+		// (`view.cpp:894-901`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
 		// it compares the turn's param against `menu_scene().focused()->bind.param`. `nodes::saturation`
 		// is built with `int_item()` (`nodes/sound_fx.h`), which never sets `bind.param` at all
 		// (`node.h`'s `int_item` builder) -- so `bind.param.valid()` is false, `popup_suppressed`
@@ -747,7 +747,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
 		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed`, the port
-		// of legacy's same-param popup guard (`view.cpp:893-900`), compares the turn's param against
+		// of legacy's same-param popup guard (`view.cpp:894-901`), compares the turn's param against
 		// `menu_scene().focused()->bind.param` -- and `nodes::saturation` has none (see above), so
 		// the guard cannot suppress here and the popup goes up: `idle` carries one `scene` line,
 		// `after_gold_turn` carries two (the popup pushed over the menu), and `after_back` carries

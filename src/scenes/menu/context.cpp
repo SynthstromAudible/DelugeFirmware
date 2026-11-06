@@ -59,7 +59,6 @@
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/node.h"
-#include "scenes/services/view_state.h"
 
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -86,6 +85,11 @@ int32_t range_count(const MenuContext& ctx) {
 	// `std::ssize(source->ranges)` at `:2005`.
 	const deluge::instrument::SourceState* source = source_state(ctx);
 	return source != nullptr ? static_cast<int32_t>(source->ranges.size()) : 0;
+}
+
+std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
+	const deluge::instrument::SourceState* source = source_state(ctx);
+	return source != nullptr ? source->ranges : std::vector<deluge::instrument::RangeState>{};
 }
 
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
@@ -124,15 +128,9 @@ void select_range(MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
 		return;
 	}
-	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`).
+	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`). The source's remembered range is the picker's to write, on a
+	// flick (`MultiRangeItem::render`).
 	ctx.range_index = static_cast<int16_t>(index);
-	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which is what makes the
-	// choice stick across a later visit to the same source: the scenes' view state, by slot and source.
-	if (ctx.model != nullptr) {
-		services::view_state().forget_unless(ctx.model->identity());
-	}
-	services::view_state().set_last_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
-	                                      static_cast<uint16_t>(index));
 }
 
 void select_source(MenuContext& ctx, int8_t index) {

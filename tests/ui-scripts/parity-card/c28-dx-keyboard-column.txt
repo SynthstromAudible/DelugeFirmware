@@ -1,0 +1,97 @@
+# The keyboard's DX column on a new FM synth: a pad switches its operator off, Shift + a pad opens the DX7 parameter
+# page on that operator's level (its row flashing white), a second Shift + the same pad toggles to its coarse tuning,
+# the top global pad opens the algorithm, and a keyboard scaling breakpoint, raised onto the grid, blinks its note's
+# pad on the isomorphic keyboard. Pads act on release.
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  button Back down
+7020  button Back up
+8000  button Keyboard down
+8020  button Keyboard up
+9000  snapshot kb-dx-col
+9500  pad 17 5 down
+9550  pad 17 5 up
+10500 snapshot op-off
+11000 button Shift down
+11100 pad 17 7 down
+11150 pad 17 7 up
+11200 button Shift up
+12000 snapshot kb-dx-param
+12600 snapshot kb-dx-flash
+13500 button Shift down
+13600 pad 17 7 down
+13650 pad 17 7 up
+13700 button Shift up
+14500 snapshot kb-toggle
+15500 button Shift down
+15600 pad 17 1 down
+15650 pad 17 1 up
+15700 button Shift up
+16500 snapshot kb-global
+17500 button Shift down
+17600 pad 17 7 down
+17650 pad 17 7 up
+17700 button Shift up
+18500 snapshot kb-level
+19000 encoder Horizontal -1
+19300 encoder Horizontal -1
+19600 encoder Horizontal -1
+19900 encoder Horizontal -1
+20200 encoder Horizontal -1
+20500 encoder Horizontal -1
+20800 encoder Horizontal -1
+21100 encoder Horizontal -1
+21900 snapshot kb-breakpoint-0
+22400 encoder Select +1
+22500 encoder Select +1
+22600 encoder Select +1
+22700 encoder Select +1
+22800 encoder Select +1
+22900 encoder Select +1
+23000 encoder Select +1
+23100 encoder Select +1
+23200 encoder Select +1
+23300 encoder Select +1
+23400 encoder Select +1
+23500 encoder Select +1
+23600 encoder Select +1
+23700 encoder Select +1
+23800 encoder Select +1
+23900 encoder Select +1
+24000 encoder Select +1
+24100 encoder Select +1
+24200 encoder Select +1
+24300 encoder Select +1
+24400 encoder Select +1
+24500 encoder Select +1
+24600 encoder Select +1
+24700 encoder Select +1
+24800 encoder Select +1
+24900 encoder Select +1
+25000 encoder Select +1
+25100 encoder Select +1
+25200 encoder Select +1
+25300 encoder Select +1
+25400 encoder Select +1
+25500 encoder Select +1
+25600 encoder Select +1
+25700 encoder Select +1
+25800 encoder Select +1
+25900 encoder Select +1
+26000 encoder Select +1
+26100 encoder Select +1
+26200 encoder Select +1
+26300 encoder Select +1
+26400 encoder Select +1
+26500 encoder Select +1
+26600 encoder Select +1
+26700 encoder Select +1
+26800 encoder Select +1
+27400 snapshot kb-breakpoint
+27900 snapshot kb-breakpoint-2
+28400 button Back down
+28420 button Back up
+29400 snapshot closed

@@ -5,7 +5,7 @@
 /// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and
 /// `None` on a settings root -- the port of `SoundEditor::padAction`'s gate at
 /// `gui/ui/sound_editor.cpp:1467` -- and that a scene which never overrides the virtual (the
-/// browser, stood in for every scene that does not override it) answers the safe default, `All`.
+/// context menu, stood in for every scene that does not override it) answers the safe default, `All`.
 ///
 /// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
 /// path, no `ShellHostUI::claimsGridPad`, and no grid-pad test through a `Shell` -- those are later
@@ -20,7 +20,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
-#include "scenes/browser/browser_scene.h"
+#include "scenes/context_menu/context_menu_scene.h"
 
 #include "support/song_fixture.h"
 
@@ -89,7 +89,7 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	it("answers All for a scene that does not override it", _ {
 		// The default is the safe direction: a scene that forgets to answer forwards nothing,
 		// rather than forwarding something it wanted.
-		expect(deluge::scenes::browser::browser_scene().grid_pad_claim()).to_equal(GridPadClaim::All);
+		expect(deluge::scenes::context_menu::context_menu_scene().grid_pad_claim()).to_equal(GridPadClaim::All);
 	});
 });
 // clang-format on

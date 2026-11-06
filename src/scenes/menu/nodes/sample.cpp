@@ -80,17 +80,16 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `soundEditor`'s globals" -- generalised, so the descriptor reads whichever member of the
 	// context it needs (`browser_scene.h`'s `Descriptor::start_at`).
 	//
-	// Not ported, and stated rather than dropped silently: legacy's
-	// `keyboardScreen.exitAuditionMode()` (`:40-42`) reaches a `gui/` root UI this layer may not
-	// name (`scenes-no-root-ui`) -- the same input `MarkerScene` drops for the same reason
-	// (`marker_scene.h`) -- and `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`) is
-	// the shortcut-pad flash, which `MenuScene` owns rather than an item.
+	// Legacy's `keyboardScreen.exitAuditionMode()` (`:40-42`) is a root UI's, which the host performs from the
+	// `FileSelectorOpened` action this item files. `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`),
+	// which legacy runs only when the browser refuses to open, is the shortcut-pad flash, which `MenuScene` owns rather
+	// than an item.
 	//
 	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
 	// but in `SoundEditor::maybeGetParentMenu`,
 	// whose file-selector arm is `:2089-2095`.
 	// It is a *return* affordance: the sample claim (`SampleClaim`) reads the pair back
-	// (`gui/ui/browser/sample_browser.cpp:1111-1122`) and re-roots the navigation record onto the
+	// (`gui/ui/browser/sample_browser.cpp:969-980`) and re-roots the navigation record onto the
 	// oscillator's horizontal page with the file selector focused, so accepting a file lands on the
 	// source page rather than back on the item. `MenuState::path`/`depth` already are that record
 	// and `go_up_on_resume` already steps out of the item, so what was actually missing was the
@@ -103,6 +102,7 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `deluge::gui::ui::shellSampleClaimDone` calls on the claim's success.
 	browser::browser_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
+	state.walk.pending_action = MenuActionRequest{.action = MenuAction::FileSelectorOpened};
 }
 
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {

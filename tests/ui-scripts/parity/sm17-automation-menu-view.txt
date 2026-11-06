@@ -1,0 +1,88 @@
+# ShellMenu: the automation view's "menu view". From the synth clip, SHIFT + the LPF frequency shortcut opens its
+# page; CLIP puts the automation view on that param in menu view and CLIP again returns to the clip view. In menu
+# view a shortcut to another param returns to the clip view, and BACK out of the menu leaves the view in menu view.
+# Entered through the menu instead (which reopens on FILTERS afterwards), BACK from the LPF page to the filters list returns to the clip view. On a patch
+# cable's page (MOD MATRIX) CLIP selects the cable; KEYBOARD from menu view leaves it for the keyboard. Every snapshot
+# has a 1 s window (blinks). Run on the ShellMenu card.
+100   snapshot boot
+300   button Shift down
+500   pad 8 7 down
+540   pad 8 7 up
+740   button Shift up
+1440  snapshot lpf_page
+2440  button Clip down
+2460  button Clip up
+3160  snapshot menu_view
+4160  button Clip down
+4180  button Clip up
+4880  snapshot menu_view_off
+5880  button Clip down
+5900  button Clip up
+6600  snapshot menu_view_again
+7600  button Shift down
+7800  pad 8 6 down
+7840  pad 8 6 up
+8040  button Shift up
+8740  snapshot shortcut_res
+9740  button Clip down
+9760  button Clip up
+10460 snapshot menu_view_res
+11460 button Back down
+11480 button Back up
+12180 snapshot closed_in_menu_view
+13180 button Clip down
+13200 button Clip up
+13900 snapshot clip_after_close
+14100 button SelectEnc down
+14120 button SelectEnc up
+14820 snapshot sound_root
+15820 encoder Select +5
+16520 snapshot filters_row
+17520 button SelectEnc down
+17540 button SelectEnc up
+17740 button SelectEnc down
+17760 button SelectEnc up
+18460 snapshot lpf_walked
+19460 button Clip down
+19480 button Clip up
+20180 snapshot walked_menu_view
+21180 button Back down
+21200 button Back up
+21900 snapshot back_filters
+22900 button Back down
+22920 button Back up
+23120 button Back down
+23140 button Back up
+23840 snapshot walked_closed
+24040 button SelectEnc down
+24060 button SelectEnc up
+24260 encoder Select +5
+24460 encoder Select +5
+24660 encoder Select +5
+24860 encoder Select +1
+25560 snapshot cables_row
+26560 button SelectEnc down
+26580 button SelectEnc up
+27280 snapshot cables_list
+28280 button SelectEnc down
+28300 button SelectEnc up
+29000 snapshot cable_page
+30000 button Clip down
+30020 button Clip up
+30720 snapshot cable_menu_view
+31720 button Clip down
+31740 button Clip up
+32440 snapshot cable_back
+33440 button Clip down
+33460 button Clip up
+34160 snapshot cable_menu_view_2
+35160 button Keyboard down
+35180 button Keyboard up
+35880 snapshot keyboard
+36880 button Back down
+36900 button Back up
+37100 button Back down
+37120 button Back up
+37320 button Back down
+37340 button Back up
+38040 snapshot keyboard_closed

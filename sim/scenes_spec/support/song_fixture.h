@@ -15,7 +15,7 @@
 ///     `memory/general_memory_allocator.cpp:131`), so nothing has to call it first; and
 ///   * `currentSong`, which the model's own stack helpers read.
 ///
-/// and `ensureAtLeastOneSessionClip`'s own fallback branch (`song.cpp:378-403`, the `couldntLoad`
+/// and `ensureAtLeastOneSessionClip`'s own fallback branch (`song.cpp:379-404`, the `couldntLoad`
 /// label taken whenever the card has no preset to load) is a pure-model recipe for a synth clip:
 /// `StorageManager::createNewInstrument` + `setupAsDefaultSynth` + `setAudioInstrument` +
 /// `addOutput`. This header replays exactly that branch, so no `startupConditionalTask` hook and
@@ -75,10 +75,10 @@ inline Song* make_bare_song() {
 	GlobalEffectable::initParams(&song->paramManager);
 	song->setupDefault();
 
-	// `deluge.cpp:392`. The scenes layer itself never reads this global (`context.cpp` takes a
+	// `deluge.cpp:393`. The scenes layer itself never reads this global (`context.cpp` takes a
 	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
 	// `isParamQuantizedStutter` (`modulation/params/param.cpp`), the `getCurrent*()`
-	// helpers at `model/song/song.cpp:90-136`. Leaving it null would make those a latent crash for
+	// helpers at `model/song/song.cpp:91-137`. Leaving it null would make those a latent crash for
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec
 	// working with one song at a time wants.
 	currentSong = song;
@@ -86,7 +86,7 @@ inline Song* make_bare_song() {
 }
 
 /// @brief Attach `instrument` to `clip` and to `song` -- `ensureAtLeastOneSessionClip`'s tail
-///        (`song.cpp:397-401`), without the playback re-sync a spec has no clock for.
+///        (`song.cpp:398-402`), without the playback re-sync a spec has no clock for.
 inline void attach(Song* song, InstrumentClip* clip, Instrument* instrument, ParamManagerForTimeline& params) {
 	clip->setAudioInstrument(instrument, song, true, &params);
 	song->addOutput(instrument);
@@ -103,7 +103,7 @@ inline InstrumentClip* make_session_clip(Song* song) {
 } // namespace detail
 
 /// @brief A song whose one session clip drives a default `SoundInstrument` --
-///        `ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song.cpp:378-403`) verbatim.
+///        `ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song.cpp:379-404`) verbatim.
 inline SongFixture make_synth_song() {
 	SongFixture f;
 	f.song = detail::make_bare_song();
@@ -204,7 +204,7 @@ inline SongFixture make_kit_song() {
 }
 
 /// @brief Give a kit fixture one drum with a note row, and select it -- the model half of
-///        `InstrumentClipView::createDrumForAuditionedNoteRow` (`instrument_clip_view.cpp:975`).
+///        `InstrumentClipView::createDrumForAuditionedNoteRow` (`instrument_clip_view.cpp:976`).
 ///
 /// `T` is `SoundDrum`, `MIDIDrum` or `GateDrum`. Returns the drum, already `kit->selectedDrum`.
 template <typename T>

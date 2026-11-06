@@ -60,6 +60,8 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
     IM-TIER    per folder import: a listing ran, and no sample was read from the card on the interaction tier.
     IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
                refused; once it ends, the gate released and the kit holding its drums.
+    IM-EMPTY   a kit import of a folder holding a subfolder and no audio file of its own: an import of nothing, as
+               main's, the kit's one drum kept, the browser closed onto the clip view and the gate released.
     IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
                synth's ranges and the loaded files' reasons as they were, just the menu closed, the browser open and
                the gate released.

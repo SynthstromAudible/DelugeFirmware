@@ -80,7 +80,7 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:93`) -- declared bare and at
+// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:94`) -- declared bare and at
 // global scope, exactly as `settings.cpp` and `sound_editor.cpp:1458` both do (a declaration
 // inside this file's own anonymous namespace below would name a different, unlinked variable).
 extern uint16_t batteryMV;
@@ -1283,6 +1283,78 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.stack().top().kind() == deluge::ui::shell::SceneKind::Popup).to_be_true();
 	});
 
+	it("routes a horizontal turn as legacy's item does: a page keeps it, a param leaf passes it on", _ {
+		// `HorizontalMenu` has no `horizontalEncoderAction`; `Param::horizontalEncoderAction` hands the turn to the root.
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::lpf);
+		r.shell.tick(0);
+		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Menu).to_be_true();
+		Rig r2;
+		(void)r2.open(nodes::lpf_freq);
+		r2.shell.tick(0);
+		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(-1, true, 20) == HorizontalTurn::Root).to_be_true();
+	});
+
+	it("passes a patch cable page's horizontal turn on only after its cursor has stood at an edge half a second", _ {
+		// `PatchCableStrength::horizontalEncoderAction`: the decimal cursor moves first; at an edge the first turn arms
+		// `kShortPressTime`, a turn after it goes to the root, and any move starts over.
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		expect(menu_scene().route_horizontal_turn(1, false, 100) == HorizontalTurn::Menu).to_be_true(); // moves
+		menu_scene().state_for_spec().decimal_pos = 0;
+		expect(menu_scene().route_horizontal_turn(1, false, 200) == HorizontalTurn::Menu).to_be_true(); // arms
+		expect(menu_scene().route_horizontal_turn(1, false, 600) == HorizontalTurn::Menu).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, false, 701) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(-1, false, 800) == HorizontalTurn::Menu).to_be_true(); // moves
+		expect(menu_scene().route_horizontal_turn(1, false, 900) == HorizontalTurn::Menu).to_be_true(); // re-arms
+	});
+
+	it("holds a patch cable page's cursor still while X_ENC is held, and passes the turn on after the delay", _ {
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		expect(menu_scene().route_horizontal_turn(1, true, 100) == HorizontalTurn::Neither).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, true, 700) == HorizontalTurn::Root).to_be_true();
+	});
+
+	it("over the automation view swallows a shortcut to an item with no param, and still takes a param's", _ {
+		// `SoundEditor::potentialShortcutPadAction` refuses a shortcut whose item has no param kind while the root is
+		// the automation view (LPF MODE at (8,5) is a setting); a param's shortcut is taken as anywhere else.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		menu_scene().set_root_facts(MenuContext::RootGreyout::SpareSidebar, false, true);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(8, 5, 64, 20);
+		r.pad(8, 5, 0, 25);
+		r.shell.tick(30);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 40);
+		r.shell.tick(50);
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("takes a shortcut to an item with no param over any other root", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(8, 5, 64, 20);
+		r.shell.tick(30);
+		expect(menu_scene().focused_value() == &nodes::lpf_mode).to_be_true();
+	});
+
 	it("a shift-held shortcut pad replaces the scene at that node, and state_lines says so", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1544,16 +1616,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
-		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
-		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
-		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
+		// `MultiRange::beginSession` (`multi_range.cpp:48-51`): a `defaultRangeI` of -1 is invalid, so
+		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
+		// `Source::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
-		expect(services::view_state().last_range(
-		           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, *r.song.instrument->id()}, 0))
-		    .to_equal(std::optional<uint16_t>{1});
+		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp:360-362`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`multi_range.cpp:334-336`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
@@ -1565,6 +1635,244 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
+	});
+
+	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
+		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:212`); a voice start writes it too
+		// (`Source::getRange`), and the open picker's cursor stays where it was.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1);
+
+		r.turn(1, 120);
+		r.shell.tick(125);
+		expect(cursor_of(1)).to_equal(2);
+		expect(sound->sources[0].defaultRangeI).to_equal(2);
+
+		(void)sound->sources[0].getRange(30); // a voice starting in range 0
+		expect(sound->sources[0].defaultRangeI).to_equal(0);
+		r.shell.tick(140);
+		r.shell.tick(160);
+		expect(cursor_of(1)).to_equal(2);
+		expect(sound->sources[0].defaultRangeI).to_equal(0);
+	});
+
+	it("edits a range edge on a horizontal turn, moves it with the select encoder, and cancels it with BACK", _ {
+		// `Range::horizontalEncoderAction`, `MultiRange::selectEncoderAction`'s edge arm, and `SoundEditor::buttonAction`
+		// asking the item to cancel the edge before going up.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1); // range 1, 41..60
+
+		r.edges(1, -2, 120); // one detent of the horizontal encoder (`shell/profiles/deluge.cpp`)
+		r.shell.tick(125);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		expect(menu_scene().state().list[1].hide_cursor).to_be_true();
+		{
+			// `drawPixelsForOled`'s left-edge highlight: x = kTextSpacingX for six characters, on the range's row
+			// (canvas rows 28..36 for the second row on a 48-row panel); the row's blank top line shows it.
+			deluge::ui::test::Rig48 rig;
+			rig.begin_tick(127);
+			menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+			expect(rig.lit(5, 28)).to_be_false();
+			expect(rig.lit(6, 28)).to_be_true();
+			expect(rig.lit(41, 28)).to_be_true();
+			expect(rig.lit(42, 28)).to_be_false();
+		}
+		r.turn(1, 130); // the left edge is range 0's top
+		r.shell.tick(135);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(41);
+		expect(cursor_of(1)).to_equal(1);
+
+		r.button(7, 1, true, 140); // BACK: cancels the edge, stays on the picker
+		r.button(7, 1, false, 140);
+		r.shell.tick(145);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+
+		r.edges(1, 2, 146); // the right edge: from x = 10 * kTextSpacingX to the panel's edge
+		r.shell.tick(147);
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.begin_tick(147);
+			menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+			expect(rig.lit(59, 28)).to_be_false();
+			expect(rig.lit(60, 28)).to_be_true();
+			expect(rig.lit(127, 28)).to_be_true();
+		}
+		r.edges(1, 2, 148); // turned towards the edge already edited: off
+		r.shell.tick(149);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		r.button(8, 0, true, 150); // SHIFT: a horizontal turn then does nothing
+		r.edges(1, 2, 155);
+		r.shell.tick(160);
+		r.button(8, 0, false, 165);
+		r.shell.tick(170);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+	});
+
+	it("coming back from the item it chained to begins the picker again: no edge, the range remembered, the window reset", _ {
+		// `SoundEditor::goUpOneLevel` ends in `beginScreen`, which runs `MultiRange::beginSession` with the range
+		// still selected: the range is written to `defaultRangeI` and `Range::beginSession` turns the edge off.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1);
+
+		r.edges(1, -2, 120);
+		r.shell.tick(125);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		menu_scene().state_for_spec().list[1].scroll = 1; // a window scrolled down a row, as a flick leaves it
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.shell.tick(140);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		sound->sources[0].defaultRangeI = 0; // a note played meanwhile
+
+		r.button(7, 1, true, 150);
+		r.button(7, 1, false, 150);
+		r.shell.tick(160);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(menu_scene().state().list[1].hide_cursor).to_be_false();
+		// The window opens afresh, the range on its last row as far as it can be (`ListState::keep_scroll`'s -1).
+		expect(static_cast<int>(menu_scene().state().list[1].scroll)).to_equal(-1);
+		expect(cursor_of(1)).to_equal(1);
+		expect(sound->sources[0].defaultRangeI).to_equal(1);
+	});
+
+	it("cancels an edge with BACK on a picker opened at the root, where BACK would otherwise close the menu", _ {
+		// A shortcut opens the picker at depth 0 (`SoundEditor::setup` substituting it for the item), and legacy's BACK
+		// still cancels the edge first.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(nodes::multi_range, ctx);
+		r.shell.tick(0);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.edges(1, -2, 10);
+		r.shell.tick(15);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		r.button(7, 1, true, 20); // BACK
+		r.button(7, 1, false, 20);
+		r.shell.tick(25);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		bool menu_up = false;
+		for (const deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {
+			menu_up = menu_up || scene == &menu_scene();
+		}
+		expect(menu_up).to_be_true();
+	});
+
+	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
+		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sink.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(cursor_of(1)).to_equal(1); // 41..60
+
+		r.button(8, 0, true, 120); // SHIFT
+		r.turn(1, 125);            // after: the new range takes 51..60, the old one 41..50
+		r.shell.tick(130);
+		r.button(8, 0, false, 135);
+		r.shell.tick(140);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(4);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(50);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(2)->topNote)).to_equal(60);
+		expect(cursor_of(1)).to_equal(2);
+
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+		menu_scene().delete_range_press(); // the range below takes the mean of the two tops
+		// SAVE is the host's press, between the menu's ticks: the picker asks for a frame of its own.
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
+		r.shell.tick(150);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(55);
+		expect(cursor_of(1)).to_equal(1);
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(1);
 	});
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {

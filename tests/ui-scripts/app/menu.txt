@@ -25,8 +25,8 @@
 #
 # Boot lands in `InstrumentClipView`, not the session view -- `boot.state` shows `led Clip on`
 # and `led Synth on`, and a `SoundEditor::setup` breakpoint on the SELECT press below stops with
-# `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp:392-424`:
-# the gate at `:399`, the guest arm at `:408-411`, legacy's at `:415-424`). That is **site 6** of the
+# `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp:442-476`:
+# the gate at `:449`, the guest arm at `:456-462`, legacy's at `:464-474`). That is **site 6** of the
 # fourteen in `gui/ui/shell_menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
 # `MenuContext::Root::Sound`.
 #
@@ -34,7 +34,7 @@
 # `sound_editor.cpp:1891`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
-# (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
+# (`gui/views/view.cpp:478`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
 # the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
 # tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
@@ -67,7 +67,7 @@
 
 # Back out. A SHORT Back, which is the exit a user actually performs: the long press goes through
 # `TimerName::BACK_MENU_EXIT` -> `exitUI()` (`hid/buttons.cpp:114-121`,
-# `gui/ui_timer_manager.cpp:149-155`), and the short one does not. A toggle-on leg that mishandles it is
+# `gui/ui_timer_manager.cpp:150-156`), and the short one does not. A toggle-on leg that mishandles it is
 # left wedged here with an empty shell stack and every later press swallowed.
 1300   button Back down
 1320   button Back up
@@ -177,7 +177,7 @@
 # **The ported file selector, opened by a real press, over a real card.**
 #
 # Everything above drives menus. This drives **site 8**
-# (`gui/views/instrument_clip_view.cpp:502-519`), the only one of the eight gated
+# (`gui/views/instrument_clip_view.cpp:504-521`), the only one of the eight gated
 # `openUI(&soundEditor)` sites that names a *leaf* rather than a root -- legacy
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` at `:515`, the
 # guest's `openShellMenu(..., ShellMenuNode::Osc0FileSelector)` at `:507-511`. It is reachable from
@@ -187,7 +187,7 @@
 # **The gesture is legacy's own**: hold an audition pad on a synth clip and press LOAD.
 # `InstrumentClipView::buttonAction`'s arm is `currentUIMode == UI_MODE_AUDITIONING && (b == LOAD ||
 # b == KIT)` (`:469-470`) with the synth half at `:496`. The audition pads are sidebar column
-# `kDisplayWidth + 1` = 17 (`instrument_clip_view.cpp:1956`, `auditionPadAction` at `:2004`).
+# `kDisplayWidth + 1` = 17 (`instrument_clip_view.cpp:1957`, `auditionPadAction` at `:2006`).
 #
 # **Why a NEW clip rather than the boot one.** The section above converted the song's only clip to
 # an AudioClip, and site 8 needs `getCurrentOutputType() == OutputType::SYNTH`. Pressing an empty
@@ -206,7 +206,7 @@
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
-# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:871`) which
+# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:729`) which
 # no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
 6500   button Back down
 6520   button Back up
@@ -239,14 +239,9 @@
 # `sample_browser.cpp`) against the ported `browser::BrowserScene` on the `Sample` descriptor
 # (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one file.
 #
-# **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
-# are byte-identical; the *pads* are not. Legacy `SampleBrowser` opens with the keyboard hidden and
-# the sample's waveform on the main grid (`sample_browser.cpp:112`,
-# `SampleBrowser::renderMainPads` at `:2129`), swapping between the two as the selection moves; the
-# ported scene always draws the text keyboard, because the swap needs `AudioEngine::previewSample`,
-# `PadLEDs`' scroll transition and the marker editor. That is `BrowserScene::render_grid`'s own
-# note (`scenes/browser/browser_scene.cpp`), seen here for the first time at level 3. The
-# LED lines differ too, in the direction every menu golden above already differs.
+# **`file-selector.state`'s pads are the same on both legs**: the sample browser opens with no keyboard and no
+# preview, so the root view shows through, greyed (`SampleBrowser::renderMainPads` answers false). The LED lines
+# differ by LOAD: the press before the snapshot turns legacy's auto-load on, which the ported browser does not take yet.
 9900   pad 17 4 down
 10200  snapshot auditioning
 10400  button Load down
@@ -255,7 +250,7 @@
 11300  pad 17 4 up
 
 # **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
-# (`sample_browser.cpp:392`) with the toggle off, and with it on it is `BrowserScene`'s deferred
+# (`sample_browser.cpp:393`) with the toggle off, and with it on it is `BrowserScene`'s deferred
 # choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
@@ -337,7 +332,7 @@
 
 # 2. KIT. `SoundEditor::buttonAction` hands every button to `handleNoteEditorButtonAction` while
 # the note editor is open (`gui/ui/sound_editor.cpp:617-619`), which forwards SYNTH/KIT/MIDI/CV to
-# the horizontal menu (`gui/views/instrument_clip_view.cpp:3746-3748`), whose `select_map` maps KIT
+# the horizontal menu (`gui/views/instrument_clip_view.cpp:3748-3750`), whose `select_map` maps KIT
 # to column 1 (`gui/menu_item/horizontal_menu.cpp:96-97`): probability.
 20500  button Kit down
 20520  button Kit up
@@ -368,7 +363,7 @@
 23400  snapshot note-editor-closed
 
 # 6. Hold the audition pad and press SELECT with it still held: the same SELECT_ENC arm, under
-# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:857`): `if (enterNoteRowEditor())`
+# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:859`): `if (enterNoteRowEditor())`
 # (`:858`). Legacy opens `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`: sequence direction,
 # probability, iterance, fill).
 23800  pad 17 4 down
@@ -400,9 +395,9 @@
 # new, empty kit (with a note in it, KIT refuses: "CLIP NOT EMPTY"). A new kit runs
 # `InstrumentClipView::enterDrumCreator` on its row 0 (`completeNewInstrument`): a new drum and the sample browser open
 # on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". Under the toggle
-# the ported browser opens on the new drum's file selector, so the legs' pads differ as `file-selector`'s do (the
-# ported browser shows its keyboard from the start: D23), the KIT LED is off under the guest as SYNTH is there, and the
-# new drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
+# the ported browser opens on the new drum's file selector. The legs' pads differ: legacy's root view shows its sidebar
+# columns only, the ported leg's greyed main pads too (open; the emulator's `c12` runs against `main`), and the new
+# drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
 # drum-creator arm, which deletes the drum only while the kit holds another drum no row uses -- this kit holds none,
 # so the drum stays on both legs and the clip view shows KIT 1.
 27200  pad 2 4 down

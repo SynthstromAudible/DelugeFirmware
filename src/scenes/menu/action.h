@@ -213,6 +213,11 @@ enum class MenuAction : uint8_t {
 	FlashStatusLeftSlow,
 	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:44-47`).
 	PadColoursChanged,
+
+	/// @brief The file selector opened: `FileSelector::beginSession` leaves the keyboard's audition mode
+	///        (`file_selector.cpp:40-42`), with the keyboard at the root and a note auditioning. `arg` is unused.
+	FileSelectorOpened,
+
 	/// @}
 };
 

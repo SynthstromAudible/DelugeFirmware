@@ -1367,7 +1367,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:223-227`), so a polarity the
 		// user chose *before* the cable existed survives its creation.
 		//
-		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:438`),
+		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:443`),
 		// so the *default* needs no help -- what would be lost is a chosen one. Hence the sentinel
 		// below: the page is put in the polarity that is NOT the source's default, and the created
 		// cable must come out in it.
@@ -2000,7 +2000,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
 
 			expect(arp->mode == ArpMode::ARP).to_be_true();
-			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- false unless
+			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- false unless
 			// `updatePresetFromCurrentSettings()` ran.
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
 			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();

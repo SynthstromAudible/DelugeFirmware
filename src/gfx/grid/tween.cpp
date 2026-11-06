@@ -240,12 +240,14 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 	DELUGE_GFX_CONTRACT(params.old_zoom > 0 && params.new_zoom > 0);
 
 	// `zoomingIn` is "the new zoom level is finer". Legacy's `zoomMagnitude` is the absolute log2
-	// step; zoom levels are ticks-per-square and always differ by a power of two, so the bit-width
-	// difference computed here is that same log2 step.
+	// step: the caller's where it gives one, else the bit-width difference, which is that step for
+	// a timeline's ticks-per-square levels (they always differ by a power of two).
 	const bool zooming_in = params.new_zoom < params.old_zoom;
 	const int32_t zoom_magnitude =
-	    std::abs(static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.new_zoom)))
-	             - static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.old_zoom))));
+	    params.magnitude != 0
+	        ? params.magnitude
+	        : std::abs(static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.new_zoom)))
+	                   - static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.old_zoom))));
 	// `coarse` below reaches -2^(magnitude - 1), so `increase_magnitude(x, coarse - 14)` shifts
 	// right by 2^(magnitude - 1) + 14 -- 30 at magnitude 5, past the operand width at 6. See the
 	// note on kMaxZoomMagnitude in tween.h for why that bounds the magnitude.

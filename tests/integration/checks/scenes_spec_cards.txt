@@ -8,3 +8,5 @@ menu_scripts_spec tests/fixtures/scenes_spec/menu_scripts
 recorder_scene_spec none
 listing_nested_spec tests/fixtures/scenes_spec/listing_nested
 file_catalogue_trio_spec tests/fixtures/scenes_spec/file_catalogue_trio
+sample_preview_spec tests/fixtures/scenes_spec/browser_scene
+dx_cartridge_spec tests/fixtures/scenes_spec/dx_cartridge

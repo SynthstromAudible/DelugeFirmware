@@ -17,6 +17,7 @@ namespace fakelegacyui {
 
 std::vector<UI*> closed;
 int oled_redraws = 0;
+std::vector<uint32_t> modes_exited;
 int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
@@ -32,6 +33,11 @@ int knob_indicator_clears = 0;
 bool knob_clear_saw_close = false;
 int service_wirings = 0;
 int action_dispatches = 0;
+int root_fact_refreshes = 0;
+bool root_takes_audition = false;
+int clip_audition_forwards = 0;
+PadCall last_clip_audition{};
+int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
 int pad_forwards = 0;
@@ -47,6 +53,8 @@ std::optional<ActionResult> note_horizontal_answer{};
 int note_vertical_forwards = 0;
 NoteVerticalCall last_note_vertical{};
 std::optional<ActionResult> note_vertical_answer{};
+int menu_save_forwards = 0;
+std::optional<ActionResult> menu_save_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -77,6 +85,7 @@ UI* current_ui = nullptr;
 void reset() {
 	closed.clear();
 	oled_redraws = 0;
+	modes_exited.clear();
 	mod_encoder_actions = 0;
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
@@ -92,6 +101,11 @@ void reset() {
 	knob_clear_saw_close = false;
 	service_wirings = 0;
 	action_dispatches = 0;
+	root_fact_refreshes = 0;
+	root_takes_audition = false;
+	clip_audition_forwards = 0;
+	last_clip_audition = {};
+	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
 	pad_forwards = 0;
@@ -107,6 +121,8 @@ void reset() {
 	note_vertical_forwards = 0;
 	last_note_vertical = NoteVerticalCall{};
 	note_vertical_answer = std::nullopt;
+	menu_save_forwards = 0;
+	menu_save_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -138,7 +154,7 @@ void reset() {
 // is recorded with its duration and that `isTimerSet` answers honestly.
 //
 // `routine()` is deliberately a no-op rather than a reimplementation of
-// `gui/ui_timer_manager.cpp:52-251`: dispatching would need `getCurrentUI()`,
+// `gui/ui_timer_manager.cpp:53-250`: dispatching would need `getCurrentUI()`,
 // which needs the whole `uiNavigationHierarchy` this suite does not build. A
 // spec that wants the tick chain calls `timerCallback()` itself, at the moment
 // the recorded arm says the manager would have.
@@ -160,7 +176,7 @@ void UITimerManager::setTimer(TimerName which, int32_t ms) {
 
 void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	// The real conversion, run backwards, so a spec reads one unit: `setTimer` is
-	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:253-255`).
+	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:252-254`).
 	fakelegacyui::timer_arms.push_back(fakelegacyui::TimerArm{which, samples / 44});
 	getTimer(which).active = true;
 }
@@ -276,6 +292,10 @@ UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
 }
 
+void exitUIMode(uint32_t uiMode) {
+	fakelegacyui::modes_exited.push_back(uiMode);
+}
+
 void renderUIsForOled() {
 	fakelegacyui::oled_redraws++;
 }
@@ -379,6 +399,61 @@ void wireShellGuestServices() {
 // builds. The counter and the callback are what let
 // `shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
 // whether `ShellHostUI::timerCallback` polls at all, how often, on which paths, and after what.
+std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
+	return std::nullopt;
+}
+
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button, bool) {
+	fakelegacyui::menu_save_forwards++;
+	return fakelegacyui::menu_save_answer;
+}
+
+bool automationEditorTakesKnobs() {
+	return false;
+}
+void forwardAutomationGoldTurn(int32_t, int32_t) {
+}
+void forwardAutomationGoldPush(uint8_t, bool) {
+}
+bool forwardAutomationSelectTurn(int8_t) {
+	return false;
+}
+std::optional<ActionResult> forwardMenuHorizontal(int32_t, uint32_t) {
+	return std::nullopt;
+}
+std::optional<ActionResult> forwardMenuVertical(int32_t) {
+	return std::nullopt;
+}
+
+std::optional<ActionResult> forwardBrowserVertical(int32_t) {
+	return std::nullopt;
+}
+
+std::optional<ActionResult> forwardMarkerVertical(int32_t) {
+	return std::nullopt;
+}
+
+bool browserTakesRecord() {
+	return false;
+}
+
+void dispatchMenuTransitions() {
+	fakelegacyui::transition_dispatches++;
+}
+
+void refreshShellRootFacts() {
+	fakelegacyui::root_fact_refreshes++;
+}
+
+void refreshShellRangeDisplay() {
+}
+
+void refreshShellDxColumn() {
+}
+
+void refreshShellSamplePreviewSounds() {
+}
+
 void dispatchShellActions() {
 	fakelegacyui::action_dispatches++;
 	if (fakelegacyui::on_action_dispatch) {
@@ -422,6 +497,22 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	fakelegacyui::pad_forwards++;
 	fakelegacyui::last_pad_forward = fakelegacyui::PadCall{x, y, velocity};
 	return PadForwardTarget::None;
+}
+
+// The clip-type half of the marker's audition arm is the real file's; here only that the pad was handed over.
+void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity) {
+	fakelegacyui::clip_audition_forwards++;
+	fakelegacyui::last_clip_audition = fakelegacyui::PadCall{x, y, velocity};
+}
+
+// The same file's root-UI question for the shortcut gate: no root view keeps a pad here, as none is the automation
+// view.
+bool rootKeepsShortcutPad(int32_t, int32_t) {
+	return false;
+}
+
+bool rootTakesAuditionPad() {
+	return fakelegacyui::root_takes_audition;
 }
 
 // The same file's root-UI question for the marker's sidebar: the real one reads `getRootUI()` and

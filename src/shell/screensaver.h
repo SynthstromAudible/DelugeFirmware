@@ -57,7 +57,7 @@ public:
 	/// `Shell::on_board_event`/`on_encoder_edges` call this before lowering the event, never
 	/// instead of it: legacy's `dispatchInputEvent` calls `noteActivity()` first and then
 	/// unconditionally continues into `padAction`/`buttonAction` for the very same event
-	/// (`deluge.cpp:242,256`; the encoder path is the same shape, `hid/encoder_input.cpp`), so
+	/// (`deluge.cpp:261,270`; the encoder path is the same shape, `hid/encoder_input.cpp`), so
 	/// the press that wakes the screensaver is never swallowed by waking it.
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms);

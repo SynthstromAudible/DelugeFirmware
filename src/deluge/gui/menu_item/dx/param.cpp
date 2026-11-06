@@ -16,7 +16,6 @@
  */
 
 #include "param.h"
-#include "algorithm_bitmaps.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -25,6 +24,7 @@
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "processing/dx7/algorithm_diagrams.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -270,22 +270,14 @@ const char* desc_op_long[] = {"env rate1",   "env rate2",  "env rate3",  "env ra
                               "env level3",  "env level4", "breakpoint", "left depth",    "right depth", "left curve",
                               "right curve", "rate scale", "ampmod",     "velocity sens", "level",       "mode",
                               "coarse",      "fine",       "detune"};
-const char* desc_op_short[] = {"rat1",   "rat2",      "rat3",     "rat4",     "lvl1",     "lvl2",     "lvl3",
-                               "lvl4",   "brkp",      "le depth", "ri depth", "le curve", "ri curve", "rate scale",
-                               "ampmod", "velo sens", "levl",     "mode",     "coar",     "fine",     "detune"};
 
 const char* desc_global_long[]{"DX7 pitch R1", "DX7 pitch R2",     "DX7 pitch R3",  "DX7 pitch R4",  "DX7 pitch l1",
                                "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "algorithm",     "DX7 feedback",
                                "DX7 osc Sync", "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
                                "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
 
-const char* desc_global_short[]{"piR1",       "piR2",      "piR3",    "piR4",     "pil1",     "pil2",
-                                "pil3",       "pil4",      "algo",    "fdbk",     "oscSync",  "LFO rate",
-                                " LFO delay", "LFO pitch", "LFO amp", "LFO sync", "LFO wave", "pitch sens"};
-
 const char* curves[]{"lin-", "exp-", "exp+", "lin+", "????"};
 const char* shapes_long[]{"tri", "saw down", "saw up", "square", "sin", "s-hold"};
-const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 
 [[nodiscard]] std::string_view DxParam::getTitle() const {
 	static char buffer[25];
@@ -327,35 +319,6 @@ const char* shapes_short[]{"tri", "sawd", "sawu", "sqre", "sin", "shld"};
 	}
 
 	return "DX7 PARAM";
-}
-
-void DxParam::flashParamName() {
-	if (0 <= param && param < 6 * 21) {
-		char buf[12] = {0};
-		int op = param / 21;
-		int idx = param % 21;
-		buf[0] = 'o';
-		buf[1] = '6' - op;
-		if (idx < 4) {
-			buf[2] = 'r';
-			buf[3] = '1' + idx;
-		}
-		else if (idx < 8) {
-			buf[2] = 'l';
-			buf[3] = '1' + (idx - 4);
-		}
-		else {
-			if (hasSideColumn()) {
-				strcpy(buf, desc_op_short[idx]);
-			}
-			else {
-				buf[2] = ' ';
-				strcpy(buf + 3, desc_op_short[idx]);
-			}
-		}
-	}
-	else if (param >= 6 * 21 && param < 6 * 21 + 18) {}
-	else {}
 }
 
 using deluge::hid::display::OLED;
@@ -492,7 +455,7 @@ static void renderLFO(uint8_t* params, int param) {
 }
 
 static void renderAlgorithm(uint8_t* params) {
-	int algorithm = std::min<int>(params[134], dx::kNumAlgorithms - 1);
+	int algorithm = std::min<int>(params[134], deluge::dx7::kNumAlgorithms - 1);
 
 	// Inverted "#NN" badge at the right of the title bar
 	char buffer[12] = "#";
@@ -504,9 +467,9 @@ static void renderAlgorithm(uint8_t* params) {
 	                      kTextTitleSizeY);
 	OLED::main.invertArea(badgeX, OLED_MAIN_WIDTH_PIXELS - badgeX, OLED_MAIN_TOPMOST_PIXEL, kScreenTitleSeparatorY - 2);
 
-	const dx::AlgorithmBitmap& bitmap = dx::kAlgorithmBitmaps[algorithm];
-	OLED::main.drawGraphicMultiLine(&dx::kAlgorithmBitmapData[bitmap.offset], bitmap.x, bitmap.y, bitmap.width,
-	                                bitmap.height, bitmap.numBytesTall);
+	const deluge::dx7::AlgorithmDiagram diagram = deluge::dx7::algorithm_diagram(algorithm);
+	OLED::main.drawGraphicMultiLine(diagram.data, diagram.x, diagram.y, diagram.width, diagram.height,
+	                                diagram.num_bytes_tall);
 }
 
 void DxParam::drawPixelsForOled() {

@@ -1,0 +1,45 @@
+# ShellMenu: the sample browser's favourites row. On CLIPS' first file a main-pad press shows the keyboard with the
+# favourites on row 7; SHIFT + (0,7) sets favourite 0 to the file; a move hides the keyboard, a press on (0,7)
+# shows it and another loads the favourite (its pad flashes every 500 ms: two windows 250 ms apart); SHIFT +
+# Vertical recolours it; SHIFT + (0,7) unsets it. Run on the content ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+1500  encoder Select +1
+2500  button SelectEnc down
+2520  button SelectEnc up
+4500  snapshot file
+5600  pad 9 3 down
+5640  pad 9 3 up
+7000  snapshot keyboard
+8100  button Shift down
+8200  pad 0 7 down
+8240  pad 0 7 up
+8300  button Shift up
+9700  snapshot fav_set
+10800 encoder Select +2
+12500 snapshot moved
+13600 pad 0 7 down
+13640 pad 0 7 up
+15000 snapshot fav_press_1
+16100 pad 0 7 down
+16140 pad 0 7 up
+17500 snapshot fav_loaded
+18600 snapshot fav_flash_a
+18850 snapshot fav_flash_b
+19800 button Shift down
+19900 encoder Vertical +1
+20000 button Shift up
+21300 snapshot recoloured
+22400 button Shift down
+22500 pad 0 7 down
+22540 pad 0 7 up
+22600 button Shift up
+24000 snapshot fav_unset
+25100 button Back down
+25120 button Back up
+26100 button Back down
+26120 button Back up
+27500 snapshot closed

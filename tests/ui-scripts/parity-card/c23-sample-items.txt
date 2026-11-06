@@ -1,0 +1,70 @@
+# The sample source items on one loaded sample (BASIC, as c10): a turn on each enum and value shortcut shows main's
+# notification, CROSS-SCREEN pages the oscillator; the file selector opened while a keyboard note is held leaves
+# audition mode; the recorder opened from inside the menu (Shift + (0,4) on the oscillator page) returns, after a
+# take, to the source page with the file selector focused.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+11000 encoder Select +2
+12500 button SelectEnc down
+12520 button SelectEnc up
+15000 button SelectEnc down
+15020 button SelectEnc up
+17500 button SelectEnc down
+18300 button SelectEnc up
+19000 encoder Select +1
+20500 button SelectEnc down
+20520 button SelectEnc up
+26000 snapshot loaded
+27000 button Back down
+27020 button Back up
+27500 button Back down
+27520 button Back up
+28000 button Shift down
+28100 pad 0 0 down
+28150 pad 0 0 up
+28200 button Shift up
+28500 encoder Select +1
+28800 snapshot repeat
+29500 button Shift down
+29600 pad 0 1 down
+29650 pad 0 1 up
+29700 button Shift up
+30000 encoder Select +1
+30300 snapshot reverse
+31000 button Shift down
+31100 pad 0 2 down
+31150 pad 0 2 up
+31200 button Shift up
+31500 encoder Select +1
+31800 snapshot speed
+32500 button Shift down
+32600 pad 0 3 down
+32650 pad 0 3 up
+32700 button Shift up
+33000 encoder Select +1
+33300 snapshot pitch-speed
+34000 button Shift down
+34100 pad 0 6 down
+34150 pad 0 6 up
+34200 button Shift up
+34500 encoder Select +1
+34800 snapshot interpolation
+35500 button CrossScreen down
+35520 button CrossScreen up
+36000 snapshot page-2
+36500 button CrossScreen down
+36520 button CrossScreen up
+37000 snapshot page-3
+37500 button Shift down
+37600 pad 0 4 down
+37650 pad 0 4 up
+37700 button Shift up
+39500 snapshot recorder
+40000 button Record down
+40020 button Record up
+42000 button Record down
+42020 button Record up
+44000 snapshot recorded

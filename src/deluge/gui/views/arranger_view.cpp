@@ -333,7 +333,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			// F1 task 9, site 3 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the two
+			// Site 3 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the two
 			// legacy statements unchanged.
 			if (deluge::gui::ui::shellMenuEnabled()) {
 				// No shift (`:324`) and the arranger is the root: the same

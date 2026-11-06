@@ -92,7 +92,7 @@
 ///       both from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`) and so
 ///       does this. The LEARN LED is the exception and *is* a `Blink`, because legacy drives that
 ///       one from a separate blinker with its own phase --
-///       `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:495`), whose
+///       `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:496`), whose
 ///       `blinkingType` 1 period is `kFastFlashTime` (`hid/led/indicator_leds.cpp:81-92`).
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives
@@ -101,7 +101,7 @@
 ///
 /// @par What is deliberately NOT ported, and why
 ///
-///   * **`View::clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp:762-782`), called
+///   * **`View::clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp:763-783`), called
 ///     from the `INSTRUMENT_INPUT` learn commit (`:728`) and from that target's delete-on-release
 ///     (`:589`). Its body builds a `ModelStackWithParamCollection` through
 ///     `setupModelStackWithSong(...)->addTimelineCounter(...)->addOtherTwoThingsButNoNoteRow(...)`
@@ -160,7 +160,7 @@ namespace deluge::scenes::services {
 /// (`View::drumMidiLearnPadPressed`, `View::instrumentMidiLearnPadPressed`).
 ///
 /// The three transport buttons take the same shape from `View::buttonAction`
-/// (`view.cpp:153-157`, `:205-209`, `:221-225`) -- the same three statements over
+/// (`view.cpp:154-158`, `:206-210`, `:222-226`) -- the same three statements over
 /// `midiEngine.globalMIDICommands[...]` -- so they are `LearnTarget`s too, built by
 /// `global_command()`.
 ///
@@ -172,7 +172,7 @@ struct LearnTarget {
 	/// @brief Legacy's `MidiLearn` enum (`definitions_cxx.hpp:133-143`), unchanged.
 	///
 	/// Reused rather than mirrored because `endMidiLearnPressSession`'s admin switch
-	/// (`view.cpp:616-629`) and `noteOnReceivedForMidiLearn`'s dispatch (`:644-758`) are both
+	/// (`view.cpp:617-630`) and `noteOnReceivedForMidiLearn`'s dispatch (`:645-759`) are both
 	/// written against these exact enumerators, and a parallel enum would be a table to drift.
 	::MidiLearn kind = ::MidiLearn::NONE;
 	/// @brief The global command a note-on or CC is written into in place, or the section's scratch command;
@@ -192,24 +192,24 @@ struct LearnTarget {
 	/// @param section The section index.
 	/// @return The target.
 	static LearnTarget section(::Song& song, uint8_t section);
-	/// @brief `View::clipStatusMidiLearnPadPressed`'s target (`view.cpp:551-553`): the clip's mute.
+	/// @brief `View::clipStatusMidiLearnPadPressed`'s target (`view.cpp:552-554`): the clip's mute.
 	/// @param clip The clip whose status pad was pressed.
 	/// @return The target.
 	static LearnTarget clip(deluge::project::ClipAddress clip);
-	/// @brief `View::noteRowMuteMidiLearnPadPressed`'s target (`view.cpp:565-567`): the row's drum's mute.
+	/// @brief `View::noteRowMuteMidiLearnPadPressed`'s target (`view.cpp:566-568`): the row's drum's mute.
 	/// @param drum_id The row's drum's id, or nullopt for a row with no drum, which every call site has already
 	///                refused (`gui/views/instrument_clip_view.cpp`).
 	/// @return The target, or a `NONE` target for a row with no drum.
 	static LearnTarget note_row_mute(std::optional<uint32_t> drum_id);
-	/// @brief `View::drumMidiLearnPadPressed`'s target (`view.cpp:579-584`): the kit row's input.
+	/// @brief `View::drumMidiLearnPadPressed`'s target (`view.cpp:580-585`): the kit row's input.
 	/// @param drum_id The row's drum's id.
 	/// @return The target.
 	static LearnTarget drum_input(uint32_t drum_id);
-	/// @brief `View::instrumentMidiLearnPadPressed`'s target (`view.cpp:598-601`): the track's input.
+	/// @brief `View::instrumentMidiLearnPadPressed`'s target (`view.cpp:599-602`): the track's input.
 	/// @param output_id The track's id.
 	/// @return The target.
 	static LearnTarget instrument_input(uint32_t output_id);
-	/// @brief The `PLAY`/`RECORD`/`TAP_TEMPO` button targets (`view.cpp:156`, `:208`, `:224`):
+	/// @brief The `PLAY`/`RECORD`/`TAP_TEMPO` button targets (`view.cpp:157`, `:209`, `:225`):
 	///        `&midiEngine.globalMIDICommands[to_underlying(command)]`.
 	/// @param command Which global command; `PLAY`, `RECORD` or `TAP` are the three reachable here.
 	/// @return The target, with `kind` the matching `PLAY_BUTTON`/`RECORD_BUTTON`/
@@ -243,7 +243,7 @@ public:
 
 	/// @brief `kFastFlashTime` (`definitions_cxx.hpp:160`) -- the MIDI-learn flash's half-period.
 	///
-	/// `View::midiLearnFlash` re-arms `TimerName::MIDI_LEARN_FLASH` with it (`view.cpp:815`), and
+	/// `View::midiLearnFlash` re-arms `TimerName::MIDI_LEARN_FLASH` with it (`view.cpp:816`), and
 	/// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`:478`) picks the same number by
 	/// asking for `blinkingType` 1, whose period is `kFastFlashTime`
 	/// (`hid/led/indicator_leds.cpp:81-83`). Public so a spec can drive the clock by it rather
@@ -309,7 +309,7 @@ public:
 	///
 	/// @note The two orderings legacy uses are equivalent and both are reproduced by this one
 	///       body. The pad overloads run `endMidiLearnPressSession` *before* setting the flag
-	///       (`view.cpp:537-538`) and the button arms run it *after* (`:154-155`); the function
+	///       (`view.cpp:538-539`) and the button arms run it *after* (`:155-156`); the function
 	///       does not touch `deleteMidiCommandOnRelease`, and it nulls `learnedThing`
 	///       (`:614`) before either caller assigns it, so the end state is identical.
 	///
@@ -320,7 +320,7 @@ public:
 	///        `learnedThing` (`gui/views/view.h:108`, `:113`).
 	///
 	/// Read by the scenes that paint a held pad brighter (`gui/views/session_view.cpp:2931-2943`,
-	/// `gui/views/instrument_clip_view.cpp:6143-6147`), which compare both the kind and the
+	/// `gui/views/instrument_clip_view.cpp:6144-6148`), which compare both the kind and the
 	/// `LearnedMIDI` address.
 	/// @return The target, `kind == NONE` when nothing is held.
 	const LearnTarget& pressed() const { return pressed_; }
@@ -329,7 +329,7 @@ public:
 	/// @name The commit
 	/// @{
 
-	/// @brief `View::noteOnReceivedForMidiLearn` (`view.cpp:640-760`).
+	/// @brief `View::noteOnReceivedForMidiLearn` (`view.cpp:641-761`).
 	///
 	/// Does nothing unless something is held (`:624`). Clears the delete-on-release flag
 	/// (`:625`) -- learning something is what stops the release from wiping it -- and then writes
@@ -384,14 +384,14 @@ public:
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
 
 private:
-	/// @brief `View::endMidiLearnPressSession` (`view.cpp:614-638`).
+	/// @brief `View::endMidiLearnPressSession` (`view.cpp:615-639`).
 	/// @param new_thing The target to become the held one; a `NONE` target closes the session.
 	void end_press_session(LearnTarget new_thing);
 	/// @brief The `else if (thingPressedForMidiLearn == K)` release body, shared by all eight
-	///        callers (`view.cpp:161-165`, `:542-545`, `:556-559`, `:570-573`, `:588-592`,
+	///        callers (`view.cpp:162-166`, `:543-546`, `:557-560`, `:571-574`, `:589-593`,
 	///        `:588-593`).
 	void release_pressed_thing();
-	/// @brief `View::midiLearnFlash`'s toggle-and-re-arm (`view.cpp:814-815`).
+	/// @brief `View::midiLearnFlash`'s toggle-and-re-arm (`view.cpp:815-816`).
 	void flash_step();
 	/// @brief `View::commitLearnedThing`: make @p learned the held target's command -- through the sink for a
 	///        song binding, in place for a global command.

@@ -101,6 +101,28 @@ using PadForwardPerform = void (*)(PadForwardTarget target, int32_t x, int32_t y
 /// @return Which arm matched -- already performed when this returns.
 PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 
+/// @brief Whether the root view keeps a shift-held main-grid pad that would otherwise be a menu shortcut.
+///
+/// `SoundEditor::potentialShortcutPadAction`'s carve-out: the automation view's interpolation and pad-selection pads,
+/// x 0 at y 6 and 7, are no shortcuts while it is the root. A pad kept here goes to `forwardGridPad`.
+/// @param x,y The pad, in `MatrixDriver` coordinates.
+/// @return True when the pad is the root view's.
+bool rootKeepsShortcutPad(int32_t x, int32_t y);
+
+/// @brief Whether the root view takes the audition column under the sample browser: the instrument clip view, which
+///        `SampleBrowser::padAction` hands it to.
+bool rootTakesAuditionPad();
+
+/// @brief `SampleMarkerEditor::padAction`'s audition arm: the audition column to the instrument clip view, press and
+///        release, when the clip is an instrument clip, whatever the root view; swallowed on an audio clip.
+/// @param x,y The pad, in `MatrixDriver` coordinates.
+/// @param velocity Legacy's `on`.
+void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity);
+
+/// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the ported menu: whether the param the menu edits is
+///        the one the automation view has selected.
+bool menuShowsAutomationViewParam();
+
 /// @brief Replace what performs a decided forward; `nullptr` restores the real one.
 ///
 /// `shell_choice_dispatch.h`'s `setSampleClaimDispatch` for the same reason it exists there: the

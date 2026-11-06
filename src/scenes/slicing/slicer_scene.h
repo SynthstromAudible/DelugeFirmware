@@ -50,7 +50,7 @@
 ///
 ///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
 ///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> `deluge::sample::find_peaks_per_col` +
-///     `ui::grid::waveform_full`.
+///     `services::paint_columns` (`ui::grid::waveform_full` over the scanned columns).
 ///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
@@ -108,6 +108,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/waveform_navigator.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -239,7 +240,7 @@ public:
 	/// `MarkerScene::open` is. Legacy has no equivalent line inside `Slicer` at all: it reads the
 	/// **`waveformBasicNavigator` global**, which the sample browser's preview path filled in with
 	/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();`
-	/// (`SampleBrowser::renderPreviewForTarget`, `gui/ui/browser/sample_browser.cpp:653-655`)
+	/// (`SampleBrowser::showPreview`, `gui/ui/browser/sample_browser.cpp:692-693`)
 	/// before the legacy object is opened. Those two lines are
 	/// this call, onto a navigator this scene owns rather than a shared global. Called again on the sample and file it
 	/// already shows, it keeps the navigator, as nothing resets legacy's global between two slicer opens.
@@ -410,6 +411,10 @@ private:
 	bool committing_ = false;
 	/// A landed commit, waiting for `after_render` to remove the slicer.
 	bool landed_ = false;
+	/// A voice played the sample at the last grid render, so the frame that clears its playhead is asked for.
+	bool playing_ = false;
+	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
+	std::array<uint8_t, kDisplayHeight> last_ticks_{};
 };
 
 /// @brief The application's one slicer.

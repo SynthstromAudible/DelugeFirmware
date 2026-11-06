@@ -58,30 +58,45 @@ int32_t picker_cursor(const MenuContext& ctx) {
 
 // clang-format off
 describe menu_records("a menu's questions, answered from the record", ${
-	it("opens the range picker on the range last chosen for that source, and on the middle one for a new source", _ {
+	it("opens the range picker on the range the source remembers, and on the middle one for a source with none", _ {
+		// `MultiRange::beginSession` (`multi_range.cpp:40-67`) reads `Source::defaultRangeI`, which a flick and every
+		// played note (`Source::getRange`) write.
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		give_three_ranges(sound, 1);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		services::view_state().forget_unless(f.song->project.identity());
 		expect(menu::range_count(ctx)).to_equal(3);
 		expect(menu::range_top_note(ctx, 1)).to_equal(60);
-		menu::select_range(ctx, 2);
-		expect(services::view_state().last_range(*ctx.addresses.slot, 0)).to_equal(std::optional<uint16_t>{2});
-		const MenuContext again = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(picker_cursor(again)).to_equal(2);
+		(void)sound.sources[0].getRange(70); // a note played in range 2
+		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		expect(picker_cursor(ctx)).to_equal(2);
 		const MenuContext other = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 1, false, false, false, false);
 		expect(picker_cursor(other)).to_equal(1);
+		// `:48-51`: the invalid default is worked out afresh and written back.
+		expect(sound.sources[1].defaultRangeI).to_equal(1);
+	});
+
+	it("opens the range picker on the range already selected, and remembers it for the source", _ {
+		// `multi_range.cpp:43-45`: a current range becomes the default before the default is read.
+		spec::SongFixture f = spec::make_synth_song();
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		give_three_ranges(sound, 0);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		sound.sources[0].defaultRangeI = 0;
+		menu::select_range(ctx, 2);
+		expect(picker_cursor(ctx)).to_equal(2);
+		expect(sound.sources[0].defaultRangeI).to_equal(2);
 	});
 
 	it("opens the range picker on the middle range when the one remembered is past the end", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		give_three_ranges(*static_cast<SoundInstrument*>(f.instrument), 0);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		give_three_ranges(sound, 0);
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		services::view_state().forget_unless(f.song->project.identity());
-		services::view_state().set_last_range(*ctx.addresses.slot, 0, 7);
+		sound.sources[0].defaultRangeI = 7;
 		expect(picker_cursor(ctx)).to_equal(1);
+		expect(sound.sources[0].defaultRangeI).to_equal(1);
 	});
 
 	it("opens the sample browser on the range's recorded file", _ {

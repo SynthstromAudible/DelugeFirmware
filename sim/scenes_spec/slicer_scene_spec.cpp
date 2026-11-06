@@ -19,7 +19,7 @@
 ///   * legacy, through **`Slicer`'s own public entry points** -- `focusRegained`,
 ///     `selectEncoderAction`, `horizontalEncoderAction`, `verticalEncoderAction`, `renderOLED`,
 ///     `renderMainPads` -- over a `waveformBasicNavigator` that `open_legacy` sets up with the two
-///     lines `SampleBrowser::renderPreviewForTarget` uses (`sample_browser.cpp:653-655`), so even the
+///     lines `SampleBrowser::showPreview` uses (`sample_browser.cpp:692-693`), so even the
 ///     scroll and zoom legacy renders from are ones IT derived.
 ///
 /// Nothing the port computed is ever handed to legacy. The one thing both sides are *told* is the
@@ -79,6 +79,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -375,8 +376,8 @@ Slicer& legacy_slicer = ::slicer;
 ///        state.
 ///
 /// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` is
-/// `SampleBrowser::renderPreviewForTarget`'s own pair
-/// (`gui/ui/browser/sample_browser.cpp:653-655`) -- the lines the preview path runs before the
+/// `SampleBrowser::showPreview`'s own pair
+/// (`gui/ui/browser/sample_browser.cpp:692-693`) -- the lines the preview path runs before the
 /// slicer is opened over it -- and `focusRegained()` is what
 /// `UI::opened()` then calls (`gui/ui/ui.h:111-113`). So legacy's scroll, zoom, mode, counts and
 /// slice table are all ones IT computed, from the sample alone.
@@ -1624,6 +1625,43 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		}
 	});
 
+	it("draws the playhead only with the flash cursor Slow and flashes it Fast, the setting the host answers", _ {
+		// `PadLEDs::flashCursor`: Off draws none, Fast only flashes the pad (no pixel), Slow substitutes one.
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		ops.next_play_position = static_cast<int32_t>(slicer_scene().x_scroll() + 5 * slicer_scene().x_zoom());
+		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		const uint8_t saved = PadLEDs::flashCursor;
+		slicer_scene().set_mode(Mode::Region);
+		// Each leg waits out the 15 ms playhead tick, so each reads a frame drawn under its own setting.
+		uint32_t at = 0;
+		for (const auto [setting, drawn] : {std::pair{uint8_t{FLASH_CURSOR_SLOW}, true},
+		                                    std::pair{uint8_t{FLASH_CURSOR_FAST}, false},
+		                                    std::pair{uint8_t{FLASH_CURSOR_SLOW}, true},
+		                                    std::pair{uint8_t{FLASH_CURSOR_OFF}, false}}) {
+			PadLEDs::flashCursor = setting;
+			r.settle(at);
+			at += 20;
+			expect(r.fake.grid().grid().at(5, 7) == tick).to_equal(drawn);
+		}
+		// Fast: the PIC flashes rows 7 to 4 when the square moves, and paints nothing.
+		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
+		ops.next_play_position = static_cast<int32_t>(slicer_scene().x_scroll() + 9 * slicer_scene().x_zoom());
+		const size_t from = r.fake.flashes_sent.size();
+		r.settle(at);
+		std::vector<int32_t> rows;
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			if (r.fake.flashes_sent[i].x == 9) {
+				rows.push_back(r.fake.flashes_sent[i].y);
+			}
+		}
+		expect(rows == std::vector<int32_t>{4, 5, 6, 7}).to_be_true();
+		expect(r.fake.grid().grid().at(9, 7) == tick).to_be_false();
+		PadLEDs::flashCursor = saved;
+	});
+
 	it("asks for a tick every 15 ms while something plays, and for none when nothing does", _ {
 		Rig r;
 		FakeOps ops;
@@ -1633,6 +1671,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().next_timer().has_value()).to_be_false();
 		ops.next_play_position = 1000;
 		expect(slicer_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		r.settle(20);
+		r.settle(40);
+		// The voice ends: one more frame, the one that clears the playhead it left, and then none.
+		ops.next_play_position.reset();
+		expect(slicer_scene().next_timer().value_or(999)).to_equal(15u);
+		r.settle(60);
+		expect(slicer_scene().next_timer().value_or(999)).to_equal(999u);
 	});
 
 	// --- BACK -----------------------------------------------------------------------------------

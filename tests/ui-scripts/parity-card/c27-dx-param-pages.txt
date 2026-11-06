@@ -1,0 +1,184 @@
+# Every DX7 parameter page layout, reached from "DX7 parameters" on a new FM synth through oscillator 1's type (DX7):
+# the global rows, operator 1's rows, the scaling and envelope steps, the horizontal wrap, Shift+horizontal to the
+# next operator, the list's remembered cursor and the engine version's three values (no wrap).
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  snapshot created
+7500  button Back down
+7520  button Back up
+8500  button Shift down
+8600  pad 2 2 down
+8650  pad 2 2 up
+8700  button Shift up
+9500  snapshot type-dx7
+10000 button SelectEnc down
+10020 button SelectEnc up
+11000 snapshot dx-menu
+11500 encoder Select +1
+12000 button SelectEnc down
+12020 button SelectEnc up
+12800 snapshot params-list
+13500 button SelectEnc down
+13520 button SelectEnc up
+14300 snapshot algorithm
+15000 button Back down
+15020 button Back up
+15800 encoder Select +1
+16300 snapshot row-feedback
+17000 button SelectEnc down
+17020 button SelectEnc up
+17800 snapshot feedback
+18500 button Back down
+18520 button Back up
+19300 encoder Select +1
+19800 snapshot row-sync
+20500 button SelectEnc down
+20520 button SelectEnc up
+21300 snapshot sync
+22000 button Back down
+22020 button Back up
+22800 encoder Select +1
+23300 snapshot row-op1
+24000 button SelectEnc down
+24020 button SelectEnc up
+24800 snapshot op1-list
+25500 button SelectEnc down
+25520 button SelectEnc up
+26300 snapshot op-pitch
+27000 button Shift down
+27500 encoder Horizontal +1
+28000 button Shift up
+28500 snapshot next-op
+29200 button Shift down
+29700 encoder Horizontal -1
+30200 button Shift up
+30700 snapshot back-op
+31400 encoder Select +1
+31900 snapshot pitch-1
+32600 encoder Select +1
+33100 snapshot pitch-2
+33800 encoder Select +1
+34300 snapshot pitch-3
+35000 button Back down
+35020 button Back up
+35800 encoder Select +1
+36300 snapshot op-row-level
+37000 button SelectEnc down
+37020 button SelectEnc up
+37800 snapshot op-level
+38500 button Back down
+38520 button Back up
+39300 encoder Select +1
+39800 snapshot op-row-envelope
+40500 button SelectEnc down
+40520 button SelectEnc up
+41300 snapshot op-envelope
+42000 encoder Horizontal +1
+42500 snapshot env-1
+43200 encoder Horizontal +1
+43700 snapshot env-2
+44400 encoder Horizontal +1
+44900 snapshot env-3
+45600 encoder Horizontal +1
+46100 snapshot env-4
+46800 encoder Horizontal +1
+47300 snapshot env-5
+48000 encoder Horizontal +1
+48500 snapshot env-6
+49200 encoder Horizontal +1
+49700 snapshot env-7
+50400 button Back down
+50420 button Back up
+51200 encoder Select +1
+51700 snapshot op-row-velo
+52400 button SelectEnc down
+52420 button SelectEnc up
+53200 snapshot op-velo
+53900 button Back down
+53920 button Back up
+54700 encoder Select +1
+55200 snapshot op-row-scaling
+55900 button SelectEnc down
+55920 button SelectEnc up
+56700 snapshot op-scaling
+57400 encoder Horizontal +1
+57900 snapshot scal-1
+58600 encoder Horizontal +1
+59100 snapshot scal-2
+59800 encoder Horizontal +1
+60300 snapshot scal-3
+61000 encoder Horizontal +1
+61500 snapshot scal-4
+62200 button Back down
+62220 button Back up
+63000 encoder Select +1
+63500 snapshot op-row-rate-scale
+64200 button SelectEnc down
+64220 button SelectEnc up
+65000 snapshot op-rate-scale
+65700 button Back down
+65720 button Back up
+66500 encoder Select +1
+67000 snapshot op-row-ampmod
+67700 button SelectEnc down
+67720 button SelectEnc up
+68500 snapshot op-ampmod
+69200 button Back down
+69220 button Back up
+70000 button Back down
+70020 button Back up
+70800 snapshot back-params
+71500 encoder Select +6
+72000 snapshot row-penv
+72700 button SelectEnc down
+72720 button SelectEnc up
+73500 snapshot penv
+74200 encoder Horizontal +1
+74700 snapshot penv-1
+75400 button Back down
+75420 button Back up
+76200 encoder Select +1
+76700 snapshot row-lfo
+77400 button SelectEnc down
+77420 button SelectEnc up
+78200 snapshot lfo
+78900 encoder Horizontal +1
+79400 snapshot lfo-1
+80100 encoder Horizontal +1
+80600 snapshot lfo-2
+81300 encoder Horizontal +1
+81800 snapshot lfo-3
+82500 encoder Horizontal +1
+83000 snapshot lfo-4
+83700 encoder Horizontal +1
+84200 snapshot lfo-5
+84900 encoder Horizontal +1
+85400 snapshot lfo-6
+86100 encoder Horizontal +1
+86600 snapshot wrap-up
+87300 encoder Horizontal -1
+87800 snapshot wrap-down
+88500 button Back down
+88520 button Back up
+89300 button Back down
+89320 button Back up
+90100 snapshot dx-menu-again
+90800 button SelectEnc down
+90820 button SelectEnc up
+91600 snapshot cursor-kept
+92300 button Back down
+92320 button Back up
+93100 encoder Select +1
+93600 snapshot row-engine
+94300 button SelectEnc down
+94320 button SelectEnc up
+95100 snapshot engine-0
+95800 encoder Select +1
+96300 snapshot engine-1
+97000 encoder Select +1
+97500 snapshot engine-2
+98200 encoder Select +1
+98700 snapshot engine-3

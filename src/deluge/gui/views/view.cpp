@@ -104,6 +104,7 @@
 #include "util/functions.h"
 #include "util/note_editor_open.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 #include <iterator>
 #include <optional>
 
@@ -1694,7 +1695,7 @@ int32_t View::getModKnobMode() {
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
 	if ((paramManager != nullptr && paramManager == knobParamManager_.load(std::memory_order_relaxed))
-	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
+	    || (deluge::gui::ui::soundMenuCurrent() && paramManager == soundEditor.currentParamManager)) {
 
 		// If timer wasn't set yet, set it now
 		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {

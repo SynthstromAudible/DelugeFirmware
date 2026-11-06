@@ -293,12 +293,17 @@ gotError:
 	                               deluge::serialization::Value::makeScalar(std::string{newName}));
 
 	if (is_dx) {
-		// F1 task 9, site 11 of 14: **not gated, and it stays that way until `dxMenu` has a port.**
-		// `src/scenes/README.md`'s "Legacy features not yet ported" lists `dxMenu`'s three bespoke DX
-		// items, so there is no node to name here -- and naming the wrong one is worse than opening the legacy
-		// menu. `gui/ui/shell_menu_entry.cpp`'s table has all fourteen sites and this one's row.
-		soundEditor.setup(clip, &dxMenu, 0);
-		openUI(&soundEditor);
+		// Site 11 of `gui/ui/shell_menu_entry.cpp`'s table: "DX7 source" on the new FM synth. The `else` is legacy's
+		// two statements unchanged.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+			                                     /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Dx);
+		}
+		else {
+			soundEditor.setup(clip, &dxMenu, 0);
+			openUI(&soundEditor);
+		}
 	}
 
 	renderUIsForOled();
@@ -436,7 +441,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// F1 task 9, site 6 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the
 			// legacy three statements unchanged -- including the `setupKitGlobalFXMenu` write, which
 			// is deliberately inside it: that member is `SoundEditor`'s state, cleared on menu exit
 			// (`gui/ui/sound_editor.cpp:189`, `:768`), and setting it on a path that never opens the
@@ -447,7 +452,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 				// of its two writers). The root is then one of six, and `context_for` runs the same
 				// six tests in the same order (`scenes/menu/context.cpp:339-358`); the two UI-mode
 				// roots legacy could otherwise pick are unreachable here because this arm is
-				// `currentUIMode == UI_MODE_NONE` (`:397`).
+				// `currentUIMode == UI_MODE_NONE` (`:443`).
 				const bool kitGlobalFx = SoundEditor::shouldEditKitAffectEntire();
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
 				                                    /*performanceView=*/false,

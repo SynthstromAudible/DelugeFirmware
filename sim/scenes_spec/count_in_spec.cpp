@@ -1,7 +1,7 @@
 /// @file
 /// @brief `CountInScene` -- driven directly by mutating `playbackHandler.currentVisualCountForCountIn`
 ///        (its own sentinel, public: `PlaybackHandler::currentVisualCountForCountIn`) and quiet-ticking the scene's own
-///        poll, exactly the way a real count-in tick would leave it (`playback_handler.cpp:1051`).
+///        poll, exactly the way a real count-in tick would leave it (`playback_handler.cpp:1098`).
 ///        Compared against the real legacy it ports -- `gui/ui/notify_drain.cpp`'s count-in block
 ///        (`:92-113`) -- reached end to end through a real `deluge::hid::display::OLED` and a real
 ///        `Shell`, so the comparison is the assembled scene's own pixels, not the widget in

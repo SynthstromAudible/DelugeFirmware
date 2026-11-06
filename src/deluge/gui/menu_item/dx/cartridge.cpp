@@ -28,6 +28,7 @@
 #include "model/song/song.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 #include "util/functions.h"
@@ -98,6 +99,26 @@ void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 	readValueAgain();
 }
 
+void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program) {
+	sound.sources[source].ensureDxPatch();
+	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[source]);
+	cartridge.unpackProgram(patch->params, program);
+	dxPatchFor(sound, source, *patch);
+	sound.killAllVoices();
+	// The synth a DX7 bank is loaded into takes the program's name until it is saved. A drum's kit keeps its own.
+	if (sound.isDrum()) {
+		return;
+	}
+	Instrument* instrument = static_cast<SoundInstrument*>(&sound);
+	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
+		char name[11];
+		cartridge.getProgramName(program, name);
+		if (name[0] != 0) {
+			deluge::edits::trackSettingFor(*instrument, "name", deluge::serialization::Value::makeScalar(name));
+		}
+	}
+}
+
 // Unpacks the currently-selected program into the live DX patch and hard-cuts any sounding voices.
 // Only call this when the selected patch actually changes - NOT from a plain redraw, otherwise an
 // audition note gets cut every time the menu refreshes (e.g. mod-encoder press, display change).
@@ -105,20 +126,7 @@ void DxCartridge::loadPatch() {
 	if (pd == nullptr) {
 		return;
 	}
-
-	soundEditor.currentSource->ensureDxPatch();
-	std::optional<deluge::instrument::DxPatchState> program = deluge::bridge::dxPatchOf(*soundEditor.currentSource);
-	pd->unpackProgram(program->params, currentValue);
-	dxPatchFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, *program);
-	soundEditor.currentSound->killAllVoices();
-	Instrument* instrument = getCurrentInstrument();
-	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
-		char name[11];
-		pd->getProgramName(currentValue, name);
-		if (name[0] != 0) {
-			deluge::edits::trackSettingFor(*instrument, "name", deluge::serialization::Value::makeScalar(name));
-		}
-	}
+	loadDxProgram(*soundEditor.currentSound, soundEditor.currentSourceIndex, *pd, currentValue);
 }
 
 void DxCartridge::readValueAgain() {

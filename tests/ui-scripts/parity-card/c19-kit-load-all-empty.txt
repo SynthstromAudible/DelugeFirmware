@@ -1,0 +1,22 @@
+# The sample browser's LOAD ALL on a fresh kit, on a folder holding only folders (SAMPLES/Artists): no audio file to
+# import.
+100   snapshot boot
+6000  button Shift down
+6050  button Kit down
+6070  button Kit up
+6100  button Shift up
+9500  pad 17 0 down
+9550  pad 17 0 up
+11000 button Shift down
+11100 pad 0 5 down
+11150 pad 0 5 up
+11200 button Shift up
+13000 snapshot browser
+17000 button SelectEnc down
+17700 snapshot held
+17800 button SelectEnc up
+18500 snapshot released
+19000 button SelectEnc down
+19020 button SelectEnc up
+21000 snapshot importing
+35000 snapshot imported

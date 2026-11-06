@@ -22,7 +22,9 @@
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
+#include "scenes/menu/menu_scene.h" // is_automation_item
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
 #include "scenes/menu/shortcut_overlay.h"
@@ -203,6 +205,16 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		// second layer at all. On any other root the flag is left exactly as it was, rather than
 		// being cleared by a press legacy never looked at.
 		const bool sound_arm = ctx.root == MenuContext::Root::Sound || ctx.root == MenuContext::Root::Drum;
+		// An item with a pad layout of its own takes the press before it is a shortcut at all (the DX7 parameter page,
+		// `isDxShortcutLayoutActive` ahead of every other sound check).
+		if (const Node* page = focused(st); sound_arm && page != nullptr && page->kind == Kind::Custom
+		                                    && page->custom != nullptr
+		                                    && page->custom->shortcut_pad(ctx, st, event.x, event.y)) {
+			Result r;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+			return r;
+		}
 		// The patching-source column patches a source to the focused item before it is a shortcut at all.
 		if (sound_arm && is_patching_source_pad(event.x, event.y)) {
 			if (std::optional<Result> r = source_press(core, walk, session, event.x, event.y, ui)) {
@@ -224,12 +236,23 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		}
 
 		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
-		if (target != nullptr && !shortcut_applies(*target, ctx)) {
-			deluge::notify::notice_string(
-			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		// Over the automation view only a param's shortcut is taken; any other is swallowed
+		// (`potentialShortcutPadAction`'s `getParamKind() == Kind::NONE` refusal, ahead of `setup()`'s).
+		if (target != nullptr && ctx.root_is_automation && !is_automation_item(*target)) {
 			Result r;
 			r.handled = true;
 			return r;
+		}
+		if (target != nullptr && !shortcut_applies(*target, ctx)) {
+			const Node* fallback = nodes::dx_shortcut_fallback(*target, ctx, event.x);
+			if (fallback == nullptr) {
+				deluge::notify::notice_string(
+				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+				Result r;
+				r.handled = true;
+				return r;
+			}
+			target = fallback;
 		}
 		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
 		// refuse the id and roll the move back -- so the jump is simply not offered.

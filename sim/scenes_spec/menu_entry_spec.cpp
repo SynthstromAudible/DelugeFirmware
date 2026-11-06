@@ -1,16 +1,17 @@
 /// @file
-/// @brief The gate in front of the fourteen `openUI(&soundEditor)` sites, driven
+/// @brief The gate in front of the fifteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
-/// `gui/ui/shell_menu_entry.cpp` carries the fourteen-site table; this file drives the eight that
-/// are gated, one example per *argument shape*, plus the toggle itself. It is at this level and not
+/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the gated
+/// ones, one example per *argument shape*, plus the toggle itself. It is at this level and not
 /// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
 /// `SceneId::arg`, and `openUI(&shellHostUI)` against the real `uiNavigationHierarchy`.
 ///
 /// @note **What this file cannot cover, stated rather than implied.** It drives `openShellMenu`,
-///       which is what the eight gated sites call; it does **not** drive the eight sites, because
+///       which is what the gated sites call; it does **not** drive the sites themselves (site 15's column
+///       aside), because
 ///       reaching `AudioClipView::buttonAction` here would need the whole legacy view stack. So
 ///       "the site passes the right arguments" is not covered here: like the `deluge.cpp` boot calls, it is
 ///       left to a level-3 A/B run. Each example names the site whose
@@ -39,6 +40,7 @@
 #include "util/shell_menu_entry.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/column_controls/dx.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -53,6 +55,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 
 #include "support/card_access.h"
@@ -382,6 +385,60 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 	});
 
+	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
+		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		closeGuest();
+
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false, entry::ShellMenuNode::Dx)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_menu)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_menu).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("site 15 opens the DX7 parameter page on the column's operator, its pad blinking, keeping the undo log", _ {
+		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		f.song->setCurrentClip(f.clip);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		closeGuest();
+
+		// Through the column itself, its Shift arm gated: row 5 is operator index 2 (`8 - y - 1`), acted on release.
+		{
+			HeldShift shift;
+			deluge::gui::ui::keyboard::controls::DXColumn column;
+			deluge::gui::ui::keyboard::PressedPad release{};
+			release.x = 17;
+			release.y = 5;
+			release.active = false;
+			column.handlePad(nullptr, release, nullptr);
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 16);
+		expect(deluge::scenes::menu_scene().state().dx.pad_blink).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		// With the guest open the press is the menu's: the same operator again toggles to its coarse tuning.
+		expect(entry::openShellDxColumn(2)).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 18);
+		closeGuest();
+	});
+
 	it("the same arguments without the node open the sound root instead", _ {
 		// The control for the example above: everything but `node` held fixed, so "the file
 		// selector is where a synth clip always lands" fails.
@@ -496,6 +553,30 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		closeGuest();
 	});
 
+	it("Shift + (4,0) on a DX7 sound opens the DX7 parameter page alone, on the param it showed last", _ {
+		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
+		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0) == &nodes::modulator0_volume).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().depth)).to_equal(0);
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(3 * 21 + 2);
+		closeGuest();
+
+		// The same pad on a sound that is not DX7 is refused, so legacy's `setup()` shows its popup.
+		sound->sources[0].setOscType(OscType::SAW);
+		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+	});
+
 	it("with the toggle off, the pad opens the legacy SoundEditor", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
@@ -565,7 +646,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
 		// `ActionLogger::getNewAction` refuses unless `getCurrentUI() == getRootUI()`
-		// (`model/action/action_logger.cpp:98-102`), which in a spec process is only true while
+		// (`model/action/action_logger.cpp:100-104`), which in a spec process is only true while
 		// something is actually on the hierarchy. So open first, seed, then close.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();

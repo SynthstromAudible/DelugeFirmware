@@ -1,15 +1,21 @@
-// A scene reaches a waveform by its address: a sound's source range or an audio clip, answered from the sample the
-// address names (nothing where no file is loaded), its per-column peaks the same the scan fills for that sample.
+// A scene reaches a waveform by its address: a sound's source range, an audio clip or the sample being previewed,
+// answered from the sample the address names (nothing where no file is loaded), its per-column peaks the same the scan
+// fills for that sample; `paint_full` draws them as legacy's full-screen renderer does.
 
 #include "scenes/menu/bind_host.h"
+#include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
 
+#include "gui/waveform/waveform_renderer.h"
 #include "model/clip/audio_clip.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
+#include "model/sample/waveform_navigator.h"
 #include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
@@ -19,9 +25,11 @@
 #include "cppspec.hpp"
 
 #include "spec/support/spec_main.h"
+#include "spec/ui/support/frames.h"
 
 #include <algorithm>
 #include <new>
+#include <optional>
 
 using namespace deluge::scenes;
 using services::WaveformAddress;
@@ -60,6 +68,28 @@ bool same_peaks(const WaveformRenderData& a, const WaveformRenderData& b) {
 	       && std::equal(std::begin(a.maxPerCol), std::end(a.maxPerCol), std::begin(b.maxPerCol))
 	       && std::equal(std::begin(a.minPerCol), std::end(a.minPerCol), std::begin(b.minPerCol));
 }
+
+/// The browser's preview sound, as `AudioEngine::init` makes it (which nothing here runs), for one example; the
+/// previous one is put back after.
+struct PreviewSound {
+	alignas(SoundDrum) char memory[sizeof(SoundDrum)]{};
+	SoundDrum* const saved = AudioEngine::sampleForPreview;
+	SoundDrum* drum = new (memory) SoundDrum();
+	PreviewSound() {
+		drum->sources[0].oscType = OscType::SAMPLE;
+		AudioEngine::sampleForPreview = drum;
+	}
+	~PreviewSound() {
+		AudioEngine::sampleForPreview = saved;
+		drum->~SoundDrum();
+	}
+	PreviewSound(const PreviewSound&) = delete;
+	PreviewSound& operator=(const PreviewSound&) = delete;
+	/// Put @p sample in the preview's range, as `SampleBrowser::showPreview`'s load does.
+	void hold(Sample* sample) {
+		static_cast<MultisampleRange*>(drum->sources[0].getOrCreateFirstRange())->sampleHolder.audioFile = sample;
+	}
+};
 
 } // namespace
 
@@ -118,6 +148,68 @@ describe waveforms("a waveform by its address", ${
 		expect(same_peaks(through, direct)).to_be_true();
 		multisample->sampleHolder.audioFile = nullptr;
 		currentSong = saved;
+	});
+
+	it("answers the preview sample under PREVIEW, and nothing with no preview loaded", _ {
+		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
+		const services::Waveforms& waveforms = menu::host_waveforms();
+		PreviewSound sound;
+		expect(waveforms.info(preview).has_value()).to_be_false();
+		Sample* sample = make_sample();
+		sound.hold(sample);
+		const auto info = waveforms.info(preview);
+		expect(info.has_value() && info->length_samples == kSampleLength && info->centre == sample->getFoundValueCentrePoint()
+		       && info->span == sample->getValueSpan() && !info->recording)
+		    .to_be_true();
+		sound.hold(nullptr);
+		expect(waveforms.info(preview).has_value()).to_be_false();
+	});
+
+	it("gives two previewed files two identities", _ {
+		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
+		const services::Waveforms& waveforms = menu::host_waveforms();
+		PreviewSound sound;
+		sound.hold(make_sample());
+		const std::optional<services::WaveformInfo> first = waveforms.info(preview);
+		sound.hold(make_sample());
+		const std::optional<services::WaveformInfo> second = waveforms.info(preview);
+		expect(first.has_value() && second.has_value() && first->identity != second->identity).to_be_true();
+		sound.hold(nullptr);
+	});
+
+	it("paints the preview's main columns as legacy's full-screen renderer does", _ {
+		const WaveformAddress preview{.kind = WaveformAddress::Kind::PREVIEW};
+		const services::Waveforms& waveforms = menu::host_waveforms();
+		PreviewSound sound;
+		Sample* sample = make_sample();
+		sound.hold(sample);
+		const std::optional<services::WaveformInfo> found = waveforms.info(preview);
+		expect(found.has_value()).to_be_true();
+		const services::WaveformInfo info = found.value_or(services::WaveformInfo{});
+		deluge::sample::WaveformNav nav;
+		nav.length_samples = info.length_samples;
+		nav.opened(0, 0);
+
+		deluge::ui::test::GridRig rig;
+		rig.begin_tick(0);
+		(void)services::paint_full(rig.frame, waveforms, preview, info, nav);
+
+		RGB legacy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		WaveformRenderData data{};
+		data.xScroll = -1;
+		(void)waveformRenderer.renderFullScreen(sample, nav.xScroll, nav.xZoom, legacy, &data);
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const RGB ours = rig.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				differ += ours == legacy[y][x] ? 0 : 1;
+				lit += legacy[y][x] == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit > 0).to_be_true();
+		expect(differ).to_equal(0);
+		sound.hold(nullptr);
 	});
 });
 

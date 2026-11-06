@@ -149,6 +149,18 @@ public:
 	ModelStackWithAutoParam* laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                 deluge::bridge::OwnerPlugin owner, deluge::project::ParamTarget target);
 
+	/// @brief Select the param @p modelStack names, as a menu on it does: the clip's (or, off a clip minder, the
+	/// song's) last selected param, the knob indicators from its value, and its shortcut and walk position unless it is
+	/// a cable.
+	/// @param modelStack The param, resolved for the clip (or the song) the menu edits.
+	/// @param clipMinder Whether the root UI is a clip minder (otherwise the arranger: the song's params).
+	/// @param patchSource For a cable, the source of the cable whose depth it is.
+	void selectParam(ModelStackWithAutoParam* modelStack, bool clipMinder, PatchSource patchSource);
+
+	/// @brief Whether @p modelStack names a cable depth whose cable does not exist yet: a read gets no lane, and the
+	/// view treats it as an unautomated lane at zero, which an edit makes through the mod matrix.
+	static bool laneAwaitsCable(const ModelStackWithAutoParam* modelStack);
+
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);
 	bool onArrangerView;

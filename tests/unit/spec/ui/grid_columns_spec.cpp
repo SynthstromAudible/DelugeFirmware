@@ -541,5 +541,30 @@ describe grid_columns("ui::grid columns", $ {
 		tick_squares(r.frame, per_row, RGB{255, 160, 0});
 		expect_golden(self, "../ui/widgets/tick_squares.state", r.state());
 	});
+
+	it("flashes, with the cursor fast, each row's square that moved, red for a red row, and paints none", _ {
+		// `PadLEDs::setTickSquares`' FLASH_CURSOR_FAST arm (hid/led/pad_leds.cpp): `squares[y] != slowFlashSquares[y]`
+		// and not 255 flashes; the latch moves in every mode.
+		uitest::GridRig r;
+		std::array<uint8_t, 3> last{3, kNoTickSquare, 9};
+		const TickSquare per_row[] = {
+		    {.col = 3, .colour = TickColour::Normal}, // unmoved
+		    {.col = 5, .colour = TickColour::Red},    // moved
+		    {.col = kNoTickSquare},                   // gone: nothing to flash
+		};
+		flash_tick_squares(r.frame, per_row, last, true);
+		const std::span<const PadFlash> got = r.flashes.flashes();
+		expect(got.size()).to_equal(size_t{1});
+		expect(got.size() == 1 && got[0] == PadFlash{5, 1, FlashColour::Red}).to_be_true();
+		expect(last == std::array<uint8_t, 3>{3, 5, kNoTickSquare}).to_be_true();
+		expect(r.grid.at(5, 1) == RGB{}).to_be_true();
+
+		// Not fast: the latch moves alone.
+		r.flashes.clear();
+		const TickSquare moved[] = {{.col = 7}, {.col = 5}, {.col = 1}};
+		flash_tick_squares(r.frame, moved, last, false);
+		expect(r.flashes.flashes().empty()).to_be_true();
+		expect(last == std::array<uint8_t, 3>{7, 5, 1}).to_be_true();
+	});
 });
 DELUGE_SPEC(ui_grid_columns_spec, grid_columns)

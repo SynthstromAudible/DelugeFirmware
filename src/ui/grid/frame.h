@@ -30,6 +30,7 @@ constexpr uint8_t kMaxLocalEvents = 32;
 ///        control surface's PIC plays from its own palette.
 enum class FlashColour : uint8_t {
 	Default = 0,      ///< The PIC's plain white flash (`flashMainPad`'s colour 0).
+	Red = 0b01,       ///< A row recording linearly (legacy `setTickSquares`' fast-cursor arm).
 	Yellow = 0b11,    ///< A second-layer shortcut (`sound_editor.cpp:1099`).
 	Palette6 = 0b110, ///< A cable's range source (`patch_cables.cpp:155`,
 	                  ///< `patch_cable_strength::Regular::shouldBlinkPatchingSourceShortcut`).

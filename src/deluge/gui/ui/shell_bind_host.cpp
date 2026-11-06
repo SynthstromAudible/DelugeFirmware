@@ -1,12 +1,21 @@
 #include "gui/ui/shell_bind_host.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/ui.h"
+#include "hid/led/pad_leds.h"
+#include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
+#include "gui/menu_item/dx/cartridge.h"
 #include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
@@ -36,6 +45,8 @@
 #include "model/edits/set_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/edits/set_velocity_to_level.h"
+#include "model/edits/setting_edit.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -67,9 +78,12 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
+#include "storage/DX7Cartridge.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <utility>
@@ -164,8 +178,21 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
+	void set_default_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t range) override {
+		::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound != nullptr && source < kNumSources) {
+			sound->sources[source].defaultRangeI = range;
+		}
+	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
 	                      std::string_view path) override;
+	bool write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
+	                    const deluge::instrument::DxPatchState& patch) override;
+	bool load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) override;
+	bool insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+	                  std::optional<int16_t> previous_top) override;
+	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
+	                  std::optional<int16_t> lower_top) override;
 	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
 	                       int32_t old_length) override;
 	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
@@ -226,6 +253,58 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
+	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
+	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
+		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
+	}
+	[[nodiscard]] bool popup_showing() const override {
+		// `display->hasPopup()` for the guest: its popups and notifications are scenes on its stack.
+		for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
+			if (scene->kind() == deluge::ui::shell::SceneKind::Popup
+			    || scene->kind() == deluge::ui::shell::SceneKind::Notification) {
+				return true;
+			}
+		}
+		return false;
+	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (getRootUI() != &keyboardScreen || clip == nullptr
+		    || clip->keyboardState.currentLayout != KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
+			return std::nullopt;
+		}
+		return deluge::scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
+		                                                .row_interval = clip->keyboardState.isomorphic.rowInterval};
+	}
+	[[nodiscard]] bool dx7_engine_enabled() const override {
+		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
+	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
+		DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+		if (bank == nullptr) {
+			return std::nullopt;
+		}
+		deluge::scenes::bind::DxCartridgeNames out;
+		char names[32][11];
+		bank->getProgramNames(names);
+		out.count = bank->numPatches();
+		for (int32_t i = 0; i < out.count; i++) {
+			std::copy_n(names[i], 11, out.names[i].begin());
+		}
+		return out;
+	}
+	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
+	                                                    uint8_t source) const override {
+		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound == nullptr || source >= kNumSources) {
+			return std::nullopt;
+		}
+		const int32_t i = sound->sources[source].defaultRangeI;
+		if (i < 0 || i >= std::ssize(sound->sources[source].ranges)) {
+			return std::nullopt;
+		}
+		return static_cast<uint16_t>(i);
+	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
@@ -264,8 +343,9 @@ public:
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
-/// The waveforms of the current song: the sample a sound's source range holds, or an audio clip's (its recorder's
-/// take while it records linearly, as legacy's audio clip view draws it).
+/// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
+/// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which
+/// `SampleBrowser::showPreview` draws from its source 0, range 0.
 class ShellWaveforms final : public deluge::scenes::services::Waveforms {
 public:
 	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -289,6 +369,54 @@ public:
 		return at.sample != nullptr
 		       && deluge::sample::find_peaks_per_col(at.sample, scroll, zoom, &cache, at.recorder, x_start, x_end);
 	}
+	[[nodiscard]] std::optional<int64_t>
+	play_position(const deluge::scenes::services::WaveformAddress& address) const override {
+		// `SampleMarkerEditor::graphicsRoutine`'s walk: an instrument clip's newest voice (`orderSounded`) on the
+		// range's holder, its middle unison part; an audio clip's own voice sample.
+		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		const Resolved at = resolve(address);
+		if (at.sample == nullptr || currentSong == nullptr) {
+			return std::nullopt;
+		}
+		VoiceSample* voiceSample = nullptr;
+		SamplePlaybackGuide* guide = nullptr;
+		if (address.kind == Kind::AUDIO_CLIP) {
+			::AudioClip* clip = audioClipAt(address.clip);
+			if (clip == nullptr) {
+				return std::nullopt;
+			}
+			voiceSample = clip->voiceSample;
+			guide = &clip->guide;
+		}
+		else if (address.kind == Kind::RANGE) {
+			::Sound* sound = deluge::bridge::soundAt(*currentSong, address.slot);
+			if (sound == nullptr || !sound->hasActiveVoices()) {
+				return std::nullopt;
+			}
+			auto* range =
+			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
+			VoiceSlot* newest = nullptr;
+			for (const Sound::ActiveVoice& voice : sound->voices()) {
+				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
+				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
+					newest = &*voice;
+				}
+			}
+			if (newest == nullptr) {
+				return std::nullopt;
+			}
+			const int32_t u = sound->snapshot().num_unison >> 1;
+			if (!newest->kernel.unison_parts[u].slots[address.source].active) {
+				return std::nullopt;
+			}
+			voiceSample = newest->ports(u, address.source).sample.voiceSample();
+			guide = &newest->guides[address.source];
+		}
+		if (voiceSample == nullptr) {
+			return std::nullopt;
+		}
+		return voiceSample->getPlaySample(at.sample, guide);
+	}
 
 private:
 	struct Resolved {
@@ -297,6 +425,17 @@ private:
 	};
 	static Resolved resolve(const deluge::scenes::services::WaveformAddress& address) {
 		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		if (address.kind == Kind::PREVIEW) {
+			if (AudioEngine::sampleForPreview == nullptr) {
+				return {};
+			}
+			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
+				return {};
+			}
+			return {static_cast<::Sample*>(
+			    static_cast<MultisampleRange*>(source.ranges.getElement(0))->sampleHolder.audioFile)};
+		}
 		if (currentSong == nullptr) {
 			return {};
 		}
@@ -475,6 +614,68 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 			instrument->beenEdited(true);
 		}
 	}
+	return true;
+}
+
+bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
+                                   const deluge::instrument::DxPatchState& patch) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
+		return false;
+	}
+	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:56-70`),
+	// which records no undo.
+	deluge::edits::dxPatchFor(*sound, source, patch);
+	return true;
+}
+
+bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
+	    || program < 0 || program >= bank->numPatches()) {
+		return false;
+	}
+	deluge::gui::menu_item::loadDxProgram(*sound, source, *bank, program);
+	return true;
+}
+
+bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+                                 std::optional<int16_t> previous_top) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources) {
+		return false;
+	}
+	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-201`): range storage is about
+	// to change, so every voice is unassigned and none may be assigned during the allocation.
+	sound->killAllVoices();
+	AudioEngine::audioRoutineLocked = true;
+	::MultiRange* inserted = sound->sources[source].ranges.insertMultiRange(at);
+	AudioEngine::audioRoutineLocked = false;
+	if (inserted == nullptr) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return false;
+	}
+	inserted->topNote = top_note;
+	if (previous_top && at > 0) {
+		sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
+	}
+	deluge::edits::recordRanges(*sound, source);
+	return true;
+}
+
+bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
+                                 std::optional<int16_t> lower_top) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
+		return false;
+	}
+	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:234-285`): `deleteMultiRange` unassigns the voices.
+	sound->deleteMultiRange(source, index);
+	if (lower_top && index > 0) {
+		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
+	}
+	deluge::edits::recordRanges(*sound, source);
 	return true;
 }
 
@@ -1116,6 +1317,57 @@ void host_grab_tempo(deluge::project::ClipAddress clip) {
 const deluge::scenes::services::Waveforms& host_waveforms() {
 	static const gui::ShellWaveforms waveforms;
 	return waveforms;
+}
+
+std::string host_last_sample_path() {
+	return sampleBrowser.lastFilePathLoaded;
+}
+
+namespace {
+
+/// @brief The favourites the legacy browsers show, through `favouritesManager`.
+class ShellFavourites final : public deluge::scenes::services::Favourites {
+public:
+	void set_category(std::string_view category) override { favouritesManager.setCategory(std::string{category}); }
+	void close() override { favouritesManager.close(); }
+	[[nodiscard]] deluge::scenes::services::FavouritesBank bank_state() const override {
+		switch (favouritesManager.bankState()) {
+		case deluge::favourites::BankState::Loading:
+			return deluge::scenes::services::FavouritesBank::Loading;
+		case deluge::favourites::BankState::Loaded:
+			return deluge::scenes::services::FavouritesBank::Loaded;
+		case deluge::favourites::BankState::Unavailable:
+			break;
+		}
+		return deluge::scenes::services::FavouritesBank::Unavailable;
+	}
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours() const override {
+		return favouritesManager.getFavouriteColours();
+	}
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override {
+		return favouritesManager.currentFavouriteNumber;
+	}
+	[[nodiscard]] uint8_t current_bank() const override { return favouritesManager.currentBankNumber; }
+	[[nodiscard]] bool is_empty(uint8_t position) const override { return favouritesManager.isEmpty(position); }
+	std::string recall(uint8_t position) override { return favouritesManager.getFavoriteFilename(position); }
+	void set(uint8_t position, std::string_view path) override {
+		favouritesManager.setFavorite(position, FavouritesManager::favouriteDefaultColor, std::string{path});
+	}
+	void unset(uint8_t position) override { favouritesManager.unsetFavorite(position); }
+	void select_bank(uint8_t bank) override { favouritesManager.selectFavouritesBank(bank); }
+	void change_colour(uint8_t position, int32_t offset) override { favouritesManager.changeColour(position, offset); }
+};
+
+} // namespace
+
+deluge::scenes::services::Favourites& host_favourites() {
+	static ShellFavourites favourites;
+	return favourites;
+}
+
+bool host_release_sample_file(std::string_view path) {
+	AudioEngine::stopAnyPreviewing();
+	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

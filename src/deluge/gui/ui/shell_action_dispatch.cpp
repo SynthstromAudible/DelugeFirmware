@@ -20,6 +20,7 @@
 ///        its caller may not gate it.
 
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 
 #include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
 #include "gui/context_menu/configure_song_macros.h"
@@ -165,7 +166,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///     but read the rest, because the guard was added for a sibling of this exact mistake and the
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
 ///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
-///     (`gui/ui_timer_manager.cpp:142-148`), i.e. to the root view underneath -- the hazard
+///     (`gui/ui_timer_manager.cpp:143-149`), i.e. to the root view underneath -- the hazard
 ///     `ShellHostUI::closeGuest`'s own comment names (`:1110-1114`). What survives the guard and
 ///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
 ///     on the shell stack, so the next open would resume a menu session this one was supposed to
@@ -293,7 +294,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 	else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 		// `start.h:45-47`. The `&&` order is legacy's and is load-bearing rather than stylistic:
 		// `getCurrentOutputType()` dereferences `currentSong->getCurrentClip()->output`
-		// (`model/song/song.cpp:135-137`), so it is only ever asked once the root is known to be a
+		// (`model/song/song.cpp:136-138`), so it is only ever asked once the root is known to be a
 		// clip view.
 		return StemExportType::DRUM;
 	}
@@ -348,7 +349,7 @@ void dispatchShellActions() {
 		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
 		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
 		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:760`) through it.
+		// (`model/song/song.cpp:99-105`); the next line reads `audioClip.guide` (`:761`) through it.
 		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
@@ -468,6 +469,13 @@ void dispatchShellActions() {
 	case MenuAction::PadColoursChanged:
 		// `Colour::writeCurrentValue`'s second statement (`colour.h:46`).
 		renderingNeededRegardlessOfUI();
+		break;
+
+	case MenuAction::FileSelectorOpened:
+		// `FileSelector::beginSession` (`menu_item/file_selector.cpp:40-42`).
+		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
+			keyboardScreen.exitAuditionMode();
+		}
 		break;
 	}
 }
