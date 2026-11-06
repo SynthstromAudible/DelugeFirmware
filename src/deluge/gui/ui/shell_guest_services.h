@@ -17,7 +17,11 @@
 
 #pragma once
 
+#include "gui/ui/ui.h"
+#include "hid/button.h"
+
 #include <cstdint>
+#include <optional>
 
 class MIDICable;
 
@@ -81,6 +85,15 @@ void refreshShellSamplePreviewSounds();
 ///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
 ///        (`util/sample_preview_open.h`), read on the audio tier.
 bool shellSamplePreviewSounds();
+
+/// @brief SAVE while the ported sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
+///        (`gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's view at the root, Shift
+///        deletes the note-range picker's range (`MultiRange::deletePress`, when the picker is focused) and a plain
+///        press opens the save-preset screen.
+/// @param b  The button.
+/// @param on Its press (true) or release.
+/// @return `DEALT_WITH` for SAVE under the menu, whatever it did; nullopt for any other button or with no menu up.
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on);
 
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();

@@ -33,6 +33,9 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
+#include "spec/ui/support/frames.h"
+#include "support/forwarding_facts.h"
+#include "support/menu_over_root.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -50,6 +53,7 @@
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
 #include "hid/display/oled.h"
 
 // `gui/menu_item/filter_route.h` renders through an unqualified `OLED::main`, which resolves inside
@@ -445,6 +449,26 @@ struct RangeFixture {
 
 } // namespace
 
+/// @brief Make @p root legacy's root UI for an example, and put the old one back: `MultiRange` re-renders the root
+/// after a
+///        range change (`SoundEditor::possibleChangeToCurrentRangeDisplay`), which reads it.
+struct RootUiFor {
+	explicit RootUiFor(RootUI* root) : previous_(getRootUI()) { setRootUILowLevel(root); }
+	~RootUiFor() {
+		if (previous_ != nullptr) {
+			setRootUILowLevel(previous_);
+		}
+		else {
+			nullifyUIs();
+		}
+	}
+	RootUiFor(const RootUiFor&) = delete;
+	RootUiFor& operator=(const RootUiFor&) = delete;
+
+private:
+	RootUI* previous_;
+};
+
 // clang-format off
 describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range picker", $ {
 	it("labels every row exactly as MultiRange::getText labels it, on the same fixture", _ {
@@ -591,6 +615,129 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 			}
 		}
 		soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
+	});
+
+	it("inserts a range beside the current one exactly as MultiRange's Shift arm does, and refuses one of one note", _ {
+		// `MultiRange::selectEncoderAction` with Shift held, on four ranges whose second holds a single note (41).
+		const RootUiFor root{&instrumentClipView};
+		const int16_t tops[] = {40, 41, 60, 32767};
+		int32_t inserts = 0;
+		int32_t refusals = 0;
+		for (int32_t index = 0; index < 4; index++) {
+			for (const int32_t offset : {1, -1}) {
+				RangeFixture f{4};
+				auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+				for (int32_t i = 0; i < 4; i++) {
+					sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+				}
+				deluge::edits::recordRanges(*sound, 0);
+				std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+				const std::optional<nodes::RangeInsert> plan = nodes::plan_range_insert(ported, index, offset);
+
+				legacy::multiRangeMenu.setValue(index);
+				soundEditor.setCurrentMultiRange(index);
+				{
+					spec::ShiftHeld shift;
+					legacy::multiRangeMenu.selectEncoderAction(offset);
+				}
+				display->cancelPopup();
+
+				if (!plan) {
+					refusals++;
+					expect(index).to_equal(1);
+					expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(4);
+					continue;
+				}
+				inserts++;
+				ported.insert(ported.begin() + plan->at, deluge::instrument::RangeState{.top_note = plan->top_note});
+				if (plan->previous_top) {
+					ported[static_cast<size_t>(plan->at - 1)].top_note = *plan->previous_top;
+				}
+				expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(5);
+				for (int32_t i = 0; i < 5; i++) {
+					expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
+					    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
+				}
+				expect(plan->at).to_equal(static_cast<int32_t>(legacy::multiRangeMenu.getValue()));
+			}
+		}
+		expect(inserts).to_equal(6);
+		expect(refusals).to_equal(2);
+	});
+
+	it("deletes a range exactly as MultiRange::deletePress does, and refuses the last", _ {
+		const RootUiFor root{&instrumentClipView};
+		const int16_t tops[] = {40, 50, 60, 32767};
+		for (int32_t index = 0; index < 4; index++) {
+			RangeFixture f{4};
+			auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+			for (int32_t i = 0; i < 4; i++) {
+				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+			}
+			deluge::edits::recordRanges(*sound, 0);
+			std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+			const std::optional<nodes::RangeDelete> plan = nodes::plan_range_delete(ported, index);
+			expect(plan.has_value()).to_be_true();
+			if (!plan) {
+				continue;
+			}
+			ported.erase(ported.begin() + index);
+			if (plan->lower_top) {
+				ported[static_cast<size_t>(index - 1)].top_note = *plan->lower_top;
+			}
+
+			legacy::multiRangeMenu.setValue(index);
+			soundEditor.setCurrentMultiRange(index);
+			legacy::multiRangeMenu.deletePress();
+			display->cancelPopup();
+
+			expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+			for (int32_t i = 0; i < 3; i++) {
+				expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
+				    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
+			}
+			expect(plan->cursor).to_equal(static_cast<int32_t>(legacy::multiRangeMenu.getValue()));
+		}
+		RangeFixture last{1};
+		expect(nodes::plan_range_delete(menu::ranges_of(last.ctx), 0).has_value()).to_be_false();
+	});
+
+	it("deletes through the sink, the cursor going to the range below, and not while a popup is up", _ {
+		// `deletePress` (`multi_range.cpp:236-241`): nothing while an edge is edited or a popup is up.
+		RangeFixture f{3};
+		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+		menu::MenuState state{};
+		state.list[0].cursor = 2;
+		MenuContext gated = f.ctx;
+		const spec::ForwardingFacts popup{*f.ctx.facts, {.popup_showing = true}};
+		gated.facts = &popup;
+		nodes::range_delete_press(gated, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
+		nodes::range_delete_press(f.ctx, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		nodes::range_delete_press(f.ctx, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
+		expect(static_cast<int32_t>(state.walk.range_choice)).to_equal(1);
+		display->cancelPopup();
+
+		// `selectEncoderAction` is refused whole while a popup is up (`:71-73`): the turn moves no cursor.
+		menu::MenuState picker{};
+		picker.list[0].cursor = 0;
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.input.turn = 1;
+			nodes::kMultiRangeItem.render(rig.frame, gated, picker);
+			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+		}
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.input.turn = 1;
+			nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
+			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(1);
+		}
 	});
 
 	it("selects a range the way setCurrentMultiRange does", _ {

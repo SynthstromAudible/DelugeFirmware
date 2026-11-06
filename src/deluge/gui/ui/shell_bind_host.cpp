@@ -11,7 +11,9 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
@@ -41,6 +43,7 @@
 #include "model/edits/set_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/edits/set_velocity_to_level.h"
+#include "model/edits/setting_edit.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
@@ -179,6 +182,10 @@ public:
 	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
 	                      std::string_view path) override;
+	bool insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+	                  std::optional<int16_t> previous_top) override;
+	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
+	                  std::optional<int16_t> lower_top) override;
 	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
 	                       int32_t old_length) override;
 	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
@@ -242,6 +249,16 @@ public:
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
 		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
+	}
+	[[nodiscard]] bool popup_showing() const override {
+		// `display->hasPopup()` for the guest: its popups and notifications are scenes on its stack.
+		for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
+			if (scene->kind() == deluge::ui::shell::SceneKind::Popup
+			    || scene->kind() == deluge::ui::shell::SceneKind::Notification) {
+				return true;
+			}
+		}
+		return false;
 	}
 	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
 	                                                    uint8_t source) const override {
@@ -564,6 +581,45 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 			instrument->beenEdited(true);
 		}
 	}
+	return true;
+}
+
+bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+                                 std::optional<int16_t> previous_top) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources) {
+		return false;
+	}
+	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-201`): range storage is about
+	// to change, so every voice is unassigned and none may be assigned during the allocation.
+	sound->killAllVoices();
+	AudioEngine::audioRoutineLocked = true;
+	::MultiRange* inserted = sound->sources[source].ranges.insertMultiRange(at);
+	AudioEngine::audioRoutineLocked = false;
+	if (inserted == nullptr) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return false;
+	}
+	inserted->topNote = top_note;
+	if (previous_top && at > 0) {
+		sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
+	}
+	deluge::edits::recordRanges(*sound, source);
+	return true;
+}
+
+bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
+                                 std::optional<int16_t> lower_top) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
+		return false;
+	}
+	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:234-285`): `deleteMultiRange` unassigns the voices.
+	sound->deleteMultiRange(source, index);
+	if (lower_top && index > 0) {
+		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
+	}
+	deluge::edits::recordRanges(*sound, source);
 	return true;
 }
 

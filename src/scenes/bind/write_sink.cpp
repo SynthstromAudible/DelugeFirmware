@@ -59,6 +59,27 @@ void RecordingSink::set_default_range(project::SlotAddress slot, uint8_t source,
 	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_RANGE, .slot = slot, .source = source, .range = range});
 }
 
+bool RecordingSink::insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+                                 std::optional<int16_t> previous_top) {
+	gestures.push_back({.kind = GestureRequest::Kind::INSERT_RANGE,
+	                    .slot = slot,
+	                    .source = source,
+	                    .range = at,
+	                    .value = top_note,
+	                    .old_length = previous_top.value_or(-1)});
+	return true;
+}
+
+bool RecordingSink::delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+                                 std::optional<int16_t> lower_top) {
+	gestures.push_back({.kind = GestureRequest::Kind::DELETE_RANGE,
+	                    .slot = slot,
+	                    .source = source,
+	                    .range = index,
+	                    .value = lower_top.value_or(-1)});
+	return true;
+}
+
 bool RecordingSink::attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) {
 	gestures.push_back({.kind = GestureRequest::Kind::ATTACH,
 	                    .text = std::string{path},

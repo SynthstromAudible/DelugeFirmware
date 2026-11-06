@@ -1771,6 +1771,23 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		    .to_be_true();
 	});
 
+	it("hands a button to the menu's SAVE arm before the shell, and takes its answer", _ {
+		// `SoundEditor::buttonAction`'s SAVE arm is legacy's, as the note mode's buttons are (`forwardMenuSaveButton`).
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+		fakelegacyui::menu_save_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+		expect(fakelegacyui::menu_save_forwards).to_equal(1);
+		// Declined, the button goes on to the shell as before.
+		fakelegacyui::menu_save_answer = std::nullopt;
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, false);
+		expect(fakelegacyui::menu_save_forwards).to_equal(2);
+	});
+
 	it("does not consult the note mode for the two gold-knob pushes, whose early return comes first", _ {
 		Rig r;
 		expect(r.open()).to_be_true();

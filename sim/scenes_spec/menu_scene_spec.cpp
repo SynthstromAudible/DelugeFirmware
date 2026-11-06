@@ -1749,6 +1749,80 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
 	});
 
+	it("cancels an edge with BACK on a picker opened at the root, where BACK would otherwise close the menu", _ {
+		// A shortcut opens the picker at depth 0 (`SoundEditor::setup` substituting it for the item), and legacy's BACK
+		// still cancels the edge first.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(nodes::multi_range, ctx);
+		r.shell.tick(0);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.edges(1, -2, 10);
+		r.shell.tick(15);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		r.button(7, 1, true, 20); // BACK
+		r.button(7, 1, false, 20);
+		r.shell.tick(25);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		bool menu_up = false;
+		for (const deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {
+			menu_up = menu_up || scene == &menu_scene();
+		}
+		expect(menu_up).to_be_true();
+	});
+
+	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
+		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sink.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(cursor_of(1)).to_equal(1); // 41..60
+
+		r.button(8, 0, true, 120); // SHIFT
+		r.turn(1, 125);            // after: the new range takes 51..60, the old one 41..50
+		r.shell.tick(130);
+		r.button(8, 0, false, 135);
+		r.shell.tick(140);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(4);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(50);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(2)->topNote)).to_equal(60);
+		expect(cursor_of(1)).to_equal(2);
+
+		menu_scene().delete_range_press(); // the range below takes the mean of the two tops
+		r.shell.tick(150);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(1)->topNote)).to_equal(55);
+		expect(cursor_of(1)).to_equal(1);
+		expect(static_cast<int>(menu_scene().menu_context().range_index)).to_equal(1);
+	});
+
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
 		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1991`), so a

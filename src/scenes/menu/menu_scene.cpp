@@ -281,6 +281,13 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	return SceneId{SceneKind::FirstApp, id};
 }
 
+void MenuScene::delete_range_press() {
+	if (focused() != &nodes::multi_range) {
+		return;
+	}
+	nodes::range_delete_press(ctx_, st_);
+}
+
 bool MenuScene::reroot_to_scene_opener_page() {
 	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
 	const Node* item = st_.walk.scene_opener;

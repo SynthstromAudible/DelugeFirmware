@@ -240,6 +240,9 @@ extern int note_vertical_forwards;
 extern NoteVerticalCall last_note_vertical;
 /// What `forwardNoteVerticalEncoder()` answers. `std::nullopt` by default.
 extern std::optional<ActionResult> note_vertical_answer;
+/// How many times `forwardMenuSaveButton()` was called, and what it answers (`std::nullopt` by default).
+extern int menu_save_forwards;
+extern std::optional<ActionResult> menu_save_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;

@@ -99,7 +99,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, n - 1));
 	f.claim_turn();
 	f.claim_select();
-	if (f.turn() != 0 && n > 0 && !state.hide_cursor) {
+	if (f.turn() != 0 && n > 0 && !state.hide_cursor && !state.freeze_cursor) {
 		cursor = move_cursor(cursor, f.turn(), rows, n);
 	}
 	resp.changed = cursor != state.cursor;

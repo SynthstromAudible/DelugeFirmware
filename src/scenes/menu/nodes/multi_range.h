@@ -38,13 +38,16 @@
 /// encoder moves it a note at a time through one ranges write, and BACK cancels it before it would go up; the edited
 /// half of the row is inverted and no row is selected. All of it is read in `render`, where the turns and BACK arrive.
 ///
+/// ## Inserting and deleting a range
+///
+/// Shift + a select turn splits the range at its midpoint, after it for a turn up and before it for a turn down
+/// (`plan_range_insert`), and the cursor follows the new range; Shift+SAVE deletes it (`range_delete_press`, reached
+/// through `MenuScene::delete_range_press` from the guest's SAVE arm), the range below taking the gap. Both go to the
+/// sink as their own verbs, which kill the voices and keep the other ranges' samples, as legacy's bodies do. Every
+/// select turn waits out a popup, as `selectEncoderAction` does.
+///
 /// ## What did NOT come across
 ///
-///   * **Inserting a range** (shift + select encoder, `multi_range.cpp:158-228`) and **deleting one**
-///     (`deletePress`, `:261-311`). Both are range *editing* rather than range *selection*, both
-///     mutate `Source::ranges` under a `killAllVoices` + `AudioEngine::audioRoutineLocked` window,
-///     and neither has an input route here: legacy reaches `deletePress` from `SoundEditor`'s own
-///     BACK handling, which in this port is `MenuTick::back_claimed` -> `MenuScene::ascend`.
 ///   * `noteOnToChangeRange` (`:364-381`): live MIDI note-in re-selecting the range. Nothing routes
 ///     MIDI into the scene stack yet (`MenuScene`'s learn entry points carry the same warning).
 ///   * `possibleChangeToCurrentRangeDisplay` / `uiNeedsRendering(keyboardScreen)` (`:250-258`):
@@ -60,6 +63,7 @@
 #include "shell/profile.h" // ui::shell::TextScratch
 
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -135,6 +139,43 @@ deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t inde
 /// @param offset The turn; only its sign counts (raising for 0 too, as legacy's `offset >= 0`).
 void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_t index,
                      deluge::ui::oled::RangeEdge edge, int32_t offset);
+
+/// @brief Where a range insert puts the new range: `MultiRange::selectEncoderAction`'s Shift arm.
+struct RangeInsert {
+	int32_t at;                          ///< the new range's index, where the cursor goes
+	int16_t top_note;                    ///< the new range's top note
+	std::optional<int16_t> previous_top; ///< the range below's new top note, when the new one goes after it
+};
+
+/// @brief `MultiRange::selectEncoderAction`'s Shift arm (`multi_range.cpp`): split @p index's range at the
+///        midpoint of its bottom and top, after it for a turn up and before it for a turn down.
+///
+/// The bottom is the range below's top plus one (the first range's: its top minus one, at most 0); the top is the
+/// range's own (the last range's: its bottom plus one, at least 127). A range whose bottom and top meet cannot split.
+/// @param ranges The source's ranges.
+/// @param index  The picker's range.
+/// @param offset The turn; only its sign counts.
+/// @return The insert, or nullopt for "RANGE CONTAINS ONE NOTE".
+std::optional<RangeInsert> plan_range_insert(std::span<const deluge::instrument::RangeState> ranges, int32_t index,
+                                             int32_t offset);
+
+/// @brief What a range delete leaves: `MultiRange::deletePress`.
+struct RangeDelete {
+	int32_t cursor; ///< where the picker's cursor goes: the range below, or 0
+	std::optional<int16_t>
+	    lower_top; ///< the range below's new top note: 32767 under a deleted top range, else the mean
+};
+
+/// @brief `MultiRange::deletePress` (`multi_range.cpp`): what deleting @p index's range does to the one below.
+/// @return The delete, or nullopt for "LAST RANGE CAN'T DELETE".
+std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument::RangeState> ranges, int32_t index);
+
+/// @brief `MultiRange::deletePress` (`multi_range.cpp`) on the picker: nothing while an edge is edited or a popup is
+///        up; "LAST RANGE CAN'T DELETE" for the last; else the range is deleted, the cursor goes to the one below, and
+///        "RANGE DELETED" shows.
+/// @param ctx   What is being edited.
+/// @param state The menu's state, whose picker list and range choice follow.
+void range_delete_press(const MenuContext& ctx, MenuState& state);
 
 /// @brief `MultiRange::selectButtonPress` (`multi_range.cpp`): whatever the picker was
 ///        substituted for.

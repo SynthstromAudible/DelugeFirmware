@@ -560,6 +560,8 @@ deluge::ui::InputClaims owned_input(const MenuContext& ctx, const MenuState& st)
 			c.horizontal = item.horizontal;
 			c.vertical = item.vertical;
 			c.select = item.select;
+			// An item may take BACK for itself (the range picker cancelling an edge), at the root as below it.
+			c.back = c.back || item.back;
 		}
 		break;
 	default:

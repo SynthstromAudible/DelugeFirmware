@@ -905,6 +905,16 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		return *result;
 	}
 
+	// SAVE under the menu is the sound editor's own arm (`forwardMenuSaveButton`): Shift deletes the picker's range, a
+	// plain press opens the save-preset screen, which may leave this guest behind it.
+	if (const std::optional<ActionResult> result = forwardMenuSaveButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
 	// The exact inverse of `deluge.cpp`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
 	// `hid::Button` is `9 * (y + kDisplayHeight * 2) + x` and `toXY` undoes it
 	// (`hid/button.h`, `hid/button.cpp`). Feeding matrix coordinates rather than a

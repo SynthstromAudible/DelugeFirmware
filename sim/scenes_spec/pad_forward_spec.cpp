@@ -35,6 +35,7 @@
 #include "definitions_cxx.hpp" // kDisplayWidth
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/ui.h" // setRootUILowLevel, nullifyUIs, currentUIMode, UI_MODE_*
@@ -42,6 +43,9 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "hid/display/display.h"
+#include "model/edits/setting_edit.h"
+#include "processing/sound/sound_instrument.h"
 
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "scenes/menu/context.h"
@@ -620,6 +624,44 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&automationView);
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("takes SAVE under the menu as the sound editor's arm: Shift deletes the picker's range, a plain press saves", _ {
+		// `SoundEditor::buttonAction`'s SAVE arm (`sound_editor.cpp:719-730`), through the guest's
+		// `forwardMenuSaveButton`: only with no UI mode up and an instrument clip's view at the root.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(fx.instrument);
+		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		for (int32_t i = 0; i < 3; i++) {
+			(void)sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		// BROWSE, OSC1's file selector: range-dependent, so on a source of several ranges the picker opens first.
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+
+		currentUIMode = UI_MODE_AUDITIONING; // under a UI mode SAVE does nothing, and is still the menu's
+		{
+			ShiftHeld shift;
+			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+		}
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		currentUIMode = UI_MODE_NONE;
+		{
+			ShiftHeld shift;
+			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+		}
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		display->cancelPopup();
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::SAVE, true);
+		expect(getCurrentUI() == &saveInstrumentPresetUI).to_be_true();
 	});
 });
 // clang-format on

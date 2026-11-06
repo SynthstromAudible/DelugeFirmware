@@ -472,6 +472,11 @@ public:
 	/// @return The menu `SceneId` to replace with, or nothing: no item there, not this root's, or refused.
 	std::optional<deluge::ui::shell::SceneId> shortcut_jump(uint8_t x, uint8_t y);
 
+	/// @brief Shift+SAVE under the menu (`SoundEditor::buttonAction`'s SAVE arm): the note-range picker's delete
+	///        (`MultiRange::deletePress`) when the picker is focused, and nothing otherwise. The range it leaves
+	///        selected is the picker's choice, which the next frame applies.
+	void delete_range_press();
+
 	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
 	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
 	///

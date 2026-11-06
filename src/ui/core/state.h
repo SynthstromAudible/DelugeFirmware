@@ -16,6 +16,9 @@ struct ListState {
 	/// Draw no row as selected and leave the cursor where it is: the turn belongs to something else on the row (the
 	/// note-range picker's edge editing, `MultiRange::drawPixelsForOled`'s `selectedOption = -1`).
 	bool hide_cursor = false;
+	/// Leave the cursor where it is this frame, still drawn: a turn that something else took (a range insert) or
+	/// that legacy refuses (the note-range picker's turns while a popup is up).
+	bool freeze_cursor = false;
 };
 /// State a horizontal columns/tab widget owns: which column has focus and which page is shown.
 struct ColumnsState {

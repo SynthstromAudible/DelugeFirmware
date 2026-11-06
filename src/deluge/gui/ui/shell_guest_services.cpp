@@ -21,6 +21,7 @@
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -32,6 +33,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "scenes/browser/browser_scene.h"
@@ -166,6 +168,25 @@ void refreshShellSamplePreviewSounds() {
 
 bool shellSamplePreviewSounds() {
 	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
+}
+
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on) {
+	if (b != deluge::hid::button::SAVE || !shellSoundMenuOpen()) {
+		return std::nullopt;
+	}
+	// `SoundEditor::buttonAction` (`sound_editor.cpp:611-616`, `:719-730`); `shellSoundMenuOpen` is its
+	// `!inSettingsMenu()`.
+	const Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
+	const bool instrument_clip_view = clip != nullptr && clip->type == ClipType::INSTRUMENT;
+	if (on && currentUIMode == UI_MODE_NONE && instrument_clip_view) {
+		if (Buttons::isShiftButtonPressed()) {
+			deluge::scenes::menu_scene().delete_range_press();
+		}
+		else {
+			openUI(&saveInstrumentPresetUI);
+		}
+	}
+	return ActionResult::DEALT_WITH;
 }
 
 void shellMenuReadValueAgain() {
