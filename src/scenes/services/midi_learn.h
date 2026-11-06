@@ -320,7 +320,7 @@ public:
 	///        `learnedThing` (`gui/views/view.h:108`, `:113`).
 	///
 	/// Read by the scenes that paint a held pad brighter (`gui/views/session_view.cpp:2931-2943`,
-	/// `gui/views/instrument_clip_view.cpp:6143-6147`), which compare both the kind and the
+	/// `gui/views/instrument_clip_view.cpp:6143-6176`), which compare both the kind and the
 	/// `LearnedMIDI` address.
 	/// @return The target, `kind == NONE` when nothing is held.
 	const LearnTarget& pressed() const { return pressed_; }

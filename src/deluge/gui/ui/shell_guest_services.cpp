@@ -106,7 +106,7 @@ void setViewStates(GuestServices& services) {
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
 	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:522`: it is
 	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
-	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:165-170`), which is the
+	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:166-171`), which is the
 	// state during a song swap and the state a spec that opens no UI is in.
 	controlView.current_ui_is_clip_minder = currentUIIsClipMinderScreen();
 	controlView.root_is_performance = getRootUI() == &performanceView;

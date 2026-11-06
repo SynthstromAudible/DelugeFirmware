@@ -471,7 +471,7 @@ public:
 	/// @brief Called when this scene becomes the **input** top again because something above it
 	///        left.
 	///
-	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-228`), and it means the
+	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-229`), and it means the
 	/// same thing: input reaches this scene again after reaching something else. The stack fires it
 	/// only when `SceneStack::input_top()` genuinely changed hands, so a passive
 	/// `input_transparent()` layer -- a popup, a console line, the working animation -- appearing

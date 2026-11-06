@@ -133,12 +133,12 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// `SoundEditor::exitCompletely` ends the menu item's session
 /// (`endScreen()`, `:759`) and closes the menu UI (`close()`, `:761`, which is `closeUI(this)`,
-/// `gui/ui/ui.cpp:86-88`). Under the guest **the thing that is open is `ShellHostUI`, not
+/// `gui/ui/ui.cpp:87-89`). Under the guest **the thing that is open is `ShellHostUI`, not
 /// `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s place
 /// (`openShellMenu`) and nothing on that path opens `soundEditor` at all.
 ///
 /// So calling `soundEditor.exitCompletely()` here would not be a harmless no-op. `closeUI`'s search
-/// loop stops at `u >= 1` (`gui/ui/ui.cpp:212`); given a UI that is not on the stack it falls out
+/// loop stops at `u >= 1` (`gui/ui/ui.cpp:213`); given a UI that is not on the stack it falls out
 /// with `u == 0`, reads `uiNavigationHierarchy[u - 1]` -- index **-1** -- at `:194` and sets
 /// `numUIsOpen = 0` at `:195`. After that `getRootUI()` answers `nullptr` for the whole application
 /// (`:145-150`) and `getCurrentUI()` answers the `lastUIBeforeNullifying` residue (`:136-140`).
@@ -209,7 +209,7 @@ namespace {
 /// @par What `getRootUI()` answers here, which is the question the close order raises
 ///
 /// `getRootUI()` reads `uiNavigationHierarchy[0]` and answers `nullptr` only when `numUIsOpen == 0`
-/// (`gui/ui/ui.cpp:174-179`). **Neither menu is at index 0 -- given a root view is open**, which is
+/// (`gui/ui/ui.cpp:175-180`). **Neither menu is at index 0 -- given a root view is open**, which is
 /// the precondition this whole argument stands on and is worth saying out loud: `openUI` writes
 /// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so with `numUIsOpen == 0` the
 /// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openShellMenu`
@@ -218,7 +218,7 @@ namespace {
 /// is unstated is one nobody can re-check. With a root view open, both legacy's `soundEditor` and
 /// this guest sit *above* it, never at it.
 ///
-/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`gui/ui/ui.cpp:212`) and it
+/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`gui/ui/ui.cpp:213`) and it
 /// assigns `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched
 /// and `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
 /// `focusRegained` override reaches `changeRootUI`: of the 56 call sites in `src/`, every one is a
@@ -249,7 +249,7 @@ namespace {
 /// `UI_MODE_STEM_EXPORT` is `64` (`gui/ui/ui.h:78`), which is not `> EXCLUSIVE_UI_MODES_MASK` (`255`,
 /// `:81`), so `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`)
 /// takes `enterUIMode`'s else branch, `currentUIMode = (currentUIMode & ~255) | 64`
-/// (`gui/ui/ui.cpp:487-488`) -- it never refuses.
+/// (`gui/ui/ui.cpp:488-489`) -- it never refuses.
 ///
 /// But that clears only the **exclusive** bits. The five non-exclusive modes (`gui/ui/ui.h:85-89`:
 /// `QUANTIZE`, `STUTTERING`, `HORIZONTAL_SCROLL`, `AUDITIONING`,
@@ -273,7 +273,7 @@ void startStemExport() {
 } // namespace
 
 std::optional<StemExportType> stemExportTypeForRootUI() {
-	// `start.h:33-47`, statement for statement. `getRootUI()` may be null (`gui/ui/ui.cpp:174-179`)
+	// `start.h:33-47`, statement for statement. `getRootUI()` may be null (`gui/ui/ui.cpp:175-180`)
 	// and legacy never dereferences it either -- the three tests below are pointer comparisons, so a
 	// null root falls through to the same `std::nullopt` every other unnamed root does.
 	RootUI* rootUI = getRootUI();
@@ -349,7 +349,7 @@ void dispatchShellActions() {
 		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
 		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
 		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:760`) through it.
+		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:771`) through it.
 		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`

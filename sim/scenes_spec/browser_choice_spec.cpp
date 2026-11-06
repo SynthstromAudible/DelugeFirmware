@@ -913,7 +913,7 @@ describe browser_choice_claim(
 		        // with `loadWithoutExiting = false`, which ends in `exitAndNeverDeleteDrum()` ->
 		        // `closeUI(&sampleBrowser)` on a browser the guest never opened, i.e. an index `-1`
 		        // read of `uiNavigationHierarchy` and `numUIsOpen = 0` from inside the running
-		        // `timerCallback` (`gui/ui/ui.cpp:212-226`). See the example below.
+		        // `timerCallback` (`gui/ui/ui.cpp:213-227`). See the example below.
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
 		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
@@ -1005,9 +1005,9 @@ describe browser_choice_claim(
 		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:966`), and its first
 		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
 		        // `Browser::close()`, `UI::close()` and finally
-		        // `closeUI(this)` (`gui/ui/ui.cpp:86-88`). Under the guest `sampleBrowser` was never
+		        // `closeUI(this)` (`gui/ui/ui.cpp:87-89`). Under the guest `sampleBrowser` was never
 		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
-		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:212-223`), then sets `numUIsOpen = 0`
+		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:213-223`), then sets `numUIsOpen = 0`
 		        // and unsets `TimerName::UI_SPECIFIC` (`:195-197`) -- from inside the very
 		        // `ShellHostUI::timerCallback` that is running the drain.
 		        //

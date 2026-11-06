@@ -43,7 +43,7 @@ bool SceneStack::push(SceneId id) {
 	if (!scene->on_enter(id)) {
 		// Snapshotted with the refused scene still installed, because that is what it held while
 		// `on_enter` ran. `openUI`'s rollback resumes `getCurrentUI()` unconditionally
-		// (`gui/ui/ui.cpp:265-270`) and is right to for legacy, where every UI on
+		// (`gui/ui/ui.cpp:266-271`) and is right to for legacy, where every UI on
 		// `uiNavigationHierarchy` takes input; here a refused `input_transparent()` push covered
 		// nobody, so it hands nothing back.
 		Scene* const before = &input_top();
@@ -89,7 +89,7 @@ void SceneStack::pop(SceneKind to) {
 	}
 	// The *input* top, not `stack_[n_ - 1]`: popping the top of `[A, popup, B]` leaves the popup
 	// as the raw top and `A` as the scene that actually takes input again, so `A` is what legacy's
-	// `closeUI` -> `focusRegained` (`gui/ui/ui.cpp:223-228`) corresponds to here.
+	// `closeUI` -> `focusRegained` (`gui/ui/ui.cpp:223-229`) corresponds to here.
 	resume_new_input_top(before);
 }
 
@@ -188,7 +188,7 @@ bool SceneStack::replace_top(SceneId id) {
 		// claim about the top at all. Suppressing it for an `input_transparent()` `previous` would
 		// leave a scene that had been told it left the stack with no notice that it is back.
 		// `changeUIAtLevel`'s own failure path does the same thing for the same reason
-		// (`gui/ui/ui.cpp:125-130`, `oldUI->focusRegained()` after restoring the hierarchy).
+		// (`gui/ui/ui.cpp:126-131`, `oldUI->focusRegained()` after restoring the hierarchy).
 		stack_[n_ - 1] = previous;
 		ids_[n_ - 1] = previous_id;
 		previous->on_resume();

@@ -52,7 +52,7 @@
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
 /// Two of the ported functions call `getRootUI()->midiLearnFlash()` (`view.cpp:508-510`, `:818-820`),
-/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:174-179`).
+/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:175-180`).
 /// `global_controls_spec.cpp`'s `StubUI` derives from `UI` and gets away with it because nothing on
 /// its paths calls a `RootUI` virtual; here that would be a virtual call through a
 /// wrong-type pointer. `StubRootUI` below derives from `RootUI`, whose `midiLearnFlash()` is an

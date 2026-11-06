@@ -600,7 +600,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(copy_of(OLED::main.bytes()) == rendered).to_be_true();
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
-		// time it calls here (`gui/ui/ui.cpp:394`).
+		// time it calls here (`gui/ui/ui.cpp:395`).
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
@@ -1001,7 +1001,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("hands the main pads back when the guest closes while it owns them", _ {
-		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:232-241`), and by
+		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:233-241`), and by
 		// then its stack is empty and answers no -- so the guest itself must ask for the root view's
 		// main pads, or the keyboard's last frame stays on them.
 		Rig r;
@@ -1022,7 +1022,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 		expect(mainAsked).to_be_true();
 		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
-		// its stack (`gui/ui/ui.cpp:335-359`), so a request after the close would be dropped.
+		// its stack (`gui/ui/ui.cpp:336-360`), so a request after the close would be dropped.
 		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
 		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close) == fakelegacyui::UiCall::Render)
 		    .to_be_true();
@@ -1114,7 +1114,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
 		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
-		// the next UI down is about to be asked with (`gui/ui/ui.cpp:102-112`), so a false answer must
+		// the next UI down is about to be asked with (`gui/ui/ui.cpp:103-113`), so a false answer must
 		// leave them alone.
 		r.base.greyout = {};
 		uint32_t cols = 0xDEADBEEF;
@@ -1141,7 +1141,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(rows).to_equal(uint32_t(0x00000080));
 
 		// A scene above with an empty mask obeys the one beneath, as legacy's top-down walk does
-		// (`gui/ui/ui.cpp:102-112`): a popup over the menu leaves the menu's greyout standing.
+		// (`gui/ui/ui.cpp:103-113`): a popup over the menu leaves the menu's greyout standing.
 		r.over.overlay = true;
 		r.over.regions = PadRegions::None;
 		r.over.greyout = {};
@@ -1307,7 +1307,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
-		// (`gui/ui/ui.cpp:226`) before handing focus to the UI beneath, so a timer armed here would
+		// (`gui/ui/ui.cpp:227`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
 		// (`gui/ui_timer_manager.cpp`).
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
@@ -1420,7 +1420,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		r.guest.displayOrLanguageChanged();
 		// Legacy still hears about it: the base's `renderUIsForOled()` is what sets
-		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:82-84`).
+		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:83-85`).
 		expect(fakelegacyui::oled_redraws).to_equal(1);
 		// And the shell will actually re-render on its next tick, rather than serving the frame it
 		// happens to be holding.
@@ -2102,7 +2102,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::service_wirings).to_equal(2);
 
 		// A refused open does not wire: `openUI` rolls the hierarchy back on `false`
-		// (`gui/ui/ui.cpp:266-271`), so there is no guest to serve.
+		// (`gui/ui/ui.cpp:267-272`), so there is no guest to serve.
 		Rig refused;
 		expect(fakelegacyui::service_wirings).to_equal(0); // the Rig ctor reset the counter
 		refused.guest.setInitialScene(SceneId{SceneKind::Null, 0});
@@ -2158,7 +2158,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
-		// to the UI beneath on the same call (`gui/ui/ui.cpp:228`) and that is what re-fills the
+		// to the UI beneath on the same call (`gui/ui/ui.cpp:229`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
 		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
@@ -2474,7 +2474,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// The same guest shape, varying only the one thing the refusal is about: no initial scene,
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
-		// hierarchy back to the previous UI (`gui/ui/ui.cpp:266-271`) -- an arm left standing here
+		// hierarchy back to the previous UI (`gui/ui/ui.cpp:267-272`) -- an arm left standing here
 		// would deliver this guest's `timerCallback` to *that* UI, since the manager dispatches to
 		// `getCurrentUI()` (`gui/ui_timer_manager.cpp`).
 		Rig refused;
@@ -2564,7 +2564,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// And it recovers the moment the guest is current again, which is the half that says the
 		// guard is not a wedge. In production `closeUI` does this through `focusRegained`
-		// (`gui/ui/ui.cpp:226-228`); here the topology is declared rather than simulated.
+		// (`gui/ui/ui.cpp:227-229`); here the topology is declared rather than simulated.
 		fakelegacyui::current_ui = &r.guest;
 		set_clock_ms(700);
 		(void)r.guest.timerCallback();
@@ -2653,7 +2653,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// What legacy does when a UI opened over the guest closes again: `closeUI` unsets the timer
-		// (`gui/ui/ui.cpp:226`) and then hands focus back (`:228`). Without the re-arm the guest
+		// (`gui/ui/ui.cpp:227`) and then hands focus back (`:229`). Without the re-arm the guest
 		// would tick normally until anything was opened over it and never again.
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250); // the guest was mid-animation
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -2695,7 +2695,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
 		// The close path, varying only the stack depth. `close()` is `closeUI(this)`, which unsets
-		// the timer itself (`gui/ui/ui.cpp:226`) -- so arming here would be undone one line later,
+		// the timer itself (`gui/ui/ui.cpp:227`) -- so arming here would be undone one line later,
 		// or worse, handed to the UI beneath.
 		Rig closing;
 		expect(closing.open()).to_be_true();

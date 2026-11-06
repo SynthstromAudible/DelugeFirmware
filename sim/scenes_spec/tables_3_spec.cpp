@@ -651,7 +651,7 @@ const Root& installed_root(std::string_view name) {
 /// (`gui/menu_item/submenu.cpp:63`). Reading a hidden one is not merely pointless, it is unsafe --
 /// `UnpatchedParam::readCurrentValue` casts `summaries[0].paramCollection` to an `UnpatchedParamSet`
 /// (`unpatched_param.cpp:37`), and on a MIDI clip that summary holds a `MIDIParamCollection`
-/// (`param_manager.cpp:66-69`). The randomizer's and arpeggiator's unpatched params are declared
+/// (`param_manager.cpp:67-70`). The randomizer's and arpeggiator's unpatched params are declared
 /// under the MIDI/CV root precisely so their `midi_cv` twins can sit beside them, and every one of
 /// them is `isRelevant() == false` there.
 bool relevant_here(const Pair& p) {
@@ -967,7 +967,7 @@ legacy::Submenu& legacy_commands_list() {
 /// popup taken when the item is *not* the current menu item (`command.cpp:120-122`, `:100-103`) and
 /// FILL's `CANT_LEARN_PC` refusal (`:107`). Without a display the first is avoidable -- point
 /// `soundEditor`'s navigation record at the item and the `renderUIsForOled()` branch is taken
-/// instead, and that function is one assignment (`gui/ui/ui.cpp:292-294`) -- but the second is not:
+/// instead, and that function is one assignment (`gui/ui/ui.cpp:293-295`) -- but the second is not:
 /// legacy pops unconditionally there. So the examples below install this for the scope, which both
 /// keeps the legacy call alive and makes "did legacy refuse?" directly observable.
 struct SpyDisplay final : deluge::hid::Display {
@@ -1463,7 +1463,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			// `nullifyUIs()` clears `numUIsOpen`, which is all `getRootUI()` reads -- but it also sets
 			// `lastUIBeforeNullifying`, so `getCurrentUI()` is left pointing at this case's view and,
 			// after the last iteration, at `&automationView`. That is DELIBERATE, not an oversight to
-			// inherit: `lastUIBeforeNullifying` is defined at `gui/ui/ui.cpp:95` with no declaration in
+			// inherit: `lastUIBeforeNullifying` is defined at `gui/ui/ui.cpp:96` with no declaration in
 			// `ui.h`, so resetting it is not available from here. It is benign because `getRootUI()`
 			// answers null on `numUIsOpen == 0` regardless; because `currentUIIsClipMinderScreen()` --
 			// the only consumer of the `toClipMinder()` difference that makes `automationView` the
@@ -1502,7 +1502,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 
 	it("refuses an unpatched param on a MIDI clip rather than reinterpreting its collection", _ {
 		// `ParamManager::setupMIDI` and `setupUnpatched`
-		// (`modulation/params/param_manager.cpp:60-82`) both leave `expressionParamSetOffset == 1`
+		// (`modulation/params/param_manager.cpp:60-85`) both leave `expressionParamSetOffset == 1`
 		// and `summaries[0].paramCollection` non-null, and `getUnpatchedParamSet()` is a bare cast of
 		// that pointer -- so on a MIDI or CV clip an unpatched `ParamRef` read would reinterpret a
 		// `MIDIParamCollection`. Batch 3 made that reachable: the MIDI/CV root carries the
@@ -1534,7 +1534,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
 		// Fix round 1, I1. `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
-		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:66-69`), so
+		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:67-70`), so
 		// `ensureExpressionParamSetExists` puts an `ExpressionParamSet` there (`:289-298`) -- and
 		// `bend_range::Main::writeCurrentValue` calls `getOrCreateExpressionParamSet()`
 		// (`gui/menu_item/bend_range/main.h:30`) from `bendMenu`, which is a child of this very root.

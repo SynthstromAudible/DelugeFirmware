@@ -199,7 +199,7 @@ bool ShellHostUI::opened() {
 
 void ShellHostUI::focusRegained() {
 	// Legacy calls this on the UI that is the current one again after something above it closed
-	// (`closeUI`, `gui/ui/ui.cpp:223-228`), and `Scene::on_resume` is the port of exactly that
+	// (`closeUI`, `gui/ui/ui.cpp:223-229`), and `Scene::on_resume` is the port of exactly that
 	// call, in as many words (`Scene::on_resume`).
 	//
 	// **`input_top()`, not `top()`**, and `on_resume`'s own contract is that it fires on the scene

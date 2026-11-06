@@ -370,7 +370,7 @@ namespace indicator_leds {
 void clearKnobIndicatorLevels() {
 	fakelegacyui::knob_indicator_clears++;
 	// The **order** matters and is what this records: `closeUI` hands focus to the UI beneath on the
-	// same call (`gui/ui/ui.cpp:228`) and that is what re-fills the rings, so a clear made after the
+	// same call (`gui/ui/ui.cpp:229`) and that is what re-fills the rings, so a clear made after the
 	// close blanks rings nothing then refreshes. True here means the close had already happened.
 	fakelegacyui::knob_clear_saw_close = !fakelegacyui::closed.empty();
 }

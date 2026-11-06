@@ -147,7 +147,7 @@ namespace deluge::gui::ui {
 ///          `MenuScene`, which has no zero-timer arm at all, while a floor of 15 ms would put 15 ms
 ///          of latency on the repaint after *every* button press -- and legacy has none there, since
 ///          `doAnyPendingUIRendering` runs from the main loop rather than from a timer
-///          (`gui/ui/ui.cpp:404-425`). The condition that ends this answer is a tenant whose
+///          (`gui/ui/ui.cpp:405-426`). The condition that ends this answer is a tenant whose
 ///          `next_timer()` returns 0, i.e. `AudioClipScene`; what it needs is the third answer
 ///          `Shell::next_wake()`'s warning already asks for -- a distinct "every frame" cadence --
 ///          not a different floor here.
@@ -478,7 +478,7 @@ private:
 	/// may be skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
-	/// (`gui/ui/ui.cpp:226`). Callers must not re-arm after it.
+	/// (`gui/ui/ui.cpp:227`). Callers must not re-arm after it.
 	void closeGuest();
 
 	/// @brief Does the scene that would receive this pad claim it? The grid-claim predicate.

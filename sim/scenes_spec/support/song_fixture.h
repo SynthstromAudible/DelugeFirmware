@@ -147,7 +147,7 @@ inline SongFixture make_cv_song() {
 	ParamManagerForTimeline params;
 	params.setupMIDI();
 	// `createNewInstrument` has no CV arm at all -- it falls through to `Kit`
-	// (`storage/storage_manager.cpp:557-560`); `createNewNonAudioInstrument` is the CV/MIDI one
+	// (`storage/storage_manager.cpp:559-562`); `createNewNonAudioInstrument` is the CV/MIDI one
 	// (`:603`), and is what `Song`'s own CV path uses.
 	auto* cv = static_cast<CVInstrument*>(StorageManager::createNewNonAudioInstrument(OutputType::CV, 0, 0));
 	cv->setChannel(both); // `cv_instrument.h:71-82` -- the dual-channel mode `cv2SourceMenu` needs

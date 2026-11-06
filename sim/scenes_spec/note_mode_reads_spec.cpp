@@ -671,7 +671,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a main pad on a kit y with no NoteRow creates no row and leaves the selected drum alone -- editPadAction's "
 	   "`inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:2382-2385` returns before `:2387-2392` creates a row (or, failing
+		// `gui/views/instrument_clip_view.cpp:2404-2407` returns before `:2387-2414` creates a row (or, failing
 		// that, clears the kit's selected drum).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -695,7 +695,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
 	   "`preventOverScrolling`", _ {
-		// `gui/views/instrument_clip_view.cpp:4433` into `scrollVertical_limit`'s `:4509-4516`: no row at the
+		// `gui/views/instrument_clip_view.cpp:4455` into `scrollVertical_limit`'s `:4531-4516`: no row at the
 		// auditioned y once scrolled, so no scroll.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -713,7 +713,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:6309-6313`: no colour shifting in the note-row editor; the turn
+		// `gui/views/instrument_clip_view.cpp:6338-6342`: no colour shifting in the note-row editor; the turn
 		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6541-6543`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -730,7 +730,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
 	   "`inNoteOrNoteRowEditor`", _ {
-		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5540-5542`), and
+		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5562-5564`), and
 		// `:5143-5144` then re-targets the active mod-controllable (`:5156`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

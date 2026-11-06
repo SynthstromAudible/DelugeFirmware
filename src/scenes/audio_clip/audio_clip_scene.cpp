@@ -1191,7 +1191,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 				// `:157-218`, the "grey regions + flashing columns" loop. `drawUndefinedArea` is
 				// the caller's fourth argument and defaults to true (`audio_clip_view.h:32`);
 				// `doAnyPendingGridRendering` calls the three-argument form
-				// (`gui/ui/ui.cpp:358`), so on the device it is always true.
+				// (`gui/ui/ui.cpp:359`), so on the device it is always true.
 				for (int32_t y = 0; y < main.bounds().h; y++) {
 					// -------- END marker (`:160-181`) --------
 					if (end_square < kMainCols) {

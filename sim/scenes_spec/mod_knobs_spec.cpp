@@ -1656,7 +1656,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
-		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5548-5555`);
 		//    without it the song resolves nothing and this shape would collapse into shape 1.
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
@@ -1884,7 +1884,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = f.song;
-		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
+		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5548-5555`)
 		pf.song->persistentView.affectEntire = true;
 
 		KnobRig rig;

@@ -73,7 +73,7 @@
 /// @par `on_resume()` and popups
 ///
 /// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), because `closeUI` calls `focusRegained()` on
-/// whatever it leaves on top (`gui/ui/ui.cpp:223-228`). A legacy popup is a display overlay, not a UI, while a shell
+/// whatever it leaves on top (`gui/ui/ui.cpp:223-229`). A legacy popup is a display overlay, not a UI, while a shell
 /// popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an
 /// `input_transparent()` overlay never holds it, so a popup the scene raises coming and going does not reset its
 /// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in

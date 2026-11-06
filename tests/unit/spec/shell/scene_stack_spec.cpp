@@ -366,7 +366,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	it("a refused replace_top resumes the scene it exited, whatever the input top is", _ {
 		// `replace_top`'s rollback is the one arm that is *not* an input-top question.
 		// `changeUIAtLevel`'s failure path calls `oldUI->focusRegained()` unconditionally
-		// (`gui/ui/ui.cpp:125-130`), and it is right to: the previous scene really was exited, so
+		// (`gui/ui/ui.cpp:126-131`), and it is right to: the previous scene really was exited, so
 		// `on_resume` is the paired notification for an `on_exit` that ran, not a claim about the
 		// top. Here the restored scene is the passive layer, and it is still the one told.
 		Rig r;
