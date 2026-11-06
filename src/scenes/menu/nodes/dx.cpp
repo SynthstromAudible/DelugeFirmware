@@ -505,7 +505,7 @@ deluge::ui::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/, con
 }
 
 void DxParamItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	state.dx.pad_blink = false;
+	state.dx.pad_blink = std::exchange(state.dx.blink_on_focus, false);
 }
 
 std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& /*ctx*/, const MenuState& state) const {

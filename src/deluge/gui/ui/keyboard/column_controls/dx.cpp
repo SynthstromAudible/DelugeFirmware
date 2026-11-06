@@ -24,6 +24,7 @@
 #include "hid/buttons.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/shell_menu_entry.h"
 #include <algorithm>
 
 using namespace deluge::gui::ui::keyboard::layout;
@@ -98,7 +99,12 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 
 	int op = 8 - pad.y - 1; // op 0-5
 	if (Buttons::isShiftButtonPressed()) {
-		menu_item::dxParam.openForOpOrGlobal(op);
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			(void)deluge::gui::ui::openShellDxColumn(op);
+		}
+		else {
+			menu_item::dxParam.openForOpOrGlobal(op);
+		}
 	}
 	else if (op < 6) {
 		// The column's patch is the current synth's first source's (getCurrentDxPatch).

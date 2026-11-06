@@ -119,7 +119,8 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief Opens with no pad blinking (`DxState::pad_blink`).
+	/// @brief Opens with no pad blinking (`DxState::pad_blink`), unless the keyboard's DX column opened it
+	///        (`DxState::blink_on_focus`).
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The param's own pad, every other cycle, once a horizontal step has set it up; none for the scaling params
 	///        (`readValueAgain`'s `setupShortcutBlink(x, y, 1)`).

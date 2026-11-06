@@ -686,6 +686,49 @@ describe dx_pages("the DX7 menu pages", ${
 		// The LFO row's first pad: pastel blue in the DX7 map, dimmed as every overlay pad is.
 		expect(on_page[0][0] == elsewhere[0][0]).to_be_false();
 	});
+	it("moves the param as legacy's openForOpOrGlobal does for every DX column pad, on the page and off it", _ {
+		DxRig r;
+		RootUI* const root = getRootUI();
+		const int32_t open = numUIsOpen;
+		setRootUILowLevel(&soundEditor); // the editor is open...
+		const uint8_t depth = soundEditor.navigationDepth;
+		::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+		soundEditor.menuItemNavigationRecord[depth] = &legacy::dxParam; // ...on the parameter page
+		for (int32_t op = 0; op < 8; op++) {
+			// Off the page, legacy's `setup()` opens it and the param is the operator's level, or the algorithm.
+			expect(static_cast<int32_t>(dx::column_param(5, op, false))).to_equal(op < 6 ? op * 21 + 16 : 134);
+			for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+				legacy_on(p);
+				legacy::dxParam.openForOpOrGlobal(op);
+				const std::string tag = "op " + std::to_string(op) + " from " + std::to_string(p) + " ";
+				expect(tag + std::to_string(dx::column_param(p, op, true)))
+				    .to_equal(tag + std::to_string(legacy::dxParam.param));
+			}
+		}
+		soundEditor.menuItemNavigationRecord[depth] = was;
+		if (root != nullptr) {
+			setRootUILowLevel(root);
+		}
+		numUIsOpen = open;
+	});
+
+	it("toggles on the page and moves the menu there from elsewhere on a DX column press, its pad blinking", _ {
+		select_language();
+		MenuRig r;
+		menu_scene().land_dx(menu::DxState{.param = 16});
+		r.open(nodes::dx_param);
+		menu_scene().dx_column_press(0); // operator index 0's level again: its coarse tuning
+		r.tick();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(18);
+		expect(r.state().dx.pad_blink).to_be_true();
+		r.open(nodes::dx_global_params);
+		menu_scene().dx_column_press(4); // from another page: the parameter page, on operator index 4's level
+		r.tick();
+		r.tick();
+		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
+		expect(r.state().dx.pad_blink).to_be_true();
+	});
 });
 // clang-format on
 

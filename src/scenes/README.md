@@ -10,7 +10,7 @@ reaches them through `scenes/bind` and a `MenuContext` rather than through legac
 
 The library is linked into the firmware and the host app, and runs behind the **`ShellMenu`
 community feature, which is Off by default**. With it off the device runs legacy's `SoundEditor` and
-its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, eleven of the fourteen
+its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, thirteen of the fifteen
 `openUI(&soundEditor)` sites open this tree instead, inside `ShellHostUI` (see "Coexistence with
 legacy" below).
 
@@ -633,9 +633,9 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: eleven of the fourteen
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: thirteen of the fifteen
 `openUI(&soundEditor)` sites call it when `shellMenuEnabled()`, and run their exact legacy statements
-otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
+otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -725,7 +725,7 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| the keyboard's DX column | Shift + a DX column pad opens legacy's parameter page | a DX column gate |
+| the keyboard DX column's flash and the breakpoint blink | the column's edited-operator row does not flash white under the ported page, and a keyboard scaling breakpoint does not blink its note's pad | the flash row read through `util/sound_menu_open.h`, and the breakpoint pad in the page's own blink |
 | two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |

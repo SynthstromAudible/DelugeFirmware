@@ -264,6 +264,9 @@ struct DxState {
 	/// Whether the parameter page's pad blinks. Legacy's `beginScreen` unsets the blink `readValueAgain` has just set
 	/// up (`updatePadLightsFor`), so the page opens with none, and a horizontal step sets it up again.
 	bool pad_blink = false;
+	/// Open the parameter page with its pad blinking: the keyboard's DX column opens it with `setup()` and then sets
+	/// the param (`openForOpOrGlobal`'s `readValueAgain`, after `beginScreen`). Spent by the page's focus.
+	bool blink_on_focus = false;
 	bool operator==(const DxState&) const = default;
 };
 

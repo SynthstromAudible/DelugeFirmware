@@ -202,6 +202,24 @@ std::optional<Pad> param_pad(int16_t param) {
 	return Pad{static_cast<uint8_t>(x), static_cast<uint8_t>(y)};
 }
 
+int16_t column_param(int16_t current, int32_t op, bool on_page) {
+	const int32_t level = op < 6 ? op * kOperatorParams + 16 : kFirstGlobal + 8; // output level, or the algorithm
+	if (!on_page) {
+		return static_cast<int16_t>(level);
+	}
+	if (current == level) {
+		return static_cast<int16_t>(op < 6 ? op * kOperatorParams + 18 : kFirstGlobal + 9); // coarse, or feedback
+	}
+	constexpr int32_t kCarriesBelow = kFirstGlobal + 8; // the operators' params and the pitch envelope
+	if (current >= 0 && current < kCarriesBelow) {
+		const int32_t carried = op * kOperatorParams + current % kOperatorParams;
+		if (carried != current && carried < kCarriesBelow) {
+			return static_cast<int16_t>(carried);
+		}
+	}
+	return static_cast<int16_t>(level);
+}
+
 std::optional<int16_t> pad_param(uint8_t x, uint8_t y) {
 	constexpr uint8_t kMainColumns = 16;
 	if (x >= kMainColumns) {

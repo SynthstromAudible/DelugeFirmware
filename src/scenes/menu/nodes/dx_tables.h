@@ -100,4 +100,16 @@ std::optional<Pad> param_pad(int16_t param);
 /// @return The param, or nothing for a pad that picks none (row 1 past column 10, row 0 past column 7).
 std::optional<int16_t> pad_param(uint8_t x, uint8_t y);
 
+/// @brief The param Shift + the keyboard's DX column pad for operator @p op opens the parameter page on
+///        (`DxParam::openForOpOrGlobal`, `param.cpp:508-536`): the operator's output level, or the algorithm for the
+///        column's two global pads (@p op 6 and 7).
+///
+/// With the page already showing (@p on_page), a press repeating that param toggles to the operator's coarse tuning
+/// (the algorithm's feedback), and an operator's param carries to the same param of the pressed operator. An envelope
+/// step carries between an operator and the pitch envelope too.
+/// @param current The param the page shows now.
+/// @param op      The operator, 0-5, as `8 - y - 1` numbers the column's rows; 6 and 7 for the two below.
+/// @param on_page Whether the parameter page is the one open.
+int16_t column_param(int16_t current, int32_t op, bool on_page);
+
 } // namespace deluge::scenes::menu::dx

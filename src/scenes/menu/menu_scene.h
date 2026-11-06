@@ -394,6 +394,12 @@ public:
 	///        browser read a bank. `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)` then cleared
 	///        `shouldGoUpOneLevelOnBegin`, so the page sits under "load DX7 .syx file", whose BACK reopens the browser.
 	void land_dx_cartridge() { land_dx_cartridge_ = true; }
+	/// @brief Shift + the keyboard's DX column pad for operator @p op with the menu open: `openForOpOrGlobal`. On the
+	///        parameter page it moves the param (`dx::column_param`'s toggle and carry); anywhere else the menu moves
+	///        to the page on the operator's param, as legacy's `setup()` re-roots, on its next tick. Either way the
+	///        param's pad blinks.
+	/// @param op The operator, 0-5; 6 and 7 for the column's two global pads.
+	void dx_column_press(int32_t op);
 
 	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
 	///
@@ -574,6 +580,8 @@ private:
 	bool landing_survives_resume_ = false;
 	/// The `.syx` browser over the menu read a bank: its resume lands on the cartridge page (`land_dx_cartridge`).
 	bool land_dx_cartridge_ = false;
+	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
+	uint16_t pending_retarget_ = 0;
 
 	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
 	///        `beginScreen` -- a new screen.

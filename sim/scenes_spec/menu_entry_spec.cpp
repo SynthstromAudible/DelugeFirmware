@@ -1,8 +1,8 @@
 /// @file
-/// @brief The gate in front of the fourteen `openUI(&soundEditor)` sites, driven
+/// @brief The gate in front of the fifteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
-/// `gui/ui/shell_menu_entry.cpp` carries the fourteen-site table; this file drives the eight that
+/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the eight that
 /// are gated, one example per *argument shape*, plus the toggle itself. It is at this level and not
 /// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
@@ -39,6 +39,7 @@
 #include "util/shell_menu_entry.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/column_controls/dx.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -399,6 +400,41 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		    .to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_menu).to_be_true();
 		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("site 15 opens the DX7 parameter page on the column's operator, its pad blinking, keeping the undo log", _ {
+		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		f.song->setCurrentClip(f.clip);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		closeGuest();
+
+		// Through the column itself, its Shift arm gated: row 5 is operator index 2 (`8 - y - 1`), acted on release.
+		{
+			HeldShift shift;
+			deluge::gui::ui::keyboard::controls::DXColumn column;
+			deluge::gui::ui::keyboard::PressedPad release{};
+			release.x = 17;
+			release.y = 5;
+			release.active = false;
+			column.handlePad(nullptr, release, nullptr);
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 16);
+		expect(deluge::scenes::menu_scene().state().dx.pad_blink).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		// With the guest open the press is the menu's: the same operator again toggles to its coarse tuning.
+		expect(entry::openShellDxColumn(2)).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 18);
 		closeGuest();
 	});
 

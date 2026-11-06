@@ -34,6 +34,7 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx_tables.h"
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -123,6 +124,8 @@ void MenuScene::retarget(const Node& node) {
 void MenuScene::reset_process_state() {
 	walk_.forget_rows();
 	st_.dx = DxState{};
+	pending_retarget_ = 0;
+	land_dx_cartridge_ = false;
 	view_.forget_acceleration();
 	voice_usage_ = VoiceUsageClock{};
 }
@@ -291,6 +294,19 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	}
 	landing_survives_resume_ = true;
 	return SceneId{SceneKind::FirstApp, id};
+}
+
+void MenuScene::dx_column_press(int32_t op) {
+	const bool on_page = focused() == &nodes::dx_param;
+	st_.dx.param = dx::column_param(st_.dx.param, op, on_page);
+	if (on_page) {
+		st_.dx.pad_blink = true;
+	}
+	else {
+		st_.dx.blink_on_focus = true;
+		pending_retarget_ = node_id(nodes::dx_param);
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
 void MenuScene::delete_range_press() {
@@ -627,6 +643,12 @@ Result MenuScene::after_render_navigation() {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+		return r;
+	}
+	if (const uint16_t to = std::exchange(pending_retarget_, 0); to != 0) {
+		// `dx_column_press` off the parameter page: `setup()` re-roots, as a shortcut's `Replace` does.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = SceneId{SceneKind::FirstApp, to}});
 		return r;
 	}
 	if (std::exchange(st_.walk.exit_completely, false)) {
