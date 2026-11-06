@@ -14,8 +14,8 @@
  "RS_AUDIO_COMP_ONSET": {
   "frames": 384000,
   "peak": 1141902080,
-  "rms_db": -17.25,
-  "sha256": "7a41c53b209bc887e953b0354170ebcda8a8b26dd2ab89355f4bbedcfc204451"
+  "rms_db": -17.24,
+  "sha256": "6029a76c12bfe07951f734955d233f7f87e8a54bb81aa0d2af37b107d6471aed"
  },
  "RS_AUDIO_COMP_RESET": {
   "frames": 384000,
@@ -27,25 +27,25 @@
   "frames": 384000,
   "peak": 1192348416,
   "rms_db": -14.46,
-  "sha256": "4dde3d70f228d6e7595a9e5e4676d4951ab302b4b4d6b6aad96c05fdb004fff8"
+  "sha256": "f9fd8672f63b450638ad8fcb0d8303a2a28be07e3cbe108afe481470b3dbda92"
  },
  "RS_AUDIO_DELAY_EXTREMES": {
   "frames": 384000,
   "peak": 1141836032,
   "rms_db": -14.81,
-  "sha256": "0930d5f09fe2242f8723727d904d8dd4ce26defea0b1ed061b4a80bfe079340c"
+  "sha256": "01e7c967b5a9168dc018014525a2da5f2087ae820d56c7f215fd825b23e4488d"
  },
  "RS_AUDIO_DELAY_SWITCH": {
   "frames": 384000,
-  "peak": 1525120512,
+  "peak": 1525150208,
   "rms_db": -11.98,
-  "sha256": "e293554d24e05fa99bd08c6b4d43eb56739d0590a6631e3ca9842194fed2b4b5"
+  "sha256": "4a9de2d6e740dd28f00816cd1496466b9ee8246b94ecc5a918c461d7f76f0c16"
  },
  "RS_AUDIO_DELAY_TOGGLE": {
   "frames": 384000,
   "peak": 1586480128,
   "rms_db": -11.96,
-  "sha256": "ba90afc69229635432728c13933c3d246d663758a7f7200547adcccabb11f047"
+  "sha256": "b3cfb843aa4abc6b30fa1b7050e612524c04b135d03947fbb7e8a55576bfaa90"
  },
  "RS_AUDIO_DRIVE": {
   "frames": 384000,
@@ -57,25 +57,25 @@
   "frames": 384000,
   "peak": 1493415424,
   "rms_db": -14.08,
-  "sha256": "a8bc9b5838f8163fa9b5cc79441b2e20df62e7b901813b3d6eab79f037219a7d"
+  "sha256": "6ebd05658371ac84e48beeff21b80cb82e2fb9b4dcccade68428caa07d36be0a"
  },
  "RS_AUDIO_FILTERS": {
   "frames": 384000,
   "peak": 2107020288,
   "rms_db": -8.99,
-  "sha256": "a038986b6e2f14af5718949bfbef8a0da5e629b925d27f715a6a5811a257efd3"
+  "sha256": "e2049725e4173d6725dae131bee3d44df2f4bc7d878c33d88c77df8e01010211"
  },
  "RS_AUDIO_FILTER_FADE": {
   "frames": 384000,
   "peak": 1141902080,
   "rms_db": -15.43,
-  "sha256": "4407a3f93975ef4398a1af356d1567d32d9aeba8c0682dc2d52a389960af44eb"
+  "sha256": "6a24015c2bd7897200a4e36a9da97924dc8688ca12eea947fdf37d02540097b1"
  },
  "RS_AUDIO_FX": {
   "frames": 384000,
   "peak": 1075748096,
   "rms_db": -22.75,
-  "sha256": "ac1d1692d1254613f8f3b8807e74c2d23daa4d108b4bb344671aa9e7b658f599"
+  "sha256": "15509971ae678972d332e758dab40de8eb967f7baff2f0d18d2cedcb3a3a325f"
  },
  "RS_BITCRUSH": {
   "frames": 384000,
@@ -87,19 +87,19 @@
   "frames": 384000,
   "peak": 285767168,
   "rms_db": -27.96,
-  "sha256": "8d7faabe729fc25a3b9b48e5d42ca9ab1c968cf9eaa6d24bc0bdf0373342287f"
+  "sha256": "d105607909163ff8a485f407370cf2321a6732373b5dbb0c289f4a0b58ef09b8"
  },
  "RS_DUCK_SHAPES": {
   "frames": 384000,
   "peak": 1504250368,
   "rms_db": -14.41,
-  "sha256": "cd2cc121d88628032bcd05ab99fcf227023ce48eae23d99ca460f41988ded247"
+  "sha256": "b076148718535f1e6351272ac848ed0390ce6669eccb3145ab0aa46a346b9570"
  },
  "RS_EQ_BANDS": {
   "frames": 384000,
   "peak": 1146359296,
   "rms_db": -14.71,
-  "sha256": "1eeecae6313406e456cc84a1602c24b7dc829bcf0e3eec64ad62e1c7d9300089"
+  "sha256": "40437bae3641da8a8e0674dfa1afe2260b7c9aebe30d7fc55314956002439bc5"
  },
  "RS_GRAIN_MASTER": {
   "frames": 384000,
@@ -111,7 +111,7 @@
   "frames": 384000,
   "peak": 1228997120,
   "rms_db": -19.8,
-  "sha256": "bc0c573f8c01792f2cae6de86443ab9db04efe2073ea6353738097ae2ed5a515"
+  "sha256": "5431211e117526f30ad61c5c6a52cec3f3db6fd22b0a9366e81dd8e68972089b"
  },
  "RS_GRAIN_OWNERS": {
   "frames": 384000,
@@ -122,8 +122,8 @@
  "RS_GRAIN_RESTART": {
   "frames": 512000,
   "peak": 1166575616,
-  "rms_db": -19.37,
-  "sha256": "75f48063158e2c8e03920a7635c51828ed54acf49d651a5fba00658736d4be4f"
+  "rms_db": -19.32,
+  "sha256": "5a534822f28faa33bdaad2e8bebbd67c4162d2211bb3bf77998b96f328c3eb76"
  },
  "RS_GRAIN_STEREO": {
   "frames": 384000,
@@ -147,13 +147,13 @@
   "frames": 384000,
   "peak": 182435584,
   "rms_db": -29.21,
-  "sha256": "f819a28929d671aa0aa6382f7bf8dede60b600de91b3cadd0be516574d870416"
+  "sha256": "093bdae3190b3351decbdf1e213133457454e6bade078cdf6b83da7dc40b4358"
  },
  "RS_KIT_FILTERS": {
   "frames": 384000,
-  "peak": 364424192,
+  "peak": 367291904,
   "rms_db": -27.4,
-  "sha256": "e3ec9c2d35caf34d46c1be55295a1fa8c75854236b0a7aca02a791971101f331"
+  "sha256": "3ea23f4ff254025c5801fe80b917a8315b6661b732f6c1345f36af5ab298b0a8"
  },
  "RS_KIT_FILTER_FADE": {
   "frames": 384000,
@@ -164,14 +164,14 @@
  "RS_KIT_FX": {
   "frames": 384000,
   "peak": 759232512,
-  "rms_db": -23.59,
-  "sha256": "06f16b3cee88acb1773176d13d0d810c8402bfc830495bdf4cf9a908292f7d5c"
+  "rms_db": -23.6,
+  "sha256": "b15e219289ce15f334ba5dafd3df9ae92812e3c393419ad4184b573424638f13"
  },
  "RS_KIT_PINGPONG": {
   "frames": 384000,
-  "peak": 286057984,
-  "rms_db": -29.7,
-  "sha256": "d56112e05a99bd5864f735edd5dd4c2fddcf788bc1cac7d4e1f19ac22fd75d0c"
+  "peak": 286423808,
+  "rms_db": -29.69,
+  "sha256": "17eb24444d699afdb31ad600ed84efa97f74391f3218ab1cd4169e84f550fc15"
  },
  "RS_KIT_SVF_MORPH": {
   "frames": 384000,
@@ -183,7 +183,7 @@
   "frames": 384000,
   "peak": 316533760,
   "rms_db": -23.99,
-  "sha256": "aaa97ba34bcf4ee36ac588f500d570bbb8721652c3dc73c2131a7ea3eb501128"
+  "sha256": "aae37881eb31b9220dc082746bbec2c1ed07093921ca4ea2b8c8f3f30997d0b2"
  },
  "RS_MASTER_ARRANGER": {
   "frames": 384000,
@@ -229,27 +229,27 @@
  },
  "RS_MODFX_MONO": {
   "frames": 384000,
-  "peak": 1555892480,
-  "rms_db": -12.08,
-  "sha256": "3ebdc890f3b5f8e8e1e50ba7b787f0a0fcb8764fcf8b8ba6091a6317345484f8"
+  "peak": 1580326912,
+  "rms_db": -12.06,
+  "sha256": "2e959c35c702dcfb6a0e0418b076ffd592536129b0988ded11fd6ba0a458c326"
  },
  "RS_MODFX_SOFT_OFF": {
   "frames": 384000,
   "peak": 1222706944,
   "rms_db": -21.14,
-  "sha256": "4e46f4d523b3e981718087b17fd046d806574a2b2b30c1e2fe6250ad0654b5a0"
+  "sha256": "66287ca311754db3a34b435dd0cc5c94198f167ee2189f32a62e51b08e445244"
  },
  "RS_MODFX_STEREO_A": {
   "frames": 384000,
   "peak": 1452845824,
-  "rms_db": -26.93,
-  "sha256": "0b72c62242a73eae6bcc4a4c4a8621e6b3a60db3c18b2948a75a357422e89412"
+  "rms_db": -26.94,
+  "sha256": "8596ca11d86b13a2987113e8bdc06924048bb9e70794526686cb8e0495313398"
  },
  "RS_MODFX_STEREO_B": {
   "frames": 384000,
   "peak": 867592704,
   "rms_db": -18.39,
-  "sha256": "2198cbb404446f09c3f67b68618658fbfb177add86650fc46e5a066957325ff9"
+  "sha256": "6ee78ead9766156540e1f85856b9839aec461bf78fe28761a3845eb21d0e0185"
  },
  "RS_MODFX_SWITCH": {
   "frames": 384000,
@@ -261,43 +261,43 @@
   "frames": 384000,
   "peak": 1217956608,
   "rms_db": -14.57,
-  "sha256": "6d1eab4efe9cb81dc96d96c7889d23517f7fa15778154f687cb8668e81f759cc"
+  "sha256": "2bb8f9f937533dd09142ae0f5acfc58ae8ae3c1a9ceedb3c803f22c43c4a06c0"
  },
  "RS_REVERB_DIGITAL": {
   "frames": 384000,
   "peak": 409601792,
   "rms_db": -25.34,
-  "sha256": "44d7520b5f6215058d84554103b345aeceb2c7273345ceabf03ce7df38e3a781"
+  "sha256": "1d5bbe01254eddec29a88c8b90c246a856db566a9e5fbf4aba5a7f8ef92d4d2b"
  },
  "RS_REVERB_DUCK_OVERRIDE": {
   "frames": 384000,
   "peak": 1779755264,
   "rms_db": -14.32,
-  "sha256": "985a3ea5a58f66267da3d4008c9fdc19b811c9c4ce8459fca5c4c06f6a20055e"
+  "sha256": "02253f852fa6d47f47ec0b2d9db1d7c94f44e468d7e8959df929c281660faaf3"
  },
  "RS_REVERB_DUCK_OVERRIDE_TRACK": {
   "frames": 384000,
   "peak": 1842103552,
   "rms_db": -13.37,
-  "sha256": "3ffe304232a6ca41025418efb7c67198003384025099cae535689be87df544c3"
+  "sha256": "37ee3204d28eb0c2847518f6bb73afca26466ba4608920b01f3a215e3b09cc46"
  },
  "RS_REVERB_FREEVERB": {
   "frames": 384000,
   "peak": 490156032,
   "rms_db": -26.52,
-  "sha256": "7eb1a5bb152b7686e6a9ba31cf0e3a9602e81c6e168151df9adfbfb03266291a"
+  "sha256": "c1e66bdac827963bce96fc68e5454e07bb383c8b5e30c5a98445378c192ae051"
  },
  "RS_REVERB_MUTABLE": {
   "frames": 384000,
   "peak": 676869888,
   "rms_db": -21.95,
-  "sha256": "a204b22e841fa666f6fc57916ef693cad33bc43d13fb53cf24200936b9f916c6"
+  "sha256": "187e572eec85d866275902a805d7fcf839bdb838b3a6db6f4fce4ba117384c66"
  },
  "RS_REVERB_SWITCH": {
   "frames": 384000,
   "peak": 676869888,
   "rms_db": -23.01,
-  "sha256": "ad3888cebfc2c85997100aebc600e37925de124d03d708d0ac8e83599e387880"
+  "sha256": "9d93f509a839447c509280dd207ccb1b3841dcbd02c6bac4fb58f4d6415cfa1b"
  },
  "RS_STREAM": {
   "frames": 384000,
@@ -309,13 +309,13 @@
   "frames": 384000,
   "peak": 1149059840,
   "rms_db": -14.48,
-  "sha256": "443fb0fb188a184067513d6a0ddc3e44c4029067279722476695f41a0b63d8ac"
+  "sha256": "e3b2789f9e3292dff4396d5436df43152425660394f18e6c5413c44d008d8f5a"
  },
  "RS_STUTTER_HANDOFF": {
   "frames": 384000,
   "peak": 1146359296,
   "rms_db": -14.77,
-  "sha256": "8a2b9093b4d292094e137fe1650d566e540aa6a55e6f7174479b1e7a954528ee"
+  "sha256": "d18c9dbdc48da59c3145d93fcc172fc281352a5f67b91ac01abea1065a3d56f5"
  },
  "RS_STUTTER_KIT": {
   "frames": 384000,
@@ -327,19 +327,19 @@
   "frames": 384000,
   "peak": 1149059840,
   "rms_db": -13.94,
-  "sha256": "bf594376dde10204fbeee947774a20577494e5dff560e80d586fe9fa7b184447"
+  "sha256": "9cb20d7020e1b16649248a7a8bdd8787202ea402b6e7a936025dd702bb00a012"
  },
  "RS_STUTTER_RATE": {
   "frames": 384000,
   "peak": 1149059840,
   "rms_db": -13.93,
-  "sha256": "a4c090dba6b0d7711f984259d4afe96a2c619acadde91dde7c5f7b17de15e468"
+  "sha256": "bd58383594105bb84e1fdb92c940992d13a352cae0710a26e2cdbd2c4ea441db"
  },
  "RS_STUTTER_SYNTH": {
   "frames": 384000,
   "peak": 1149059840,
   "rms_db": -14.73,
-  "sha256": "1c17031a02daf543bd0b0448d6d6135190de889f584c854924421c844bac3985"
+  "sha256": "d1dfa568641b97101832a3bc621a8822d73f525723a878853aab19c694f91f0f"
  },
  "RS_TEMPO_DELAYS": {
   "frames": 384000,
