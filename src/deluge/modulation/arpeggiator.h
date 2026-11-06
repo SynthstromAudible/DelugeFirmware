@@ -36,6 +36,9 @@ class UnpatchedParamSet;
 
 constexpr uint32_t RANDOMIZER_LOCK_MAX_SAVED_VALUES = 16;
 constexpr uint32_t ARP_MAX_INSTRUCTION_NOTES = 4;
+/// Held notes an arpeggiator has room for from the start: a note-on (the render's, or a late start's with the render
+/// held off) adds to its note lists without allocating until more are held.
+constexpr size_t kArpNotesReserved = 8;
 constexpr uint32_t PATTERN_MAX_BUFFER_SIZE = 16;
 
 constexpr int16_t ARP_NOTE_NONE = 32767;
