@@ -1,0 +1,46 @@
+# The DX7 parameter page's own pad layout (Shift + pad (4,0) on a DX7 sound): Shift held shows the DX colour map, and
+# Shift + a pad picks that pad's parameter (an operator's envelope, the pitch envelope, random detune, amp mod
+# sensitivity); Shift + a pad with no DX parameter leaves the page as it is.
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  button Back down
+7020  button Back up
+8000  button Shift down
+8100  pad 4 0 down
+8150  pad 4 0 up
+8200  button Shift up
+9000  snapshot dx-param
+9500  button Shift down
+10000 snapshot overlay
+10500 button Shift up
+11000 button Shift down
+11100 pad 3 4 down
+11150 pad 3 4 up
+11200 button Shift up
+12000 snapshot op-param
+12500 button Shift down
+12600 pad 5 1 down
+12650 pad 5 1 up
+12700 button Shift up
+13500 snapshot global
+14000 button Shift down
+14100 pad 7 0 down
+14150 pad 7 0 up
+14200 button Shift up
+15000 snapshot detune
+15500 button Shift down
+15600 pad 14 7 down
+15650 pad 14 7 up
+15700 button Shift up
+16500 snapshot ampmod
+17000 button Shift down
+17100 pad 12 0 down
+17150 pad 12 0 up
+17200 button Shift up
+18000 snapshot swallowed
+18500 button Back down
+18520 button Back up
+19500 snapshot closed

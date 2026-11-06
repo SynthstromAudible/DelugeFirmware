@@ -1,0 +1,47 @@
+# "load DX7 .syx file" in "DX7 source" opens the .syx browser on DX7/; a bank read lands on the cartridge page, whose
+# turn loads a program. BACK from the cartridge page reopens the browser (the browse row is under it), and BACK from
+# the browser returns to "DX7 source". A bank in a subfolder loads too, and SELECT on the cartridge list leaves the
+# menu with the program's name on the unsaved synth.
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  button Back down
+7020  button Back up
+8000  button Shift down
+8100  pad 2 2 down
+8150  pad 2 2 up
+8200  button Shift up
+9000  button SelectEnc down
+9020  button SelectEnc up
+10000 snapshot dx-menu
+10500 button SelectEnc down
+10520 button SelectEnc up
+13500 snapshot syx-list
+14000 encoder Select +1
+15000 snapshot rom1a
+15500 button SelectEnc down
+15520 button SelectEnc up
+18500 snapshot cartridge
+19000 encoder Select +1
+20000 snapshot program-2
+20500 button Back down
+20520 button Back up
+23500 snapshot back-browser
+24000 button Back down
+24020 button Back up
+25000 snapshot back-source
+25500 button SelectEnc down
+25520 button SelectEnc up
+28500 snapshot syx-again
+29000 button SelectEnc down
+29020 button SelectEnc up
+31000 snapshot subfolder
+31500 encoder Select +1
+32000 button SelectEnc down
+32020 button SelectEnc up
+35000 snapshot cartridge-sub
+35500 button SelectEnc down
+35520 button SelectEnc up
+36500 snapshot exited
