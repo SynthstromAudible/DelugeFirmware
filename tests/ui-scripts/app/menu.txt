@@ -206,7 +206,7 @@
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
-# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:871`) which
+# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:729`) which
 # no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
 6500   button Back down
 6520   button Back up
@@ -239,14 +239,9 @@
 # `sample_browser.cpp`) against the ported `browser::BrowserScene` on the `Sample` descriptor
 # (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one file.
 #
-# **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
-# are byte-identical; the *pads* are not. Legacy `SampleBrowser` opens with the keyboard hidden and
-# the sample's waveform on the main grid (`sample_browser.cpp:112`,
-# `SampleBrowser::renderMainPads` at `:2129`), swapping between the two as the selection moves; the
-# ported scene always draws the text keyboard, because the swap needs `AudioEngine::previewSample`,
-# `PadLEDs`' scroll transition and the marker editor. That is `BrowserScene::render_grid`'s own
-# note (`scenes/browser/browser_scene.cpp`), seen here for the first time at level 3. The
-# LED lines differ too, in the direction every menu golden above already differs.
+# **`file-selector.state`'s pads are the same on both legs**: the sample browser opens with no keyboard and no
+# preview, so the root view shows through, greyed (`SampleBrowser::renderMainPads` answers false). The LED lines
+# differ by LOAD: the press before the snapshot turns legacy's auto-load on, which the ported browser does not take yet.
 9900   pad 17 4 down
 10200  snapshot auditioning
 10400  button Load down
@@ -255,7 +250,7 @@
 11300  pad 17 4 up
 
 # **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
-# (`sample_browser.cpp:392`) with the toggle off, and with it on it is `BrowserScene`'s deferred
+# (`sample_browser.cpp:393`) with the toggle off, and with it on it is `BrowserScene`'s deferred
 # choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
@@ -400,9 +395,9 @@
 # new, empty kit (with a note in it, KIT refuses: "CLIP NOT EMPTY"). A new kit runs
 # `InstrumentClipView::enterDrumCreator` on its row 0 (`completeNewInstrument`): a new drum and the sample browser open
 # on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". Under the toggle
-# the ported browser opens on the new drum's file selector, so the legs' pads differ as `file-selector`'s do (the
-# ported browser shows its keyboard from the start: D23), the KIT LED is off under the guest as SYNTH is there, and the
-# new drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
+# the ported browser opens on the new drum's file selector. The legs' pads differ: legacy's root view shows its sidebar
+# columns only, the ported leg's greyed main pads too (open; the emulator's `c12` runs against `main`), and the new
+# drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
 # drum-creator arm, which deletes the drum only while the kit holds another drum no row uses -- this kit holds none,
 # so the drum stays on both legs and the clip view shows KIT 1.
 27200  pad 2 4 down

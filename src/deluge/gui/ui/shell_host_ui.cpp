@@ -352,7 +352,7 @@ void ShellHostUI::syncPads() {
 		// A scene that takes the main pads and greys every column is the menu's SHIFT overlay, whose greyout
 		// `renderMainShortcutsOnly` applies at once (`PadLEDs::doGreyoutInstantly()`) rather than fading it in.
 		const bool overlay = deluge::ui::shell::holds(gained, PadRegions::Main) && mask.cols == 0xFFFFFFFFu;
-		PadLEDs::reassessGreyout(overlay);
+		PadLEDs::reassessGreyout(overlay || shell_.stack().input_top().greyout_changes_instantly());
 	}
 }
 
@@ -545,6 +545,9 @@ ActionResult ShellHostUI::timerCallback() {
 	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.
 	pollShellSlicer();
 
+	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
+	refreshShellSamplePreviewSounds();
+
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//
 	// `exitUI()` below is the LONG press: `Buttons` arms `TimerName::BACK_MENU_EXIT` for
@@ -578,6 +581,10 @@ ActionResult ShellHostUI::timerCallback() {
 	}
 
 	syncPads();
+
+	// The drains above handed scenes their answers after `Shell::tick` computed its wake (a preview settling changes
+	// the browser's pads, and its timer asks for the repaint).
+	shell_.reconsider_wake(now);
 
 	// Unconditional here, but **not unconditional inside**: `rearmTimer` refuses when this guest is
 	// no longer the current UI, which is exactly what the drain above leaves behind when an arm ends
@@ -764,6 +771,10 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		return true;
 	case deluge::ui::shell::GridPadClaim::None:
 		return false;
+	case deluge::ui::shell::GridPadClaim::AllButAudition:
+		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
+		// root, and swallowed by the browser otherwise.
+		return x != kDisplayWidth + 1 || !rootTakesAuditionPad();
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
 		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
 		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,
@@ -913,6 +924,13 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 	                      static_cast<int16_t>(on ? 255 : 0)});
 
+	// The sample browser's RECORD opens the recorder (the browser acts on the press fed above) and is not the global
+	// RECORD's as well (`SampleBrowser::buttonAction`).
+	if (b == deluge::hid::button::RECORD && browserTakesRecord()) {
+		armTickSoon();
+		return ActionResult::DEALT_WITH;
+	}
+
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
 	// its `if`/`else if` chain has no arm for Play, Shift, Record, Tempo-enc or either mod-encoder
@@ -960,6 +978,12 @@ void ShellHostUI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 }
 
+void ShellHostUI::scrollFinished() {
+	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
+	surfaces_.hold_main_columns(false);
+	surfaces_.take_grid();
+}
+
 void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
 	if (whichButton >= std::size(deluge::hid::button::ZmodButtonX)) {
 		return;
@@ -1003,6 +1027,13 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 		return *result;
 	}
 	if (const std::optional<ActionResult> result = forwardMenuVertical(offset)) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+	if (const std::optional<ActionResult> result = forwardBrowserVertical(offset)) {
 		shell_.note_activity(nowMs());
 		if (getCurrentUI() == this) {
 			armTickSoon();
@@ -1188,6 +1219,7 @@ void ShellHostUI::closeGuest() {
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);
+	refreshShellSamplePreviewSounds(); // the emptied stack: no preview sounds when the guest next opens
 
 	// No arm on the close path: `UI::close()` is `closeUI(this)`, which unsets
 	// `TimerName::UI_SPECIFIC` itself before handing focus to the UI beneath. Arming here would either be undone one

@@ -3,6 +3,8 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "scenes/services/waveform_paint.h"
+
 #include "ui/grid/columns.h"
 #include "ui/grid/waveform.h"
 #include "ui/oled/detail/int_to_string.h"
@@ -79,7 +81,7 @@ std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<
 // Lifecycle
 
 void SlicerScene::open(Sample* sample) {
-	// `SampleBrowser::renderPreviewForTarget` (`gui/ui/browser/sample_browser.cpp:653-655`), onto this
+	// `SampleBrowser::showPreview` (`gui/ui/browser/sample_browser.cpp:692-693`), onto this
 	// scene's own navigator rather than the shared `waveformBasicNavigator` global. `opened()` with
 	// no holder is legacy's own call there: no remembered view, so the slicer opens zoomed all the
 	// way out. Reopened on the sample it already shows, the navigator is kept, render cache and all: legacy's global is
@@ -672,24 +674,9 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	std::array<deluge::ui::grid::PeakCol, kDisplayWidth> peaks{};
-	const int32_t centre = nav_.sample->getFoundValueCentrePoint();
-	const int32_t span = nav_.sample->getValueSpan();
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		if (nav_.renderData.colStatus[x] != COL_STATUS_INVESTIGATED) {
-			continue;
-		}
-		int32_t min24 = 0;
-		int32_t max24 = 0;
-		deluge::sample::col_bar_positions(x, &nav_.renderData, &min24, &max24, centre, span);
-		peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
-	}
-
 	f.region(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight}, [&](deluge::ui::grid::GridFrame& main) {
-		// `renderOneCol`'s monochrome arm -- `rgb` is `nullopt` on both of legacy's calls, so
-		// `brightness` is 128 (`WaveformRenderer::renderOneCol`,
-		// `gui/waveform/waveform_renderer.cpp:243-246`). `waveform_full`'s precondition, honoured.
-		deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
+		services::paint_columns(main, nav_.renderData, nav_.sample->getFoundValueCentrePoint(),
+		                        nav_.sample->getValueSpan());
 
 		if (mode_ == Mode::Region) {
 			// `:106-110`: the full-screen waveform, and nothing else.

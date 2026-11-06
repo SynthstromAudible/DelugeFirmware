@@ -31,7 +31,7 @@ legacy" below).
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
 | `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
-| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, waveforms) |
+| `services/` | `ModKnobs`, `GlobalControls`, `MidiLearn` and what they share (knob pushes, source names, view state, waveforms, favourites) |
 
 | `SceneKind` | scene |
 |---|---|
@@ -349,9 +349,10 @@ by the automation view. The pixels are the toolkit's (`ui::grid::text_keyboard`,
 ### The context menu (`context_menu/`)
 
 `context_menu::ContextMenuScene` is one scene plus a `Descriptor` table, opened with
-`Action::Kind::Push` and a `DescriptorId` argument. Eight descriptors ship: the five settings resets,
-the audio clip's source selector, and the sample browser's two long-press menus (SAMPLES for a kit,
-LOAD FILES for a synth). The browser menus use the last three hooks: `options_now` (legacy's
+`Action::Kind::Push` and a `DescriptorId` argument. Nine descriptors ship: the five settings resets,
+the audio clip's source selector, the sample browser's two long-press menus (SAMPLES for a kit,
+LOAD FILES for a synth), and its DELETE? menu, which blinks SAVE as `main`'s saving menus do
+(`Descriptor::for_saving`). The browser's folder menus use the last three hooks: `options_now` (legacy's
 `isCurrentOptionAvailable`, re-asked before every render, turn and accept), `pad` (the keyboard
 beneath reads the press; `passes_pads_beneath`) and `busy` (BACK, Select and pads refused while
 their load runs). The window is `ui::oled::option_window`, not `ui::oled::list`: legacy insets the
@@ -366,7 +367,8 @@ menu tree reaches: `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition`.
 * **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
   `take_choice()` and closes, because the sample claim reaches the sound and the audio-file manager
   through paths this layer may not name. `gui::ui::dispatchShellChoices` performs it (with
-  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the source page.
+  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the page the chain lists the file
+  selector on: an oscillator's `source_group`, focused on the selector.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
   read with the press: a brand-new kit parks `BrowserChoice::Op::Slice` and the host opens the slicer
   once the file has loaded; any other kit refuses with legacy's popup; a synth claims.
@@ -376,6 +378,34 @@ menu tree reaches: `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition`.
   `BrowserChoice::Op` and stays up; the host performs it and calls `BrowserScene::long_press_done`.
   While a sample load runs (`RuntimeFacts::sample_load_in_flight`) the browser refuses every button
   and key, as legacy's gate does.
+* **The preview.** Wherever legacy's `SampleBrowser` calls `previewIfPossible` (a folder's listing
+  landing, a move, a typed search that lands on another file) and on leaving, the sample browser files
+  a `PreviewRequest` in `take_preview()`: the file's path, or an empty path to stop. The host drains it
+  after `take_choice()` and previews it with the shared `gui::ui::SamplePreviewer` (the legacy
+  browser's own load and sound), answering through `preview_settled`; `next_timer` polls while the
+  answer is owed. Each load's path becomes `SampleBrowser::lastFilePathLoaded`, which the browser
+  opens beside when its holder names no file in SAMPLES/ (`menu::host_last_sample_path`).
+* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed, the BROWSE pad
+  blinking), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
+  legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
+  legacy's image does not always follow them. The keyboard appears on the first main-pad press (typing only below
+  the favourites row) or a horizontal turn, and hides on every move and every folder listing unless KEYBOARD keeps
+  it. The audition column stays the instrument clip view's (`GridPadClaim::AllButAudition`), and the mute column
+  closes the browser.
+* **The scroll-in.** Where `SampleBrowser` calls `PadLEDs::horizontal::setupScroll`, the scene files a
+  `ScrollRequest` in `take_scroll()`; the host runs legacy's own animation from the image store (the root view, or
+  the guest grid's main columns once the waveform is drawn there), leaving the guest's main columns to it until
+  `ShellHostUI::scrollFinished`.
+* **The buttons.** LOAD's release toggles auto-load (not for an audio clip): each landed preview is claimed with
+  `BrowserChoice::keep_open`, which neither closes the browser nor re-roots the menu. RECORD opens the recorder in
+  the browser's place, and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
+  the host to free it (`menu::host_release_sample_file`), refusing with `main`'s popup when the song uses it, and
+  otherwise opens the DELETE? menu, whose OK the host performs (`BrowserChoice::Op::DeleteFile`) before the file
+  leaves the list (`BrowserScene::file_deleted`). The vertical encoder goes to the instrument clip view beneath
+  (`forwardBrowserVertical`), or recolours the current favourite with SHIFT.
+* **The favourites.** While the keyboard shows, row 7 (row 6 with banks, which take row 7) draws the "SAMPLES"
+  favourites through `services::Favourites` (`menu::host_favourites`, over `favouritesManager`): a press recalls
+  one, Shift+press sets or unsets it, the current one flashes every 500 ms.
 
 #### The listing seam and the catalogue claim
 
@@ -613,7 +643,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | The first gold-knob turn after boot is swallowed by the lowering's debounce, as legacy's `timeModEncoderLastTurned` starts at 0 too; accepted, and whether the mechanism is a defect needs a device (see the ledger). | `src/shell/input_lowering.h` |
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
 | The slicer's and the audio clip view's play cursor is always the slow flash: this layer cannot read the flash-cursor setting (see the boot wiring above). | `slicing/slicer_scene.cpp`, `audio_clip/audio_clip_scene.h` |
-| The ported browser opens on the default folder where legacy reopens on `SampleBrowser::lastFilePathLoaded`'s folder; the value lives on a `gui/` object. | `browser/browser_scene.cpp` |
 | A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp` |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad` |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback` |

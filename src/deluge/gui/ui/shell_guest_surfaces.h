@@ -153,7 +153,7 @@ public:
 	bool canReachMainPanel() const { return mainIndex_ >= 0; }
 
 	/// @brief Start a guest session: legacy owns every LED again, so none is held and the shell's
-	///        LED shadow is marked unsent.
+	///        LED shadow is marked unsent; the main columns are the guest's again.
 	///
 	/// Called when the guest opens. Legacy redraws its LEDs while the guest is shut, so a state the
 	/// shell sent in an earlier session says nothing about the board now: every LED the session
@@ -175,6 +175,13 @@ public:
 	///        pairs: those pads become the guest's after the UI underneath has drawn them.
 	void take_grid();
 
+	/// @brief Leave the main columns (0-15) to legacy, or take them back: while held, `send_columns` and
+	///        `take_grid` write none of them, so legacy's own horizontal scroll can animate `PadLEDs::image`.
+	/// @param hold Whether legacy has the main columns.
+	void hold_main_columns(bool hold) { mainHeld_ = hold; }
+	/// @brief Whether legacy has the main columns (`hold_main_columns`).
+	[[nodiscard]] bool main_columns_held() const { return mainHeld_; }
+
 private:
 	/// @brief Is column pair @p pair_index in a region @p owned holds?
 	/// @param owned The regions the guest draws.
@@ -193,6 +200,8 @@ private:
 	/// libdeluge display index of the `SurfaceRole::Main` surface, or -1 if this board has none
 	/// that legacy's single `OLED::main` can hold. Resolved once in the constructor.
 	int8_t mainIndex_ = -1;
+	/// Legacy's scroll has the main columns (`hold_main_columns`).
+	bool mainHeld_ = false;
 };
 
 } // namespace deluge::gui::ui

@@ -64,7 +64,6 @@ namespace deluge::gui::ui {
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
-/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **An uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
 /// | `getUI` | `ui.h` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
 /// | `getUIContextType` | `ui.h` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
 /// | `getUIModControllableContext` | `ui.h` | `NONE`, as `SoundEditor` leaves it. |
@@ -73,9 +72,8 @@ namespace deluge::gui::ui {
 /// | `isBanksVisible` | `ui.h:202` | False, as `SoundEditor` leaves it. |
 // clang-format on
 ///
-/// Two of those rows are gaps rather than settled answers and are named as gaps: `scrollFinished`
-/// above, and `displayOrLanguageChanged`, which **is** overridden below but only to ask the shell
-/// for a repaint -- see its own note for what that does and does not buy.
+/// One answer is a gap rather than settled: `displayOrLanguageChanged`, which **is** overridden below but only to
+/// ask the shell for a repaint -- see its own note for what that does and does not buy.
 ///
 /// @warning The `UI` virtuals span the whole of `gui/ui/ui.h`'s class, not just its first block: `getUIType()`,
 ///          near its end, is **pure** -- a guest written to the first block alone would not compile.
@@ -340,6 +338,9 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	/// @brief Feed mod button @p whichButton as its matrix button.
 	void modButtonAction(uint8_t whichButton, bool on) override;
+	/// @brief Legacy's horizontal scroll, which the sample browser starts through the host, has ended: leave
+	///        `UI_MODE_HORIZONTAL_SCROLL` and take the main columns back (`SampleBrowser::scrollFinished`).
+	void scrollFinished() override;
 	ActionResult timerCallback() override;
 	/// @brief Arm a tick at once if the shell has model facts to drain and this guest is the current UI.
 	///

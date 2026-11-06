@@ -131,6 +131,35 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 
+/// @brief How the ported browser's file deletion ended, as `DeleteFile::applyOutcome` reads the card's answer.
+enum class FileDeleteOutcome : uint8_t {
+	Removed, ///< The card removed the file.
+	Missing, ///< The file was not on the card.
+	Failed,  ///< The card refused it, or the channel stalled.
+};
+
+/// @brief Finish the ported browser's file deletion: `main`'s popup, and the file leaves the browser's list once the
+///        card has removed it. The shipped deleter calls this when the card answers.
+/// @param path    The file asked for.
+/// @param outcome How it ended.
+void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome);
+
+/// @brief What removes a file from the card for the ported browser's delete menu.
+using FileDeleteDispatch = void (*)(std::string_view path);
+
+/// @brief Install a deleter other than the card's, for specs, which cannot complete an unlink. Nothing outside a spec
+///        calls this.
+/// @param dispatch The deleter, or null to put the shipped one back.
+void setFileDeleteDispatch(FileDeleteDispatch dispatch);
+
+/// @brief What cancels an auto-load claim: `SampleClaim::cancelAutoLoad`'s shape.
+using SampleClaimCancel = void (*)();
+
+/// @brief Install an auto-load cancel other than `deluge::gui::sampleClaim`'s `cancelAutoLoad`, for specs, which
+///        cannot run a claim to cancel. Nothing outside a spec calls this.
+/// @param cancel The cancel, or null to put the shipped one back.
+void setSampleClaimCancel(SampleClaimCancel cancel);
+
 /// @brief The completion of a claim a sample browser folder menu asked for (BASIC, SINGLE-CYCLE, WAVETABLE).
 /// A failure closes the menu and leaves the browser (`Synth`'s `closeOnFailure`); a success closes both, as the claim's
 /// own exit does in `main`, and pays back what `shellSampleClaimDone` does.
@@ -195,6 +224,13 @@ void adoptShellMenuContext();
 /// (`BrowserScene`'s note on the `Defer` dispatcher, applied through
 /// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be
 /// applied to a menu the same tick's verb was about to take off the stack.
+///
+/// @par The preview, after the choice
+///
+/// Then `BrowserScene::take_preview()`, the sample browser's other outbox, one deep in the same way: a file is
+/// previewed (the shared `SamplePreviewer`, loading into `AudioEngine::sampleForPreview`), an empty path stops
+/// previewing; and on every tick the preview in hand is ticked, its landing answered through
+/// `BrowserScene::preview_settled`. The browser's `on_exit` files a stop, so a preview never outlives the scene.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///

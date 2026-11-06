@@ -5,6 +5,7 @@
 #include "effects/plugin.h"
 #include "effects/settings.h"
 #include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/views/view.h"
 #include "instruments/deluge/settings.h"
@@ -36,6 +37,7 @@
 #include "model/edits/set_setting.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/edits/set_velocity_to_level.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -67,6 +69,7 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -264,8 +267,9 @@ public:
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
-/// The waveforms of the current song: the sample a sound's source range holds, or an audio clip's (its recorder's
-/// take while it records linearly, as legacy's audio clip view draws it).
+/// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
+/// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which
+/// `SampleBrowser::showPreview` draws from its source 0, range 0.
 class ShellWaveforms final : public deluge::scenes::services::Waveforms {
 public:
 	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -297,6 +301,17 @@ private:
 	};
 	static Resolved resolve(const deluge::scenes::services::WaveformAddress& address) {
 		using Kind = deluge::scenes::services::WaveformAddress::Kind;
+		if (address.kind == Kind::PREVIEW) {
+			if (AudioEngine::sampleForPreview == nullptr) {
+				return {};
+			}
+			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
+				return {};
+			}
+			return {static_cast<::Sample*>(
+			    static_cast<MultisampleRange*>(source.ranges.getElement(0))->sampleHolder.audioFile)};
+		}
 		if (currentSong == nullptr) {
 			return {};
 		}
@@ -1116,6 +1131,57 @@ void host_grab_tempo(deluge::project::ClipAddress clip) {
 const deluge::scenes::services::Waveforms& host_waveforms() {
 	static const gui::ShellWaveforms waveforms;
 	return waveforms;
+}
+
+std::string host_last_sample_path() {
+	return sampleBrowser.lastFilePathLoaded;
+}
+
+namespace {
+
+/// @brief The favourites the legacy browsers show, through `favouritesManager`.
+class ShellFavourites final : public deluge::scenes::services::Favourites {
+public:
+	void set_category(std::string_view category) override { favouritesManager.setCategory(std::string{category}); }
+	void close() override { favouritesManager.close(); }
+	[[nodiscard]] deluge::scenes::services::FavouritesBank bank_state() const override {
+		switch (favouritesManager.bankState()) {
+		case deluge::favourites::BankState::Loading:
+			return deluge::scenes::services::FavouritesBank::Loading;
+		case deluge::favourites::BankState::Loaded:
+			return deluge::scenes::services::FavouritesBank::Loaded;
+		case deluge::favourites::BankState::Unavailable:
+			break;
+		}
+		return deluge::scenes::services::FavouritesBank::Unavailable;
+	}
+	[[nodiscard]] std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours() const override {
+		return favouritesManager.getFavouriteColours();
+	}
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override {
+		return favouritesManager.currentFavouriteNumber;
+	}
+	[[nodiscard]] uint8_t current_bank() const override { return favouritesManager.currentBankNumber; }
+	[[nodiscard]] bool is_empty(uint8_t position) const override { return favouritesManager.isEmpty(position); }
+	std::string recall(uint8_t position) override { return favouritesManager.getFavoriteFilename(position); }
+	void set(uint8_t position, std::string_view path) override {
+		favouritesManager.setFavorite(position, FavouritesManager::favouriteDefaultColor, std::string{path});
+	}
+	void unset(uint8_t position) override { favouritesManager.unsetFavorite(position); }
+	void select_bank(uint8_t bank) override { favouritesManager.selectFavouritesBank(bank); }
+	void change_colour(uint8_t position, int32_t offset) override { favouritesManager.changeColour(position, offset); }
+};
+
+} // namespace
+
+deluge::scenes::services::Favourites& host_favourites() {
+	static ShellFavourites favourites;
+	return favourites;
+}
+
+bool host_release_sample_file(std::string_view path) {
+	AudioEngine::stopAnyPreviewing();
+	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

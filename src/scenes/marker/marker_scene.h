@@ -14,8 +14,8 @@
 /// (`check_layer_rules.py`, `scenes-no-frame-primitives`):
 ///
 ///   * `renderMainPads`' `waveformRenderer.renderFullScreen`
-///     (`gui/ui/sample_marker_editor.cpp:1369`) -> `deluge::sample::find_peaks_per_col` +
-///     `ui::grid::waveform_full`.
+///     (`gui/ui/sample_marker_editor.cpp:1369`) -> `services::paint_full` (the scan through the waveform's
+///     address, then `ui::grid::waveform_full`).
 ///   * `renderColumn` / `renderMarkerInCol` (`:1268`, `:1058`) -> `ui::grid::marker_column` /
 ///     `marker_tint`.
 ///   * `renderOLED`'s `drawScreenTitle` (`:1128`) -> `ui::oled::title`.

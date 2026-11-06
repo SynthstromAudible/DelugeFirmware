@@ -17,6 +17,7 @@ namespace fakelegacyui {
 
 std::vector<UI*> closed;
 int oled_redraws = 0;
+std::vector<uint32_t> modes_exited;
 int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
@@ -33,6 +34,7 @@ bool knob_clear_saw_close = false;
 int service_wirings = 0;
 int action_dispatches = 0;
 int root_fact_refreshes = 0;
+bool root_takes_audition = false;
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
@@ -79,6 +81,7 @@ UI* current_ui = nullptr;
 void reset() {
 	closed.clear();
 	oled_redraws = 0;
+	modes_exited.clear();
 	mod_encoder_actions = 0;
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
@@ -95,6 +98,7 @@ void reset() {
 	service_wirings = 0;
 	action_dispatches = 0;
 	root_fact_refreshes = 0;
+	root_takes_audition = false;
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
@@ -280,6 +284,10 @@ UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
 }
 
+void exitUIMode(uint32_t uiMode) {
+	fakelegacyui::modes_exited.push_back(uiMode);
+}
+
 void renderUIsForOled() {
 	fakelegacyui::oled_redraws++;
 }
@@ -404,12 +412,23 @@ std::optional<ActionResult> forwardMenuVertical(int32_t) {
 	return std::nullopt;
 }
 
+std::optional<ActionResult> forwardBrowserVertical(int32_t) {
+	return std::nullopt;
+}
+
+bool browserTakesRecord() {
+	return false;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }
 
 void refreshShellRootFacts() {
 	fakelegacyui::root_fact_refreshes++;
+}
+
+void refreshShellSamplePreviewSounds() {
 }
 
 void dispatchShellActions() {
@@ -461,6 +480,10 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 // view.
 bool rootKeepsShortcutPad(int32_t, int32_t) {
 	return false;
+}
+
+bool rootTakesAuditionPad() {
+	return fakelegacyui::root_takes_audition;
 }
 
 // The same file's root-UI question for the marker's sidebar: the real one reads `getRootUI()` and

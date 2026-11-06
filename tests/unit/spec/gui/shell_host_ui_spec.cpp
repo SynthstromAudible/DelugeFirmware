@@ -1542,6 +1542,45 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
+	it("forwards the audition column and keeps the rest under AllButAudition", _ {
+		// `SampleBrowser::padAction`'s first arm: the audition column is the instrument clip view's when that is the
+		// root, and the browser's (which swallows it) otherwise.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::AllButAudition;
+
+		fakelegacyui::root_takes_audition = true;
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64);
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		(void)r.guest.padAction(3, 4, 64);
+		(void)r.guest.padAction(kDisplayWidth, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+
+		fakelegacyui::root_takes_audition = false;
+		(void)r.guest.padAction(kDisplayWidth + 1, 5, 64);
+		r.guest.shell().tick(2);
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		expect(r.base.seen.size()).to_equal(size_t(3));
+	});
+
+	it("takes the main columns back when legacy's scroll finishes", _ {
+		// `SampleBrowser::scrollFinished` leaves the scroll's UI mode; the guest then repaints what it owns.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.guest.surfaces().hold_main_columns(true);
+		fakelegacy::column_sends.clear();
+		r.guest.scrollFinished();
+		expect(r.guest.surfaces().main_columns_held()).to_be_false();
+		expect(fakelegacyui::modes_exited.size()).to_equal(size_t(1));
+		expect(fakelegacyui::modes_exited.empty() ? 0u : fakelegacyui::modes_exited[0])
+		    .to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
+		expect(fakelegacy::column_sends.empty()).to_be_false();
+	});
+
 	it("reopens with no pad held when the guest closed between a fed press and its release", _ {
 		// SHIFT + a pad fed to the menu, the menu closed with the pad still down, the release then legacy's: the next
 		// visit's shell must not still hold the pad (LEARN refuses while one is held).

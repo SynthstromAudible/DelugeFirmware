@@ -372,7 +372,7 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way `SampleBrowser::renderPreviewForTarget` does.
+/// @brief Open the slicer on @p sample, the way `SampleBrowser::showPreview` does.
 /// @param sample The sample the scene is opened on.
 /// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {

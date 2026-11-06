@@ -72,6 +72,16 @@ void refreshShellRootFacts();
 ///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
 bool shellSoundMenuOpen();
 
+/// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press
+///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
+///        the guest closes.
+void refreshShellSamplePreviewSounds();
+
+/// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the sample browser, one of
+///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
+///        (`util/sample_preview_open.h`), read on the audio tier.
+bool shellSamplePreviewSounds();
+
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();
 

@@ -194,6 +194,10 @@ bool rootKeepsShortcutPad(int32_t x, int32_t y) {
 	return getRootUI() == &automationView && x == 0 && (y == 6 || y == 7);
 }
 
+bool rootTakesAuditionPad() {
+	return getRootUI() == &instrumentClipView;
+}
+
 void setPadForwardPerform(PadForwardPerform p) {
 	perform = (p != nullptr) ? p : &performForward;
 }

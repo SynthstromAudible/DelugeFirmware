@@ -39,6 +39,8 @@ namespace fakelegacyui {
 extern std::vector<UI*> closed;
 /// How many times `renderUIsForOled()` was asked for a redraw.
 extern int oled_redraws;
+/// @brief Each UI mode `exitUIMode` was asked to leave, in order.
+extern std::vector<uint32_t> modes_exited;
 /// Every `UI::modEncoderAction` / `modButtonAction` / `modEncoderButtonAction` / `graphicsRoutine`
 /// call, as a running count -- the four base implementations a guest must not silently inherit
 /// without meaning to.
@@ -145,6 +147,8 @@ extern int action_dispatches;
 /// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
 ///        writes the menu and the knobs, none of which this suite builds.
 extern int root_fact_refreshes;
+/// @brief What the fake `rootTakesAuditionPad` answers: whether the root is the instrument clip view.
+extern bool root_takes_audition;
 /// @brief How many times `deluge::gui::ui::dispatchMenuTransitions()` was called: the poll of the menu's transition
 ///        record, on the same terms as `action_dispatches`.
 extern int transition_dispatches;

@@ -278,15 +278,26 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (i >= r.size() || r[i] == nullptr) {
 		return false;
 	}
-	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`). Legacy answers `nullptr`
-	// when no menu in the chain lists the item, and its caller then does nothing at all -- which is
-	// this `false`.
-	const Node* page = horizontal_page_listing(*r[i], *item);
+	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`): the first menu of the root's chain that
+	// lists the item, which for an oscillator's file selector is the whole `sourceMenuGroup`, paged across its five
+	// members, not the member page. A root whose chain lists the item nowhere falls back to the page that does (the
+	// audio clip's sample page). Legacy answers `nullptr` when no menu lists the item, and its caller then does
+	// nothing at all -- which is this `false`.
+	const Node* page = nullptr;
+	for (const Node* candidate : chain_for(ctx_.root)) {
+		if (candidate != nullptr && page_lists(*candidate, *item)) {
+			page = candidate;
+			break;
+		}
+	}
+	if (page == nullptr) {
+		page = horizontal_page_listing(*r[i], *item);
+	}
 	if (page == nullptr) {
 		return false;
 	}
 	// `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo; soundEditor.navigationDepth =
-	// 0` (`gui/ui/browser/sample_browser.cpp:1117-1118`). `retarget` is the port's spelling of both
+	// 0` (`gui/ui/browser/sample_browser.cpp:975-976`). `retarget` is the port's spelling of both
 	// at once, and it is the right one rather than a convenient one: legacy's two statements throw
 	// away everything above index 0 of the record, which is exactly the per-visit state `retarget`
 	// drops (see its body).
