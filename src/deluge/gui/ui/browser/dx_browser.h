@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/dx_cartridge_read.h"
 #include "hid/button.h"
 
 class DxSyxBrowser final : public Browser {
@@ -49,7 +50,7 @@ public:
 
 	/// @brief How long a cartridge load may find its read unanswered before it gives up, in microseconds: 9 s, the
 	///        channel stall bound scaled to the graphics routine that collects it, every 15 ms.
-	static constexpr uint64_t kCartridgeStallUs = 9'000'000;
+	static constexpr uint64_t kCartridgeStallUs = deluge::gui::ui::DxCartridgeRead::kStallUs;
 
 	/// @brief How many cartridge loads gave up because the channel left their read unanswered for
 	///        @ref kCartridgeStallUs.

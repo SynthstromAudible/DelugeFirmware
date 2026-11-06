@@ -29,6 +29,9 @@ public:
 	                                                    uint8_t source) const override {
 		return real_.default_range(slot, source);
 	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
+		return real_.dx_cartridge();
+	}
 	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override {
 		return real_.kit_takes_whole_folder(slot);
 	}

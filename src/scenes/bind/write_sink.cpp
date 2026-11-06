@@ -94,6 +94,11 @@ bool RecordingSink::write_dx_patch(project::SlotAddress slot, uint8_t source, co
 	return true;
 }
 
+bool RecordingSink::load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) {
+	gestures.push_back({.kind = GestureRequest::Kind::DX_PROGRAM, .slot = slot, .source = source, .value = program});
+	return true;
+}
+
 bool RecordingSink::resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
                                       int32_t old_length) {
 	gestures.push_back({.kind = GestureRequest::Kind::RESIZE,

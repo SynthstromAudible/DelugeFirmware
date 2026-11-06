@@ -8,6 +8,7 @@
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
+#include "gui/menu_item/dx/cartridge.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -76,10 +77,12 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
+#include "storage/DX7Cartridge.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <utility>
@@ -184,6 +187,7 @@ public:
 	                      std::string_view path) override;
 	bool write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
 	                    const deluge::instrument::DxPatchState& patch) override;
+	bool load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) override;
 	bool insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
 	                  std::optional<int16_t> previous_top) override;
 	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
@@ -261,6 +265,20 @@ public:
 			}
 		}
 		return false;
+	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
+		DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+		if (bank == nullptr) {
+			return std::nullopt;
+		}
+		deluge::scenes::bind::DxCartridgeNames out;
+		char names[32][11];
+		bank->getProgramNames(names);
+		out.count = bank->numPatches();
+		for (int32_t i = 0; i < out.count; i++) {
+			std::copy_n(names[i], 11, out.names[i].begin());
+		}
+		return out;
 	}
 	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
 	                                                    uint8_t source) const override {
@@ -595,6 +613,17 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:56-70`),
 	// which records no undo.
 	deluge::edits::dxPatchFor(*sound, source, patch);
+	return true;
+}
+
+bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
+	    || program < 0 || program >= bank->numPatches()) {
+		return false;
+	}
+	deluge::gui::menu_item::loadDxProgram(*sound, source, *bank, program);
 	return true;
 }
 
