@@ -122,6 +122,8 @@ enum class ShellMenuNode : uint8_t {
 	///        (`gui/menu_item/file_selector.h:26`; the correspondence is stated at
 	///        `nodes::file0_selector`).
 	Osc0FileSelector,
+	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source", `gui/ui/menus.cpp`).
+	Dx,
 };
 
 /// @brief Which of the two `currentUIMode`-driven roots a caller wants, in place of whatever `context_for` resolved --

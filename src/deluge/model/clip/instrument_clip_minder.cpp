@@ -293,12 +293,17 @@ gotError:
 	                               deluge::serialization::Value::makeScalar(std::string{newName}));
 
 	if (is_dx) {
-		// F1 task 9, site 11 of 14: **not gated, and it stays that way until `dxMenu` has a port.**
-		// `src/scenes/README.md`'s "Legacy features not yet ported" lists `dxMenu`'s three bespoke DX
-		// items, so there is no node to name here -- and naming the wrong one is worse than opening the legacy
-		// menu. `gui/ui/shell_menu_entry.cpp`'s table has all fourteen sites and this one's row.
-		soundEditor.setup(clip, &dxMenu, 0);
-		openUI(&soundEditor);
+		// Site 11 of `gui/ui/shell_menu_entry.cpp`'s table: "DX7 source" on the new FM synth. The `else` is legacy's
+		// two statements unchanged.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+			                                     /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Dx);
+		}
+		else {
+			soundEditor.setup(clip, &dxMenu, 0);
+			openUI(&soundEditor);
+		}
 	}
 
 	renderUIsForOled();

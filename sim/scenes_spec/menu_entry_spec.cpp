@@ -53,6 +53,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 
 #include "support/card_access.h"
@@ -382,6 +383,25 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 	});
 
+	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
+		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		closeGuest();
+
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false, entry::ShellMenuNode::Dx)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_menu)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_menu).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
 	it("the same arguments without the node open the sound root instead", _ {
 		// The control for the example above: everything but `node` held fixed, so "the file
 		// selector is where a synth clip always lands" fails.
@@ -494,6 +514,30 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root_is_keyboard).to_be_true();
 		closeGuest();
+	});
+
+	it("Shift + (4,0) on a DX7 sound opens the DX7 parameter page alone, on the param it showed last", _ {
+		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
+		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::DX7);
+		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0) == &nodes::modulator0_volume).to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_true();
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().depth)).to_equal(0);
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(3 * 21 + 2);
+		closeGuest();
+
+		// The same pad on a sound that is not DX7 is refused, so legacy's `setup()` shows its popup.
+		sound->sources[0].setOscType(OscType::SAW);
+		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
 	it("with the toggle off, the pad opens the legacy SoundEditor", _ {
