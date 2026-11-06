@@ -59,6 +59,10 @@ public:
 	virtual ~FileReader();
 
 	std::optional<deluge::io::File> file;
+	/// @brief The address alloc_sdram returned, or null for a memory-backed reader, which does not own its buffer.
+	///        `fileClusterBuffer` is this plus CACHE_LINE_SIZE, so this is what gets freed.
+	char* fileClusterBufferBase{};
+	/// @brief The bytes being read; null when allocating them failed, which reads as an empty file.
 	char* fileClusterBuffer;
 	uint32_t currentReadBufferEndPos{};
 	int32_t fileReadBufferCurrentPos{};

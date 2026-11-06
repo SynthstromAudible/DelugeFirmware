@@ -1,0 +1,43 @@
+---
+title: "11.10 Effects in Session View"
+description: "Affect parameters are used for effect adjustments in song view."
+sidebar:
+  order: 9
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "11.10"
+  chapter: 11
+  pdfPages: [267]
+  printedPages: [261]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Affect parameters are used for effect adjustments in session view. When selecting song :key[Song] view it first appears that the affect parameters are not available. However they are accessible by pressing and holding :key[Pad] in SESSION mode.
+
+<StepFocus />
+
+## Accessing effects in session mode
+
+<Steps>
+
+1. Press :key[Song]. Button illuminates solid blue.
+2. Press & hold :key[Pad], where pad is any pad row with an active clip. This enables access to changing the parameters for the CLIP.
+3. Press :key[AffectEntire]. Button illuminates orange.
+4. The affect parameters are now accessible for the entire SONG. The associated buttons and UPPER / LOWER controls can be adjusted.
+5. Parameters available by default in session view are:
+   - Mod-FX
+   - EQ
+   - Delay
+   - Reverb
+   - Stutter
+   - Bitcrush / decimation (custom 2 & 3)
+
+</Steps>

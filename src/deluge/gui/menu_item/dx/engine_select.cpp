@@ -37,7 +37,7 @@ void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void DxEngineSelect::readValueAgain() {
 	patch = soundEditor.currentSource->ensureDxPatch();
-	currentValue = patch->engineMode;
+	currentValue = (patch != nullptr) ? patch->engineMode : 0;
 	renderUIsForOled();
 }
 

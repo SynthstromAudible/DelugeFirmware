@@ -42,6 +42,9 @@ void DxParam::beginSession(MenuItem* navigatedBackwardFrom) {
 #define MAX_PARAM_IDX 143
 
 int DxParam::getValue() {
+	if (patch == nullptr) {
+		return 0;
+	}
 	if (param >= 0 && param <= MAX_PARAM_IDX) {
 		return patch->params[param];
 	}
@@ -480,6 +483,9 @@ void DxParam::drawPixelsForOled() {
 		int val = getValue();
 		intToString(val, buffer, param < 0 ? 2 : 1);
 		OLED::main.drawString(buffer, 50, y0, kTextHugeSpacingX, kTextHugeSizeY);
+		return;
+	}
+	if (patch == nullptr) {
 		return;
 	}
 

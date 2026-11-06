@@ -1,0 +1,65 @@
+---
+title: "12.2 Session View Basics"
+description: "While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all…"
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "12.2"
+  chapter: 12
+  pdfPages: [159]
+  printedPages: [153]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import fig_fig_12_2_1_a from "../../../../assets/guidebook/figs/12-session-view__02-session-view-basics--1-a.svg?raw"
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_2_1 from "../../../../assets/guidebook/figs/12-session-view__02-session-view-basics--1.svg?raw"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+While the synth and kit clip view is used for developing individual instrument sequences, session view provides a more holistic approach, consolidating all clips into a compressed view, each clip shown as a row. Session view is where all existing clips are managed together, new clips can be added, existing ones deleted and reordered.
+
+{/* aside fig-12.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-12.2-1-a"
+  src={fig_fig_12_2_1_a}
+  alt={"Diagram: figure from guidebook page 153"}
+  page={153}
+/>
+
+<div>
+
+Session view compresses all clips and takes an overall view of the song ‘project’ in rows or grid.
+
+First time entering session view only one clip will be present. Clips can be created, re-ordered, deleted in session view.
+
+</div>
+
+</div>
+
+<Figure
+  id="fig-12.2-1"
+  src={fig_fig_12_2_1}
+  alt={
+    "Diagram: Song Row View (Default) Arrangement style presented with a clip per row. Clip Clip Clip Empty Clip Empty Clip Empty Clip Empty Clip Empty…"
+  }
+  page={153}
+/>
+
+{/* /aside fig-12.2-1 */}
+
+{/* TODO(kate): community_features: 4.1.8; CHANGELOG.mdx: L694, L803, L805 */}
+
+<VersionNote version="C1.1" label="VU meter">
+  See [Added VU Meter rendering to Song / Arranger
+  View](/features/community_features#418---added-vu-meter-rendering-to-song--arranger-view).
+</VersionNote>

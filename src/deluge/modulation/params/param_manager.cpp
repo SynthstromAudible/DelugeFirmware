@@ -58,7 +58,8 @@ Error ParamManager::setupMIDI() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[1] = summaries[0];             // Shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
@@ -71,8 +72,10 @@ Error ParamManager::setupUnpatched() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[1] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1] = {0};
+	summaries[2] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -96,10 +99,12 @@ ramError2:
 		goto ramError2;
 	}
 
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[3] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
 }
@@ -223,9 +228,15 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				delugeDealloc(newSummary->paramCollection);
 			}
 
-			// Mark that there's nothing here
-			summaries[0] = mpeParamsOrNullHere;
-			summaries[1] = {0};
+			if (this == other) {
+				// beenCloned() runs on a shallow copy of a NoteRow, so none of these pointers - expression included -
+				// belong to us yet. Keeping any of them would free the original's collections when we're destructed.
+				for (auto& summary : summaries) {
+					summary = {0};
+				}
+				expressionParamSetOffset = 0;
+			}
+			// Otherwise leave our existing collections untouched, rather than forgetting (and leaking) them
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -248,6 +259,12 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 	}
 
+	// Any main collections we already owned are about to be overwritten - free them (keeping our expression params,
+	// which were captured above). When cloning from self, the pointers aren't ours to free.
+	if (this != other) {
+		destructAndForgetMainParamCollections();
+	}
+
 	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.
 	newSummary = newSummaries;
 	ParamCollectionSummary* destSummaries = summaries;
@@ -258,6 +275,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 		destSummaries++;
 		newSummary++;
+	}
+	// Clear anything left past the terminator from a previous, longer layout
+	for (destSummaries++; destSummaries != &summaries[PARAM_COLLECTIONS_STORAGE_NUM]; destSummaries++) {
+		*destSummaries = {0};
 	}
 
 	expressionParamSetOffset = other->expressionParamSetOffset;
@@ -274,7 +295,9 @@ void ParamManager::flattenReverseAutomation(int32_t reverseDirectionWithLength) 
 
 // Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
-	summaries[0].paramCollection = getExpressionParamSet();
+	// Copy the whole summary, not just the pointer - otherwise the expression set inherits the automated/interpolating
+	// flags of whatever main collection was in slot 0, and FOR_EACH_FLAGGED_PARAM would index past its params
+	summaries[0] = *getExpressionParamSetSummary();
 	summaries[1] = {0};
 	expressionParamSetOffset = 0;
 	summaries[2] = {0};
@@ -297,8 +320,10 @@ void ParamManager::destructAndForgetParamCollections() {
 
 void ParamManager::destructAndForgetMainParamCollections() {
 	for (int32_t i = 0; i < expressionParamSetOffset; i++) {
-		summaries[i].paramCollection->~ParamCollection();
-		delugeDealloc(summaries[i].paramCollection);
+		if (summaries[i].paramCollection) {
+			summaries[i].paramCollection->~ParamCollection();
+			delugeDealloc(summaries[i].paramCollection);
+		}
 	}
 	forgetParamCollections(); // Shuffles any expression params down to the start
 }

@@ -74,8 +74,9 @@ bool UI::pitchBendReceivedForMidiLearn(MIDICable& /*cable*/, int32_t /*channel*/
 }
 
 void UI::graphicsRoutine() {
-	if (getRootUI() && canSeeViewUnderneath()) {
-		getRootUI()->graphicsRoutine();
+	RootUI* rootUI = getRootUI();
+	if (rootUI && canSeeViewUnderneath()) {
+		rootUI->graphicsRoutine();
 	}
 }
 

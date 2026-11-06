@@ -1,0 +1,84 @@
+{
+  "figure": "fig-4.13-1",
+  "source": "hand",
+  "window": "full",
+  "steps": [
+    {
+      "note": "Clip view",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Row 5 selected with its audition pad",
+      "leds": {
+        "Clip": "blue"
+      },
+      "pads": {
+        "pad-17-5": "#3cb44b",
+        "pad-18-5": "#e5332a"
+      }
+    },
+    {
+      "note": "Row length set",
+      "leds": {
+        "Clip": "blue"
+      },
+      "pads": {
+        "pad-17-5": "#3cb44b",
+        "pad-18-5": "#e5332a"
+      }
+    },
+    {
+      "note": "5 events spread over the row",
+      "leds": {
+        "Clip": "blue"
+      },
+      "pads": {
+        "pad-17-5": "#3cb44b",
+        "pad-18-5": "#e5332a",
+        "pad-1-5": "#e5332a",
+        "pad-4-5": "#e5332a",
+        "pad-7-5": "#e5332a",
+        "pad-10-5": "#e5332a",
+        "pad-13-5": "#e5332a"
+      }
+    },
+    {
+      "note": "Events shifted one step",
+      "leds": {
+        "Clip": "blue"
+      },
+      "pads": {
+        "pad-17-5": "#3cb44b",
+        "pad-18-5": "#e5332a",
+        "pad-2-5": "#e5332a",
+        "pad-5-5": "#e5332a",
+        "pad-8-5": "#e5332a",
+        "pad-11-5": "#e5332a",
+        "pad-14-5": "#e5332a"
+      }
+    },
+    {
+      "note": "A second row layered",
+      "leds": {
+        "Clip": "blue"
+      },
+      "pads": {
+        "pad-17-5": "#3cb44b",
+        "pad-18-5": "#e5332a",
+        "pad-17-6": "#3cb44b",
+        "pad-18-6": "#e5332a",
+        "pad-2-5": "#e5332a",
+        "pad-5-5": "#e5332a",
+        "pad-8-5": "#e5332a",
+        "pad-11-5": "#e5332a",
+        "pad-14-5": "#e5332a",
+        "pad-1-6": "#e5332a",
+        "pad-5-6": "#e5332a",
+        "pad-9-6": "#e5332a",
+        "pad-13-6": "#e5332a"
+      }
+    }
+  ]
+}

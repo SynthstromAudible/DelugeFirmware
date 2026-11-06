@@ -1,0 +1,44 @@
+---
+title: "12.5 Launching"
+sidebar:
+  order: 4
+guidebook:
+  section: "12.5"
+  chapter: 12
+  pdfPages: []
+  printedPages: []
+  firmware: "C1.2.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+<StepFocus />
+
+## Launch playhead and bars remaining <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): community_features: 3.24, 3.25; CHANGELOG.mdx: L560, L561 */}
+
+<Unwritten>
+  See [Render Clip / Section Launch Event Playhead in Song Grid and Performance
+  Views](/features/community_features#324---render-clip--section-launch-event-playhead-in-song-grid-and-performance-views).
+</Unwritten>
+
+## Launch exclusively <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): community_features: 4.2.10; CHANGELOG.mdx: L263 */}
+
+<Unwritten>
+  See [Launch
+  Exclusively](/features/community_features#4210---launch-exclusively).
+</Unwritten>
+
+{/* TODO(kate): CHANGELOG.mdx: L259 */}
+
+<VersionNote version="C1.3" label="24 sections" />

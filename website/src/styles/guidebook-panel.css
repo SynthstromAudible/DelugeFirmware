@@ -1,0 +1,256 @@
+/* The Deluge front panel in Guidebook figures (PanelFigure.astro). Ink follows the text colour;
+   pad colours come inline from the frame data; LEDs and step highlights are classes. */
+:root {
+  --gb-panel-fill: #e7e6e5; /* the book's grey knob fill */
+  --gb-panel-blue: #4a86c5; /* QWERTY letters */
+  --gb-panel-hl: #f5a623; /* step highlight */
+}
+
+:root[data-theme="dark"] {
+  --gb-panel-fill: #3a3d44;
+  --gb-panel-blue: #7fb0e3;
+}
+
+.gb-panel-art-wrap {
+  color: var(--sl-color-white);
+}
+
+.gb-panel-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gb-panel-art .fill {
+  fill: var(--gb-panel-fill);
+}
+
+.gb-panel-art .ctrl > * {
+  fill: none;
+  stroke: currentColor;
+}
+
+.gb-panel-art .ink,
+.gb-panel-art .txt text {
+  fill: currentColor;
+}
+
+.gb-panel-art .txt text {
+  font-family: Arial, Arimo, "Liberation Sans", Helvetica, sans-serif;
+  font-weight: 700;
+}
+
+.gb-panel-art .txt .blue {
+  fill: var(--gb-panel-blue);
+}
+
+/* Lit buttons: the firmware's LED colours. */
+.gb-panel-art .led-white {
+  fill: #f4f4f4;
+}
+.gb-panel-art .led-red {
+  fill: #e5332a;
+}
+.gb-panel-art .led-green {
+  fill: #3cb44b;
+}
+.gb-panel-art .led-blue {
+  fill: #4a86c5;
+}
+.gb-panel-art .led-yellow {
+  fill: #f2c12e;
+}
+.gb-panel-art .led-magenta {
+  fill: #d0459b;
+}
+.gb-panel-art .led-cyan {
+  fill: #36b6c8;
+}
+.gb-panel-art .led-orange {
+  fill: #f08a24;
+}
+
+.gb-panel-art .led-blink {
+  animation: gb-panel-blink 0.8s steps(2, jump-none) infinite;
+}
+
+/* The step's controls: pressed, held, or turned. Stroke widths are panel px (5808 wide). */
+.gb-panel-art .hl {
+  stroke: var(--gb-panel-hl);
+  stroke-width: 14;
+}
+
+.gb-panel-art .hl-press {
+  animation: gb-panel-press 1.2s ease-in-out infinite;
+}
+
+.gb-panel-art .hl-hold {
+  stroke-width: 22;
+}
+
+.gb-panel-art .hl-turn {
+  stroke-dasharray: 40 24;
+  animation: gb-panel-turn 1.6s linear infinite;
+}
+
+@keyframes gb-panel-blink {
+  50% {
+    fill-opacity: 0.2;
+  }
+}
+
+@keyframes gb-panel-press {
+  50% {
+    stroke-opacity: 0.35;
+  }
+}
+
+@keyframes gb-panel-turn {
+  to {
+    stroke-dashoffset: -128;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-panel-art .led-blink,
+  .gb-panel-art .hl-press,
+  .gb-panel-art .hl-turn {
+    animation: none;
+  }
+}
+
+/* Callouts. Default (no JS, print, narrow): numbered markers on the panel and a numbered list
+   below. With JS on a wide figure (.gb-panel-anchored): labels beside the panel, stacked
+   without overlap, with leaders from each label to its control. */
+.gb-panel,
+.gb-panel-art-wrap {
+  position: relative;
+}
+
+.gb-panel-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.gb-panel-leader {
+  display: none;
+  stroke: var(--gb-accent);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.gb-panel-marker circle {
+  fill: var(--gb-accent);
+}
+
+.gb-panel-marker text {
+  fill: #fff;
+  font-weight: 700;
+  font-family: Arial, Arimo, sans-serif;
+}
+
+.gb-panel-callouts {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.5rem;
+  font-size: var(--sl-text-sm);
+}
+
+.gb-panel-anchored {
+  padding-inline: 9rem;
+}
+
+.gb-panel-anchored .gb-panel-leader {
+  display: inline;
+}
+
+.gb-panel-anchored .gb-panel-marker {
+  display: none;
+}
+
+.gb-panel-anchored .gb-panel-callouts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gb-panel-anchored .gb-panel-callouts li {
+  position: absolute;
+  width: 8.5rem;
+  margin: 0;
+  font-size: var(--sl-text-xs);
+  line-height: 1.25;
+}
+
+.gb-panel-anchored .gb-panel-callouts li[data-side="left"] {
+  left: 0;
+  text-align: right;
+}
+
+.gb-panel-anchored .gb-panel-callouts li[data-side="right"] {
+  right: 0;
+}
+
+@media print {
+  .gb-panel-anchored {
+    padding-inline: 0;
+  }
+}
+
+/* Step demos start collapsed behind a summary the reader opens. */
+.gb-panel-demo > summary {
+  width: fit-content;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.gb-panel-demo > summary:hover,
+.gb-panel-demo[open] > summary {
+  border-color: var(--sl-color-accent);
+}
+
+.gb-panel-demo[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+@media print {
+  .gb-panel-demo > summary,
+  .gb-panel-auto {
+    display: none;
+  }
+}
+
+/* Play the steps (PanelFigure): shown only when JavaScript runs. */
+.gb-panel-play {
+  display: block;
+  margin: 0.5rem auto 0;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.gb-panel-play[hidden] {
+  display: none;
+}
+
+.gb-panel-play:hover,
+.gb-panel-play[aria-pressed="true"] {
+  border-color: var(--sl-color-accent);
+}
+
+@media print {
+  .gb-panel-play {
+    display: none;
+  }
+}

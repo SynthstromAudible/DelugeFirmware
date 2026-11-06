@@ -153,8 +153,8 @@ void runRoutine();
 
 void init();
 /// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
-/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
-/// output volume has been folded in by the caller.
+/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - the song and
+/// kit output stages have been folded in by the caller.
 struct PreviewVolume {
 	int32_t volumePostFX;           ///< params::GLOBAL_VOLUME_POST_FX
 	int32_t localVolume;            ///< params::LOCAL_VOLUME
@@ -431,15 +431,15 @@ void retire(Output* output);
 ///        any of the current song's clips' beingRecordedFromClip), and the clip is destroyed as
 ///        above. An AudioClip must no longer be recording (i001 on alpha/beta builds).
 void retire(Clip* clip);
-/// @brief [interaction] As above, for a whole song the caller has already replaced as currentSong (E458 if it is still
+/// @brief [interaction] As above, for a whole song the caller has already replaced as currentSong (E472 if it is still
 ///        current). The gold knobs are let go of at once if they are on the song. At the
 ///        top of a following block the render lets go of every Sound of every output the song owns (voices ended,
 ///        Sounds deregistered), and the song is then destroyed as above: ~Song() destroys its clips and outputs
 ///        directly, since nothing can reach them any more.
 void retire(Song* song);
 /// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
-///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E455 otherwise).
-///        Bounded: freezes with E459 after 250 ms or 1000 waits for a block, whichever comes first. For a
+///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E473 otherwise).
+///        Bounded: freezes with E474 after 250 ms or 1000 waits for a block, whichever comes first. For a
 ///        stopped-clock song load or clear, which must free the old song before it builds the new one, and for a
 ///        swap's finish, whose sample-load retry needs the old song's memory back.
 void awaitRetired();
