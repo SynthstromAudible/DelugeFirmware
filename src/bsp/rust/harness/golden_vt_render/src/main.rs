@@ -1131,6 +1131,8 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 ///   it.
 /// - `SAMPLES/IMS/IMS_A.WAV`..`IMS_C.WAV`: the import stall leg's folder; the first and last are
 ///   loaded in its preparation, and the middle one is held.
+/// - `SAMPLES/IME/SUB/IME_A.WAV`: the empty import leg's folder, `IME`, holds a subfolder and no
+///   audio file of its own.
 /// - `SYNTHS/`: empty; the multisample import leg writes its blank synth preset there.
 /// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's
 ///   folder, one-second sines at 110, 220 and 440 Hz.
@@ -1145,6 +1147,7 @@ fn fill_sample_claim_card() {
     let import_multi = samples.join("IMM");
     let import_gate = samples.join("IMG");
     let import_stall = samples.join("IMS");
+    let import_empty_sub = samples.join("IME").join("SUB");
     for dir in [
         &samples,
         &randomize,
@@ -1155,6 +1158,7 @@ fn fill_sample_claim_card() {
         &import_multi,
         &import_gate,
         &import_stall,
+        &import_empty_sub,
         &root.join("KITS"),
         &root.join("SYNTHS"),
     ] {
@@ -1206,6 +1210,7 @@ fn fill_sample_claim_card() {
     write_sine_wav(&import_stall.join("IMS_A.WAV"), 1, 44_100, 110.0);
     write_sine_wav(&import_stall.join("IMS_B.WAV"), 1, 44_100, 220.0);
     write_sine_wav(&import_stall.join("IMS_C.WAV"), 1, 44_100, 440.0);
+    write_test_wav(&import_empty_sub.join("IME_A.WAV"), 1, 16, 2048, 0x87);
     install_staged(&root);
 }
 
