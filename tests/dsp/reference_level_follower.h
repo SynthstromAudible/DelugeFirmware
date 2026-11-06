@@ -16,14 +16,14 @@
  */
 #pragma once
 
-// The app's level follower (AbsValueFollower::calcApproxRMS) before dsp-next owned it, kept as the oracle the
-// LevelDetector spec checks against: verbatim but for its knob setters (unused), its StereoFloatSample (a local
-// pair) and its sums and absolutes, written as the wrapping operations the target computes so the spec's
-// signed-overflow sanitizer sees the same two's-complement result.
+// The app's level follower (AbsValueFollower::calcApproxRMS and calcApproxRMSFromMeans, as upstream has it), kept as
+// the oracle the LevelDetector spec checks against: verbatim but for its knob setters (unused) and its
+// StereoFloatSample (a local pair).
 
 #include "raw_frame.h"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -34,19 +34,26 @@ public:
 		float r;
 	};
 
+	// do not feed block over length 256 if it contains q31 data
 	Level calcApproxRMS(std::span<deluge::dsp::test::RawFrame> buffer) {
 		int32_t l = 0;
 		int32_t r = 0;
-		Level logMean;
-
 		for (deluge::dsp::test::RawFrame sample : buffer) {
-			l = wrap_add(l, wrap_abs(sample.l));
-			r = wrap_add(r, wrap_abs(sample.r));
+			l += absForLevel(sample.l) >> 8;
+			r += absForLevel(sample.r) >> 8;
 		}
 
 		float ns = buffer.size();
-		meanL = l / ns;
-		meanR = r / ns;
+
+		return calcApproxRMSFromMeans(256.f * l / ns, 256.f * r / ns, buffer.size());
+	}
+
+	Level calcApproxRMSFromMeans(float newMeanL, float newMeanR, size_t numSamples) {
+		Level logMean;
+		float ns = numSamples;
+		meanL = newMeanL;
+		meanR = newMeanR;
+
 		meanL = (meanL * ns + lastMeanL) / (1 + ns);
 		meanR = (meanR * ns + lastMeanR) / (1 + ns);
 
@@ -62,10 +69,9 @@ public:
 private:
 	static constexpr int32_t kSampleRate = 44100;
 
-	static int32_t wrap_add(int32_t a, int32_t b) {
-		return static_cast<int32_t>(static_cast<uint32_t>(a) + static_cast<uint32_t>(b));
-	}
-	static int32_t wrap_abs(int32_t a) { return a < 0 ? static_cast<int32_t>(0u - static_cast<uint32_t>(a)) : a; }
+	/// |x|, but defined for INT_MIN (which gives INT_MAX) and one instruction. Negatives come out 1 low, which is
+	/// nothing next to the level this measures
+	static int32_t absForLevel(int32_t x) { return x ^ (x >> 31); }
 
 	float runEnvelope(float current, float desired, float numSamples) {
 		float s;
