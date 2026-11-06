@@ -2255,6 +2255,28 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
+	it("keeps the BROWSE pad blinking under a folder menu opened in the root state", _ {
+		// `main`'s blink timer runs on under the folder menu (`possiblySetUpBlinking`; the menu stops nothing).
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, true);
+		browser_scene().preview_settled(false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 400);
+		release_select(r, down + 450);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		expect(seen.empty()).to_be_false();
+		for (const deluge::ui::grid::PadFlash& fl : seen) {
+			expect(fl.x == 0 && fl.y == 5).to_be_true();
+		}
+	});
+
 	it("opens the synth's LOAD FILES menu at 400 ms, after which the release does nothing", _ {
 		CleanBrowser clean;
 		ScratchCard card;
