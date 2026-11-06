@@ -316,7 +316,7 @@ public:
 	                               int32_t* clipIndex = nullptr, bool excludePendingOverdubs = false);
 	void restoreClipStatesBeforeArrangementPlay();
 	void deleteOrAddToHibernationListOutput(Output* output);
-	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output);
+	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output, int32_t fallbackSection = 0);
 	void assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime = -1);
 	[[nodiscard]] bool isClipActive(Clip const* clip) const;
 	void sendAllMIDIPGMs();

@@ -222,6 +222,10 @@ enum Entries {
 198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
 199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
 200: USB audio output source (usb_audio::OutputSource)
+201-202: GlobalMIDICommand::LOOP_TAKE channel + 1 / noteCode + 1
+203-206: GlobalMIDICommand::LOOP_TAKE product / vendor ids
+207-208: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE channel + 1 / noteCode + 1
+209-212: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -498,6 +502,14 @@ void readSettings() {
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC = buffer[180] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].channelOrZone = buffer[190] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].noteOrCC = buffer[191] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE)].channelOrZone =
+	    buffer[207] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE)].noteOrCC =
+	    buffer[208] - 1;
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE, &buffer[209]);
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_TAKE)].channelOrZone = buffer[201] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_TAKE)].noteOrCC = buffer[202] - 1;
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_TAKE, &buffer[203]);
 
 	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	/* buffer[81]  \
@@ -1004,6 +1016,16 @@ void writeSettings() {
 	buffer[180] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
 	buffer[190] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].channelOrZone + 1;
 	buffer[191] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::SHIFT)].noteOrCC + 1;
+	buffer[207] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE)]
+	                  .channelOrZone
+	              + 1;
+	buffer[208] =
+	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE)].noteOrCC
+	    + 1;
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE, &buffer[209]);
+	buffer[201] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_TAKE)].channelOrZone + 1;
+	buffer[202] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_TAKE)].noteOrCC + 1;
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP_TAKE, &buffer[203]);
 
 	/* Global MIDI command device references - these occupy 4 bytes each */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);

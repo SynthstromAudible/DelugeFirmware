@@ -101,7 +101,11 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	loopLength = otherClip->loopLength;
 	colourOffset = otherClip->colourOffset;
 	// modKnobMode = otherClip->modKnobMode;
-	section = otherClip->section;
+	// Pending takes already own a free section. Refreshing their length at the recording
+	// handoff must not move them back onto the source clip's grid pad.
+	if (!isPendingOverdub || !isTakeOverdub(overdubNature)) {
+		section = otherClip->section;
+	}
 	launchStyle = otherClip->launchStyle;
 	onAutomationClipView = otherClip->onAutomationClipView;
 }
@@ -111,7 +115,7 @@ void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDu
 
 	uint32_t newLength = existingClip->loopLength;
 
-	if (newOverdubNature != OverDubType::ContinuousLayering) {
+	if (!isContinuousOverdub(newOverdubNature)) {
 		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length

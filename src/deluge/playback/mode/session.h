@@ -105,7 +105,8 @@ public:
 	bool switchToArrangementAtLaunchEvent;
 
 private:
-	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency);
+	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency,
+	                                               bool armedForInPlaceOverdub = false);
 	void armClipToStopAction(Clip* clip);
 	void cancelArmingForClip(Clip* clip, int32_t* clipIndex);
 	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips);
