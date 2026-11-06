@@ -82,11 +82,14 @@ SECTIONS {
      * nor a debugger's load writes SDRAM before the boot has started it. */
     .sdram_init : ALIGN(16) {
         PROVIDE(__sdram_init_start = .);
+        /* The code run from SDRAM, which the crash reporter counts as code (peripherals/fault.rs). */
+        __sdram_text_start = .;
         *(.sdram_text .sdram_text*)
         /* The GUI's code (build/device.rs archives it apart, built without LTO so its objects
          * survive to the link). An inline or template function that the GUI shares with other
          * code comes here too when the link keeps the GUI's copy. */
         *libdeluge_app_gui.a:*(.text .text.*)
+        __sdram_text_end = .;
         *(.sdram_data .sdram_data*)
         *(.sdram_rodata .sdram_rodata*)
         /* The efatfs mount's initialised tables (open handles, the mounted volume); as above. */

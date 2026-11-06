@@ -9,11 +9,14 @@
 #include <vector>
 
 // The board side of libdeluge/fault.h, recording what the renderer sends to the pad driver. Code is
-// [kCodeStart, kCodeEnd); the stack is whichever array a spec walks.
+// [kCodeStart, kCodeEnd) and [kAltCodeStart, kAltCodeEnd); the stack is whichever array a spec walks.
 namespace {
 
 constexpr uint32_t kCodeStart = 0x1000;
 constexpr uint32_t kCodeEnd = 0x8000;
+// A second code range, as a board running some of its code from external RAM declares.
+constexpr uint32_t kAltCodeStart = 0x10000;
+constexpr uint32_t kAltCodeEnd = 0x18000;
 
 std::vector<uint8_t> sent;
 int flushes = 0;
@@ -123,6 +126,8 @@ void deluge_fault_ranges(DelugeFaultRanges* out) noexcept {
 	*out = DelugeFaultRanges{};
 	out->code_start = kCodeStart;
 	out->code_end = kCodeEnd;
+	out->alt_code_start = kAltCodeStart;
+	out->alt_code_end = kAltCodeEnd;
 	if (!stack.empty()) {
 		out->stack_start = reinterpret_cast<uintptr_t>(stack.data());
 		out->stack_end = reinterpret_cast<uintptr_t>(stack.data() + stack.size());
@@ -246,6 +251,18 @@ describe fault_pattern("deluge_fault_pattern_draw", $ {
 		expect(pointerAt(pairs, 0).value).to_equal(uint32_t{0x2fff});
 		expect(pointerAt(pairs, 1).value).to_equal(uint32_t{0x3fff});
 		expect(pointerAt(pairs, 2).value).to_equal(uint32_t{0x4fff});
+		expect(pointerAt(pairs, 3).value).to_equal(uint32_t{0});
+	});
+
+	it("draws return addresses in the second code range, and none past either range", _{
+		std::array<uint32_t, 8> words{0x8001, 0x18001, 0x10101, 0, 0, 0x17ff1, 0, 0};
+		stack = words;
+		deluge_fault_pattern_draw(0x10201, DELUGE_CPU_FAULT_UNDEFINED, 0, address(words[0]));
+
+		auto pairs = columnPairs();
+		expect(pointerAt(pairs, 0).value).to_equal(uint32_t{0x10201});
+		expect(pointerAt(pairs, 1).value).to_equal(uint32_t{0x100ff});
+		expect(pointerAt(pairs, 2).value).to_equal(uint32_t{0x17fef});
 		expect(pointerAt(pairs, 3).value).to_equal(uint32_t{0});
 	});
 
