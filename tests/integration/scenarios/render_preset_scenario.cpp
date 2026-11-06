@@ -28,6 +28,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/structural_edit_probe.h"
@@ -247,6 +248,8 @@ void report() {
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
 #if ALPHA_OR_BETA_VERSION
+	printf("RP-SNAPSHOT model_reads=%u render_writes=%u\n", deluge::modulation::renderModelReads,
+	       deluge::modulation::renderPublishedWrites);
 	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
 	       deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {

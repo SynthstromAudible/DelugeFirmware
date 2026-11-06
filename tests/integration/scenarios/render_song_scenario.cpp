@@ -39,6 +39,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
@@ -818,6 +819,8 @@ void report() {
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
 	printf("RS-STORE render_edits=%u\n", storeEdits);
+	printf("RS-SNAPSHOT model_reads=%u render_writes=%u\n", deluge::modulation::renderModelReads,
+	       deluge::modulation::renderPublishedWrites);
 	printf("RS-LANES splits=%u\n", deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {
 		fail("RS-LANES", "the interaction tier resolved a lane the render does not read");

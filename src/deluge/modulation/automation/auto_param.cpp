@@ -42,6 +42,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -151,6 +152,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// never sees one half made. A lane nothing holds yet reads as unautomated, and nothing writes it. A playhead move
 	// on the interaction tier reads lanes the same way: it holds the render off, and must not relocate or allocate.
 	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
+		deluge::modulation::noteRenderModelRead();
 		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
 			return own;
 		}
@@ -215,6 +217,7 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 // This is mostly for "expression" params, which we frequently want to bump back to 0 - often when there is no
 // automation, or when playback is stopped.
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
+	deluge::modulation::noteRenderLaneWrite();
 	int32_t oldValue = played_;
 	setBase(*modelStack->doc(), value);
 	bool automatedNow = isAutomated(*modelStack->doc());
@@ -1001,6 +1004,7 @@ getOut:
 		int32_t i = std::ssize(nodesRef) - 1;
 		ParamNode* rightmostNode = &nodesRef[i];
 		if (rightmostNode->pos >= effectiveLength) {
+			deluge::modulation::noteRenderLaneWrite();
 			nodesRef.erase(nodesRef.begin() + i);
 			// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 		}

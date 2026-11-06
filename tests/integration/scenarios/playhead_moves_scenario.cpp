@@ -18,7 +18,9 @@
 #include "scenarios/playhead_moves_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -33,6 +35,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -41,6 +44,7 @@
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/playhead_checks.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/preset_acquisition.h"
@@ -89,6 +93,8 @@ enum class Leg : uint8_t {
 	ArrangerRecord,
 	Clone,
 	Resume,
+	SelfRepair,
+	ClipStop,
 	Done,
 };
 
@@ -116,6 +122,14 @@ uint32_t g_actionsBefore = 0;
 uint64_t g_hash = 0;
 /// Arrangement-only clips before the move: arrangement recording makes one per armed output.
 int32_t g_arrangementClipsBefore = 0;
+/// Render writes to lanes outside record mode before the move.
+uint32_t g_laneWritesBefore = 0;
+/// Collections found publishing lanes that differ from the model, after every leg.
+int32_t g_lanesStale = 0;
+/// Blocks a leg plays long enough to reach a node event or a launch: some 2.3 s.
+constexpr int32_t kBlocksToEvent = 800;
+/// A mono-expression base set before a clip is stopped.
+constexpr int32_t kExpressionBase = 1 << 24;
 /// What the injected block saw: the timer and swung ticks it actioned, or -1 if it never ran.
 int64_t g_injectedTicks = -1;
 
@@ -161,6 +175,10 @@ const char* legName(Leg leg) {
 		return "CLONE";
 	case Leg::Resume:
 		return "RESUME";
+	case Leg::SelfRepair:
+		return "SELFREPAIR";
+	case Leg::ClipStop:
+		return "CLIPSTOP";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -380,6 +398,28 @@ void selfTestEffects() {
 	std::fputs(line, stdout);
 }
 
+/// g_clip's synth volume lane, as automateVolume() reaches it.
+ModelStackWithAutoParam* volumeLane(char* memory) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId =
+	    three->addParamCollectionAndId(summary->paramCollection, summary, deluge::modulation::params::LOCAL_VOLUME);
+	return withId->paramCollection->getAutoParamFromId(withId, false);
+}
+
+/// g_clip's first mono-expression lane.
+ModelStackWithAutoParam* expressionLane(char* memory) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	(void)g_clip->paramManager.getOrCreateExpressionParamSet();
+	ParamCollectionSummary* summary = g_clip->paramManager.getExpressionParamSetSummary();
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId = three->addParamCollectionAndId(summary->paramCollection, summary, 0);
+	return withId->paramCollection->getAutoParamFromId(withId, true);
+}
+
 bool setupLeg() {
 	g_clip = makeSynthClip();
 	if (g_clip == nullptr) {
@@ -449,6 +489,20 @@ void prepareMove() {
 			(void)g_clip->possiblyCloneForArrangementRecording(
 			    setupModelStackWithTimelineCounter(memory, currentSong, g_clip));
 		}
+		break;
+	}
+	case Leg::SelfRepair: {
+		// A node at the lane's loop length, which no edit leaves: the render's self-repair is what removes it.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* volume = volumeLane(memory);
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*volume->doc(), g_clip->loopLength(), 1 << 27, false);
+		break;
+	}
+	case Leg::ClipStop: {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* expression = expressionLane(memory);
+		expression->autoParam->setCurrentValueWithNoReversionOrRecording(expression, kExpressionBase);
 		break;
 	}
 	case Leg::ArrangerRecord:
@@ -566,6 +620,23 @@ void move() {
 		// As stopping recording to the arranger does
 		currentSong->resumeClipsClonedForArrangementRecording();
 		break;
+	case Leg::SelfRepair:
+		// The render reaches the lane's node events
+		for (int32_t block = 0; block < kBlocksToEvent; block++) {
+			renderBlock(false);
+		}
+		deluge::playback::applyRenderRequests();
+		break;
+	case Leg::ClipStop: {
+		// Armed to stop: the render stops it at the next launch
+		int32_t index = static_cast<int32_t>(currentSong->live.clips.session_clips.getIndexForClip(g_clip));
+		session.toggleClipStatus(g_clip, &index, false, 0);
+		for (int32_t block = 0; block < kBlocksToEvent; block++) {
+			renderBlock(false);
+		}
+		deluge::playback::applyRenderRequests();
+		break;
+	}
 	case Leg::Done:
 		break;
 	}
@@ -609,6 +680,25 @@ void printLine() {
 		const bool cloned = active != nullptr && active != g_clip && active->beingRecordedFromClip == g_clip;
 		used += snprintf(line + used, sizeof(line) - used, g_leg == Leg::Clone ? " cloned=%d" : " resumed=%d",
 		                 (g_leg == Leg::Clone ? cloned : active == g_clip) ? 1 : 0);
+	}
+	if (g_leg == Leg::SelfRepair || g_leg == Leg::ClipStop) {
+#if ALPHA_OR_BETA_VERSION
+		const auto writes = static_cast<unsigned>(deluge::modulation::renderPublishedWrites - g_laneWritesBefore);
+#else
+		const unsigned writes = 0;
+#endif
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		if (g_leg == Leg::SelfRepair) {
+			const deluge::project::DocAutoParam& lane = *volumeLane(memory)->doc();
+			const bool erased = lane.nodes.empty() || lane.nodes[std::ssize(lane.nodes) - 1].pos < g_clip->loopLength();
+			used += snprintf(line + used, sizeof(line) - used, " render_writes=%u erased=%d", writes, erased ? 1 : 0);
+		}
+		else {
+			ModelStackWithAutoParam* expression = expressionLane(memory);
+			used += snprintf(line + used, sizeof(line) - used, " render_writes=%u stopped=%d played=%d base=%d", writes,
+			                 currentSong->isClipActive(g_clip) ? 0 : 1, expression->autoParam->played() == 0 ? 0 : 1,
+			                 expression->doc()->current_value == 0 ? 0 : 1);
+		}
 	}
 	if (g_leg == Leg::ArrangerRecord) {
 		const auto clips = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());
@@ -685,6 +775,9 @@ void runTick() {
 		g_actionsBefore = deluge::playback::maskedActions;
 #endif
 		g_allocBefore = deluge::memory::maskedAllocations();
+#if ALPHA_OR_BETA_VERSION
+		g_laneWritesBefore = deluge::modulation::renderPublishedWrites;
+#endif
 		g_hash = 0xcbf29ce484222325ULL;
 		g_injectedTicks = -1;
 		move();
@@ -692,6 +785,7 @@ void runTick() {
 			renderBlock(true);
 		}
 		printLine();
+		g_lanesStale += deluge::modulation::checkPublished(*currentSong);
 		g_stage = Stage::After;
 		break;
 	case Stage::After:
@@ -707,6 +801,15 @@ void runTick() {
 			         static_cast<unsigned>(site.longestUs), static_cast<unsigned>(site.count));
 			std::fputs(spanLine, stdout);
 		});
+#if ALPHA_OR_BETA_VERSION
+		{
+			// Lanes the render resolved through the model, over every leg played outside record mode
+			char snapshotLine[64];
+			snprintf(snapshotLine, sizeof(snapshotLine), "PM-SNAPSHOT model_reads=%u stale=%d\n",
+			         static_cast<unsigned>(deluge::modulation::renderModelReads), static_cast<int>(g_lanesStale));
+			std::fputs(snapshotLine, stdout);
+		}
+#endif
 		char line[48];
 		snprintf(line, sizeof(line), "PM-RESULT failures=%d\n", static_cast<int>(g_failures));
 		std::fputs(line, stdout);
