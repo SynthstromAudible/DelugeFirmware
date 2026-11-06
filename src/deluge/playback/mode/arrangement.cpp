@@ -34,6 +34,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "util/functions.h"
 
 extern "C" {}
@@ -316,6 +317,16 @@ justDoArp:
 	if (anyChangeToSessionClipsPlaying) {
 		// use root UI in case this is called from performance view
 		sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	}
+
+	if (playbackHandler.swungTicksTilNextEvent == 2147483647 && posIncrement > 0 && lastProcessedPos > 0
+	    && currentSong->loopSong && playbackHandler.recording == RecordingMode::OFF
+	    && !audioRecorder.isCurrentlyResampling() && !stemExport.processStarted
+	    && !playbackHandler.stopOutputRecordingAtLoopEnd) {
+		resetPlayPos(0);
+		playbackStartedAtPos = -playbackHandler.lastSwungTickActioned;
+		doTickForward(0);
+		return;
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing

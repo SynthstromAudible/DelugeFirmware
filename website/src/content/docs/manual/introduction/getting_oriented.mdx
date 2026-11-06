@@ -94,6 +94,19 @@ stateDiagram-v2
 
 A song can use both Session and Arranger modes and views to continue to refine a project and there's interaction and sharing of information between the two, but only one mode can be played or performed at a time.
 
+### Loop Song
+
+Press :key[SELECT] in Song or Arranger View and enable `SONG > LOOP SONG` to repeat the song without stopping playback.
+The setting is saved with each song and is off by default.
+
+In Session Grid View, the final section returns to the first populated, non-exclusive section after its configured repetitions.
+Empty sections and exclusive sections are skipped while looping is enabled. A section set to repeat indefinitely still holds
+until you launch another section. Row View section progression is unchanged.
+
+In Arranger View, playback returns to timeline position zero at the end of the arrangement, including any silence before
+the first clip. Recording, resampling, and stem export do not loop. The Play button still stops playback normally.
+For Grid View, set Loop Song before starting playback so that the next section is scheduled with the chosen setting.
+
 An example high level workflow for working with Songs on the Deluge:
 
 ```mermaid

@@ -699,6 +699,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_UNDO, "Undo"},
         {STRING_FOR_REDO, "Redo"},
         {STRING_FOR_LOOP, "Loop"},
+        {STRING_FOR_LOOP_SONG, "Loop song"},
         {STRING_FOR_SONG_LOAD_NEXT, "Load Next Song"},
         {STRING_FOR_SHIFT, "Shift"},
         {STRING_FOR_LAYERING_LOOP, "Layering Loop"},
