@@ -60,12 +60,16 @@
 #include "ui/core/metrics.h"
 
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/edits/setting_edit.h"
+#include "model/note/note_row.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
@@ -79,6 +83,8 @@
 #include "integration/scenarios/slot_coherence.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
+#include "support/global_guest_menu.h"
+#include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -96,6 +102,11 @@
 #include <string>
 
 #include "spec/support/spec_main.h"
+
+/// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
+namespace Buttons {
+extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
+} // namespace Buttons
 
 using namespace deluge::scenes;
 using deluge::scenes::marker::kMarkerSceneKind;
@@ -1100,6 +1111,55 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
 		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::lpf_freq)
 		    .to_be_true();
+	});
+
+	it("hands a vertical turn to the instrument clip view under the editor, and keeps it with SHIFT or X_ENC held", _ {
+		// `SampleMarkerEditor::verticalEncoderAction` (`:883-901`).
+		Rig r;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		currentUIMode = UI_MODE_NONE;
+		expect(spec::open_shortcut_over(&instrumentClipView, r.song.clip, 0, 7)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &marker_scene()).to_be_true();
+		const int32_t before = r.song.clip->yScroll;
+		(void)shellHostUI.verticalEncoderAction(1);
+		expect(r.song.clip->yScroll != before).to_be_true();
+		const int32_t moved = r.song.clip->yScroll;
+		// With SHIFT or X_ENC held the clip view would move or transpose the notes on screen; the editor keeps the
+		// turn.
+		NoteRow* row = r.song.clip->createNewNoteRowForYVisual(moved + 2, r.song.song);
+		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			return;
+		}
+		{
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* stack = r.song.song->setupModelStackWithCurrentClip(memory);
+			ModelStackWithNoteRow* with_row = r.song.clip->getNoteRowForYNote(row->y(), stack);
+			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+		}
+		r.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
+		r.song.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;
+		const int32_t note_y = row->y();
+		const int32_t colour = r.song.clip->colourOffset();
+		{
+			spec::ShiftHeld shift;
+			(void)shellHostUI.verticalEncoderAction(1);
+		}
+		expect(r.song.clip->yScroll).to_equal(moved);
+		expect(r.song.clip->colourOffset()).to_equal(colour); // the clip view would shift its colours
+		expect(r.song.clip->getNoteRowForYNote(note_y) != nullptr
+		       && !r.song.clip->getNoteRowForYNote(note_y)->hasNoNotes())
+		    .to_be_true();
+		const auto xy = deluge::hid::button::toXY(deluge::hid::button::X_ENC);
+		Buttons::buttonStates[xy.x][xy.y] = true;
+		(void)shellHostUI.verticalEncoderAction(1);
+		Buttons::buttonStates[xy.x][xy.y] = false;
+		NoteRow* still = r.song.clip->getNoteRowForYNote(note_y);
+		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
 	});
 
 	it("adds a loop start by holding START and tapping to its right", _ {

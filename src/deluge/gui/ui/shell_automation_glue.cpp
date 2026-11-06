@@ -38,6 +38,7 @@
 #include "synth/modulation/cable.h"
 
 #include "scenes/browser/browser_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/transition.h"
 #include "scenes/registry.h"
@@ -323,6 +324,22 @@ std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 	return instrumentClipView.verticalEncoderAction(offset);
+}
+
+std::optional<ActionResult> forwardMarkerVertical(int32_t offset) {
+	if (&shellHostUI.shell().stack().input_top() != &deluge::scenes::marker::marker_scene()) {
+		return std::nullopt;
+	}
+	const Clip* clip = getCurrentClip();
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC) || clip == nullptr
+	    || clip->type == ClipType::AUDIO) {
+		return ActionResult::DEALT_WITH;
+	}
+	const ActionResult result = instrumentClipView.verticalEncoderAction(offset);
+	if (getRootUI() == &keyboardScreen) {
+		uiNeedsRendering(&shellHostUI, 0, 0xFFFFFFFF);
+	}
+	return result;
 }
 
 } // namespace deluge::gui::ui

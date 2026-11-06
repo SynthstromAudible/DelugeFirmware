@@ -1040,6 +1040,13 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 		}
 		return *result;
 	}
+	if (const std::optional<ActionResult> result = forwardMarkerVertical(offset)) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	if (const std::optional<ActionResult> result = forwardBrowserVertical(offset)) {
 		shell_.note_activity(nowMs());
 		if (getCurrentUI() == this) {

@@ -420,6 +420,10 @@ std::optional<ActionResult> forwardBrowserVertical(int32_t) {
 	return std::nullopt;
 }
 
+std::optional<ActionResult> forwardMarkerVertical(int32_t) {
+	return std::nullopt;
+}
+
 bool browserTakesRecord() {
 	return false;
 }
