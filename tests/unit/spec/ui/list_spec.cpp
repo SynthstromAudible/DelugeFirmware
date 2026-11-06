@@ -145,6 +145,27 @@ describe list_w("ui::oled::list", $ {
 		expect(r.lit(42, 28)).to_be_false();
 	});
 
+	it("keeps its own scroll when asked, moving the window only as far as the cursor needs", _ {
+		// `MultiRange::currentScroll`: the window opens with the cursor on its last row, and a move keeps it in view
+		// without re-centring it.
+		const ListRow rows[] = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		const Rect m = menu_rect(r.frame);
+		st.keep_scroll = true;
+		st.scroll = -1;
+		st.cursor = 4;
+		list(r.frame, m, st, rows, sc);
+		expect(st.scroll).to_equal(int16_t(2));
+		r.input.turn = -1;
+		list(r.frame, m, st, rows, sc);
+		expect(st.cursor).to_equal(int16_t(3));
+		expect(st.scroll).to_equal(int16_t(2)); // still in view: the window stays
+		r.input.turn = -2;
+		list(r.frame, m, st, rows, sc);
+		expect(st.cursor).to_equal(int16_t(1));
+		expect(st.scroll).to_equal(int16_t(1)); // just far enough
+	});
+
 	it("moves the cursor with turn, clamps, and keeps it visible", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;

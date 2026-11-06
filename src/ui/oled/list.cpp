@@ -116,7 +116,15 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		return resp;
 	}
 
-	const int32_t start = list_window_start(cursor, n, visible);
+	int32_t start = 0;
+	if (state.keep_scroll) {
+		start = state.scroll < 0 ? cursor - visible + 1 : state.scroll;
+		start = std::clamp<int32_t>(start, cursor - visible + 1, cursor);
+		start = std::max<int32_t>(start, 0);
+	}
+	else {
+		start = list_window_start(cursor, n, visible);
+	}
 	state.scroll = static_cast<int16_t>(start);
 	resp.entered = f.select_pressed() && rows[cursor].selectable;
 

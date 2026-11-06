@@ -37,6 +37,7 @@
 /// A horizontal turn picks an edge (`MenuState::edit_edge`, legacy's `soundEditor.editingRangeEdge`), the select
 /// encoder moves it a note at a time through one ranges write, and BACK cancels it before it would go up; the edited
 /// half of the row is inverted and no row is selected. All of it is read in `render`, where the turns and BACK arrive.
+/// Opening the picker turns the edge off (`MultiRange::beginSession` ends in `Range::beginSession`).
 ///
 /// ## Inserting and deleting a range
 ///

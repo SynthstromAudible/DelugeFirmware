@@ -449,6 +449,15 @@ struct RangeFixture {
 
 } // namespace
 
+/// @brief `MultiRange::currentScroll`, which is protected on a `final` class: an explicit instantiation may name it
+///        (access is not checked there), and the friend it defines hands the member pointer out.
+auto multi_range_scroll();
+template <int32_t legacy::MultiRange::* Member>
+struct MultiRangeScrollPeek {
+	friend auto multi_range_scroll() { return Member; }
+};
+template struct MultiRangeScrollPeek<&legacy::MultiRange::currentScroll>;
+
 /// @brief Make @p root legacy's root UI for an example, and put the old one back: `MultiRange` re-renders the root
 /// after a
 ///        range change (`SoundEditor::possibleChangeToCurrentRangeDisplay`), which reads it.
@@ -738,6 +747,66 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 			nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
 			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(1);
 		}
+	});
+
+	it("keeps its window where MultiRange's currentScroll keeps it: on opening, on a flick, and on an insert before", _ {
+		const RootUiFor root{&instrumentClipView};
+		const int16_t tops[] = {20, 30, 40, 50, 60, 32767};
+		const auto fixture = [&](RangeFixture& f) {
+			auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+			for (int32_t i = 0; i < 6; i++) {
+				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+			}
+			deluge::edits::recordRanges(*sound, 0);
+			sound->sources[0].defaultRangeI = 4;
+		};
+		// Each step: open, a flick of -1, a flick of -2, a flick of +1 (the range mid-window), and a Shift turn of -1
+		// (inserted before, which moves the window with the old range).
+		std::vector<int32_t> want;
+		{
+			RangeFixture f{6};
+			fixture(f);
+			soundEditor.currentMultiRange = nullptr;
+			legacy::multiRangeMenu.beginSession(nullptr);
+			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
+			legacy::multiRangeMenu.selectEncoderAction(-1);
+			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
+			legacy::multiRangeMenu.selectEncoderAction(-1);
+			legacy::multiRangeMenu.selectEncoderAction(-1);
+			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
+			legacy::multiRangeMenu.selectEncoderAction(1);
+			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
+			{
+				spec::ShiftHeld shift;
+				legacy::multiRangeMenu.selectEncoderAction(-1);
+			}
+			display->cancelPopup();
+			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
+		}
+		std::vector<int32_t> got;
+		{
+			RangeFixture f{6};
+			fixture(f);
+			menu::MenuState picker{};
+			picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // `beginSession` ends in `Range::beginSession`
+			nodes::kMultiRangeItem.on_focus(f.ctx, picker);
+			expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+			const auto frame = [&](int8_t turn, bool shift) {
+				deluge::ui::test::Rig48 rig;
+				rig.input.turn = turn;
+				rig.input.shift = shift;
+				nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
+				got.push_back(picker.list[0].scroll);
+			};
+			frame(0, false);
+			frame(-1, false);
+			frame(-2, false);
+			frame(1, false);
+			frame(-1, true);
+			display->cancelPopup();
+		}
+		expect(got == want).to_be_true();
+		expect(want.size()).to_equal(size_t{5});
 	});
 
 	it("selects a range the way setCurrentMultiRange does", _ {

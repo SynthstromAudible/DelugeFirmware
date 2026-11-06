@@ -210,6 +210,10 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 
 	state.list[depth_of(state)] = deluge::ui::ListState{};
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(cursor);
+	// `:58-63`: the window opens with the range on its last row; it keeps its own scroll from then on.
+	state.list[depth_of(state)].keep_scroll = true;
+	state.list[depth_of(state)].scroll = -1;
+	state.edit_edge = deluge::ui::oled::RangeEdge::Off; // `:66`, `Range::beginSession`
 	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
 
 	// `:54` -- `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
@@ -270,6 +274,9 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			         && ctx.sink->insert_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
 			                                   static_cast<uint16_t>(plan->at), plan->top_note, plan->previous_top)) {
 				list_state.cursor = static_cast<int16_t>(plan->at);
+				if (!plan->previous_top) {
+					list_state.scroll++; // `:188`: inserted before, the window moves with the old range
+				}
 				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_INSERTED),
 				                              deluge::notify::Notice::Kind::Console);
 			}
