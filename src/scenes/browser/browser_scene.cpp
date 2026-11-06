@@ -23,6 +23,8 @@
 #include "notify/notice_queue.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/favourites.h"
+#include "ui/grid/rows.h"
 #include "ui/oled/misc.h"
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
@@ -414,6 +416,13 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	cursor_blink_ = deluge::ui::Blink{};
 
+	favourite_resp_ = {};
+	bank_resp_ = {};
+	favourite_flash_anchor_ms_.reset();
+	if (id_ == BrowserId::Sample) {
+		favourites().set_category("SAMPLES"); // `SampleBrowser::opened`
+	}
+
 	request_open();
 	return true;
 }
@@ -441,6 +450,7 @@ void BrowserScene::on_exit() {
 		preview_outstanding_ = true;
 		preview_path_.clear();
 		preview_direction_ = 0;
+		favourites().close(); // `Browser::close`
 	}
 	xenc_held_ = false;
 	pad_scroll_.reset();
@@ -546,10 +556,124 @@ void BrowserScene::file_preview(int8_t direction) {
 	preview_outstanding_ = true;
 }
 
+void BrowserScene::arrive_in_new_folder() {
+	// `Browser::arrivedInNewFolder`: every listing of a folder hides the keyboard unless it is always up.
+	if (!keyboard_always_visible_) {
+		keyboard_visible_ = false;
+	}
+}
+
 void BrowserScene::reveal_keyboard() {
 	keyboard_visible_ = true;
 	keys_drawn_ = true;
 	pads_ = BrowserPads::Keyboard;
+	favourite_flash_anchor_ms_.reset(); // `drawKeys` draws the favourites afresh
+}
+
+services::Favourites& BrowserScene::favourites() {
+	return favourites_override_ != nullptr ? *favourites_override_ : menu::host_favourites();
+}
+
+bool BrowserScene::favourites_visible() const {
+	return id_ == BrowserId::Sample && keyboard_visible_
+	       && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff;
+}
+
+bool BrowserScene::banks_visible() const {
+	return id_ == BrowserId::Sample && keyboard_visible_
+	       && FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks;
+}
+
+int32_t BrowserScene::favourite_row() const {
+	// `QwertyUI::opened`: row 7, or 6 with the bank row beneath it.
+	return FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks ? kFavouriteRow - 1
+	                                                                                         : kFavouriteRow;
+}
+
+void BrowserScene::favourites_changed() {
+	favourite_flash_anchor_ms_.reset();
+	pads_changed_ = true;
+}
+
+Result BrowserScene::favourite_press(uint8_t position) {
+	Result r;
+	r.handled = true;
+	const auto popup = [&r](String text) {
+		(void)r.actions.push_back(Action{
+		    .kind = Action::Kind::Popup, .surface = SurfaceRole::Main, .popup_string = static_cast<uint16_t>(text)});
+	};
+	// A bank still arriving, or one that could not be read, may be neither edited nor recalled from.
+	switch (favourites().bank_state()) {
+	case services::FavouritesBank::Loading:
+		return r;
+	case services::FavouritesBank::Unavailable:
+		popup(String::STRING_FOR_SD_CARD_ERROR);
+		return r;
+	case services::FavouritesBank::Loaded:
+		break;
+	}
+	if (shift_) {
+		const FileItem* item = item_at(file_index_);
+		if (favourites().is_empty(position)) {
+			if (item != nullptr && !item->isFolder) {
+				const std::string_view dir = current_dir();
+				favourites().set(position, dir.empty() ? item->filename : std::string{dir} + "/" + item->filename);
+				favourites_changed();
+			}
+		}
+		else {
+			favourites().unset(position);
+			favourites_changed();
+		}
+		return r;
+	}
+	const std::string path = favourites().recall(position);
+	favourites_changed();
+	if (path.empty()) {
+		popup(String::STRING_FOR_FAVOURITES_EMPTY);
+		return r;
+	}
+	// `setFileByFullPath`: list the favourite's folder and land on it.
+	entered_len_ = 0;
+	edit_ = deluge::ui::oled::TextEditState{};
+	arrive_in_new_folder();
+	ListingRequest req = make_request(ListingAction::ByPath);
+	req.path = path;
+	file_request(std::move(req));
+	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	return r;
+}
+
+void BrowserScene::render_favourites(deluge::ui::grid::GridFrame& f) {
+	// `QwertyUI::renderFavourites`, then `timerCallback`'s flash of the current favourite and bank every 500 ms from
+	// the draw.
+	const std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours = favourites().colours();
+	const std::array<RGB, deluge::ui::grid::kFavourites> row = deluge::ui::grid::favourite_row_colours(colours);
+	favourite_resp_ = deluge::ui::grid::row(f, favourite_row(), row);
+	if (FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks) {
+		const std::array<RGB, deluge::ui::grid::kFavourites> banks = deluge::ui::grid::favourite_bank_colours();
+		bank_resp_ = deluge::ui::grid::row(f, kFavouriteRow, banks);
+	}
+	if (!favourites_visible()) {
+		favourite_flash_anchor_ms_.reset();
+		return;
+	}
+	const uint32_t now = f.now_ms();
+	if (!favourite_flash_anchor_ms_.has_value()) {
+		favourite_flash_anchor_ms_ = now;
+		favourite_flash_step_ = 0;
+	}
+	const uint32_t step = (now - *favourite_flash_anchor_ms_) / kFavouriteFlashMs;
+	if (step != favourite_flash_step_) {
+		favourite_flash_step_ = step;
+		if (const std::optional<uint8_t> current = favourites().current_favourite()) {
+			f.flash(*current, favourite_row(), deluge::ui::grid::FlashColour::Default);
+		}
+		if (banks_visible()) {
+			f.flash(favourites().current_bank(), kFavouriteRow, deluge::ui::grid::FlashColour::Default);
+		}
+	}
+	f.grid_gate().request_repaint_after(*favourite_flash_anchor_ms_ + (step + 1) * kFavouriteFlashMs - now, now);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -904,11 +1028,13 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 	edit_.cursor = 0;
 	edit_.scroll = 0;
 	set_entered_text_from_current_filename();
-	// `currentFileChanged`, given only the move's sign: a move hides the keyboard unless it is always up.
+	// `finishSelectEncoderAction` hides the keyboard unless it is always up, before `currentFileChanged` (given only
+	// the move's sign) reads it: so the pads scroll out at once, while the next preview loads, only from a waveform.
 	const int8_t direction = static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0));
-	if (direction != 0 && (showing_preview_ || keyboard_visible_) && !keyboard_always_visible_) {
-		// The pads scroll out at once, while the next preview loads.
+	if (!keyboard_always_visible_) {
 		keyboard_visible_ = false;
+	}
+	if (direction != 0 && showing_preview_ && !keyboard_always_visible_) {
 		waveform_scroll_ = 0;
 		pad_scroll_ = ScrollRequest{.direction = direction, .into_nothing = true};
 	}
@@ -1017,6 +1143,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		// `Browser::goIntoFolderImpl` clears the entered text before it lists.
 		entered_len_ = 0;
 		edit_ = deluge::ui::oled::TextEditState{};
+		arrive_in_new_folder();
 		ListingRequest req = make_request(ListingAction::IntoFolder);
 		req.path = item->filename;
 		file_request(std::move(req));
@@ -1075,6 +1202,7 @@ Result BrowserScene::back() {
 	}
 	entered_len_ = 0;
 	edit_ = deluge::ui::oled::TextEditState{};
+	arrive_in_new_folder();
 	file_request(make_request(ListingAction::UpLevel));
 	return repaint_all();
 }
@@ -1219,6 +1347,11 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
 		// *main* pads only.
 		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+		// The rows stay drawn with the keys once the keyboard is hidden, as `main`'s pads keep them; only the
+		// flash and the presses need the keyboard visible.
+		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
+			render_favourites(f);
+		}
 		return;
 	}
 }
@@ -1425,12 +1558,40 @@ Result BrowserScene::after_render() {
 	// scrolled in over it) the press types blind, as `Browser::padAction` does.
 	const std::optional<deluge::ui::PadEvent> reveal = reveal_press_;
 	reveal_press_.reset();
+	const deluge::ui::Response favourite = favourite_resp_;
+	const deluge::ui::Response bank = bank_resp_;
+	favourite_resp_ = {};
+	bank_resp_ = {};
+	if (grid_pass && favourite.index >= 0 && favourites_visible()) {
+		const Result pressed = favourite_press(static_cast<uint8_t>(favourite.index));
+		r.handled = true;
+		for (const Action& a : pressed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
+	if (grid_pass && bank.index >= 0 && banks_visible()) {
+		// `Browser::padAction`'s bank-row arm.
+		favourites().select_bank(static_cast<uint8_t>(bank.index));
+		favourites_changed();
+		r.handled = true;
+		return r;
+	}
+	if (grid_pass && reveal.has_value() && keyboard_visible_ && favourites_visible() && reveal->y == favourite_row()) {
+		// The keys are not on the pads but the keyboard is visible: the favourites row still answers.
+		const Result pressed = favourite_press(static_cast<uint8_t>(reveal->x));
+		r.handled = true;
+		for (const Action& a : pressed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
 	if (grid_pass && reveal.has_value()) {
 		if (!keyboard_visible_) {
 			reveal_keyboard();
 			edit_.cursor = 0;
 		}
-		const char c = reveal->y < kFavouriteRow
+		const char c = reveal->y < favourite_row()
 		                   ? deluge::ui::grid::text_keyboard_char_at(layout_, reveal->x, reveal->y,
 		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
 		                   : 0;
@@ -1568,12 +1729,8 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			r.handled = true;
 			return r;
 		}
-		// `Browser::padAction` -> `QwertyUI::padAction`: a main pad belongs to the keyboard, which
-		// has already claimed it while `render_grid` painted it, so anything arriving here is
-		// outside the keyboard's columns. Legacy's sidebar arms are the favourites row and the bank
-		// row (`browser.cpp:1191-1227`), neither of which this scene draws -- `favouritesManager` is
-		// reached through `getCurrentUI()` (`browser.cpp:1463`), a root-UI read this layer may not
-		// make -- so a sidebar press does nothing rather than doing something half-right.
+		// `Browser::padAction` -> `QwertyUI::padAction`: a main pad belongs to the keyboard or the favourites and bank
+		// rows, which `render_grid` read as it painted them, so anything arriving here does nothing.
 		break;
 
 	case UiEvent::Kind::Encoder:
@@ -1594,6 +1751,22 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
 			return horizontal_turn(event.delta);
+		}
+		if (event.encoder == deluge::ui::EncoderRole::Vertical && ctx.shift && favourites_visible()) {
+			// `Browser::verticalEncoderAction`: SHIFT recolours the current favourite.
+			Result r;
+			r.handled = true;
+			if (favourites().bank_state() == services::FavouritesBank::Unavailable) {
+				(void)r.actions.push_back(
+				    Action{.kind = Action::Kind::Popup,
+				           .surface = SurfaceRole::Main,
+				           .popup_string = static_cast<uint16_t>(String::STRING_FOR_SD_CARD_ERROR)});
+			}
+			else if (const std::optional<uint8_t> current = favourites().current_favourite()) {
+				favourites().change_colour(*current, event.delta);
+				favourites_changed();
+			}
+			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
 			// `SampleBrowser::verticalEncoderAction`: with SHIFT, `Browser::verticalEncoderAction` recolours a

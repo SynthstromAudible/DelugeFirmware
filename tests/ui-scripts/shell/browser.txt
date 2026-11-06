@@ -32,7 +32,7 @@
 620   pad 4 3 up
 700   snapshot after_typed_s         # 'S' at the QWERTY home row (keyboard.cpp:12-20): the first press shows
                                      # the keyboard and types, and the in-memory `predictExtendedText` search
-                                     # jumps to SUB
+                                     # jumps to SUB; the favourites row (row 7) shows with the keys
 800   button Back down
 820   button Back up
 900   snapshot after_back            # `backButtonAction` -> up a level; the third listing landed,

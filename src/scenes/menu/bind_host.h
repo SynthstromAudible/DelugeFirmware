@@ -6,6 +6,7 @@
 
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/services/favourites.h"
 #include "scenes/services/waveforms.h"
 
 #include <string>
@@ -34,5 +35,7 @@ std::string host_last_sample_path();
 ///        browser's Shift+SAVE, before it offers to delete the file (`SampleBrowser::buttonAction`).
 /// @return False when the song uses the file, which may then not be deleted.
 bool host_release_sample_file(std::string_view path);
+/// @brief The favourites bank the app's browsers share.
+deluge::scenes::services::Favourites& host_favourites();
 
 } // namespace deluge::scenes::menu

@@ -75,6 +75,7 @@
 #include "scenes/browser/listing.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/services/favourites.h"
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
@@ -370,9 +371,13 @@ inline constexpr uint32_t kListingPollMs = 10;
 ///        `SampleBrowser::tickPreviewRedraw`'s `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
 inline constexpr uint32_t kWaveformRedrawGiveUpMs = 300;
 
-/// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`, the default layout without banks): a
-///        first press there reveals the keyboard and does nothing else.
+/// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`) in the default layout, without banks;
+/// with
+///        banks it is the row below, and the banks take this one. A first press there reveals the keyboard and does
+///        nothing else.
 inline constexpr int32_t kFavouriteRow = 7;
+/// @brief How often the current favourite (and bank) flash: `QwertyUI::timerCallback`'s period.
+inline constexpr uint32_t kFavouriteFlashMs = 500;
 
 /// @brief The file browser. One instance for the whole application (`registry.h`).
 class BrowserScene final : public deluge::ui::shell::Scene {
@@ -466,6 +471,10 @@ public:
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
+	int32_t favourite_row() const;
+	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
+	void set_favourites(services::Favourites* favourites) { favourites_override_ = favourites; }
 	/// @}
 
 	/// @brief Collect the file the scene could not load itself, exactly once.
@@ -576,6 +585,8 @@ private:
 	void set_entered_text_from_current_filename();
 	/// @brief Apply one keyboard key: enter enters, backspace deletes, anything else types and searches.
 	deluge::ui::shell::Result press_key(char c);
+	/// @brief `Browser::arrivedInNewFolder`'s first step: hide the keyboard unless it is always visible.
+	void arrive_in_new_folder();
 	/// @brief Reveal the keyboard: `qwertyVisible`, and the keys drawn.
 	void reveal_keyboard();
 	/// @brief `SampleBrowser::horizontalEncoderAction`: zoom or scroll the preview, or reveal the keyboard and walk the
@@ -584,6 +595,18 @@ private:
 	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD and KEYBOARD arms.
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
+	/// @brief The favourites the browser shows: the host's, unless a spec gave its own.
+	services::Favourites& favourites();
+	/// @brief `Browser::isFavouritesVisible` / `isBanksVisible`: the sample browser's keyboard is up and the layout
+	///        shows them.
+	bool favourites_visible() const;
+	bool banks_visible() const;
+	/// @brief `Browser::padAction`'s favourites-row arm: recall the favourite, or with SHIFT set or unset it.
+	deluge::ui::shell::Result favourite_press(uint8_t position);
+	/// @brief `Browser::favouritesChanged`: redraw the row, and restart its flash.
+	void favourites_changed();
+	/// @brief The favourites and bank rows, and the current ones' flash, over the keyboard.
+	void render_favourites(deluge::ui::grid::GridFrame& f);
 	/// @brief The root state's BROWSE blink.
 	void render_root_blink(deluge::ui::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
@@ -719,6 +742,14 @@ private:
 	/// The file the outstanding preview names (empty for a stop) and its direction, which its answer acts on.
 	std::string preview_path_{};
 	int8_t preview_direction_ = 0;
+	/// A spec's favourites, in place of the host's.
+	services::Favourites* favourites_override_ = nullptr;
+	/// What this tick's favourites and bank rows reported, for `after_render`.
+	deluge::ui::Response favourite_resp_{};
+	deluge::ui::Response bank_resp_{};
+	/// The current favourite's flash: when the rows were last drawn afresh, and the last period flashed.
+	std::optional<uint32_t> favourite_flash_anchor_ms_{};
+	uint32_t favourite_flash_step_ = 0;
 	/// The selected row's side-scroller, armed while the cursor is at the start.
 	deluge::ui::ScrollText row_scroll_{};
 	/// The host changed the pads, or the list, between ticks; the next tick repaints them.

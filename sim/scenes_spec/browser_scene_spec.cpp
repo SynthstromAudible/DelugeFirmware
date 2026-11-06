@@ -43,6 +43,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/favourites.h"
 #include "ui/grid/keyboard.h"
 
 #include "gfx/oled/icons.h"
@@ -64,6 +65,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/name_compare.h"
 
@@ -827,6 +829,68 @@ void select_folder(Rig& r, bool folder) {
 		r.turn(1, r.clock + 10);
 		r.settle();
 	}
+}
+
+/// @brief A favourites bank in memory, recording what the browser asks of it.
+struct FakeFavourites final : deluge::scenes::services::Favourites {
+	std::array<std::optional<uint8_t>, 16> slots{};
+	std::array<std::string, 16> paths{};
+	std::optional<uint8_t> current{};
+	uint8_t bank = 0;
+	deluge::scenes::services::FavouritesBank state = deluge::scenes::services::FavouritesBank::Loaded;
+	std::string category;
+	int closes = 0;
+
+	void set_category(std::string_view c) override { category = c; }
+	void close() override { closes++; }
+	[[nodiscard]] deluge::scenes::services::FavouritesBank bank_state() const override { return state; }
+	[[nodiscard]] std::array<std::optional<uint8_t>, 16> colours() const override { return slots; }
+	[[nodiscard]] std::optional<uint8_t> current_favourite() const override { return current; }
+	[[nodiscard]] uint8_t current_bank() const override { return bank; }
+	[[nodiscard]] bool is_empty(uint8_t p) const override { return !slots[p].has_value(); }
+	std::string recall(uint8_t p) override {
+		current = p;
+		return slots[p].has_value() ? paths[p] : std::string{};
+	}
+	void set(uint8_t p, std::string_view path) override {
+		current = p;
+		slots[p] = 4;
+		paths[p] = path;
+	}
+	void unset(uint8_t p) override {
+		current = p;
+		slots[p].reset();
+		paths[p].clear();
+	}
+	void select_bank(uint8_t b) override { bank = b; }
+	void change_colour(uint8_t p, int32_t offset) override {
+		if (slots[p].has_value()) {
+			slots[p] = static_cast<uint8_t>(((*slots[p] + offset) % 16 + 16) % 16);
+		}
+	}
+};
+
+/// @brief Install @p fake as the browser's favourites for an example, in the default layout, and put the host's back.
+struct UseFavourites {
+	FavouritesDefaultLayout saved = FlashStorage::defaultFavouritesLayout;
+	explicit UseFavourites(FakeFavourites& fake, FavouritesDefaultLayout layout = FavouritesDefaultLayoutFavorites) {
+		FlashStorage::defaultFavouritesLayout = layout;
+		browser_scene().set_favourites(&fake);
+	}
+	~UseFavourites() {
+		browser_scene().set_favourites(nullptr);
+		FlashStorage::defaultFavouritesLayout = saved;
+	}
+	UseFavourites(const UseFavourites&) = delete;
+	UseFavourites& operator=(const UseFavourites&) = delete;
+};
+
+/// @brief Press and release main pad (@p x, @p y), a tick each.
+void tap(Rig& r, uint8_t x, uint8_t y) {
+	r.pad(x, y, 64, r.clock + 10);
+	r.step();
+	r.pad(x, y, 0, r.clock + 10);
+	r.step();
 }
 
 /// @brief The host's facts, but for a sample load said to be running.
@@ -2877,18 +2941,44 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		expect(browser_scene().scroll_pending()).to_be_false();
 	});
 
-	it("files a scroll out at once when the selection moves with a waveform or the keyboard showing", _ {
-		// `currentFileChanged`: the pads scroll out into nothing while the next preview loads.
+	it("files a scroll out at once when the selection moves off a waveform, and not off the keyboard alone", _ {
+		// `finishSelectEncoderAction` hides the keyboard before `currentFileChanged` asks whether a preview or the
+		// keyboard shows, so only a waveform scrolls out while the next preview loads.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(false);
 		r.pad(9, 7, 64, r.clock + 10);
 		r.step();
+		r.turn(1, r.clock + 10);
+		r.step();
+		expect(browser_scene().take_scroll().has_value()).to_be_false();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 30);
+		(void)browser_scene().take_scroll();
 		r.turn(-1, r.clock + 10);
 		r.step();
 		expect(browser_scene().take_scroll() == ScrollRequest{.direction = -1, .into_nothing = true}).to_be_true();
+	});
+
+	it("hides the keyboard on entering a folder unless it is always visible", _ {
+		// `Browser::arrivedInNewFolder`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		select_folder(r, true);
+		r.pad(9, 7, 64, r.clock + 10);
+		r.step();
+		const uint32_t down = press_select(r);
+		release_select(r, down + 20);
+		r.land();
+		browser_scene().preview_settled(false);
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
 	});
 
 	it("files a scroll to the root view when a move lands on nothing to show", _ {
@@ -3057,9 +3147,156 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
 	});
 });
+describe browser_favourites("scenes::browser::BrowserScene the favourites row", $ {
+	it("shows the SAMPLES favourites while the keyboard shows, and leaves them on exit", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[2] = 4;
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(fake.category).to_equal(std::string{"SAMPLES"});
+		expect(r.fake.grid().grid().at(2, 7) == RGB{}).to_be_true(); // no keyboard yet: the root view's
+		tap(r, 9, 7);
+		r.settle();
+		const std::array<RGB, 16> want = deluge::ui::grid::favourite_row_colours(fake.slots);
+		for (uint8_t x = 0; x < 16; x++) {
+			expect(r.fake.grid().grid().at(x, 7) == want[x]).to_be_true();
+		}
+		browser_scene().on_exit();
+		expect(fake.closes).to_equal(1);
+	});
+
+	it("moves the selection to a favourite's file on a press, and pops main's message for an empty one", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[3] = 1;
+		fake.paths[3] = "SAMPLES/TOM.WAV";
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7); // reveal
+		tap(r, 3, 7);
+		r.land();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TOM"});
+		expect(fake.current == std::optional<uint8_t>{3}).to_be_true();
+		tap(r, 5, 7); // the recall's listing hid the keyboard: this reveals it
+		tap(r, 5, 7);
+		r.step();
+		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_FAVOURITES_EMPTY)});
+	});
+
+	it("sets a favourite to the selected file with SHIFT, and unsets a set one", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7);
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		tap(r, 6, 7);
+		expect(fake.paths[6]).to_equal(std::string{"SAMPLES/CLAP.WAV"});
+		tap(r, 6, 7);
+		expect(fake.slots[6].has_value()).to_be_false();
+		select_folder(r, true); // the move hides the keyboard
+		tap(r, 6, 7);           // which this reveals
+		tap(r, 6, 7);           // and a folder is not a favourite
+		expect(fake.slots[6].has_value()).to_be_false();
+		r.button(kShiftX, kShiftY, false, r.clock + 10);
+		r.step();
+	});
+
+	it("recolours the current favourite with SHIFT and the vertical encoder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[1] = 4;
+		fake.current = 1;
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7);
+		DirectCtx d;
+		d.ctx.shift = true;
+		(void)browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Vertical, .delta = 2}, d.ctx);
+		expect(fake.slots[1] == std::optional<uint8_t>{6}).to_be_true();
+	});
+
+	it("flashes the current favourite every 500 ms from the draw", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[4] = 2;
+		fake.current = 4;
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7);
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 400);
+		expect(flashes_since(r, from).empty()).to_be_true();
+		run_until(r, r.clock + 700); // 1100 ms from the draw: the flashes at 500 and 1000
+		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		expect(seen.size()).to_equal(size_t(2));
+		for (const deluge::ui::grid::PadFlash& fl : seen) {
+			expect(fl.x == 4 && fl.y == 7).to_be_true();
+		}
+		r.turn(1, r.clock + 10); // a move hides the keyboard; the rows stay, the flash stops
+		r.step();
+		const size_t hidden = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1100);
+		expect(flashes_since(r, hidden).empty()).to_be_true();
+	});
+
+	it("does nothing while the bank loads, and says the card failed when it could not load", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		fake.slots[3] = 1;
+		fake.paths[3] = "SAMPLES/TOM.WAV";
+		fake.state = deluge::scenes::services::FavouritesBank::Loading;
+		UseFavourites use(fake);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		tap(r, 9, 7);
+		tap(r, 3, 7);
+		expect(fake.current.has_value()).to_be_false();
+		fake.state = deluge::scenes::services::FavouritesBank::Unavailable;
+		tap(r, 3, 7);
+		r.step();
+		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_SD_CARD_ERROR)});
+	});
+
+	it("puts the favourites on row 6 and the banks on row 7 in the banks layout, a bank press selecting it", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		FakeFavourites fake;
+		UseFavourites use(fake, FavouritesDefaultLayoutFavoritesAndBanks);
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(browser_scene().favourite_row()).to_equal(6);
+		tap(r, 9, 7);
+		r.settle();
+		const std::array<RGB, 16> banks = deluge::ui::grid::favourite_bank_colours();
+		expect(r.fake.grid().grid().at(5, 7) == banks[5]).to_be_true();
+		tap(r, 5, 7);
+		expect(fake.bank).to_equal(uint8_t(5));
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
                 browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard,
-                browser_scroll, browser_record_delete)
+                browser_scroll, browser_record_delete, browser_favourites)
