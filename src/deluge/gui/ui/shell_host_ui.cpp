@@ -545,6 +545,9 @@ ActionResult ShellHostUI::timerCallback() {
 	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.
 	pollShellSlicer();
 
+	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
+	refreshShellSamplePreviewSounds();
+
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//
 	// `exitUI()` below is the LONG press: `Buttons` arms `TimerName::BACK_MENU_EXIT` for
@@ -1188,6 +1191,7 @@ void ShellHostUI::closeGuest() {
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);
+	refreshShellSamplePreviewSounds(); // the emptied stack: no preview sounds when the guest next opens
 
 	// No arm on the close path: `UI::close()` is `closeUI(this)`, which unsets
 	// `TimerName::UI_SPECIFIC` itself before handing focus to the UI beneath. Arming here would either be undone one

@@ -22,9 +22,10 @@
 ///
 /// The audio engine renders the preview drum only while the sample browser, one of its two long-press menus or the
 /// slicer is the current UI, which is false under the guest, where the current UI is `ShellHostUI`. This is legacy's
-/// expression or the guest's answer: those UIs' ports frontmost on the guest (`shellSamplePreviewSounds`). With the
-/// guest closed it is exactly legacy's expression. Header in `util/` and definition in
-/// `gui/ui/sample_preview_open.cpp`, on `sound_menu_open.h`'s terms.
+/// expression or the guest's answer: those UIs' ports frontmost on the guest at its last tick
+/// (`shellSamplePreviewSounds`, which the audio tier reads without walking the guest's stack). With the guest closed it
+/// is exactly legacy's expression. Header in `util/` and definition in `gui/ui/sample_preview_open.cpp`, on
+/// `sound_menu_open.h`'s terms.
 
 namespace deluge::gui::ui {
 

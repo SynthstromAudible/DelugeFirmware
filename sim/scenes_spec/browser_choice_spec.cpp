@@ -61,6 +61,7 @@
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -1138,7 +1139,7 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 
 	it("sounds the preview while the guest's sample browser is frontmost, and not under the menu", _ {
 		// `AudioEngine::renderSamplePreview` renders the preview drum only for the UIs `samplePreviewUIOpen` names;
-		// under the guest the current UI is `shellHostUI`, so it asks the guest which scene is frontmost.
+		// under the guest the current UI is `shellHostUI`, so it reads which scene the guest's last tick left frontmost.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
@@ -1157,8 +1158,10 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		}
 		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
 		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_true();
+		// The audio tier reads what the guest's tick published, so the answer changes at the next tick.
 		shellHostUI.shell().stack().pop();
 		expect(&shellHostUI.shell().stack().input_top() == &menu_scene()).to_be_true();
+		deluge::gui::ui::refreshShellSamplePreviewSounds();
 		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
 	});
 });

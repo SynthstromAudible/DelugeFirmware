@@ -412,6 +412,9 @@ void refreshShellRootFacts() {
 	fakelegacyui::root_fact_refreshes++;
 }
 
+void refreshShellSamplePreviewSounds() {
+}
+
 void dispatchShellActions() {
 	fakelegacyui::action_dispatches++;
 	if (fakelegacyui::on_action_dispatch) {

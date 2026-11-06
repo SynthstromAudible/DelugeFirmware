@@ -44,6 +44,8 @@
 #include "scenes/services/mod_knobs.h"
 #include "scenes/slicing/slicer_scene.h"
 
+#include <atomic>
+
 namespace deluge::gui::ui {
 namespace {
 
@@ -143,19 +145,27 @@ bool shellSoundMenuOpen() {
 	       && scene.menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
 }
 
-bool shellSamplePreviewSounds() {
-	if (getCurrentUI() != &shellHostUI) {
-		return false;
-	}
+namespace {
+/// The guest's answer to "does the sample preview sound", published by the guest's tick for the audio tier, which
+/// renders the preview drum and may not walk the guest's scene stack while the interaction tier changes it.
+std::atomic<bool> guestPreviewSounds{false};
+} // namespace
+
+void refreshShellSamplePreviewSounds() {
 	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
 	const auto& browser = deluge::scenes::browser::browser_scene();
 	const auto& menu = deluge::scenes::context_menu::context_menu_scene();
 	using deluge::scenes::context_menu::DescriptorId;
-	return (top == &browser && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample)
-	       || (top == &menu
-	           && (menu.descriptor_id() == DescriptorId::SampleBrowserKit
-	               || menu.descriptor_id() == DescriptorId::SampleBrowserSynth))
-	       || top == &deluge::scenes::slicing::slicer_scene();
+	const bool sounds = (top == &browser && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample)
+	                    || (top == &menu
+	                        && (menu.descriptor_id() == DescriptorId::SampleBrowserKit
+	                            || menu.descriptor_id() == DescriptorId::SampleBrowserSynth))
+	                    || top == &deluge::scenes::slicing::slicer_scene();
+	guestPreviewSounds.store(sounds, std::memory_order_relaxed);
+}
+
+bool shellSamplePreviewSounds() {
+	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
 }
 
 void shellMenuReadValueAgain() {
