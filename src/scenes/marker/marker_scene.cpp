@@ -14,6 +14,8 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/registry.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
@@ -857,6 +859,18 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
 			// swallows it on an audio clip.
 			r.handled = true;
+			return r;
+		}
+		// SHIFT + a main pad with no UI mode up is `soundEditor.potentialShortcutPadAction` (`:350-356`): a shortcut
+		// with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor, 1)`), and any other is
+		// swallowed, the editor staying.
+		if (event.on && ctx.shift && x < kDisplayWidth && !mode_up()) {
+			r.handled = true;
+			if (const std::optional<SceneId> page =
+			        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+				(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+			}
 			return r;
 		}
 		// A press under any mode but a held marker or auditioning is refused (`:376-380`).

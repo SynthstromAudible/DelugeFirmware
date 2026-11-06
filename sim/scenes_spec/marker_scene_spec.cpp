@@ -47,6 +47,10 @@
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_core.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
@@ -296,6 +300,19 @@ struct Rig {
 	}
 
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
+
+	/// @brief Open the menu at the sample start item, whose entry opens the editor over it: a shortcut's real door.
+	void open_through_menu() {
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
+		menu_scene().open(menu::nodes::sample0_start, ctx());
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(menu::nodes::sample0_start)});
+	}
+	/// @brief The scene on top of the stack.
+	SceneKind top() { return shell.stack().input_top().kind(); }
+	void shift(bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
 
 	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
 	///        (`shell/profiles/deluge.cpp`).
@@ -1037,6 +1054,52 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(110);
 		expect(r.view().has_value() && r.view()->scroll == s).to_be_true();
 		r.pad(col, 3, false, 120);
+	});
+
+	it("jumps with SHIFT to a shortcut's item, and stays on an empty cell, with a marker held, or auditioning", _ {
+		// `SampleMarkerEditor::padAction`'s `soundEditor.potentialShortcutPadAction` (`:350-356`).
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.open_through_menu();
+		for (uint32_t t = 0; t <= 40; t += 10) {
+			r.tick(t);
+		}
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		r.pad(2, 3, true, 50); // hold START
+		r.tick(50);
+		r.shift(true, 60);
+		r.pad(8, 7, true, 70); // with START held, LPF frequency is the marker's own press
+		r.tick(70);
+		r.pad(8, 7, false, 75);
+		r.pad(2, 3, false, 75);
+		r.tick(80);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		const SampleHolderForVoice& h = r.range->sampleHolder;
+		const std::array<uint64_t, 4> before{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
+		r.pad(7, 6, true, 90); // an empty cell: the editor stays, and no marker moves
+		r.tick(90);
+		r.pad(7, 6, false, 95);
+		r.tick(100);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		const std::array<uint64_t, 4> after{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
+		expect(after == before).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		r.pad(8, 7, true, 110); // LPF frequency while auditioning: the marker's own press
+		r.tick(110);
+		r.pad(8, 7, false, 115);
+		currentUIMode = UI_MODE_NONE;
+		r.tick(120);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		r.pad(8, 7, true, 130); // LPF frequency: the menu, on its page, focused on it
+		for (uint32_t t = 130; t <= 170; t += 10) {
+			r.tick(t);
+		}
+		r.pad(8, 7, false, 175);
+		r.shift(false, 175);
+		r.tick(180);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::lpf_freq)
+		    .to_be_true();
 	});
 
 	it("adds a loop start by holding START and tapping to its right", _ {

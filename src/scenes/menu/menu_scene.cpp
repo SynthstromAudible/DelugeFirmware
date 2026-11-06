@@ -243,7 +243,11 @@ void MenuScene::on_resume() {
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
-	pads_.forget_landing();
+	// The scene over the menu jumped (`shortcut_jump`): it is removed first, so this resume comes before the
+	// `Replace` its landing is for.
+	if (!std::exchange(landing_survives_resume_, false)) {
+		pads_.forget_landing();
+	}
 	visit_.use_up_select = true;
 	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
 	if (st_.walk.go_up_on_resume) {
@@ -258,6 +262,23 @@ void MenuScene::on_resume() {
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
 	st_.tick = {};
+}
+
+std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
+	const Node* target = shortcut_node(ctx_.root, false, x, y);
+	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
+		return std::nullopt;
+	}
+	if (!shortcut_applies(*target, ctx_)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		return std::nullopt;
+	}
+	const uint16_t id = arm_shortcut_landing(*target);
+	if (id == 0) {
+		return std::nullopt;
+	}
+	landing_survives_resume_ = true;
+	return SceneId{SceneKind::FirstApp, id};
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
