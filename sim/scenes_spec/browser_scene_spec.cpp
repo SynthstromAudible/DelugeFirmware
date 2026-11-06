@@ -86,6 +86,8 @@ using deluge::scenes::browser::browser_scene;
 using deluge::scenes::browser::BrowserId;
 using deluge::scenes::browser::BrowserScene;
 using deluge::scenes::browser::kBrowserSceneKind;
+using deluge::scenes::browser::kListingPollMs;
+using deluge::scenes::browser::PreviewRequest;
 using deluge::scenes::context_menu::context_menu_scene;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::spec::QuietAudio;
@@ -352,6 +354,10 @@ struct CleanBrowser {
 		}
 		// Collects an uncollected result (releasing the catalogue claim) and empties the catalogue.
 		browser_scene().on_exit();
+		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(false);
+		sampleBrowser.lastFilePathLoaded.clear();
 		Deferred::reset();
 		FileCatalogue::emptyFileItems();
 		FileCatalogue::numFileItemsDeletedAtStart = 0;
@@ -1195,6 +1201,105 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		r.land();
 		expect(static_cast<int>(FileCatalogue::fileItems.size())).to_equal(5);
+	});
+});
+
+describe browser_preview("scenes::browser::BrowserScene asking for previews", $ {
+	it("files one on open for the selected file, direction 0", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		const std::optional<PreviewRequest> request = browser_scene().take_preview();
+		expect(request == PreviewRequest{.id = BrowserId::Sample, .path = "SAMPLES/CLAP.WAV", .direction = 0}).to_be_true();
+		expect(browser_scene().preview_outstanding()).to_be_true();
+		expect(browser_scene().take_preview().has_value()).to_be_false();
+	});
+
+	it("files a preview request when the selection moves, with its direction", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		r.turn(3, r.clock + 10);
+		r.step();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"SNARE"});
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/SNARE.WAV", .direction = 1}).to_be_true();
+		r.turn(-3, r.clock + 10);
+		r.step();
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/CLAP.WAV", .direction = -1}).to_be_true();
+	});
+
+	it("files an empty-path request for a folder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		r.turn(1, r.clock + 10);
+		r.step();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 1}).to_be_true();
+	});
+
+	it("files a request when a typed search lands on another file, direction 0", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		r.type('T');
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/TOM.WAV", .direction = 0}).to_be_true();
+	});
+
+	it("files an empty-path request on exit", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().on_exit();
+		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+	});
+
+	it("files none for the MIDI device definition browser", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
+		expect(browser_scene().take_preview().has_value()).to_be_false();
+		expect(browser_scene().preview_outstanding()).to_be_false();
+	});
+
+	it("polls while a preview is outstanding, and stops once it settles", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(browser_scene().next_timer() == std::optional<uint32_t>{kListingPollMs}).to_be_true();
+		browser_scene().preview_settled(true);
+		expect(browser_scene().preview_outstanding()).to_be_false();
+		expect(browser_scene().next_timer() == std::optional<uint32_t>{kListingPollMs}).to_be_false();
+	});
+
+	it("opens beside the last sample loaded when the holder names none", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK1.WAV";
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK1"});
 	});
 });
 
@@ -2265,4 +2370,4 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
-                browser_long_press, browser_slicer_doors)
+                browser_long_press, browser_slicer_doors, browser_preview)

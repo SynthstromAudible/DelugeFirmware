@@ -24,7 +24,9 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -37,6 +39,7 @@
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "scenes/browser/browser_scene.h"
@@ -54,6 +57,7 @@ namespace deluge::gui::ui {
 using deluge::scenes::browser::browser_scene;
 using deluge::scenes::browser::BrowserChoice;
 using deluge::scenes::browser::BrowserId;
+using deluge::scenes::browser::PreviewRequest;
 
 namespace {
 
@@ -211,6 +215,53 @@ void requestMidiDefinitionLoad(std::string_view path) {
 	     .definition = {.path = std::string{path}, .instrument = static_cast<MIDIInstrument*>(output)}});
 }
 
+/// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
+///        a time), recording each load's path as legacy's browser's last file loaded, which both browsers open beside.
+SamplePreviewer& shellPreviewer() {
+	static SamplePreviewer previewer{&sampleBrowser.lastFilePathLoaded};
+	return previewer;
+}
+
+/// @brief The sound a ported preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and
+///        for a kit its clip, whose output volume the preview folds in -- what the legacy browser reads from the sound
+///        editor.
+PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
+	const SoundEditor::ResolvedContext resolved = resolvedFor(menuCtx);
+	::Clip* clip = currentSong != nullptr && menuCtx.addresses.clip
+	                   ? currentSong->clipForId(menuCtx.addresses.clip->clip_id)
+	                   : nullptr;
+	return PreviewSound{
+	    .sound = resolved.sound,
+	    .params = resolved.params,
+	    .kit = menuCtx.is_kit,
+	    .clip = clip != nullptr && clip->type == ClipType::INSTRUMENT ? static_cast<InstrumentClip*>(clip) : nullptr,
+	};
+}
+
+/// @brief Act on the ported browser's preview request, and tick the preview in hand: a file is previewed as the legacy
+///        browser's `previewFile` does, an empty path stops previewing as its `cancelPreview` and `stopAnyPreviewing`
+///        do; a load that ends, or a stop, is answered through `BrowserScene::preview_settled`.
+void dispatchPreview() {
+	SamplePreviewer& previewer = shellPreviewer();
+	if (const std::optional<PreviewRequest> request = browser_scene().take_preview()) {
+		if (request->path.empty()) {
+			previewer.cancel();
+			AudioEngine::stopAnyPreviewing();
+			browser_scene().preview_settled(false);
+		}
+		else {
+			previewer.request(request->path, request->direction);
+		}
+	}
+	if (!previewer.pending()) {
+		return;
+	}
+	if (const std::optional<SamplePreviewer::Landed> landed =
+	        previewer.tick(previewSoundFor(deluge::scenes::menu_scene().menu_context()))) {
+		browser_scene().preview_settled(landed->hasSample);
+	}
+}
+
 } // namespace
 
 void shellSampleClaimDone(bool success) {
@@ -266,51 +317,45 @@ void adoptShellMenuContext() {
 	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
 }
 
-void dispatchShellChoices() {
-	// One read, unconditionally, and the read is what empties the slot -- `take_choice()` moves the
-	// choice out and resets the member in the same call (`BrowserScene::take_choice`).
-	// So an early return above this line would not be "nothing to do", it would be "the choice stays
-	// in the outbox until something else asks", which is the stale delivery the header describes.
-	const std::optional<BrowserChoice> choice = browser_scene().take_choice();
-	if (!choice.has_value()) {
-		return;
-	}
+namespace {
 
-	switch (choice->id) {
+/// @brief Perform a choice the ported browser parked: the claim, import, slice or MIDI definition load it names.
+void dispatchChoice(const BrowserChoice& choice) {
+	switch (choice.id) {
 	case BrowserId::Sample:
 		// The split is
 		// made before anything acts, so `sim/scenes_spec/browser_choice_spec.cpp` can pin the
 		// decision over every path shape without the arm below it having to be reachable.
-		switch (choice->op) {
+		switch (choice.op) {
 		case BrowserChoice::Op::Enter:
-			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
-				claimSampleFile(choice->path, *target, kShellSampleClaimArgs, &shellSampleClaimDone);
+			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice.path)) {
+				claimSampleFile(choice.path, *target, kShellSampleClaimArgs, &shellSampleClaimDone);
 			}
 			break;
 		case BrowserChoice::Op::Claim:
-			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
-				claimSampleFile(choice->path, *target,
-				                {.mayDoPitchDetection = choice->claim.pitch,
-				                 .mayDoSingleCycle = choice->claim.single_cycle,
-				                 .mayDoWaveTable = choice->claim.wavetable,
+			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice.path)) {
+				claimSampleFile(choice.path, *target,
+				                {.mayDoPitchDetection = choice.claim.pitch,
+				                 .mayDoSingleCycle = choice.claim.single_cycle,
+				                 .mayDoWaveTable = choice.claim.wavetable,
 				                 .loadWithoutExiting = true},
 				                &shellLongPressClaimDone);
 			}
 			break;
 		case BrowserChoice::Op::ImportKit:
-			importFolder(*choice, deluge::gui::FolderImportKind::Kit);
+			importFolder(choice, deluge::gui::FolderImportKind::Kit);
 			break;
 		case BrowserChoice::Op::ImportMultisamples:
-			importFolder(*choice, deluge::gui::FolderImportKind::Multisamples);
+			importFolder(choice, deluge::gui::FolderImportKind::Multisamples);
 			break;
 		case BrowserChoice::Op::Slice:
-			openShellSlice(choice->path);
+			openShellSlice(choice.path);
 			break;
 		}
 		break;
 
 	case BrowserId::MidiDeviceDefinition:
-		requestMidiDefinitionLoad(choice->path);
+		requestMidiDefinitionLoad(choice.path);
 		break;
 
 	case BrowserId::Count:
@@ -321,6 +366,19 @@ void dispatchShellChoices() {
 		// alternative is the `default:` the header rules out.
 		break;
 	}
+}
+
+} // namespace
+
+void dispatchShellChoices() {
+	// One read of each outbox, unconditionally, and the read is what empties the slot -- `take_choice()` and
+	// `take_preview()` move the request out and reset the member in the same call. So an early return above either
+	// read would not be "nothing to do", it would be "the request stays in the outbox until something else asks",
+	// which is the stale delivery the header describes.
+	if (const std::optional<BrowserChoice> choice = browser_scene().take_choice()) {
+		dispatchChoice(*choice);
+	}
+	dispatchPreview();
 }
 
 } // namespace deluge::gui::ui

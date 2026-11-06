@@ -240,6 +240,21 @@ struct Descriptor {
 /// @return Its title, extensions, icons and hooks.
 const Descriptor& descriptor(BrowserId id);
 
+/// @brief What the sample browser asks the host to preview: the file the selection landed on, or nothing.
+///
+/// Filed wherever legacy's `SampleBrowser` calls `previewIfPossible`: a folder's listing landing
+/// (`folderContentsReady`, with the way in: 0 on opening, 1 into a folder, -1 up one), a move (`currentFileChanged`,
+/// the move's sign) and a typed search that lands on another file (0); and on leaving. The host previews it with the
+/// shared previewer and answers through `BrowserScene::preview_settled`.
+struct PreviewRequest {
+	BrowserId id = BrowserId::Sample;
+	/// The file to preview, from the card's root; empty to stop previewing (a folder, no selection, or leaving).
+	std::string path;
+	/// The direction the selection moved, for the scroll-in: -1, 0 or 1.
+	int8_t direction = 0;
+	bool operator==(const PreviewRequest&) const = default;
+};
+
 /// @brief A file the scene could not load itself, waiting for the application-side dispatcher.
 ///
 /// The noun half of the same seam `menu::MenuActionRequest` is the verb half of. See
@@ -429,6 +444,21 @@ public:
 	/// @param opened Whether `slicing::slicer_scene()` holds the file now.
 	void slice_ready(bool opened);
 
+	/// @brief Take the preview the selection last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains
+	/// it
+	///        every guest tick after `take_choice()`. One deep: a later request overwrites one not yet taken, as
+	///        legacy's latest-wins preview does.
+	/// @return The request, or `std::nullopt` when none is waiting.
+	std::optional<PreviewRequest> take_preview();
+	/// @brief The host's answer to the request in hand: its load ended, with a sample in the preview drum or not, or
+	/// the
+	///        preview was stopped.
+	/// @param has_sample Whether the preview drum holds a sample to draw.
+	void preview_settled(bool has_sample);
+	/// @brief Whether a preview was asked for and the host has not yet answered; `next_timer()` polls meanwhile, so the
+	///        host's dispatcher keeps ticking the load.
+	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
+
 	/// @brief Whether a choice is waiting for `take_choice()`.
 	/// @return True between a file press parking its path and the consumer draining it.
 	[[nodiscard]] bool has_choice() const { return choice_.has_value(); }
@@ -477,6 +507,10 @@ private:
 	/// @brief `Browser::setEnteredTextFromCurrentFilename`: the selected
 	///        entry's name with its extension cut off.
 	void set_entered_text_from_current_filename();
+	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible` asks for one: the file's
+	///        path, or an empty path for a folder or no selection. Only the sample browser previews.
+	/// @param direction The selection's move: -1, 0 or 1.
+	void file_preview(int8_t direction);
 	/// @brief Replace the edited text with @p s, truncated at `kMaxEnteredChars`.
 	/// @param s The new text.
 	void set_entered_text(std::string_view s);
@@ -583,6 +617,8 @@ private:
 	/// @}
 
 	std::optional<BrowserChoice> choice_{};
+	std::optional<PreviewRequest> preview_{};
+	bool preview_outstanding_ = false;
 
 	deluge::ui::oled::TextEditState edit_{};
 	deluge::ui::grid::TextKeyboardState kb_{};

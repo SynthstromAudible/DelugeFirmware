@@ -156,7 +156,13 @@ struct QuietDisplay final : deluge::hid::Display {
 struct CleanBrowser {
 	spec::QuietAudio quiet;
 
-	CleanBrowser() { check("a browser singleton was still busy when an example started"); }
+	CleanBrowser() {
+		check("a browser singleton was still busy when an example started");
+		// A file an earlier example previewed is the browsers' last file loaded, which a fresh browser opens beside, as
+		// legacy's does; each example starts from none, and with no preview waiting.
+		sampleBrowser.lastFilePathLoaded.clear();
+		(void)browser::browser_scene().take_preview();
+	}
 	~CleanBrowser() { check("an example finished with a browser singleton still busy"); }
 	CleanBrowser(const CleanBrowser&) = delete;
 	CleanBrowser& operator=(const CleanBrowser&) = delete;
@@ -1088,6 +1094,47 @@ describe browser_choice_reroot(
 	        });
     });
 
+// clang-format off
+describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported browser's preview", $ {
+	before_each([] {
+		static QuietDisplay d;
+		if (display == nullptr) {
+			display = &d;
+		}
+	});
+
+	it("drains the preview outbox after the choice outbox, starting the file's load as the last file loaded", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		expect(sampleBrowser.lastFilePathLoaded.empty()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+		expect(sampleBrowser.lastFilePathLoaded).to_equal(std::string{kChosenPath});
+		expect(spy.dispatches).to_equal(0);
+		// No load ends in a spec process: the browser still waits for the answer.
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+	});
+
+	it("stops previewing for an empty path, and answers at once", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		deluge::gui::ui::dispatchShellChoices();
+		browser::browser_scene().on_exit();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(browser::browser_scene().preview_outstanding()).to_be_false();
+		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+	});
+});
+// clang-format on
+
 describe browser_choice_long_press(
     "gui::ui::dispatchShellChoices performing the sample browser's folder menus", $ {
 	    before_each([] {
@@ -1193,4 +1240,4 @@ describe browser_choice_long_press(
     });
 
 DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-            browser_choice_reroot, browser_choice_long_press)
+            browser_choice_reroot, browser_choice_long_press, browser_choice_preview)

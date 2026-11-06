@@ -35,6 +35,7 @@
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -178,23 +179,18 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	// blank or outside SAMPLES/ fall through to the default folder. Then dissect it into a
 	// directory and the filename to select.
 	//
-	// **One named divergence.** Legacy's middle arm falls back to `SampleBrowser::lastFilePathLoaded`
-	// (`sample_browser.h:105`) before it falls back to the folder. Dropped rather than half-built: the
-	// browser opens on the default folder where legacy would have reopened on the last
-	// manually-loaded sample's folder.
-	//
-	// `claimCurrentFile()` writes the member (through `SampleHolder::setAudioFile`'s
-	// `manuallySelected` arm, `model/sample/sample_holder.cpp:120-124`, reached from both
-	// `claimAudioFileForInstrument` and `claimAudioFileForAudioClip`) and this layer cannot perform
-	// it; the wiring layer does (`gui/ui/shell_choice_dispatch.cpp`'s `claimSampleFile`), so under
-	// the toggle the member is current and a mirror would be authoritative. What is true is that
-	// `lastFilePathLoaded` lives on a `gui/` object this layer may not name, so closing the divergence
-	// means the value arriving through `MenuContext` or a `Services` hook -- not a mirror written
-	// here. Natural home: beside `menu::performance_editing_mode()`.
+	// Legacy's middle arm: a holder path that is blank or outside SAMPLES/ gives way to the file last previewed or
+	// loaded (`SampleBrowser::lastFilePathLoaded`, which the host answers), and only when that is blank too to the
+	// default folder.
 	const std::optional<std::string> held = sample_path(ctx);
-	const std::string_view path = held ? std::string_view{*held} : std::string_view{};
+	std::string last;
+	std::string_view path = held ? std::string_view{*held} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
-		return; // dir stays empty -> `Descriptor::default_dir`
+		last = menu::host_last_sample_path();
+		path = last;
+		if (path.empty()) {
+			return; // dir stays empty -> `Descriptor::default_dir`
+		}
 	}
 	const size_t slash = path.rfind('/');
 	if (slash == std::string_view::npos) {
@@ -203,6 +199,18 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	else {
 		name = path.substr(slash + 1);
 		dir = path.substr(0, slash);
+	}
+}
+
+/// The way a listing came into its folder, as `arrivedInNewFolder`'s direction: into a folder 1, up one -1, else 0.
+int8_t entry_direction(ListingAction action) {
+	switch (action) {
+	case ListingAction::IntoFolder:
+		return 1;
+	case ListingAction::UpLevel:
+		return -1;
+	default:
+		return 0;
 	}
 }
 
@@ -404,6 +412,11 @@ void BrowserScene::on_exit() {
 	// rather than a corrupted vector, which is the trade `listing.h` documents.
 	(void)listing_.take_result();
 	pending_.reset();
+	// `SampleBrowser::exitAction` and `exitAndNeverDeleteDrum` stop the preview; nothing is left to preview.
+	if (id_ == BrowserId::Sample) {
+		preview_ = PreviewRequest{.id = id_};
+		preview_outstanding_ = true;
+	}
 	FileCatalogue::emptyFileItems();
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
@@ -423,6 +436,32 @@ std::optional<BrowserChoice> BrowserScene::take_choice() {
 	std::optional<BrowserChoice> out = std::move(choice_);
 	choice_.reset();
 	return out;
+}
+
+std::optional<PreviewRequest> BrowserScene::take_preview() {
+	std::optional<PreviewRequest> out = std::move(preview_);
+	preview_.reset();
+	return out;
+}
+
+void BrowserScene::preview_settled(bool has_sample) {
+	(void)has_sample;
+	preview_outstanding_ = false;
+}
+
+void BrowserScene::file_preview(int8_t direction) {
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	// `SampleBrowser::previewIfPossible`: a folder or no selection previews nothing, and stops what was previewing.
+	PreviewRequest request{.id = id_, .direction = direction};
+	const FileItem* item = item_at(file_index_);
+	if (item != nullptr && !item->isFolder) {
+		const std::string_view dir = current_dir();
+		request.path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	}
+	preview_ = std::move(request);
+	preview_outstanding_ = true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -537,6 +576,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 		entered_len_ = 0;
 		file_index_ = -1;
 		scroll_ = 0;
+		file_preview(entry_direction(out.action));
 		return repaint_all();
 	}
 
@@ -563,6 +603,8 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// "Starting in the middle or end of a short folder should still fill as many display rows as
 	// possible" (`browser.cpp:415-416`).
 	clamp(visible_rows_);
+	// `folderContentsReady(direction)`, which previews the entry the listing landed on.
+	file_preview(entry_direction(out.action));
 	return repaint_all();
 }
 
@@ -664,6 +706,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 		return SearchOutcome::NotFound;
 	}
 
+	const bool moved = i != file_index_;
 	file_index_ = i;
 	// "Typing/prediction can land on a cached item without needing to move the viewport unless it is
 	// offscreen" (`:882-883`).
@@ -671,6 +714,10 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// Replaces the typed text with the found entry's name and leaves the cursor where the typing
 	// left it -- which is what `text_edit` draws as the prediction highlight.
 	set_entered_text_from_current_filename();
+	// "If we're now on a different file than before, preview it" (`browser.cpp:1488-1491`).
+	if (moved) {
+		file_preview(0);
+	}
 	return SearchOutcome::Found;
 }
 
@@ -769,7 +816,8 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 	edit_.cursor = 0;
 	edit_.scroll = 0;
 	set_entered_text_from_current_filename();
-	(void)offset; // legacy passes the sign on to `currentFileChanged`, which this scene has none of
+	// `currentFileChanged`, given only the move's sign.
+	file_preview(static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0)));
 }
 
 void BrowserScene::step_selection(int32_t offset) {
@@ -1410,6 +1458,11 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	// would render it, and `after_render` is the only place a landed result can be collected or a
 	// refused request retried. See `kListingPollMs`.
 	if (listing_.in_flight() || pending_.has_value()) {
+		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
+	// A preview the host has not answered: the host's dispatcher ticks its load only when the guest is woken.
+	if (preview_outstanding_) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 

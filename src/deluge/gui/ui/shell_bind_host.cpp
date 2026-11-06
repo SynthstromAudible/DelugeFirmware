@@ -5,6 +5,7 @@
 #include "effects/plugin.h"
 #include "effects/settings.h"
 #include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/views/view.h"
 #include "instruments/deluge/settings.h"
@@ -1128,6 +1129,10 @@ void host_grab_tempo(deluge::project::ClipAddress clip) {
 const deluge::scenes::services::Waveforms& host_waveforms() {
 	static const gui::ShellWaveforms waveforms;
 	return waveforms;
+}
+
+std::string host_last_sample_path() {
+	return sampleBrowser.lastFilePathLoaded;
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

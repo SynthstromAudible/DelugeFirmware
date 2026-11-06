@@ -8,6 +8,8 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/services/waveforms.h"
 
+#include <string>
+
 class Song;
 
 namespace deluge::scenes::menu {
@@ -24,5 +26,8 @@ const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
 void host_grab_tempo(deluge::project::ClipAddress clip);
 /// @brief The waveforms of the song the app plays.
 const deluge::scenes::services::Waveforms& host_waveforms();
+/// @brief The file the sample browser last started to preview or load (legacy's `SampleBrowser::lastFilePathLoaded`),
+///        which a sample browser opens beside when its holder names no file in SAMPLES/.
+std::string host_last_sample_path();
 
 } // namespace deluge::scenes::menu
