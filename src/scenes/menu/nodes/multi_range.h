@@ -14,7 +14,7 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`multi_range.cpp:360-362`).
+/// (`multi_range.cpp:334-336`).
 ///
 /// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
@@ -47,12 +47,11 @@
 /// sink as their own verbs, which kill the voices and keep the other ranges' samples, as legacy's bodies do. Every
 /// select turn waits out a popup, as `selectEncoderAction` does.
 ///
-/// ## What did NOT come across
+/// ## A note under the picker
 ///
-///   * `noteOnToChangeRange` (`:364-381`): live MIDI note-in re-selecting the range. Nothing routes
-///     MIDI into the scene stack yet (`MenuScene`'s learn entry points carry the same warning).
-///   * `possibleChangeToCurrentRangeDisplay` / `uiNeedsRendering(keyboardScreen)` (`:250-258`):
-///     `gui/ui/`.
+/// A note played while the picker is open selects the range that holds it (`range_note_press`, legacy's
+/// `noteOnToChangeRange`), reached from the root views through `util/sound_menu_open.h` and
+/// `MenuScene::select_range_for_note`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -72,7 +71,7 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The note-range picker. One row per `MultiRange` on the addressed `Source`, labelled with
-///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:313-358`).
+///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:287-332`).
 class MultiRangeItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -85,13 +84,17 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// @brief The same as `on_focus`: legacy's `MultiRange::beginSession` has one body for both directions, so coming
+	///        back from the chained item turns the edge off, puts the range on the window's last row and writes the
+	///        range memory.
+	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
 };
 
 /// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp`).
 inline const MultiRangeItem kMultiRangeItem{};
 
 /// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp`) with
-///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:401`).
+///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:375`).
 ///
 /// The lower end is "BOTTOM" for range 0 and the previous range's `topNote + 1` otherwise, padded
 /// out to column 7; the upper end is "- top" for the last range and "- " plus this range's

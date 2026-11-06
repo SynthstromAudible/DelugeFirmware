@@ -210,6 +210,10 @@ int32_t lastRangeSource = -1;
 bool lastHighlighting = false;
 /// How many ranges the source had: an insert or delete re-renders the root even where the range index stays.
 int32_t lastRangeCount = -1;
+/// The edges of the range shown: an edge edit moves them and re-renders the keyboard, as legacy's
+/// `MultiRange::selectEncoderAction` does on every arm.
+int32_t lastRangeBottom = -1;
+int32_t lastRangeTop = -1;
 } // namespace
 
 void refreshShellRangeDisplay() {
@@ -219,14 +223,18 @@ void refreshShellRangeDisplay() {
 	const int32_t source = open ? ctx.source_index : -1;
 	const bool highlighting = shellRangeDependentOpen();
 	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
+	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
+	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
 	if (range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
-	    && count == lastRangeCount) {
+	    && count == lastRangeCount && bottom == lastRangeBottom && top == lastRangeTop) {
 		return;
 	}
 	lastRangeShown = range;
 	lastRangeSource = source;
 	lastHighlighting = highlighting;
 	lastRangeCount = count;
+	lastRangeBottom = bottom;
+	lastRangeTop = top;
 	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
 	RootUI* root = getRootUI();
 	if (root == &keyboardScreen) {

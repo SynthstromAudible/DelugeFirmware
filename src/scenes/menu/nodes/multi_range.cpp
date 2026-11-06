@@ -113,23 +113,23 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
                                  deluge::ui::shell::TextScratch& scratch) {
 	const int32_t count = range_count(ctx);
 	size_t len = 0;
-	if (index == 0) { // `:315-321`
+	if (index == 0) { // `:290-295`
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
-	else { // `:322-325`
+	else { // `:296-299`
 		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
 	}
-	// `:327-332` -- pad the lower end out to column 7, so the two halves line up down the list.
+	// `:301-306` -- pad the lower end out to column 7, so the two halves line up down the list.
 	// Reproduced rather than replaced by a single separator, because it is what makes this function
 	// byte-for-byte comparable against `MultiRange::getText` in `tables_1_spec`.
 	while (len < 7 && len + 1 < cap) {
 		buf[len++] = ' ';
 	}
 	append(buf, len, cap, "- ");
-	if (index == count - 1) { // `:334-345`
+	if (index == count - 1) { // `:309-319`
 		append(buf, len, cap, "top");
 	}
-	else { // `:346-357`
+	else { // `:320-331`
 		append_note_name(buf, len, cap, range_top_note(ctx, index));
 	}
 	return {buf, len};
@@ -190,7 +190,7 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	if (ctx.addresses.slot) {
 		const auto source = static_cast<uint8_t>(ctx.source_index);
 		std::optional<int32_t> remembered;
-		if (ctx.range_index >= 0) { // `:42-45` -- a range is already selected, so it is the default
+		if (ctx.range_index >= 0) { // `:43-45` -- a range is already selected, so it is the default
 			remembered = ctx.range_index;
 			if (ctx.sink != nullptr) {
 				ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
@@ -203,24 +203,24 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 		}
 		const bool valid = remembered && *remembered >= 0 && *remembered < count;
 		cursor = valid ? *remembered : count >> 1;
-		if (!valid && count > 0 && ctx.sink != nullptr) { // `:48-50`: an invalid default is worked out afresh
+		if (!valid && count > 0 && ctx.sink != nullptr) { // `:48-51`: an invalid default is worked out afresh
 			ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
 		}
 	}
 
 	state.list[depth_of(state)] = deluge::ui::ListState{};
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(cursor);
-	// `:58-63`: the window opens with the range on its last row; it keeps its own scroll from then on.
+	// `:58-65`: the window opens with the range on its last row; it keeps its own scroll from then on.
 	state.list[depth_of(state)].keep_scroll = true;
 	state.list[depth_of(state)].scroll = -1;
 	state.edit_edge = deluge::ui::oled::RangeEdge::Off; // `:66`, `Range::beginSession`
 	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
 
-	// `:54` -- `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
+	// `:56` -- `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it
 	// through `menu::select_range` (see `MenuWalkState::range_choice`).
 	//
-	// `:53`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
+	// `:54`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
 	// runs it for every range-dependent descent, which is where legacy runs it too
 	// (`checkPermissionToBeginSessionForRangeSpecificParam:1938`, ahead of every arm).
 	state.walk.range_choice = static_cast<int16_t>(cursor);
@@ -284,11 +284,10 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		}
 	}
 
-	// `drawPixelsForOled` (`:390-434`) builds `kOLEDMenuNumOptionsVisible` labels around its own
-	// `currentScroll` and calls `drawItemsForOled`. `ui::oled::list` owns the window and the scroll,
-	// so this builds every row and lets the widget pick the slice -- the same simplification
-	// `PatchCablesItem` makes, and the reason legacy's `currentScroll` member has no port (its own
-	// header calls it "not strictly speaking needed").
+	// `drawPixelsForOled` (`:364-408`) builds `kOLEDMenuNumOptionsVisible` labels around its own
+	// `currentScroll` and calls `drawItemsForOled`. This builds every row and lets `ui::oled::list` pick the
+	// slice; `ListState::keep_scroll` gives the widget legacy's window, which keeps its scroll rather than
+	// re-centring on the cursor.
 	constexpr size_t kMaxRows = 64;
 	constexpr size_t kRowChars = 24;
 	const int32_t count = std::min<int32_t>(range_count(ctx), static_cast<int32_t>(kMaxRows));
@@ -321,12 +320,13 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	    std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(count)}, state.scroll[depth_of(state)]);
 
 	// `selectEncoderAction`'s "normal thing of just flicking through existing ranges" arm
-	// (`:230-247`): the cursor IS the selection, and `setCurrentMultiRange` follows it. Republished
+	// (`:203-219`): the cursor IS the selection, and `setCurrentMultiRange` follows it. Republished
 	// every frame rather than only on a move, for the same reason `SourceSelectionItem` does.
 	const int32_t cursor = state.list[depth_of(state)].cursor;
 	if (count > 0 && cursor >= 0 && cursor < count) {
 		state.walk.range_choice = static_cast<int16_t>(cursor);
-		// `:212`: a flick is remembered; a note played under the open picker moves the memory and not the cursor.
+		// `:212`: a flick is remembered. A voice that starts without a pad or key (MIDI) moves the memory through
+		// `Source::getRange` and not the cursor; a pad or key goes through `range_note_press`.
 		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.sink != nullptr) {
 			ctx.sink->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
 			                            static_cast<uint16_t>(cursor));
@@ -506,7 +506,7 @@ void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_
 }
 
 const Node* multi_range_chain(const MenuContext& /*ctx*/, const MenuState& state) {
-	return state.walk.pending_after_range; // `multi_range.cpp:360-362`
+	return state.walk.pending_after_range; // `multi_range.cpp:334-336`
 }
 
 } // namespace deluge::scenes::menu::nodes

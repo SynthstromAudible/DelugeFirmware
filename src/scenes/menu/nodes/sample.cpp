@@ -80,9 +80,10 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `soundEditor`'s globals" -- generalised, so the descriptor reads whichever member of the
 	// context it needs (`browser_scene.h`'s `Descriptor::start_at`).
 	//
-	// Legacy's `keyboardScreen.exitAuditionMode()` (`:40-42`) is a root UI's, which the host performs from the action
-	// this files. `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`), which legacy runs only when the
-	// browser refuses to open, is the shortcut-pad flash, which `MenuScene` owns rather than an item.
+	// Legacy's `keyboardScreen.exitAuditionMode()` (`:40-42`) is a root UI's, which the host performs from the
+	// `FileSelectorOpened` action this item files. `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`),
+	// which legacy runs only when the browser refuses to open, is the shortcut-pad flash, which `MenuScene` owns rather
+	// than an item.
 	//
 	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
 	// but in `SoundEditor::maybeGetParentMenu`,

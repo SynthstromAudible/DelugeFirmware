@@ -734,6 +734,19 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			deluge::gui::ui::refreshShellRangeDisplay();
 			whichSideRowsNeedRendering = 0;
 		}
+		{
+			// An edge moved under the same range and count: the root re-renders, as every arm of
+			// `MultiRange::selectEncoderAction` asks for.
+			const int32_t top = sound->sources[0].ranges.getElement(1)->topNote;
+			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top + 1);
+			deluge::edits::recordRanges(*sound, 0);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(top);
+			deluge::edits::recordRanges(*sound, 0);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			whichSideRowsNeedRendering = 0;
+		}
 
 		// This spec records the forward rather than performing it (`seen`); what it performs is the clip view's pad.
 		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);

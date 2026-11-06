@@ -259,6 +259,9 @@ struct GestureRequest {
 	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
 	const ::MIDICable* cable{nullptr}; ///< a LEARN_KNOB's cable; its target in @ref mapping, its knob in @ref value
 	int32_t midi_channel{0};           ///< a LEARN_KNOB's channel
+	/// An INSERT_RANGE's new top for the range below the inserted one (its own top is @ref value); a DELETE_RANGE's
+	/// new top for the range below the deleted one. None where it keeps its top.
+	std::optional<int16_t> neighbour_top;
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.

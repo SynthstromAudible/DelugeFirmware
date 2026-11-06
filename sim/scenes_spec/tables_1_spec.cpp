@@ -515,7 +515,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 	});
 
 	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
-		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:360-362`),
+		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:334-336`),
 		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1804`). The port's
 		// equivalent pair is `MenuWalkState::pending_after_range` and this hook.
 		RangeFixture f{2};

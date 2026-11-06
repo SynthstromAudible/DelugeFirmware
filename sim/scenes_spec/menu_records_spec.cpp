@@ -78,7 +78,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 	});
 
 	it("opens the range picker on the range already selected, and remembers it for the source", _ {
-		// `multi_range.cpp:42-45`: a current range becomes the default before the default is read.
+		// `multi_range.cpp:43-45`: a current range becomes the default before the default is read.
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);

@@ -66,7 +66,7 @@ bool RecordingSink::insert_range(project::SlotAddress slot, uint8_t source, uint
 	                    .source = source,
 	                    .range = at,
 	                    .value = top_note,
-	                    .old_length = previous_top.value_or(-1)});
+	                    .neighbour_top = previous_top});
 	return true;
 }
 
@@ -76,7 +76,7 @@ bool RecordingSink::delete_range(project::SlotAddress slot, uint8_t source, uint
 	                    .slot = slot,
 	                    .source = source,
 	                    .range = index,
-	                    .value = lower_top.value_or(-1)});
+	                    .neighbour_top = lower_top});
 	return true;
 }
 

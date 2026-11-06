@@ -875,7 +875,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
-		// so it took `numRanges >> 1` (`multi_range.cpp:46-50`), which the picker writes back to `Source::defaultRangeI`.
+		// so it took `numRanges >> 1` (`multi_range.cpp:48-51`), which the picker writes back to `Source::defaultRangeI`.
 		expect(static_cast<SoundInstrument*>(song.instrument)->sources[0].defaultRangeI).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);

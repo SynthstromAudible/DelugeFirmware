@@ -99,11 +99,11 @@ public:
 	/// @brief Whether a note is being auditioned: legacy's `currentUIMode` holds `UI_MODE_AUDITIONING`, a mode the
 	/// marker editor's gates read. False for a host that auditions nothing.
 	[[nodiscard]] virtual bool auditioning() const { return false; }
-	/// @brief The range source @p source of the sound at @p slot remembers: `Source::defaultRangeI`, which the
-	/// note-range picker opens on and every note played moves (`Source::getRange`). None when it names no range.
 	/// @brief Whether a popup or notification is up: legacy's `display->hasPopup()`, which the note-range picker's
 	/// turns and its delete wait out. False for a host that shows none.
 	[[nodiscard]] virtual bool popup_showing() const { return false; }
+	/// @brief The range source @p source of the sound at @p slot remembers: `Source::defaultRangeI`, which the
+	/// note-range picker opens on and every note played moves (`Source::getRange`). None when it names no range.
 	[[nodiscard]] virtual std::optional<uint16_t> default_range(project::SlotAddress slot, uint8_t source) const {
 		(void)slot;
 		(void)source;

@@ -1616,14 +1616,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
-		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
+		// `MultiRange::beginSession` (`multi_range.cpp:48-51`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
 		// `Source::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp:360-362`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`multi_range.cpp:334-336`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
@@ -1747,6 +1747,54 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(8, 0, false, 165);
 		r.shell.tick(170);
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+	});
+
+	it("coming back from the item it chained to begins the picker again: no edge, the range remembered, the window reset", _ {
+		// `SoundEditor::goUpOneLevel` ends in `beginScreen`, which runs `MultiRange::beginSession` with the range
+		// still selected: the range is written to `defaultRangeI` and `Range::beginSession` turns the edge off.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sources[0].ranges.insertMultiRange(2);
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(cursor_of(1)).to_equal(1);
+
+		r.edges(1, -2, 120);
+		r.shell.tick(125);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		menu_scene().state_for_spec().list[1].scroll = 1; // a window scrolled down a row, as a flick leaves it
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.shell.tick(140);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		sound->sources[0].defaultRangeI = 0; // a note played meanwhile
+
+		r.button(7, 1, true, 150);
+		r.button(7, 1, false, 150);
+		r.shell.tick(160);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		expect(menu_scene().state().list[1].hide_cursor).to_be_false();
+		// The window opens afresh, the range on its last row as far as it can be (`ListState::keep_scroll`'s -1).
+		expect(static_cast<int>(menu_scene().state().list[1].scroll)).to_equal(-1);
+		expect(cursor_of(1)).to_equal(1);
+		expect(sound->sources[0].defaultRangeI).to_equal(1);
 	});
 
 	it("cancels an edge with BACK on a picker opened at the root, where BACK would otherwise close the menu", _ {
