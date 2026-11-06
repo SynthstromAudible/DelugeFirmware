@@ -35,8 +35,8 @@ namespace {
 ///
 /// `deluge_file_prefix_collect` requires an `out_cap` of at least DELUGE_FILE_PREFIX_CAPACITY whatever the caller
 /// asked for -- a shorter buffer is a caller bug that silently yields an empty read in a release build -- so this is
-/// sized by the capacity, not by the 8192 the request names. The slot was grown to 8192 for exactly this consumer: a
-/// DX7 32-voice bank is 4104 bytes and the old 4096 slot truncated it by 8, which is enough to fail its checksum.
+/// sized by the capacity, not by the 8192 the request names. A DX7 32-voice bank is 4104 bytes, so the slot has to be
+/// larger than 4096: eight bytes short is enough to fail its checksum.
 /// PLACE_SDRAM_BSS, like its sibling songPreviewPrefix (load_song_ui.cpp) and for the same reason: 8 KiB is worth
 /// having out of internal RAM, and only the browser tier touches it.
 PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_buffer;

@@ -2,15 +2,16 @@
 /// @brief The gate in front of the fifteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
-/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the eight that
-/// are gated, one example per *argument shape*, plus the toggle itself. It is at this level and not
+/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the gated
+/// ones, one example per *argument shape*, plus the toggle itself. It is at this level and not
 /// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
 /// `SceneId::arg`, and `openUI(&shellHostUI)` against the real `uiNavigationHierarchy`.
 ///
 /// @note **What this file cannot cover, stated rather than implied.** It drives `openShellMenu`,
-///       which is what the eight gated sites call; it does **not** drive the eight sites, because
+///       which is what the gated sites call; it does **not** drive the sites themselves (site 15's column
+///       aside), because
 ///       reaching `AudioClipView::buttonAction` here would need the whole legacy view stack. So
 ///       "the site passes the right arguments" is not covered here: like the `deluge.cpp` boot calls, it is
 ///       left to a level-3 A/B run. Each example names the site whose

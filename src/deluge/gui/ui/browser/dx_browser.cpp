@@ -54,6 +54,8 @@ DxSyxBrowser::DxSyxBrowser() {
 
 static char const* allowedFileExtensionsSyx[] = {"SYX", NULL};
 bool DxSyxBrowser::opened() {
+	// A read the ported browser left in flight, when the guest closed under it, is not this browser's to collect.
+	dxCartridgeRead().cancel();
 
 	bool success = Browser::opened();
 	if (!success)

@@ -441,7 +441,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// F1 task 9, site 6 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the
 			// legacy three statements unchanged -- including the `setupKitGlobalFXMenu` write, which
 			// is deliberately inside it: that member is `SoundEditor`'s state, cleared on menu exit
 			// (`gui/ui/sound_editor.cpp:189`, `:768`), and setting it on a path that never opens the

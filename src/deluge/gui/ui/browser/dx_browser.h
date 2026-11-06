@@ -44,12 +44,10 @@ public:
 
 	/// @brief Whether a cartridge load is waiting on the file prefix channel.
 	///
-	/// For the song-preview A/B harness, which cannot reach the flag: it lives in `dx_browser.cpp`'s anonymous
-	/// namespace.
+	/// For the song-preview A/B harness, which reads it here rather than through `DxCartridgeRead`.
 	static bool cartridgeLoadInFlight();
 
-	/// @brief How long a cartridge load may find its read unanswered before it gives up, in microseconds: 9 s, the
-	///        channel stall bound scaled to the graphics routine that collects it, every 15 ms.
+	/// @brief How long a cartridge load may find its read unanswered before it gives up, in microseconds: 9 s.
 	static constexpr uint64_t kCartridgeStallUs = deluge::gui::ui::DxCartridgeRead::kStallUs;
 
 	/// @brief How many cartridge loads gave up because the channel left their read unanswered for

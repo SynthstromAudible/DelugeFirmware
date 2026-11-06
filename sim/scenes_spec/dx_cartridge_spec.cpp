@@ -149,6 +149,20 @@ struct DxCard {
 	spec::SdRoot root{std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/dx_cartridge"};
 };
 
+/// @brief The shared read answered by the scripted channel, PENDING for good, while it lives.
+struct PendingSharedRead {
+	PendingSharedRead() {
+		FakeChannel::script({DELUGE_CHANNEL_PENDING});
+		deluge::gui::ui::dxCartridgeRead().set_channel(FakeChannel::channel());
+	}
+	~PendingSharedRead() {
+		deluge::gui::ui::dxCartridgeRead().cancel();
+		deluge::gui::ui::dxCartridgeRead().set_channel(DxCartridgeRead::libdelugeChannel());
+	}
+	PendingSharedRead(const PendingSharedRead&) = delete;
+	PendingSharedRead& operator=(const PendingSharedRead&) = delete;
+};
+
 /// @brief Whether the browser is the scene taking input over @p r's menu.
 bool browser_up(MenuRig& r) {
 	return &r.shell.stack().input_top() == &browser_scene();
@@ -382,6 +396,68 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.back();
 		settle(r);
 		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("forgets the read when BACK leaves the browser before it ends", _ {
+		DxCard card;
+		select_language();
+		PendingSharedRead pending;
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "BANK1");
+		r.select();
+		deluge::gui::ui::dispatchShellChoices(); // the read starts
+		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_true();
+		r.back();
+		settle(r);
+		expect(browser_up(r)).to_be_false();
+		deluge::gui::ui::dispatchShellChoices(); // no browser waits for it: cancelled
+		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_false();
+		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("takes no second file while a read is out, as DxSyxBrowser's in-flight guard does", _ {
+		DxCard card;
+		select_language();
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "BANK1");
+		r.select();
+		select_file(r, "BROKEN");
+		r.select();
+		const std::optional<deluge::scenes::browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value()).to_be_true();
+		expect(choice->path).to_equal(std::string{"DX7/BANK1.SYX"});
+		browser_scene().deferred_load_done(false);
+		r.tick();
+		r.back();
+		settle(r);
+	});
+
+	it("leaves the browser up for another file when the read cannot start", _ {
+		DxCard card;
+		select_language();
+		PendingSharedRead pending;
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		DxCartridgeRead& read = deluge::gui::ui::dxCartridgeRead();
+		(void)read.start("DX7/BROKEN.SYX"); // a read already out, as legacy's browser could leave one
+		select_file(r, "BANK1");
+		r.select();
+		expect(read.start("DX7/BANK1.SYX") == DxCartridgeRead::Status::Idle).to_be_true();
+		deluge::gui::ui::dispatchShellChoices(); // `start` answers Idle: the browser must not wait for it
+		r.tick();
+		expect(browser_up(r)).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_false();
+		read.cancel();
+		r.back();
+		settle(r);
 	});
 
 	it("lists the bank's programs as legacy's cartridge page draws them", _ {

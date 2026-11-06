@@ -56,10 +56,11 @@ bool rangeDependentMenuOpen();
 bool noteWithinCurrentRange(int32_t untransposed);
 
 /// @brief The keyboard DX column's row that shows white now: legacy's `dxParam.flash_row` while `soundEditor` is
-/// current
-///        on the parameter page and `dxParam.blink_next` is set, or the ported page's (`MenuScene::dx_column_flash`).
+///        current on the parameter page and `dxParam.blink_next` is set, or the ported page's
+///        (`MenuScene::dx_column_flash`).
 /// @return The row, or nothing when no row is white.
 std::optional<int32_t> dxColumnFlashRow();
+
 /// @brief Legacy's `menu_item::multiRangeMenu.noteOnToChangeRange(note)`, or the ported picker's.
 /// @param note The note, transposed as the sound plays it.
 void changeRangeForNote(int32_t note);

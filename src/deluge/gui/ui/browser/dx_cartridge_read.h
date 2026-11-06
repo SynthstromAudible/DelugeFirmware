@@ -51,8 +51,8 @@ public:
 		bool (*booted)();
 	};
 
-	/// @brief How long a read may find the channel unanswered before it gives up, in microseconds: 9 s, the channel
-	///        stall bound scaled to the graphics routine that polls it, every 15 ms.
+	/// @brief How long a read may find the channel unanswered before it gives up, in microseconds: 9 s, on the
+	///        clock, however often the caller polls.
 	static constexpr uint64_t kStallUs = 9'000'000;
 
 	/// @param channel The file prefix channel, libdeluge's by default.
@@ -80,6 +80,9 @@ public:
 
 	/// @brief How many reads gave up because the channel left them unanswered for @ref kStallUs.
 	[[nodiscard]] int32_t give_ups() const { return give_ups_; }
+
+	/// @brief Read through @p channel from now on: a spec answers the shared read's channel itself.
+	void set_channel(Channel channel) { channel_ = channel; }
 
 	/// @brief libdeluge's file prefix channel and boot flag.
 	static Channel libdelugeChannel();

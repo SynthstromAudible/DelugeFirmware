@@ -799,8 +799,9 @@ private:
 	std::optional<uint32_t> hold_deadline_ms_{};
 	/// A folder menu's load has ended: true closes the menu and this browser, false the menu only.
 	std::optional<bool> long_press_done_{};
-	/// A `DeferAndWait` accept's load is out, then (`deferred_done_`) has ended: true closes this browser.
+	/// A `DeferAndWait` accept's load is out: the host has not answered `deferred_load_done`.
 	bool awaiting_deferred_ = false;
+	/// How that load ended, for the next `after_render`: true closes this browser.
 	std::optional<bool> deferred_done_{};
 	/// A parked slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
 	/// whether it came through the Shift+Select door.
