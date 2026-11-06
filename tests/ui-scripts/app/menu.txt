@@ -25,8 +25,8 @@
 #
 # Boot lands in `InstrumentClipView`, not the session view -- `boot.state` shows `led Clip on`
 # and `led Synth on`, and a `SoundEditor::setup` breakpoint on the SELECT press below stops with
-# `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp:392-424`:
-# the gate at `:399`, the guest arm at `:408-411`, legacy's at `:415-424`). That is **site 6** of the
+# `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp:442-476`:
+# the gate at `:449`, the guest arm at `:456-462`, legacy's at `:464-474`). That is **site 6** of the
 # fourteen in `gui/ui/shell_menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
 # `MenuContext::Root::Sound`.
 #

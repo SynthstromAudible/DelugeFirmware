@@ -452,7 +452,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 				// of its two writers). The root is then one of six, and `context_for` runs the same
 				// six tests in the same order (`scenes/menu/context.cpp:339-358`); the two UI-mode
 				// roots legacy could otherwise pick are unreachable here because this arm is
-				// `currentUIMode == UI_MODE_NONE` (`:397`).
+				// `currentUIMode == UI_MODE_NONE` (`:443`).
 				const bool kitGlobalFx = SoundEditor::shouldEditKitAffectEntire();
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
 				                                    /*performanceView=*/false,
