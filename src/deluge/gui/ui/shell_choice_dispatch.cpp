@@ -495,9 +495,8 @@ void dispatchChoice(const BrowserChoice& choice) {
 	case BrowserId::Count:
 		// Not a browser -- it is the table's size (`BrowserId::Count`). Unreachable:
 		// `BrowserScene::enter_key_press` files `id_`, and `BrowserScene::on_enter`
-		// refuses the scene outright before assigning it (`:357-361`, the guard at `:358-360`) rather
-		// than letting an out-of-range arg through. Spelled out because `-Werror=switch` counts it, and the
-		// alternative is the `default:` the header rules out.
+		// refuses an out-of-range arg outright before assigning it. Spelled out because `-Werror=switch` counts it, and
+		// the alternative is the `default:` the header rules out.
 		break;
 	}
 }

@@ -180,13 +180,10 @@ bool sample_can(const menu::MenuContext& ctx) {
 }
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
-	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path, and if it is
-	// blank or outside SAMPLES/ fall through to the default folder. Then dissect it into a
-	// directory and the filename to select.
-	//
-	// Legacy's middle arm: a holder path that is blank or outside SAMPLES/ gives way to the file last previewed or
-	// loaded (`SampleBrowser::lastFilePathLoaded`, which the host answers), and only when that is blank too to the
-	// default folder.
+	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path; one that is blank or outside
+	// SAMPLES/ gives way to the file last previewed or loaded (`SampleBrowser::lastFilePathLoaded`, which the host
+	// answers), and only when that is blank too to the default folder. Then dissect it into a directory and the
+	// filename to select.
 	const std::optional<std::string> held = sample_path(ctx);
 	std::string last;
 	std::string_view path = held ? std::string_view{*held} : std::string_view{};
@@ -567,6 +564,7 @@ void BrowserScene::reveal_keyboard() {
 	keyboard_visible_ = true;
 	keys_drawn_ = true;
 	pads_ = BrowserPads::Keyboard;
+	waveform_scroll_ = 0;               // the keys replace a waveform still to scroll in
 	favourite_flash_anchor_ms_.reset(); // `drawKeys` draws the favourites afresh
 }
 
@@ -888,8 +886,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
 	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
 	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
-	// meaningful. Fix round 1, Important 4: this used to be a comment saying the sort had already
-	// pinned them and nothing else would touch them in between, which is a convention rather than a
+	// meaningful; relying on the last sort's pinning surviving until here would be a convention rather than a
 	// mechanism.
 	FileCatalogue::repinComparator();
 	const size_t n = static_cast<size_t>(std::max<int32_t>(edit_.cursor, 0));
@@ -1459,7 +1456,11 @@ Result BrowserScene::after_render() {
 
 	Result r;
 
-	// A waveform to scroll in is on the shell's grid now: hand the scroll to the host.
+	// A waveform to scroll in is on the shell's grid now: hand the scroll to the host. One the pads left before it was
+	// drawn is dropped.
+	if (waveform_scroll_ != 0 && pads_ != BrowserPads::Waveform) {
+		waveform_scroll_ = 0;
+	}
 	if (waveform_scroll_ != 0 && grid_pass && pads_ == BrowserPads::Waveform) {
 		pad_scroll_ = ScrollRequest{.direction = waveform_scroll_};
 		waveform_scroll_ = 0;
@@ -1682,20 +1683,23 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 		}
 		if (event.button == ButtonId::Back) {
-			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1174-1178`) is press-only.
-			if (event.on) {
+			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1783-1787`): a press, with no UI mode up (a Select hold
+			// or a held X_ENC is one). Claimed either way.
+			if (event.on && !mode_up()) {
 				return back();
 			}
-			break;
+			Result r;
+			r.handled = true;
+			return r;
 		}
 		if (event.button == ButtonId::SelectEnc) {
-			// `Browser::mainButtonAction` (`browser.cpp:1867-1889`): the press starts a hold and the release of that
-			// hold enters. The sample browser answers a hold that lasts `kLongPressMs` (`after_render`); a release
-			// after that answer, or one with no press before it, does nothing.
+			// `Browser::mainButtonAction` (`browser.cpp:1874`): the press, with no UI mode up, starts a hold and the
+			// release of that hold enters. The sample browser answers a hold that lasts `kLongPressMs`
+			// (`after_render`); a release after that answer, or one with no press before it, does nothing.
 			Result r;
 			r.handled = true;
 			if (event.on) {
-				if (!holding_) {
+				if (!mode_up()) {
 					holding_ = true;
 					if (id_ == BrowserId::Sample) {
 						hold_deadline_ms_ = ctx.now_ms + kLongPressMs;
@@ -1769,9 +1773,9 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `SampleBrowser::verticalEncoderAction`: with SHIFT, `Browser::verticalEncoderAction` recolours a
-			// favourite, which this scene does not draw; without, the host hands the turn to the instrument clip view
-			// before it reaches here (`forwardBrowserVertical`). Either way the turn scrolls nothing else.
+			// `SampleBrowser::verticalEncoderAction`: SHIFT's recolour is the arm above, and without SHIFT the host
+			// hands the turn to the instrument clip view before it reaches here (`forwardBrowserVertical`). What is
+			// left scrolls nothing else.
 			Result r;
 			r.handled = true;
 			return r;
@@ -1829,7 +1833,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 	switch (button) {
 	case ButtonId::XEnc:
 		// A held state, entered only with no other mode up; its release is read at the top of `handle`.
-		if (on && !holding_) {
+		if (on && !mode_up()) {
 			xenc_held_ = true;
 		}
 		return r;
@@ -1848,7 +1852,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (ctx_.is_audio_clip) {
 			return std::nullopt;
 		}
-		if (on && !holding_) {
+		if (on && !mode_up()) {
 			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
 			// it is not what leaves) and the recorder takes its place.
 			recorder::recorder_scene().open(ctx_);
@@ -1864,7 +1868,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 			return std::nullopt;
 		}
 		const FileItem* item = item_at(file_index_);
-		if (!on || holding_ || item == nullptr || item->isFolder) {
+		if (!on || mode_up() || item == nullptr || item->isFolder) {
 			return r;
 		}
 		const std::string_view dir = current_dir();

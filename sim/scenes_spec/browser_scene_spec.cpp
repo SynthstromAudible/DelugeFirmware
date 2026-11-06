@@ -3022,6 +3022,50 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
 	});
 
+	it("drops a waveform scroll the keyboard overtook before it was drawn", _ {
+		// Otherwise the scroll stays owed, and the host keeps the main columns from the browser for good.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(false);
+		r.turn(1, r.clock + 10);
+		r.step();
+		browser_scene().preview_settled(true);
+		expect(browser_scene().scroll_pending()).to_be_true();
+		DirectCtx d;
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Keyboard},
+		                             d.ctx);
+		expect(browser_scene().scroll_pending()).to_be_false();
+		run_until(r, r.clock + 30);
+		expect(browser_scene().take_scroll().has_value()).to_be_false();
+	});
+
+	it("drops a waveform scroll the root view overtook before it was drawn", _ {
+		// A preview stopped with no move (the file deleted) returns the pads to the root view, leaving nothing to scroll.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		browser_scene().preview_settled(false);
+		r.turn(-1, r.clock + 10); // onto CLAP from wherever the turn wraps
+		r.step();
+		r.turn(1, r.clock + 10);
+		r.step();
+		browser_scene().preview_settled(true);
+		expect(browser_scene().scroll_pending()).to_be_true();
+		browser_scene().file_deleted(std::string{"SAMPLES/"} + std::string{browser_scene().entered_text()} + ".WAV");
+		browser_scene().preview_settled(false);
+		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		run_until(r, r.clock + 30);
+		expect(browser_scene().scroll_pending()).to_be_false();
+		expect(browser_scene().take_scroll().has_value()).to_be_false();
+	});
+
 	it("files none with the keyboard always visible, nor on open", _ {
 		CleanBrowser clean;
 		ScratchCard card;
@@ -3060,6 +3104,42 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		const Result released = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Record}, d.ctx);
 		expect(released.handled && released.actions.empty()).to_be_true();
+	});
+
+	it("takes no BACK, RECORD or Shift+SAVE while Select is held, nor a Select press while X_ENC is", _ {
+		// `currentUIMode` gates all of them in `main`: a Select hold and a held X_ENC are UI modes.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const std::string dir{browser_scene().current_dir()};
+		DirectCtx d;
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc},
+		                             d.ctx);
+		expect(browser_scene().holding()).to_be_true();
+		for (const ButtonId b : {ButtonId::Back, ButtonId::Record}) {
+			const Result pressed =
+			    browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = b}, d.ctx);
+			expect(pressed.handled && pressed.actions.empty()).to_be_true();
+		}
+		d.ctx.shift = true;
+		const Result saved = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Save}, d.ctx);
+		expect(saved.handled && saved.actions.empty()).to_be_true();
+		d.ctx.shift = false;
+		expect(browser_scene().listing_in_flight()).to_be_false();
+		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc},
+		                             d.ctx);
+		expect(browser_scene().holding()).to_be_false();
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::XEnc},
+		                             d.ctx);
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc},
+		                             d.ctx);
+		expect(browser_scene().holding()).to_be_false();
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::XEnc},
+		                             d.ctx);
 	});
 
 	it("leaves RECORD to the global RECORD on an audio clip", _ {

@@ -360,8 +360,7 @@ inline constexpr int32_t kRowIconX = 1;
 /// land into silence. So while a request is in flight or waiting to be retried, `next_timer()` asks
 /// the shell to come back at this interval, and `Shell::tick`'s step 8b turns that answer into the
 /// repaint that makes the woken tick draw. `render_oled` arms the panel's own gate at the same
-/// interval as well; that arm predates the step-8b fold (before which `next_timer()` alone was a
-/// listing that landed into silence) and is kept as the statement a reader of this scene can see.
+/// interval as well, so a reader of this scene sees the poll where the listing is drawn.
 ///
 /// 10 ms is one tick of the shipped UI loop, i.e. "next tick", spelled as a duration because that is
 /// what both APIs take.
@@ -483,8 +482,8 @@ public:
 	/// same shape for the verb half of the same wall. `Descriptor::accept` says why the choice
 	/// cannot be performed from here.
 	///
-	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`,
-	/// plan F3), which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
+	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`),
+	/// which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
 	/// performs the sample claim (`SampleClaim`) against the parked path. Like `take_action()`'s,
 	/// the slot is **one deep and overwrites silently**. A second choice inside one guest tick would
 	/// need two presses in that tick: the `Defer` arm closes the scene as it parks, and a folder
@@ -679,6 +678,9 @@ private:
 	/// @return True when nothing outside `after_render` may touch `FileCatalogue` or file a
 	///         listing.
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
+	/// @brief Whether a legacy UI mode is up: Select held for a long press, or X_ENC held. The buttons that legacy
+	///        gates on `currentUIMode` (BACK, Select's press, RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
+	bool mode_up() const { return holding_ || xenc_held_; }
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
 	///        folder import is running, and every button and key is refused until it ends.
 	bool load_running() const {
