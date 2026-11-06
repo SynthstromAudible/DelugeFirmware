@@ -118,10 +118,10 @@ using deluge::ui::shell::SceneStack;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// `playback/playback_handler.cpp:113` defines this with no declaration in the header, exactly as
+/// `playback/playback_handler.cpp:115` defines this with no declaration in the header, exactly as
 /// `View::buttonAction` itself has to declare it (`gui/views/view.cpp:101`).
 extern GlobalMIDICommand pendingGlobalMIDICommand;
-/// The `int32_t` twin at `playback/playback_handler.cpp:114`, which `view.cpp` mis-declares as a
+/// The `int32_t` twin at `playback/playback_handler.cpp:116`, which `view.cpp` mis-declares as a
 /// `GlobalMIDICommand`. Declared with the defining type here; see `global_controls.cpp`'s note.
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 

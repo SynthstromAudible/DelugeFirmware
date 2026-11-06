@@ -700,6 +700,9 @@ void PlaybackHandler::endPlayback() {
 	}
 
 	setLedStates();
+
+	// How long each playhead move held the render off, so far (ALPHA builds' debug output)
+	deluge::playback::MaskedSpan::report();
 }
 
 void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer,

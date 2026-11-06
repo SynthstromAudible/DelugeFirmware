@@ -93,6 +93,10 @@ public:
 	};
 	/// @brief [interaction] Call @p visit with each site measured so far, in the order first seen.
 	static void forEachSite(void (*visit)(const Site&));
+	/// @brief [interaction] Print each site measured so far as a `PM-SPAN` debug line (ALPHA builds; nothing in a
+	/// release
+	///        build, which prints no debug lines).
+	static void report();
 #if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
 	/// @brief [interaction] Record a span of @p us at @p site (a static name) measured some other way.
 	static void record(const char* site, uint32_t us);

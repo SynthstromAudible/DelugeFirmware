@@ -18,6 +18,7 @@
 #include "playback/move_section.h"
 
 #include "definitions_cxx.hpp"
+#include "io/debug/log.h"
 #include "model/mod_controllable/delay_type.h"
 #include "runtime/app_loop.h"
 
@@ -143,8 +144,17 @@ void MaskedSpan::forEachSite(void (*visit)(const Site&)) {
 		visit(g_spans.sites[i]);
 	}
 }
+
+void MaskedSpan::report() {
+	forEachSite([](const Site& site) {
+		D_PRINTLN("PM-SPAN site=%s longest_us=%u count=%u", site.name, static_cast<unsigned>(site.longestUs),
+		          static_cast<unsigned>(site.count));
+	});
+}
 #else
 void MaskedSpan::forEachSite(void (* /*visit*/)(const Site&)) {
+}
+void MaskedSpan::report() {
 }
 #endif
 

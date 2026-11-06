@@ -1,0 +1,37 @@
+# Playhead moves on a heavy song (Glitchy_2): start, launch and stop clips from the session sidebar, restart, undo,
+# stop, start again. Each stop prints how long each playhead move held the render off (`PM-SPAN` lines in an ALPHA
+# image's debug output, kept in device.log). Record-only: the measurement is the device's.
+100   snapshot boot
+8200  button Session down
+8220  button Session up
+9000  load glitchy
+14000 snapshot loaded
+22000 button Play down
+22020 button Play up
+26000 pad 16 0 down
+26040 pad 16 0 up
+28000 pad 16 1 down
+28040 pad 16 1 up
+30000 pad 16 2 down
+30040 pad 16 2 up
+32000 pad 16 3 down
+32040 pad 16 3 up
+36000 button Shift down
+36020 button Play down
+36040 button Play up
+36060 button Shift up
+40000 button Back down
+40020 button Back up
+44000 button Play down
+44020 button Play up
+46000 button Play down
+46020 button Play up
+50000 pad 16 0 down
+50040 pad 16 0 up
+52000 pad 16 4 down
+52040 pad 16 4 up
+54000 pad 16 5 down
+54040 pad 16 5 up
+60000 button Play down
+60020 button Play up
+61000 snapshot end
