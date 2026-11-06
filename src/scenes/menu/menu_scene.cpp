@@ -82,7 +82,9 @@ int64_t pow10_of(int32_t exponent) {
 
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
+	const DxState dx = st_.dx;
 	st_ = MenuState{};
+	st_.dx = dx;
 	pending_transition_.reset();
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
@@ -120,6 +122,7 @@ void MenuScene::retarget(const Node& node) {
 
 void MenuScene::reset_process_state() {
 	walk_.forget_rows();
+	st_.dx = DxState{};
 	view_.forget_acceleration();
 	voice_usage_ = VoiceUsageClock{};
 }
@@ -270,8 +273,12 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 		return std::nullopt;
 	}
 	if (!shortcut_applies(*target, ctx_)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		return std::nullopt;
+		target = nodes::dx_shortcut_fallback(*target, ctx_, x);
+		if (target == nullptr) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return std::nullopt;
+		}
 	}
 	const uint16_t id = arm_shortcut_landing(*target);
 	if (id == 0) {
@@ -358,7 +365,9 @@ void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	// calls `open()` again; until it does, refuse to render anything by dropping the path, which
 	// is strictly safer than drawing a menu over a freed `Sound`.
 	if (dirty.has(deluge::notify::Dirty::SongSwapped)) {
+		const DxState dx = st_.dx;
 		st_ = MenuState{};
+		st_.dx = dx;
 		ctx_ = MenuContext{};
 	}
 }
@@ -833,6 +842,7 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::SetClipLengthToSampleLength:
 		case MenuAction::OpenSongMidiLearn:
 		case MenuAction::OpenSongMacros:
+		case MenuAction::OpenDxBrowser: // `DxBrowseMenu::beginSession`'s `shouldGoUpOneLevelOnBegin`
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:

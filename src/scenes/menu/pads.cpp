@@ -24,6 +24,7 @@
 #include "scenes/menu/chains.h"
 #include "scenes/menu/menu_scene.h" // is_automation_item
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
 #include "scenes/menu/shortcut_overlay.h"
@@ -233,11 +234,15 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 			return r;
 		}
 		if (target != nullptr && !shortcut_applies(*target, ctx)) {
-			deluge::notify::notice_string(
-			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-			Result r;
-			r.handled = true;
-			return r;
+			const Node* fallback = nodes::dx_shortcut_fallback(*target, ctx, event.x);
+			if (fallback == nullptr) {
+				deluge::notify::notice_string(
+				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+				Result r;
+				r.handled = true;
+				return r;
+			}
+			target = fallback;
 		}
 		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
 		// refuse the id and roll the move back -- so the jump is simply not offered.

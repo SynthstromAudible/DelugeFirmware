@@ -57,6 +57,8 @@ add_library(deluge_scenes STATIC
     menu/nodes/actions.cpp
     menu/nodes/column_hooks.cpp
     menu/nodes/context_menu_items.cpp
+    menu/nodes/dx.cpp
+    menu/nodes/dx_tables.cpp
     menu/nodes/dynamic.cpp
     menu/nodes/edit_name.cpp
     menu/nodes/midi_command.cpp

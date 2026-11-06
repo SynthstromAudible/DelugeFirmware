@@ -760,7 +760,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
 		// Every custom node has an item of its own and no two nodes share one, so there are as many
-		// distinct instances as custom nodes (55) and `nodes::kPending` is not among them -- nothing
+		// distinct instances as custom nodes (60) and `nodes::kPending` is not among them -- nothing
 		// points at it. `output_items_spec.cpp` asserts the placeholder-free claim directly.
 		//
 		// Items are per-node rather than shared or parameterised by the node, because the state an
@@ -782,12 +782,13 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// `ActiveScalesItem`s (`nodes/scales.h`); the sample family (`nodes/sample.h`);
 		// `kMidiDeviceLinked` and `kSpecificOutputSelector` (`nodes/output_items.h`); and
 		// `kMpeDirectionItem`, `kMpeZoneItem` and `kMpeZoneChannelsItem` (`nodes/midi_device.h`), the
-		// three pages of the MPE arm under the per-device MIDI page `midi_devices` chains to. Those
+		// three pages of the MPE arm under the per-device MIDI page `midi_devices` chains to; and the five DX7 pages
+		// (`nodes/dx.h`). Those
 		// three are bespoke because their value is `MenuState` navigation state
 		// (`mpe_direction`/`mpe_zone`) that a `Binding::get`/`set` -- handed only a
 		// `const MenuContext&` -- cannot see, and the direction selector additionally computes its
 		// title from that value.
-		expect(distinct_items).to_equal(size_t(55));
+		expect(distinct_items).to_equal(size_t(60));
 		expect(distinct_items).to_equal(menu::kShippedCustomNodes); // one item per node, nothing shared
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});

@@ -173,6 +173,11 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node
 	if (item == &nodes::multi_range && state.walk.pending_after_range != nullptr) {
 		item = state.walk.pending_after_range;
 	}
+	if (item->custom != nullptr) {
+		if (const std::optional<ItemBlink> blink = item->custom->own_blink(ctx, state)) {
+			return blink->valid ? exclusive_blink(blink->x, blink->y) : BlinkPlan{};
+		}
+	}
 	plan.param = own_pad(ctx, *item);
 	if (!plan.param.valid) {
 		// Failing that, the patched param the item is patching (`:1171-1183`).

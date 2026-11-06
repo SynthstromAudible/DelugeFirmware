@@ -239,9 +239,9 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 
 `Kind::Custom` is the escape hatch for a bespoke item. **The cap counts nodes that point at a custom
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
-count of one. The shipped tree has **55** custom nodes behind 55 distinct, real items
+count of one. The shipped tree has **60** custom nodes behind 60 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **56**, one above: a ratchet,
+`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **61**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 
@@ -347,6 +347,26 @@ reach past the page.
   `SoundEditor` or the ported menu, so a note played under the picker selects its range and the
   sidebar highlights the range's notes; `refreshShellRangeDisplay` repaints the root after each
   guest tick when the range, the source, the highlight or the range count changed.
+
+### The DX7 pages (`menu/nodes/dx.h`)
+
+`dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
+MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
+"DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
+`DxParamItem`. Five points reach past the pages.
+
+* **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
+  which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
+* **The tables are legacy's own**, in `nodes/dx_tables.h`, compared with legacy row by row in `dx_pages_spec`. The
+  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where both menus may include them and they keep
+  their SDRAM placement.
+* **Every write is the whole patch**, `WriteSink::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
+  auto engine mode is not chosen again for a new algorithm, as `main` does not.
+* **The pad blink is the item's own** (`CustomItem::own_blink`): none as the page opens, because legacy's screen entry
+  unsets the blink the page sets up; the param's pad after a horizontal step. Shift + a horizontal turn where legacy
+  searches the operators forever stays put (DIFFERENCES D87).
+* **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
+  and inside the menu alike (`nodes::dx_shortcut_fallback`).
 
 ## The scenes
 
@@ -678,6 +698,8 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | Legacy's `drain_notifications` and the shell's `Notices::drain` pop the same queue, so which consumer shows a notice is the scheduler's call for every kind but `Notification`, which ends in legacy's call either way. | `shell/notices.h`'s notification sink |
 | A popup re-targeted in place changes no stack, so on a tick with no input the panel can keep the old text. | `Notices::show_popup_with_timeout` |
 | A notification's 2000 ms starts when a consumer pops it, not when it was raised, and its title and value are fitted into 46 bytes value-first, where `OLED::displayNotification` measures the untruncated title. | `Notices::drain`, `notice_notification` |
+| Shift + a horizontal turn on the DX7 parameter page at the pitch envelope's first rate, every operator off: legacy hangs, the port stays on the param. | `tests/ui-scripts/parity/DIFFERENCES.md` D87 |
+| The DX7 shortcut fallback tests the pad's source on this sound, where legacy tests the source the previous menu left. | `tests/ui-scripts/parity/DIFFERENCES.md` D90 |
 | The marker editor draws the h/m unit letters beside their digits; legacy draws them at a fixed `x = 6`, over the digits, past a minute. | `ui/oled/sample_position.h` |
 | The note leaves' `get`, `adjust`, `permitted` and `value_text` hooks call the note bridge unguarded: a harness that opens a note root without `wireShellNoteBridge()` crashes on the first read. | `menu/nodes/note.cpp` |
 | Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
@@ -692,8 +714,8 @@ it leaves both lists.
 | legacy | gap | what porting it takes |
 |---|---|---|
 | the reverb width / room-size items' titles | legacy renames them Diffusion / Time under the MUTABLE and DIGITAL models; the port's titles are fixed | node titles that depend on the context |
-| `dxMenu` | the three bespoke DX items have no port, so the DX7 oscillator type's select chain and `InstrumentClipMinder::createNewInstrument`'s DX entry open legacy's menu | three items and the chain |
-| three `openUI(&soundEditor)` sites | sites 10, 11 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a ported node (or a decision) per site, then its gate |
+| `dxMenu`'s browser, the cartridge page, the keyboard's DX column and the DX pad grid | the ported "DX7 source" lists "load DX7 .syx file", which goes up and opens nothing; the `.syx` browser and the cartridge page have no port, the keyboard's DX column opens legacy's parameter page, and the pads under the parameter page are the menu's shortcuts, not the DX layout | a browser entry and a cartridge page, a DX column gate, and a pad layout for the parameter page |
+| two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |
 | `Linked`'s second row | under a checked box, legacy draws the linked file's name; `ui::oled::ListRow` has one label | a second text row in `list` |

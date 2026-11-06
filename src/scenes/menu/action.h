@@ -217,6 +217,11 @@ enum class MenuAction : uint8_t {
 	/// @brief The file selector opened: `FileSelector::beginSession` leaves the keyboard's audition mode
 	///        (`file_selector.cpp:40-42`), with the keyboard at the root and a note auditioning. `arg` is unused.
 	FileSelectorOpened,
+
+	/// @brief Open the `.syx` browser: `DxBrowseMenu::beginSession` (`gui/menu_item/dx/browse.cpp:27-37`), which goes
+	///        up a level and opens `dxBrowser`. The browser has no port, so the dispatcher opens nothing; the menu's
+	///        going up is the whole of it. `arg` is unused.
+	OpenDxBrowser,
 	/// @}
 };
 

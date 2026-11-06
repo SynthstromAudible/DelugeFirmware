@@ -2182,7 +2182,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		}
 		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
 		//
-		// **73** = 7 + 53 + 4 + 3 + 1 + 3 + 2. The seven original chain nodes; 53 `PatchedParam`
+		// **77** = 7 + 53 + 4 + 3 + 1 + 3 + 2 + 4. The seven original chain nodes; 53 `PatchedParam`
 		// nodes (`with_patch_chain`, every node with `bind.param.kind == PATCHED`); the four
 		// patch-cable pages (`source_selection_{regular,range}`,
 		// `patch_cable_strength_{regular,range}`); the three items that open one (`patch_cables`,
@@ -2193,8 +2193,10 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// all three unconditional, so all three are swept here under every context and every one
 		// lands inside its own one-element span; and `nodes::note_iterance` and
 		// `nodes::note_row_iterance`, which each chain to their own custom-iterance root on
-		// `kCustomIterancePreset` (`note/iterance_preset.h`, `note_row/iterance_preset.h`).
-		expect(chaining_nodes).to_equal(size_t(73));
+		// `kCustomIterancePreset` (`note/iterance_preset.h`, `note_row/iterance_preset.h`); and the four DX7 chains: the
+		// two oscillator types into "DX7 source" (`osc/type.h`), "DX7 parameters" and "DX7 operator N"
+		// (`nodes/dx.h`).
+		expect(chaining_nodes).to_equal(size_t(77));
 		expect(answers > size_t(0)).to_be_true();
 	});
 

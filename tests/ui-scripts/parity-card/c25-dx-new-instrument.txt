@@ -1,0 +1,15 @@
+# MOD7 (the emulator's Mod6) held with SYNTH creates an FM synth and opens "DX7 source" on it; SELECT on the browse row
+# opens the .syx browser, and BACK from there returns to the clip view.
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+5400  snapshot console
+7000  snapshot dx-menu
+7500  button SelectEnc down
+7520  button SelectEnc up
+8500  snapshot browse-row
+9000  button Back down
+9020  button Back up
+10000 snapshot clip

@@ -97,6 +97,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/dx.h" // the type's select chain into "DX7 source"
 #include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
@@ -165,15 +166,17 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
-	inline constexpr Node osc##i##_type = with_wrap_in_horizontal(                                                     \
-	    with_column_art(without_column_label(with_title_arg(                                                           \
-	                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,            \
-	                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND,                \
-	                                                 .path = osc_path "/type",                                         \
-	                                                 .whole_kit = false}),                                             \
-	                                   sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),                     \
-	                        (i) + 1)),                                                                                 \
-	                    osc##i##_type_art));                                                                           \
+	inline constexpr Node osc##i##_type =                                                                              \
+	    with_select_chain(with_wrap_in_horizontal(with_column_art(                                                     \
+	                          without_column_label(with_title_arg(                                                     \
+	                              with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,      \
+	                                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,          \
+	                                                       .path = osc_path "/type",                                   \
+	                                                       .whole_kit = false}),                                       \
+	                                         sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE)),               \
+	                              (i) + 1)),                                                                           \
+	                          osc##i##_type_art)),                                                                     \
+	                      &osc##i##_type_chain, kOscTypeChain);                                                        \
 	inline constexpr Node file##i##_selector =                                                                         \
 	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_dependent(                       \
 	                                        custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER),                 \

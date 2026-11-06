@@ -127,19 +127,19 @@ enum class Flag : uint16_t {
 /// today, but a distinct-instance count would stay at 1 if a table pointed many nodes at one shared
 /// stand-in, and `TooManyCustom` could never fire however many custom nodes it added.
 ///
-/// The shipped tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind **55
+/// The shipped tree has **60** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind **60
 /// distinct items, every one of them real**. The cap is pinned exactly one above that count: it is
 /// a ratchet against the escape hatch growing unnoticed, not a claim that any smaller number was
 /// achievable. A cap sitting further above the count would be that many bespoke items an
-/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55
+/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 60
 /// separately, so a table that adds a custom node has to say so in two places.
-inline constexpr size_t kMaxCustomNodes = 56;
+inline constexpr size_t kMaxCustomNodes = 61;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 55;
+inline constexpr size_t kShippedCustomNodes = 60;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
 ///
