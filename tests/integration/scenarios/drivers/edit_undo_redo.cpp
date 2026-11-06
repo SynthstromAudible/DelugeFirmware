@@ -1506,6 +1506,21 @@ void kitAddTarget(Song* song) {
 }
 
 // Delete a SOUND-drum kit row via RemoveKitRow (apply-only — non-undoable by design).
+/// Whether a row of any clip, other than @p except's, plays @p drum. Compares addresses only.
+bool anyRowPlays(Song* song, const Drum* drum, const Clip* except = nullptr) {
+	for (Clip* clip : AllClips::everywhere(song)) {
+		if (clip == except || clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		for (NoteRow& row : static_cast<InstrumentClip*>(clip)->noteRows) {
+			if (row.drum == drum) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void kitRemoveTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	SoundDrum* drum = nullptr;
@@ -1518,8 +1533,9 @@ void kitRemoveTarget(Song* song) {
 		if (drumCount(kit) < 2) { // keep at least one drum around
 			continue;
 		}
+		// As the UI's deleteDrum: only a drum no other clip's row plays, whose rows would be left naming it
 		for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
-			if (d->type == DrumType::SOUND) {
+			if (d->type == DrumType::SOUND && !anyRowPlays(song, d, cl)) {
 				clip = (InstrumentClip*)cl;
 				drum = (SoundDrum*)d;
 				break;
@@ -1539,8 +1555,10 @@ void kitRemoveTarget(Song* song) {
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::RemoveKitRow edit{deluge::edits::kitRowAddressFor(*kit, *drum), drum, ms};
+	const Drum* removed = drum; // compared by address only once it is freed
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "kit-remove: apply succeeds");
 	check(drumCount(kit) == before - 1, "kit-remove: kit lost a drum"); // drum is now freed; do NOT touch it
+	check(!anyRowPlays(song, removed), "kit-remove: no clip's row still plays the removed drum");
 
 	song->setCurrentClip(nullptr);
 }

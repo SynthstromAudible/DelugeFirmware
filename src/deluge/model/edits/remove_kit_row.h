@@ -14,6 +14,9 @@ namespace deluge::edits {
 /// apply() removes the drum from the kit, reassigns the row to an unassigned drum (or deletes an empty NoteRow),
 /// retires the drum's automation stores, then hands the drum to the render to let go of and free.
 ///
+/// @pre No other clip's row plays the drum: their rows would be left naming the freed drum and its retired automation
+///      stores. The UI deletes only a drum it has just made in the drum creator.
+///
 /// @note Not undoable: the view clears all undo logs itself, so no Consequence is recorded.
 class RemoveKitRow final : public Edit {
 public:
