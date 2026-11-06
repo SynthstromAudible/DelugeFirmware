@@ -1837,6 +1837,9 @@ PLACE_SDRAM_BSS Submenu songThresholdRecordingSubmenu{
 PLACE_SDRAM_BSS song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 PLACE_SDRAM_BSS song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
+PLACE_SDRAM_BSS ToggleBoolDyn loopSongMenu{STRING_FOR_LOOP_SONG, STRING_FOR_LOOP_SONG,
+                                           []() -> bool* { return &currentSong->loopSong; }};
+
 // Root menu for Song View
 PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
@@ -1847,6 +1850,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
         &swingIntervalMenu,
         &activeScaleMenu,
         &songThresholdRecordingSubmenu,
+        &loopSongMenu,
         &configureSongMacrosMenu,
         &midiLearnMenu,
         &stemExportMenu,
