@@ -6,6 +6,9 @@ made by a render block that preempts it. Each such move runs in one section that
 (src/deluge/playback/move_section.h), and what runs in it must not allocate or log undo: on the device a section masks
 interrupts for its length.
 
+First, PM-EFFECTS checks the section on its own: effects deferred in order, run when the outermost section ends with the
+render running again, a full room making the caller act at once, nothing collected on the render.
+
 What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp writes them), each
 `PM-<LEG> stray=<n> masked_alloc=<n> masked_actions=<n> hash=<h>`:
     stray           position writes made off the render, a clock running, no section held (playback/playhead_checks.h)
@@ -56,6 +59,16 @@ _LINE = re.compile(
 
 
 def _check(gate, result) -> None:
+    effects = [line for line in result.lines if line.startswith("PM-EFFECTS ")]
+    if not effects or not re.match(
+        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 render=1$",
+        effects[0],
+    ):
+        gate.fail(
+            f"{effects[0] if effects else 'no PM-EFFECTS line'}: a move's effects must run in order, once the"
+            " outermost section ends and the render runs again, and never on the render"
+        )
+        return
     lines = {}
     for line in result.lines:
         found = _LINE.match(line)

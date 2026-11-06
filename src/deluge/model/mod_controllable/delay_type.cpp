@@ -204,16 +204,15 @@ void resolveWhere(Song& song, const std::function<bool(const ModControllableAudi
 
 } // namespace
 
-void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
+DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack) {
+	if (modelStack.modControllable == nullptr) {
+		return DelayParamRole::NONE;
+	}
 	const bool rate =
 	    (modelStack.kind == params::Kind::PATCHED && modelStack.paramId == params::GLOBAL_DELAY_RATE)
 	    || (modelStack.kind == params::Kind::UNPATCHED_GLOBAL && modelStack.paramId == params::UNPATCHED_DELAY_RATE);
-	if (rate && modelStack.modControllable != nullptr && currentSong != nullptr) {
-		auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
-		if (owner.effects().delay.type != deluge::effects::DelayType::OFF) {
-			refreshDelayReserve(*currentSong, owner);
-		}
-		return;
+	if (rate) {
+		return DelayParamRole::RATE;
 	}
 	bool reaches = false;
 	switch (modelStack.kind) {
@@ -233,7 +232,19 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	default:
 		break;
 	}
-	if (!reaches || modelStack.modControllable == nullptr || modelStack.paramManager == nullptr) {
+	return (reaches && modelStack.paramManager != nullptr) ? DelayParamRole::FEEDBACK : DelayParamRole::NONE;
+}
+
+void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
+	const DelayParamRole role = delayParamRole(modelStack);
+	if (role == DelayParamRole::RATE) {
+		auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
+		if (currentSong != nullptr && owner.effects().delay.type != deluge::effects::DelayType::OFF) {
+			refreshDelayReserve(*currentSong, owner);
+		}
+		return;
+	}
+	if (role != DelayParamRole::FEEDBACK) {
 		return;
 	}
 	auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);

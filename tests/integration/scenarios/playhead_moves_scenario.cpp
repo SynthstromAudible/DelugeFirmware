@@ -23,6 +23,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "libdeluge/app.h"
+#include "libdeluge/system.h"
 #include "libdeluge/types.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -260,6 +261,83 @@ NoteRow* addNotes(InstrumentClip* clip, int32_t* index) {
 		                          row->getDefaultFill(rowStack), rowStack, nullptr);
 	}
 	return row;
+}
+
+/// What the effects self-test's runner saw.
+struct RunnerLog {
+	int32_t runs = 0;
+	int32_t order[4]{};
+	bool masked = false;
+};
+RunnerLog g_runnerLog;
+
+void logRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
+	if (g_runnerLog.runs < 4) {
+		g_runnerLog.order[g_runnerLog.runs] = notify.oldValue;
+	}
+	g_runnerLog.runs++;
+	g_runnerLog.masked = g_runnerLog.masked || deluge_audio_excluded_depth() > 0;
+}
+
+/// MoveEffects and MoveSection on their own: order, room, nesting, the render, and the run after the mask lifts.
+void selfTestEffects() {
+	using deluge::playback::MoveEffects;
+	using deluge::playback::MoveSection;
+	MoveEffects::setRunnerForTest(&logRunner);
+	MoveEffects::DelayNotify notify{};
+
+	// Recorded in order, run when the outermost scope ends, not before.
+	g_runnerLog = {};
+	bool nested = true;
+	{
+		MoveEffects::Scope outer;
+		notify.oldValue = 1;
+		(void)MoveEffects::defer(notify);
+		{
+			MoveEffects::Scope inner;
+			notify.oldValue = 2;
+			(void)MoveEffects::defer(notify);
+		}
+		nested = g_runnerLog.runs == 0 && MoveEffects::collecting();
+	}
+	const bool order = g_runnerLog.runs == 2 && g_runnerLog.order[0] == 1 && g_runnerLog.order[1] == 2;
+
+	// The room: deferred until full; past it, the caller acts at once.
+	g_runnerLog = {};
+	int32_t room = 0;
+	{
+		MoveEffects::Scope scope;
+		while (room < 1000 && MoveEffects::defer(notify)) {
+			room++;
+		}
+	}
+	const bool roomRan = g_runnerLog.runs == room;
+
+	// A section: collecting, the render held off, no allocation; its effects run after the render runs again.
+	g_runnerLog = {};
+	bool inside = false;
+	{
+		MoveSection section{"selftest"};
+		inside =
+		    MoveEffects::collecting() && deluge_audio_excluded_depth() > 0 && deluge::memory::inNoAllocationScope();
+		(void)MoveEffects::defer(notify);
+	}
+	const bool unmasked = inside && g_runnerLog.runs == 1 && !g_runnerLog.masked && deluge_audio_excluded_depth() == 0
+	                      && !deluge::memory::inNoAllocationScope();
+
+	// On the render a scope collects nothing.
+	bool render = false;
+	{
+		deluge::memory::RenderBlock block;
+		MoveEffects::Scope scope;
+		render = !MoveEffects::collecting();
+	}
+	MoveEffects::setRunnerForTest(nullptr);
+
+	char line[128];
+	snprintf(line, sizeof(line), "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d render=%d\n",
+	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, render ? 1 : 0);
+	std::fputs(line, stdout);
 }
 
 bool setupLeg() {
@@ -559,6 +637,7 @@ void deluge_scenario_playhead_moves_begin(void) {
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_failures = 0;
+	selfTestEffects();
 	changeRootUI(&sessionView);
 	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
