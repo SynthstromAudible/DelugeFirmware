@@ -78,7 +78,7 @@ using deluge::ui::shell::ShellConfig;
 ///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
 ///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing
 ///     that moves that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
-///     (`playback_handler.cpp:1044-1051`), which needs a running `AudioEngine` a spec process does
+///     (`playback_handler.cpp:1091-1098`), which needs a running `AudioEngine` a spec process does
 ///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same
 ///     reason; this is that, at level 2.
 struct RunOptions {

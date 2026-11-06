@@ -294,7 +294,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 	else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 		// `start.h:45-47`. The `&&` order is legacy's and is load-bearing rather than stylistic:
 		// `getCurrentOutputType()` dereferences `currentSong->getCurrentClip()->output`
-		// (`model/song/song.cpp:135-137`), so it is only ever asked once the root is known to be a
+		// (`model/song/song.cpp:136-138`), so it is only ever asked once the root is known to be a
 		// clip view.
 		return StemExportType::DRUM;
 	}
@@ -349,7 +349,7 @@ void dispatchShellActions() {
 		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
 		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
 		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:760`) through it.
+		// (`model/song/song.cpp:99-105`); the next line reads `audioClip.guide` (`:761`) through it.
 		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`

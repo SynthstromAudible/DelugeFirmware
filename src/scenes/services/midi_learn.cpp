@@ -100,7 +100,7 @@ LearnTarget LearnTarget::clip(deluge::project::ClipAddress clip) {
 
 LearnTarget LearnTarget::note_row_mute(std::optional<uint32_t> drum_id) {
 	// `View::noteRowMuteMidiLearnPadPressed` (`view.cpp`). Legacy dereferences the row's drum unguarded;
-	// every call site has already refused a drumless row (`gui/views/instrument_clip_view.cpp:2271-2273`), so the
+	// every call site has already refused a drumless row (`gui/views/instrument_clip_view.cpp:2272-2274`), so the
 	// guard here is the same refusal spelled where the target is built.
 	if (!drum_id) {
 		return LearnTarget{};
@@ -230,7 +230,7 @@ void MidiLearn::thing_pressed(LearnTarget target, bool on) {
 	// A `NONE` target is "there is nothing learnable under that pad", which two of the factories can
 	// answer (`note_row_mute` for a drumless row, `global_command` for a command with no button).
 	// Legacy spells the same refusal at the CALL SITE instead -- `commandLearnMuteRow` returns
-	// early on `!noteRow->drum` (`gui/views/instrument_clip_view.cpp:2271-2273`) rather than calling
+	// early on `!noteRow->drum` (`gui/views/instrument_clip_view.cpp:2272-2274`) rather than calling
 	// the overload -- so this is the same behaviour with the test moved next to the thing it is
 	// about.
 	if (target.kind == ::MidiLearn::NONE) {

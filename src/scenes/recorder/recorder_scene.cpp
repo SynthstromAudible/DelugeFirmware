@@ -184,7 +184,7 @@ void RecorderScene::on_exit() {
 	// `finishRecording`'s `discardRecorder` would never run.
 	//
 	// So an armed recorder is thrown away exactly as `AudioClip::abortRecording` throws one away
-	// (`model/clip/audio_clip.cpp:120-132`): clear `pointerHeldElsewhere` *before* `abort()`, which
+	// (`model/clip/audio_clip.cpp:121-133`): clear `pointerHeldElsewhere` *before* `abort()`, which
 	// is that function's own load-bearing comment, and drop the pointer. `abort()` deletes the
 	// part-written file; `doRecorderCardRoutines` reaps the object.
 	//

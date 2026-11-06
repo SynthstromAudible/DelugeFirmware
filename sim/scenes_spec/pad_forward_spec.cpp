@@ -455,7 +455,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("the real performer closes the menu when the note-row editor's handler returns false, and "
 	   "only then", _ {
 		// Both answers are the recorder's, because the real handler returns true on every path
-		// (`instrument_clip_view.cpp:3851-3868`) -- but the false arm is legacy's, kept rather than
+		// (`instrument_clip_view.cpp:3852-3869`) -- but the false arm is legacy's, kept rather than
 		// folded away: `sound_editor.cpp:1493-1496`, `bool handled = ...; if (!handled) {
 		// exitCompletely(); }`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);

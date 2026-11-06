@@ -273,7 +273,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("on a kit with affectEntire true, leaves affectEntire false in both the clip and the "
 	   "installed context", _ {
-		// `instrument_clip_view.cpp:3608-3616`: a note is selected on a kit row (so `context_for`
+		// `instrument_clip_view.cpp:3609-3617`: a note is selected on a kit row (so `context_for`
 		// resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is false,
 		// exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire`
 		// is independently true. Both facts at once is the case `context.h`'s own note on
@@ -365,7 +365,7 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		spec::SongFixture fx = spec::make_synth_song();
 
 		// Seed a real logged action while SOME guest is open -- `ActionLogger::getNewAction` refuses
-		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:98-102`), exactly
+		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:100-104`), exactly
 		// `menu_entry_spec.cpp`'s own undo-log examples note -- then close it again.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();

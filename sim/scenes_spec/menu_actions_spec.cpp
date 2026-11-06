@@ -743,11 +743,11 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 
 	// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
 	// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-	// (`model/song/song.cpp:3213-3215`), and `getLoopLengthAtSystemSampleRate` divides by it
+	// (`model/song/song.cpp:3215-3217`), and `getLoopLengthAtSystemSampleRate` divides by it
 	// (`model/sample/sample_holder.cpp:105-113`) -- so the computed length would be **zero** and
 	// `adjustLoopLength` would write nothing while every assertion about "a popup happened" still
 	// passed. `audio_clip_scene_spec.cpp` found that the hard way; this is its arithmetic,
-	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3072-3081`) rather than by
+	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3074-3083`) rather than by
 	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
 	const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
 	f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
@@ -2152,7 +2152,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
 		// The output type is the second half of `start.h:45`'s `&&`, and `getCurrentOutputType()`
-		// reads it off the song's current clip (`model/song/song.cpp:135-137`) -- so the fixture is
+		// reads it off the song's current clip (`model/song/song.cpp:136-138`) -- so the fixture is
 		// what varies between this example and the one below, not the root.
 		spec::SongFixture song = spec::make_kit_song();
 		expect(getCurrentOutputType() == OutputType::KIT).to_be_true();

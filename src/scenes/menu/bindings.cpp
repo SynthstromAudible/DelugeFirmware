@@ -339,7 +339,7 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 	}
 
 	default:
-		// `param.h:34-35` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
+		// `param.h:33-34` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
 		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
@@ -498,7 +498,7 @@ bool has_instrument_clip(const MenuContext& ctx) {
 
 // `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`), gated as legacy gates it by
 // `soundEditor.selectedNoteRow` -- `MenuContext::selected_note_row`. Under `Root::NoteRowEditor` the latch is always
-// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp:3768`) opens only with one row auditioning,
+// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp:3769`) opens only with one row auditioning,
 // and the editor's sidebar arm never ends that mode while it stays open (`:3855-3865`), so the root answers for it.
 bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
 	return (ctx.root == MenuContext::Root::NoteRowEditor || ctx.selected_note_row) && !ctx.is_kit

@@ -2000,7 +2000,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
 
 			expect(arp->mode == ArpMode::ARP).to_be_true();
-			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- false unless
+			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- false unless
 			// `updatePresetFromCurrentSettings()` ran.
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
 			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();

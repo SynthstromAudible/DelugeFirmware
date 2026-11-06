@@ -47,7 +47,7 @@
 ///     to drive on either side.
 ///   * **The UNDO-vs-REDO choice** at `view.cpp:416-417`. `playbackHandler.slowRoutine()` at
 ///     `:417` consumes the pending command inside the same call
-///     (`playback/playback_handler.cpp:201-202`) and a spec cannot make `deluge::sync::sd_busy()`
+///     (`playback/playback_handler.cpp:203-204`) and a spec cannot make `deluge::sync::sd_busy()`
 ///     true, so both spellings read `NONE` by the time control returns. The arm's *body running*
 ///     is covered; which of the two it chose is not. See the BACK example.
 ///
@@ -348,7 +348,7 @@ struct GcRig {
 	// reached when PLAY goes down with RECORD held and playback running -- and nothing in a spec
 	// process ever reaps it (`AudioRecorder::slowRoutine` is not driven here). Left standing, it
 	// makes `AudioEngine::foregroundRecordingSource()` report `OUTPUT` for every later example,
-	// which suppresses the RECORD LED (`playback_handler.cpp:2503-2506`) and flips the PLAY arm's
+	// which suppresses the RECORD LED (`playback_handler.cpp:2567-2570`) and flips the PLAY arm's
 	// first test (`:147`). Cleared through the published seam, which is the same storage
 	// (`processing/engines/audio_engine.h`).
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
@@ -419,7 +419,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
-		// Legacy moved: `PlaybackHandler::recordButtonPressed` (`playback_handler.cpp:318-323`).
+		// Legacy moved: `PlaybackHandler::recordButtonPressed` (`playback_handler.cpp:320-325`).
 		expect(legacy_result != RecordingMode::OFF).to_be_true();
 
 		// --- Poison, so a port that writes nothing cannot inherit the answer ---------------
@@ -928,7 +928,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// **What is observable, and what is not.** `:417` calls `playbackHandler.slowRoutine()`
 		// in the same statement sequence, and that function *consumes* the command it was just
 		// handed -- `pendingGlobalMIDICommand = GlobalMIDICommand::NONE`
-		// (`playback/playback_handler.cpp:201-202`) -- unless `deluge::sync::sd_busy()` is true,
+		// (`playback/playback_handler.cpp:203-204`) -- unless `deluge::sync::sd_busy()` is true,
 		// which a spec cannot make true (`sync/sd_access.cpp:23-25` reads the host BSP). So the
 		// UNDO-vs-REDO *choice* at `:414-415` is **uncovered here**: by the time control returns,
 		// both spellings read NONE. What IS observable is `:416`, the second assignment, which
@@ -1061,7 +1061,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		const std::vector<std::pair<uint8_t, bool>> got = led_pairs(f, 0);
 		const std::vector<std::pair<uint8_t, bool>> want{
-		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2581`
+		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2645`
 		    {static_cast<uint8_t>(ButtonId::Record), false},      // `:2585`
 		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2591`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
@@ -1094,7 +1094,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(led_is(f, ButtonId::Load, deluge::ui::LedState::Kind::Off)).to_be_true();
 		rig.press(ButtonId::Save, false, 26'005 + GlobalControls::kShortPressMs);
 
-		// `playback_handler.cpp:2503-2506`: while recording to the arrangement the RECORD LED
+		// `playback_handler.cpp:2567-2570`: while recording to the arrangement the RECORD LED
 		// is not declared at all.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		deluge::ui::LedFrame f2;
