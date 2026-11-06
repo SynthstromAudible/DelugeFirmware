@@ -69,6 +69,29 @@ struct AudioClipFact {
 	bool operator==(const AudioClipFact&) const = default;
 };
 
+/// @brief `PadLEDs::flashCursor`'s three values (`FLASH_CURSOR_*`).
+enum class FlashCursor : uint8_t {
+	/// `FLASH_CURSOR_FAST` (0): the PIC flashes the pad; no pixel of the rendered image changes, so no cursor is drawn.
+	Fast = 0,
+	/// `FLASH_CURSOR_OFF` (1): no playhead.
+	Off = 1,
+	/// `FLASH_CURSOR_SLOW` (2): the factory default, and the one mode `PadLEDs::prepareColour` substitutes a pixel in.
+	Slow = 2,
+};
+
+/// @brief The DX7 bank a `.syx` read loaded: its programs' names, as `DX7Cartridge::getProgramNames` gives them.
+struct DxCartridgeNames {
+	std::array<std::array<char, 11>, 32> names{}; ///< each program's name, NUL-terminated
+	int32_t count = 0;                            ///< how many programs the bank holds
+};
+
+/// @brief The isomorphic keyboard's layout state, as the current clip keeps it (`KeyboardState::isomorphic`).
+struct IsomorphicKeyboard {
+	int32_t scroll_offset = 0; ///< the note on the bottom-left pad
+	int32_t row_interval = 5;  ///< the semitones from one row to the next
+	bool operator==(const IsomorphicKeyboard&) const = default;
+};
+
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
 class RuntimeFacts {
@@ -86,6 +109,31 @@ public:
 	/// @brief Whether an explicit sample load or a folder import is running: either one closes the sample browser to
 	/// the presses that would start another. False for a host that loads nothing.
 	[[nodiscard]] virtual bool sample_load_in_flight() const { return false; }
+	/// @brief Whether a note is being auditioned: legacy's `currentUIMode` holds `UI_MODE_AUDITIONING`, a mode the
+	/// marker editor's gates read. False for a host that auditions nothing.
+	[[nodiscard]] virtual bool auditioning() const { return false; }
+	/// @brief Whether a popup or notification is up: legacy's `display->hasPopup()`, which the note-range picker's
+	/// turns and its delete wait out. False for a host that shows none.
+	[[nodiscard]] virtual bool popup_showing() const { return false; }
+	/// @brief The range source @p source of the sound at @p slot remembers: `Source::defaultRangeI`, which the
+	/// note-range picker opens on and every note played moves (`Source::getRange`). None when it names no range.
+	[[nodiscard]] virtual std::optional<uint16_t> default_range(project::SlotAddress slot, uint8_t source) const {
+		(void)slot;
+		(void)source;
+		return std::nullopt;
+	}
+	/// @brief The DX7 bank the last `.syx` read loaded, which the cartridge page lists; none before one has loaded or
+	/// for a host that reads none.
+	[[nodiscard]] virtual std::optional<DxCartridgeNames> dx_cartridge() const { return std::nullopt; }
+	/// @brief Whether the DX7 engine community feature is on (`RuntimeFeatureSettingType::EnableDX7Engine`), which
+	/// gives the DX7 parameter page its own pad layout. Off for a host that keeps no settings.
+	[[nodiscard]] virtual bool dx7_engine_enabled() const { return false; }
+	/// @brief The keyboard screen's isomorphic layout under the menu: its state when the root UI is the keyboard on
+	/// that layout, else none. None for a host with no keyboard screen.
+	[[nodiscard]] virtual std::optional<IsomorphicKeyboard> isomorphic_keyboard() const { return std::nullopt; }
+	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
+	/// Slow for a host that keeps none.
+	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

@@ -41,6 +41,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/sound_menu_open.h"
 #include <cstring>
 #include <optional>
 
@@ -253,9 +254,8 @@ void KeyboardScreen::updateActiveNotes() {
 			// If note range menu is open and row is
 			if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
 			    && activeInstrument->type == OutputType::SYNTH) {
-				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.noteOnToChangeRange(
-					    newNote + ((SoundInstrument*)activeInstrument)->getTranspose());
+				if (deluge::gui::ui::rangePickerOpen()) {
+					deluge::gui::ui::changeRangeForNote(newNote + ((SoundInstrument*)activeInstrument)->getTranspose());
 				}
 			}
 		}

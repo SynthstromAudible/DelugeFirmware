@@ -241,6 +241,11 @@ constexpr const char* kImportGateFile = "SAMPLES/IMG/IMG_A.WAV";
 constexpr const char* kImportGatePresetPath = "KITS/SCKIT5.XML";
 constexpr const char* kImportGateDrumName = "IMD2";
 constexpr int32_t kImportGateCount = 3;
+/// The empty import leg's folder: one subfolder and no audio file of its own, as `main`'s card's `SAMPLES/Artists`.
+/// Its one-drum kit's preset is the sixth the new-kit-track gesture picks up.
+constexpr const char* kImportEmptyFolder = "SAMPLES/IME";
+constexpr const char* kImportEmptyPresetPath = "KITS/SCKIT6.XML";
+constexpr const char* kImportEmptyDrumName = "IMD3";
 /// The import stall leg's folder: its first and last files are loaded in the leg's preparation and land at once; the
 /// middle one is loaded by nothing, so its load is held past the stall bound. The card lists a folder in the order its
 /// packer found the files, so with the held file in the middle one in memory is always listed before it.
@@ -288,6 +293,7 @@ enum class Leg : uint8_t {
 	ImportKit,
 	ImportMulti,
 	ImportGate,
+	ImportEmpty,
 	// Before the loader-hold legs: the audio loader is single-flight, and a claim asked for behind a held load stalls.
 	PitchStall,
 	Stall,
@@ -313,6 +319,10 @@ Clip* g_importKitClip = nullptr;
 Clip* g_importSynthClip = nullptr;
 /// The import gate leg's one-drum kit.
 Clip* g_importGateClip = nullptr;
+/// The empty import leg's one-drum kit, and how its import ended: told at all, and whether it succeeded.
+Clip* g_importEmptyClip = nullptr;
+bool g_imEmptyTold = false;
+bool g_imEmptySucceeded = false;
 
 /// The ported slicer's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
 bool g_shellCommitBegun = false;
@@ -429,6 +439,8 @@ const char* legName(Leg leg) {
 		return "import-multi";
 	case Leg::ImportGate:
 		return "import-gate";
+	case Leg::ImportEmpty:
+		return "import-empty";
 	case Leg::ImportStall:
 		return "import-stall";
 	case Leg::RandomizeStall:
@@ -943,6 +955,16 @@ void prepareLeg() {
 			printf("SC-PROBE leg=import-gate prepared kitClip=%d\n", g_importGateClip != nullptr ? 1 : 0);
 		});
 		break;
+	case Leg::ImportEmpty:
+		buildFixture([] {
+			const KitPresetDrum presetDrum{.name = kImportEmptyDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kImportEmptyPresetPath, &presetDrum, 1)) {
+				g_importEmptyClip =
+				    deluge::harness::createNewInstrumentClip(OutputType::KIT, 8, kImportEmptyPresetPath);
+			}
+			printf("SC-PROBE leg=import-empty prepared kitClip=%d\n", g_importEmptyClip != nullptr ? 1 : 0);
+		});
+		break;
 	case Leg::ImportStall:
 		buildFixture([] {
 			// The first and last files in memory before the hold, and the synth's ranges as the multisample leg left
@@ -1085,6 +1107,17 @@ bool openLeg() {
 		}
 		return openBrowser("import-gate", g_importGateClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
+	case Leg::ImportEmpty: {
+		if (g_importEmptyClip == nullptr || g_importEmptyClip->output == nullptr
+		    || g_importEmptyClip->output->type != OutputType::KIT) {
+			return fail("import-empty", "no kit clip could be created from the empty import preset");
+		}
+		Drum* drum = static_cast<Kit*>(g_importEmptyClip->output)->firstDrum;
+		if (drum == nullptr || drum->type != DrumType::SOUND) {
+			return fail("import-empty", "the empty import kit has no sound drum");
+		}
+		return openBrowser("import-empty", g_importEmptyClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
+	}
 	case Leg::ImportStall:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr) {
 			return fail("import-stall", "the multisample leg's synth clip is missing");
@@ -1142,6 +1175,8 @@ const char* legFile() {
 		return kImportMultiFile;
 	case Leg::ImportGate:
 		return kImportGateFile;
+	case Leg::ImportEmpty:
+		return kKitPresetSample; // the browser opens on the kit's own file, in memory since the kit loaded
 	case Leg::ImportStall:
 		return kImportStallKept;
 	case Leg::AudioClip:
@@ -1456,6 +1491,22 @@ void actLeg() {
 		printf("SC-PROBE leg=gate before=%s after=%s\n", before.c_str(), after.c_str());
 		return;
 	}
+	if (g_leg == Leg::ImportEmpty) {
+		// The kit menu's Load All on a folder item, as `sampleBrowser` snapshots it (`FolderImportRequest::folder` is
+		// the item when it is a folder); the menu's own path to the request is the import kit leg's.
+		g_imEmptyTold = false;
+		g_imEmptySucceeded = false;
+		const FileItem* item = sampleBrowser.getCurrentFileItem();
+		deluge::gui::folderImport.request({.kind = deluge::gui::FolderImportKind::Kit,
+		                                   .folder = kImportEmptyFolder,
+		                                   .previouslyViewedFilename = item != nullptr ? item->filename.c_str() : "",
+		                                   .completion = [](bool success) {
+			                                   g_imEmptyTold = true;
+			                                   g_imEmptySucceeded = success;
+		                                   }});
+		printf("SC-SETUP leg=import-empty inFlight=%d\n", deluge::gui::folderImport.inFlight() ? 1 : 0);
+		return;
+	}
 	if (isImport()) {
 		using namespace deluge::hid::button;
 		g_importMark = markImport();
@@ -1544,6 +1595,10 @@ bool legEnded() {
 	}
 	if (g_leg == Leg::ImportGate) {
 		return g_imGateTried && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	}
+	if (g_leg == Leg::ImportEmpty) {
+		// Told either way: an abort tells the completion too, and leaves the browser open.
+		return g_imEmptyTold && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
 	if (g_leg == Leg::ImportStall) {
 		// An import that aborts closes just the menu and releases the gate; one that finishes closes the browser too.
@@ -1926,6 +1981,27 @@ void checkLeg() {
 			printf(
 			    "IM-GATE FAIL BACK or a second Select was taken while the import was out, or the gate stayed closed, "
 			    "or the import did not complete once its loads landed\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::ImportEmpty: {
+		// `main` lands a Load All of a folder with no audio file of its own as an import of nothing: the kit keeps
+		// its one drum, the browser closes onto the clip view, and no error shows. Its sort area of no samples must not
+		// be a zero-byte allocation, which our allocator answers with null (INSUFFICIENT_RAM).
+		int32_t drums = 0;
+		for (Drum* drum = static_cast<Kit*>(g_importEmptyClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
+			drums++;
+		}
+		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		const bool onClipView = getCurrentUI() == &instrumentClipView;
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		printf("IM-EMPTY succeeded=%d drums=%d browserClosed=%d onClipView=%d released=%d listings=%d\n",
+		       g_imEmptySucceeded ? 1 : 0, drums, browserClosed ? 1 : 0, onClipView ? 1 : 0, released ? 1 : 0,
+		       deluge::gui::folderImport.listingsRun());
+		if (!g_imEmptySucceeded || drums != 1 || !browserClosed || !onClipView || !released) {
+			printf("IM-EMPTY FAIL Load All on a folder with no audio file of its own did not land as main's: an "
+			       "import of nothing, the kit's one drum kept, the browser closed onto the clip view\n");
 			g_failures++;
 		}
 		break;

@@ -55,12 +55,47 @@ void RecordingSink::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
 }
 
+void RecordingSink::set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) {
+	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_RANGE, .slot = slot, .source = source, .range = range});
+}
+
+bool RecordingSink::insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+                                 std::optional<int16_t> previous_top) {
+	gestures.push_back({.kind = GestureRequest::Kind::INSERT_RANGE,
+	                    .slot = slot,
+	                    .source = source,
+	                    .range = at,
+	                    .value = top_note,
+	                    .neighbour_top = previous_top});
+	return true;
+}
+
+bool RecordingSink::delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+                                 std::optional<int16_t> lower_top) {
+	gestures.push_back({.kind = GestureRequest::Kind::DELETE_RANGE,
+	                    .slot = slot,
+	                    .source = source,
+	                    .range = index,
+	                    .neighbour_top = lower_top});
+	return true;
+}
+
 bool RecordingSink::attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) {
 	gestures.push_back({.kind = GestureRequest::Kind::ATTACH,
 	                    .text = std::string{path},
 	                    .slot = slot,
 	                    .source = source,
 	                    .range = range});
+	return true;
+}
+
+bool RecordingSink::write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) {
+	gestures.push_back({.kind = GestureRequest::Kind::DX_PATCH, .slot = slot, .source = source, .dx_patch = patch});
+	return true;
+}
+
+bool RecordingSink::load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) {
+	gestures.push_back({.kind = GestureRequest::Kind::DX_PROGRAM, .slot = slot, .source = source, .value = program});
 	return true;
 }
 

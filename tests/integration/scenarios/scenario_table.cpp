@@ -36,6 +36,7 @@
 #include "scenarios/offset_io_scenario.h"
 #include "scenarios/path_operations_scenario.h"
 #include "scenarios/pattern_load_scenario.h"
+#include "scenarios/playhead_moves_scenario.h"
 #include "scenarios/preset_load_scenario.h"
 #include "scenarios/recorder_take_scenario.h"
 #include "scenarios/render_preset_scenario.h"
@@ -100,6 +101,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"document_save_channel", nullptr, &deluge_scenario_document_save_channel_begin,
      &deluge_scenario_document_save_channel_complete, &deluge_scenario_document_save_channel_dispatch_step,
      &deluge_scenario_document_save_channel_step_done, &deluge_scenario_document_save_channel_failures},
+    {"playhead_moves", nullptr, &deluge_scenario_playhead_moves_begin, &deluge_scenario_playhead_moves_complete,
+     &deluge_scenario_playhead_moves_dispatch_step, &deluge_scenario_playhead_moves_step_done,
+     &deluge_scenario_playhead_moves_failures},
     {"preset_parse", nullptr, &deluge_scenario_preset_parse_begin, &deluge_scenario_preset_parse_complete,
      &deluge_scenario_preset_parse_dispatch_step, &deluge_scenario_preset_parse_step_done,
      &deluge_scenario_preset_parse_failures},

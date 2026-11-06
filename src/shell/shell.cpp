@@ -370,6 +370,13 @@ void Shell::tick(uint32_t now_ms) {
 		surfaces_.grid().gate.request_repaint();
 		lowering_.widgets_gate().request_repaint();
 	}
+	else if (const grid::GreyoutMask now = stack_.topmost_greyout();
+	         now.cols != greyout_.cols || now.rows != greyout_.rows) {
+		// A scene whose mask follows its own state (the sample browser's, as its pads change) changes the greyout
+		// with no stack change.
+		greyout_ = now;
+		surfaces_.grid().gate.request_repaint();
+	}
 	rendered_this_tick_.clear();
 	// `model_dirty` is deliberately `false` at all three `needs_frame` sites below. The gate's
 	// third argument fires *every* gate, which would make step 1's careful attribution dead
@@ -511,7 +518,7 @@ void Shell::tick(uint32_t now_ms) {
 	// A service draws nothing, so what its timer arms is the repaint of whichever scene reads the
 	// state that timer advances. `MidiLearn`'s flash is the case that needed it: legacy's
 	// `View::midiLearnFlash` toggles `midiLearnFlashOn` and then asks the ROOT UI to repaint
-	// (`gui/views/view.cpp:814-819`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
+	// (`gui/views/view.cpp:815-820`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
 	// in the tree is a pad renderer. Without this loop the phase advanced on the wake
 	// `compute_next_wake` already granted and nothing ever repainted with it.
 	//
@@ -1182,6 +1189,19 @@ void Shell::flush(uint32_t now_ms) {
 
 	if (any_sent) {
 		surfaces_.flush();
+	}
+}
+
+void Shell::reconsider_wake(uint32_t now_ms) {
+	for (Scene* scene : stack_.scenes()) {
+		const std::optional<uint32_t> in = scene->next_timer();
+		if (!in.has_value()) {
+			continue;
+		}
+		const uint32_t at = now_ms + *in;
+		if (!next_wake_.has_value() || static_cast<int32_t>(at - *next_wake_) < 0) {
+			next_wake_ = at;
+		}
 	}
 }
 

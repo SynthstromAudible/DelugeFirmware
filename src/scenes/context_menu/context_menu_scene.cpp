@@ -353,10 +353,17 @@ Result sample_browser_pad(const UiEvent&, const UiContext&) {
 	return r;
 }
 
-/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:465-468`): a claim or a folder import the
+/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:466-469`): a claim or a folder import the
 /// menu started is still running.
 bool sample_load_busy(const menu::MenuContext& ctx) {
 	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();
+}
+
+/// `DeleteFile::acceptCurrentOption`: the browser's file is deleted by the host, which removes it from the browser's
+/// list once the card has. The menu closes at once.
+bool accept_delete_file(const menu::MenuContext&, uint8_t) {
+	browser::browser_scene().park_operation(browser::BrowserChoice::Op::DeleteFile);
+	return false;
 }
 
 constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDescriptors{{
@@ -374,6 +381,10 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
      sample_browser_kit_options_now, sample_browser_pad, sample_load_busy},
     {sid(String::STRING_FOR_LOAD_FILES), kSampleBrowserSynthOptions, accept_sample_browser_synth, nullptr, nullptr,
      nullptr, sample_browser_synth_options_now, sample_browser_pad, sample_load_busy},
+    {.title = sid(String::STRING_FOR_DELETE_QMARK),
+     .options = kConfirmOptions,
+     .accept = accept_delete_file,
+     .for_saving = true},
 }};
 
 // Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
@@ -523,9 +534,8 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 }
 
 void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
-	// `ContextMenu::focusRegained`: `indicator_leds::blinkLed(IndicatorLED::BACK)`, and nothing
-	// else. The saving/loading variants also blink SAVE/LOAD and clear the other of the pair, but
-	// no shipped descriptor is one of those.
+	// `ContextMenu::focusRegained`: `indicator_leds::blinkLed(IndicatorLED::BACK)`; a saving menu
+	// (`ContextMenuForSaving::focusRegained`) also blinks SAVE and turns LOAD off.
 	//
 	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a
 	// literal 110: `indicator_leds::blinkLed` runs at exactly that constant
@@ -539,6 +549,12 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	if (descriptor(id_).for_saving) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Save),
+		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load),
+		            deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0});
+	}
 }
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {

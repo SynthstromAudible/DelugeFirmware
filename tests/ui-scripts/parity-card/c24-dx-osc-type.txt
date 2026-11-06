@@ -1,0 +1,66 @@
+# The oscillator type set to DX7 enters "DX7 source" on SELECT, from the shortcut's source page and from the vertical
+# walk (root, OSCILLATOR 1, TYPE); with any other type SELECT ascends. Runs on a card with EnableDX7Engine on.
+100   snapshot boot
+5000  button Shift down
+5100  pad 2 2 down
+5150  pad 2 2 up
+5200  button Shift up
+6000  snapshot type-page
+6500  encoder Select +1
+6600  encoder Select +1
+6700  encoder Select +1
+6800  encoder Select +1
+6900  encoder Select +1
+7500  snapshot type-dx7
+8000  button SelectEnc down
+8020  button SelectEnc up
+9000  snapshot dx-menu
+9500  encoder Select +1
+10500 snapshot row-global
+11000 encoder Select +1
+12000 snapshot row-engine
+12500 button Back down
+12520 button Back up
+13500 snapshot back-source
+14000 encoder Select -1
+14100 encoder Select -1
+14200 encoder Select -1
+14300 encoder Select -1
+14400 encoder Select -1
+15000 snapshot type-saw
+15500 button SelectEnc down
+15520 button SelectEnc up
+16500 snapshot ascends
+17000 button Back down
+17020 button Back up
+17500 button Back down
+17520 button Back up
+18000 button Back down
+18020 button Back up
+19000 snapshot clip
+19500 button SelectEnc down
+19520 button SelectEnc up
+20500 encoder Select +1
+20600 encoder Select +1
+20700 encoder Select +1
+20800 encoder Select +1
+20900 encoder Select +1
+21000 encoder Select +1
+21100 encoder Select +1
+21200 encoder Select +1
+21500 snapshot osc1-row
+22000 button SelectEnc down
+22020 button SelectEnc up
+23000 snapshot osc1
+23500 button SelectEnc down
+23520 button SelectEnc up
+24500 snapshot vertical-type
+25000 encoder Select +1
+25100 encoder Select +1
+25200 encoder Select +1
+25300 encoder Select +1
+25400 encoder Select +1
+26000 snapshot vertical-type-dx7
+26500 button SelectEnc down
+26520 button SelectEnc up
+27500 snapshot vertical-dx-menu

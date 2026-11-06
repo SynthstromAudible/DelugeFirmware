@@ -19,51 +19,16 @@
 #include "dx_browser.h"
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
-#include "io/stall_bound.h"
-#include "libdeluge/file_prefix.h"
-#include "storage/byte_channel.h" // noteIoTier, for the inline cartridge read
-#include "util/boot.h"
-#include <array>
-#include <span>
 #include <string>
 
 using namespace deluge::gui;
+using deluge::gui::ui::DxCartridgeRead;
+using deluge::gui::ui::dxCartridgeRead;
 
 namespace {
-// --- DX cartridge load ------------------------------------------------------------------------
-//
-// A cartridge's bytes come through the file prefix channel, collected on the browser's tick, and are
-// parsed with DxCartridge::tryLoadFromBuffer(); whether it parsed decides whether we enter the cartridge
-// submenu. Before boot finishes, DxCartridge::tryLoad() reads and parses the file
-// inline instead. Single caller (DxSyxBrowser::enterKeyPress, below): a file-static path buffer and
-// single-flight guard are enough.
-
-/// Path of the cartridge file being loaded, read back by the per-tick collect.
-std::string g_cartridgeLoadPath;
-
-/// Where a prefix-channel cartridge read lands.
-///
-/// `deluge_file_prefix_collect` requires an `out_cap` of at least DELUGE_FILE_PREFIX_CAPACITY
-/// whatever the caller asked for -- a shorter buffer is a caller bug that silently yields an empty
-/// read in a release build -- so this is sized by the capacity, not by the 8192 the request names.
-/// The slot was grown to 8192 for exactly this consumer: a DX7 32-voice bank is 4104 bytes and the
-/// old 4096 slot truncated it by 8, which is enough to fail its checksum.
-/// PLACE_SDRAM_BSS, like its sibling songPreviewPrefix (load_song_ui.cpp) and for the same reason:
-/// 8 KiB is worth having out of internal RAM, this is touched only by the browser tier and never by
-/// the audio path, and on a build where the async arm never runs it would otherwise cost that RAM
-/// unconditionally for nothing.
-PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuffer;
-/// True while a load waits on the channel. Guards against a second Enter stomping
-/// g_cartridgeLoadPath before the collect reads it: the browser stays open until the load
-/// succeeds, so a second enterKeyPress can land while one is already in flight.
-bool g_cartridgeLoadInFlight = false;
-/// How long the load in flight has found its read unanswered (UNKNOWN or PENDING).
-deluge::io::StallBound g_cartridgeWait{DxSyxBrowser::kCartridgeStallUs};
-/// Loads that gave up at the bound. See DxSyxBrowser::cartridgeGiveUps().
-int32_t g_cartridgeGiveUps = 0;
-
 /// After a cartridge loaded: enter its submenu, then close the browser. Both arms end here.
 ///
 /// The close has to come after the load result is known, and the order is upstream #4866 (DX7 browser
@@ -89,6 +54,8 @@ DxSyxBrowser::DxSyxBrowser() {
 
 static char const* allowedFileExtensionsSyx[] = {"SYX", NULL};
 bool DxSyxBrowser::opened() {
+	// A read the ported browser left in flight, when the guest closed under it, is not this browser's to collect.
+	dxCartridgeRead().cancel();
 
 	bool success = Browser::opened();
 	if (!success)
@@ -153,101 +120,37 @@ void DxSyxBrowser::enterKeyPress() {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
 		std::string path = getCurrentFilePath();
 
-		// NEITHER arm closes here: the browser has to still be open when the load result comes back, so a
-		// failure leaves it up and a success can clear shouldGoUpOneLevelOnBegin before it closes
-		// (upstream #4866, see enterLoadedCartridge()).
-		if (path.empty() || g_cartridgeLoadInFlight) {
-			return;
+		// Neither outcome closes here: the browser has to still be open when the read ends, so a failure leaves it up
+		// and a success can clear shouldGoUpOneLevelOnBegin before it closes (upstream #4866, see
+		// enterLoadedCartridge()). An inline read, before boot finishes, ends at once.
+		if (dxCartridgeRead().start(std::move(path)) == DxCartridgeRead::Status::Loaded) {
+			enterLoadedCartridge();
 		}
-		if (!deluge::boot::finished()) {
-			// Inline during boot, when nothing would answer the channel. After boot this would hold the
-			// interaction tier for the whole read, which is why it is noted as a tier violation, and why it is
-			// unreachable there. tryLoad() shows its own popups on failure.
-			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-			if (menu_item::dxCartridge.tryLoad(path)) {
-				enterLoadedCartridge();
-			}
-			return;
-		}
-		// The request is issued by the collect in browserGraphicsRoutine() rather than here: collect answers
-		// UNKNOWN for a path it has not been told about, and "request it (again)" is what that means, so the
-		// opening ask and every re-ask are one code path.
-		g_cartridgeLoadPath = std::move(path);
-		g_cartridgeLoadInFlight = true;
-		g_cartridgeWait.reset();
 	}
 }
 
 void DxSyxBrowser::close() {
-	// Cancel a load still waiting on the channel, for the same reason Browser::close() cancels an
-	// in-flight listing: the browser stays up while the read runs, so the read can outlive it.
-	//
-	// Without this the guard stays armed forever. Every later enterKeyPress fails its
-	// !g_cartridgeLoadInFlight check and silently does nothing, and re-entering the browser collects
-	// the stale path's bytes and jumps into the cartridge submenu for a file the user never chose.
-	g_cartridgeLoadInFlight = false;
-	g_cartridgeWait.reset();
+	// Cancel a read still in flight, for the same reason Browser::close() cancels an in-flight listing: the browser
+	// stays up while the read runs, so the read can outlive it. Without this, re-entering the browser collects the
+	// stale path's bytes and jumps into the cartridge submenu for a file the user never chose.
+	dxCartridgeRead().cancel();
 	Browser::close();
 }
 
 void DxSyxBrowser::browserGraphicsRoutine() {
-	if (!g_cartridgeLoadInFlight) {
-		return;
-	}
-
-	uint32_t length = 0;
-	const DelugeChannelStatus status =
-	    deluge_file_prefix_collect(g_cartridgeLoadPath.c_str(), g_cartridgeBuffer.data(),
-	                               static_cast<uint32_t>(g_cartridgeBuffer.size()), &length);
-	if (status == DELUGE_CHANNEL_PENDING || status == DELUGE_CHANNEL_UNKNOWN) {
-		if (g_cartridgeWait.tick()) {
-			// The channel has left this read unanswered for the whole bound. Give up as a read that failed does: the
-			// popup, and the browser left up so another file can be picked. Nothing to clean up: the channel copied
-			// the path, and a late answer is displaced by the next publish.
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR));
-			g_cartridgeLoadInFlight = false;
-			g_cartridgeWait.reset();
-			g_cartridgeGiveUps++;
-			return;
-		}
-	}
-	else {
-		g_cartridgeWait.reset(); // answered: READY or FAILED
-	}
-	switch (status) {
-	case DELUGE_CHANNEL_PENDING:
-		return; // being read; ask again next tick and do NOT re-request
-	case DELUGE_CHANNEL_UNKNOWN:
-		// "Request it (again)" -- the documented meaning, and where the FIRST ask for this path is
-		// issued. Never a failure to report.
-		deluge_file_prefix_request(g_cartridgeLoadPath.c_str(), DELUGE_FILE_PREFIX_CAPACITY);
-		return;
-	case DELUGE_CHANNEL_FAILED:
-		// Terminal. The read did not happen, so there is nothing to parse; show the popup tryLoad()
-		// shows for a file it could not read, and leave the browser up, so you can pick another file.
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR));
-		g_cartridgeLoadInFlight = false;
-		return;
-	default: { // READY
-		const std::span bytes{reinterpret_cast<std::byte*>(g_cartridgeBuffer.data()), length};
-		const bool loaded = menu_item::dxCartridge.tryLoadFromBuffer(bytes);
-		g_cartridgeLoadInFlight = false;
-		// A failed parse leaves the browser open and keeps shouldGoUpOneLevelOnBegin, so back still
-		// returns to the DX source menu. See enterLoadedCartridge().
-		if (loaded) {
-			enterLoadedCartridge();
-		}
-		return;
-	}
+	// A failed read leaves the browser open and keeps shouldGoUpOneLevelOnBegin, so back still returns to the DX
+	// source menu. See enterLoadedCartridge().
+	if (dxCartridgeRead().poll() == DxCartridgeRead::Status::Loaded) {
+		enterLoadedCartridge();
 	}
 }
 
 bool DxSyxBrowser::cartridgeLoadInFlight() {
-	return g_cartridgeLoadInFlight;
+	return dxCartridgeRead().busy();
 }
 
 int32_t DxSyxBrowser::cartridgeGiveUps() {
-	return g_cartridgeGiveUps;
+	return dxCartridgeRead().give_ups();
 }
 
 PLACE_SDRAM_BSS DxSyxBrowser dxBrowser{};

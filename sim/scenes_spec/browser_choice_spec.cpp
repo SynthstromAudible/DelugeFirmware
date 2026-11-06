@@ -47,6 +47,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/sample.h"
+#include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -61,12 +62,19 @@
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
@@ -74,7 +82,9 @@
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/sample_preview_open.h"
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -95,6 +105,11 @@
 #include <string_view>
 
 #include "spec/support/spec_main.h"
+
+/// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
+namespace Buttons {
+extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
+} // namespace Buttons
 
 using namespace deluge::scenes;
 using deluge::gui::ui::SampleClaimTarget;
@@ -156,7 +171,13 @@ struct QuietDisplay final : deluge::hid::Display {
 struct CleanBrowser {
 	spec::QuietAudio quiet;
 
-	CleanBrowser() { check("a browser singleton was still busy when an example started"); }
+	CleanBrowser() {
+		check("a browser singleton was still busy when an example started");
+		// A file an earlier example previewed is the browsers' last file loaded, which a fresh browser opens beside, as
+		// legacy's does; each example starts from none, and with no preview waiting.
+		sampleBrowser.lastFilePathLoaded.clear();
+		(void)browser::browser_scene().take_preview();
+	}
 	~CleanBrowser() { check("an example finished with a browser singleton still busy"); }
 	CleanBrowser(const CleanBrowser&) = delete;
 	CleanBrowser& operator=(const CleanBrowser&) = delete;
@@ -184,6 +205,32 @@ private:
 ///          examples below prove.** Honouring it means running the claim -- a card read and an
 ///          `AudioFileManager` allocation -- which is the thing the seam exists to keep out. So WHAT
 ///          is requested is pinned; what the claim then does is `SampleClaim`'s own.
+/// @brief Records each file the drain asks the card to delete, in place of the card.
+struct DeleteSpy {
+	static inline std::vector<std::string> paths{};
+	static void record(std::string_view path) { paths.emplace_back(path); }
+	DeleteSpy() {
+		paths.clear();
+		deluge::gui::ui::setFileDeleteDispatch(&record);
+	}
+	~DeleteSpy() { deluge::gui::ui::setFileDeleteDispatch(nullptr); }
+	DeleteSpy(const DeleteSpy&) = delete;
+	DeleteSpy& operator=(const DeleteSpy&) = delete;
+};
+
+/// @brief Records each auto-load cancel the drain asks for, in place of `SampleClaim::cancelAutoLoad`.
+struct CancelSpy {
+	static inline int32_t cancels = 0;
+	static void record() { cancels++; }
+	CancelSpy() {
+		cancels = 0;
+		deluge::gui::ui::setSampleClaimCancel(&record);
+	}
+	~CancelSpy() { deluge::gui::ui::setSampleClaimCancel(nullptr); }
+	CancelSpy(const CancelSpy&) = delete;
+	CancelSpy& operator=(const CancelSpy&) = delete;
+};
+
 struct ClaimSpy {
 	static inline int32_t dispatches = 0;
 	static inline deluge::gui::ClaimRequest last{};
@@ -526,17 +573,29 @@ struct MidiRig {
 /// itself. `Node::relevant` is public data (`scenes/menu/node.h`), so this is the same rule the
 /// interpreter applies, spelled independently of it.
 int32_t visible_index_of(const MenuContext& ctx, const Node& page, const Node& item) {
+	// A group's columns are its member pages' children, in order.
 	int32_t index = 0;
-	for (const Node* kid : page.children) {
-		if (kid == nullptr || !menu::bindings::relevant(*kid, ctx)) {
-			continue;
+	const auto walk = [&](const Node& p) {
+		for (const Node* kid : p.children) {
+			if (kid == nullptr || !menu::bindings::relevant(*kid, ctx)) {
+				continue;
+			}
+			if (kid == &item) {
+				return true;
+			}
+			index++;
 		}
-		if (kid == &item) {
-			return index;
+		return false;
+	};
+	if (page.is_group) {
+		for (const Node* member : page.children) {
+			if (member != nullptr && walk(*member)) {
+				return index;
+			}
 		}
-		index++;
+		return -1;
 	}
-	return -1;
+	return walk(page) ? index : -1;
 }
 
 std::string split_of(std::string_view path) {
@@ -943,7 +1002,7 @@ describe browser_choice_claim(
 	    it(
 	        "claims without exiting, because there is no legacy browser open to close", _ {
 		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
-		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:1108`), and its first
+		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:966`), and its first
 		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
 		        // `Browser::close()`, `UI::close()` and finally
 		        // `closeUI(this)` (`gui/ui/ui.cpp:86-88`). Under the guest `sampleBrowser` was never
@@ -959,7 +1018,7 @@ describe browser_choice_claim(
 		        // here. Flip `loadWithoutExiting` and this reddens.
 		        //
 		        // The values are legacy's own, from the one call site that already needed this: the
-		        // auto-load feature's `claimCurrentFile(1, 1, 1, true)` (`sample_browser.cpp:640`),
+		        // auto-load feature's claim in `SampleBrowser::tickPreview` (`sample_browser.cpp:654-659`),
 		        // "load it into the instrument as if you had confirmed, but keep the browser open".
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
@@ -972,9 +1031,9 @@ describe browser_choice_reroot(
     "MenuScene::reroot_to_scene_opener_page", $ {
 	    // Legacy's return affordance, in the port's own terms:
 	    // `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
-	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:1116-1118`).
-	    // The page is `sourceMenuGroup` focused on `source0Menu` (`gui/ui/menus.cpp:1748-1749`), which
-	    // this port models as the ordinary submenu `nodes::source0`.
+	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:974-976`).
+	    // The page is `sourceMenuGroup` focused on `source0Menu`'s file selector (`gui/ui/menus.cpp:1748-1749`):
+	    // `nodes::source_group`, whose columns run across its five member pages.
 	    //
 	    // @par Why the entry point is called by name here, and the claim is not run
 	    //
@@ -1026,8 +1085,8 @@ describe browser_choice_reroot(
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
 
-		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) ...
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`), the chain's `sourceMenuGroup` ...
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 		        // ... and `navigationDepth = 0` (`:1118`). This is the assertion the "one extra BACK
 		        // press" was: a re-root that left the page one level in would still satisfy the line
 		        // above.
@@ -1035,19 +1094,24 @@ describe browser_choice_reroot(
 		        // ... and `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`), which is a
 		        // separate failure mode: the right page with the wrong column focused is exactly what
 		        // legacy's `focusChild` exists to prevent.
-		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source0, nodes::file0_selector);
+		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source_group, nodes::file0_selector);
 		        // Pinned as a number too, so "the focus was never moved" cannot pass by agreeing with a
 		        // page whose selector happens to sit first. `osc0_type` is column 0 on a subtractive
 		        // source (`nodes/sound_osc.h`'s `kSource0Children`).
 		        expect(column).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(column);
+		        // The group pages across its members, so the counter reads `main`'s 1/6, not the member page's 1/3.
+		        const deluge::ui::oled::Paging paging =
+		            menu::horizontal_paging(menu_scene().menu_context(), menu_scene().state());
+		        expect(static_cast<int32_t>(paging.page)).to_equal(0);
+		        expect(static_cast<int32_t>(paging.total_pages)).to_equal(6);
 	        });
 
 	    it(
 	        "spends the recorded opener, so a second claim does not re-root a menu that has moved on", _ {
 		        // The control leg, varying exactly one thing against the example above: the entry point
 		        // is called a second time, with everything else identical. Legacy clears its pair at the
-		        // same point (`gui/ui/browser/sample_browser.cpp:1121-1122`), and the reason is the same
+		        // same point (`gui/ui/browser/sample_browser.cpp:979-980`), and the reason is the same
 		        // -- the pair belongs to one trip through the browser, and a stale one re-roots a menu
 		        // the user has since navigated somewhere else entirely.
 		        CleanBrowser clean;
@@ -1059,11 +1123,11 @@ describe browser_choice_reroot(
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
 		        // And a refusal is a no-op, not a reset: the menu is exactly where the first call left it.
-		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 		        expect(menu_scene().state().depth).to_equal(0);
 	        });
 
@@ -1087,6 +1151,298 @@ describe browser_choice_reroot(
 		        expect(spy.dispatches).to_equal(0);
 	        });
     });
+
+// clang-format off
+describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported browser's preview", $ {
+	before_each([] {
+		static QuietDisplay d;
+		if (display == nullptr) {
+			display = &d;
+		}
+	});
+
+	it("drains the preview outbox after the choice outbox, starting the file's load as the last file loaded", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		expect(sampleBrowser.lastFilePathLoaded.empty()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+		expect(sampleBrowser.lastFilePathLoaded).to_equal(std::string{kChosenPath});
+		expect(spy.dispatches).to_equal(0);
+		// No load ends in a spec process: the browser still waits for the answer.
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+	});
+
+	it("stops previewing for an empty path, and answers at once", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		deluge::gui::ui::dispatchShellChoices();
+		browser::browser_scene().on_exit();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(browser::browser_scene().preview_outstanding()).to_be_false();
+		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+	});
+
+	it("sounds the preview while the guest's sample browser is frontmost, and not under the menu", _ {
+		// `AudioEngine::renderSamplePreview` renders the preview drum only for the UIs `samplePreviewUIOpen` names;
+		// under the guest the current UI is `shellHostUI`, so it reads which scene the guest's last tick left frontmost.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_true();
+		// The audio tier reads what the guest's tick published, so the answer changes at the next tick.
+		shellHostUI.shell().stack().pop();
+		expect(&shellHostUI.shell().stack().input_top() == &menu_scene()).to_be_true();
+		deluge::gui::ui::refreshShellSamplePreviewSounds();
+		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
+	});
+
+	it("claims an auto-loaded preview keeping the browser open and the menu where it was", _ {
+		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, `loadWithoutExiting`, and no completion to
+		// close or re-root anything.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		const menu::MenuState before = menu_scene().state();
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 6, 1, 255}, r.clock + 5); // LOAD
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 6, 1, 0}, r.clock + 6);
+		r.step();
+		expect(browser::browser_scene().auto_load()).to_be_true();
+		browser::browser_scene().preview_settled(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(spy.dispatches).to_equal(1);
+		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
+		expect(ClaimSpy::last.origin == deluge::gui::ClaimOrigin::AutoLoad).to_be_true();
+		expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
+		expect(ClaimSpy::last.completion == nullptr).to_be_true();
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(menu_scene().state().depth).to_equal(before.depth);
+		expect(menu_scene().state().path[before.depth] == before.path[before.depth]).to_be_true();
+	});
+
+	it("cancels an auto-load claim whenever the selection asks for another preview", _ {
+		// `SampleBrowser::previewFile` and `cancelPreview`: a move supersedes the auto-load of the file it left.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		CancelSpy cancel;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices(); // the file the browser opened on
+		expect(CancelSpy::cancels).to_equal(1);
+		deluge::gui::ui::dispatchShellChoices(); // nothing asked
+		expect(CancelSpy::cancels).to_equal(1);
+		browser::browser_scene().on_exit(); // a stop
+		deluge::gui::ui::dispatchShellChoices();
+		expect(CancelSpy::cancels).to_equal(2);
+	});
+
+	it("starts legacy's horizontal scroll with the waveform in the image store, the main columns left to it", _ {
+		// `showPreview` with a move: `PadLEDs::horizontal::setupScroll` from the image store, in
+		// `UI_MODE_HORIZONTAL_SCROLL`; the guest sends no main column until `scrollFinished`.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		shellHostUI.selectEncoderAction(1);
+		(void)shellHostUI.timerCallback();
+		// The landed preview, as the previewer leaves it: its sample in the preview drum.
+		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		Sample* sample = make_sample();
+		sample->addReason();
+		preview->sampleHolder.audioFile = sample;
+		browser::browser_scene().preview_settled(true);
+		for (int32_t i = 0; i < 4 && currentUIMode != UI_MODE_HORIZONTAL_SCROLL; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(currentUIMode).to_equal(static_cast<uint32_t>(UI_MODE_HORIZONTAL_SCROLL));
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
+		const deluge::gfx::grid::PadGrid& grid = shellHostUI.surfaces().grid().grid();
+		int32_t differ = 0;
+		int32_t lit = 0;
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				const RGB c = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				differ += PadLEDs::imageStore[y][x] == c ? 0 : 1;
+				lit += c == RGB{} ? 0 : 1;
+			}
+		}
+		expect(lit > 0).to_be_true();
+		expect(differ).to_equal(0);
+		shellHostUI.scrollFinished();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
+		expect(currentUIMode == UI_MODE_HORIZONTAL_SCROLL).to_be_false();
+		preview->sampleHolder.audioFile = nullptr;
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("lets the menu declare no LEDs while the browser its entry opened covers it", _ {
+		// `SoundEditor::opened` opens the browser from `beginScreen`, before `focusRegained` sets the editor's LEDs;
+		// they are set when the editor regains focus. SAVE is the menu's alone to declare.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(r.browser_on_stack()).to_be_true();
+		const auto save = static_cast<size_t>(deluge::ui::shell::ButtonId::Save);
+		const auto back = static_cast<size_t>(deluge::ui::shell::ButtonId::Back);
+		expect(r.fake.leds().desired_declared[save]).to_be_false();
+		expect(r.fake.leds().desired_declared[back]).to_be_true(); // the browser's own blink
+	});
+
+	it("hands the main columns back when nothing scrolls or is about to", _ {
+		// The browser left between asking for a scroll and drawing it: no `scrollFinished` will come.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		currentUIMode = UI_MODE_NONE;
+		shellHostUI.surfaces().hold_main_columns(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
+		currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // legacy's scroll still running keeps them
+		shellHostUI.surfaces().hold_main_columns(true);
+		deluge::gui::ui::dispatchShellChoices();
+		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		shellHostUI.surfaces().hold_main_columns(false);
+	});
+
+	it("deletes the file the delete menu accepts, and drops it from the list once the card has", _ {
+		// `DeleteFile::acceptCurrentOption` then `Browser::currentFileDeleted`; a refusal leaves the list alone.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		DeleteSpy deletes;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(context_menu::descriptor(context_menu::DescriptorId::DeleteFile).accept(menu_scene().menu_context(), 0))
+		    .to_be_false(); // the menu closes
+		deluge::gui::ui::dispatchShellChoices();
+		expect(DeleteSpy::paths.size()).to_equal(size_t(1));
+		expect(DeleteSpy::paths.empty() ? std::string{} : DeleteSpy::paths[0]).to_equal(std::string{kChosenPath});
+		const std::string before{browser::browser_scene().entered_text()};
+		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Failed);
+		expect(std::string{browser::browser_scene().entered_text()}).to_equal(before);
+		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Removed);
+		expect(std::string{browser::browser_scene().entered_text()} != before).to_be_true();
+		for (const FileItem& item : deluge::storage::FileCatalogue::fileItems) {
+			expect(std::string{"SAMPLES/OSC_A/"} + item.filename != std::string{kChosenPath}).to_be_true();
+		}
+	});
+
+	it("claims RECORD from the global RECORD while the sample browser is frontmost", _ {
+		// `SampleBrowser::buttonAction` answers `DEALT_WITH`, so `Buttons`' RECORD tail never arms recording.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::DEALT_WITH).to_be_true();
+		shellHostUI.shell().stack().pop();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true(); // the menu beneath leaves it to the global RECORD
+	});
+
+	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {
+		// `SampleBrowser::verticalEncoderAction`.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::file0_selector, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		const int32_t before = model.song.clip->yScroll;
+		(void)shellHostUI.verticalEncoderAction(1);
+		expect(model.song.clip->yScroll != before).to_be_true();
+		const int32_t moved = model.song.clip->yScroll;
+		// With X_ENC held the clip view would transpose the notes on screen; the browser keeps the turn.
+		NoteRow* row = model.song.clip->createNewNoteRowForYVisual(moved + 2, model.song.song);
+		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			return;
+		}
+		{
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* stack = model.song.song->setupModelStackWithCurrentClip(memory);
+			ModelStackWithNoteRow* with_row = model.song.clip->getNoteRowForYNote(row->y(), stack);
+			(void)row->attemptNoteAdd(0, 24, 64, kNumProbabilityValues, row->getDefaultIterance(), 0, with_row, nullptr);
+		}
+		expect(static_cast<int32_t>(row->notes.size())).to_equal(1);
+		model.song.song->persistentView.xScroll[NAVIGATION_CLIP] = 0;
+		model.song.song->persistentView.xZoom[NAVIGATION_CLIP] = 48;
+		const int32_t note_y = row->y();
+		const auto xy = deluge::hid::button::toXY(deluge::hid::button::X_ENC);
+		Buttons::buttonStates[xy.x][xy.y] = true;
+		(void)shellHostUI.verticalEncoderAction(1);
+		Buttons::buttonStates[xy.x][xy.y] = false;
+		expect(model.song.clip->yScroll).to_equal(moved);
+		NoteRow* still = model.song.clip->getNoteRowForYNote(note_y);
+		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
+	});
+});
+// clang-format on
 
 describe browser_choice_long_press(
     "gui::ui::dispatchShellChoices performing the sample browser's folder menus", $ {
@@ -1193,4 +1549,4 @@ describe browser_choice_long_press(
     });
 
 DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-            browser_choice_reroot, browser_choice_long_press)
+            browser_choice_reroot, browser_choice_long_press, browser_choice_preview)

@@ -30,9 +30,11 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
+#include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx_tables.h"
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -60,12 +62,33 @@ using deluge::ui::shell::UiEvent;
 
 using namespace detail;
 
+namespace {
+
+/// `kShortPressTime`, the half second a patch cable page's cursor stands at an edge before a horizontal turn passes on.
+constexpr uint32_t kCableEdgeDelayMs = 500;
+
+/// 10 to the power @p exponent, as `decimal_value` steps its cursor by.
+int64_t pow10_of(int32_t exponent) {
+	int64_t v = 1;
+	for (int32_t i = 0; i < exponent; i++) {
+		v *= 10;
+	}
+	return v;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
+	const DxState dx = st_.dx;
 	st_ = MenuState{};
+	st_.dx = dx;
+	pending_transition_.reset();
+	transition_.reset();
+	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	pads_.forget_landing();
 	retarget(root);
@@ -100,6 +123,9 @@ void MenuScene::retarget(const Node& node) {
 
 void MenuScene::reset_process_state() {
 	walk_.forget_rows();
+	st_.dx = DxState{};
+	pending_retarget_ = 0;
+	land_dx_cartridge_ = false;
 	view_.forget_acceleration();
 	voice_usage_ = VoiceUsageClock{};
 }
@@ -223,8 +249,18 @@ void MenuScene::on_resume() {
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
-	pads_.forget_landing();
+	// The scene over the menu jumped (`shortcut_jump`): it is removed first, so this resume comes before the
+	// `Replace` its landing is for.
+	if (!std::exchange(landing_survives_resume_, false)) {
+		pads_.forget_landing();
+	}
 	visit_.use_up_select = true;
+	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
+	if (std::exchange(land_dx_cartridge_, false) && focused() == &nodes::dx_browse) {
+		// `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)`, with `shouldGoUpOneLevelOnBegin` cleared: no going up.
+		st_.walk.go_up_on_resume = false;
+		walk_.descend_to(core(), visit_.session, nodes::dx_cartridge);
+	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
@@ -237,6 +273,73 @@ void MenuScene::on_resume() {
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
 	st_.tick = {};
+}
+
+std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
+	const Node* target = shortcut_node(ctx_.root, false, x, y);
+	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
+		return std::nullopt;
+	}
+	if (!shortcut_applies(*target, ctx_)) {
+		target = nodes::dx_shortcut_fallback(*target, ctx_, x);
+		if (target == nullptr) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return std::nullopt;
+		}
+	}
+	const uint16_t id = arm_shortcut_landing(*target);
+	if (id == 0) {
+		return std::nullopt;
+	}
+	landing_survives_resume_ = true;
+	return SceneId{SceneKind::FirstApp, id};
+}
+
+void MenuScene::dx_column_press(int32_t op) {
+	const bool on_page = focused() == &nodes::dx_param;
+	st_.dx.param = dx::column_param(st_.dx.param, op, on_page);
+	if (on_page) {
+		st_.dx.pad_blink = true;
+		st_.dx.flash_restart = true;
+	}
+	else {
+		st_.dx.blink_on_focus = true;
+		pending_retarget_ = node_id(nodes::dx_param);
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
+	if (!dx_column_flashing()) {
+		return std::nullopt;
+	}
+	const uint32_t phase = (now_ms - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+	return phase < dx::kColumnFlashOnMs ? std::optional{dx::flash_row(st_.dx.param)} : std::nullopt;
+}
+
+bool MenuScene::dx_column_flashing() const {
+	// `DxParam::hasSideColumn`: the parameter page over the keyboard screen.
+	return focused() == &nodes::dx_param && ctx_.root_is_keyboard && st_.dx.flash_anchor_ms.has_value();
+}
+
+void MenuScene::delete_range_press() {
+	if (focused() != &nodes::multi_range) {
+		return;
+	}
+	nodes::range_delete_press(ctx_, st_);
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+bool MenuScene::select_range_for_note(int32_t note) {
+	if (focused() != &nodes::multi_range) {
+		return false;
+	}
+	if (!nodes::range_note_press(ctx_, st_, note)) {
+		return false;
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // a note the root played, between the guest's ticks
+	return true;
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
@@ -258,15 +361,26 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (i >= r.size() || r[i] == nullptr) {
 		return false;
 	}
-	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`). Legacy answers `nullptr`
-	// when no menu in the chain lists the item, and its caller then does nothing at all -- which is
-	// this `false`.
-	const Node* page = horizontal_page_listing(*r[i], *item);
+	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`): the first menu of the root's chain that
+	// lists the item, which for an oscillator's file selector is the whole `sourceMenuGroup`, paged across its five
+	// members, not the member page. A root whose chain lists the item nowhere falls back to the page that does (the
+	// audio clip's sample page). Legacy answers `nullptr` when no menu lists the item, and its caller then does
+	// nothing at all -- which is this `false`.
+	const Node* page = nullptr;
+	for (const Node* candidate : chain_for(ctx_.root)) {
+		if (candidate != nullptr && page_lists(*candidate, *item)) {
+			page = candidate;
+			break;
+		}
+	}
+	if (page == nullptr) {
+		page = horizontal_page_listing(*r[i], *item);
+	}
 	if (page == nullptr) {
 		return false;
 	}
 	// `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo; soundEditor.navigationDepth =
-	// 0` (`gui/ui/browser/sample_browser.cpp:1117-1118`). `retarget` is the port's spelling of both
+	// 0` (`gui/ui/browser/sample_browser.cpp:975-976`). `retarget` is the port's spelling of both
 	// at once, and it is the right one rather than a convenient one: legacy's two statements throw
 	// away everything above index 0 of the record, which is exactly the per-visit state `retarget`
 	// drops (see its body).
@@ -286,7 +400,9 @@ void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	// calls `open()` again; until it does, refuse to render anything by dropping the path, which
 	// is strictly safer than drawing a menu over a freed `Sound`.
 	if (dirty.has(deluge::notify::Dirty::SongSwapped)) {
+		const DxState dx = st_.dx;
 		st_ = MenuState{};
+		st_.dx = dx;
 		ctx_ = MenuContext{};
 	}
 }
@@ -334,6 +450,93 @@ const Node* MenuScene::focused_value() const {
 	return menu::focused_value(ctx_, st_);
 }
 
+void MenuScene::set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation) {
+	ctx_.root_greyout = greyout;
+	ctx_.root_is_keyboard = root_is_keyboard;
+	ctx_.root_is_automation = root_is_automation;
+}
+
+void MenuScene::note_transition(const UiEvent& event, const Result& r, const Node* value_before) {
+	// One record per tick: the first event's value is the one it moved from (`note_cause`).
+	// SELECT and BACK are the widgets' own edges, consumed by the render (`after_render`), not routed here.
+	std::optional<TransitionCause> cause;
+	if (event.kind == UiEvent::Kind::Button) {
+		switch (event.button) {
+		case ButtonId::Synth:
+		case ButtonId::Kit:
+		case ButtonId::Midi:
+		case ButtonId::Cv:
+		case ButtonId::CrossScreen:
+		case ButtonId::Scale:
+			// `SoundEditor::buttonAction`'s horizontal-menu arm compares the item before and after the press.
+			if (event.on) {
+				cause = TransitionCause::ColumnButton;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	else if (event.kind == UiEvent::Kind::Pad) {
+		// A pad that jumps (a shortcut, or a patching source opening its page) answers with a Replace.
+		for (const Action& action : r.actions) {
+			if (action.kind == Action::Kind::Replace) {
+				cause = TransitionCause::Shortcut;
+				break;
+			}
+		}
+	}
+	if (cause) {
+		note_cause(*cause, value_before);
+	}
+}
+
+void MenuScene::note_cause(TransitionCause cause, const Node* value_before) {
+	if (!pending_transition_) {
+		pending_transition_ = cause;
+		transition_from_ = value_before;
+	}
+}
+
+MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool xenc_held, uint32_t now_ms) {
+	const Node* node = focused();
+	if (node == nullptr || offset == 0) {
+		return HorizontalTurn::Menu;
+	}
+	if (node->custom != nullptr && node->custom->is_patch_cable()) {
+		// `Decimal::horizontalEncoderAction`'s move, which `decimal_value` makes for the page: right while there is a
+		// place below, left while the next place up is in range.
+		const int8_t pos = st_.decimal_pos;
+		const bool moves = !xenc_held
+		                   && ((offset > 0 && pos > 0)
+		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= kMaxMenuPatchCableValue));
+		if (moves) {
+			cable_edge_until_ms_ = 0;
+			return HorizontalTurn::Menu;
+		}
+		if (cable_edge_until_ms_ == 0) {
+			cable_edge_until_ms_ = now_ms + kCableEdgeDelayMs;
+		}
+		else if (static_cast<int32_t>(now_ms - cable_edge_until_ms_) > 0) {
+			return HorizontalTurn::Root;
+		}
+		return xenc_held ? HorizontalTurn::Neither : HorizontalTurn::Menu;
+	}
+	if (node->kind != Kind::Submenu && node->custom == nullptr && node->bind.param.valid()) {
+		return HorizontalTurn::Root;
+	}
+	return HorizontalTurn::Menu;
+}
+
+std::optional<MenuTransition> MenuScene::take_transition() {
+	return std::exchange(transition_, std::nullopt);
+}
+
+std::optional<AutomationParam> MenuScene::focused_automation_param() const {
+	const Node* value = focused_value();
+	return value != nullptr ? automation_param(*value, ctx_, st_) : std::nullopt;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
@@ -363,6 +566,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 }
 
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	render_ms_ = f.now_ms();
 	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
 	// input, and a menu under another scene shows no overlay.
 	if (!f.covered) {
@@ -383,7 +587,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
 	// would light a menu that is not on screen.
-	if (focused() == nullptr) {
+	if (focused() == nullptr || visit_.leds_held_back) {
 		return;
 	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
@@ -412,6 +616,32 @@ MenuActionRequest MenuScene::take_action() {
 }
 
 Result MenuScene::after_render() {
+	const bool entering = !visit_.entered;
+	visit_.entered = true;
+	// The render consumed this tick's BACK (above depth 0) and select edges -- the select one on its release, as
+	// legacy's SELECT arm acts (`select_acts_on_release`) -- and the navigation below acts on them: note the value they
+	// leave now.
+	if (st_.tick.back_claimed) {
+		note_cause(TransitionCause::Back, focused_value());
+	}
+	else if (st_.tick.render_resp.entered || st_.tick.column_press) {
+		note_cause(TransitionCause::Select, focused_value());
+	}
+	Result r = after_render_navigation();
+	if (entering) {
+		for (const Action& a : r.actions) {
+			visit_.leds_held_back = visit_.leds_held_back || a.kind == Action::Kind::Push;
+		}
+	}
+	// The record an event noted (`handle`) is filed once its navigation has run, which is here.
+	if (pending_transition_) {
+		transition_ = MenuTransition{.from = transition_from_, .to = focused_value(), .cause = *pending_transition_};
+		pending_transition_.reset();
+	}
+	return r;
+}
+
+Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
 	drain_trace_len_ = 0;
@@ -426,6 +656,18 @@ Result MenuScene::after_render() {
 	}
 	if (walk_.take_close_request()) {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+		return r;
+	}
+	if (const uint16_t to = std::exchange(pending_retarget_, 0); to != 0) {
+		// `dx_column_press` off the parameter page: `setup()` re-roots, as a shortcut's `Replace` does.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = SceneId{SceneKind::FirstApp, to}});
+		return r;
+	}
+	if (std::exchange(st_.walk.exit_completely, false)) {
+		// An item's `soundEditor.exitCompletely()`.
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
@@ -660,6 +902,7 @@ Result MenuScene::after_render() {
 		case MenuAction::ShiftStickyOff:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:
+		case MenuAction::FileSelectorOpened:
 		case MenuAction::None:
 			break;
 		}
@@ -729,7 +972,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// greyout, and while it shows a source pad's press or release can change the source column.
 	const bool overlay_was_up = overlay_up();
 	visit_.shift_held = ctx.shift;
+	const Node* const value_before = focused_value();
 	Result r = handle_event(event, ctx);
+	note_transition(event, r, value_before);
 	if (overlay_up() != overlay_was_up
 	    || (overlay_up() && event.kind == UiEvent::Kind::Pad && is_patching_source_pad(event.x, event.y))) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -758,9 +1003,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// `SoundEditor::modEncoderAction`: in learn mode a gold turn learns that knob. Under the automation view legacy
 	// hands the turn to the view instead, which the knobs' service stands in for.
-	const bool automation_root = ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar
-	                             || (ctx_.root_greyout == MenuContext::RootGreyout::Nothing && !ctx_.root_is_keyboard);
-	if (!automation_root && visit_.learn.gold_turn(ctx_, st_, event)) {
+	if (!ctx_.root_is_automation && visit_.learn.gold_turn(ctx_, st_, event)) {
 		return Result{.handled = true};
 	}
 
@@ -860,7 +1103,15 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
 		return sample;
 	}
-	return pad_next_timer(ctx_, st_);
+	std::optional<uint32_t> next = pad_next_timer(ctx_, st_);
+	if (dx_column_flashing()) {
+		// The keyboard DX column's next flip, which the host reads after the tick (`dx_column_flash`).
+		const uint32_t phase = (render_ms_ - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;
+		const uint32_t flip =
+		    phase < dx::kColumnFlashOnMs ? dx::kColumnFlashOnMs - phase : dx::kColumnFlashPeriodMs - phase;
+		next = next.has_value() ? std::min(*next, flip) : flip;
+	}
+	return next;
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
@@ -896,6 +1147,20 @@ bool is_automation_item(const Node& item) {
 		return item.custom->is_automation_item();
 	}
 	return item.bind.param.valid();
+}
+
+std::optional<AutomationParam> automation_param(const Node& item, const MenuContext& ctx, const MenuState& state) {
+	if (item.custom != nullptr) {
+		if (!item.custom->is_automation_item()) {
+			return std::nullopt;
+		}
+		return AutomationParam{.kind = deluge::modulation::params::Kind::PATCH_CABLE,
+		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
+	}
+	if (!item.bind.param.valid()) {
+		return std::nullopt;
+	}
+	return AutomationParam{.kind = item.bind.param.kind, .id = item.bind.param.index};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

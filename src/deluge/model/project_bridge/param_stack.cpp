@@ -32,6 +32,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/sound/mod_matrix_host.h"
@@ -386,6 +387,8 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 	    || !found.stack->paramManager->containsAnyMainParamCollections()) {
 		return false;
 	}
+	// The lanes' cursors are the render's: grabbed with the render held off
+	deluge::playback::MoveSection section{"grabRegionAt"};
 	found.stack->paramManager->toForTimeline()->grabValuesFromPos(pos, found.stack);
 	return true;
 }

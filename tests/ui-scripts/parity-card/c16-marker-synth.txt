@@ -1,0 +1,77 @@
+# The sample marker editor over a synth's oscillator 1: c10's BASIC load, then Shift + pad (0,7) opens the editor.
+# A select turn moves the start marker; BACK with the start marker held stays; a second pad while holding; X_ENC
+# with a turn zooms (the slide read 50 ms in), a turn scrolls; the audition column sounds the note and the playhead
+# follows it; a vertical turn scrolls the clip view; Shift + an empty shortcut cell stays, Shift + LPF frequency
+# jumps to its page.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7000  snapshot browser
+7500  button SelectEnc down
+7700  snapshot held-short
+8200  snapshot folder-menu
+8300  button SelectEnc up
+9000  snapshot folder-menu-released
+9500  button Back down
+9520  button Back up
+10500 snapshot folder-menu-closed
+11000 encoder Select +2
+12000 snapshot on-drums
+12500 button SelectEnc down
+12520 button SelectEnc up
+14500 snapshot in-drums
+15000 button SelectEnc down
+15020 button SelectEnc up
+17000 snapshot in-block
+17500 button SelectEnc down
+17700 snapshot file-held-short
+18200 snapshot file-menu
+18300 button SelectEnc up
+19000 encoder Select +1
+20000 snapshot file-menu-basic
+20500 button SelectEnc down
+20520 button SelectEnc up
+26000 snapshot loaded
+26500 button Back down
+26520 button Back up
+27500 button Shift down
+27600 pad 0 7 down
+27650 pad 0 7 up
+27700 button Shift up
+29000 snapshot marker
+29500 encoder Select +3
+30000 snapshot moved
+30500 pad 0 2 down
+30700 button Back down
+30720 button Back up
+31000 snapshot back-held
+31100 pad 8 2 down
+31150 pad 8 2 up
+31500 snapshot loop-set
+31600 pad 0 2 up
+32000 button XEnc down
+32100 encoder Horizontal +1
+32150 snapshot zoom-mid
+32600 snapshot zoomed
+32700 button XEnc up
+33000 encoder Horizontal -2
+33500 snapshot scrolled
+34000 pad 17 3 down
+34600 snapshot playhead
+35600 snapshot playhead-later
+35700 pad 17 3 up
+36000 encoder Vertical +1
+37000 snapshot vertical
+37500 button Shift down
+37600 pad 7 6 down
+37650 pad 7 6 up
+38000 snapshot jump-refused
+38100 pad 8 7 down
+38150 pad 8 7 up
+38200 button Shift up
+39500 snapshot jumped-lpf
+40000 button Back down
+40020 button Back up
+41000 snapshot after-back

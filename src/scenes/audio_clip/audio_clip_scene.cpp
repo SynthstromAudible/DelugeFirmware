@@ -48,6 +48,7 @@
 #include <algorithm>
 #include <array>
 #include <span>
+#include <utility>
 
 // `util/functions.h` is not reachable from this layer (`check_layer_rules.py`'s
 // `scenes-includes-outside` row lists no `util/`), and this is the one free function in it the OLED
@@ -184,6 +185,7 @@ bool AudioClipScene::on_enter(const SceneId& id) {
 	// `scenes-no-root-ui`'s forbidden list and nothing in this layer reads the flag either. What is
 	// left is the tick-square latch and `focusRegained`, in legacy's own order.
 	must_redraw_tick_squares_ = true;
+	flashed_ticks_ = filled_no_tick(); // the PIC's latch, as `clearTickSquares` leaves it between views
 	focus_regained();
 	return true;
 }
@@ -662,7 +664,7 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 	if (shift) {
 		// `:732`'s `view.navigateThroughAudioOutputsForAudioClip` is **not ported**. Two of its
 		// three halves are outside this layer: it builds a `ModelStack` for `Clip::changeOutput`
-		// and `Output::pickAnActiveClipIfPossible` (`gui/views/view.cpp:2222-2228`), and it ends in
+		// and `Output::pickAnActiveClipIfPossible` (`gui/views/view.cpp:2223-2229`), and it ends in
 		// `setActiveModControllableTimelineCounter` (`:2215`), which is `services::ModKnobs`' --
 		// the same handle `renderSidebar`'s macro arm lacks. It is a `View` method shared with the
 		// session view, so it belongs with `services::ModKnobs`/E5 rather than being rebuilt here.
@@ -1031,7 +1033,7 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// (`audio_clip_view.cpp:270-274`): with no playback, no active clip, or a count-in running, the
 	// column is a constant 255 and nothing animates.
 	const bool cursor_live =
-	    flash_cursor_ != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
+	    flash_cursor() != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1101,9 +1103,10 @@ int32_t AudioClipScene::compute_tick_square() {
 
 	// `:296-309`. The latch is `AudioClipView`'s own two private fields, which `timeline/timeline.h`'s
 	// table assigns here by name.
-	if (flash_cursor_ != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
+	if (flash_cursor() != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
 		last_tick_square_ = square;
 		must_redraw_tick_squares_ = false;
+		tick_squares_set_ = true;
 	}
 	return last_tick_square_;
 }
@@ -1236,14 +1239,17 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares` (`:305`), which the driver applies to the whole
 	// rendered image on its way out (`PadLEDs::prepareColour`, `hid/led/pad_leds.cpp:283-298`) --
 	// hence last, and over the root frame rather than the main-column region.
-	if (flash_cursor_ == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
-		// `:300-303`: every row gets the same column, and the colour is red (2) while recording
-		// linearly, normal (0) otherwise.
-		const deluge::ui::grid::TickColour colour =
-		    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
-		std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
-		per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
+	// `:300-303`: every row gets the same column, and the colour is red (2) while recording linearly, normal (0)
+	// otherwise. With the cursor Fast the PIC flashes the square when `setTickSquares` is handed a new one.
+	const deluge::ui::grid::TickColour colour =
+	    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
+	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
+	if (flash_cursor() == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
 		deluge::ui::grid::tick_squares(f, per_row, kUnreachableMutedColour);
+	}
+	if (std::exchange(tick_squares_set_, false)) {
+		deluge::ui::grid::flash_tick_squares(f, per_row, flashed_ticks_, flash_cursor() == FlashCursor::Fast);
 	}
 }
 
@@ -1251,7 +1257,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	(void)role;
 	// `AudioClipView::renderOLED` is one call:
 	// `view.displayOutputName(getCurrentOutput(), false, getCurrentClip())`
-	// (`gui/views/view.cpp:2009-2038`), which flattens the output into five values and hands them
+	// (`gui/views/view.cpp:2010-2039`), which flattens the output into five values and hands them
 	// to `View::drawOutputNameFromDetails` (`:2025-2170`). `doBlink` is **false** here, so that
 	// function's whole first half -- the `IndicatorLED` block at `:2027-2074` -- is skipped.
 	const deluge::project::DocClip* record = doc();
@@ -1259,7 +1265,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 		return;
 	}
 
-	// `displayOutputName`'s AUDIO arm (`view.cpp:2031-2033`): `channel` is the output's mode, and
+	// `displayOutputName`'s AUDIO arm (`view.cpp:2032-2034`): `channel` is the output's mode, and
 	// `editedByUser` stays at its initialiser because the `!= OutputType::AUDIO` branch is not
 	// taken. An `AudioClip`'s output is always an `AudioOutput` (`AudioClip::setOutput` is only
 	// ever handed one), so the type is `OutputType::AUDIO`.
@@ -1269,7 +1275,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	// **`name_empty` is deliberately false even when the name IS empty**, and this is a real
 	// difference between the widget and this call site. `ui::oled::output_name`'s `name_empty`
 	// branch draws a SLOT (`ui::oled::output_name`), which is legacy's substitution for an unnamed
-	// **MIDI or CV** output (`view.cpp:2162-2187`). `drawOutputNameFromDetails`' name block is one
+	// **MIDI or CV** output (`view.cpp:2163-2188`). `drawOutputNameFromDetails`' name block is one
 	// `if (!isNameEmpty) ... else if (outputType == MIDI_OUT) ... else if (outputType == CV)`
 	// chain (`:2101-2168`), and an `OutputType::AUDIO` output with no name matches **none** of the
 	// three -- so legacy draws the type text and nothing else. Passing the empty name with

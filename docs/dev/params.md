@@ -78,7 +78,8 @@ it) and the reads beside an edit, both for the model stack's retirement to move.
 A lane's base (`DocAutoParam::current_value`, written only through `project::set_base`) is the model's: what the param
 plays where it has no automation, and what a file saves. Its played value (`AutoParam::played()`) is the engine
 cursor's: the lane at the playhead, interpolated, latched or overridden. The cursor is written by the executor
-(playback, interpolation, the latch) and by four named operations:
+(playback, interpolation, the latch), by the interaction tier's playhead moves (each with the render held off, reading
+lanes the render's way: [playback_moves.md](playback_moves.md)), and by four named operations:
 
 - `setBase(lane, v)`: an edit, a file read or a setup default; the value is the base and is played.
 - `playBase(lane)`: the cursor projected from the model after a read, a rebuild or a model-first write.

@@ -81,6 +81,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
 #include "processing/audio_output.h"
@@ -994,6 +995,7 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 	clip->output->clipLengthChanged(clip, oldLength);
 
 	if (playbackHandler.isEitherClockActive() && isClipActive(clip)) {
+		deluge::playback::MoveSection section{"Song::setClipLength"};
 
 		if (mayReSyncClip) {
 			if (allowResyncingDuringClipLengthChange) {
@@ -5089,6 +5091,7 @@ tryAgain:
 
 			// If it's still playing...
 			if (clipInstance->pos + clipInstance->length > playbackHandler.getActualSwungTickCount()) {
+				deluge::playback::MoveSection section{"Song::instrumentSwapped arranger"};
 				arrangement.resumeClipInstancePlayback(clipInstance); // Sets activeClip
 			}
 
@@ -5113,7 +5116,7 @@ tryAgain:
 			assertActiveness(modelStackWithTimelineCounter);
 
 			if (playbackHandler.isEitherClockActive()) {
-
+				deluge::playback::MoveSection section{"Song::instrumentSwapped"};
 				thisClip->setPosForParamManagers(modelStackWithTimelineCounter);
 			}
 		}

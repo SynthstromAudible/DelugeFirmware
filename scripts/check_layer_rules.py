@@ -308,6 +308,13 @@ LEGACY_PORT_SEAMS = (
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
+    # The automation view's half of the menu's seam: the poll of `MenuScene::take_transition()` that
+    # `ShellHostUI::timerCallback` runs once per tick, and what legacy's sound editor does to `automationView` for each
+    # change of the menu's param (`scenes/menu/transition.h`). It names `deluge::scenes::menu_scene()` and the menu's
+    # `AutomationParam` and `MenuTransition` because it reads them, and `automationView` because this is the side of the
+    # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
+    # legacy types and integers and names no port type.
+    "src/deluge/gui/ui/shell_automation_glue.cpp",
     # The binding's host half. It names the scenes' binding types
     # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:
     # the write sink that applies a menu's requests as Edits, and the runtime facts a menu reads (the audio

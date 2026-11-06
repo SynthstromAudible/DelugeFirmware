@@ -70,6 +70,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -332,7 +333,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			// F1 task 9, site 3 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the two
+			// Site 3 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the two
 			// legacy statements unchanged.
 			if (deluge::gui::ui::shellMenuEnabled()) {
 				// No shift (`:324`) and the arranger is the root: the same
@@ -1223,6 +1224,8 @@ void ArrangerView::outputActivated(Output* output) {
 		return;
 	}
 
+	// Where the render's tick has reached and the clip's move to it, with the render held off between them
+	deluge::playback::MoveSection section{"ArrangerView::outputActivated"};
 	int32_t actualPos = arrangement.getLivePos();
 
 	int32_t i = output->clipInstances.firstAtOrAfter(actualPos + 1) - 1;

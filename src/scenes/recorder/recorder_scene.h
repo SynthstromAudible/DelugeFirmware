@@ -79,8 +79,8 @@
 /// derives `monitoringAction` (differential / no-right-channel) from the recorder pointer. The
 /// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
 /// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
-/// `playback/playback_handler.cpp` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
-/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5535` and
+/// `playback/playback_handler.cpp` (the RECORD LED), `playback/mode/arrangement.cpp:329`,
+/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:356,5535` and
 /// `gui/ui/browser/sample_browser.cpp`.
 ///
 /// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both

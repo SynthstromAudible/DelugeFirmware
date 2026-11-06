@@ -21,6 +21,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "util/notify.h"
 
@@ -58,6 +59,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		}
 
 		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+			deluge::playback::MoveSection section{"ConsequenceAudioClipSetSample::revert"};
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			clip->resumePlayback(modelStackWithTimelineCounter);

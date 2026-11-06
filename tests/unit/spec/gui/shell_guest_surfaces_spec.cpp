@@ -417,6 +417,35 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		}
 	});
 
+	it("leaves the main columns to legacy while they are held, and only the sidebar goes out", _ {
+		// Legacy's horizontal scroll animates `PadLEDs::image` itself; the guest must not paint over it.
+		deluge::notify::dirty().drain();
+		ShellRig r;
+		r.base.regions = PadRegions::All;
+		r.set.observe(r.shell.stack());
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		fill_legacy_pads(RGB{9, 8, 7});
+		fakelegacy::column_sends.clear();
+		r.set.hold_main_columns(true);
+		for (uint8_t pair = 0; pair < 9; pair++) {
+			r.set.send_columns(pair, flat_pair(RGB{1, 2, 3}));
+		}
+		r.set.take_grid();
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+			}
+			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_false();
+		}
+		for (const auto& send : fakelegacy::column_sends) {
+			expect(send.x).to_equal(int32_t(16));
+		}
+		r.set.hold_main_columns(false);
+		r.set.take_grid();
+		expect(PadLEDs::image[0][0] == r.base.colour).to_be_true();
+	});
+
 	it("writes all nine pairs for a Main|Sidebar stack", _ {
 		ShellRig r;
 		r.base.regions = PadRegions::Main | PadRegions::Sidebar;

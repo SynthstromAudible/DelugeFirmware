@@ -84,12 +84,14 @@ struct BlinkPlan {
 /// @return The plan; an empty one when nothing blinks.
 BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused);
 
-/// @brief A blink of one pad and nothing else, every other cycle -- `SoundEditor::setupExclusiveShortcutBlink`, which a
-///        scene plays for a pad of its own (the sample browser's slot pads).
-/// @param x The pad's column.
-/// @param y The pad's row.
+/// @brief A blink of one pad and nothing else, every other cycle by default --
+/// `SoundEditor::setupExclusiveShortcutBlink`,
+///        which a scene plays for a pad of its own (the sample browser's slot pads).
+/// @param x         The pad's column.
+/// @param y         The pad's row.
+/// @param freq_mask `setupShortcutBlink`'s frequency: 1 every other cycle, 2 two cycles in four.
 /// @return The plan.
-BlinkPlan exclusive_blink(uint8_t x, uint8_t y);
+BlinkPlan exclusive_blink(uint8_t x, uint8_t y, uint8_t freq_mask = 1);
 
 /// @brief Legacy's `shortcutBlinkCounter` at @p now_ms for a cycle started at @p anchor_ms.
 ///

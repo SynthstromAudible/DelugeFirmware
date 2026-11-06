@@ -22,6 +22,7 @@
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_core.h"
+#include "scenes/menu/nodes/dx.h"
 #include "scenes/menu/nodes/patching.h"
 #include "scenes/menu/walk.h"
 
@@ -70,6 +71,26 @@ const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kShortcutColours
     {{kLfo,         kLfo,         kLfo,         kReverb,      kReverb,      kReverb,    kReverb,    kReverb}},
     {{kDelay,       kDelay,       kDelay,       kDelay,       kDelay,       kNone,      kNone,      kNone}},
     {{kNone,        kSynthGlobal, kSynthGlobal, kSynthGlobal, kNone,        kNone,      kNone,      kNone}},
+}};
+
+// Rows bottom to top: the LFO, the pitch envelope and globals, then operators 1 to 6.
+const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kDxShortcutColours = {{
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::pastel::blue,  c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{c::yellow_orange, c::pastel::green, c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan,   c::cyan}},
+    {{kNone,            c::orange,        c::yellow, c::yellow, c::yellow, c::yellow, c::yellow, c::yellow}},
+    {{kNone,            c::grey,          c::yellow, c::yellow, c::yellow, c::yellow, c::yellow, c::yellow}},
+    {{kNone,            c::magenta,       c::yellow, c::yellow, c::yellow, c::yellow, c::yellow, c::yellow}},
+    {{kNone,            kNone,            c::yellow, c::yellow, c::yellow, c::yellow, c::yellow, c::yellow}},
+    {{kNone,            kNone,            c::yellow, c::yellow, c::yellow, c::yellow, c::yellow, c::yellow}},
+    {{kNone,            kNone,            c::purple, c::purple, c::purple, c::purple, c::purple, c::purple}},
+    {{kNone,            kNone,            c::purple, c::purple, c::purple, c::purple, c::purple, c::purple}},
+    {{kNone,            kNone,            c::purple, c::purple, c::purple, c::purple, c::purple, c::purple}},
 }};
 // clang-format on
 
@@ -162,8 +183,21 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 	}
 }
 
+void paint_dx_shortcut_colours(deluge::ui::grid::GridFrame& f) {
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
+			(void)f.pad(x, y, kDxShortcutColours[x][y]);
+		}
+	}
+}
+
 void render_overlay(deluge::ui::grid::GridFrame& f, const MenuContext& ctx, const MenuState& st, const Node* focused) {
-	paint_shortcut_colours(f, ctx);
+	if (nodes::dx_pad_layout(ctx, st)) {
+		paint_dx_shortcut_colours(f);
+	}
+	else {
+		paint_shortcut_colours(f, ctx);
+	}
 	paint_source_column(f, ctx, st, focused);
 }
 

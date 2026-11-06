@@ -45,7 +45,9 @@ static_assert(static_cast<uint16_t>(cm::DescriptorId::AudioSource) == 5);
 // The sample browser's two folder menus are opened by `BrowserScene`'s long press, not by an item.
 static_assert(static_cast<uint16_t>(cm::DescriptorId::SampleBrowserKit) == 6);
 static_assert(static_cast<uint16_t>(cm::DescriptorId::SampleBrowserSynth) == 7);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::Count) == 8,
+// The delete-file menu is opened by `BrowserScene`'s Shift+SAVE.
+static_assert(static_cast<uint16_t>(cm::DescriptorId::DeleteFile) == 8);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::Count) == 9,
               "every DescriptorId must have an item here or a scene that opens it, or a descriptor exists that "
               "nothing opens");
 } // namespace

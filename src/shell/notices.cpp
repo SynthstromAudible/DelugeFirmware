@@ -306,7 +306,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// unrefcounted. There is one WorkingScene and no record of who armed it, so when two
 			// subsystems have a Kind::Working up at once, whichever raises ClearWorking first takes
 			// the other's animation down and leaves it working with no indicator. Two raisers
-			// exist today: `PlaybackHandler::doSongSwap` (`playback/playback_handler.cpp:1564`, via
+			// exist today: `PlaybackHandler::doSongSwap` (`playback/playback_handler.cpp:1618`, via
 			// `notice_working`, `util/notify.h:52`) and the scenes layer's async listing seam
 			// (`scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
 			// Closing it means a refcount, or an owner token on the arm/clear pair, so a clear from
@@ -436,7 +436,7 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 		stack_.remove(SceneKind::Console);
 	}
 	// The banner's 2000 ms `DISPLAY` timer: `OLED::timerRoutine`'s `removePopup()` on expiry
-	// (`gui/ui_timer_manager.cpp:91-93`), which runs only when no working animation is running
+	// (`gui/ui_timer_manager.cpp:92-94`), which runs only when no working animation is running
 	// (`oled.cpp:929-937`) -- while one is, the banner stays until `removeWorkingAnimation` takes it
 	// down (`:735-736`), `drain()`'s `ClearWorking` case. A no-op when no banner is stacked.
 	if (!working_.armed() && notification_.expired(now_ms)) {

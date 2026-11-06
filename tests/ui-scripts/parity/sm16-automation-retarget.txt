@@ -1,0 +1,70 @@
+# ShellMenu: the automation view retargeted from the menu. From the synth clip, CLIP opens the automation overview and
+# SelectEnc the sound menu over it; SELECT into the filters' LPF page selects its focused param in the view, the KIT
+# and MIDI column buttons others, BACK to the filters list returns the view to its overview, SHIFT + a shortcut
+# selects that param. On its page a main-grid press edits the automation and SHIFT + (0,6) toggles interpolation; the
+# gold knobs, a gold push with SHIFT, a Select turn with a pad held, X_ENC with a Horizontal turn, a Horizontal turn
+# and a Vertical turn reach the view; BACK out of the menu leaves the view on its param. Every snapshot has a 1 s
+# window (blinks). Run on the ShellMenu card.
+100   snapshot boot
+300   button Clip down
+320   button Clip up
+1020  snapshot overview
+2020  button SelectEnc down
+2040  button SelectEnc up
+2740  snapshot menu
+3740  encoder Select +5
+4440  snapshot filters_row
+5440  button SelectEnc down
+5460  button SelectEnc up
+6160  snapshot filters_list
+7160  button SelectEnc down
+7180  button SelectEnc up
+7880  snapshot lpf_page
+8880  button Kit down
+8900  button Kit up
+9600  snapshot column_kit
+10600 button Midi down
+10620 button Midi up
+11320 snapshot column_midi
+12320 button Back down
+12340 button Back up
+13040 snapshot back_filters
+14040 button Shift down
+14240 pad 8 6 down
+14280 pad 8 6 up
+14480 button Shift up
+15180 snapshot shortcut_res
+16180 pad 4 3 down
+16220 pad 4 3 up
+16920 snapshot grid_press
+17920 button Shift down
+18120 pad 0 6 down
+18160 pad 0 6 up
+18360 button Shift up
+19060 snapshot interpolation
+20060 encoder GoldUpper +3
+20760 snapshot gold_turn
+21760 button Shift down
+21960 button ModEnc1 down
+21980 button ModEnc1 up
+22180 button Shift up
+22880 snapshot gold_push
+23880 pad 2 2 down
+24080 encoder Select +2
+24280 pad 2 2 up
+24980 snapshot select_with_pad
+25980 button XEnc down
+26180 encoder Horizontal +1
+26380 button XEnc up
+27080 snapshot xenc_horizontal
+28080 encoder Horizontal +1
+28780 snapshot horizontal
+29780 encoder Vertical +1
+30480 snapshot vertical
+31480 button Back down
+31500 button Back up
+31700 button Back down
+31720 button Back up
+31920 button Back down
+31940 button Back up
+32640 snapshot closed

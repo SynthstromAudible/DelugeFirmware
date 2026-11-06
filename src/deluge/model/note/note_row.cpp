@@ -41,7 +41,9 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -2693,6 +2695,8 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 	setLoopLengthIfIndependent((newLength == clip->loopLength()) ? 0 : newLength);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+		deluge::playback::MoveSection section{"NoteRow::setLength"};
+		deluge::playback::notePositionWrite();
 		lastProcessedPosIfIndependent = oldPos;
 		currentlyPlayingReversedIfIndependent =
 		    playingReversedBefore; // Will have no effect if is/was in fact obeying parent Clip
@@ -3165,6 +3169,7 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 
 		// If we've just un-muted
 		else {
+			deluge::playback::MoveSection section{"NoteRow::toggleMute"};
 			resumePlayback(modelStack, clipIsActiveAndPlaybackIsOn);
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 		}
@@ -3813,6 +3818,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()
 		    && modelStack->song->isClipActive(clip)) {
+			deluge::playback::MoveSection section{"NoteRow::setDrum"};
 			paramManager.setPlayPos(clip->getLivePos(), modelStackWithThreeMainThings,
 			                        modelStackWithThreeMainThings->isCurrentlyPlayingReversed());
 		}
@@ -4499,10 +4505,13 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 }
 
 void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {
+	// The position the render's tick reads, its new direction and the resume from them, with the render held off
+	deluge::playback::MoveSection section{"NoteRow::setSequenceDirectionMode"};
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
 	setSequenceDirectionModeRaw(newMode);
+	deluge::playback::notePositionWrite();
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...

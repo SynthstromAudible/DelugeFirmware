@@ -84,7 +84,7 @@ using deluge::scenes::timeline::ZoomOutcome;
 namespace spec_fixture = deluge::scenes::spec;
 
 /// @brief `PlaybackHandler`'s own "the swung-tick answer is zero" latch
-///        (`playback/playback_handler.cpp:119`, read at
+///        (`playback/playback_handler.cpp:121`, read at
 ///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`, `:1210-1219`).
 ///
 /// Declared here rather than included because it is a file-scope global with no header declaration
@@ -550,7 +550,7 @@ describe timeline_spec_body(
 	    it(
 	        "refuses to zoom in past the floor, exactly as the zoom limit does", _ {
 		        // `timeline_view.cpp:189`: `zoomMagnitude == -1 && oldXZoom <= 3`. Three is the floor of
-		        // `Clip::getMaxZoom()`'s ladder (`model/clip/clip.cpp:142-149`), so this is the real edge.
+		        // `Clip::getMaxZoom()`'s ladder (`model/clip/clip.cpp:144-151`), so this is the real edge.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 3};

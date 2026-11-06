@@ -25,7 +25,7 @@ namespace {
 ///
 /// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that
 ///       would mean "never a `mod_knobs` event", leaving `View::modEncoderButtonAction`
-///       (`gui/views/view.cpp:1349-1367`) unreachable; the scene-first chain is what lets them be
+///       (`gui/views/view.cpp:1350-1368`) unreachable; the scene-first chain is what lets them be
 ///       `mod_knobs` events.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
@@ -71,7 +71,7 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// `midi_learn` last. The four `View::buttonAction` arms it owns
-	// (`gui/views/view.cpp:149-167`, `:186-197`, `:200-213`, `:216-229`) sit in the SAME
+	// (`gui/views/view.cpp:150-168`, `:187-198`, `:201-214`, `:217-230`) sit in the SAME
 	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
 	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
 	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own

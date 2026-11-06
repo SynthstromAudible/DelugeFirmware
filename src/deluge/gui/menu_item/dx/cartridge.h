@@ -23,6 +23,7 @@
 #include <string_view>
 
 class DX7Cartridge;
+class Sound;
 
 namespace deluge::gui::menu_item {
 
@@ -64,4 +65,12 @@ public:
 };
 
 extern DxCartridge dxCartridge;
+
+/// @brief Load program @p program of @p cartridge into source @p source of @p sound: its patch unpacked over the
+/// source's, its voices cut, and an unsaved synth renamed to the program.
+/// @param sound     The sound; @p source must be a DX7 one.
+/// @param source    The source index.
+/// @param cartridge The bank.
+/// @param program   The program index, below `cartridge.numPatches()`.
+void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program);
 } // namespace deluge::gui::menu_item

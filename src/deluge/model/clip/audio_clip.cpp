@@ -43,6 +43,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
@@ -1624,6 +1625,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		sampleHolder.claimClusterReasons(sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 
 		if (active) {
+			deluge::playback::MoveSection section{"AudioClip::shiftHorizontally"};
 			expectEvent();
 			reGetParameterAutomation(modelStack);
 

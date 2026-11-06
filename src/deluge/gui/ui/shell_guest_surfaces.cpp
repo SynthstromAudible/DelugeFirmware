@@ -163,7 +163,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	// fewer rows silently reading the second column from the wrong offset.
 	const uint8_t rows =
 	    std::min<uint8_t>(std::min<uint8_t>(grid().grid().dims().rows, kColumnPairLeds / 2), kDisplayHeight);
-	if (!pair_owned(owned_regions(), pair_index)) {
+	if (!pair_owned(owned_regions(), pair_index) || (mainHeld_ && x1 < kDisplayWidth)) {
 		// These pads are the UI underneath's, as under `SoundEditor`, which draws none
 		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`), and as the sidebar
 		// is under a keyboard. A scene's blink over them comes through `flash_pad`, not as pixels.
@@ -207,7 +207,7 @@ void GuestSurfaceSet::take_grid() {
 	const int32_t rows = std::min<int32_t>(g.dims().rows, kDisplayHeight);
 	const int32_t cols = std::min<int32_t>(g.dims().cols(), kDisplayWidth + kSideBarWidth);
 	for (int32_t x = 0; x + 1 < cols; x += 2) {
-		if (!pair_owned(owned, static_cast<uint8_t>(x / 2))) {
+		if (!pair_owned(owned, static_cast<uint8_t>(x / 2)) || (mainHeld_ && x + 1 < kDisplayWidth)) {
 			continue;
 		}
 		for (int32_t y = 0; y < rows; y++) {
@@ -251,6 +251,7 @@ void GuestSurfaceSet::release_led(uint8_t board_led) {
 
 void GuestSurfaceSet::begin_session() {
 	held_.fill(false);
+	mainHeld_ = false;
 	leds().sent_once.fill(false);
 	// Legacy has drawn the pads since too: the session's first flush sends every column pair.
 	std::fill(std::begin(grid().sent_once), std::end(grid().sent_once), false);

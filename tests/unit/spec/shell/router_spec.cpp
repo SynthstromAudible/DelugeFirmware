@@ -252,7 +252,7 @@ describe shell_router("shell::Router", $ {
 		//   1. `View` is the fallback AFTER the current UI in every MIDI learn offer -- `UI`'s base
 		//      answers are `View`'s learn, and `SoundEditor` answers before falling back to them.
 		//   2. The four `View::buttonAction` arms `MidiLearn` owns sit in the SAME `if`/`else if`
-		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:140-487`),
+		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:141-488`),
 		//      so their relative order is unobservable given that `GlobalControls` abstains from
 		//      exactly those four (`ViewArm::LearnOwns`) and suppresses its own tail for them.
 		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp`)
@@ -463,7 +463,7 @@ describe shell_router("shell::Router", $ {
 		//
 		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only
 		// after the current UI: with the scene first, "after the UI" and "not a `mod_knobs` event"
-		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`)
+		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1350-1368`)
 		// with no route to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};

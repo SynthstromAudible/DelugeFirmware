@@ -23,7 +23,10 @@
 #include "notify/notice_queue.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/favourites.h"
+#include "ui/grid/rows.h"
 #include "ui/oled/misc.h"
+#include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
 #include "gfx/oled/icons.h"
@@ -35,6 +38,9 @@
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/bind_host.h"
+#include "scenes/recorder/recorder_scene.h"
+#include "scenes/services/waveform_paint.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -128,9 +134,9 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The two descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
+// The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
-/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:85`).
+/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:86`).
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
@@ -174,27 +180,19 @@ bool sample_can(const menu::MenuContext& ctx) {
 }
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
-	// `SampleBrowser::opened` (`sample_browser.cpp:135-170`): take the holder's path, and if it is
-	// blank or outside SAMPLES/ fall through to the default folder. Then dissect it into a
-	// directory and the filename to select.
-	//
-	// **One named divergence.** Legacy's middle arm falls back to `SampleBrowser::lastFilePathLoaded`
-	// (`sample_browser.h:105`) before it falls back to the folder. Dropped rather than half-built: the
-	// browser opens on the default folder where legacy would have reopened on the last
-	// manually-loaded sample's folder.
-	//
-	// `claimCurrentFile()` writes the member (through `SampleHolder::setAudioFile`'s
-	// `manuallySelected` arm, `model/sample/sample_holder.cpp:120-124`, reached from both
-	// `claimAudioFileForInstrument` and `claimAudioFileForAudioClip`) and this layer cannot perform
-	// it; the wiring layer does (`gui/ui/shell_choice_dispatch.cpp`'s `claimSampleFile`), so under
-	// the toggle the member is current and a mirror would be authoritative. What is true is that
-	// `lastFilePathLoaded` lives on a `gui/` object this layer may not name, so closing the divergence
-	// means the value arriving through `MenuContext` or a `Services` hook -- not a mirror written
-	// here. Natural home: beside `menu::performance_editing_mode()`.
+	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path; one that is blank or outside
+	// SAMPLES/ gives way to the file last previewed or loaded (`SampleBrowser::lastFilePathLoaded`, which the host
+	// answers), and only when that is blank too to the default folder. Then dissect it into a directory and the
+	// filename to select.
 	const std::optional<std::string> held = sample_path(ctx);
-	const std::string_view path = held ? std::string_view{*held} : std::string_view{};
+	std::string last;
+	std::string_view path = held ? std::string_view{*held} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
-		return; // dir stays empty -> `Descriptor::default_dir`
+		last = menu::host_last_sample_path();
+		path = last;
+		if (path.empty()) {
+			return; // dir stays empty -> `Descriptor::default_dir`
+		}
 	}
 	const size_t slash = path.rfind('/');
 	if (slash == std::string_view::npos) {
@@ -206,8 +204,20 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	}
 }
 
+/// The way a listing came into its folder, as `arrivedInNewFolder`'s direction: into a folder 1, up one -1, else 0.
+int8_t entry_direction(ListingAction action) {
+	switch (action) {
+	case ListingAction::IntoFolder:
+		return 1;
+	case ListingAction::UpLevel:
+		return -1;
+	default:
+		return 0;
+	}
+}
+
 uint16_t sample_folder_refusal(std::string_view dir, std::string_view name) {
-	// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:345-350`).
+	// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:346-351`).
 	if (caseless_equals(name, "TEMP") && caseless_equals(dir, "SAMPLES/CLIPS")) {
 		return sid(String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED);
 	}
@@ -285,8 +295,30 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 	return AcceptOutcome::Defer;
 }
 
+// --- DX7 `.syx` banks: `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`) ---
+
+char const* kSyxExtensions[] = {"SYX", nullptr};
+
+bool dx_syx_can(const menu::MenuContext& ctx) {
+	// `DxSyxBrowser::opened` refuses nothing of its own: only "DX7 source" lists the row that opens it. A bank loads
+	// into the sound the menu edits, so there has to be one.
+	return ctx.addresses.slot.has_value();
+}
+
+void dx_syx_start_at(const menu::MenuContext& /*ctx*/, std::string& dir, std::string& name) {
+	// `DxSyxBrowser::opened`: always `DX7`, on its first entry (`fileIndexSelected = 0`; no remembered name).
+	dir = "DX7";
+	name.clear();
+}
+
+AcceptOutcome dx_syx_accept(const menu::MenuContext& /*ctx*/, std::string_view /*path*/, Error& /*error*/) {
+	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `dxCartridge`, a `gui/` object this layer may
+	// not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
+	return AcceptOutcome::DeferAndWait;
+}
+
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
-    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:87-94`) plus `SampleBrowser::opened`
+    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`) plus `SampleBrowser::opened`
     // (`:110-113`): the wave icon, "Audio files", the audio extensions, note names interpreted, and
     // folders allowed to share a name with a file.
     {
@@ -318,6 +350,21 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .start_at = midi_device_start_at,
         .folder_refusal = nullptr,
         .accept = midi_device_accept,
+    },
+    // `DxSyxBrowser::DxSyxBrowser` and `opened`: the wave icon, "DX7 syx files", `.syx` only, note names off, and
+    // folders allowed to share a name with a file.
+    {
+        .title = "DX7 syx files",
+        .extensions = kSyxExtensions,
+        .default_dir = "DX7",
+        .file_icon = &gfx::oled::icons::browserWave,
+        .file_icon_pt2 = nullptr,
+        .interpret_note_names = false,
+        .allow_folders_sharing_name_with_file = true,
+        .can = dx_syx_can,
+        .start_at = dx_syx_start_at,
+        .folder_refusal = nullptr,
+        .accept = dx_syx_accept,
     },
 }};
 
@@ -361,6 +408,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
 	awaiting_load_ = false;
+	awaiting_deferred_ = false;
+	deferred_done_.reset();
 	slice_out_ = false;
 	slice_ready_.reset();
 	slice_from_shift_ = false;
@@ -374,14 +423,42 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	edit_ = deluge::ui::oled::TextEditState{};
 	kb_ = deluge::ui::grid::TextKeyboardState{};
 	resp_ = {};
+	reveal_press_.reset();
 	pending_.reset();
 	choice_.reset();
 	searching_ = false;
 	select_after_listing_.clear();
+	// `SampleBrowser::opened`: no keyboard and no preview yet, so the root view shows and the BROWSE pad blinks. The
+	// MIDI device definition browser shows its keyboard for good (`qwertyAlwaysVisible`).
+	pads_ = id_ == BrowserId::Sample ? BrowserPads::Root : BrowserPads::Keyboard;
+	keyboard_visible_ = id_ != BrowserId::Sample;
+	keys_drawn_ = keyboard_visible_;
+	keyboard_always_visible_ = id_ != BrowserId::Sample;
+	showing_preview_ = false;
+	auto_load_ = false;
+	xenc_held_ = false;
+	preview_path_.clear();
+	preview_direction_ = 0;
+	row_scroll_ = deluge::ui::ScrollText{};
+	pad_scroll_.reset();
+	waveform_scroll_ = 0;
+	nav_identity_ = 0;
+	pads_changed_ = false;
+	blink_ = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index), 5);
+	blink_anchor_ms_.reset();
+	blink_fired_step_ = UINT32_MAX;
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	cursor_blink_ = deluge::ui::Blink{};
+
+	favourite_resp_ = {};
+	bank_resp_ = {};
+	favourite_flash_anchor_ms_.reset();
+	back_blink_restart_ = true;
+	if (id_ == BrowserId::Sample) {
+		favourites().set_category("SAMPLES"); // `SampleBrowser::opened`
+	}
 
 	request_open();
 	return true;
@@ -404,6 +481,20 @@ void BrowserScene::on_exit() {
 	// rather than a corrupted vector, which is the trade `listing.h` documents.
 	(void)listing_.take_result();
 	pending_.reset();
+	// `SampleBrowser::exitAction` and `exitAndNeverDeleteDrum` stop the preview; nothing is left to preview.
+	if (id_ == BrowserId::Sample) {
+		preview_ = PreviewRequest{.id = id_};
+		preview_outstanding_ = true;
+		preview_path_.clear();
+		preview_direction_ = 0;
+		favourites().close(); // `Browser::close`
+	}
+	xenc_held_ = false;
+	pad_scroll_.reset();
+	waveform_scroll_ = 0;
+	// A load still out is the host's to cancel (`DxSyxBrowser::close`): it sees no browser waiting.
+	awaiting_deferred_ = false;
+	deferred_done_.reset();
 	FileCatalogue::emptyFileItems();
 	// Fix the same hazard `RenameScene::on_exit` records: `open()` is the only writer of `ctx_`, and
 	// this scene is a singleton that outlives every visit, so a re-entry that forgot its `open()`
@@ -423,6 +514,207 @@ std::optional<BrowserChoice> BrowserScene::take_choice() {
 	std::optional<BrowserChoice> out = std::move(choice_);
 	choice_.reset();
 	return out;
+}
+
+std::optional<ScrollRequest> BrowserScene::take_scroll() {
+	std::optional<ScrollRequest> out = pad_scroll_;
+	pad_scroll_.reset();
+	return out;
+}
+
+std::optional<PreviewRequest> BrowserScene::take_preview() {
+	std::optional<PreviewRequest> out = std::move(preview_);
+	preview_.reset();
+	return out;
+}
+
+void BrowserScene::preview_settled(bool has_sample) {
+	preview_outstanding_ = false;
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	const int8_t direction = preview_direction_;
+	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the
+	// browser open. A choice already waiting (a press this tick) is not overwritten.
+	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty() && !choice_.has_value()) {
+		choice_ = BrowserChoice{.id = id_, .path = preview_path_, .op = BrowserChoice::Op::Enter, .keep_open = true};
+	}
+	const BrowserPads before = pads_;
+	if (has_sample) {
+		// `showPreview`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are drawn
+		// if they should be and are not, or the waveform if the keyboard is hidden.
+		showing_preview_ = true;
+		nav_identity_ = 0; // `showPreview` reopens the navigator: every landed preview opens zoomed out
+		if (direction != 0 && !keyboard_always_visible_) {
+			pads_ = BrowserPads::Waveform;
+			pad_scroll_.reset();
+			waveform_scroll_ = direction;
+		}
+		else {
+			if ((keyboard_visible_ && !keys_drawn_) || keyboard_always_visible_) {
+				pads_ = BrowserPads::Keyboard;
+			}
+			else if (!keyboard_visible_) {
+				pads_ = BrowserPads::Waveform;
+			}
+			keys_drawn_ = keyboard_visible_;
+		}
+	}
+	else if ((showing_preview_ || (keys_drawn_ && !keyboard_visible_)) && !keyboard_always_visible_) {
+		// `clearPreviewDisplay`: a move scrolls the root view in; otherwise it shows unless the keyboard still claims
+		// the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
+		showing_preview_ = false;
+		keys_drawn_ = keyboard_visible_;
+		if (direction != 0 || !keyboard_visible_) {
+			pads_ = BrowserPads::Root;
+		}
+		if (direction != 0) {
+			waveform_scroll_ = 0;
+			pad_scroll_ = ScrollRequest{.direction = direction, .to_root = true};
+		}
+		blink_anchor_ms_.reset();
+	}
+	if (pads_ != before) {
+		pads_changed_ = true;
+	}
+}
+
+void BrowserScene::file_preview(int8_t direction) {
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	// `SampleBrowser::previewIfPossible`: a folder or no selection previews nothing, and stops what was previewing.
+	PreviewRequest request{.id = id_, .direction = direction};
+	const FileItem* item = item_at(file_index_);
+	if (item != nullptr && !item->isFolder) {
+		const std::string_view dir = current_dir();
+		request.path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	}
+	preview_path_ = request.path;
+	preview_direction_ = direction;
+	preview_ = std::move(request);
+	preview_outstanding_ = true;
+}
+
+void BrowserScene::arrive_in_new_folder() {
+	// `Browser::arrivedInNewFolder`: every listing of a folder hides the keyboard unless it is always up.
+	if (!keyboard_always_visible_) {
+		keyboard_visible_ = false;
+	}
+}
+
+void BrowserScene::reveal_keyboard() {
+	keyboard_visible_ = true;
+	keys_drawn_ = true;
+	pads_ = BrowserPads::Keyboard;
+	waveform_scroll_ = 0;               // the keys replace a waveform still to scroll in
+	favourite_flash_anchor_ms_.reset(); // `drawKeys` draws the favourites afresh
+}
+
+services::Favourites& BrowserScene::favourites() {
+	return favourites_override_ != nullptr ? *favourites_override_ : menu::host_favourites();
+}
+
+bool BrowserScene::favourites_visible() const {
+	return id_ == BrowserId::Sample && keyboard_visible_
+	       && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff;
+}
+
+bool BrowserScene::banks_visible() const {
+	return id_ == BrowserId::Sample && keyboard_visible_
+	       && FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks;
+}
+
+int32_t BrowserScene::favourite_row() const {
+	// `QwertyUI::opened`: row 7, or 6 with the bank row beneath it.
+	return FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks ? kFavouriteRow - 1
+	                                                                                         : kFavouriteRow;
+}
+
+void BrowserScene::favourites_changed() {
+	favourite_flash_anchor_ms_.reset();
+	pads_changed_ = true;
+}
+
+Result BrowserScene::favourite_press(uint8_t position) {
+	Result r;
+	r.handled = true;
+	const auto popup = [&r](String text) {
+		(void)r.actions.push_back(Action{
+		    .kind = Action::Kind::Popup, .surface = SurfaceRole::Main, .popup_string = static_cast<uint16_t>(text)});
+	};
+	// A bank still arriving, or one that could not be read, may be neither edited nor recalled from.
+	switch (favourites().bank_state()) {
+	case services::FavouritesBank::Loading:
+		return r;
+	case services::FavouritesBank::Unavailable:
+		popup(String::STRING_FOR_SD_CARD_ERROR);
+		return r;
+	case services::FavouritesBank::Loaded:
+		break;
+	}
+	if (shift_) {
+		const FileItem* item = item_at(file_index_);
+		if (favourites().is_empty(position)) {
+			if (item != nullptr && !item->isFolder) {
+				const std::string_view dir = current_dir();
+				favourites().set(position, dir.empty() ? item->filename : std::string{dir} + "/" + item->filename);
+				favourites_changed();
+			}
+		}
+		else {
+			favourites().unset(position);
+			favourites_changed();
+		}
+		return r;
+	}
+	const std::string path = favourites().recall(position);
+	favourites_changed();
+	if (path.empty()) {
+		popup(String::STRING_FOR_FAVOURITES_EMPTY);
+		return r;
+	}
+	// `setFileByFullPath`: list the favourite's folder and land on it.
+	entered_len_ = 0;
+	edit_ = deluge::ui::oled::TextEditState{};
+	arrive_in_new_folder();
+	ListingRequest req = make_request(ListingAction::ByPath);
+	req.path = path;
+	file_request(std::move(req));
+	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	return r;
+}
+
+void BrowserScene::render_favourites(deluge::ui::grid::GridFrame& f) {
+	// `QwertyUI::renderFavourites`, then `timerCallback`'s flash of the current favourite and bank every 500 ms from
+	// the draw.
+	const std::array<std::optional<uint8_t>, deluge::ui::grid::kFavourites> colours = favourites().colours();
+	const std::array<RGB, deluge::ui::grid::kFavourites> row = deluge::ui::grid::favourite_row_colours(colours);
+	favourite_resp_ = deluge::ui::grid::row(f, favourite_row(), row);
+	if (FlashStorage::defaultFavouritesLayout == FavouritesDefaultLayoutFavoritesAndBanks) {
+		const std::array<RGB, deluge::ui::grid::kFavourites> banks = deluge::ui::grid::favourite_bank_colours();
+		bank_resp_ = deluge::ui::grid::row(f, kFavouriteRow, banks);
+	}
+	if (!favourites_visible()) {
+		favourite_flash_anchor_ms_.reset();
+		return;
+	}
+	const uint32_t now = f.now_ms();
+	if (!favourite_flash_anchor_ms_.has_value()) {
+		favourite_flash_anchor_ms_ = now;
+		favourite_flash_step_ = 0;
+	}
+	const uint32_t step = (now - *favourite_flash_anchor_ms_) / kFavouriteFlashMs;
+	if (step != favourite_flash_step_) {
+		favourite_flash_step_ = step;
+		if (const std::optional<uint8_t> current = favourites().current_favourite()) {
+			f.flash(*current, favourite_row(), deluge::ui::grid::FlashColour::Default);
+		}
+		if (banks_visible()) {
+			f.flash(favourites().current_bank(), kFavouriteRow, deluge::ui::grid::FlashColour::Default);
+		}
+	}
+	f.grid_gate().request_repaint_after(*favourite_flash_anchor_ms_ + (step + 1) * kFavouriteFlashMs - now, now);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -537,6 +829,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 		entered_len_ = 0;
 		file_index_ = -1;
 		scroll_ = 0;
+		file_preview(entry_direction(out.action));
 		return repaint_all();
 	}
 
@@ -563,6 +856,8 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// "Starting in the middle or end of a short folder should still fill as many display rows as
 	// possible" (`browser.cpp:415-416`).
 	clamp(visible_rows_);
+	// `folderContentsReady(direction)`, which previews the entry the listing landed on.
+	file_preview(entry_direction(out.action));
 	return repaint_all();
 }
 
@@ -634,8 +929,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
 	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
 	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
-	// meaningful. Fix round 1, Important 4: this used to be a comment saying the sort had already
-	// pinned them and nothing else would touch them in between, which is a convention rather than a
+	// meaningful; relying on the last sort's pinning surviving until here would be a convention rather than a
 	// mechanism.
 	FileCatalogue::repinComparator();
 	const size_t n = static_cast<size_t>(std::max<int32_t>(edit_.cursor, 0));
@@ -658,12 +952,13 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 		}
 		// Legacy's remaining arm appends up to four '0's to the search string and tries again
 		// (`:868-874`), a slot-browser behaviour whose comment says "this code is original but I
-		// don't know what it does". Neither of this scene's two descriptors is a slot browser --
-		// both were split off `Browser` directly, and `filePrefix` is null for both -- so the arm is
+		// don't know what it does". None of this scene's three descriptors is a slot browser --
+		// each was split off `Browser` directly, and `filePrefix` is null for all three -- so the arm is
 		// deliberately not ported rather than transcribed unexercised.
 		return SearchOutcome::NotFound;
 	}
 
+	const bool moved = i != file_index_;
 	file_index_ = i;
 	// "Typing/prediction can land on a cached item without needing to move the viewport unless it is
 	// offscreen" (`:882-883`).
@@ -671,6 +966,10 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// Replaces the typed text with the found entry's name and leaves the cursor where the typing
 	// left it -- which is what `text_edit` draws as the prediction highlight.
 	set_entered_text_from_current_filename();
+	// "If we're now on a different file than before, preview it" (`browser.cpp:1488-1491`).
+	if (moved) {
+		file_preview(0);
+	}
 	return SearchOutcome::Found;
 }
 
@@ -679,7 +978,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 	case SearchOutcome::Found:
 		break;
 	case SearchOutcome::NotFound:
-		// `:842-846`, with `mayDefaultToBrandNewNameOnEntry` false for both descriptors: put the
+		// `:842-846`, with `mayDefaultToBrandNewNameOnEntry` false for every descriptor: put the
 		// selected file's name back and undo the cursor advance (`qwerty_ui.cpp:357-359`).
 		if (file_index_ >= 0) {
 			set_entered_text_from_current_filename();
@@ -769,7 +1068,17 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 	edit_.cursor = 0;
 	edit_.scroll = 0;
 	set_entered_text_from_current_filename();
-	(void)offset; // legacy passes the sign on to `currentFileChanged`, which this scene has none of
+	// `finishSelectEncoderAction` hides the keyboard unless it is always up, before `currentFileChanged` (given only
+	// the move's sign) reads it: so the pads scroll out at once, while the next preview loads, only from a waveform.
+	const int8_t direction = static_cast<int8_t>(offset > 0 ? 1 : (offset < 0 ? -1 : 0));
+	if (!keyboard_always_visible_) {
+		keyboard_visible_ = false;
+	}
+	if (direction != 0 && showing_preview_ && !keyboard_always_visible_) {
+		waveform_scroll_ = 0;
+		pad_scroll_ = ScrollRequest{.direction = direction, .into_nothing = true};
+	}
+	file_preview(direction);
 }
 
 void BrowserScene::step_selection(int32_t offset) {
@@ -777,7 +1086,7 @@ void BrowserScene::step_selection(int32_t offset) {
 	//
 	// @note Legacy's shift/`numberEditPos` arm (`:576-629`) walks whole slot numbers -- "SONG12" ->
 	//       "SONG13" -- and is guarded by `nameAfterPrefix`, which returns null unless the name
-	//       starts with `filePrefix`. Both descriptors here leave `filePrefix` null (only the
+	//       starts with `filePrefix`. Every descriptor here leaves `filePrefix` null (only the
 	//       slot-based load/save browsers set it), so legacy's own guard takes the `nonNumeric`
 	//       branch for every name either of them can show, and the arm is not ported.
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
@@ -874,6 +1183,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		// `Browser::goIntoFolderImpl` clears the entered text before it lists.
 		entered_len_ = 0;
 		edit_ = deluge::ui::oled::TextEditState{};
+		arrive_in_new_folder();
 		ListingRequest req = make_request(ListingAction::IntoFolder);
 		req.path = item->filename;
 		file_request(std::move(req));
@@ -881,7 +1191,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	}
 
 	// Shift+Select on a file in a kit's sample browser opens the slicer instead of claiming
-	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:389-400`); on anything else shift changes nothing.
+	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`); on anything else shift changes nothing.
 	if (shift && id_ == BrowserId::Sample && ctx_.is_kit) {
 		Result r;
 		r.handled = true;
@@ -918,6 +1228,16 @@ Result BrowserScene::enter_key_press(bool shift) {
 	case AcceptOutcome::Defer:
 		choice_ = BrowserChoice{id_, std::move(path)};
 		return close();
+	case AcceptOutcome::DeferAndWait: {
+		// One load at a time: `DxSyxBrowser::enterKeyPress` ignores an Enter while its read is in flight.
+		if (!awaiting_deferred_) {
+			choice_ = BrowserChoice{id_, std::move(path)};
+			awaiting_deferred_ = true;
+		}
+		Result r;
+		r.handled = true;
+		return r;
+	}
 	}
 	return close();
 }
@@ -932,6 +1252,7 @@ Result BrowserScene::back() {
 	}
 	entered_len_ = 0;
 	edit_ = deluge::ui::oled::TextEditState{};
+	arrive_in_new_folder();
 	file_request(make_request(ListingAction::UpLevel));
 	return repaint_all();
 }
@@ -1030,13 +1351,20 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 			// (`:992`): the rect's right edge is legacy's `xPixelMax` and its width in whole
 			// characters is legacy's `maxChars`.
 			//
-			// @note Legacy also arms a side-scroller for this row when the cursor is at 0 (`:993-997`).
-			//       That is NOT part of `renderOLED`'s output at all -- `OLED::setupSideScroller`
-			//       registers a scroller that `OLED::sendMainImage` composites afterwards
-			//       (`hid/display/oled.cpp`) -- so it is not ported here and its absence is exactly
-			//       why the pixel comparison against the legacy canvas can be exact.
-			//       `ui::oled::scroll_text` is the widget that would do it.
-			deluge::ui::oled::text_edit(f, Rect{text_x, y, width - text_x, kTextSpacingY}, entered_text(), edit_);
+			const Rect row{text_x, y, width - text_x, kTextSpacingY};
+			deluge::ui::oled::text_edit(f, row, entered_text(), edit_);
+			// With the cursor at the start a name too wide for the row side-scrolls, highlighted, over what was just
+			// drawn (`OLED::setupSideScroller`, which legacy arms only for a name that does not fit).
+			const bool scrolls =
+			    edit_.cursor == 0
+			    && gfx::oled::string_width_px(entered_text(), deluge::ui::oled::text_height_for(f.style.row_font))
+			           > row.w;
+			if (scrolls) {
+				(void)deluge::ui::oled::scroll_text(f, row, entered_text(), f.style.row_font, row_scroll_, true, true);
+			}
+			else {
+				row_scroll_ = deluge::ui::ScrollText{};
+			}
 		}
 		else {
 			// `canvas.drawString(name[0..displayStringLength), textStartX, yPixel, ...)` (`:1000`).
@@ -1048,21 +1376,138 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 }
 
 void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`), already ported. The sidebar is deliberately
-	// untouched -- legacy clears the *main* pads only.
-	//
-	// @note Legacy's `qwertyVisible` toggle is not ported. `SampleBrowser` starts with the keyboard
-	//       hidden and the sample's waveform on the pads instead (`sample_browser.cpp:112`,
-	//       `SampleBrowser::renderMainPads`), and swaps between the two as the selection moves. That
-	//       half is the sample *preview*, which needs `AudioEngine::previewSample`, `PadLEDs`'
-	//       horizontal scroll transition and the marker editor -- none of it reachable from here,
-	//       and the marker editor is its own scene. The keyboard is therefore always
-	//       drawn, which is `LoadMidiDeviceDefinitionUI`'s own behaviour
-	//       (`load_midi_device_definition_ui.cpp:129-134 onBrowserOpened`) and the base `Browser`'s
-	//       (`qwertyAlwaysVisible = true`, `browser.cpp:89`).
-	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 	grid_pass_ = true;
 	last_render_ms_ = f.now_ms();
+	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
+		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
+		// `qwertyVisible`, acted on by `after_render`.
+		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight});
+	}
+	switch (pads_) {
+	case BrowserPads::Root:
+		// `possiblySetUpBlinking`: not while the keyboard still claims the pads.
+		if (!keyboard_visible_) {
+			render_root_blink(f);
+		}
+		return;
+	case BrowserPads::Waveform:
+		render_waveform(f);
+		return;
+	case BrowserPads::Keyboard:
+		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
+		// *main* pads only.
+		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+		if (id_ == BrowserId::DxSyx) {
+			// `DxSyxBrowser::opened` sets `qwertyVisible = false` and never draws the keys: the pads still type, dark.
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
+					(void)f.pad(x, y, RGB{0, 0, 0});
+				}
+			}
+			return;
+		}
+		// The rows stay drawn with the keys once the keyboard is hidden, as `main`'s pads keep them; only the
+		// flash and the presses need the keyboard visible.
+		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
+			render_favourites(f);
+		}
+		return;
+	}
+}
+
+void BrowserScene::render_root_blink(deluge::ui::grid::GridFrame& f) {
+	// `SoundEditor::setupExclusiveShortcutBlink(x, 5)` from `possiblySetUpBlinking`: the BROWSE pad of the source being
+	// edited (column 0 for an audio clip) flashes on every other cycle of legacy's blink counter, which starts when the
+	// root view comes back.
+	const uint32_t now = f.now_ms();
+	if (!blink_anchor_ms_.has_value()) {
+		blink_anchor_ms_ = now;
+		blink_fired_step_ = UINT32_MAX;
+	}
+	const uint32_t step = menu::blink_step(*blink_anchor_ms_, now);
+	if (step != blink_fired_step_) {
+		menu::fire_blink_step(f, blink_, step);
+		blink_fired_step_ = step;
+	}
+	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
+}
+
+void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
+	// `showPreview`'s `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new
+	// sample as `waveformBasicNavigator.opened()` does.
+	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
+	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
+	if (!info) {
+		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
+		// were last sent, so these keep the last one painted.
+		for (int32_t y = 0; y < rows; y++) {
+			for (int32_t x = 0; x < main_cols; x++) {
+				(void)f.pad(x, y, waveform_shown_[y][x]);
+			}
+		}
+		return;
+	}
+	const uint32_t now = f.now_ms();
+	if (info->identity != nav_identity_) {
+		nav_identity_ = info->identity;
+		nav_.sample = nullptr;
+		nav_.length_samples = info->length_samples;
+		nav_.opened(0, 0);
+		redraw_resolved_cols_ = -1;
+	}
+	bool complete = true;
+	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
+		complete = services::paint_full(main, menu::host_waveforms(), preview, *info, nav_);
+	});
+	for (int32_t y = 0; y < rows; y++) {
+		for (int32_t x = 0; x < main_cols; x++) {
+			waveform_shown_[y][x] = f.peek(x, y);
+		}
+	}
+	if (complete) {
+		redraw_resolved_cols_ = -1;
+		return;
+	}
+	// `tickPreviewRedraw`: a render the card has not caught up with yet is drawn again as its clusters land, until it
+	// is whole or `kWaveformRedrawGiveUpMs` pass with no column newly resolved.
+	int32_t resolved = 0;
+	for (const uint8_t status : nav_.renderData.colStatus) {
+		resolved += status != COL_STATUS_NOT_INVESTIGATED ? 1 : 0;
+	}
+	if (resolved > redraw_resolved_cols_) {
+		redraw_resolved_cols_ = resolved;
+		redraw_progress_ms_ = now;
+	}
+	if (static_cast<int32_t>(now - redraw_progress_ms_) < static_cast<int32_t>(kWaveformRedrawGiveUpMs)) {
+		f.grid_gate().request_repaint_after(kListingPollMs, now);
+	}
+}
+
+void BrowserScene::leds(deluge::ui::LedFrame& f) {
+	// `QwertyUI::opened`'s `blinkLed(IndicatorLED::BACK)`, restarted as the browser opens.
+	if (back_blink_restart_) {
+		back_blink_restart_ = false;
+		f.restart(deluge::ui::BlinkRate::Normal);
+	}
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
+	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	if (id_ != BrowserId::Sample) {
+		return;
+	}
+	// `SampleBrowser::opened`'s LEDs: SYNTH for a synth, KIT while editing a kit, the three view LEDs off.
+	const auto state = [](bool on) {
+		return deluge::ui::LedState{on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0};
+	};
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), state(!ctx_.is_kit && !ctx_.is_audio_clip));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), state(ctx_.is_kit));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), state(false));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), state(false));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), state(false));
+	// `SampleBrowser::buttonAction`'s two toggles light their buttons.
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1080,6 +1525,23 @@ Result BrowserScene::after_render() {
 
 	Result r;
 
+	// A waveform to scroll in is on the shell's grid now: hand the scroll to the host. One the pads left before it was
+	// drawn is dropped.
+	if (waveform_scroll_ != 0 && pads_ != BrowserPads::Waveform) {
+		waveform_scroll_ = 0;
+	}
+	if (waveform_scroll_ != 0 && grid_pass && pads_ == BrowserPads::Waveform) {
+		pad_scroll_ = ScrollRequest{.direction = waveform_scroll_};
+		waveform_scroll_ = 0;
+	}
+
+	// The host settled a preview between ticks (`preview_settled`): the pads change with no input to repaint them.
+	if (pads_changed_) {
+		pads_changed_ = false;
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+
 	// 1. **No input lock, deliberately -- see `handle()`.** Filing `Action::Kind::LockInput` while
 	//    `in_flight()` would be a whole-device failure waiting for an external `Pop`: `on_exit()`
 	//    returns `void`, so the release could never be filed from the one path that needs it. The
@@ -1091,6 +1553,18 @@ Result BrowserScene::after_render() {
 		long_press_done_.reset();
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = context_menu::kContextMenuSceneKind});
+		if (success) {
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	}
+
+	// 1b'. A `DeferAndWait` accept's load ended: a success closes this browser, a failure leaves it up.
+	if (deferred_done_.has_value()) {
+		const bool success = *deferred_done_;
+		deferred_done_.reset();
+		r.handled = true;
 		if (success) {
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
 		}
@@ -1144,7 +1618,7 @@ Result BrowserScene::after_render() {
 	}
 
 	// 5. The long press, answered once at its deadline. While a sample load runs the hold stays and nothing answers
-	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:306-309`).
+	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:307-310`).
 	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
 		hold_deadline_ms_.reset();
 		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
@@ -1161,23 +1635,67 @@ Result BrowserScene::after_render() {
 
 	bool changed = false;
 
+	// A main pad with the keyboard hidden reveals it, the cursor at the start, and types only below the favourites
+	// row, so a blind press on a favourite does nothing else. With the keyboard visible but not on the pads (a waveform
+	// scrolled in over it) the press types blind, as `Browser::padAction` does.
+	const std::optional<deluge::ui::PadEvent> reveal = reveal_press_;
+	reveal_press_.reset();
+	const deluge::ui::Response favourite = favourite_resp_;
+	const deluge::ui::Response bank = bank_resp_;
+	favourite_resp_ = {};
+	bank_resp_ = {};
+	if (grid_pass && favourite.index >= 0 && favourites_visible()) {
+		const Result pressed = favourite_press(static_cast<uint8_t>(favourite.index));
+		r.handled = true;
+		for (const Action& a : pressed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
+	if (grid_pass && bank.index >= 0 && banks_visible()) {
+		// `Browser::padAction`'s bank-row arm.
+		favourites().select_bank(static_cast<uint8_t>(bank.index));
+		favourites_changed();
+		r.handled = true;
+		return r;
+	}
+	if (grid_pass && reveal.has_value() && keyboard_visible_ && favourites_visible() && reveal->y == favourite_row()) {
+		// The keys are not on the pads but the keyboard is visible: the favourites row still answers.
+		const Result pressed = favourite_press(static_cast<uint8_t>(reveal->x));
+		r.handled = true;
+		for (const Action& a : pressed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
+	if (grid_pass && reveal.has_value()) {
+		if (!keyboard_visible_) {
+			reveal_keyboard();
+			edit_.cursor = 0;
+		}
+		const char c = reveal->y < favourite_row()
+		                   ? deluge::ui::grid::text_keyboard_char_at(layout_, reveal->x, reveal->y,
+		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
+		                   : 0;
+		const Result typed = c != 0 ? press_key(c) : repaint_all();
+		r.handled = true;
+		for (const Action& a : typed.actions) {
+			(void)r.actions.push_back(a);
+		}
+		return r;
+	}
+
 	if (grid_pass && resp.index >= 0) {
 		const char c = static_cast<char>(resp.index);
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
-			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
-			const Result done = enter_key_press(shift_);
+			const Result done = press_key(c);
 			r.handled = true;
 			for (const Action& a : done.actions) {
 				(void)r.actions.push_back(a);
 			}
 			return r;
 		}
-		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
-			backspace();
-		}
-		else {
-			type_char(c);
-		}
+		(void)press_key(c);
 		changed = true;
 	}
 
@@ -1188,8 +1706,27 @@ Result BrowserScene::after_render() {
 	return r;
 }
 
+Result BrowserScene::press_key(char c) {
+	if (c == deluge::ui::grid::kTextKeyboardEnter) {
+		// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
+		return enter_key_press(shift_);
+	}
+	if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+		backspace();
+	}
+	else {
+		type_char(c);
+	}
+	return repaint_all();
+}
+
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	shift_ = ctx.shift;
+	// The hold ends on its release whatever else refuses the event, so it never sticks.
+	if ((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	    && event.button == ButtonId::XEnc && !event.on) {
+		xenc_held_ = false;
+	}
 
 	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
 	// `after_render` instead -- see the class docstring), and legacy's own first line:
@@ -1221,21 +1758,29 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
+		if (id_ == BrowserId::Sample) {
+			if (std::optional<Result> taken = sample_button(event.button, event.on)) {
+				return *taken;
+			}
+		}
 		if (event.button == ButtonId::Back) {
-			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1174-1178`) is press-only.
-			if (event.on) {
+			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1783-1787`): a press, with no UI mode up (a Select hold
+			// or a held X_ENC is one). Claimed either way.
+			if (event.on && !mode_up()) {
 				return back();
 			}
-			break;
+			Result r;
+			r.handled = true;
+			return r;
 		}
 		if (event.button == ButtonId::SelectEnc) {
-			// `Browser::mainButtonAction` (`browser.cpp:1867-1889`): the press starts a hold and the release of that
-			// hold enters. The sample browser answers a hold that lasts `kLongPressMs` (`after_render`); a release
-			// after that answer, or one with no press before it, does nothing.
+			// `Browser::mainButtonAction` (`browser.cpp:1874`): the press, with no UI mode up, starts a hold and the
+			// release of that hold enters. The sample browser answers a hold that lasts `kLongPressMs`
+			// (`after_render`); a release after that answer, or one with no press before it, does nothing.
 			Result r;
 			r.handled = true;
 			if (event.on) {
-				if (!holding_) {
+				if (!mode_up()) {
 					holding_ = true;
 					if (id_ == BrowserId::Sample) {
 						hold_deadline_ms_ = ctx.now_ms + kLongPressMs;
@@ -1253,12 +1798,24 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Pad:
-		// `Browser::padAction` -> `QwertyUI::padAction`: a main pad belongs to the keyboard, which
-		// has already claimed it while `render_grid` painted it, so anything arriving here is
-		// outside the keyboard's columns. Legacy's sidebar arms are the favourites row and the bank
-		// row (`browser.cpp:1191-1227`), neither of which this scene draws -- `favouritesManager` is
-		// reached through `getCurrentUI()` (`browser.cpp:1463`), a root-UI read this layer may not
-		// make -- so a sidebar press does nothing rather than doing something half-right.
+		// A main pad with the keyboard hidden was read by `render_grid` (`reveal_press_`), beneath a context menu too.
+		if (id_ == BrowserId::Sample && event.x < kDisplayWidth
+		    && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
+			Result r;
+			r.handled = true;
+			return r;
+		}
+		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
+		if (id_ == BrowserId::Sample && event.x == kDisplayWidth) {
+			if (event.velocity != 0 && !holding_) {
+				return close();
+			}
+			Result r;
+			r.handled = true;
+			return r;
+		}
+		// `Browser::padAction` -> `QwertyUI::padAction`: a main pad belongs to the keyboard or the favourites and bank
+		// rows, which `render_grid` read as it painted them, so anything arriving here does nothing.
 		break;
 
 	case UiEvent::Kind::Encoder:
@@ -1278,26 +1835,28 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
-			// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at
-			// either end do nothing. Legacy's two `predictExtendedText()` calls at the ends are what
-			// extend a prediction further; here the search runs on every keystroke instead, so
-			// re-running it on a turn that moves nothing would only re-read the card.
-			const int32_t at = edit_.cursor;
+			return horizontal_turn(event.delta);
+		}
+		if (event.encoder == deluge::ui::EncoderRole::Vertical && ctx.shift && favourites_visible()) {
+			// `Browser::verticalEncoderAction`: SHIFT recolours the current favourite.
 			Result r;
 			r.handled = true;
-			if ((event.delta > 0 && at >= entered_len_) || (event.delta < 0 && at == 0) || event.delta == 0) {
-				return r;
+			if (favourites().bank_state() == services::FavouritesBank::Unavailable) {
+				(void)r.actions.push_back(
+				    Action{.kind = Action::Kind::Popup,
+				           .surface = SurfaceRole::Main,
+				           .popup_string = static_cast<uint16_t>(String::STRING_FOR_SD_CARD_ERROR)});
 			}
-			// Legacy adds the offset unclamped, which an accelerated turn can push past the end of
-			// the string. Clamped here; every in-range turn lands where legacy's does.
-			edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, entered_len_));
-			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+			else if (const std::optional<uint8_t> current = favourites().current_favourite()) {
+				favourites().change_colour(*current, event.delta);
+				favourites_changed();
+			}
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `Browser::verticalEncoderAction` only ever recolours a
-			// favourite, which this scene does not draw; it still answers `DEALT_WITH`, so the turn
-			// does not scroll whatever is underneath.
+			// `SampleBrowser::verticalEncoderAction`: SHIFT's recolour is the arm above, and without SHIFT the host
+			// hands the turn to the instrument clip view before it reaches here (`forwardBrowserVertical`). What is
+			// left scrolls nothing else.
 			Result r;
 			r.handled = true;
 			return r;
@@ -1318,6 +1877,112 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	return Result::unhandled();
 }
 
+Result BrowserScene::horizontal_turn(int32_t delta) {
+	Result r;
+	r.handled = true;
+	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || nav_.is_zoomed_in())) {
+		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
+		// mode up. Either draws the waveform over whatever the pads showed.
+		if (!holding_ && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
+			pads_ = BrowserPads::Waveform;
+			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		}
+		return r;
+	}
+	if (id_ == BrowserId::Sample) {
+		// Otherwise the keys are drawn, and the turn walks the cursor.
+		reveal_keyboard();
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+	// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at either end do nothing. Legacy's two
+	// `predictExtendedText()` calls at the ends are what extend a prediction further; here the search runs on every
+	// keystroke instead, so re-running it on a turn that moves nothing would only re-read the card.
+	const int32_t at = edit_.cursor;
+	if ((delta > 0 && at >= entered_len_) || (delta < 0 && at == 0) || delta == 0) {
+		return r;
+	}
+	// Legacy clamps the accumulated delta to the string (`QwertyUI::horizontalEncoderAction`).
+	edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + delta, 0, entered_len_));
+	(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+	return r;
+}
+
+std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
+	Result r;
+	r.handled = true;
+	switch (button) {
+	case ButtonId::XEnc:
+		// A held state, entered only with no other mode up; its release is read at the top of `handle`.
+		if (on && !mode_up()) {
+			xenc_held_ = true;
+		}
+		return r;
+	case ButtonId::Load:
+		// Auto-load toggles on the release, and never for an audio clip, whose LOAD goes on to the base browser.
+		if (ctx_.is_audio_clip) {
+			return std::nullopt;
+		}
+		if (!on) {
+			auto_load_ = !auto_load_;
+		}
+		return r;
+	case ButtonId::Record:
+		// The recorder replaces the browser, with no mode up, and never for an audio clip, whose RECORD goes on to the
+		// base browser and then to the global RECORD.
+		if (ctx_.is_audio_clip) {
+			return std::nullopt;
+		}
+		if (on && !mode_up()) {
+			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
+			// it is not what leaves) and the recorder takes its place.
+			recorder::recorder_scene().open(ctx_);
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Push, .id = SceneId{recorder::kRecorderSceneKind, 0}});
+		}
+		return r;
+	case ButtonId::Save: {
+		// Shift+SAVE on a file offers to delete it, once the song is known not to use it; the preview stops either
+		// way.
+		if (!shift_) {
+			return std::nullopt;
+		}
+		const FileItem* item = item_at(file_index_);
+		if (!on || mode_up() || item == nullptr || item->isFolder) {
+			return r;
+		}
+		const std::string_view dir = current_dir();
+		const std::string path = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+		if (!menu::host_release_sample_file(path)) {
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Popup,
+			           .surface = SurfaceRole::Main,
+			           .popup_string = static_cast<uint16_t>(String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG)});
+			return r;
+		}
+		context_menu::context_menu_scene().open(ctx_);
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Push,
+		                                 .id = SceneId{context_menu::kContextMenuSceneKind,
+		                                               static_cast<uint16_t>(context_menu::DescriptorId::DeleteFile)}});
+		return r;
+	}
+	case ButtonId::Keyboard:
+		if (!on) {
+			return std::nullopt;
+		}
+		keyboard_always_visible_ = !keyboard_always_visible_;
+		keyboard_visible_ = keyboard_always_visible_;
+		if (keyboard_visible_) {
+			reveal_keyboard();
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	default:
+		return std::nullopt;
+	}
+}
+
 void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
@@ -1331,7 +1996,7 @@ void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs
 	                     .is_folder = item->isFolder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	choice_ = std::move(choice);
-	awaiting_load_ = op != BrowserChoice::Op::Enter;
+	awaiting_load_ = op != BrowserChoice::Op::Enter && op != BrowserChoice::Op::DeleteFile;
 	slice_out_ = op == BrowserChoice::Op::Slice;
 	slice_from_shift_ = false;
 }
@@ -1347,9 +2012,42 @@ void BrowserScene::slice_ready(bool opened) {
 	}
 }
 
+void BrowserScene::file_deleted(std::string_view path) {
+	// `Browser::currentFileDeleted`, only while the deleted file is still the one selected.
+	const FileItem* item = item_at(file_index_);
+	if (item == nullptr || item->isFolder) {
+		return;
+	}
+	const std::string_view dir = current_dir();
+	const std::string selected = dir.empty() ? item->filename : std::string{dir} + "/" + item->filename;
+	if (selected != path) {
+		return;
+	}
+	FileCatalogue::fileItems.erase(FileCatalogue::fileItems.begin() + file_index_);
+	if (file_index_ == static_cast<int32_t>(FileCatalogue::fileItems.size())) {
+		file_index_--; // none left: no selection
+		entered_len_ = 0;
+		edit_.cursor = 0;
+	}
+	else {
+		set_entered_text_from_current_filename();
+	}
+	clamp(visible_rows_);
+	file_preview(0); // `currentFileChanged(0)`
+	pads_changed_ = true;
+}
+
 bool BrowserScene::fresh_kit() const {
 	return ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
 	       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
+}
+
+void BrowserScene::deferred_load_done(bool success) {
+	if (!awaiting_deferred_) {
+		return;
+	}
+	awaiting_deferred_ = false;
+	deferred_done_ = success;
 }
 
 void BrowserScene::long_press_done(bool success) {
@@ -1386,7 +2084,7 @@ Result BrowserScene::long_press() {
 		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
 	}
 	if (ctx_.is_kit) {
-		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:550-554`).
+		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:551-555`).
 		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
 		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}
@@ -1413,8 +2111,14 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 
+	// A preview or a `DeferAndWait` load the host has not answered: the host's dispatcher ticks its load only when the
+	// guest is woken.
+	if (preview_outstanding_ || awaiting_deferred_) {
+		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
 	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.
-	if (long_press_done_.has_value() || slice_ready_.has_value()) {
+	if (long_press_done_.has_value() || deferred_done_.has_value() || slice_ready_.has_value() || pads_changed_) {
 		return 0;
 	}
 

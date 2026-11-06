@@ -1,0 +1,26 @@
+# The keyboard screen under the note-range picker on a multisample: the current range's notes are highlighted, and a
+# keyboard note selects its range. KEYBOARD is pressed before any menu opens.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+30000 snapshot imported
+31000 button Keyboard down
+31020 button Keyboard up
+32000 snapshot keyboard
+32500 button Shift down
+32600 pad 2 1 down
+32650 pad 2 1 up
+32700 button Shift up
+33500 snapshot kb-highlight
+34000 pad 3 2 down
+34500 snapshot kb-select
+34600 pad 3 2 up

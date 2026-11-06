@@ -64,7 +64,6 @@ namespace deluge::gui::ui {
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
-/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **An uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
 /// | `getUI` | `ui.h` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
 /// | `getUIContextType` | `ui.h` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
 /// | `getUIModControllableContext` | `ui.h` | `NONE`, as `SoundEditor` leaves it. |
@@ -73,9 +72,8 @@ namespace deluge::gui::ui {
 /// | `isBanksVisible` | `ui.h:202` | False, as `SoundEditor` leaves it. |
 // clang-format on
 ///
-/// Two of those rows are gaps rather than settled answers and are named as gaps: `scrollFinished`
-/// above, and `displayOrLanguageChanged`, which **is** overridden below but only to ask the shell
-/// for a repaint -- see its own note for what that does and does not buy.
+/// One answer is a gap rather than settled: `displayOrLanguageChanged`, which **is** overridden below but only to
+/// ask the shell for a repaint -- see its own note for what that does and does not buy.
 ///
 /// @warning The `UI` virtuals span the whole of `gui/ui/ui.h`'s class, not just its first block: `getUIType()`,
 ///          near its end, is **pure** -- a guest written to the first block alone would not compile.
@@ -91,7 +89,7 @@ namespace deluge::gui::ui {
 /// only in `opened()`.
 ///
 /// `TimerName::UI_SPECIFIC` is the timer, dispatched to `getCurrentUI()` by
-/// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:142-148`). Legacy clears it out from under
+/// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:143-149`). Legacy clears it out from under
 /// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp`), `changeRootUI` (the only conditional one: it clears
 /// only while `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`), `closeUI` and `openUI` -- all of them *before* the
 /// `opened()`/`focusRegained()` that follows, so arming from those two hooks is safe and is the only thing that makes
@@ -102,7 +100,7 @@ namespace deluge::gui::ui {
 ///
 /// `Shell::next_wake()` is an **absolute** millisecond deadline, recomputed at the bottom of every
 /// tick. `UITimerManager::setTimer` takes a **duration**
-/// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
+/// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:252-254`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
 /// `Shell::compute_next_wake` and `RepaintGate` both use -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the
 /// wrong one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
@@ -124,12 +122,12 @@ namespace deluge::gui::ui {
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
 ///
 /// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly `AudioEngine::audioSampleTimer`
-/// (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms = 44
+/// (`gui/ui_timer_manager.cpp:256-265`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms = 44
 /// samples) is the smallest duration `setTimer`'s `ms * 44` can express that leaves `triggerTime`
 /// strictly in the future**, and that is the whole of the argument: with zero, `triggerTime` is
 /// already behind the audio sample timer by the time `UITimerManager::routine` is next called at all
 /// -- audio advances at 44.1 kHz, far faster than the main loop the routine is called from -- so
-/// `timeNextEvent` is past, the early return at `gui/ui_timer_manager.cpp:54-57` does not fire, and
+/// `timeNextEvent` is past, the early return at `gui/ui_timer_manager.cpp:55-58` does not fire, and
 /// the timer's own test at `:64-65` is true. The whole 29-timer sweep and the shell's whole tick
 /// would then run on **every** pass of the main loop, for as long as the guest kept re-arming at
 /// zero. With 44 samples they run at most once a millisecond.
@@ -142,7 +140,7 @@ namespace deluge::gui::ui {
 ///
 /// @warning **1 ms is not legacy's animation cadence, and a future tenant will want the difference.**
 ///          Legacy's per-frame hook is `graphicsRoutine`, whose one external driver is
-///          `TimerName::GRAPHICS_ROUTINE`, re-armed at **15 ms** (`gui/ui_timer_manager.cpp:213-218`;
+///          `TimerName::GRAPHICS_ROUTINE`, re-armed at **15 ms** (`gui/ui_timer_manager.cpp:212-217`;
 ///          `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside the class
 ///          hierarchy). So a scene answering 0 gets ~1000 ticks/s here where legacy's equivalent runs
 ///          at ~66. 1 ms is nonetheless the right floor **for the scenes that run here**: the first is
@@ -205,8 +203,13 @@ namespace deluge::gui::ui {
 ///    would swallow the first turn after a pause, which legacy's own (dead) wiggle check never does,
 ///    and `ModKnobs` would accelerate it a second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
-///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which here does
-///    nothing.
+///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which does
+///    nothing then.
+///  - **In the automation view's editor the knobs are the view's.** A turn and a push go to
+///    `automationView` (`forwardAutomationGoldTurn`, `forwardAutomationGoldPush`), which edits its selected
+///    param, as `SoundEditor::modEncoderAction` hands them to the view; the push takes `modEncoderButtonAction`'s
+///    delivery and is not fed. On the view's overview the knobs' service does what the view would, and keeps the
+///    menu's readout following the knob.
 ///  - **A mod button is fed as its matrix button.** `Buttons` hands the eight to `modButtonAction`
 ///    and never to `buttonAction` (`hid/buttons.cpp:99-107`).
 ///  - **The knob popup outlives the guest.** `ModKnobs`' param popup is a passive overlay; when only
@@ -216,8 +219,8 @@ namespace deluge::gui::ui {
 /// The scene sees a turn first: in MIDI-learn mode the menu takes it and learns that knob, as
 /// `SoundEditor::modEncoderAction` does (`MenuLearn::gold_turn`).
 ///
-/// **What it costs.** Over the automation view a gold turn edits through `ModKnobs`, where legacy hands it to
-/// `automationView.modEncoderAction` -- in learn mode too.
+/// **What it costs.** On the automation view's overview a gold turn edits through `ModKnobs`, where legacy hands
+/// every turn to `automationView.modEncoderAction` -- in learn mode too; both edit the knob's param there.
 ///
 /// @par MIDI learn
 ///
@@ -313,7 +316,7 @@ public:
 	/// @name The tick's two clamps
 	/// @{
 	/// @brief What `UITimerManager::setTimer` multiplies a millisecond duration by
-	///        (`gui/ui_timer_manager.cpp:253-255`).
+	///        (`gui/ui_timer_manager.cpp:252-254`).
 	static constexpr int32_t kTimerSamplesPerMs = 44;
 	/// @brief The shortest re-arm the guest will ask for. See `@par Why the floor is 1 ms`.
 	static constexpr int32_t kMinRearmMs = 1;
@@ -335,6 +338,9 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	/// @brief Feed mod button @p whichButton as its matrix button.
 	void modButtonAction(uint8_t whichButton, bool on) override;
+	/// @brief Legacy's horizontal scroll, which the sample browser starts through the host, has ended: leave
+	///        `UI_MODE_HORIZONTAL_SCROLL` and take the main columns back (`SampleBrowser::scrollFinished`).
+	void scrollFinished() override;
 	ActionResult timerCallback() override;
 	/// @brief Arm a tick at once if the shell has model facts to drain and this guest is the current UI.
 	///
@@ -343,6 +349,10 @@ public:
 	/// deadline is asleep until something arms its timer. Called by `drain_notifications` on every
 	/// pass of the app loop.
 	void wakeForPendingFacts();
+	/// @brief Re-read the facts about the root UI that the guest holds (`refreshShellRootFacts`), then the greyout
+	///        and pad regions they decide. For whatever changes the root, or the automation view's editor, while the
+	///        guest is up.
+	void refreshRootFacts();
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;
@@ -363,6 +373,21 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	UIType getUIType() override { return UIType::SHELL_HOST; }
 
+	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one, and for
+	///        host code that reads a scene's clock-driven state between ticks.
+	///
+	/// `getSystemTime()` is seconds since scheduler start (`OSLikeStuff/scheduler_api.h:74`,
+	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
+	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
+	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
+	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
+	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
+	///
+	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
+	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
+	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
+	uint32_t nowMs() const;
+
 private:
 	/// @brief Copy the shell's grid into legacy's pad image, for the columns \p x0 to \p x1 and the
 	///        rows \p whichRows selects, and report whether the guest owns \p region.
@@ -381,20 +406,6 @@ private:
 	///         menu alone answers false for both, as `SoundEditor` does (`gui/ui/sound_editor.cpp:217-247`).
 	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,
 	               deluge::ui::shell::PadRegions region);
-
-	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one.
-	///
-	/// `getSystemTime()` is seconds since scheduler start (`OSLikeStuff/scheduler_api.h:74`,
-	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
-	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
-	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
-	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
-	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
-	///
-	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
-	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
-	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
-	uint32_t nowMs() const;
 
 	/// @brief Feed one already-detented encoder turn to the shell as A-pin edges.
 	///
@@ -442,7 +453,7 @@ private:
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
 	/// is armed here either, and the timer stays inactive (`UITimerManager::routine` cleared it
-	/// before calling, `gui/ui_timer_manager.cpp:66`). **With one exception**: while the lowering
+	/// before calling, `gui/ui_timer_manager.cpp:67`). **With one exception**: while the lowering
 	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
 	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
 	/// input-driven.

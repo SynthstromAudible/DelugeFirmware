@@ -1,0 +1,26 @@
+# The ported menu open over the keyboard (SELECT from the keyboard screen) when Shift + a DX column pad is pressed:
+# the open menu moves to the DX7 parameter page on that operator, and BACK walks out of it.
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  button Back down
+7020  button Back up
+8000  button Keyboard down
+8020  button Keyboard up
+9000  snapshot keyboard
+9500  button SelectEnc down
+9520  button SelectEnc up
+10500 snapshot menu
+11000 button Shift down
+11100 pad 17 7 down
+11150 pad 17 7 up
+11200 button Shift up
+12000 snapshot retarget
+13000 button Back down
+13020 button Back up
+14000 snapshot back-1
+14500 button Back down
+14520 button Back up
+15500 snapshot back-2
