@@ -2105,6 +2105,18 @@
   "rms_db": -25.05,
   "sha256": "de17c4a29700f13e215f88dc83d7fd5793fe9ce924509339365f3637cb1668f0"
  },
+ "sample/linear_mono_sweep": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -23.02,
+  "sha256": "7f1255769bf52e39e03499a595867db1ff6222b60ff032be6631ee935ea3cbea"
+ },
+ "sample/linear_sweep": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -22.82,
+  "sha256": "cb39ccc147a7f1f8a6c3c485ac31fd342879dc0c93b1933850f3f88dab936f5a"
+ },
  "sample/mono": {
   "frames": 88200,
   "peak": 245172224,

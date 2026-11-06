@@ -232,6 +232,17 @@ protected:
 	void ensureSource(Sample* sample);
 
 private:
+	/// @brief The linear-interpolation read over a resident region, as the loop in readSamplesResampled does it, with
+	///        the play position, phase, amplitude and the two taps it reads held in locals and written back once at the
+	///        end: through the members, the compiler stores them on every sample.
+	/// @tparam kChannels The sample's channels.
+	/// @tparam kChannelsOut The channels written: 1 condenses a stereo sample to mono.
+	/// @param skipFirstJump Whether the first sample is read where the reader stands, without stepping first.
+	template <int32_t kChannels, int32_t kChannelsOut>
+	void readSamplesLinear(deluge::dsp::Q<31>* __restrict__& oscBufferPos, deluge::dsp::Q<31> const* oscBufferEnd,
+	                       int32_t jumpAmount, int32_t byteDepth, int32_t phaseIncrement, int32_t& amplitude,
+	                       int32_t amplitudeIncrement, bool skipFirstJump);
+
 	/// @brief The port geometry for @p sample — the immutable per-sample fields parsed above the port.
 	[[nodiscard]] static DelugeSampleGeometry geometryFor(const Sample& sample);
 

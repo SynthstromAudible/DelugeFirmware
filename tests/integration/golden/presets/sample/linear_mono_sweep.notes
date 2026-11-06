@@ -1,0 +1,14 @@
+# Linear-interpolation sweep: the looping sample played at rising pitches, so the linear reader resamples it
+# (root C4): C2, C4 (native), G4, G5, C6, C8.
+4608 90 24 64
+18000 80 24 40
+18000 90 3C 64
+32000 80 3C 40
+32000 90 43 64
+46000 80 43 40
+46000 90 4F 64
+60000 80 4F 40
+60000 90 54 64
+74000 80 54 40
+74000 90 60 64
+87000 80 60 40
