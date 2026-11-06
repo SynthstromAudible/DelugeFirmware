@@ -436,7 +436,7 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 		stack_.remove(SceneKind::Console);
 	}
 	// The banner's 2000 ms `DISPLAY` timer: `OLED::timerRoutine`'s `removePopup()` on expiry
-	// (`gui/ui_timer_manager.cpp:91-93`), which runs only when no working animation is running
+	// (`gui/ui_timer_manager.cpp:92-94`), which runs only when no working animation is running
 	// (`oled.cpp:929-937`) -- while one is, the banner stays until `removeWorkingAnimation` takes it
 	// down (`:735-736`), `drain()`'s `ClearWorking` case. A no-op when no banner is stacked.
 	if (!working_.armed() && notification_.expired(now_ms)) {

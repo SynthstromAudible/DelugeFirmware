@@ -104,6 +104,7 @@
 #include "util/comparison.h"
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 #include <new>
 #include <string.h>
 
@@ -155,6 +156,18 @@ int32_t cellIndex(const std::optional<RuntimeParam>& cell, params::Kind kind) {
 /// The runtime param of a pad-grid cell, if the cell has one.
 std::optional<RuntimeParam> cellParam(OwnerPlugin owner, const std::optional<ParamTarget>& cell) {
 	return cell ? deluge::bridge::runtimeParamOf(owner, *cell) : std::nullopt;
+}
+
+/// Whether @p paramID is the cable of one of a sound's grid shortcuts (vibrato, sidechain volume).
+bool isShortcutCable(int32_t paramID) {
+	for (const auto& column : params::kSoundParamShortcuts) {
+		for (const std::optional<ParamTarget>& cell : column) {
+			if (cellIndex(cellParam(OwnerPlugin::INSTRUMENT, cell), params::Kind::PATCH_CABLE) == paramID) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -351,7 +364,8 @@ void AutomationView::focusRegained() {
 						}
 					}
 				}
-				if (!patchCableExists) {
+				// a shortcut cable stays selected without its cable: the view draws its lane, and an edit makes it
+				if (!patchCableExists && !isShortcutCable(clip->lastSelectedParamID)) {
 					initParameterSelection();
 				}
 			}
@@ -562,7 +576,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	// get the param Kind and param bipolar status
 	// so that it can be passed through the automation editor rendering
 	// calls below
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+	if (modelStackWithParam && (modelStackWithParam->autoParam || laneAwaitsCable(modelStackWithParam))) {
 		kind = modelStackWithParam->paramCollection->getParamKind();
 		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 	}
@@ -697,6 +711,12 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					pixel = colours::grey;
 				}
 
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
+			// a shortcut cable that does not exist yet is offered as an unautomated param, as `main` (which makes the
+			// cable on sight) shows it
+			else if (laneAwaitsCable(modelStackWithParam)) {
+				pixel = colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			else {
@@ -2874,7 +2894,7 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 
 	// check if we're in the sound menu and not the settings menu
 	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
-	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
+	bool inSoundMenu = deluge::gui::ui::soundMenuOpen();
 
 	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
 	                                                           inSoundMenu, forEdit);
@@ -2889,6 +2909,47 @@ ModelStackWithAutoParam* AutomationView::laneFor(ModelStackWithTimelineCounter* 
 		return nullptr;
 	}
 	return getModelStackWithParamForClip(modelStack, clip, false, param->index, param->kind);
+}
+
+void AutomationView::selectParam(ModelStackWithAutoParam* modelStack, bool clipMinder, PatchSource patchSource) {
+	int32_t knobPos = getAutomationParameterKnobPos(modelStack, view.modPos()) + kKnobPosOffset;
+	setAutomationKnobIndicatorLevels(modelStack, knobPos, knobPos);
+
+	int32_t p = modelStack->paramId;
+	params::Kind kind = modelStack->paramCollection->getParamKind();
+
+	Clip* clip = getCurrentClip();
+
+	if (clipMinder) {
+		clip->lastSelectedParamID = p;
+		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedOutputType = clip->output->type;
+		clip->lastSelectedPatchSource = patchSource;
+		clip->lastSelectedParamShortcutX = kNoSelection;
+		clip->lastSelectedParamShortcutY = kNoSelection;
+		clip->lastSelectedParamArrayPosition = 0;
+	}
+	else {
+		currentSong->lastSelectedParamID = p;
+		currentSong->lastSelectedParamKind = kind;
+		currentSong->lastSelectedParamShortcutX = kNoSelection;
+		currentSong->lastSelectedParamShortcutY = kNoSelection;
+		currentSong->lastSelectedParamArrayPosition = 0;
+		onArrangerView = true;
+	}
+	// not blinking any shortcuts for patch cables
+	// no scroll selection for patch cables
+	if (kind != params::Kind::PATCH_CABLE) {
+		getLastSelectedParamShortcut(clip);
+		getLastSelectedParamArrayPosition(clip);
+	}
+
+	automationParamType = AutomationParamType::PER_SOUND;
+}
+
+bool AutomationView::laneAwaitsCable(const ModelStackWithAutoParam* modelStack) {
+	return modelStack != nullptr && modelStack->autoParam == nullptr && modelStack->paramCollection != nullptr
+	       && modelStack->paramCollection->getParamKind() == params::Kind::PATCH_CABLE;
 }
 
 // this function obtains a parameters value and converts it to a knobPos
@@ -3003,8 +3064,7 @@ bool AutomationView::getAffectEntire() {
 		return true;
 	}
 	// are you in the sound menu for a kit?
-	else if (getCurrentOutputType() == OutputType::KIT && getCurrentUI() == &soundEditor
-	         && !soundEditor.inSettingsMenu()) {
+	else if (getCurrentOutputType() == OutputType::KIT && deluge::gui::ui::soundMenuOpen()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
 		if (soundEditor.setupKitGlobalFXMenu) {
 			return true;

@@ -1283,6 +1283,78 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.stack().top().kind() == deluge::ui::shell::SceneKind::Popup).to_be_true();
 	});
 
+	it("routes a horizontal turn as legacy's item does: a page keeps it, a param leaf passes it on", _ {
+		// `HorizontalMenu` has no `horizontalEncoderAction`; `Param::horizontalEncoderAction` hands the turn to the root.
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::lpf);
+		r.shell.tick(0);
+		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Menu).to_be_true();
+		Rig r2;
+		(void)r2.open(nodes::lpf_freq);
+		r2.shell.tick(0);
+		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(-1, true, 20) == HorizontalTurn::Root).to_be_true();
+	});
+
+	it("passes a patch cable page's horizontal turn on only after its cursor has stood at an edge half a second", _ {
+		// `PatchCableStrength::horizontalEncoderAction`: the decimal cursor moves first; at an edge the first turn arms
+		// `kShortPressTime`, a turn after it goes to the root, and any move starts over.
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		expect(menu_scene().route_horizontal_turn(1, false, 100) == HorizontalTurn::Menu).to_be_true(); // moves
+		menu_scene().state_for_spec().decimal_pos = 0;
+		expect(menu_scene().route_horizontal_turn(1, false, 200) == HorizontalTurn::Menu).to_be_true(); // arms
+		expect(menu_scene().route_horizontal_turn(1, false, 600) == HorizontalTurn::Menu).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, false, 701) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(-1, false, 800) == HorizontalTurn::Menu).to_be_true(); // moves
+		expect(menu_scene().route_horizontal_turn(1, false, 900) == HorizontalTurn::Menu).to_be_true(); // re-arms
+	});
+
+	it("holds a patch cable page's cursor still while X_ENC is held, and passes the turn on after the delay", _ {
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		expect(menu_scene().route_horizontal_turn(1, true, 100) == HorizontalTurn::Neither).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, true, 700) == HorizontalTurn::Root).to_be_true();
+	});
+
+	it("over the automation view swallows a shortcut to an item with no param, and still takes a param's", _ {
+		// `SoundEditor::potentialShortcutPadAction` refuses a shortcut whose item has no param kind while the root is
+		// the automation view (LPF MODE at (8,5) is a setting); a param's shortcut is taken as anywhere else.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		menu_scene().set_root_facts(MenuContext::RootGreyout::SpareSidebar, false, true);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(8, 5, 64, 20);
+		r.pad(8, 5, 0, 25);
+		r.shell.tick(30);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 40);
+		r.shell.tick(50);
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("takes a shortcut to an item with no param over any other root", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(8, 5, 64, 20);
+		r.shell.tick(30);
+		expect(menu_scene().focused_value() == &nodes::lpf_mode).to_be_true();
+	});
+
 	it("a shift-held shortcut pad replaces the scene at that node, and state_lines says so", _ {
 		select_language();
 		deluge::notify::dirty().drain();

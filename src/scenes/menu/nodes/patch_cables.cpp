@@ -486,7 +486,12 @@ deluge::synth::CableTarget PatchCableStrengthItem::learn_descriptor(const MenuCo
 		return deluge::synth::CableTarget::depth_of_depth(state.walk.patching_param, state.walk.patch_source,
 		                                                  state.walk.patch_range_source);
 	}
-	// `Regular::getLearningThing` (`patch_cable_strength/regular.cpp:30-34`); `Fixed` inherits it.
+	if (which_ == Which::Fixed) {
+		// `Fixed` inherits `Regular::getLearningThing` over the destination and source it installs itself (`on_focus`
+		// below), so its cable is known before its session begins.
+		return deluge::synth::CableTarget::depth_of(param_, source_);
+	}
+	// `Regular::getLearningThing` (`patch_cable_strength/regular.cpp:30-34`).
 	return deluge::synth::CableTarget::depth_of(state.walk.patching_param, state.walk.patch_source);
 }
 

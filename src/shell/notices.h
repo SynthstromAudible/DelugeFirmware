@@ -236,7 +236,7 @@ private:
 /// Legacy draws the horizontal-menu notification in its display's single popup slot, typed
 /// `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`), and other legacy code keys on that slot
 /// being occupied -- `View::displayModEncoderValuePopup` only re-reads its change cache while a
-/// `NOTIFICATION` popup is up (`gui/views/view.cpp:1220`). In the application two consumers pop
+/// `NOTIFICATION` popup is up (`gui/views/view.cpp:1221`). In the application two consumers pop
 /// the one notice queue, legacy's `drain_notifications` and `Notices::drain`, so a notification
 /// either of them draws differently lands differently. With a sink installed, `Notices::drain`
 /// hands the notice to legacy's own slot instead of drawing it, which is exactly what the other
@@ -271,7 +271,7 @@ const NotificationSink* notification_sink();
 ///     that function's own transcription: the band from `OLED_MAIN_TOPMOST_PIXEL` to
 ///     `+ kTextSpacingY + 1` (`oled.cpp:750-751`), inverted (`:788`).
 ///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (in `OLED::displayNotification`), whose
-///     expiry runs `OLED::timerRoutine` (`gui/ui_timer_manager.cpp:91-93`) and, with no working
+///     expiry runs `OLED::timerRoutine` (`gui/ui_timer_manager.cpp:92-94`) and, with no working
 ///     animation, `removePopup()`. `kNotificationMs`; `Notices::tick` removes the
 ///     scene once `expired()` **and** the working animation is not armed -- while one runs,
 ///     `timerRoutine` animates instead, and the banner stays until `removeWorkingAnimation` takes it

@@ -19,7 +19,7 @@
 /// `:3762`; `handleNoteRowEditorButtonAction`'s kit toggle, `:4043-4049`) and every swallowed button
 /// (`:3762`, `:4057`). X_ENC and SYNC_SCALING are pinned through the seam only: their `return
 /// buttonAction(...)` arm (`:3752-3754`) reaches `InstrumentClipView::buttonAction`, whose SYNC_SCALING fill arm asks
-/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:340`) -- one of the reads
+/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:341`) -- one of the reads
 /// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
@@ -327,7 +327,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	   "returns its result", _ {
 		// Both handlers' `:3752-3754` / `:4039-4041` arm is `return buttonAction(b, on)`
 		// -- `InstrumentClipView::buttonAction`, whose answer is the handler's answer. Seam only: see
-		// the file's note on `view.cpp:340`.
+		// the file's note on `view.cpp:341`.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();

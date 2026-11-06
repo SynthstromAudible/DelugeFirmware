@@ -142,6 +142,12 @@ extern int service_wirings;
 /// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
 /// binary where the real scene exists.
 extern int action_dispatches;
+/// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
+///        writes the menu and the knobs, none of which this suite builds.
+extern int root_fact_refreshes;
+/// @brief How many times `deluge::gui::ui::dispatchMenuTransitions()` was called: the poll of the menu's transition
+///        record, on the same terms as `action_dispatches`.
+extern int transition_dispatches;
 
 /// @brief Called by the fake `dispatchShellActions()`, after it bumps `action_dispatches`.
 ///
@@ -266,7 +272,7 @@ extern bool note_exit_saw_knob_clear;
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
 /// under which the real `UITimerManager` would have called `timerCallback()` at all
-/// (`gui/ui_timer_manager.cpp:142-148`). A spec driving `timerCallback()` by hand is standing in for
+/// (`gui/ui_timer_manager.cpp:143-149`). A spec driving `timerCallback()` by hand is standing in for
 /// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
 ///
 /// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes

@@ -30,6 +30,7 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
+#include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
 #include "scenes/menu/node_id.h"
@@ -60,12 +61,31 @@ using deluge::ui::shell::UiEvent;
 
 using namespace detail;
 
+namespace {
+
+/// `kShortPressTime`, the half second a patch cable page's cursor stands at an edge before a horizontal turn passes on.
+constexpr uint32_t kCableEdgeDelayMs = 500;
+
+/// 10 to the power @p exponent, as `decimal_value` steps its cursor by.
+int64_t pow10_of(int32_t exponent) {
+	int64_t v = 1;
+	for (int32_t i = 0; i < exponent; i++) {
+		v *= 10;
+	}
+	return v;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
+	pending_transition_.reset();
+	transition_.reset();
+	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	pads_.forget_landing();
 	retarget(root);
@@ -334,6 +354,93 @@ const Node* MenuScene::focused_value() const {
 	return menu::focused_value(ctx_, st_);
 }
 
+void MenuScene::set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation) {
+	ctx_.root_greyout = greyout;
+	ctx_.root_is_keyboard = root_is_keyboard;
+	ctx_.root_is_automation = root_is_automation;
+}
+
+void MenuScene::note_transition(const UiEvent& event, const Result& r, const Node* value_before) {
+	// One record per tick: the first event's value is the one it moved from (`note_cause`).
+	// SELECT and BACK are the widgets' own edges, consumed by the render (`after_render`), not routed here.
+	std::optional<TransitionCause> cause;
+	if (event.kind == UiEvent::Kind::Button) {
+		switch (event.button) {
+		case ButtonId::Synth:
+		case ButtonId::Kit:
+		case ButtonId::Midi:
+		case ButtonId::Cv:
+		case ButtonId::CrossScreen:
+		case ButtonId::Scale:
+			// `SoundEditor::buttonAction`'s horizontal-menu arm compares the item before and after the press.
+			if (event.on) {
+				cause = TransitionCause::ColumnButton;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	else if (event.kind == UiEvent::Kind::Pad) {
+		// A pad that jumps (a shortcut, or a patching source opening its page) answers with a Replace.
+		for (const Action& action : r.actions) {
+			if (action.kind == Action::Kind::Replace) {
+				cause = TransitionCause::Shortcut;
+				break;
+			}
+		}
+	}
+	if (cause) {
+		note_cause(*cause, value_before);
+	}
+}
+
+void MenuScene::note_cause(TransitionCause cause, const Node* value_before) {
+	if (!pending_transition_) {
+		pending_transition_ = cause;
+		transition_from_ = value_before;
+	}
+}
+
+MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool xenc_held, uint32_t now_ms) {
+	const Node* node = focused();
+	if (node == nullptr || offset == 0) {
+		return HorizontalTurn::Menu;
+	}
+	if (node->custom != nullptr && node->custom->is_patch_cable()) {
+		// `Decimal::horizontalEncoderAction`'s move, which `decimal_value` makes for the page: right while there is a
+		// place below, left while the next place up is in range.
+		const int8_t pos = st_.decimal_pos;
+		const bool moves = !xenc_held
+		                   && ((offset > 0 && pos > 0)
+		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= kMaxMenuPatchCableValue));
+		if (moves) {
+			cable_edge_until_ms_ = 0;
+			return HorizontalTurn::Menu;
+		}
+		if (cable_edge_until_ms_ == 0) {
+			cable_edge_until_ms_ = now_ms + kCableEdgeDelayMs;
+		}
+		else if (static_cast<int32_t>(now_ms - cable_edge_until_ms_) > 0) {
+			return HorizontalTurn::Root;
+		}
+		return xenc_held ? HorizontalTurn::Neither : HorizontalTurn::Menu;
+	}
+	if (node->kind != Kind::Submenu && node->custom == nullptr && node->bind.param.valid()) {
+		return HorizontalTurn::Root;
+	}
+	return HorizontalTurn::Menu;
+}
+
+std::optional<MenuTransition> MenuScene::take_transition() {
+	return std::exchange(transition_, std::nullopt);
+}
+
+std::optional<AutomationParam> MenuScene::focused_automation_param() const {
+	const Node* value = focused_value();
+	return value != nullptr ? automation_param(*value, ctx_, st_) : std::nullopt;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
@@ -412,6 +519,25 @@ MenuActionRequest MenuScene::take_action() {
 }
 
 Result MenuScene::after_render() {
+	// The render consumed this tick's BACK (above depth 0) and select edges -- the select one on its release, as
+	// legacy's SELECT arm acts (`select_acts_on_release`) -- and the navigation below acts on them: note the value they
+	// leave now.
+	if (st_.tick.back_claimed) {
+		note_cause(TransitionCause::Back, focused_value());
+	}
+	else if (st_.tick.render_resp.entered || st_.tick.column_press) {
+		note_cause(TransitionCause::Select, focused_value());
+	}
+	Result r = after_render_navigation();
+	// The record an event noted (`handle`) is filed once its navigation has run, which is here.
+	if (pending_transition_) {
+		transition_ = MenuTransition{.from = transition_from_, .to = focused_value(), .cause = *pending_transition_};
+		pending_transition_.reset();
+	}
+	return r;
+}
+
+Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
 	drain_trace_len_ = 0;
@@ -729,7 +855,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// greyout, and while it shows a source pad's press or release can change the source column.
 	const bool overlay_was_up = overlay_up();
 	visit_.shift_held = ctx.shift;
+	const Node* const value_before = focused_value();
 	Result r = handle_event(event, ctx);
+	note_transition(event, r, value_before);
 	if (overlay_up() != overlay_was_up
 	    || (overlay_up() && event.kind == UiEvent::Kind::Pad && is_patching_source_pad(event.x, event.y))) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -758,9 +886,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// `SoundEditor::modEncoderAction`: in learn mode a gold turn learns that knob. Under the automation view legacy
 	// hands the turn to the view instead, which the knobs' service stands in for.
-	const bool automation_root = ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar
-	                             || (ctx_.root_greyout == MenuContext::RootGreyout::Nothing && !ctx_.root_is_keyboard);
-	if (!automation_root && visit_.learn.gold_turn(ctx_, st_, event)) {
+	if (!ctx_.root_is_automation && visit_.learn.gold_turn(ctx_, st_, event)) {
 		return Result{.handled = true};
 	}
 
@@ -896,6 +1022,20 @@ bool is_automation_item(const Node& item) {
 		return item.custom->is_automation_item();
 	}
 	return item.bind.param.valid();
+}
+
+std::optional<AutomationParam> automation_param(const Node& item, const MenuContext& ctx, const MenuState& state) {
+	if (item.custom != nullptr) {
+		if (!item.custom->is_automation_item()) {
+			return std::nullopt;
+		}
+		return AutomationParam{.kind = deluge::modulation::params::Kind::PATCH_CABLE,
+		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
+	}
+	if (!item.bind.param.valid()) {
+		return std::nullopt;
+	}
+	return AutomationParam{.kind = item.bind.param.kind, .id = item.bind.param.index};
 }
 
 std::optional<deluge::project::ParamAddress> automation_address(const Node& item, const MenuContext& ctx,

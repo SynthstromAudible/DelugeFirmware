@@ -27,9 +27,9 @@
 /// predicate (`shell/scene.h`'s `Scene::is_root`, tested in `GlobalControls::handle`).
 ///
 /// The group that becomes reachable with this scene on top is `View::buttonAction`'s
-/// (`gui/views/view.cpp:140-487`), and it is **nine** arms: `SAVE`, `LOAD`, `SYNC_SCALING`, `TAP_TEMPO`, `BACK`
+/// (`gui/views/view.cpp:141-488`), and it is **nine** arms: `SAVE`, `LOAD`, `SYNC_SCALING`, `TAP_TEMPO`, `BACK`
 /// (undo/redo) and shift+`SELECT_ENC`, **plus** `LEARN` and -- while MIDI learn is on -- `PLAY` and
-/// `RECORD`. Those last three are `View::buttonAction` arms too (`view.cpp:186-197`, `:200-213`,
+/// `RECORD`. Those last three are `View::buttonAction` arms too (`view.cpp:187-198`, `:201-214`,
 /// `:215-228`); `services::GlobalControls` returns them as `ViewArm::LearnOwns`
 /// (`GlobalControls::view_button_action`) so `services::MidiLearn`, routed one step further on,
 /// gets them -- but that hand-off happens **inside the same `is_root()` gate** in
@@ -143,7 +143,7 @@
 ///          `view.clipArmFlashOn` (`View::clipArmFlashOn` -- ported, but on
 ///          `services::GlobalControls::clip_arm_flash_on()`, which this scene holds no handle to),
 ///          `matrixDriver.isPadPressed` (`hid/matrix/`, no seam) and `view.flashPlayEnable()`
-///          (`view.cpp:2783-2785`, likewise on `GlobalControls`). Its gate,
+///          (`view.cpp:2784-2786`, likewise on `GlobalControls`). Its gate,
 ///          `UI_MODE_HOLDING_SONG_BUTTON`, is set by `AudioClipView::buttonAction`'s
 ///          `SESSION_VIEW` arm (`audio_clip_view.cpp:331-358`), so
 ///          nothing in this scene reaches it. `View::renderMacros` is shared with `SessionView`,
@@ -444,7 +444,7 @@ public:
 	///     deadline (`UI::graphicsRoutine`, `gui/ui/ui.cpp:76-80`). It is **not** called from the
 	///     main loop on every iteration: its one external driver is
 	///     `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm, re-armed at 15 ms
-	///     (`gui/ui_timer_manager.cpp:213-218`); `ShellHostUI` is the host that has to decide
+	///     (`gui/ui_timer_manager.cpp:212-217`); `ShellHostUI` is the host that has to decide
 	///     what a zero costs. Its port is therefore
 	///     `0`, "repaint on the next tick" -- the first zero any scene in this tree returns, and
 	///     the case `Scene::next_timer`'s own contract now spells out -- for as long as the cursor

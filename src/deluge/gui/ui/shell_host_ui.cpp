@@ -19,6 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_guest_services.h"
@@ -322,6 +323,11 @@ void ShellHostUI::handBack(deluge::ui::shell::PadRegions regions) {
 	                 holds(regions, PadRegions::Sidebar) ? 0xFFFFFFFF : 0);
 }
 
+void ShellHostUI::refreshRootFacts() {
+	refreshShellRootFacts();
+	syncPads();
+}
+
 void ShellHostUI::syncPads() {
 	using deluge::ui::shell::PadRegions;
 	using deluge::ui::shell::regions_without;
@@ -508,6 +514,11 @@ ActionResult ShellHostUI::timerCallback() {
 	// not on which scene is frontmost. Nothing here can know whether a request is waiting without
 	// asking, and asking is what takes it.
 	dispatchShellActions();
+
+	// The menu's transition record, the automation view's half of the same wall: filed by `after_render` too, so
+	// drained after the tick and above the close check for the same reasons, and after the action poll -- a menu action
+	// never moves the value node, so nothing turns on the order.
+	dispatchMenuTransitions();
 
 	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
 	// the same two reasons.**
@@ -754,17 +765,15 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 	case deluge::ui::shell::GridPadClaim::None:
 		return false;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
-		// `SoundEditor::potentialShortcutPadAction`'s gate,
-		// minus two halves that stay on legacy's side. One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene`
-		// already drops with the reason recorded (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`). The other is the
-		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
-		// (y == 6 || y == 7)` (in that function), which exempts those two pads from claiming a shortcut
-		// jump at all -- `src/scenes` cannot ask `getRootUI()`'s identity, so `MenuScene` claims
-		// them here exactly as it would anywhere else on the same arm. A known divergence
-		// from legacy. Past what remains of
-		// the gate legacy claims unconditionally, even where no shortcut table has an entry
-		// -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
-		// die (`MenuScene::handle_event`'s fall-through). The two agree.
+		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
+		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,
+		// `scenes/menu/pads.cpp`). A pad the root view keeps (`rootKeepsShortcutPad`: the automation view's
+		// interpolation pads) is no shortcut. Past the gate legacy claims unconditionally, even where no shortcut table
+		// has an entry -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad die
+		// (`MenuScene::handle_event`'s fall-through). The two agree.
+		if (rootKeepsShortcutPad(x, y)) {
+			return false;
+		}
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.
@@ -812,6 +821,8 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			shell_.note_activity(nowMs()); // `deluge.cpp`: every pad is activity, forwarded or not
 			(void)forwardGridPad(x, y, velocity);
 			if (getCurrentUI() == this) {
+				// A pad the root took can move it between views (the automation view's editor and overview, a kit row).
+				refreshRootFacts();
 				armTickSoon();
 			}
 			return ActionResult::DEALT_WITH;
@@ -828,9 +839,12 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// The two gold-knob pushes are the knobs' service's: fed here, ahead of the note mode, which has no arm for them.
 	// `Buttons::buttonAction` delivers each press twice -- here, and to `modEncoderButtonAction` in its tail, which
-	// does nothing -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and the shift and transport handling
-	// above it, running (see the end of this function).
+	// takes it only in the automation view's editor -- so it is performed once. `NOT_DEALT_WITH` keeps that tail, and
+	// the shift and transport handling above it, running (see the end of this function).
 	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
+		if (automationEditorTakesKnobs()) {
+			return ActionResult::NOT_DEALT_WITH; // the view's, through `modEncoderButtonAction`
+		}
 		const Cartesian xy = deluge::hid::button::toXY(b);
 		feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 		                      static_cast<int16_t>(on ? 255 : 0)});
@@ -855,6 +869,17 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// `TimerName::UI_SPECIFIC` is delivered to whoever is current (`UITimerManager::routine`). The
 	// arm itself is still wanted while the guest is current, for the gold-knob arm's reason above.
 	if (const std::optional<ActionResult> result = forwardNoteButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// CLIP, X_ENC and KEYBOARD where the automation view takes them from under the menu (`forwardAutomationButton`):
+	// the param item's own CLIP and X_ENC, and the sound editor's KEYBOARD arm over the view. Below the note forward,
+	// whose roots these never share; the handler may swap the root, so the same guard applies.
+	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();
@@ -914,13 +939,25 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 void ShellHostUI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	// In the automation view's editor the knobs edit the view's param (`SoundEditor::modEncoderAction`).
+	if (automationEditorTakesKnobs()) {
+		forwardAutomationGoldTurn(whichModEncoder, offset);
+		armTickSoon();
+		return;
+	}
 	// 0 is the lower knob, 1 the upper, as `interpretEncoders` numbers them; @p offset is legacy's lowered turn.
 	(void)shell_.route_lowered_turn(whichModEncoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper,
 	                                static_cast<int8_t>(std::clamp<int32_t>(offset, -127, 127)), nowMs());
 	armTickSoon();
 }
 
-void ShellHostUI::modEncoderButtonAction(uint8_t /*whichModEncoder*/, bool /*on*/) {
+void ShellHostUI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	// `Buttons::buttonAction`'s tail delivers the push here as well as to `buttonAction`, which feeds the knobs'
+	// service; in the automation view's editor it is the view's instead (`SoundEditor::modEncoderButtonAction`).
+	if (automationEditorTakesKnobs()) {
+		forwardAutomationGoldPush(whichModEncoder, on);
+		armTickSoon();
+	}
 }
 
 void ShellHostUI::modButtonAction(uint8_t whichButton, bool on) {
@@ -942,6 +979,13 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 		}
 		return *result;
 	}
+	if (const std::optional<ActionResult> result = forwardMenuHorizontal(offset, nowMs())) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Horizontal, offset);
 	// `DEALT_WITH`, the base's value.
 	armTickSoon();
@@ -958,12 +1002,23 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 		}
 		return *result;
 	}
+	if (const std::optional<ActionResult> result = forwardMenuVertical(offset)) {
+		shell_.note_activity(nowMs());
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Vertical, offset);
 	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }
 
 void ShellHostUI::selectEncoderAction(int8_t offset) {
+	if (forwardAutomationSelectTurn(offset)) {
+		armTickSoon();
+		return;
+	}
 	// `void`: legacy discards nothing because there is nothing to discard
 	// (`UI::selectEncoderAction`), so unlike the other two this hook has no way to say
 	// "not now" even in legacy. The offset arrives already saturated to `int8_t`

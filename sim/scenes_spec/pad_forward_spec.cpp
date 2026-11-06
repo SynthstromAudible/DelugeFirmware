@@ -10,10 +10,11 @@
 /// recorder: "really removes the ported menu when the tail fires" restores the real `perform` and
 /// runs the real tail arm (`closePortedMenu`) against a real `MenuScene` on the real guest's scene
 /// stack -- that call names no legacy view, so it is safe to run for real here, and it is what covers
-/// the tail firing `closePortedMenu` outside the recorder; the four
-/// `automationView` examples open a real `MenuScene` (via `open_menu_node`, on `menu_scene()`
-/// directly rather than on the guest's stack) because `menuShowsAutomationParam` reads
-/// `menu_scene().focused()` -- there is no other way to give it an answer.
+/// the tail firing `closePortedMenu` outside the recorder; the `automationView` examples open a real
+/// `MenuScene` because `menuShowsAutomationParam` reads `menu_scene().focused_automation_param()` --
+/// there is no other way to give it an answer. A bare leaf opens on `menu_scene()` directly
+/// (`open_menu_node`); a horizontal page focused on a column, a cable's page and the pad-claim examples
+/// open through the shortcut entry (`open_shortcut_over`), on the guest's own stack.
 ///
 /// The two note-mode arms (`sound_editor.cpp:1481-1498`) are asked of a real
 /// `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack,
@@ -51,7 +52,11 @@
 #include "shell/scene.h" // SceneKind
 
 #include "support/global_guest_menu.h"
+#include "support/menu_over_root.h"
 #include "support/song_fixture.h"
+
+#include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
+#include "util/shell_menu_entry.h"  // openShellMenuAtShortcut
 
 #include "cppspec.hpp"
 
@@ -67,9 +72,17 @@ namespace nodes = deluge::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 using deluge::scenes::spec::GlobalGuestGuard;
 using deluge::scenes::spec::open_menu_on_global_guest_at;
+using deluge::scenes::spec::open_shortcut_over;
+using deluge::scenes::spec::open_shortcut_over_automation;
+using deluge::scenes::spec::ShellMenuOn;
+using deluge::scenes::spec::ShiftHeld;
 using deluge::scenes::spec::UiStackGuard;
 
 namespace {
+
+/// The vibrato page's cable, LFO 1 onto pitch, in the automation view's numbering: the cable's descriptor word.
+constexpr int32_t kVibratoCableId = static_cast<int32_t>(
+    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1).word);
 
 /// @brief Open a real `MenuScene` at `nodes::root_song` on the global guest's OWN scene stack --
 ///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
@@ -480,6 +493,102 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&automationView);
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("sends a main-grid pad to automation view from a horizontal page whose focused column is the view's param", _ {
+		// `SoundEditor::isEditingAutomationViewParam` asks `getCurrentMenuItem()->getParamKind()`, which on a
+		// horizontal page answers for its focused column (`Submenu::getParamKind`).
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
+		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
+		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Automation);
+	});
+
+	it("sends a main-grid pad to automation view from the page of the cable the view shows", _ {
+		// A cable's param kind is `PATCH_CABLE` and its id the cable's descriptor word
+		// (`PatchCableStrength::getModelStack`), as the automation view records a selected cable.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+		fx.clip->lastSelectedParamID = kVibratoCableId;
+		expect(open_shortcut_over_automation(fx.clip, 6, 2)).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::vibrato).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Automation);
+	});
+
+	it("falls through to the tail from a cable page when the view shows another cable", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+		fx.clip->lastSelectedParamID = static_cast<int32_t>(
+		    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_2).word);
+		expect(open_shortcut_over_automation(fx.clip, 6, 2)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("leaves Shift + (0,6) and (0,7) to the automation view when it is the root", _ {
+		// `SoundEditor::potentialShortcutPadAction` exempts the interpolation and pad-selection pads from the
+		// shortcuts when the root is the automation view; on the view's param they reach `padAction`
+		// (`AutomationView::shortcutPadAction` toggles them).
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
+		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		ShiftHeld shift;
+		(void)shellHostUI.padAction(0, 6, 64);
+		expect(seen).to_equal(PadForwardTarget::Automation);
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		seen = PadForwardTarget::None;
+		(void)shellHostUI.padAction(0, 7, 64);
+		expect(seen).to_equal(PadForwardTarget::Automation);
+	});
+
+	it("closes the menu on Shift + (0,6) over the automation view off its param", _ {
+		// Legacy's own outcome: the pad is no shortcut there, and `padAction`'s tail closes the menu.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
+		fx.clip->lastSelectedParamID = params::UNPATCHED_BASS;
+		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		ShiftHeld shift;
+		(void)shellHostUI.padAction(0, 6, 64);
+		expect(seen).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("still claims Shift + (0,6) as a shortcut over any other root", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		ShiftHeld shift;
+		(void)shellHostUI.padAction(0, 6, 64);
+		expect(seen).to_equal(PadForwardTarget::None);
 	});
 
 	it("does not dereference a null clip", _ {

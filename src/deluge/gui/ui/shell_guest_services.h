@@ -63,9 +63,25 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
+/// @brief Re-read the facts about the root UI that the open menu and the knobs hold: the menu's greyout arm and
+///        whether the root is the keyboard screen or the automation view (`MenuScene::set_root_facts`), and the two
+///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.
+void refreshShellRootFacts();
+
+/// @brief Whether the ported menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
+///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
+bool shellSoundMenuOpen();
+
+/// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
+void shellMenuReadValueAgain();
+
+/// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
+bool guestKnobsSeeAutomationEditor();
+
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.
-///        The guest's other passive overlays are dropped with its stack. `wireShellGuestServices()` installs it.
+///        The guest's other passive overlays are dropped with its stack, and the kit context it gave `soundEditor` is
+///        cleared. `wireShellGuestServices()` installs it.
 /// @param now_ms The guest's clock at the close, which the popup's lifetime is read against.
 void handOffGuestOverlays(uint32_t now_ms);
 

@@ -251,7 +251,8 @@ so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 
    `row_icon` (`renderSubmenuItemTypeForOled`; the default is the submenu arrow), the learn hooks
    (`learnNoteOn`/`learnCC`/`learnProgramChange`/`unlearnAction`/`shouldBlinkLearnLed`), the blink
    and patching-source hooks (`patched_param_to_blink`, `source_blink`, `source_press`,
-   `blink_delay_ms`), and the automation hooks (`is_automation_item`, `automation_address`).
+   `blink_delay_ms`), and the automation hooks (`is_automation_item`, `automation_address`; a cable item's `learn_descriptor` is also its
+   identity to the automation view, `menu::automation_param`).
 2. Point the node at a `static`/`inline const` instance through `custom(name, &item, relevant)`. A
    null item is a validator error. An item that must know which node it is focused as needs one
    instance per node, because `on_focus` is handed a `MenuContext`, never its own `Node`.
@@ -313,6 +314,13 @@ skips it. If it ever wants to be lazy, the slot has to become a queue first.
 
 The noun side is the same shape: `BrowserScene::take_choice()` parks a chosen file, and
 `gui::ui::dispatchShellChoices` performs the claim below `dispatchShellActions`.
+
+The automation view is the third: `MenuScene::take_transition()` parks one change of the value node per tick with
+its cause (a select release, BACK, a column button, a pad's jump; `menu/transition.h`), and
+`gui::ui::dispatchMenuTransitions` (`gui/ui/shell_automation_glue.{h,cpp}`) does to `automationView` what legacy's
+sound editor does for that change. The buttons and encoders the view takes from under the menu (CLIP, X_ENC,
+KEYBOARD over the view, the gold knobs in its editor, the horizontal and vertical turns) are forwarded by the host
+ahead of the shell from the same file; `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
 
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
@@ -607,7 +615,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | The slicer's and the audio clip view's play cursor is always the slow flash: this layer cannot read the flash-cursor setting (see the boot wiring above). | `slicing/slicer_scene.cpp`, `audio_clip/audio_clip_scene.h` |
 | The ported browser opens on the default folder where legacy reopens on `SampleBrowser::lastFilePathLoaded`'s folder; the value lives on a `gui/` object. | `browser/browser_scene.cpp` |
 | A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp` |
-| Under the menu, the automation view's two interpolation pads (x 0, y 6/7) are claimed as shortcuts with shift held; legacy exempts them when the root UI is the automation view. | `ShellHostUI::claimsGridPad` |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad` |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback` |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp` |
@@ -643,7 +650,6 @@ it leaves both lists.
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
 | the MIDI follow channel's screen | `midi::FollowChannel::drawInteger` (input differentiation, device, channel) has no port; the node draws a bare number (`parity/DIFFERENCES.md` D73) | a drawing for the nineteen nodes |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
-| automation retargeting | `SoundEditor::handlePotentialParamMenuChange` re-selects the automation view's param after a BACK, a SELECT or a horizontal column move; it is keyed on the root UI | an automation scene, or a seam telling the guest the focused param changed |
 | select editing gated by UI mode | `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes`; `MenuScene` edits on every turn | a UI-mode fact handed to the scene |
 | `Submenu::shouldForwardButtons`' `buttonAction` | legacy forwards a horizontal page's buttons to its focused value column; the port routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column |
 | the firmware-version diagnostics | on the firmware-version item, pads 13–15 of row 7 pop up the SRAM size, the voice count and the PIC version; the guest keeps the menu open on them, as legacy does, but shows no popup | three popups |

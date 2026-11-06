@@ -22,6 +22,7 @@
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
+#include "scenes/menu/menu_scene.h" // is_automation_item
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
@@ -224,6 +225,13 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		}
 
 		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
+		// Over the automation view only a param's shortcut is taken; any other is swallowed
+		// (`potentialShortcutPadAction`'s `getParamKind() == Kind::NONE` refusal, ahead of `setup()`'s).
+		if (target != nullptr && ctx.root_is_automation && !is_automation_item(*target)) {
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		if (target != nullptr && !shortcut_applies(*target, ctx)) {
 			deluge::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));

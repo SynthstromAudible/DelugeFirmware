@@ -43,6 +43,7 @@
 #include "scenes/menu/present.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/shortcut_overlay.h"
+#include "scenes/menu/transition.h"
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/view.h"
 #include "scenes/menu/voice_usage.h"
@@ -61,6 +62,15 @@
 #include <span>
 
 namespace deluge::scenes::menu {
+
+/// @brief The param an automation item edits, as the automation view names its selection: `Clip::lastSelectedParamKind`
+///        and `lastSelectedParamID` (`MenuItem::getParamKind` and `getParamIndex` on legacy's item). A cable's kind is
+///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack` addresses it.
+struct AutomationParam {
+	deluge::modulation::params::Kind kind;
+	int32_t id;
+	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
+};
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
@@ -167,7 +177,7 @@ public:
 	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not
 	/// itself a submenu -- `Submenu::shouldForwardButtons` (`gui/menu_item/submenu.cpp:181-185`):
 	/// legacy's same-param popup test (`View::modEncoderAction_forSomeReason`'s guard,
-	/// `gui/views/view.cpp:893-900`) forwards through a horizontal page to whichever item the
+	/// `gui/views/view.cpp:894-901`) forwards through a horizontal page to whichever item the
 	/// buttons would actually reach, not the page itself. On any other leaf this is `focused()`
 	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
@@ -177,11 +187,45 @@ public:
 	/// the same measure `shouldForwardButtons` names.
 	const Node* focused_value() const;
 
+	/// @brief Replace the facts about the root UI under the menu that the opener set: its greyout arm, and
+	///        whether it is the keyboard screen or the automation view. The host calls it whenever the root, or
+	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
+	///        greyout (`sound_editor.cpp:497-500`).
+	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
+
+	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
+	std::optional<AutomationParam> focused_automation_param() const;
+
+	/// @brief Where a horizontal turn under the menu goes (`route_horizontal_turn`).
+	enum class HorizontalTurn : uint8_t {
+		Menu,    ///< The menu's: fed to it (a page, which does nothing with it; a cable page's decimal cursor).
+		Root,    ///< Through to the root UI under the menu (`Param::horizontalEncoderAction`).
+		Neither, ///< Nowhere: a cable page's cursor held still by X_ENC, short of the edge delay.
+	};
+	/// @brief Route a horizontal turn of @p offset, as legacy's current item does: a param leaf passes it to the root
+	///        UI; a patch cable's page moves its decimal cursor (not while X_ENC is held) and passes the turn on only
+	///        once the cursor has stood at an edge for `kShortPressTime`
+	///        (`PatchCableStrength::horizontalEncoderAction`); anything else keeps it.
+	///
+	/// Ask once per turn: it keeps the cable page's edge delay.
+	/// @param offset   The turn's detents.
+	/// @param xenc_held Whether X_ENC is held (zooming the view under the menu).
+	/// @param now_ms   The turn's time.
+	HorizontalTurn route_horizontal_turn(int32_t offset, bool xenc_held, uint32_t now_ms);
+
+	/// @brief Collect the change of the value node the last tick's event made, with its cause, and clear it.
+	///
+	/// An event that can move the menu (a select release or BACK, which the render consumes; a column button, a pad's
+	/// jump) notes the value node it found; the record is filed after the tick's navigation, from that node to the one
+	/// the menu is on then. One record per tick; the host drains it after `Shell::tick`, as it drains `take_action`.
+	/// @return The record, or nullopt when no such event arrived since the last call.
+	std::optional<MenuTransition> take_transition();
+
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
 	/// The port of the one call legacy makes to it from outside the menu:
 	/// `View::modEncoderButtonAction_changeModControllable`'s
-	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1391-1393`), run
+	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1392-1394`), run
 	/// after a gold-knob **push** has changed a `ModControllable` param behind the menu's back. The
 	/// edit storage this scene keeps (`MenuState::edit_int`, `enum_index`, …) is loaded on focus,
 	/// so without this the menu would keep showing the value it read on the way in.
@@ -442,6 +486,14 @@ public:
 private:
 	/// @brief Whether the SHIFT shortcut overlay shows (`shortcut_overlay.h`).
 	bool overlay_up() const { return overlay_shown(ctx_, visit_.shift_held); }
+	/// @brief `after_render`'s navigation and its other arms, before the tick's transition is filed.
+	deluge::ui::shell::Result after_render_navigation();
+	/// @brief Note the cause of a transition @p event may make, with the value node @p value_before it found
+	///        (`take_transition`).
+	void note_transition(const deluge::ui::shell::UiEvent& event, const deluge::ui::shell::Result& r,
+	                     const Node* value_before);
+	/// @brief Note @p cause and the value node @p value_before it leaves, unless this tick already noted one.
+	void note_cause(TransitionCause cause, const Node* value_before);
 	/// @brief `handle`'s body, beneath its SHIFT-overlay bookkeeping.
 	deluge::ui::shell::Result handle_event(const deluge::ui::shell::UiEvent& event,
 	                                       const deluge::ui::shell::UiContext& ctx);
@@ -473,6 +525,13 @@ private:
 	/// The renders, and the storage a horizontal page draws from.
 	MenuView view_;
 	MenuContext ctx_{};
+	/// @brief The cause an event of this tick noted, and the value node it found (`take_transition`).
+	std::optional<TransitionCause> pending_transition_;
+	const Node* transition_from_ = nullptr;
+	/// @brief The record filed by the last `after_render`, until `take_transition` collects it.
+	std::optional<MenuTransition> transition_;
+	/// @brief When a cable page's cursor, standing at an edge, starts passing horizontal turns on; 0 while it moves.
+	uint32_t cable_edge_until_ms_ = 0;
 
 	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`
 	///        clears the whole of that on a re-root, and an action already filed must still be
@@ -553,6 +612,10 @@ public:
 	void enter_submenu(const Node& node);
 	/// @}
 };
+
+/// @brief The automation view's identity of the param @p item edits, on the owner @p ctx edits; nullopt where it edits
+///        none.
+std::optional<AutomationParam> automation_param(const Node& item, const MenuContext& ctx, const MenuState& state);
 
 /// @brief Whether shift + select on @p item deletes its param's automation: a param node, a node whose value is learned
 ///        as a param (the transposes), or a custom item that says so (the cable strength pages) -- legacy's
