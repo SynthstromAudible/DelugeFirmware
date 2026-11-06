@@ -177,7 +177,7 @@
 # **The ported file selector, opened by a real press, over a real card.**
 #
 # Everything above drives menus. This drives **site 8**
-# (`gui/views/instrument_clip_view.cpp:502-519`), the only one of the eight gated
+# (`gui/views/instrument_clip_view.cpp:503-520`), the only one of the eight gated
 # `openUI(&soundEditor)` sites that names a *leaf* rather than a root -- legacy
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` at `:515`, the
 # guest's `openShellMenu(..., ShellMenuNode::Osc0FileSelector)` at `:507-511`. It is reachable from
@@ -187,7 +187,7 @@
 # **The gesture is legacy's own**: hold an audition pad on a synth clip and press LOAD.
 # `InstrumentClipView::buttonAction`'s arm is `currentUIMode == UI_MODE_AUDITIONING && (b == LOAD ||
 # b == KIT)` (`:469-470`) with the synth half at `:496`. The audition pads are sidebar column
-# `kDisplayWidth + 1` = 17 (`instrument_clip_view.cpp:1955`, `auditionPadAction` at `:2004`).
+# `kDisplayWidth + 1` = 17 (`instrument_clip_view.cpp:1956`, `auditionPadAction` at `:2005`).
 #
 # **Why a NEW clip rather than the boot one.** The section above converted the song's only clip to
 # an AudioClip, and site 8 needs `getCurrentOutputType() == OutputType::SYNTH`. Pressing an empty
@@ -332,7 +332,7 @@
 
 # 2. KIT. `SoundEditor::buttonAction` hands every button to `handleNoteEditorButtonAction` while
 # the note editor is open (`gui/ui/sound_editor.cpp:617-619`), which forwards SYNTH/KIT/MIDI/CV to
-# the horizontal menu (`gui/views/instrument_clip_view.cpp:3746-3748`), whose `select_map` maps KIT
+# the horizontal menu (`gui/views/instrument_clip_view.cpp:3747-3749`), whose `select_map` maps KIT
 # to column 1 (`gui/menu_item/horizontal_menu.cpp:96-97`): probability.
 20500  button Kit down
 20520  button Kit up
@@ -363,7 +363,7 @@
 23400  snapshot note-editor-closed
 
 # 6. Hold the audition pad and press SELECT with it still held: the same SELECT_ENC arm, under
-# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:857`): `if (enterNoteRowEditor())`
+# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:858`): `if (enterNoteRowEditor())`
 # (`:858`). Legacy opens `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`: sequence direction,
 # probability, iterance, fill).
 23800  pad 17 4 down

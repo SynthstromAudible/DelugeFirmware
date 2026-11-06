@@ -270,6 +270,13 @@ struct RefusingSink final : bind::WriteSink {
 	bool clear_clip(deluge::project::ClipAddress, bool, bool) override { return false; }
 	bool move_audio_clip_marker(deluge::project::ClipAddress, std::string_view, int64_t) override { return false; }
 	void set_default_audio_input_channel(int32_t) override {}
+	void set_default_range(deluge::project::SlotAddress, uint8_t, uint16_t) override {}
+	bool insert_range(deluge::project::SlotAddress, uint8_t, uint16_t, int16_t, std::optional<int16_t>) override {
+		return false;
+	}
+	bool delete_range(deluge::project::SlotAddress, uint8_t, uint16_t, std::optional<int16_t>) override {
+		return false;
+	}
 	bool attach_recording(deluge::project::SlotAddress, uint8_t, uint16_t, std::string_view) override { return false; }
 	bool resize_audio_clip(deluge::project::ClipAddress, bind::ResizeKind, int32_t, int32_t) override { return false; }
 	void set_undo_scroll_after(deluge::project::ClipAddress, int32_t) override {}

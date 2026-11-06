@@ -326,6 +326,28 @@ ahead of the shell from the same file; `MenuScene::route_horizontal_turn` says w
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
 mirror holds in either toggle state. `menu/action.h` has the writer list.
 
+### The note-range picker (`menu/nodes/multi_range.h`)
+
+`MultiRangeItem` ports `MultiRange`, the page that stands in front of a range-dependent item while a
+source has more than one range and none is chosen. The header has the whole of it; four points
+reach past the page.
+
+* **Its inputs arrive in `render`.** The horizontal turn (the edge), BACK while an edge is on, and
+  Shift + a select turn (insert) are owned inputs, so the picker reads them from the frame snapshot.
+  At depth 0 (a shortcut opens it at the root) the menu leaves BACK to `handle()`;
+  `menu::owned_input` merges the item's `back` claim so the picker sees it there too.
+* **The range memory is the source's own** (`Source::defaultRangeI`), read through
+  `RuntimeFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
+  `beginSession` and flick do. Insert and delete are their own sink verbs, which kill the voices and
+  keep the other ranges' samples.
+* **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
+  `gui/ui/shell_guest_services.cpp`) hands the press to `MenuScene::delete_range_press`.
+* **The root views ask the guest through `util/sound_menu_open.h`.** `rangePickerOpen`,
+  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for legacy's
+  `SoundEditor` or the ported menu, so a note played under the picker selects its range and the
+  sidebar highlights the range's notes; `refreshShellRangeDisplay` repaints the root after each
+  guest tick when the range, the source, the highlight or the range count changed.
+
 ## The scenes
 
 **Choosing the predicates.** A scene that sits over the base view's pads is `is_grid_overlay()`;

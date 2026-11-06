@@ -20,6 +20,7 @@
 ///        its caller may not gate it.
 
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 
 #include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
 #include "gui/context_menu/configure_song_macros.h"
@@ -468,6 +469,13 @@ void dispatchShellActions() {
 	case MenuAction::PadColoursChanged:
 		// `Colour::writeCurrentValue`'s second statement (`colour.h:46`).
 		renderingNeededRegardlessOfUI();
+		break;
+
+	case MenuAction::FileSelectorOpened:
+		// `FileSelector::beginSession` (`menu_item/file_selector.cpp:40-42`).
+		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
+			keyboardScreen.exitAuditionMode();
+		}
 		break;
 	}
 }

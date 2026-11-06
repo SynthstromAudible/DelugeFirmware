@@ -13,6 +13,16 @@ struct ListState {
 	///       when the first such widget lands. `list` itself has no edit mode -- a turn moves the
 	///       cursor and a select press reports `entered`, with no third state between them.
 	bool editing = false;
+	/// Draw no row as selected and leave the cursor where it is: the turn belongs to something else on the row (the
+	/// note-range picker's edge editing, `MultiRange::drawPixelsForOled`'s `selectedOption = -1`).
+	bool hide_cursor = false;
+	/// Leave the cursor where it is this frame, still drawn: a turn that something else took (a range insert) or
+	/// that legacy refuses (the note-range picker's turns while a popup is up).
+	bool freeze_cursor = false;
+	/// Keep the window where `scroll` has it, moving it only as far as the cursor needs to stay in view, instead of
+	/// keeping the cursor near the middle: a list that owns its scroll the way legacy's `MultiRange::currentScroll`
+	/// does. A negative `scroll` puts the cursor on the window's last row.
+	bool keep_scroll = false;
 };
 /// State a horizontal columns/tab widget owns: which column has focus and which page is shown.
 struct ColumnsState {

@@ -1,0 +1,80 @@
+# Range editing in the note-range picker on a multisample: a horizontal turn picks an edge and the select encoder moves
+# it, BACK cancels the edge, Shift+turn inserts a range, Shift+SAVE deletes one down to the last; plain SAVE under a
+# sound menu opens the save-preset screen. The first picker is the one the import leaves; a note played before the
+# second makes both firmwares remember the same range, so the edits start from the same row.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+30000 snapshot imported
+32000 button Shift down
+32100 pad 2 1 down
+32150 pad 2 1 up
+32200 button Shift up
+32800 snapshot picker-after-import
+33000 button Back down
+33020 button Back up
+33200 button Back down
+33220 button Back up
+33300 pad 17 2 down
+33400 pad 17 2 up
+33500 button Shift down
+33600 pad 2 1 down
+33650 pad 2 1 up
+33700 button Shift up
+34300 snapshot picker
+34800 encoder Horizontal -1
+35300 snapshot edge-left
+35800 encoder Select +1
+36300 snapshot edge-moved
+36800 encoder Horizontal +1
+37300 snapshot edge-off
+37800 encoder Horizontal -1
+38000 button Back down
+38020 button Back up
+38500 snapshot edge-cancel
+38800 button Shift down
+38900 encoder Select +1
+39000 button Shift up
+39500 snapshot inserted
+40300 button Shift down
+40400 button Save down
+40420 button Save up
+40500 button Shift up
+40900 snapshot deleted
+42300 button Shift down
+42400 button Save down
+42420 button Save up
+42500 button Shift up
+44300 button Shift down
+44400 button Save down
+44420 button Save up
+44500 button Shift up
+46300 button Shift down
+46400 button Save down
+46420 button Save up
+46500 button Shift up
+48300 button Shift down
+48400 button Save down
+48420 button Save up
+48500 button Shift up
+48900 snapshot last-range
+49800 button Back down
+49820 button Back up
+50300 button Back down
+50320 button Back up
+51300 button Shift down
+51400 pad 0 1 down
+51450 pad 0 1 up
+51500 button Shift up
+52300 button Save down
+52320 button Save up
+53300 snapshot save-preset

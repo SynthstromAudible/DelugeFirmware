@@ -21,6 +21,7 @@
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -32,12 +33,18 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/multi_range.h"
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
@@ -151,6 +158,102 @@ namespace {
 std::atomic<bool> guestPreviewSounds{false};
 } // namespace
 
+bool shellRangePickerOpen() {
+	return shellSoundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
+}
+
+bool shellRangeDependentOpen() {
+	if (getCurrentUI() != &shellHostUI) {
+		return false;
+	}
+	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
+	const auto& browser = deluge::scenes::browser::browser_scene();
+	if ((top == &browser && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample)
+	    || top == &deluge::scenes::recorder::recorder_scene()) {
+		return true;
+	}
+	if (!shellSoundMenuOpen()) {
+		return false;
+	}
+	const deluge::scenes::menu::Node* node = deluge::scenes::menu_scene().focused();
+	return node != nullptr && (node->range_dependent || node == &deluge::scenes::menu::nodes::multi_range);
+}
+
+bool shellNoteWithinCurrentRange(int32_t untransposed) {
+	// `SoundEditor::isUntransposedNoteWithinRange` (`sound_editor.cpp`), on the guest's source and range.
+	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+	if (currentSong == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources
+	    || ctx.range_index < 0) {
+		return false;
+	}
+	::Sound* sound = deluge::bridge::soundAt(*currentSong, *ctx.addresses.slot);
+	if (sound == nullptr) {
+		return false;
+	}
+	Source& source = sound->sources[ctx.source_index];
+	if (std::ssize(source.ranges) <= 1 || ctx.range_index >= std::ssize(source.ranges)) {
+		return false;
+	}
+	return source.getRange(untransposed + sound->getTranspose()) == source.ranges.getElement(ctx.range_index);
+}
+
+void shellChangeRangeForNote(int32_t note) {
+	(void)deluge::scenes::menu_scene().select_range_for_note(note);
+}
+
+namespace {
+/// The ported menu's source and range at the last guest tick, which `refreshShellRangeDisplay` compares against.
+int32_t lastRangeShown = -1;
+int32_t lastRangeSource = -1;
+/// Whether the root drew the range highlight at the last guest tick: it goes when the guest leaves the range-dependent
+/// item, as a menu move re-renders legacy's root.
+bool lastHighlighting = false;
+/// How many ranges the source had: an insert or delete re-renders the root even where the range index stays.
+int32_t lastRangeCount = -1;
+/// The edges of the range shown: an edge edit moves them and re-renders the keyboard, as legacy's
+/// `MultiRange::selectEncoderAction` does on every arm; the clip view is left as it was.
+int32_t lastRangeBottom = -1;
+int32_t lastRangeTop = -1;
+} // namespace
+
+void refreshShellRangeDisplay() {
+	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+	const bool open = shellSoundMenuOpen();
+	const int32_t range = open ? ctx.range_index : -1;
+	const int32_t source = open ? ctx.source_index : -1;
+	const bool highlighting = shellRangeDependentOpen();
+	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
+	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
+	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
+	const bool edges_only = range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
+	                        && count == lastRangeCount;
+	if (edges_only && bottom == lastRangeBottom && top == lastRangeTop) {
+		return;
+	}
+	lastRangeShown = range;
+	lastRangeSource = source;
+	lastHighlighting = highlighting;
+	lastRangeCount = count;
+	lastRangeBottom = bottom;
+	lastRangeTop = top;
+	// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard and nothing else, so the
+	// clip view's sidebar keeps the highlight it had.
+	RootUI* root = getRootUI();
+	if (edges_only) {
+		if (root == &keyboardScreen) {
+			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+		}
+		return;
+	}
+	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
+	if (root == &keyboardScreen) {
+		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+	}
+	else if (root != nullptr && root->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+		uiNeedsRendering(root, 0, 0xFFFFFFFF);
+	}
+}
+
 void refreshShellSamplePreviewSounds() {
 	const deluge::ui::shell::Scene* top = &shellHostUI.shell().stack().input_top();
 	const auto& browser = deluge::scenes::browser::browser_scene();
@@ -166,6 +269,25 @@ void refreshShellSamplePreviewSounds() {
 
 bool shellSamplePreviewSounds() {
 	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
+}
+
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on) {
+	if (b != deluge::hid::button::SAVE || !shellSoundMenuOpen()) {
+		return std::nullopt;
+	}
+	// `SoundEditor::buttonAction` (`sound_editor.cpp:611-616`, `:719-730`); `shellSoundMenuOpen` is its
+	// `!inSettingsMenu()`.
+	const Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
+	const bool instrument_clip_view = clip != nullptr && clip->type == ClipType::INSTRUMENT;
+	if (on && currentUIMode == UI_MODE_NONE && instrument_clip_view) {
+		if (Buttons::isShiftButtonPressed()) {
+			deluge::scenes::menu_scene().delete_range_press();
+		}
+		else {
+			openUI(&saveInstrumentPresetUI);
+		}
+	}
+	return ActionResult::DEALT_WITH;
 }
 
 void shellMenuReadValueAgain() {

@@ -25,6 +25,7 @@
 #include "scenes/services/view_state.h"
 
 #include <cstdint>
+#include <vector>
 
 class MIDICable;
 class Song;
@@ -256,10 +257,14 @@ int32_t range_count(const MenuContext& ctx);
 ///        top one") when @p index is out of range.
 ///
 /// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
-/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:313-358`). `MultiRange` is a
+/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:287-332`). `MultiRange` is a
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
+
+/// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
+///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
+std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
 ///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1991`.
@@ -284,9 +289,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///         `MenuPermission::NO` arm at `:1939-1942`.
 bool ensure_first_range(MenuContext& ctx);
 
-/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
-///        (`sound_editor.cpp`), plus `Source::defaultRangeI`, which the picker keeps in
-///        step with its own cursor (`multi_range.cpp:239`).
+/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
 /// unchecked, and every caller here has already clamped against `range_count`.

@@ -21,6 +21,9 @@
 #include "util/sound_menu_open.h"
 
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/multi_range.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/shell_guest_services.h" // shellSoundMenuOpen, shellMenuReadValueAgain
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -41,6 +44,33 @@ void readSoundMenuValueAgain() {
 	}
 	else if (shellSoundMenuOpen()) {
 		shellMenuReadValueAgain();
+	}
+}
+
+bool rangePickerOpen() {
+	return (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu)
+	       || shellRangePickerOpen();
+}
+
+bool rangeDependentMenuOpen() {
+	return getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
+	       || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())
+	       || shellRangeDependentOpen();
+}
+
+bool noteWithinCurrentRange(int32_t untransposed) {
+	if (shellRangeDependentOpen()) {
+		return shellNoteWithinCurrentRange(untransposed);
+	}
+	return soundEditor.isUntransposedNoteWithinRange(untransposed);
+}
+
+void changeRangeForNote(int32_t note) {
+	if (getCurrentUI() == &soundEditor) {
+		menu_item::multiRangeMenu.noteOnToChangeRange(note);
+	}
+	else if (shellRangePickerOpen()) {
+		shellChangeRangeForNote(note);
 	}
 }
 

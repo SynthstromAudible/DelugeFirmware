@@ -1,0 +1,49 @@
+# The note-range picker on a multisample (MULTISAMPLES on the drums folder, as c18): it opens on the range the last
+# played note used, a turn moves the sidebar's highlight, a note on the audition column selects its range; an in-menu
+# shortcut to a range-dependent item opens it with no picker.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+30000 snapshot imported
+31000 pad 17 2 down
+31200 pad 17 2 up
+32000 button Shift down
+32100 pad 2 1 down
+32150 pad 2 1 up
+32200 button Shift up
+33000 snapshot picker
+33500 encoder Select +1
+34000 snapshot flick
+34500 button SelectEnc down
+34520 button SelectEnc up
+35500 snapshot transpose
+36000 button Back down
+36020 button Back up
+36800 snapshot back
+37000 pad 17 5 down
+37500 snapshot note-select
+37600 pad 17 5 up
+38000 button Back down
+38020 button Back up
+38500 button Back down
+38520 button Back up
+39500 snapshot closed
+40000 button Shift down
+40100 pad 0 1 down
+40150 pad 0 1 up
+40200 button Shift up
+41000 snapshot reverse
+41500 button Shift down
+41600 pad 2 1 down
+41650 pad 2 1 up
+41700 button Shift up
+42500 snapshot inmenu-shortcut

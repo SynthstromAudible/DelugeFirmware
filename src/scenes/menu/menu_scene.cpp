@@ -281,6 +281,25 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	return SceneId{SceneKind::FirstApp, id};
 }
 
+void MenuScene::delete_range_press() {
+	if (focused() != &nodes::multi_range) {
+		return;
+	}
+	nodes::range_delete_press(ctx_, st_);
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+bool MenuScene::select_range_for_note(int32_t note) {
+	if (focused() != &nodes::multi_range) {
+		return false;
+	}
+	if (!nodes::range_note_press(ctx_, st_, note)) {
+		return false;
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // a note the root played, between the guest's ticks
+	return true;
+}
+
 bool MenuScene::reroot_to_scene_opener_page() {
 	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
 	const Node* item = st_.walk.scene_opener;
@@ -826,6 +845,7 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::ShiftStickyOff:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:
+		case MenuAction::FileSelectorOpened:
 		case MenuAction::None:
 			break;
 		}

@@ -17,7 +17,11 @@
 
 #pragma once
 
+#include "gui/ui/ui.h"
+#include "hid/button.h"
+
 #include <cstdint>
+#include <optional>
 
 class MIDICable;
 
@@ -72,6 +76,28 @@ void refreshShellRootFacts();
 ///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
 bool shellSoundMenuOpen();
 
+/// @brief Whether the ported menu is frontmost on the note-range picker: the guest's half of `rangePickerOpen`.
+bool shellRangePickerOpen();
+
+/// @brief Whether the guest's frontmost scene is the sample browser or the audio recorder, or the ported menu on a
+///        range-dependent item or the picker: the guest's half of `rangeDependentMenuOpen`.
+bool shellRangeDependentOpen();
+
+/// @brief Whether @p untransposed falls in the range the ported menu has selected, on a source of several: the guest's
+///        half of `noteWithinCurrentRange`. Asks `Source::getRange`, which remembers the range as legacy's test does.
+/// @param untransposed The note as the clip has it, before the sound's transpose.
+bool shellNoteWithinCurrentRange(int32_t untransposed);
+
+/// @brief A note played under the ported picker: `MenuScene::select_range_for_note`.
+/// @param note The note, transposed as the sound plays it.
+void shellChangeRangeForNote(int32_t note);
+
+/// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the ported menu's selected
+///        range or the source's number of ranges changed (`SoundEditor::possibleChangeToCurrentRangeDisplay`, which
+///        legacy's picker calls after every pick, insert and delete), or when the range highlight turned on or off, as
+///        a move through legacy's menu re-renders the root.
+void refreshShellRangeDisplay();
+
 /// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press
 ///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
 ///        the guest closes.
@@ -81,6 +107,15 @@ void refreshShellSamplePreviewSounds();
 ///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
 ///        (`util/sample_preview_open.h`), read on the audio tier.
 bool shellSamplePreviewSounds();
+
+/// @brief SAVE while the ported sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
+///        (`gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's view at the root, Shift
+///        deletes the note-range picker's range (`MultiRange::deletePress`, when the picker is focused) and a plain
+///        press opens the save-preset screen.
+/// @param b  The button.
+/// @param on Its press (true) or release.
+/// @return `DEALT_WITH` for SAVE under the menu, whatever it did; nullopt for any other button or with no menu up.
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on);
 
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();

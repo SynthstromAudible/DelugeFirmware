@@ -53,6 +53,8 @@ std::optional<ActionResult> note_horizontal_answer{};
 int note_vertical_forwards = 0;
 NoteVerticalCall last_note_vertical{};
 std::optional<ActionResult> note_vertical_answer{};
+int menu_save_forwards = 0;
+std::optional<ActionResult> menu_save_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -119,6 +121,8 @@ void reset() {
 	note_vertical_forwards = 0;
 	last_note_vertical = NoteVerticalCall{};
 	note_vertical_answer = std::nullopt;
+	menu_save_forwards = 0;
+	menu_save_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -399,6 +403,11 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
 	return std::nullopt;
 }
 
+std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button, bool) {
+	fakelegacyui::menu_save_forwards++;
+	return fakelegacyui::menu_save_answer;
+}
+
 bool automationEditorTakesKnobs() {
 	return false;
 }
@@ -434,6 +443,9 @@ void dispatchMenuTransitions() {
 
 void refreshShellRootFacts() {
 	fakelegacyui::root_fact_refreshes++;
+}
+
+void refreshShellRangeDisplay() {
 }
 
 void refreshShellSamplePreviewSounds() {

@@ -113,6 +113,20 @@ public:
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
+	/// @brief Make @p range the range source @p source of the sound at @p slot remembers (`Source::defaultRangeI`):
+	/// runtime state, as legacy's picker writes it, not an edit.
+	virtual void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) = 0;
+	/// @brief Insert a range at @p at into source @p source of the sound at @p slot, with top note @p top_note, and
+	/// give the range below it @p previous_top when set: `MultiRange::selectEncoderAction`'s insert, the voices killed
+	/// and the audio routine locked around the insert, the samples the other ranges hold kept.
+	/// @return Whether it was taken: false on a RAM failure, which the host reports.
+	virtual bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+	                          std::optional<int16_t> previous_top) = 0;
+	/// @brief Delete range @p index of source @p source of the sound at @p slot, and give the range below it
+	/// @p lower_top when set: `MultiRange::deletePress`, the range's voices unassigned.
+	/// @return Whether it was taken.
+	virtual bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+	                          std::optional<int16_t> lower_top) = 0;
 	/// @brief Attach the recorded take at @p path (a sample in memory, never read from the card) to range @p range of
 	/// source @p source of the sound at @p slot, which becomes a sample source.
 	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
@@ -198,6 +212,9 @@ struct GestureRequest {
 		CLEAR,
 		MARKER,
 		DEFAULT_INPUT_CHANNEL,
+		DEFAULT_RANGE,
+		INSERT_RANGE,
+		DELETE_RANGE,
 		ATTACH,
 		RESIZE,
 		LEARN,
@@ -242,6 +259,9 @@ struct GestureRequest {
 	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
 	const ::MIDICable* cable{nullptr}; ///< a LEARN_KNOB's cable; its target in @ref mapping, its knob in @ref value
 	int32_t midi_channel{0};           ///< a LEARN_KNOB's channel
+	/// An INSERT_RANGE's new top for the range below the inserted one (its own top is @ref value); a DELETE_RANGE's
+	/// new top for the range below the deleted one. None where it keeps its top.
+	std::optional<int16_t> neighbour_top;
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -265,6 +285,11 @@ public:
 	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
 	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;
+	bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+	                  std::optional<int16_t> previous_top) override;
+	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+	                  std::optional<int16_t> lower_top) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;

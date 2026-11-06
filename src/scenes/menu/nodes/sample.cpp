@@ -80,11 +80,10 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `soundEditor`'s globals" -- generalised, so the descriptor reads whichever member of the
 	// context it needs (`browser_scene.h`'s `Descriptor::start_at`).
 	//
-	// Not ported, and stated rather than dropped silently: legacy's
-	// `keyboardScreen.exitAuditionMode()` (`:40-42`) reaches a `gui/` root UI this layer may not
-	// name (`scenes-no-root-ui`) -- the same input `MarkerScene` drops for the same reason
-	// (`marker_scene.h`) -- and `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`) is
-	// the shortcut-pad flash, which `MenuScene` owns rather than an item.
+	// Legacy's `keyboardScreen.exitAuditionMode()` (`:40-42`) is a root UI's, which the host performs from the
+	// `FileSelectorOpened` action this item files. `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`),
+	// which legacy runs only when the browser refuses to open, is the shortcut-pad flash, which `MenuScene` owns rather
+	// than an item.
 	//
 	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
 	// but in `SoundEditor::maybeGetParentMenu`,
@@ -103,6 +102,7 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `deluge::gui::ui::shellSampleClaimDone` calls on the claim's success.
 	browser::browser_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
+	state.walk.pending_action = MenuActionRequest{.action = MenuAction::FileSelectorOpened};
 }
 
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {

@@ -65,6 +65,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/menus.h"   // paramShortcutsForSounds and friends -- ShortcutsVersionGuard's cells
 #include "gui/ui/root_ui.h" // PerformExitStubUI's base, for the arms that close()
 #include "gui/ui/shell_action_dispatch.h"
@@ -1366,6 +1367,33 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// Deliberately NOT drained by hand here -- the dispatcher is the only thing that reads it.
 		deluge::gui::ui::dispatchShellActions();
 		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("files the file selector's opening, which leaves the keyboard's audition mode", _ {
+		// `FileSelector::beginSession` (`menu_item/file_selector.cpp:40-42`): with the keyboard at the root and a note
+		// auditioning, opening the file selector stops it; anywhere else it does nothing.
+		select_language();
+		menu::MenuState state{};
+		const menu::MenuContext ctx{};
+		nodes::file0_selector.custom->on_focus(ctx, state);
+		expect(state.walk.pending_action.action == MenuAction::FileSelectorOpened).to_be_true();
+
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&keyboardScreen);
+		currentUIMode = UI_MODE_AUDITIONING;
+		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
+
+		(void)scene().after_render(); // the tick's after-render posts the filed action to the outbox
+		deluge::gui::ui::dispatchShellActions();
+		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_false();
+
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_true();
+		currentUIMode = UI_MODE_NONE;
 	});
 
 	it("takes nothing when nothing was filed, and does not eat the next request", _ {

@@ -547,6 +547,7 @@ ActionResult ShellHostUI::timerCallback() {
 
 	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
 	refreshShellSamplePreviewSounds();
+	refreshShellRangeDisplay(); // the root's range highlight follows the picker
 
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//
@@ -898,6 +899,16 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// the param item's own CLIP and X_ENC, and the sound editor's KEYBOARD arm over the view. Below the note forward,
 	// whose roots these never share; the handler may swap the root, so the same guard applies.
 	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// SAVE under the menu is the sound editor's own arm (`forwardMenuSaveButton`): Shift deletes the picker's range, a
+	// plain press opens the save-preset screen, which may leave this guest behind it.
+	if (const std::optional<ActionResult> result = forwardMenuSaveButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();
