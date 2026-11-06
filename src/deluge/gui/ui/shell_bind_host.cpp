@@ -182,6 +182,8 @@ public:
 	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
 	                      std::string_view path) override;
+	bool write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
+	                    const deluge::instrument::DxPatchState& patch) override;
 	bool insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
 	                  std::optional<int16_t> previous_top) override;
 	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
@@ -581,6 +583,18 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 			instrument->beenEdited(true);
 		}
 	}
+	return true;
+}
+
+bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
+                                   const deluge::instrument::DxPatchState& patch) {
+	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
+		return false;
+	}
+	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:56-70`),
+	// which records no undo.
+	deluge::edits::dxPatchFor(*sound, source, patch);
 	return true;
 }
 

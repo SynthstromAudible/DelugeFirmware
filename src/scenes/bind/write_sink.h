@@ -131,6 +131,10 @@ public:
 	/// source @p source of the sound at @p slot, which becomes a sample source.
 	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
 	virtual bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) = 0;
+	/// @brief Make @p patch the DX7 patch of source @p source of the sound at @p slot: its voice bytes, engine mode and
+	/// random detune, as the DX7 menu pages write them. Not undoable, as legacy's DX7 edits are not.
+	/// @return Whether it was taken: false where the address does not resolve or the source is not a DX7 one.
+	virtual bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) = 0;
 	/// @brief Resize the audio clip @p clip, as one undo step: its length, and the sample's marker where @p kind moves
 	/// one. A lengthen right after a shorten of the same clip undoes the shorten.
 	/// @param clip       The clip.
@@ -230,6 +234,7 @@ struct GestureRequest {
 		VELOCITY_EVERYWHERE,
 		DELETE_KNOB_AUTOMATION,
 		INSTRUMENT_EDITED,
+		DX_PATCH,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
@@ -262,6 +267,7 @@ struct GestureRequest {
 	/// An INSERT_RANGE's new top for the range below the inserted one (its own top is @ref value); a DELETE_RANGE's
 	/// new top for the range below the deleted one. None where it keeps its top.
 	std::optional<int16_t> neighbour_top;
+	std::optional<instrument::DxPatchState> dx_patch; ///< a DX_PATCH's patch
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -291,6 +297,7 @@ public:
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override;
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
+	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
 	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
