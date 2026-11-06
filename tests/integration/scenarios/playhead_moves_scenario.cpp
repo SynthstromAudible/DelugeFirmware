@@ -86,6 +86,7 @@ enum class Leg : uint8_t {
 	InjectStart,
 	InjectAfterMove,
 	InjectLaunch,
+	ArrangerRecord,
 	Done,
 };
 
@@ -111,6 +112,8 @@ uint32_t g_strayBefore = 0;
 uint32_t g_allocBefore = 0;
 uint32_t g_actionsBefore = 0;
 uint64_t g_hash = 0;
+/// Arrangement-only clips before the move: arrangement recording makes one per armed output.
+int32_t g_arrangementClipsBefore = 0;
 /// What the injected block saw: the timer and swung ticks it actioned, or -1 if it never ran.
 int64_t g_injectedTicks = -1;
 
@@ -150,6 +153,8 @@ const char* legName(Leg leg) {
 		return "INJECTAFTERMOVE";
 	case Leg::InjectLaunch:
 		return "INJECTLAUNCH";
+	case Leg::ArrangerRecord:
+		return "ARRANGERRECORD";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -398,6 +403,12 @@ void prepareMove() {
 		playbackHandler.endPlayback();
 		playbackHandler.posToNextContinuePlaybackFrom = g_clip->loopLength() / 2;
 		break;
+	case Leg::ArrangerRecord:
+		// Recording session to arranger with the clip's output armed: the switch begins arrangement recording there.
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+		g_clip->output->armedForRecording = true;
+		g_arrangementClipsBefore = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());
+		break;
 	case Leg::Start:
 	case Leg::InjectStart:
 	case Leg::InjectAfterMove:
@@ -435,6 +446,7 @@ void move() {
 		playbackHandler.positionPointerReceived(kSppData1, kSppData2);
 		break;
 	case Leg::ToArranger:
+	case Leg::ArrangerRecord:
 		playbackHandler.arrangementPosToStartAtOnSwitch = 0;
 		playbackHandler.switchToArrangement();
 		break;
@@ -533,6 +545,10 @@ void printLine() {
 			used += snprintf(line + used, sizeof(line) - used, " injected=%d", g_injectedTicks >= 0 ? 1 : 0);
 		}
 	}
+	if (g_leg == Leg::ArrangerRecord) {
+		const auto clips = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());
+		used += snprintf(line + used, sizeof(line) - used, " began=%d", clips > g_arrangementClipsBefore ? 1 : 0);
+	}
 	std::fputs(line, stdout);
 	std::fputs("\n", stdout);
 	fflush(stdout);
@@ -548,6 +564,9 @@ void cleanUpLeg() {
 	currentSong->setCurrentClip(g_home);
 	view.setActiveModControllableTimelineCounter(g_home);
 	// Stopped clips leave the next leg's song as it was: only the home clip plays.
+	if (g_clip != nullptr) {
+		g_clip->output->armedForRecording = false;
+	}
 	for (Clip* clip : {static_cast<Clip*>(g_clip), static_cast<Clip*>(g_second)}) {
 		if (clip != nullptr) {
 			clip->activeIfNoSolo = false;

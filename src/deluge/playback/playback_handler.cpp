@@ -494,6 +494,18 @@ void PlaybackHandler::releaseTicks() {
 	ticksHeld_ = false;
 }
 
+bool PlaybackHandler::holdTicks() {
+	deluge::playback::MoveSection section{"PlaybackHandler::holdTicks"};
+	const bool wasHeld = ticksHeld_;
+	ticksHeld_ = true;
+	return wasHeld;
+}
+
+void PlaybackHandler::resumeTicks(bool wasHeld) {
+	deluge::playback::MoveSection section{"PlaybackHandler::resumeTicks"};
+	ticksHeld_ = wasHeld;
+}
+
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
 	return midiOutClockEnabled;
 }
@@ -1536,6 +1548,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because
 	// resyncInternalTicksToInputTicks() references it
 	if (isEitherClockActive()) {
+		// The incoming song's clock position, its LFOs and (beginning in the arranger) its arrangement are set in
+		// steps: no tick runs until they all are.
+		const bool wasHeld = holdTicks();
 
 		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do
 		// this anyway)
@@ -1550,6 +1565,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 		// Otherwise, reset play position
 		else {
+			deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap ticks"};
 			lastTimerTickActioned = 0;
 			lastInputTickReceived = 0;
 			lastSwungTickActioned = 0;
@@ -1561,18 +1577,25 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			swungTicksTilNextEvent = 0;
 		}
 
-		// A live song swap bypasses setupPlayback(). Reset the incoming song's
-		// synced LFO state after establishing its clock position, before starting clips.
-		currentSong->resyncLFOs(true);
+		{
+			// A live song swap bypasses setupPlayback(). Reset the incoming song's
+			// synced LFO state after establishing its clock position, before starting clips.
+			deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap LFOs"};
+			currentSong->resyncLFOs(true);
+		}
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position),
 		// do that
 		if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
-			deluge::playback::notePositionWrite();
-			currentPlaybackMode = &arrangement;
-			arrangement.setupPlayback();
+			{
+				deluge::playback::MoveSection section{"PlaybackHandler::doSongSwap arranger"};
+				deluge::playback::notePositionWrite();
+				currentPlaybackMode = &arrangement;
+				arrangement.setupPlayback();
+			}
 			arrangement.resetPlayPos(currentSong->persistentView.lastClipInstanceEnteredStartPos);
 		}
+		resumeTicks(wasHeld);
 
 		// Or if we weren't switching to the arranger, the equivalent of that would get called from
 		// Session::considerLaunchEvent()
@@ -3113,12 +3136,22 @@ bool PlaybackHandler::isCurrentlyRecording() {
 }
 
 void PlaybackHandler::switchToArrangement() {
-	deluge::playback::notePositionWrite();
-	currentPlaybackMode = &arrangement;
+	// The session ends (its overdubs deleted, its sound stopped) between the mode's switch and the arrangement's
+	// moves, so no tick runs until the arrangement is positioned.
+	const bool wasHeld = holdTicks();
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToArrangement"};
+		deluge::playback::notePositionWrite();
+		currentPlaybackMode = &arrangement;
+	}
 	stopOutputRecordingAtLoopEnd = false;
 	session.endPlayback();
-	arrangement.setupPlayback();
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToArrangement setup"};
+		arrangement.setupPlayback();
+	}
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
+	resumeTicks(wasHeld);
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
@@ -3134,15 +3167,19 @@ void PlaybackHandler::switchToSession() {
 	if (recording != RecordingMode::OFF) {
 		arrangement.endAnyLinearRecording();
 	}
-	deluge::playback::notePositionWrite();
-	currentPlaybackMode = &session;
+	{
+		deluge::playback::MoveSection section{"PlaybackHandler::switchToSession"};
+		deluge::playback::notePositionWrite();
+		currentPlaybackMode = &session;
 
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-	currentSong->paramManager.expectNoFurtherTicks(modelStack);
+		currentSong->paramManager.expectNoFurtherTicks(modelStack);
 
-	session.setupPlayback();
+		session.setupPlayback();
+	}
 	stopOutputRecordingAtLoopEnd = false;
 
 	if (getCurrentUI() == &sessionView) {

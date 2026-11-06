@@ -29,6 +29,8 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          the clips' moves and linear recording: injected=1 injected_ticks=0 required
     PM-INJECTLAUNCH                      a render block run inside a late launch, between its read of the playhead and
                                          its move: phase=0 required
+    PM-ARRANGERRECORD                    a switch to the arranger while recording into it, an output armed: began=1
+                                         required (arrangement recording made its clip)
 """
 
 import re
@@ -51,6 +53,7 @@ LEGS = [
     "INJECTSTART",
     "INJECTAFTERMOVE",
     "INJECTLAUNCH",
+    "ARRANGERRECORD",
 ]
 
 _LINE = re.compile(
@@ -108,6 +111,8 @@ def _check(gate, result) -> None:
             r" active=1 phase=0\b", rest
         ):
             reasons.append(f"the launched clip is out of phase ({rest.strip()})")
+        if leg == "ARRANGERRECORD" and " began=1" not in rest:
+            reasons.append("the switch began no arrangement recording")
         if leg == "INJECTLAUNCH" and " injected=1" not in rest:
             reasons.append("the render block was never injected")
         if reasons:

@@ -273,6 +273,14 @@ private:
 	/// @brief [interaction] Publish the clock setupPlayback() held: the internal clock's first tick is due now, and the
 	///        render ticks from its next block.
 	void releaseTicks();
+	/// @brief [render] or [interaction] Hold the render's ticks while a switch moves the playhead in steps that run
+	///        outside a section between them (a mode switch, a song swap); resumeTicks() lets them run again, catching
+	///        up any that fell due.
+	/// @return Whether they were held already: what resumeTicks() restores.
+	bool holdTicks();
+	/// @brief [render] or [interaction] End the hold holdTicks() began.
+	/// @param wasHeld What that holdTicks() returned: a hold within another keeps the outer one.
+	void resumeTicks(bool wasHeld);
 
 	/// [interaction] -> [render] Set while setupPlayback() positions the clips, cleared when the clock is published;
 	/// written only with the render held off.
