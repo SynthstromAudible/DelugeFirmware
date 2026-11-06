@@ -52,6 +52,7 @@ add_library(deluge_ui_grid STATIC
   grid/rows.cpp
   grid/sidebar.cpp
   grid/waveform.cpp
+  grid/zoom_transition.cpp
 )
 target_include_directories(deluge_ui_grid PUBLIC ${SHARED_INCLUDE})
 target_compile_options(deluge_ui_grid PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})

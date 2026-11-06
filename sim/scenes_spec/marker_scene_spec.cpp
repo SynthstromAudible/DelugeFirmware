@@ -34,10 +34,9 @@
 /// `tests/spec/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
 /// drift from them.
 ///
-/// Two divergences are **measured** here rather than only written down: `renderMainPads`'
-/// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`), and
-/// legacy's zoom transition holding `UI_MODE_HORIZONTAL_ZOOM` across a second detent. Both are
-/// asserted in both directions at their examples.
+/// One divergence is **measured** here rather than only written down: `renderMainPads`'
+/// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`). It is
+/// asserted in both directions at its example.
 ///
 /// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
 ///       `browser_scene_spec.cpp` runs under.
@@ -1026,6 +1025,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START
 		r.tick(10);
+		r.turn_select(1, 15); // `selectEncoderAction`'s guard (`:269`): refused with a marker held
+		r.tick(15);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
 		r.x_enc_button(true, 20);
 		r.tick(20);
 		expect(marker_scene().holding_xenc()).to_be_false();
@@ -1042,17 +1044,21 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(60);
 		expect(static_cast<int32_t>(marker_scene().x_zoom()) < kZoomMax).to_be_true();
 		const int32_t zoomed = static_cast<int32_t>(marker_scene().x_zoom());
-		r.pad(9, 3, true, 70); // refused with X_ENC held: nothing selected or moved
-		r.tick(70);
+		for (uint32_t t = 70; t <= 70 + 150; t += 50) { // the slide runs out (110 ms, drawn every 50 ms)
+			r.tick(t);
+		}
+		expect(marker_scene().sliding()).to_be_false();
+		r.pad(9, 3, true, 230); // refused with X_ENC held: nothing selected or moved
+		r.tick(230);
 		expect(marker_scene().holding_marker()).to_be_false();
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
-		r.pad(9, 3, false, 75);
-		r.x_enc_button(false, 80);
-		r.tick(80);
+		r.pad(9, 3, false, 235);
+		r.x_enc_button(false, 240);
+		r.tick(240);
 		currentUIMode = UI_MODE_AUDITIONING; // a turn scrolls while auditioning
 		const int64_t scroll = r.view().has_value() ? r.view()->scroll : -1;
-		r.turn_horizontal(1, 90);
-		r.tick(90);
+		r.turn_horizontal(1, 250);
+		r.tick(250);
 		currentUIMode = UI_MODE_NONE;
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(zoomed);
 		expect(r.view().has_value() && r.view()->scroll != scroll).to_be_true();
@@ -1060,13 +1066,83 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const int64_t s = r.view().has_value() ? r.view()->scroll : 0;
 		const int32_t col = static_cast<int32_t>((2 * kZoomMax - s) / zoomed);
 		expect(col >= 0 && col < kDisplayWidth).to_be_true();
-		r.pad(col, 3, true, 100);
-		r.tick(100);
+		r.pad(col, 3, true, 260);
+		r.tick(260);
 		expect(marker_scene().holding_marker()).to_be_true();
-		r.turn_horizontal(1, 110);
-		r.tick(110);
+		r.turn_horizontal(1, 270);
+		r.tick(270);
 		expect(r.view().has_value() && r.view()->scroll == s).to_be_true();
-		r.pad(col, 3, false, 120);
+		r.pad(col, 3, false, 280);
+	});
+
+	it("slides a zoom over 110 ms from the old view to the new one, refusing every input while it slides", _ {
+		// `WaveformBasicNavigator::zoom` (`:30-69`) and `PadLEDs::renderZoom`, drawn every 50 ms; under
+		// `UI_MODE_HORIZONTAL_ZOOM` the select encoder (`:269`), the horizontal encoder (`zoomUIModes`), BACK and the
+		// mute column (`!currentUIMode`), a pad press (`:368`) and X_ENC (`:656`) are all refused.
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		const deluge::gfx::grid::PadGrid old = r.fake.grid().grid();
+		r.x_enc_button(true, 10);
+		r.tick(10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		expect(marker_scene().sliding()).to_be_true();
+		r.x_enc_button(false, 25);
+		r.tick(25);
+		r.turn_select(1, 30);
+		r.turn_horizontal(1, 35);
+		r.x_enc_button(true, 40); // held past the slide, and still never the editor's
+		r.pad(9, 3, true, 45);
+		r.pad(9, 3, false, 47);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, 50); // BACK
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, 52);
+		r.pad(kDisplayWidth, 3, true, 55);
+		r.pad(kDisplayWidth, 3, false, 57);
+		r.tick(60);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(4 * kZoomMax);
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
+		expect(marker_scene().holding_xenc()).to_be_false();
+		expect(marker_scene().holding_marker()).to_be_false();
+		expect(&r.shell.stack().input_top() == &marker_scene()).to_be_true();
+
+		// Halfway (the step at 70 ms), neither view.
+		r.tick(70);
+		const deluge::gfx::grid::PadGrid mid = r.fake.grid().grid();
+		r.tick(120);
+		expect(marker_scene().sliding()).to_be_true();
+		// The first step at or past 110 ms ends it: the settled frame, with its marker.
+		r.tick(170);
+		expect(marker_scene().sliding()).to_be_false();
+		expect(marker_scene().holding_xenc()).to_be_false();
+		r.x_enc_button(false, 175);
+		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
+		bool from_is_old = marker_scene().zoom_slide().from.has_value();
+		for (uint8_t y = 0; from_is_old && y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				from_is_old = from_is_old && marker_scene().zoom_slide().from->at(x, y) == old.at(x, y);
+			}
+		}
+		expect(from_is_old).to_be_true();
+		bool mid_is_old = true;
+		bool mid_is_settled = true;
+		for (uint8_t y = 0; y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				mid_is_old = mid_is_old && mid.at(x, y) == old.at(x, y);
+				mid_is_settled = mid_is_settled && mid.at(x, y) == settled.at(x, y);
+			}
+		}
+		expect(mid_is_old).to_be_false();
+		expect(mid_is_settled).to_be_false();
+		// START, at 4 * kZoomMax, is column 8 at half the zoom, and is drawn again.
+		const int32_t col = static_cast<int32_t>((4 * kZoomMax - static_cast<int32_t>(marker_scene().x_scroll()))
+		                                         / static_cast<int32_t>(marker_scene().x_zoom()));
+		expect(settled.at(static_cast<uint8_t>(col), 0).g > settled.at(static_cast<uint8_t>(col), 0).r).to_be_true();
+		r.turn_select(1, 180);
+		r.tick(180);
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos) != 4 * kZoomMax).to_be_true();
 	});
 
 	it("jumps with SHIFT to a shortcut's item, and stays on an empty cell, with a marker held, or auditioning", _ {
@@ -1615,9 +1691,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `sample_marker_editor.cpp:661-671`), and
 		// both sides are driven through that gate rather than around it.
 		// `WaveformBasicNavigator::zoom` runs `PadLEDs::renderZoom()` on success
-		// (`waveform_basic_navigator.cpp:67`) -- the transition animation the port deliberately does
-		// not carry -- and that pumps `AudioEngine::routineWithClusterLoading()`, which segfaults in
-		// a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
+		// (`waveform_basic_navigator.cpp:67`), and that pumps `AudioEngine::routineWithClusterLoading()`, which
+		// segfaults in a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
 		// without it this example does not fail, it takes the process down.
 		spec::QuietAudio quiet;
 		Rig r;
@@ -1632,6 +1707,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		const int32_t ported_zoom = static_cast<int32_t>(marker_scene().x_zoom());
 		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
+		const deluge::ui::grid::ZoomTransition slide = marker_scene().zoom_slide();
+		// A second detent while the first slides.
+		r.turn_horizontal(1, 30);
+		r.tick(30);
+		const int32_t ported_second = static_cast<int32_t>(marker_scene().x_zoom());
 
 		restore(r, before);
 		open_legacy(r, MarkerType::START);
@@ -1641,24 +1721,27 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
 		// ...and it really did zoom, so a port that refused the turn could not pass this.
 		expect(ported_zoom).to_equal(kZoomMax / 2);
+		// The slide legacy hands `PadLEDs::renderZoom`: its pin square, step and direction, and the new view's bare
+		// waveform (`renderFullScreen` into `imageStore[0]`, the old image going to the other half).
+		expect(slide.params.pin_square_from).to_equal(PadLEDs::zoomPinSquare[0]);
+		expect(slide.params.pin_square_to).to_equal(PadLEDs::zoomPinSquare[0]);
+		expect(slide.params.magnitude).to_equal(static_cast<int32_t>(PadLEDs::zoomMagnitude));
+		expect(slide.params.new_zoom < slide.params.old_zoom).to_equal(PadLEDs::zoomingIn);
+		expect(slide.params.pin_square_from != 0).to_be_true(); // a pin of 0 would match a port that forgot it
+		bool to_matches = slide.to.has_value();
+		for (uint8_t y = 0; to_matches && y < kDisplayHeight; y++) {
+			for (uint8_t x = 0; x < kDisplayWidth; x++) {
+				to_matches = to_matches && slide.to->at(x, y) == PadLEDs::imageStore[y][x];
+			}
+		}
+		expect(to_matches).to_be_true();
 
-		// **One detent, and that is the ceiling, not an oversight.** A successful legacy zoom leaves
-		// `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the `PadLEDs` transition finishes, and
-		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate then refuses the next
-		// detent (`sample_marker_editor.cpp:745-752`). Nothing runs that animation to completion in
-		// a spec process, so a second detent compares the port's second zoom against legacy's
-		// refusal. Measured: port 8192, legacy 16384. The animation is the one part of
-		// `WaveformBasicNavigator::zoom` the port deliberately does not carry
-		// (`waveform_basic_navigator.h`), so this is the divergence working as recorded, not a bug.
-		//
-		// **And clearing the mode by hand does not buy the second detent.** That is the obvious next
-		// move -- the mode is what the gate reads, and the device clears it a few tens of
-		// milliseconds later anyway -- and it was tried, with `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`
-		// put back between legacy's two calls so the second turn still reads as a zoom. It gets past
-		// the gate and then hangs: the second `WaveformBasicNavigator::zoom` blocks on the `PadLEDs`
-		// transition state the first one left behind, which is the very thing a spec process cannot
-		// finish. The suite ran 6 seconds; that probe was killed at 600. The ceiling is the
-		// animation, not the gate.
+		// A successful zoom leaves `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
+		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent
+		// (`sample_marker_editor.cpp:745-752`); the port's slide refuses it the same way. Nothing runs legacy's slide
+		// to completion in a spec process, so a detent after it is the port's alone ("slides a zoom ...").
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		expect(ported_second).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
 		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
 		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false);
 		currentUIMode = UI_MODE_NONE;
