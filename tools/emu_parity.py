@@ -551,7 +551,8 @@ def classify(
     """A snapshot's verdict: MATCH when the windows show the same values; PHASE when they differ only in when they
     showed them, which needs one of two things to be true: every part of the panel ends the window the same on both
     (the OLED, the pads, the knob rings, each LED and each PIC setting, so the difference is in the panels before the
-    last: a scroll frame or a blink caught at another moment), or a second run of either image (@p ref2, @p test2)
+    last: a scroll frame or a blink caught at another moment) and both images flashed the same pads, as a flash is an
+    event rather than a state the window ends in; or a second run of either image (@p ref2, @p test2)
     differs from its first here too, so that image cannot repeat itself at this snapshot. Anything else is DIFF."""
     if not differences(ref, test):
         return "MATCH"
@@ -559,7 +560,7 @@ def classify(
     if all(
         json.dumps(last_ref.get(name)) == json.dumps(last_test.get(name))
         for name in ("oled", "pads", "gold", "leds", "pic")
-    ):
+    ) and parts(ref).get("flashes") == parts(test).get("flashes"):
         return "PHASE"
     if ref2 is not None and differences(ref, ref2):
         return "PHASE"
