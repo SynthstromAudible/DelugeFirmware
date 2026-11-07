@@ -92,12 +92,9 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	// Exception for sound editor note editor UI which can edit notes on the grid
-	// Exception for sound editor note row editor UI which can edit note rows on the grid
+	// Exception for sound editor and it's sub-UI's (e.g. note editor, note row editor)
 	// Exception for loadPatternUI which does edit note rows on the grid
-	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
-	    && (getCurrentUI() != &loadPatternUI)) {
+	if ((getCurrentUI() != getRootUI()) && (getCurrentUI() != &soundEditor) && (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}
 
