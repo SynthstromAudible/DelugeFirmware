@@ -28,6 +28,7 @@ public:
 		silentPress = silent;
 	}
 	bool shouldAudition(uint32_t now, uint32_t holdTime) const { return !silentPress && now - started >= holdTime; }
+	bool silent() const { return silentPress; }
 
 private:
 	uint32_t started = 0;

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "gui/views/hold_pulse.h"
+#include "gui/views/session/track_pad_gesture.h"
 #include "gui/views/timeline_view.h"
 
 class ClipInstance;
@@ -131,8 +132,11 @@ public:
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
+	// Audition notes are paired: endAudition() only ends the output whose audition beginAudition() actually started,
+	// so no caller (Session's track pads included) can send a note-off without a note-on.
 	void beginAudition(Output* output);
 	void endAudition(Output* output, bool evenIfPlaying = false);
+	bool isAuditioning(Output const* output) const { return (output != nullptr) && output == auditionedOutput; }
 
 private:
 	void changeOutputType(OutputType newOutputType);
@@ -153,7 +157,11 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
-	bool silentTrackAudition = false;
+	// Shift is captured when the audition pad is pressed: a Shift press toggles the track lock instead of auditioning.
+	TrackPadGesture auditionGesture;
+	Output* auditionedOutput = nullptr;
+	// The note a melodic audition started, so it is ended even if the song is transposed meanwhile.
+	int32_t auditionedNote = 0;
 	// The output a held audition pad, or a held clip instance on a locked track, would pulse.
 	Output* heldPulseCandidate() const;
 	HoldPulse heldPulse;

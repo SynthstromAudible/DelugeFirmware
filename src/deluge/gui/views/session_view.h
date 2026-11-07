@@ -228,7 +228,6 @@ private:
 
 	int32_t gridHeldTrackPad = -1;
 	TrackPadGesture gridTrackGesture;
-	bool gridTrackAuditioning = false;
 	HoldPulse heldPulse;
 
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
