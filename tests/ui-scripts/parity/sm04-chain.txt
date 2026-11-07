@@ -30,7 +30,7 @@
 6900  button SelectEnc down
 6920  button SelectEnc up
 7600  snapshot sound-menu
-7900  encoder Select +5
+7900  encoder Select +6
 8600  snapshot on-filters
 8900  button SelectEnc down
 8920  button SelectEnc up
@@ -46,12 +46,12 @@
 12900 button Back down
 12920 button Back up
 13600 snapshot root-back
-13900 encoder Select -5
+13900 encoder Select -6
 14600 snapshot on-actions
 14900 button SelectEnc down
 14920 button SelectEnc up
 15600 snapshot actions
-15900 encoder Select +1
+15900 encoder Select +2
 16600 snapshot actions-rec
 16900 button SelectEnc down
 16920 button SelectEnc up

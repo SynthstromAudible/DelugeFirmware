@@ -17,7 +17,7 @@
 10000 button SelectEnc down
 10020 button SelectEnc up
 11000 snapshot dx-menu
-11500 encoder Select +1
+11500 encoder Select +2
 12000 button SelectEnc down
 12020 button SelectEnc up
 12800 snapshot params-list
@@ -49,11 +49,11 @@
 25520 button SelectEnc up
 26300 snapshot op-pitch
 27000 button Shift down
-27500 encoder Horizontal +1
+27500 encoder Horizontal +2
 28000 button Shift up
 28500 snapshot next-op
 29200 button Shift down
-29700 encoder Horizontal -1
+29700 encoder Horizontal -2
 30200 button Shift up
 30700 snapshot back-op
 31400 encoder Select +1
@@ -76,7 +76,7 @@
 40500 button SelectEnc down
 40520 button SelectEnc up
 41300 snapshot op-envelope
-42000 encoder Horizontal +1
+42000 encoder Horizontal +2
 42500 snapshot env-1
 43200 encoder Horizontal +1
 43700 snapshot env-2
@@ -159,7 +159,7 @@
 85400 snapshot lfo-6
 86100 encoder Horizontal +1
 86600 snapshot wrap-up
-87300 encoder Horizontal -1
+87300 encoder Horizontal -2
 87800 snapshot wrap-down
 88500 button Back down
 88520 button Back up
