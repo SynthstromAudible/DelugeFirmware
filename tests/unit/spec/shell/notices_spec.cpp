@@ -142,6 +142,8 @@ Notice make_notification(std::string_view title, std::string_view value) {
 struct SinkSpy {
 	static inline int shows = 0;
 	static inline int cancels = 0;
+	static inline int popup_cancels = 0;
+	static inline int working_removals = 0;
 	static inline std::string title;
 	static inline std::string value;
 	static void show(const char* t, const char* v) {
@@ -150,14 +152,21 @@ struct SinkSpy {
 		value = v;
 	}
 	static void cancel() { cancels++; }
+	static void cancel_popup() { popup_cancels++; }
+	static void remove_working() { working_removals++; }
 };
 
 /// @brief Installs `SinkSpy` for one example's scope, and always takes it back down.
 struct InstalledSink {
-	NotificationSink sink{.show = &SinkSpy::show, .cancel = &SinkSpy::cancel};
+	NotificationSink sink{.show = &SinkSpy::show,
+	                      .cancel = &SinkSpy::cancel,
+	                      .cancel_popup = &SinkSpy::cancel_popup,
+	                      .remove_working = &SinkSpy::remove_working};
 	InstalledSink() {
 		SinkSpy::shows = 0;
 		SinkSpy::cancels = 0;
+		SinkSpy::popup_cancels = 0;
+		SinkSpy::working_removals = 0;
 		SinkSpy::title.clear();
 		SinkSpy::value.clear();
 		set_notification_sink(&sink);
@@ -670,6 +679,27 @@ describe shell_notices("shell::Notices", $ {
 		expect(SinkSpy::shows).to_equal(0);
 		expect(r.stack.depth()).to_equal(size_t(1));
 		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();
+	});
+
+	it("CancelPopup and ClearWorking with a sink also reach legacy's slot, and still take down the shell's scenes", _ {
+		// A popup or working animation legacy drew before the guest owned the queue is still in legacy's slot; the
+		// cancel for it may be popped here.
+		Rig r;
+		InstalledSink installed;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 0);
+		expect(stacked(r, SceneKind::Popup)).to_be_true();
+
+		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
+		r.notices.drain(r.queue, 10);
+		expect(SinkSpy::popup_cancels).to_equal(1);
+		expect(stacked(r, SceneKind::Popup)).to_be_false();
+
+		(void)r.queue.push(make_notice(Notice::Kind::ClearWorking));
+		r.notices.drain(r.queue, 20);
+		expect(SinkSpy::working_removals).to_equal(1);
+		expect(SinkSpy::cancels).to_equal(0);
+		expect(SinkSpy::shows).to_equal(0);
 	});
 
 	it("the banner shares legacy's one popup slot: a popup replaces it, it replaces a popup, and "

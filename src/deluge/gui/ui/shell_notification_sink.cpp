@@ -18,9 +18,9 @@
 /// @file
 /// @brief The notification sink's installer. See `shell_notification_sink.h`.
 ///
-/// Both entries are the legacy mapping `drain_notifications()` already uses for the same two notice
-/// kinds (`gui/ui/notify_drain.h`), not a second transcription of it: the point of the sink is that
-/// the shell's consumer and legacy's end in the same call.
+/// Every entry is the legacy mapping `drain_notifications()` already uses for the same notice kind
+/// (`gui/ui/notify_drain.h`), not a second transcription of it: the point of the sink is that the
+/// shell's consumer and legacy's end in the same call.
 
 #include "gui/ui/shell_notification_sink.h"
 
@@ -34,6 +34,8 @@ namespace {
 const deluge::ui::shell::NotificationSink kNotificationSink{
     .show = &::showNoticeNotification,
     .cancel = &::cancelNoticeNotification,
+    .cancel_popup = &::cancelNoticePopup,
+    .remove_working = &::removeNoticeWorking,
 };
 
 } // namespace

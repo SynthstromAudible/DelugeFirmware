@@ -231,8 +231,8 @@ private:
 	Blink blink_{};
 };
 
-/// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display:
-///        two plain function pointers, installed once at boot.
+/// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display, and how
+///        the cancels reach that display: plain function pointers, installed once at boot.
 ///
 /// Legacy draws the horizontal-menu notification in its display's single popup slot, typed
 /// `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`), and other legacy code keys on that slot
@@ -252,6 +252,11 @@ struct NotificationSink {
 	void (*show)(const char* title, const char* value) = nullptr;
 	/// @brief Take the banner down, if one is up.
 	void (*cancel)() = nullptr;
+	/// @brief Clear legacy's popup slot, whatever it holds (`Notice::Kind::CancelPopup`). A popup legacy drew before
+	///        the guest became current is still in that slot, and its cancel may be popped here.
+	void (*cancel_popup)() = nullptr;
+	/// @brief Take down legacy's working animation (`Notice::Kind::ClearWorking`), for the same reason.
+	void (*remove_working)() = nullptr;
 };
 
 /// @brief Install the notification sink, or `nullptr` to remove it (a spec must be able to take

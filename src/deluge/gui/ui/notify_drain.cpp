@@ -158,12 +158,10 @@ void drain_notifications() {
 			display->displayLoadingAnimationText(n.text);
 			break;
 		case Notice::Kind::ClearWorking:
-			// Display::removeLoadingAnimation() is removeWorkingAnimation() on the only implementation
-			// there is (oled.h), so one call clears both spellings.
-			display->removeWorkingAnimation();
+			removeNoticeWorking();
 			break;
 		case Notice::Kind::CancelPopup:
-			display->cancelPopup();
+			cancelNoticePopup();
 			break;
 		case Notice::Kind::Notification:
 			showNoticeNotification(n.notification_title(), n.notification_value());
@@ -178,6 +176,16 @@ void drain_notifications() {
 void showNoticeNotification(const char* title, const char* value) {
 	// `HorizontalMenu::displayNotification`'s own call (`gui/menu_item/horizontal_menu.cpp:342`).
 	display->displayNotification(title, value);
+}
+
+void cancelNoticePopup() {
+	display->cancelPopup();
+}
+
+void removeNoticeWorking() {
+	// Display::removeLoadingAnimation() is removeWorkingAnimation() on the only implementation there is (oled.h), so
+	// one call clears both spellings.
+	display->removeWorkingAnimation();
 }
 
 void cancelNoticeNotification() {

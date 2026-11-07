@@ -216,6 +216,28 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		expect(deluge::notify::notices().size()).to_equal(size_t{0});
 	});
 
+	it("a popup legacy drew before the guest opened goes when the guest's shell drains the CancelPopup", _ {
+		// A mod-knob hold: its popup is drawn while the clip view is current, the guest opens over it, and the
+		// release's cancel reaches the guest's shell. Main has one display, so that cancel takes the popup down.
+		LegacyDisplay legacy;
+		AppSink sink;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::notify::notice_text("PORTAMENTO");
+		drain_notifications();
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
+
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+
+		deluge::notify::notice_kind(Notice::Kind::CancelPopup);
+		(void)shellHostUI.timerCallback();
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
+	});
+
 	it("with the guest not current, legacy's drain shows a Text notice itself", _ {
 		LegacyDisplay legacy;
 		deluge::scenes::spec::UiStackGuard ui_guard;

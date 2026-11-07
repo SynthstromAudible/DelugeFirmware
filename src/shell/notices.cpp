@@ -316,6 +316,10 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// `OLED::removeWorkingAnimation` also takes down a `NOTIFICATION` popup
 			// (`oled.cpp:733-737`), so the banner goes with it -- a no-op when none is stacked.
 			stack_.remove(SceneKind::Notification);
+			if (const NotificationSink* sink = g_notification_sink;
+			    sink != nullptr && sink->remove_working != nullptr) {
+				sink->remove_working();
+			}
 			break;
 		case notify::Notice::Kind::CancelPopup:
 			// `remove`, not `pop`: a popup is `input_transparent()`, so a scene pushed above a
@@ -327,6 +331,9 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// Legacy's `cancelPopup()` is `removePopup()` (`oled.h:164`), which clears the one popup
 			// slot whatever its type (`oled.cpp:253-258`) -- so it takes the banner down too.
 			stack_.remove(SceneKind::Notification);
+			if (const NotificationSink* sink = g_notification_sink; sink != nullptr && sink->cancel_popup != nullptr) {
+				sink->cancel_popup();
+			}
 			break;
 		case notify::Notice::Kind::Notification: {
 			// Legacy's `display->displayNotification(title, value)` (`horizontal_menu.cpp:342`). With a
