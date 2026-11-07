@@ -248,6 +248,11 @@ public:
 	///        `hid/display/screensaver.cpp:113`). The working animation is the shell's own and needs no fact.
 	/// @param inhibit Whether either holds now.
 	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
+	/// @brief Whether `tick` drains the notice queue: the host gives it to whichever consumer shows notices now, so
+	///        one consumer pops each notice, as `main`'s one `display` does. True unless the host says otherwise.
+	void set_owns_notices(bool owns) { owns_notices_ = owns; }
+	/// @brief `set_owns_notices`'s value.
+	bool owns_notices() const { return owns_notices_; }
 
 	/// @brief The clock encoder acceleration is timed on for the next tick (`UiContext::acceleration_clock_ms`).
 	/// @param ms The host's reading of that clock, in milliseconds.
@@ -674,6 +679,8 @@ private:
 	bool tick_open_ = false;
 	/// Whether `tick()` has ever run, so the first tick's `dt` is 0 rather than the boot clock.
 	bool ticked_ = false;
+	/// `set_owns_notices`.
+	bool owns_notices_ = true;
 	/// How many LED declarations named a board LED at or past `LedFrame::kMaxEntries` and could
 	/// therefore neither be diffed nor sent. Should stay at zero; non-zero means the board profile
 	/// has outgrown the shadow arrays.

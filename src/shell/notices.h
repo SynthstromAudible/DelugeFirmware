@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::ui::shell {
 
@@ -414,6 +415,10 @@ public:
 	/// @param now_ms     The tick's wall clock.
 	void show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms);
 
+	/// @brief Whether a popup was re-targeted in place since the last call, and clear it. A re-target changes no stack,
+	///        so the shell repaints on this instead: legacy's `popupText` redraws on every call.
+	bool take_popup_retargeted() { return std::exchange(popup_retargeted_, false); }
+
 	/// @brief Remove the popup once it has expired, the working scene once it has been cleared, and
 	///        the console strip once every line it ever showed has expired (`ConsoleScene::any_active`).
 	///
@@ -482,6 +487,7 @@ private:
 	NotificationScene& notification_;
 	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
 	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
+	bool popup_retargeted_ = false;
 };
 
 } // namespace deluge::ui::shell

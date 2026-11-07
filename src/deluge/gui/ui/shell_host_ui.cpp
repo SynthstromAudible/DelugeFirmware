@@ -34,6 +34,7 @@
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
+#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
@@ -487,6 +488,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// shell's own scene.
 	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
+	shell_.set_owns_notices(getCurrentUI() == this);
 	shell_.tick(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
@@ -685,7 +687,10 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 }
 
 void ShellHostUI::wakeForPendingFacts() {
-	if (getCurrentUI() == this && deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)) {
+	// A notice left for this guest's shell (`drain_notifications` skips the queue while it is current) wakes it too.
+	if (getCurrentUI() == this
+	    && (deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)
+	        || deluge::notify::notices().size() != 0)) {
 		armTickSoon();
 	}
 }

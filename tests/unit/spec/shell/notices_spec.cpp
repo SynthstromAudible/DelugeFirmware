@@ -391,6 +391,19 @@ describe shell_notices("shell::Notices", $ {
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 
+	it("a popup re-targeted in place asks for a repaint, once", _ {
+		// Legacy's `popupText` redraws on every call. A re-target changes no stack, so the shell's stack-change repaint
+		// cannot see it; `Notices` says so instead.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "FIRST"));
+		r.notices.drain(r.queue, 0);
+		expect(r.notices.take_popup_retargeted()).to_be_false(); // the push changed the stack
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SECOND"));
+		r.notices.drain(r.queue, 10);
+		expect(r.notices.take_popup_retargeted()).to_be_true();
+		expect(r.notices.take_popup_retargeted()).to_be_false();
+	});
+
 	it("a popup is drawn over what the scene beneath shows on the OLED, as legacy's is composited", _ {
 		// `OLED::sendMainImage` (`hid/display/oled.cpp:364-376`) draws a popup onto the image the UI beneath left, so
 		// around the popup's window the screen still shows that UI. Transparent on Main is what makes the shell's

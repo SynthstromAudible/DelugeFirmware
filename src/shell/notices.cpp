@@ -395,9 +395,8 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 	// scene may have been legitimately `Push`ed above a live popup (it is `input_transparent()`, so
 	// that scene still has input), and testing `top()` alone would read that scene's kind, not the
 	// popup's, and push a second `SceneKind::Popup` entry pointing at this same instance.
-	// Re-targeting in place changes no stack, so on a tick with no input the panel can keep the old
-	// text until something else asks for a frame; `drain()`'s `Notification` case avoids that for the
-	// banner by removing and pushing again.
+	// Re-targeting in place changes no stack, so it raises `popup_retargeted_` for `Shell::tick` to
+	// repaint on.
 	bool popup_stacked = false;
 	for (Scene* scene : stack_.scenes()) {
 		if (scene->kind() == SceneKind::Popup) {
@@ -405,7 +404,10 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 			break;
 		}
 	}
-	if (!popup_stacked) {
+	if (popup_stacked) {
+		popup_retargeted_ = true;
+	}
+	else {
 		stack_.push(SceneId{SceneKind::Popup});
 	}
 }

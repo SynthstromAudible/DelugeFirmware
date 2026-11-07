@@ -126,6 +126,11 @@ void drain_notifications() {
 		}
 	}
 
+	// One consumer: while the guest is the current UI its shell shows notices (`Shell::set_owns_notices`), so they are
+	// left on the queue for it.
+	if (getCurrentUI() == &shellHostUI) {
+		return;
+	}
 	Notice n;
 	while (notices().pop(n)) {
 		switch (n.kind) {
