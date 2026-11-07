@@ -163,7 +163,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 		if (target.bind.permitted == nullptr || target.bind.permitted(ctx)) {
 			auto detents = static_cast<int32_t>(
 			    turned
-			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.now_ms()) / 1000.0,
+			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.acceleration_clock_ms()) / 1000.0,
 			                                       deluge::ui::kHorizontalMenuAcceleration));
 			if (target.bind.reverse_in_horizontal != nullptr && target.bind.reverse_in_horizontal(ctx)) {
 				detents = -detents;

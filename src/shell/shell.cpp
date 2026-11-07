@@ -606,6 +606,7 @@ UiContext Shell::make_context(uint32_t now_ms) const {
 	    .now_ms = now_ms,
 	    .profile = profile_,
 	    .lowering = &lowering_,
+	    .acceleration_clock_ms = lowering_.acceleration_clock_ms(),
 	};
 }
 

@@ -173,6 +173,10 @@ struct UiContext {
 	/// The lowering that produced the event, or null in a context built without one (a spec, or a
 	/// synthesised event). Null makes `press_used_up` false and `held_since` zero.
 	const InputLowering* lowering = nullptr;
+	/// The clock an encoder's acceleration is timed on, in milliseconds: legacy times it on the scheduler's clock
+	/// (`EncoderAcceleration::advance(…, getSystemTime(), …)`) while its UI timers, and `now_ms`, run on audio
+	/// samples. 0 in a context built without one.
+	uint32_t acceleration_clock_ms = 0;
 
 	/// @brief Has \p b's current press already been consumed by something else?
 	///

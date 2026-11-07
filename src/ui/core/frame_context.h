@@ -355,6 +355,10 @@ struct FrameInput {
 	///       arms the gate with a real deadline.
 	/// @return The current tick's clock, in milliseconds.
 	uint32_t now_ms() const { return ctx.input.now_ms; }
+	/// @brief The clock an encoder's acceleration is timed on (`UiContext::acceleration_clock_ms`).
+	/// @note Not masked, as `now_ms()`.
+	/// @return Its reading this tick, in milliseconds.
+	uint32_t acceleration_clock_ms() const { return ctx.input.acceleration_clock_ms; }
 	/// @brief The shift level.
 	///
 	/// @note Not masked: it modifies another gesture rather than being one, and focus arbitrates

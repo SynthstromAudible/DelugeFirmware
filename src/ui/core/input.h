@@ -87,6 +87,9 @@ struct InputSnapshot {
 	std::span<const PadEvent> pads; // this tick's pad events; grid frames filter by region
 	PadMask held_pads{};            // pads currently down, absolute coordinates; the level to `pads`' edges
 	uint32_t now_ms;
+	/// The clock an encoder's acceleration is timed on, in milliseconds, apart from `now_ms` as legacy keeps it
+	/// apart: 0 when the host gives none.
+	uint32_t acceleration_clock_ms = 0;
 	/// Is the Select button down? A level, like `shift`: legacy's `Buttons::isButtonPressed(SELECT_ENC)`, which a
 	/// value edit reads to use up the press it is turning under (`Value::selectEncoderAction`).
 	bool select_held = false;

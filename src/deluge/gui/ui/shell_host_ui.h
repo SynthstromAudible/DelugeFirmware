@@ -388,6 +388,12 @@ public:
 	///         the wrap costs one interval, not correctness.
 	uint32_t nowMs() const;
 
+	/// @brief The clock legacy times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
+	///        `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
+	///        milliseconds. Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
+	/// @return Milliseconds since the scheduler started; 0 before it has.
+	static uint32_t accelerationClockMs();
+
 private:
 	/// The milliseconds `nowMs()` counts from the audio-sample counter; a reading moves it on, hence `mutable`.
 	mutable SampleClockMs clock_;

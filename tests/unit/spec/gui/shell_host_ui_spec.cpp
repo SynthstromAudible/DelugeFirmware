@@ -96,10 +96,11 @@ public:
 		bool shift;
 		bool sticky;
 		uint32_t now_ms;
+		uint32_t acceleration_clock_ms;
 	};
 
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
-		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
+		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms, ctx.acceleration_clock_ms});
 		if (remove_self_on_event) {
 			// `MenuScene`'s answer to Back at depth 0 (`MenuScene::handle_event`'s Back arm),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
@@ -2391,6 +2392,30 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.shell().tick(1);
 		expect(r.base.seen.empty()).to_be_true();
 		expect(r.guest.shell().lowering().had_input_this_tick()).to_be_false();
+	});
+
+	it("times encoder acceleration on the scheduler's clock, as legacy does, apart from the UI clock", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		AudioEngine::audioSampleTimer = 100 * 44;
+		fakelegacyui::system_time_s = 1.5;
+		(void)r.guest.timerCallback();
+		expect(r.guest.shell().lowering().acceleration_clock_ms()).to_equal(uint32_t(1500));
+		expect(r.guest.shell().lowering().snapshot().acceleration_clock_ms).to_equal(uint32_t(1500));
+		expect(r.guest.shell().lowering().snapshot().now_ms).to_equal(uint32_t(100));
+	});
+
+	it("hands a routed event both clocks: the UI's and the one acceleration is timed on", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		AudioEngine::audioSampleTimer = 250 * 44;
+		fakelegacyui::system_time_s = 2.0;
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
+		(void)r.guest.timerCallback();
+		expect(r.base.seen.empty()).to_be_false();
+		expect(r.base.seen.back().now_ms).to_equal(uint32_t(250));
+		expect(r.base.seen.back().acceleration_clock_ms).to_equal(uint32_t(2000));
 	});
 
 	it("stamps events with the clock nowMs() reads, not the tick's", _ {

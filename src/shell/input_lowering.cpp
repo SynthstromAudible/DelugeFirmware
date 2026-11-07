@@ -166,6 +166,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
+	snap_.acceleration_clock_ms = acceleration_clock_ms_;
 	in_snapshot_ = queue_count_;
 }
 

@@ -316,7 +316,9 @@ struct DirectCtx {
 	deluge::ui::shell::ButtonSet held{};
 	deluge::ui::PadMask pads{};
 	UiContext ctx;
-	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
+	/// Both clocks at @p now_ms: the tick's, and the one acceleration is timed on.
+	explicit DirectCtx(uint32_t now_ms = 0)
+	    : ctx{held, pads, false, false, now_ms, deluge_profile(), nullptr, now_ms} {}
 };
 
 /// A gold-knob turn event.
@@ -1349,6 +1351,35 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(differences(param_snapshot(slow_clip->paramManager), param_snapshot(lowered_clip->paramManager)))
 		    .to_equal(0);
 		display = nullptr;
+	});
+
+	it("times the acceleration on its own clock, not the tick's", _ {
+		// Four turns 10 ms apart on the tick's clock but a second apart on the acceleration clock: no ramp, so the
+		// knob moves as far as four slow turns do.
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* split_clip = f.clip;
+		InstrumentClip* slow_clip = add_synth_clip(f.song, "1");
+		seed_params(split_clip->paramManager, 0);
+		seed_params(slow_clip->paramManager, 0);
+		const auto turn_four = [&](InstrumentClip* clip, uint32_t tick_step, uint32_t clock_step) {
+			KnobRig rig;
+			rig.set_song(f.song);
+			rig.set_target_with_timeline(clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * tick_step};
+				c.ctx.acceleration_clock_ms = 1000 + i * clock_step;
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			}
+		};
+		const std::vector<int32_t> untouched = param_snapshot(slow_clip->paramManager);
+		turn_four(split_clip, 10, 1000);
+		turn_four(slow_clip, 1000, 1000);
+		expect(differences(untouched, param_snapshot(slow_clip->paramManager)) > 0).to_be_true();
+		expect(differences(param_snapshot(split_clip->paramManager), param_snapshot(slow_clip->paramManager)))
+		    .to_equal(int32_t{0});
 	});
 
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
