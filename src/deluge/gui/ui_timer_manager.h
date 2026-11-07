@@ -49,6 +49,8 @@ enum class TimerName {
 	MOD_ENCODER_POPUP_FLUSH,
 	SELECTED_CLIP_PULSE,
 	TRACK_LOCK_PULSE,
+	/// Fires when a held pad outlasts a short press, so its track pulse starts on time
+	TRACK_HOLD_PULSE,
 	SELECTED_NOTE_PULSE,
 	/// Idle countdown before the screensaver appears, then its frame clock while it shows
 	SCREENSAVER,

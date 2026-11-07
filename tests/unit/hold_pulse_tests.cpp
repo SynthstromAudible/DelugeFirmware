@@ -51,3 +51,22 @@ TEST(HoldPulseTest, AudioTimerWrapDoesNotTurnTapIntoHold) {
 	CHECK_FALSE(pulse.update(output, 0, 100));
 	CHECK(pulse.update(output, 50, 100));
 }
+
+TEST(HoldPulseTest, RemainingCountsDownToTheHold) {
+	HoldPulse pulse;
+	auto* output = reinterpret_cast<Output*>(0x1000);
+	CHECK_EQUAL(0u, pulse.remaining(100, 100));
+	pulse.update(output, 100, 100);
+	CHECK_EQUAL(100u, pulse.remaining(100, 100));
+	CHECK_EQUAL(1u, pulse.remaining(199, 100));
+	CHECK_EQUAL(0u, pulse.remaining(200, 100));
+	pulse.update(output, 200, 100);
+	CHECK_EQUAL(0u, pulse.remaining(200, 100));
+}
+
+TEST(HoldPulseTest, RemainingSurvivesAudioTimerWrap) {
+	HoldPulse pulse;
+	auto* output = reinterpret_cast<Output*>(0x1000);
+	pulse.update(output, UINT32_MAX - 49, 100);
+	CHECK_EQUAL(50u, pulse.remaining(0, 100));
+}

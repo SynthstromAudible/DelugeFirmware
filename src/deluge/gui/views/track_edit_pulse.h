@@ -26,9 +26,11 @@ class Output;
 namespace deluge::gui::track_edit_pulse {
 
 void pulseTimer();
+// Re-check a held pad once it outlasts a short press; see scheduleHoldCheck().
+void holdTimer();
 void resetHeldPulse();
-// Keep the pulse timer running while a pad press may still become a hold.
-void keepTicking();
+// Re-check the held pad after `samples`, the moment its press stops being a short press.
+void scheduleHoldCheck(uint32_t samples);
 // Refresh the cached pulse overlay only when rendering the live LED image.
 void clearPulseRow(RGB* row, int32_t y, bool sidebar = false);
 RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y, bool held = false);
