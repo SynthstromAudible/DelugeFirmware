@@ -507,12 +507,13 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		r.handled = true;
 		return r;
 
-	case ButtonId::Record: // `:173-203`
+	case ButtonId::Record: // `Buttons::buttonAction`'s RECORD arm
 		if (on) {
-			// `:176` `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `:178`
-			// `recordButtonPressUsedUp = false` are both already done by
-			// `InputLowering::on_button`, which stamps the press
-			// clock and clears the used-up bit for every button on its own press.
+			// The press is the tail's: its release may toggle recording. A press a scene takes never reaches here.
+			record_press_ms_ = lowering_.last_press_ms(ButtonId::Record);
+			// `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `recordButtonPressUsedUp = false` are both
+			// already done by `InputLowering::on_button`, which stamps the press clock and clears the used-up bit for
+			// every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
 					// `:182` `audioRecorder.beginOutputRecording()` -- @warning not ported, as
@@ -531,8 +532,12 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			//          never through `notify::` or `shell::PopupScene`, so this layer has no way to
 			//          ask. Legacy's short RECORD tap with that popup up dismisses it and does
 			//          nothing else; here it falls through and toggles recording.
-			if (!lowering_.press_used_up(ButtonId::Record)
-			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) { // `:193-194`
+			// Only the release of a press the tail took toggles: the sample browser's RECORD and the recorder's stop
+			// take their press, and their release must not arm or disarm recording.
+			const bool own_press =
+			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
+			if (own_press && !lowering_.press_used_up(ButtonId::Record)
+			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
 				// `:195-197` `audioRecorder.isCurrentlyResampling()` ->
 				// `audioRecorder.endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
 				// ported; `isCurrentlyResampling` reads `audioRecorder.recorder`'s status

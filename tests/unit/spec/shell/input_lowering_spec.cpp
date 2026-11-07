@@ -601,6 +601,18 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.was_short_press(ButtonId::Record, 0)).to_be_false();
 		expect(in.was_short_press(ButtonId::Record, 10)).to_be_false();
 	});
+
+	it("last_press_ms names the most recent press, held or released, and nothing before the first", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.last_press_ms(ButtonId::Play).has_value()).to_be_false();
+		in.begin_tick(100);
+		in.on_board_event(button_ev(8, 3, true), 100);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		in.on_board_event(button_ev(8, 3, false), 150);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		in.on_board_event(button_ev(8, 3, true), 900);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{900}).to_be_true();
+	});
 });
 // clang-format on
 

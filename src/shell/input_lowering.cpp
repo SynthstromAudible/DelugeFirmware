@@ -569,6 +569,14 @@ bool InputLowering::was_short_press(ButtonId b, uint32_t now_ms) const {
 	return i < kButtonCount && ever_pressed_.has(b) && (now_ms - press_time_[i]) < cfg_.short_press_ms;
 }
 
+std::optional<uint32_t> InputLowering::last_press_ms(ButtonId b) const {
+	const size_t i = static_cast<size_t>(b);
+	if (i >= kButtonCount || !ever_pressed_.has(b)) {
+		return std::nullopt;
+	}
+	return press_time_[i];
+}
+
 double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms) {
 	// `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp`): legacy's curve, one per role, on this clock.
 	const size_t r = static_cast<size_t>(role);
