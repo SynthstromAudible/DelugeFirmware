@@ -205,8 +205,23 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
 
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEdit], STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT,
+	// Track Edit and its related settings (shown in the Track Edit submenu)
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEdit], STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_ENABLED,
 	                  "trackEdit", RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditGridRow],
+	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_GRID_ROW, "trackEditGridRow",
+	                  RuntimeFeatureStateToggle::On);
+	auto& track_edit_pulse = settings[RuntimeFeatureSettingType::TrackEditPulseClip];
+	track_edit_pulse.displayName = STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_PULSE_CLIP;
+	track_edit_pulse.xmlName = "trackEditPulseClip";
+	track_edit_pulse.value = static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::HoldTrack);
+	track_edit_pulse.options = {
+	    {l10n::getView(STRING_FOR_OFF), static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::Off)},
+	    {l10n::getView(STRING_FOR_TRACK_EDIT_PULSE_HOLD_TRACK),
+	     static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::HoldTrack)},
+	    {l10n::getView(STRING_FOR_TRACK_EDIT_PULSE_HOLD_TRACK_OR_CLIP),
+	     static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::HoldTrackOrClip)},
+	};
 
 	// Shortcut Overlay
 	auto& overlay = settings[RuntimeFeatureSettingType::ShortcutOverlay];

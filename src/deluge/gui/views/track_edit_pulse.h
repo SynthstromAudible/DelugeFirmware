@@ -25,6 +25,10 @@ class Output;
 /// Cached pad animation shared by Session and arranger track editing.
 namespace deluge::gui::track_edit_pulse {
 
+// Pulse Clip setting: whether a held track pad / audition pad, or a held clip of a locked track, pulses the clips.
+bool pulsesHeldTrack();
+bool pulsesHeldClip();
+
 // A Track Edit setting changed: drop cached pulses and redraw the view underneath, so no pad keeps a stale
 // lock or held pulse (e.g. a locked track's pad after Track Edit is turned off).
 void settingsChanged();
