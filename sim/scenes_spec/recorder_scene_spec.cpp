@@ -36,6 +36,8 @@
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
@@ -225,12 +227,9 @@ struct Rig {
 
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 
-	/// @brief Press a button down. `ButtonId` -> board matrix coordinate, so the shell's own
-	///        lowering runs rather than a synthesised `UiEvent`.
-	///
-	/// Press only, no release: `AudioRecorder::buttonAction` acts on the press and refuses the
-	/// release outright (`AudioRecorder::buttonAction`).
-	void press(ButtonId b, uint32_t at_ms) {
+	/// @brief Press or release a button. `ButtonId` -> board matrix coordinate, so the shell's own lowering runs
+	///        rather than a synthesised `UiEvent`.
+	void button(ButtonId b, bool down, uint32_t at_ms) {
 		const std::span<const ButtonId> matrix = profile.button_by_matrix;
 		for (size_t i = 0; i < matrix.size(); i++) {
 			if (matrix[i] != b) {
@@ -238,9 +237,34 @@ struct Rig {
 			}
 			const auto x = static_cast<uint8_t>(i % profile.button_cols);
 			const auto y = static_cast<uint8_t>(i / profile.button_cols);
-			shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, 255}, at_ms);
+			shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(down ? 255 : 0)},
+			                     at_ms);
 			return;
 		}
+	}
+	/// @brief Press a button down. `AudioRecorder::buttonAction` acts on the press and refuses the release.
+	void press(ButtonId b, uint32_t at_ms) { button(b, true, at_ms); }
+	/// @brief Release a button.
+	void release(ButtonId b, uint32_t at_ms) { button(b, false, at_ms); }
+	/// @brief Press or release grid pad (@p x, @p y).
+	void pad(uint8_t x, uint8_t y, bool down, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(down ? 64 : 0)}, at_ms);
+	}
+	/// @brief Open the sound menu on @p node with the horizontal-menus feature on, as the ShellMenu card has it.
+	void open_menu(const menu::Node& node) {
+		MenuContext c = ctx();
+		c.horizontal_menus = true;
+		menu_scene().open(node, c);
+		shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
+	}
+	/// @brief Is a scene of @p kind on the stack?
+	bool has(deluge::ui::shell::SceneKind kind) {
+		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
+			if (s->kind() == kind) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool on_stack() {
@@ -1191,6 +1215,50 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r64.tick(deluge::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "../ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
 		recorder_scene().recorder()->numSamplesCaptured = 0;
+	});
+
+	// --- the SAMPLE RECORDER page ---------------------------------------------------------------------
+
+	it("lands Shift + its shortcut pad on the SAMPLE RECORDER page, focused on source 0's item, and opens nothing", _ {
+		// `SoundEditor::setup` asks `maybeGetParentMenu` for the chain page that lists the item and begins that page,
+		// focused on it (`recorderMenu`); only a select there opens the recorder.
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::source0);
+		r.tick(0);
+		r.press(ButtonId::Shift, 10);
+		r.tick(10);
+		r.pad(0, 4, true, 20);
+		r.tick(20);
+		r.pad(0, 4, false, 30);
+		r.tick(30);
+		r.release(ButtonId::Shift, 40);
+		for (uint32_t at = 40; at <= 80; at += 10) {
+			r.tick(at);
+		}
+		expect(menu::node_id(menu::nodes::recorder) != 0).to_be_true();
+		expect(menu_scene().state().path[0] == &menu::nodes::recorder).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(0);
+		expect(r.on_stack()).to_be_false();
+		expect(recorder_scene().recording()).to_be_false();
+	});
+
+	it("opens from a select on that page, over the page", _ {
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::recorder);
+		r.tick(0);
+		r.press(ButtonId::SelectEnc, 10);
+		r.tick(10);
+		r.release(ButtonId::SelectEnc, 20);
+		for (uint32_t at = 20; at <= 50; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		expect(menu_scene().state().path[0] == &menu::nodes::recorder).to_be_true();
+		expect(menu_scene().state().depth).to_equal(1);
+		expect(menu_scene().state().path[1] == &menu::nodes::sample0_recorder).to_be_true();
 	});
 });
 // clang-format on

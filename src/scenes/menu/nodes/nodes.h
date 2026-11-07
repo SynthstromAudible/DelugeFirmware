@@ -155,8 +155,12 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// The menu groups (`groups.h`) follow, for the same reason as `multi_range`: only the horizontal-menu chains reach
 /// them, so without a place here a shortcut could not land on one.
 ///
-/// The DX7 cartridge page (`dx_cartridge`) is last, for the same reason: the `.syx` browser lands on it and no list
+/// The DX7 cartridge page (`dx_cartridge`) follows, for the same reason: the `.syx` browser lands on it and no list
 /// names it.
+///
+/// The SAMPLE RECORDER page (`recorder`) follows the cartridge page: only the horizontal-menu chains list it, so
+/// without a place here the shortcut to an oscillator's recorder could not land on it, and `MenuPads::arm_landing`
+/// would re-root onto the item itself, which opens the recorder.
 inline constexpr const Node* kAllRootArray[] = {
     &sound_root,
     &root_drum,
@@ -184,6 +188,7 @@ inline constexpr const Node* kAllRootArray[] = {
     &global_reverb_group,
     &source_group,
     &dx_cartridge,
+    &recorder,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 

@@ -11,12 +11,9 @@
 # false of this one.)
 #
 # **Then the shortcut door**, (0,4) of `kSoundCells` (`menu/shortcuts.cpp`, legacy's own
-# `paramShortcutsForSounds` cell). The contrast between the two closes is the point of the script:
-# the ordinary door leaves the item at **depth 2**, where `MenuState::go_up_on_resume` has a level to
-# ascend to, and the close lands back on the ACTIONS list. The shortcut jump re-roots the path onto
-# the item itself (`MenuScene::handle`'s `Replace`), so it sits at **depth 0**, and going up from
-# there closes the menu, as `goUpOneLevel`'s `exitCompletely()` arm does.
-# `after_stop` and `after_shortcut_stop` are those two outcomes, side by side.
+# `paramShortcutsForSounds` cell). `setup()` lands on the chain page that lists the item -- the SAMPLE RECORDER page,
+# focused on it -- exactly as the ordinary door's second select did, and opens nothing; a select there opens the
+# recorder. `after_shortcut` is the page, `after_shortcut_open` the recorder over it.
 #
 # **The recorder here is real.** `on_enter` allocates a genuine `SampleRecorder` through
 # `AudioEngine::getNewRecorder` and publishes it with `AudioEngine::setForegroundRecording`, exactly
@@ -61,8 +58,11 @@
 800   pad 0 4 down 64
 820   pad 0 4 up
 830   button Shift up
-900   snapshot after_shortcut        # the same screen, reached by the other door
-1000  button Back down
-1020  button Back up
-1100  snapshot after_shortcut_stop   # the menu closed: going up from depth 0
-1200  quit
+900   snapshot after_shortcut        # the SAMPLE RECORDER page, focused on source 0's item; nothing opened
+950   button SelectEnc down
+970   button SelectEnc up
+1000  snapshot after_shortcut_open   # the recorder, over the page
+1100  button Back down
+1120  button Back up
+1200  snapshot after_shortcut_stop   # the take aborted and closed; `go_up_on_resume` stepped out of the item
+1300  quit
