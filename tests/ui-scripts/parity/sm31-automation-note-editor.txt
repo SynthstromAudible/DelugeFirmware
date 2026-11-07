@@ -1,0 +1,44 @@
+# ShellMenu: the note editor from the automation view. From the synth clip, CLIP opens the automation overview and a
+# pad selects LPF FREQUENCY; SHIFT + (0,7) turns pad selection on; with a grid pad held, SELECT opens the note editor
+# (NOTE EDITOR's VELO PROB ITER FILL page), not the sound menu. Then, in the note editor: the held pad's release, a
+# Vertical turn, a grid press, SHIFT + a shortcut pad and a Select turn (the SELECT NOTE popup, read 100 ms after the
+# turn); BACK leaves the note editor for the automation overview. No Horizontal turn: with no note under the held pad,
+# main's note editor freezes on one (E379). The black encoders' first turns each drop a detent, so each turn is +2.
+# Every other snapshot has a 1 s window (the pad-selection shortcut's blink). Run on the ShellMenu card.
+100   snapshot boot
+300   button Clip down
+320   button Clip up
+1320  snapshot overview
+2320  pad 8 7 down
+2360  pad 8 7 up
+3360  snapshot editor
+4360  button Shift down
+4560  pad 0 7 down
+4600  pad 0 7 up
+4800  button Shift up
+5800  snapshot pad_selection
+6800  pad 4 3 down
+7000  snapshot pad_held
+8000  button SelectEnc down
+8020  button SelectEnc up
+9020  snapshot note_editor
+10020 pad 4 3 up
+11020 snapshot pad_released
+14020 encoder Vertical +2
+15020 snapshot vertical
+16020 pad 6 2 down
+16220 pad 6 2 up
+17220 snapshot grid_press
+18220 button Shift down
+18420 pad 8 6 down
+18460 pad 8 6 up
+18660 button Shift up
+19660 snapshot shift_pad
+20660 encoder Select +2
+20760 snapshot turned
+22660 button Back down
+22680 button Back up
+23680 snapshot back
+24680 button Back down
+24700 button Back up
+25700 snapshot back2

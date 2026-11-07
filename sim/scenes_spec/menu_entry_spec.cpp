@@ -36,6 +36,7 @@
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/ui.h"
 #include "util/shell_menu_entry.h"
 
@@ -44,14 +45,18 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/screensaver.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -892,8 +897,99 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		currentSong = saved_song;
 	});
 });
+namespace {
+/// @brief The automation view as the root, a pad held with pad selection on, and the toggle on; all put back.
+struct HeldPadInAutomation {
+	deluge::hid::display::OLED oled_display;
+	deluge::hid::Display* saved_display = display;
+	uint32_t saved_mode = currentUIMode;
+	bool saved_pad_selection = automationView.padSelectionOn;
+	bool saved_arranger = automationView.onArrangerView;
+	RootUIGuard root_guard;
+	explicit HeldPadInAutomation(bool arranger = false) {
+		display = &oled_display;
+		setRootUILowLevel(&automationView);
+		automationView.onArrangerView = arranger;
+		automationView.padSelectionOn = true;
+		currentUIMode = UI_MODE_NOTES_PRESSED;
+	}
+	~HeldPadInAutomation() {
+		currentUIMode = saved_mode;
+		automationView.padSelectionOn = saved_pad_selection;
+		automationView.onArrangerView = saved_arranger;
+		display = saved_display;
+	}
+	HeldPadInAutomation(const HeldPadInAutomation&) = delete;
+	HeldPadInAutomation& operator=(const HeldPadInAutomation&) = delete;
+	/// The press `AutomationView::buttonAction` routes to `handleSelectEncoderButtonAction`.
+	void select() { (void)automationView.buttonAction(deluge::hid::button::SELECT_ENC, true); }
+};
+} // namespace
+
+describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what setup(clip) infers", $ {
+	// The note leaves read through the note bridge, which boot wires (`deluge.cpp`) and this binary does not.
+	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
+
+	it("opens the note editor on an instrument clip, wiping the undo log as setup() does with no item", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		HeldPadInAutomation held;
+		// `ActionLogger::getNewAction` takes an action only while the root is the current UI, which it is here.
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+
+		held.select();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		// `setup(clip)` with no item wipes before it picks `noteEditorRootMenu`, unlike `enterNoteEditor`'s named root.
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("leaves a kit's affect-entire on, where enterNoteEditor clears it", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		auto* clip = static_cast<InstrumentClip*>(kit.clip);
+		clip->affectEntire = true;
+		HeldPadInAutomation held;
+
+		held.select();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(clip->affectEntire).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_true();
+		closeGuest();
+		clip->affectEntire = false;
+	});
+
+	it("opens an audio clip's root, and the arranger's song root, as setup() does under the same mode", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
+		{
+			HeldPadInAutomation held;
+			// The press's LED refresh asks the root UI for affect-entire, and `AutomationView::getAffectEntire` reads
+			// `getCurrentInstrumentClip()->affectEntire` with no audio-clip arm: on the device a read of a low address,
+			// here a fault. The gate reads only the clip, so this half keeps the audio clip view as the root.
+			setRootUILowLevel(&audioClipView);
+			held.select();
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+			closeGuest();
+		}
+		{
+			HeldPadInAutomation held{/*arranger=*/true};
+			held.select();
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+			closeGuest();
+		}
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn)
+            menu_entry_midi_learn, menu_entry_automation_notes)

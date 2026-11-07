@@ -1453,25 +1453,24 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			return;
 		}
 
-		// Site 7 of `gui/ui/shell_menu_entry.cpp`'s table, and the one that is
-		// **conditionally** gated. This arm also runs under `UI_MODE_NOTES_PRESSED &&
-		// padSelectionOn` (`:1593`), where `setup(clip)` picks `noteEditorRootMenu`
-		// (`gui/ui/sound_editor.cpp:1774-1776`) from a UI mode `src/scenes` may not read. The ported
-		// menu reaches that root only through `NoteMode` (`util/shell_menu_entry.h`), which
-		// `InstrumentClipView::enterNoteEditor` passes (site 12) and this arm does not. So that case
-		// falls through to the legacy statements, which are otherwise unchanged.
-		if (deluge::gui::ui::shellMenuEnabled() && currentUIMode == UI_MODE_NONE) {
-			// `onArrangerView` is both halves of the mapping at once: it is why the clip is null,
-			// and it is `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only
-			// when it is over a clip. With a null clip `setup()` takes `:1802-1805`'s
-			// `soundEditorRootMenuSongView`, and `sessionViewRoot` stays false because
-			// `getRootUI()` is the automation view, not the session view.
+		// Site 7 of `gui/ui/shell_menu_entry.cpp`'s table. Under `UI_MODE_NOTES_PRESSED` (pad selection on, a pad
+		// held) `setup(clip)` opens the note editor on an instrument clip; `src/scenes` may not read the UI mode, so
+		// the mode is named here, as `setup()` infers it: the undo log wiped, a kit's affect-entire left on. An audio
+		// clip, or the arranger's null clip, opens the root it opens under `UI_MODE_NONE`.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			// `onArrangerView` is both halves of the mapping at once: it is why the clip is null, and it is
+			// `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only when it is over a clip. With a
+			// null clip `setup()` opens the song root, and `sessionViewRoot` stays false because `getRootUI()` is the
+			// automation view, not the session view.
 			Clip* clip = onArrangerView ? nullptr : getCurrentClip();
 			const bool kitGlobalFx =
 			    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
-			(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-			                                     /*sessionOrArrangerRoot=*/onArrangerView,
-			                                     /*sessionViewRoot=*/false, kitGlobalFx);
+			const bool noteEditor =
+			    currentUIMode == UI_MODE_NOTES_PRESSED && clip != nullptr && clip->type == ClipType::INSTRUMENT;
+			(void)deluge::gui::ui::openShellMenu(
+			    clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/onArrangerView,
+			    /*sessionViewRoot=*/false, kitGlobalFx, deluge::gui::ui::ShellMenuNode::ContextRoot,
+			    noteEditor ? deluge::gui::ui::NoteMode::NoteEditorFromUiMode : deluge::gui::ui::NoteMode::None);
 		}
 		else {
 			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {

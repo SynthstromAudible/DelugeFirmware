@@ -140,10 +140,15 @@ enum class ShellMenuNode : uint8_t {
 enum class NoteMode : uint8_t {
 	/// @brief Use whatever root `context_for` resolved -- every caller except the note family.
 	None,
-	/// @brief `MenuContext::Root::NoteEditor`.
+	/// @brief `MenuContext::Root::NoteEditor`, named as `enterNoteEditor` names `noteEditorRootMenu`: the undo log is
+	///        kept and a kit's `affectEntire` is cleared.
 	NoteEditor,
-	/// @brief `MenuContext::Root::NoteRowEditor`.
+	/// @brief `MenuContext::Root::NoteRowEditor`, named as `enterNoteRowEditor` names its root: the same two rules.
 	NoteRowEditor,
+	/// @brief `MenuContext::Root::NoteEditor` as `setup(clip)` infers it under `UI_MODE_NOTES_PRESSED` with no item
+	///        named (the automation view's SELECT): the undo log is wiped as for any inferred root, and a kit's
+	///        `affectEntire` is left as it is.
+	NoteEditorFromUiMode,
 };
 
 /// @brief Is the ported menu the one the fifteen entry points should open?
@@ -170,13 +175,11 @@ bool shellMenuEnabled();
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
 /// @param kitGlobalFx            `setup()`'s `setupKitGlobalFXMenu` member.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
-/// @param noteMode               Override the resolved root with `NoteEditor`/
-///                               `NoteRowEditor`, the way `enterNoteEditor`/`enterNoteRowEditor`
-///                               name an explicit item instead of letting `setup()` infer one from
-///                               `currentUIMode`. `None` for every other caller. Also stands the
-///                               undo-log wipe down for either value: legacy's
-///                               explicit-item call never takes `setup()`'s `item == nullptr` arm,
-///                               so a note-editor/note-row-editor open must not wipe either.
+/// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
+///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
+///                               `enterNoteEditor`/`enterNoteRowEditor`'s explicit item: no undo-log wipe, and the
+///                               kit `affectEntire` clear. `NoteEditorFromUiMode` is `setup(clip)`'s own inference:
+///                               the wipe, no clear. `None` for every other caller.
 /// @return Whether the guest is now open. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
