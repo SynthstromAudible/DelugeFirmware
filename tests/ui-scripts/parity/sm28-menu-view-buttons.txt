@@ -1,0 +1,38 @@
+# ShellMenu: the sound menu's view buttons. From the synth clip, SELECT opens the sound menu over the clip view;
+# KEYBOARD swaps the root to the keyboard screen under the menu and KEYBOARD again swaps it back. SYNC-SCALING is held
+# and released (with syncScalingAction Fill it holds fill mode and lights its LED; otherwise it does nothing). BACK
+# closes the menu; CLIP enters the automation view and SELECT opens the menu over it, where KEYBOARD leaves for the
+# keyboard screen and KEYBOARD again returns to the automation view. SESSION leaves the menu for the session view.
+# Every snapshot has a 1 s window. Run on the ShellMenu card and on its Fill variant.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1300  snapshot menu
+1600  button Keyboard down
+1620  button Keyboard up
+2600  snapshot keyboard_in_menu
+2900  button Keyboard down
+2920  button Keyboard up
+3900  snapshot clip_in_menu
+4200  button SyncScaling down
+5200  snapshot sync_held
+5500  button SyncScaling up
+6500  snapshot sync_released
+6800  button Back down
+6820  button Back up
+7800  snapshot menu_closed
+8100  button Clip down
+8120  button Clip up
+9100  snapshot automation
+9400  button SelectEnc down
+9420  button SelectEnc up
+10400 snapshot automation_menu
+10700 button Keyboard down
+10720 button Keyboard up
+11700 snapshot keyboard_from_automation
+12000 button Keyboard down
+12020 button Keyboard up
+13000 snapshot automation_again
+13300 button Session down
+13320 button Session up
+14300 snapshot session

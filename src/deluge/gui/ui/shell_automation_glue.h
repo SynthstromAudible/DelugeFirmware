@@ -42,13 +42,27 @@ namespace deluge::gui::ui {
 /// (`ShellHostUI::refreshRootFacts`): the greyout and the knobs follow the view between its overview and editor.
 void dispatchMenuTransitions();
 
-/// @brief CLIP, X_ENC and KEYBOARD under the menu, where the automation view takes them, as legacy's sound editor
-///        does: CLIP on a param enters the view on it in "menu view" (or leaves it), X_ENC on a param over the view is
-///        the view's, and KEYBOARD over the view leaves it for the keyboard screen.
+/// @brief CLIP and X_ENC under the menu, where the automation view takes them, as legacy's sound editor does: CLIP on a
+///        param enters the view on it in "menu view" (or leaves it), and X_ENC on a param over the view is the view's.
 /// @param b  The button.
 /// @param on Its press (true) or release.
 /// @return What legacy's handler answers when one of these takes the button; nullopt when none does, for the menu.
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool on);
+
+/// @brief `SoundEditor::buttonAction`'s KEYBOARD, SESSION_VIEW and Fill arms under the ported menu, which none of
+///        them gates on the menu's root.
+///
+/// KEYBOARD, on a press with no UI mode over an instrument clip: the clip view and the keyboard screen swap, the
+/// keyboard screen goes back to the automation view when the clip was on it, and the automation view leaves "menu
+/// view" for the keyboard; then the greyout and the KEYBOARD LED. SESSION_VIEW, on a press with no UI mode (or only
+/// the note-row editor's audition): the guest closes at once and the root becomes the arranger when a clip instance
+/// was entered, else the session view. SYNC_SCALING with `syncScalingAction` Fill: fill mode follows the button, press
+/// and release.
+/// @param b  The button.
+/// @param on Its press (true) or release.
+/// @return `DEALT_WITH` for KEYBOARD and SESSION_VIEW under the menu whatever they did, and for SYNC_SCALING under
+///         Fill; nullopt for any other button, or when a scene over the menu takes input.
+std::optional<ActionResult> forwardMenuViewButton(deluge::hid::Button b, bool on);
 
 /// @brief Whether the gold knobs' turns and pushes go to the automation view rather than the menu's knobs: it is the
 ///        root and in its editor (`SoundEditor::modEncoderAction` hands them to the view whenever it is the root; on

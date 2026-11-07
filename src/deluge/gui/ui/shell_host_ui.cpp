@@ -908,8 +908,8 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		return *result;
 	}
 
-	// CLIP, X_ENC and KEYBOARD where the automation view takes them from under the menu (`forwardAutomationButton`):
-	// the param item's own CLIP and X_ENC, and the sound editor's KEYBOARD arm over the view. Below the note forward,
+	// CLIP and X_ENC where the automation view takes them from under the menu (`forwardAutomationButton`): the param
+	// item's own. Below the note forward,
 	// whose roots these never share; the handler may swap the root, so the same guard applies.
 	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
@@ -922,6 +922,16 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// SAVE under the menu is the sound editor's own arm (`forwardMenuSaveButton`): Shift deletes the picker's range, a
 	// plain press opens the save-preset screen, which may leave this guest behind it.
 	if (const std::optional<ActionResult> result = forwardMenuSaveButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// KEYBOARD, SESSION and Fill under the menu are the sound editor's own arms (`forwardMenuViewButton`); KEYBOARD and
+	// SESSION change the root, and SESSION closes this guest, so the same guard applies.
+	if (const std::optional<ActionResult> result = forwardMenuViewButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();

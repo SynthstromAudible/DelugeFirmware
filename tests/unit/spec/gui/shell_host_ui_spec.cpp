@@ -1785,6 +1785,18 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::menu_save_forwards).to_equal(2);
 	});
 
+	it("asks the menu-view forward after SAVE's and returns its answer without feeding", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+		fakelegacyui::menu_view_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.buttonAction(deluge::hid::button::SESSION_VIEW, true) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(fakelegacyui::menu_view_forwards).to_equal(1);
+		expect(r.base.seen.empty()).to_be_true();
+	});
+
 	it("does not consult the note mode for the two gold-knob pushes, whose early return comes first", _ {
 		Rig r;
 		expect(r.open()).to_be_true();

@@ -59,6 +59,8 @@ NoteVerticalCall last_note_vertical{};
 std::optional<ActionResult> note_vertical_answer{};
 int menu_save_forwards = 0;
 std::optional<ActionResult> menu_save_answer{};
+int menu_view_forwards = 0;
+std::optional<ActionResult> menu_view_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -128,6 +130,8 @@ void reset() {
 	note_vertical_answer = std::nullopt;
 	menu_save_forwards = 0;
 	menu_save_answer = std::nullopt;
+	menu_view_forwards = 0;
+	menu_view_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -418,6 +422,11 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
 std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button, bool) {
 	fakelegacyui::menu_save_forwards++;
 	return fakelegacyui::menu_save_answer;
+}
+
+std::optional<ActionResult> forwardMenuViewButton(deluge::hid::Button, bool) {
+	fakelegacyui::menu_view_forwards++;
+	return fakelegacyui::menu_view_answer;
 }
 
 bool automationEditorTakesKnobs() {

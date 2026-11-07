@@ -30,8 +30,12 @@
 /// reached.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_pad_forward.h"
+#include "gui/views/arranger_view.h"
+#include "hid/led/indicator_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 
 #include "definitions_cxx.hpp" // kDisplayWidth
 #include "gui/l10n/l10n.h"
@@ -85,7 +89,18 @@ using deluge::scenes::spec::ShellMenuOn;
 using deluge::scenes::spec::ShiftHeld;
 using deluge::scenes::spec::UiStackGuard;
 
+namespace indicator_leds {
+/// Legacy's LED shadow array (`hid/led/indicator_leds.cpp`), which `setLedState` writes; `indicator_leds.h` does not
+/// declare it.
+extern bool ledStates[];
+} // namespace indicator_leds
+
 namespace {
+
+/// @brief Whether legacy's @p led is lit, as `setLedState` last set it.
+bool led_on(IndicatorLED led) {
+	return indicator_leds::ledStates[static_cast<uint8_t>(led)];
+}
 
 /// The vibrato page's cable, LFO 1 onto pitch, in the automation view's numbering: the cable's descriptor word.
 constexpr int32_t kVibratoCableId = static_cast<int32_t>(
@@ -668,6 +683,136 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SAVE, true);
 		expect(getCurrentUI() == &saveInstrumentPresetUI).to_be_true();
+	});
+
+	it("swaps the clip view and the keyboard screen under the menu on KEYBOARD, and lights KEYBOARD", _ {
+		// `SoundEditor::buttonAction`'s KEYBOARD arm: on a press with no UI mode, over an instrument clip's view.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		fx.clip->onAutomationClipView = false;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(getRootUI() == &keyboardScreen).to_be_true();
+		expect(led_on(IndicatorLED::KEYBOARD)).to_be_true();
+		expect(menu_scene().menu_context().root_is_keyboard).to_be_true(); // the root facts were re-read
+		(void)shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, false); // the release changes nothing
+		expect(getRootUI() == &keyboardScreen).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(led_on(IndicatorLED::KEYBOARD)).to_be_false();
+		expect(shellHostUI.shell().stack().depth() > 0u).to_be_true(); // the menu stays open throughout
+	});
+
+	it("takes KEYBOARD from the keyboard screen back to the automation view when the clip was on it", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		fx.clip->onAutomationClipView = true;
+		expect(open_shortcut_over(&keyboardScreen, fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		(void)shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true);
+		expect(getRootUI() == &automationView).to_be_true();
+		fx.clip->onAutomationClipView = false;
+	});
+
+	it("swallows KEYBOARD under the menu with a UI mode up, and leaves the root", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(getRootUI() == &instrumentClipView).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("leaves the menu for the session view on SESSION, or for the arranger when a clip instance was entered", _ {
+		// `SoundEditor::buttonAction`'s SESSION_VIEW arm: `exitCompletely()`, then `changeRootUI`.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		fx.song->persistentView.lastClipInstanceEnteredStartPos = -1;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		expect(openUI(&shellHostUI) || isUIOpen(&shellHostUI)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
+		expect(getRootUI() == &sessionView).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(shellHostUI.shell().stack().depth()).to_equal(0u); // closed now, not at the next tick
+
+		GlobalGuestGuard::empty_guest_stack();
+		fx.song->persistentView.lastClipInstanceEnteredStartPos = 0;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
+		expect(getRootUI() == &arrangerView).to_be_true();
+		fx.song->persistentView.lastClipInstanceEnteredStartPos = -1;
+	});
+
+	it("refuses SESSION with a UI mode up, except the note-row editor's own audition", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		fx.song->persistentView.lastClipInstanceEnteredStartPos = -1;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
+		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+
+		GlobalGuestGuard::empty_guest_stack();
+		nullifyUIs();
+		expect(spec::open_note_mode_over_clip_view(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING; // the row the editor holds, and nothing else
+		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
+		expect(getRootUI() == &sessionView).to_be_true();
+		// `exitCompletely` exits the note-row editor before its close, which ends the row's audition: the guest's own
+		// close (`closeNow`), not a bare removal of the menu.
+		expect(isUIModeActive(UI_MODE_AUDITIONING)).to_be_false();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("holds fill on SYNC-SCALING under the menu when its action is Fill, on the press and the release", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction);
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
+		                           RuntimeFeatureStateSyncScalingAction::SyncScaling);
+		expect(deluge::gui::ui::forwardMenuViewButton(deluge::hid::button::SYNC_SCALING, true).has_value()).to_be_false();
+		expect(fx.song->runtimeView.fillModeActive).to_be_false();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
+		                           RuntimeFeatureStateSyncScalingAction::Fill);
+		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(fx.song->runtimeView.fillModeActive).to_be_true();
+		expect(led_on(IndicatorLED::SYNC_SCALING)).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(fx.song->runtimeView.fillModeActive).to_be_false();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction, saved);
+	});
+
+	it("leaves KEYBOARD, SESSION and SYNC-SCALING to a scene over the menu", _ {
+		// Legacy's arms are `SoundEditor`'s, reached only while it is the current UI: under a browser it opened they
+		// are the browser's. With nothing taking input but the menu, `menuTakesInput` is what is false here.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardMenuViewButton(deluge::hid::button::KEYBOARD, true).has_value()).to_be_false();
+		expect(deluge::gui::ui::forwardMenuViewButton(deluge::hid::button::SESSION_VIEW, true).has_value()).to_be_false();
+		expect(getRootUI() == &instrumentClipView).to_be_true();
 	});
 
 	it("selects the played note's range under the picker, highlights the range's notes, and re-renders the root", _ {

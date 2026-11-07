@@ -247,6 +247,8 @@ extern std::optional<ActionResult> note_vertical_answer;
 /// How many times `forwardMenuSaveButton()` was called, and what it answers (`std::nullopt` by default).
 extern int menu_save_forwards;
 extern std::optional<ActionResult> menu_save_answer;
+extern int menu_view_forwards;
+extern std::optional<ActionResult> menu_view_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;

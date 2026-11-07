@@ -319,8 +319,8 @@ The automation view is the third: `MenuScene::take_transition()` parks one chang
 its cause (a select release, BACK, a column button, a pad's jump; `menu/transition.h`), and
 `gui::ui::dispatchMenuTransitions` (`gui/ui/shell_automation_glue.{h,cpp}`) does to `automationView` what legacy's
 sound editor does for that change. The buttons and encoders the view takes from under the menu (CLIP, X_ENC,
-KEYBOARD over the view, the gold knobs in its editor, the horizontal and vertical turns) are forwarded by the host
-ahead of the shell from the same file; `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
+the gold knobs in its editor, the horizontal and vertical turns) are forwarded by the host ahead of the shell from the
+same file, as are the sound editor's KEYBOARD, SESSION and Fill arms (`forwardMenuViewButton`); `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
 
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the

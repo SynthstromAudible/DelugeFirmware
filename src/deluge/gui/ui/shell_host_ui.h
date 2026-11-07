@@ -354,6 +354,11 @@ public:
 	///        and pad regions they decide. For whatever changes the root, or the automation view's editor, while the
 	///        guest is up.
 	void refreshRootFacts();
+
+	/// @brief Close the guest now, its whole stack with it: `SoundEditor::exitCompletely()` for a caller that changes
+	///        the root on the same call and so cannot leave the close to the next tick (`forwardMenuViewButton`'s
+	///        SESSION). The same hand-back as the guest's own two close paths (`closeGuest`).
+	void closeNow() { closeGuest(); }
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;

@@ -31,6 +31,11 @@ scrolling preset name. Their walks rest on how `main`'s menus move: a single lar
 moves are several turns; the sound menu reopens on the row it last showed; BACK from a page a shortcut opened leaves
 the menu.
 
+`sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. Run it on the ShellMenu card and on
+`.superpowers/emu-card/shellmenu-fill` (the ShellMenu card with `syncScalingAction` 1, Fill), where SYNC-SCALING
+holds fill and lights its LED.
+
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
 `sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
 root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
