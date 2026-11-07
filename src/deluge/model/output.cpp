@@ -717,13 +717,19 @@ void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit) {
 	                                                       edit.mayDeleteNodesInLinearRun, false);
 }
 
-void writeToClip(Song& song, Clip& clip, LinkedParameter const& parameter, ParameterEdit const& edit) {
+void writeToClip(Song& song, Clip& clip, LinkedParameter const& parameter, ParameterEdit const& edit,
+                 bool linkAutomation) {
 	// The model stack and pointers built into it live until applyEdit returns.
 	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* target = findTargetParameter(song, clip, parameter, edit, model_stack_memory);
-	if ((target != nullptr) && (target->autoParam != nullptr)) {
-		applyEdit(*target, edit);
+	if ((target == nullptr) || (target->autoParam == nullptr)) {
+		return;
 	}
+	// Without Link Automation, a clip whose parameter is automated has diverged from the track for it.
+	if (!linkAutomation && target->autoParam->isAutomated()) {
+		return;
+	}
+	applyEdit(*target, edit);
 }
 
 } // namespace
@@ -766,6 +772,12 @@ bool Output::applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const
 	if ((row != nullptr) && (row->drum == nullptr)) {
 		return false; // Melodic note rows have no corresponding drum in other clips.
 	}
+	// Without Link Automation, automation stays in the clip it was made in: automation edits (regions) don't
+	// propagate, and neither do edits to a parameter the edited clip automates (e.g. while recording it live).
+	bool link_automation = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditLinkAutomation);
+	if (!link_automation && (edit.region || source.autoParam->isAutomated())) {
+		return false;
+	}
 	LinkedParameter parameter{.kind = source.paramCollection->getParamKind(),
 	                          .id = source.paramId,
 	                          .drum = (row != nullptr) ? row->drum : nullptr,
@@ -775,7 +787,7 @@ bool Output::applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const
 	auto finish_propagation = util::finally([] { propagatingParameterEdit = false; });
 	for (Clip* target : AllClips::everywhere(source.song)) {
 		if (target != &origin && target->output == this) {
-			writeToClip(*source.song, *target, parameter, edit);
+			writeToClip(*source.song, *target, parameter, edit, link_automation);
 		}
 	}
 	return true;

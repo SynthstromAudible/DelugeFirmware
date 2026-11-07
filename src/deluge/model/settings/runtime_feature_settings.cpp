@@ -211,6 +211,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditGridRow],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_GRID_ROW, "trackEditGridRow",
 	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditLinkAutomation],
+	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_LINK_AUTOMATION, "trackEditLinkAutomation",
+	                  RuntimeFeatureStateToggle::On);
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditAudition],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_AUDITION, "trackEditAudition",
 	                  RuntimeFeatureStateToggle::Off);

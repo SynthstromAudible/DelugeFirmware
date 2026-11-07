@@ -107,9 +107,11 @@ TrackEditSetting<SettingToggle, TrackEditShownWhen::GridRowOn>
     menu_track_edit_audition(RuntimeFeatureSettingType::TrackEditAudition);
 TrackEditSetting<Setting, TrackEditShownWhen::TrackEditOn>
     menu_track_edit_pulse_clip(RuntimeFeatureSettingType::TrackEditPulseClip);
+TrackEditSetting<SettingToggle, TrackEditShownWhen::TrackEditOn>
+    menu_track_edit_link_automation(RuntimeFeatureSettingType::TrackEditLinkAutomation);
 Submenu menu_track_edit_submenu(l10n::String::STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT,
                                 {&menu_track_edit, &menu_track_edit_grid_row, &menu_track_edit_audition,
-                                 &menu_track_edit_pulse_clip});
+                                 &menu_track_edit_pulse_clip, &menu_track_edit_link_automation});
 Setting menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
