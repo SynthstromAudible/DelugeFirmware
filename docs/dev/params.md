@@ -117,6 +117,13 @@ lane a knob overrides while recording gets its copy when the knob turns (the lat
 not); when recording starts, the lanes a knob is already overriding get theirs, their cursors read with the render held
 off. A latch on a lane without a copy plays on and writes nothing.
 
+An Edit on a lane being recorded (a value or region from the automation view, a paste, a delete, a cable's base)
+changes the model at once and posts the same change to the render as a `LaneCommand`, held by the interaction tier
+until the commit after the render has made it to the working copy, in order with the values recorded; the next commit
+carries both. An edit of every lane of a collection at once (shifting, trimming, repeating, deleting or inserting
+time, nudging, reversing, stripping) ends the take for that collection instead: its copies are committed and released
+first, and the next commit makes copies again for lanes a knob still overrides.
+
 Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
 room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written by the interaction tier),
 `workingCopyOverflows` (a lane not recorded into: the table of 32 was full or out of memory) and
