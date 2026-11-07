@@ -41,17 +41,23 @@ namespace params = deluge::modulation::params;
 
 namespace deluge::model {
 
-effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched) {
-	return effects::Filter::params_from(
+effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched, ChainConversions& conversions) {
+	return conversions.filter(
 	    {
-	        .lpf_frequency = unpatched.getValue(params::UNPATCHED_LPF_FREQ),
-	        .lpf_resonance = unpatched.getValue(params::UNPATCHED_LPF_RES),
-	        .lpf_morph = unpatched.getValue(params::UNPATCHED_LPF_MORPH),
-	        .hpf_frequency = unpatched.getValue(params::UNPATCHED_HPF_FREQ),
-	        .hpf_resonance = unpatched.getValue(params::UNPATCHED_HPF_RES),
-	        .hpf_morph = unpatched.getValue(params::UNPATCHED_HPF_MORPH),
+	        .words =
+	            {
+	                .lpf_frequency = unpatched.getValue(params::UNPATCHED_LPF_FREQ),
+	                .lpf_resonance = unpatched.getValue(params::UNPATCHED_LPF_RES),
+	                .lpf_morph = unpatched.getValue(params::UNPATCHED_LPF_MORPH),
+	                .hpf_frequency = unpatched.getValue(params::UNPATCHED_HPF_FREQ),
+	                .hpf_resonance = unpatched.getValue(params::UNPATCHED_HPF_RES),
+	                .hpf_morph = unpatched.getValue(params::UNPATCHED_HPF_MORPH),
+	            },
+	        .allow_oversampling = AudioEngine::cpuDireness < 14,
 	    },
-	    AudioEngine::cpuDireness < 14);
+	    [](const FilterWordsAndOversampling& in) {
+		    return effects::Filter::params_from(in.words, in.allow_oversampling);
+	    });
 }
 
 ModFXType activeModFXType(const snapshot::ModControllableSnapshot& snapshot, ParamManager& paramManager) {
@@ -72,18 +78,20 @@ ModFXType activeModFXType(const snapshot::ModControllableSnapshot& snapshot, Par
 
 effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Delay& delay,
                                         const effects::DelayState& settings, bool shouldLimitDelayFeedback,
-                                        bool soundComingIn) {
+                                        bool soundComingIn, ChainConversions& conversions) {
 	effects::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount =
-	    effects::final_value(effects::Delay::kFeedback, unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT));
+	    conversions.delay_feedback(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT),
+	                               [](int32_t word) { return effects::final_value(effects::Delay::kFeedback, word); });
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate =
-	    effects::final_value(effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
+	    conversions.delay_rate(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE),
+	                           [](int32_t word) { return effects::final_value(effects::Delay::kRate, word); });
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, settings, timePerTickInverse, soundComingIn);
 
@@ -96,14 +104,17 @@ dsp::Q<29> sidechainDepth(ParamManager& paramManager) {
 }
 
 effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
-                               ParamManager& paramManager, const effects::Delay::State& delay, dsp::Q<31> grainSend) {
+                               ParamManager& paramManager, const effects::Delay::State& delay, dsp::Q<31> grainSend,
+                               ChainConversions& conversions) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
-	const effects::ModFx::Params modFx = effects::ModFx::params_from({
-	    .rate = unpatched->getValue(params::UNPATCHED_MOD_FX_RATE),
-	    .depth = unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH),
-	    .offset = unpatched->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-	    .feedback = unpatched->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
-	});
+	const effects::ModFx::Params modFx = conversions.mod_fx(
+	    {
+	        .rate = unpatched->getValue(params::UNPATCHED_MOD_FX_RATE),
+	        .depth = unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH),
+	        .offset = unpatched->getValue(params::UNPATCHED_MOD_FX_OFFSET),
+	        .feedback = unpatched->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
+	    },
+	    [](const effects::ModFx::Words& words) { return effects::ModFx::params_from(words); });
 	return {
 	    .settings = &snapshot.effects,
 	    .mod_fx_type = activeType,
@@ -125,7 +136,7 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
                                            dsp::Q<27> volumeAdjustment, int32_t reverbAmountAdjust,
                                            int32_t sideChainHitPending, const effects::Delay::State& delay,
-                                           OutputType outputType) {
+                                           OutputType outputType, ChainConversions& conversions) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits add a quarter of the
@@ -144,10 +155,11 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	const snapshot::ModControllableSnapshot& snapshot = channel.binding().snapshot();
 
 	return {
-	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount),
+	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount,
+	                       conversions),
 	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getKnob(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	    .filter = chainFilterParams(*unpatched),
+	    .filter = chainFilterParams(*unpatched, conversions),
 	    .filter_scratch = render::filter_scratch(),
 	    .volume_post_fx = volumePostFX,
 	    .reverb_send = reverbSendAmount,
@@ -168,14 +180,14 @@ effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX
 	MasterChannel& master = song.live.master_channel;
 	ParamManager& paramManager = song.paramManager;
 	const snapshot::ModControllableSnapshot& snapshot = master.binding().snapshot();
-	const effects::Delay::State delay =
-	    delayWorkingState(paramManager, master.core().delay(), snapshot.effects.delay, false, true);
+	const effects::Delay::State delay = delayWorkingState(paramManager, master.core().delay(), snapshot.effects.delay,
+	                                                      false, true, master.conversions());
 	// The send's final value is Q31
 	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
 	    effects::Reverb::kSend, paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 	return {
 	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay,
-	                       scale_shr_floor<3>(reverbSendAmount)),
+	                       scale_shr_floor<3>(reverbSendAmount), master.conversions()),
 	    .volume_post_fx = volumePostFX,
 	    .post_reverb_volume = synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>(),
 	    .reverb_send = halve_floor(reverbSendAmount),
@@ -184,7 +196,8 @@ effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX
 
 effects::MasterPostInputs masterPostInputs(Song& song) {
 	UnpatchedParamSet* unpatched = song.paramManager.getUnpatchedParamSet();
-	const StutterInput stutter = stutterInput(song.live.master_channel.core(), &song.paramManager);
+	MasterChannel& master = song.live.master_channel;
+	const StutterInput stutter = stutterInput(master.core(), &song.paramManager);
 
 	// The pan applies after the reverb, in stereo only.
 	const dsp::Q<31> pan = halve_floor(unpatched->getKnob(params::UNPATCHED_PAN));
@@ -195,7 +208,7 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	}
 
 	return {
-	    .filter = chainFilterParams(*unpatched),
+	    .filter = chainFilterParams(*unpatched, master.conversions()),
 	    .filter_scratch = render::filter_scratch(),
 	    .noise = &synth_noise,
 	    .bitcrush = {.bitcrush = unpatched->getKnob(params::UNPATCHED_BITCRUSHING),
@@ -204,7 +217,7 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .do_pan = doPanning,
 	    .pan_l = amplitudes.left,
 	    .pan_r = amplitudes.right,
-	    .song_volume = volume_from_knob(unpatched->getKnob(params::UNPATCHED_VOLUME)),
+	    .song_volume = master.conversions().volume(unpatched->getKnob(params::UNPATCHED_VOLUME), volume_from_knob),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

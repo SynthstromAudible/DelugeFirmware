@@ -21,6 +21,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "runtime/app_loop.h"
+#include <array>
 
 class Clip;
 class MultiRange;
@@ -63,6 +64,11 @@ public:
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	/// @brief Whether this take waits for the input to pass a threshold, so the screen shows the level meter. True
+	///        for the whole take, after the threshold has triggered too.
+	[[nodiscard]] bool isThresholdRecording() const;
+	/// @brief Redraws the threshold screen when its meter or a blink has changed.
+	void graphicsRoutine() override;
 
 	bool updatedRecordingStatus = false;
 
@@ -79,6 +85,17 @@ public:
 	[[nodiscard]] bool inputTakeInProgress() const;
 
 private:
+	/// Everything that can change the threshold screen, so graphicsRoutine() redraws only when the image would.
+	struct ThresholdMeterState {
+		std::array<int32_t, 2> levelEndX{};
+		bool recording = false;
+		/// The record dot while recording, the threshold line while waiting.
+		bool blinkOn = false;
+		bool operator==(const ThresholdMeterState&) const = default;
+	};
+	ThresholdMeterState getThresholdMeterState();
+	ThresholdMeterState lastRenderedThresholdMeterState{};
+
 	/// What an input take records for: the sound editor's sound, source and range as the take started, and the clip
 	/// and output that held that sound. Compared by address only; never dereferenced unless still held.
 	struct TakeTarget {

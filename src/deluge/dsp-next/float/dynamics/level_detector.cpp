@@ -16,17 +16,15 @@
  */
 #include "dsp-next/float/dynamics/level_detector.h"
 
-#include "dsp-next/core/wrapping.h"
-
 #include <cmath>
 
 namespace deluge::dsp::fp {
 
 namespace {
 
-/// |x|, wrapping at INT32_MIN as the target's negate does.
-[[nodiscard]] int32_t wrapping_abs(int32_t x) {
-	return x < 0 ? wrapping_sub(0, x) : x;
+/// |x|, one low for a negative x and so defined for INT32_MIN: nothing next to the level this measures.
+[[nodiscard]] int32_t magnitude(int32_t x) {
+	return x ^ (x >> 31);
 }
 
 } // namespace
@@ -44,15 +42,18 @@ float LevelDetector::follow(float current, float target, float num_samples) cons
 StereoLevel LevelDetector::measure(std::span<const StereoSample> block) {
 	int32_t sum_l = 0;
 	int32_t sum_r = 0;
-	// The magnitudes summed as words, wrapping: the float means read the sums.
+	// The magnitudes 8 bits down, so up to 256 full-scale frames sum without overflowing; the means scale them back.
 	for (const StereoSample frame : block) {
-		sum_l = wrapping_add(sum_l, wrapping_abs(frame.l.raw()));
-		sum_r = wrapping_add(sum_r, wrapping_abs(frame.r.raw()));
+		sum_l += magnitude(frame.l.raw()) >> 8;
+		sum_r += magnitude(frame.r.raw()) >> 8;
 	}
 	const auto n = static_cast<float>(block.size());
-	// Each mean is rounded to float before the smoothing weighs the block by its length against the last level.
-	float mean_l = static_cast<float>(sum_l) / n;
-	float mean_r = static_cast<float>(sum_r) / n;
+	return measure_means(256.f * static_cast<float>(sum_l) / n, 256.f * static_cast<float>(sum_r) / n, block.size());
+}
+
+StereoLevel LevelDetector::measure_means(float mean_l, float mean_r, size_t num_samples) {
+	const auto n = static_cast<float>(num_samples);
+	// The smoothing weighs the block by its length against the last level.
 	mean_l = ((mean_l * n) + smoothed_l_) / (1 + n);
 	mean_r = ((mean_r * n) + smoothed_r_) / (1 + n);
 	smoothed_l_ = follow(smoothed_l_, mean_l, n);

@@ -56,6 +56,12 @@ typedef struct DelugeFaultRanges {
 	/// an unrecognised stack would produce a single address (the link register) and no call chain.
 	uintptr_t alt_stack_start;
 	uintptr_t alt_stack_end;
+	/// @brief Optional second code range, `[alt_code_start, alt_code_end)`; zeroed if the board has none.
+	///
+	/// For code a board runs from somewhere other than the image's own `.text`, such as code copied to
+	/// external RAM at boot. Its return addresses count as code just as the main range's do.
+	uintptr_t alt_code_start;
+	uintptr_t alt_code_end;
 } DelugeFaultRanges;
 
 /// Fill in the board's code and stack bounds. Must not fail; zeroed fields simply

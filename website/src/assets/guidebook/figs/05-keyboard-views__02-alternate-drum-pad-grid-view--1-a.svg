@@ -1,0 +1,36 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 117.1 82.6">
+<defs>
+<clipPath id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_1">
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M83.6 548.7H200.8V631.3H83.6Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_2">
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M448.9 314.6H523.3V521.5H448.9Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_3">
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M89.8 552.0H194.7V625.2H89.8Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-mask_4">
+<g transform="matrix(.072,0,0,.07199999,6.0,6.0)">
+<image id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-image_5" width="1460" height="981" xlink:href="/guidebook/img/05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_1)">
+<g clip-path="url(#05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_2)">
+</g>
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M365.2 550.6V505.4"/>
+<g clip-path="url(#05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-clip_3)">
+<g mask="url(#05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-mask_4)">
+<g transform="matrix(.072,0,0,.07199999,6.0,6.0)">
+<image class="gb-ink" id="05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-image_6" width="1460" height="981" xlink:href="/guidebook/img/05-keyboard-views__02-alternate-drum-pad-grid-view--1-a-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M148.0 590.2C151.1 590.2 153.6 587.7 153.6 584.6 153.6 581.6 151.1 579.1 148.0 579.1 144.9 579.1 142.5 581.6 142.5 584.6 142.5 587.7 144.9 590.2 148.0 590.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M148.0 590.2C151.1 590.2 153.6 587.7 153.6 584.6 153.6 581.6 151.1 579.1 148.0 579.1 144.9 579.1 142.5 581.6 142.5 584.6 142.5 587.7 144.9 590.2 148.0 590.2ZM148.0 589.7C145.2 589.7 142.9 587.5 142.9 584.6 142.9 581.8 145.2 579.5 148.0 579.5 150.8 579.5 153.1 581.8 153.1 584.6 153.1 587.5 150.8 589.7 148.0 589.7Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M100.2 570.8C103.3 570.8 105.8 568.3 105.8 565.3 105.8 562.2 103.3 559.7 100.2 559.7 97.1 559.7 94.7 562.2 94.7 565.3 94.7 568.3 97.1 570.8 100.2 570.8Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-83.6,631.3)" d="M100.2 570.8C103.3 570.8 105.8 568.3 105.8 565.3 105.8 562.2 103.3 559.7 100.2 559.7 97.1 559.7 94.7 562.2 94.7 565.3 94.7 568.3 97.1 570.8 100.2 570.8ZM100.2 570.4C97.4 570.4 95.1 568.1 95.1 565.3 95.1 562.4 97.4 560.2 100.2 560.2 103.0 560.2 105.3 562.4 105.3 565.3 105.3 568.1 103.0 570.4 100.2 570.4Z" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

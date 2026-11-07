@@ -64,8 +64,13 @@ using deluge::l10n::String;
 /// The sharps-vs-flats choice really is a global preference read
 /// (`FlashStorage::defaultUseSharps`), not menu state, so it is read here exactly as legacy reads it.
 void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
-	const int32_t octave = note_code / 12 - 2;
-	const int32_t within = static_cast<uint16_t>(note_code + 120) % uint8_t{12};
+	// The floor of the twelfths, so a note code below 0 lands in the octave under it
+	int32_t within = note_code % 12;
+	int32_t octave = note_code / 12 - 2;
+	if (within < 0) {
+		within += 12;
+		octave--;
+	}
 	const bool sharps = FlashStorage::defaultUseSharps;
 
 	const auto put = [&](char c) {
@@ -78,13 +83,13 @@ void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
 		put(sharps ? '#' : static_cast<char>(FLAT_CHAR));
 	}
 	// `intToString(octave, thisChar, 1)`: at least one digit, with a leading '-' for a negative
-	// octave (a note code below 24 -- the bottom two octaves of the MIDI range).
-	int32_t magnitude = octave;
+	// octave (a note code below 24 -- the bottom two octaves of the MIDI range, and below).
+	int64_t magnitude = octave;
 	if (magnitude < 0) {
 		put('-');
 		magnitude = -magnitude;
 	}
-	char digits[4];
+	char digits[10];
 	size_t d = 0;
 	do {
 		digits[d++] = static_cast<char>('0' + magnitude % 10);

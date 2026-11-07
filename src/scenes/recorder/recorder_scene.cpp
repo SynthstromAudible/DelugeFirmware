@@ -40,7 +40,7 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// The two words `renderOLED` draws (`audio_recorder.cpp:117`). Literals, not l10n ids, because
+/// The two words `renderOLED` draws (`audio_recorder.cpp:193`). Literals, not l10n ids, because
 /// neither is in `gui/l10n/strings.h` -- exactly `BrowserScene::Descriptor::title`'s and
 /// `MarkerScene`'s situation and answer.
 /// @{
@@ -171,7 +171,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:114-115`) on success.
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`) on success.
 	blink_restart_ = setup_recording();
 	return blink_restart_;
 }

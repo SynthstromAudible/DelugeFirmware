@@ -1420,7 +1420,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `on_enter` refuses on a leftover `recorder_` and `can()` refuses on a leftover published
 		// recording. With nothing captured,
 		// `endSyncedRecording` takes its `numSamplesCaptured == 0` abort arm
-		// (`model/sample/sample_recorder.cpp:1243-1246`), `after_render`'s completion arm sees
+		// (`model/sample/sample_recorder.cpp:1258-1261`), `after_render`'s completion arm sees
 		// `status >= COMPLETE` and `finish_recording()` unpublishes and discards -- so this pair says
 		// the whole close path ran, not merely that nothing is left over.
 		expect(recorder::recorder_scene().recording()).to_be_false();

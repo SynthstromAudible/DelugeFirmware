@@ -316,7 +316,9 @@ struct DirectCtx {
 	deluge::ui::shell::ButtonSet held{};
 	deluge::ui::PadMask pads{};
 	UiContext ctx;
-	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
+	/// Both clocks at @p now_ms: the tick's, and the one acceleration is timed on.
+	explicit DirectCtx(uint32_t now_ms = 0)
+	    : ctx{held, pads, false, false, now_ms, deluge_profile(), nullptr, now_ms} {}
 };
 
 /// A gold-knob turn event.
@@ -1351,6 +1353,35 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		display = nullptr;
 	});
 
+	it("times the acceleration on its own clock, not the tick's", _ {
+		// Four turns 10 ms apart on the tick's clock but a second apart on the acceleration clock: no ramp, so the
+		// knob moves as far as four slow turns do.
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* split_clip = f.clip;
+		InstrumentClip* slow_clip = add_synth_clip(f.song, "1");
+		seed_params(split_clip->paramManager, 0);
+		seed_params(slow_clip->paramManager, 0);
+		const auto turn_four = [&](InstrumentClip* clip, uint32_t tick_step, uint32_t clock_step) {
+			KnobRig rig;
+			rig.set_song(f.song);
+			rig.set_target_with_timeline(clip, false);
+			rig.knobs.set_mod_region();
+			for (uint32_t i = 0; i < 4; i++) {
+				DirectCtx c{1000 + i * tick_step};
+				c.ctx.acceleration_clock_ms = 1000 + i * clock_step;
+				(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			}
+		};
+		const std::vector<int32_t> untouched = param_snapshot(slow_clip->paramManager);
+		turn_four(split_clip, 10, 1000);
+		turn_four(slow_clip, 1000, 1000);
+		expect(differences(untouched, param_snapshot(slow_clip->paramManager)) > 0).to_be_true();
+		expect(differences(param_snapshot(split_clip->paramManager), param_snapshot(slow_clip->paramManager)))
+		    .to_equal(int32_t{0});
+	});
+
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
 		// `calc_next_knob_speed` itself is pinned by
 		// `tests/spec/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
@@ -1656,7 +1687,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
-		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5548-5555`);
 		//    without it the song resolves nothing and this shape would collapse into shape 1.
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
@@ -1884,7 +1915,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = f.song;
-		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
+		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5548-5555`)
 		pf.song->persistentView.affectEntire = true;
 
 		KnobRig rig;

@@ -1,0 +1,61 @@
+---
+title: "11.9 Stutter Effect"
+description: "Stutter is a general system effect that is only available for control through the affect parameters and is not available in the nested parameter set nor by…"
+sidebar:
+  order: 8
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "11.9"
+  chapter: 11
+  pdfPages: [266]
+  printedPages: [260]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Stutter is a general system effect that is only available for control through the affect parameters and is not available in the nested parameter set nor by the shortcut grid. The option to adjust the stutter quantized values is possible if the STUTTER RATE QUANTIZE option is set to ON in the community features menu in the settings.
+
+<StepFocus />
+
+## Setting up stutter
+
+<Steps>
+
+1. Select :key[Kit] or :key[Synth] etc…
+2. Press :key[StutterCustom1]. Button lit orange.
+3. :key[Turn Upper Gold] to select the stutter length and speed. The option to adjust in quantized 4ths, 8ths, 16ths, 32nds or 64ths is available if set ON in the community feature settings.
+4. Press & :key[Turn Upper Gold] to adjust a short stutter length and speed while triggering.
+
+</Steps>
+
+## Using stutter
+
+<Steps>
+
+1. Select :key[Kit] or :key[Synth], etc...
+2. :key[Play] the song.
+3. Press :key[StutterCustom1]. Button lit orange.
+4. The selected value is centre on the :key[Upper Gold] control and can deviate up or down when turning the encoder and return to original by centring the encoder.
+5. Hold :key[Upper Gold] to trigger the stutter effect.
+6. Release :key[Upper Gold] to stop the stutter effect.
+7. Press & :key[Turn Upper Gold] to adjust a short stutter length and speed while triggering.
+
+</Steps>
+
+## Stutter direction and per-clip settings <Badge text="C1.3" variant="tip" />
+
+{/* TODO(kate): community_features: 4.2.8; CHANGELOG.mdx: L92, L127, L129, L130, L132, L133 */}
+
+<Unwritten>
+  See [Per-clip Stutter with options: Direction and
+  Quantize](/features/community_features#428---per-clip-stutter-with-options-direction-and-quantize).
+</Unwritten>

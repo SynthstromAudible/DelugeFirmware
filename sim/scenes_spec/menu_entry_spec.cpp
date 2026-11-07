@@ -98,8 +98,8 @@ struct ToggleGuard {
 /// @brief Put the UI hierarchy back to "nothing open" after an example opened the guest.
 ///
 /// `closeUI` would index `uiNavigationHierarchy[-1]` when the guest is the only entry
-/// (`gui/ui/ui.cpp:212-223`, whose loop stops at `u >= 1`), so this is `nullifyUIs()`, which is what
-/// legacy itself calls when it tears the hierarchy down (`gui/ui/ui.cpp:286-290`).
+/// (`gui/ui/ui.cpp:213-223`, whose loop stops at `u >= 1`), so this is `nullifyUIs()`, which is what
+/// legacy itself calls when it tears the hierarchy down (`gui/ui/ui.cpp:287-291`).
 void closeGuest() {
 	nullifyUIs();
 }
@@ -622,7 +622,7 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 		// that the hierarchy did not move, not merely that the call said false.
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_false();
 		// `isUIOpen`, deliberately, and NOT `getCurrentUI()`: with an empty hierarchy `getCurrentUI()`
-		// answers `lastUIBeforeNullifying` (`gui/ui/ui.cpp:165-170`), which the previous example's
+		// answers `lastUIBeforeNullifying` (`gui/ui/ui.cpp:166-171`), which the previous example's
 		// teardown left pointing at the guest. `currentUIIsClipMinderScreen()`'s null guard trips on the
 		// same accessor from the other side, which is why it is named here.
 		expect(isUIOpen(&shellHostUI)).to_be_false();

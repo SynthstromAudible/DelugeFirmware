@@ -1,0 +1,15 @@
+{
+  "figure": "fig-3.11-1",
+  "source": "hand",
+  "window": [100, 250, 2700, 1300],
+  "steps": [
+    {
+      "note": "Cutoff/Res selected for the gold knobs; Affect Entire on; clip view",
+      "leds": {
+        "Function-2": "orange",
+        "Affect-Entire": "orange",
+        "Clip": "blue"
+      }
+    }
+  ]
+}

@@ -23,6 +23,7 @@
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/track_chain.h"
+#include "model/fx/chain_conversions.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
 
 #include <cstdint>
@@ -55,8 +56,9 @@ class TrackChannel;
 /// @brief A host chain's filter params for one block: each filter's final values from its unpatched params, the
 /// params' own values, and whether the CPU allows the drive ladder to oversample.
 /// @param unpatched The owner's unpatched param set.
+/// @param conversions The owner's remembered conversions.
 /// @return The block's filter params.
-[[nodiscard]] effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched);
+[[nodiscard]] effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched, ChainConversions& conversions);
 
 /// @brief The mod FX, EQ and delay inputs a host chain reads from its unpatched params: the type in effect (NONE in its
 /// soft off), the rate and depth finals and the knobs.
@@ -65,10 +67,11 @@ class TrackChannel;
 /// @param paramManager The owner's param manager.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param grainSend The granular's reverb send.
+/// @param conversions The owner's remembered conversions.
 /// @return The block's mod FX, EQ and delay inputs.
 [[nodiscard]] effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
                                              ParamManager& paramManager, const effects::Delay::State& delay,
-                                             dsp::Q<31> grainSend);
+                                             dsp::Q<31> grainSend, ChainConversions& conversions);
 
 /// @brief The mod FX type a host chain runs this block: NONE while its selected mod FX knob is at its minimum (the soft
 /// off), else its setting.
@@ -83,10 +86,12 @@ class TrackChannel;
 /// @param settings The delay's settings, from the chain's render copy.
 /// @param shouldLimitDelayFeedback Whether the feedback is capped below self-oscillation.
 /// @param soundComingIn Whether the content rendered last block: the delay starts or stops on it.
+/// @param conversions The owner's remembered conversions.
 /// @return The block's delay working state.
 [[nodiscard]] effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Delay& delay,
                                                       const effects::DelayState& settings,
-                                                      bool shouldLimitDelayFeedback, bool soundComingIn);
+                                                      bool shouldLimitDelayFeedback, bool soundComingIn,
+                                                      ChainConversions& conversions);
 
 /// @brief A track chain's sidechain volume param as a patch cable's depth.
 /// @param paramManager The owner's param manager.
@@ -101,11 +106,13 @@ class TrackChannel;
 /// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
+/// @param conversions The channel's remembered conversions.
 /// @return The block's track-chain inputs.
 [[nodiscard]] effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
                                                          dsp::Q<27> volumeAdjustment, int32_t reverbAmountAdjust,
                                                          int32_t sideChainHitPending,
-                                                         const effects::Delay::State& delay, OutputType outputType);
+                                                         const effects::Delay::State& delay, OutputType outputType,
+                                                         ChainConversions& conversions);
 
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the
 /// block's delay working state on the master's delay.

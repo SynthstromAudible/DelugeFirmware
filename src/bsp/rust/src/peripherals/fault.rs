@@ -36,6 +36,9 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
         static _start: u8;
         /// Base of the SRAM heap, which sits above `.text`/`.rodata` and below the stacks.
         static __sram_heap_start: u8;
+        /// The code run from SDRAM (the GUI's), copied there at boot: `linker/sdram_sections.x`.
+        static __sdram_text_start: u8;
+        static __sdram_text_end: u8;
     }
     // SAFETY: `out` is non-null and caller-owned; the externs are linker address markers, taken
     // by `addr_of!` (never `&`) so only their addresses are used.
@@ -51,6 +54,9 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
         // No alternate stack: application code runs only on the program stack.
         (*out).alt_stack_start = 0;
         (*out).alt_stack_end = 0;
+        // The GUI's code runs from SDRAM, so its return addresses are code too.
+        (*out).alt_code_start = core::ptr::addr_of!(__sdram_text_start) as usize;
+        (*out).alt_code_end = core::ptr::addr_of!(__sdram_text_end) as usize;
     }
 }
 

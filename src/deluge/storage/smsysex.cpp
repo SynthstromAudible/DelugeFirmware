@@ -802,13 +802,18 @@ bool smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	if (reader.peekChar(&aChar) && aChar != 0) {
 		D_PRINTLN("Missing Separater error in writeBlock");
 	}
-	uint32_t decodedSize = decodeDataFromReader(reader, writeBlockBuffer, size);
+	// Without a buffer there's nowhere to decode the block to - report it rather than unpack through a null pointer
+	uint32_t decodedSize = writeBlockBuffer ? decodeDataFromReader(reader, writeBlockBuffer, size) : 0;
 	D_PRINTLN("Decoded block len: %d", decodedSize);
 
 	FsWireStatus errCode = FsWireStatus::Ok;
 	FILdata* fp = entryForFID(fileId);
 
-	if (fp == nullptr || !fp->fileOpen) {
+	if (!writeBlockBuffer) {
+		errCode = FsWireStatus::NotEnoughCore;
+		size = 0;
+	}
+	else if (fp == nullptr || !fp->fileOpen) {
 		errCode = FsWireStatus::NotEnabled;
 	}
 	if (writeBlockBuffer && (fp != nullptr) && fp->fileOpen) {

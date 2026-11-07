@@ -13,7 +13,7 @@
 /// expected to re-read afterward. **Those offset functions are themselves gated by legacy on a
 /// popup being up or a note (row) editor being open** --
 /// `adjustVelocity`'s `display->hasPopup() || inAutomationView || inSoundEditor`
-/// (`gui/views/instrument_clip_view.cpp:2853-2860`), `adjustNoteParameterValue`'s
+/// (`gui/views/instrument_clip_view.cpp:2875-2882`), `adjustNoteParameterValue`'s
 /// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`
 /// (`:3067`, `:3118`), and `setNoteRowParameterValue` likewise (`:4141`, `:4144`) -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own

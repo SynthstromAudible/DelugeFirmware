@@ -33,6 +33,7 @@
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -199,7 +200,7 @@ bool ShellHostUI::opened() {
 
 void ShellHostUI::focusRegained() {
 	// Legacy calls this on the UI that is the current one again after something above it closed
-	// (`closeUI`, `gui/ui/ui.cpp:223-228`), and `Scene::on_resume` is the port of exactly that
+	// (`closeUI`, `gui/ui/ui.cpp:223-229`), and `Scene::on_resume` is the port of exactly that
 	// call, in as many words (`Scene::on_resume`).
 	//
 	// **`input_top()`, not `top()`**, and `on_resume`'s own contract is that it fires on the scene
@@ -484,6 +485,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`); the working animation is the
 	// shell's own scene.
 	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
+	shell_.set_acceleration_clock_ms(accelerationClockMs());
 	shell_.tick(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
@@ -704,6 +706,10 @@ void ShellHostUI::armTickSoon() {
 // ---------------------------------------------------------------------------------------------
 
 uint32_t ShellHostUI::nowMs() const {
+	return clock_.advance(AudioEngine::audioSampleTimer);
+}
+
+uint32_t ShellHostUI::accelerationClockMs() {
 	const double seconds = getSystemTime();
 	if (!(seconds > 0.0)) {
 		// Also the NaN arm: every comparison against a NaN is false, so the negated `>` catches it.

@@ -161,7 +161,7 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 
 	// **SYNTH, KIT, MIDI and CV: the column focus, which is the ported menu's.** Both handlers send
 	// these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-	// (`gui/views/instrument_clip_view.cpp:3747-3749`, `:4034-4036`), whose target is the horizontal
+	// (`gui/views/instrument_clip_view.cpp:3769-3771`, `:4056-4058`), whose target is the horizontal
 	// menu's column focus, which `MenuScene` carries. Forwarding them would also
 	// dereference that navigation record, which no guest path writes.
 	if (b == SYNTH || b == KIT || b == MIDI || b == CV) {
@@ -180,7 +180,7 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	// here at all because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() &&
 	// !inNoteRowEditor()` (`SoundEditor::buttonAction`). In the handlers,
 	// X_ENC and SYNC_SCALING reach `InstrumentClipView::buttonAction` through their `return
-	// buttonAction(...)` arms (`gui/views/instrument_clip_view.cpp:3753-3755`, `:4040-4042`);
+	// buttonAction(...)` arms (`gui/views/instrument_clip_view.cpp:3775-3777`, `:4062-4064`);
 	// AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor (`:4043-4049`) and is
 	// swallowed in the note editor; every other button, CROSS_SCREEN and SCALE included, is swallowed
 	// as `DEALT_WITH` (`:3762`, `:4057`).
@@ -241,7 +241,7 @@ void exitNoteModeBeforeClose() {
 		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`
 		// `:751-752`, "refresh grid to potentially unhighlight edited notes": `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- under the toggle, this guest.
-		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:308-332`),
+		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:309-333`),
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.
 		uiNeedsRendering(&shellHostUI, 0xFFFFFFFF, 0);

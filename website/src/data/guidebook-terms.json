@@ -1,0 +1,476 @@
+{
+  "concepts": [
+    {
+      "term": "arranger view",
+      "aliases": ["arranger"],
+      "href": "/guidebook/14-arranger-view/03-arranger-view-basics"
+    },
+    {
+      "term": "session view",
+      "href": "/guidebook/12-session-view/02-session-view-basics",
+      "aliases": ["song view"]
+    },
+    {
+      "term": "session row view",
+      "href": "/guidebook/12-session-view/03-working-in-session-row-view",
+      "aliases": ["song row view"]
+    },
+    {
+      "term": "session grid view",
+      "href": "/guidebook/12-session-view/04-working-in-session-grid-view",
+      "aliases": ["song grid view"]
+    },
+    {
+      "term": "clip view",
+      "href": "/guidebook/03-clips/02-clip-view-overview"
+    },
+    {
+      "term": "keyboard view",
+      "href": "/guidebook/05-keyboard-views/01-keyboard-view-chords"
+    },
+    {
+      "term": "automation view",
+      "aliases": ["parameter automation view"],
+      "href": "/guidebook/06-automation/02-parameter-automation-view"
+    },
+    {
+      "term": "parameter automation",
+      "href": "/guidebook/06-automation/01-parameter-automation-basics"
+    },
+    {
+      "term": "waveform view",
+      "href": "/guidebook/16-audio/11-waveform-view-detailed-audio-editing"
+    },
+    {
+      "term": "drum pad grid",
+      "aliases": ["drum pad grid view"],
+      "href": "/guidebook/05-keyboard-views/02-alternate-drum-pad-grid-view"
+    },
+    {
+      "term": "cross-screen editing",
+      "aliases": ["cross-screen edit mode", "cross screen editing"],
+      "href": "/guidebook/04-sequencing/11-cross-screen-editing"
+    },
+    {
+      "term": "euclidean",
+      "aliases": ["euclidean sequencing", "euclidean patterns"],
+      "href": "/guidebook/04-sequencing/13-euclidean-sequencing"
+    },
+    {
+      "term": "probability",
+      "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance"
+    },
+    {
+      "term": "iteration",
+      "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance"
+    },
+    {
+      "term": "swing",
+      "href": "/guidebook/04-sequencing/03-tempo-swing"
+    },
+    {
+      "term": "note scales",
+      "aliases": ["scale mode"],
+      "href": "/guidebook/04-sequencing/08-note-scales"
+    },
+    {
+      "term": "chords",
+      "aliases": ["chord"],
+      "href": "/guidebook/05-keyboard-views/01-keyboard-view-chords"
+    },
+    {
+      "term": "clip length",
+      "href": "/guidebook/03-clips/08-clip-length-position"
+    },
+    {
+      "term": "factory library",
+      "href": "/guidebook/appendix/b-factory-library"
+    },
+    {
+      "term": "alphanumeric keyboard",
+      "aliases": ["QWERTY"],
+      "href": "/guidebook/02-basics/06-alphanumeric-keyboard-grid-layout"
+    },
+    {
+      "term": "affect entire",
+      "href": "/guidebook/03-clips/11-clip-view-parameter-affect-group-changes"
+    },
+    {
+      "term": "subtractive",
+      "aliases": ["subtractive synthesis", "subtractive synthesizer"],
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-subtractive-synthesizer-overview"
+    },
+    {
+      "term": "FM synthesis",
+      "aliases": ["FM synthesizer", "FM synth"],
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-fm-synthesizer-overview"
+    },
+    {
+      "term": "wavetable",
+      "aliases": ["wavetables", "wavetable synthesis"],
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-wavetable-synthesizer-overview"
+    },
+    {
+      "term": "sound editor",
+      "href": "/guidebook/07-synthesizers/05-sound-editor-synthesizer-parameters"
+    },
+    {
+      "term": "oscillators",
+      "aliases": ["oscillator"],
+      "href": "/guidebook/07-synthesizers/06-oscillators"
+    },
+    {
+      "term": "filters",
+      "aliases": ["filter", "low-pass filter", "high-pass filter"],
+      "href": "/guidebook/07-synthesizers/07-filters"
+    },
+    {
+      "term": "voices",
+      "href": "/guidebook/07-synthesizers/09-deluge-voices"
+    },
+    {
+      "term": "arpeggiator",
+      "aliases": ["arp"],
+      "href": "/guidebook/08-arpeggiator/01-arpeggiator"
+    },
+    {
+      "term": "single-cycle waveforms",
+      "aliases": ["single-cycle", "single cycle"],
+      "href": "/guidebook/07-synthesizers/10-single-cycle-waveforms"
+    },
+    {
+      "term": "mod matrix",
+      "aliases": ["modulation matrix", "modulation routing"],
+      "href": "/guidebook/10-modulation/01-modulation-routing-basics"
+    },
+    {
+      "term": "envelopes",
+      "aliases": ["envelope"],
+      "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators"
+    },
+    {
+      "term": "LFO",
+      "aliases": [
+        "LFOs",
+        "low frequency oscillator",
+        "low frequency oscillators"
+      ],
+      "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators"
+    },
+    {
+      "term": "sidechain",
+      "aliases": ["sidechain compressor", "side chain"],
+      "href": "/guidebook/11-effects/03-sidechain-compressor"
+    },
+    {
+      "term": "collect media",
+      "href": "/guidebook/15-songs-and-files/02-collect-media-function"
+    },
+    {
+      "term": "white pads",
+      "href": "/guidebook/14-arranger-view/04-white-pads-for-variations"
+    },
+    {
+      "term": "resampling",
+      "aliases": ["resample"],
+      "href": "/guidebook/16-audio/10-resampling-deluge-output"
+    },
+    {
+      "term": "audio clips",
+      "aliases": ["audio clip"],
+      "href": "/guidebook/16-audio/06-recording-into-audio-clips-in-session-view"
+    },
+    {
+      "term": "time-stretching",
+      "aliases": ["time stretching", "time-stretch", "pitch shifting"],
+      "href": "/guidebook/16-audio/14-time-stretching-pitch-shifting"
+    },
+    {
+      "term": "looper",
+      "aliases": ["looping"],
+      "href": "/guidebook/17-looping/01-deluge-looping-overview"
+    },
+    {
+      "term": "overdub",
+      "aliases": ["overdubbing", "overdubs"],
+      "href": "/guidebook/17-looping/03-basic-looping"
+    },
+    {
+      "term": "foot controller",
+      "aliases": ["foot switch", "foot switches"],
+      "href": "/guidebook/17-looping/04-using-a-foot-controller"
+    },
+    {
+      "term": "loop margins",
+      "href": "/guidebook/17-looping/05-audio-loop-margins"
+    },
+    {
+      "term": "distortion",
+      "aliases": ["bitcrush", "decimation", "saturation", "wavefold"],
+      "href": "/guidebook/11-effects/04-distortion-effects"
+    },
+    {
+      "term": "EQ",
+      "aliases": ["equalisation", "equalization"],
+      "href": "/guidebook/11-effects/05-eq-equalisation"
+    },
+    {
+      "term": "DELAY",
+      "href": "/guidebook/11-effects/06-delay",
+      "caseSensitive": true
+    },
+    {
+      "term": "ping-pong",
+      "href": "/guidebook/11-effects/06-delay"
+    },
+    {
+      "term": "reverb",
+      "href": "/guidebook/11-effects/07-reverb"
+    },
+    {
+      "term": "mod-fx",
+      "aliases": ["modulation effects", "chorus", "flanger", "phaser"],
+      "href": "/guidebook/11-effects/08-modulation-effects"
+    },
+    {
+      "term": "stutter",
+      "href": "/guidebook/11-effects/09-stutter-effect"
+    },
+    {
+      "term": "MIDI learn",
+      "href": "/guidebook/18-midi/03-midi-in"
+    },
+    {
+      "term": "global MIDI commands",
+      "href": "/guidebook/18-midi/04-global-midi-commands"
+    },
+    {
+      "term": "tempo magnitude matching",
+      "href": "/guidebook/18-midi/06-tempo-magnitude-matching"
+    },
+    {
+      "term": "sync-scaling",
+      "aliases": ["sync scaling"],
+      "href": "/guidebook/18-midi/07-sync-scaling"
+    },
+    {
+      "term": "MPE",
+      "aliases": ["polyphonic aftertouch"],
+      "href": "/guidebook/18-midi/11-overview-of-midi-mpe-and-polyphonic-aftertouch"
+    },
+    {
+      "term": "gate outputs",
+      "aliases": ["gate output"],
+      "href": "/guidebook/19-cv/04-cv-gate-out"
+    },
+    {
+      "term": "trigger clock",
+      "href": "/guidebook/19-cv/02-cv-connections-compatibility#trigger-clock"
+    },
+    {
+      "term": "firmware update",
+      "aliases": ["updating firmware"],
+      "href": "/guidebook/21-settings-and-system/03-updating-deluge-firmware"
+    },
+    {
+      "term": "pad colours",
+      "aliases": ["pad colors"],
+      "href": "/guidebook/21-settings-and-system/04-deluge-pad-colours"
+    },
+    {
+      "term": "CPU load",
+      "aliases": ["CPU performance"],
+      "href": "/guidebook/21-settings-and-system/05-deluge-cpu-performance"
+    },
+    {
+      "term": "USB host",
+      "aliases": ["USB host mode"],
+      "href": "/guidebook/20-usb-host/01-usb-host-mode-for-devices"
+    },
+    {
+      "term": "quick reference",
+      "href": "/guidebook/appendix/a-quick-reference-commands"
+    },
+    {
+      "term": "community guide",
+      "href": "/guidebook/appendix/e-community-guide-os-41"
+    }
+  ],
+  "menu": {
+    "exclude": [
+      "/ LAUNCH",
+      "/ SECTION",
+      "12V",
+      "7SEG",
+      "9 - 12V",
+      "9V",
+      "ADJUST",
+      "ADSR",
+      "AFFECT",
+      "AFTERTOUCH",
+      "AMOUNT",
+      "ANALOG",
+      "ARP",
+      "ATTACK",
+      "AUDITION",
+      "AUTO",
+      "BACK / UNDO",
+      "BASS",
+      "BITCRUSH",
+      "BPM",
+      "BROWSE",
+      "CLIP",
+      "CLK",
+      "CPU",
+      "CROSS-",
+      "CUSTOM 1",
+      "CUSTOM 2",
+      "CUSTOM 3",
+      "CUTOFF / FM",
+      "CV",
+      "DAMPENING",
+      "DB / OCT",
+      "DECAY",
+      "DECIMATION",
+      "DELAY",
+      "DELAY TIME",
+      "DELETE",
+      "DELUGE",
+      "DEPTH",
+      "DESTINATION",
+      "DETUNE",
+      "DIRECTION",
+      "DISTORTION",
+      "DOWN",
+      "DX7",
+      "ENTIRE",
+      "ENV 1",
+      "ENV 2",
+      "ENVELOPE 1",
+      "ENVELOPE 2",
+      "EQ",
+      "FEEDBACK",
+      "FM",
+      "FM MOD 1",
+      "FM MOD 2",
+      "FREQUENCY",
+      "FX",
+      "GAIN",
+      "GATE",
+      "GATE OUT",
+      "HI",
+      "HPF",
+      "IN",
+      "INTERPOLATION",
+      "KEYBOARD",
+      "KIT",
+      "L / MONO",
+      "LEARN / INPUT",
+      "LEFT",
+      "LEVEL",
+      "LFO",
+      "LFO 1",
+      "LFO 2",
+      "LFO1",
+      "LFO2",
+      "LINE IN",
+      "LO",
+      "LOAD",
+      "LPF",
+      "MASTER",
+      "MIC",
+      "MIDI",
+      "MOD FX",
+      "MOD RATE",
+      "MOD SOURCES",
+      "MODE",
+      "MPE",
+      "MUTE",
+      "NAME",
+      "NEW",
+      "NOISE",
+      "NONE",
+      "NORMAL",
+      "NOTE",
+      "NUMBER",
+      "OCTAVES",
+      "OFF",
+      "OFFSET",
+      "OLED",
+      "ON",
+      "OSC",
+      "OSC 1",
+      "OSC 2",
+      "OSC SYNC",
+      "OUT",
+      "OUTPUT",
+      "PAN",
+      "PITCH / SPEED",
+      "PLAY",
+      "POLYPHONY",
+      "PORTA",
+      "PRIORITY",
+      "PW",
+      "RANDOM",
+      "RATE",
+      "RECORD",
+      "REDO",
+      "RELEASE",
+      "RES / FM",
+      "RESAMPLE",
+      "RESONANCE",
+      "RETRIG PHASE",
+      "REVERB",
+      "REVERSE",
+      "RIGHT",
+      "ROOM SIZE",
+      "SAMPLE 1",
+      "SAMPLE 2",
+      "SATURATION",
+      "SAVE",
+      "SCALE",
+      "SCREEN",
+      "SD",
+      "SELECT",
+      "SEND",
+      "SETTINGS",
+      "SHAPE",
+      "SHIFT",
+      "SIDECHAIN",
+      "SONG",
+      "SPEED",
+      "STEREO",
+      "STUTTER",
+      "SUSTAIN",
+      "SWING",
+      "SYNC",
+      "SYNC-SCALING",
+      "SYNCED",
+      "SYNTH",
+      "SYNTH MODE",
+      "TAP TEMPO",
+      "TEMPO",
+      "TRANSPOSE",
+      "TREBLE",
+      "TRIPLETS VIEW",
+      "TYPE",
+      "UNISON",
+      "UP",
+      "USB",
+      "VELOCITY",
+      "VIBRATO",
+      "VOICE",
+      "VOL DUCK",
+      "WAVEFORM",
+      "WAVETABLE",
+      "WIDTH"
+    ],
+    "pin": [
+      {
+        "phrases": ["INTErpolation"],
+        "tree": "synthSoundMenu",
+        "varName": "sample0InterpolationMenu"
+      }
+    ]
+  }
+}

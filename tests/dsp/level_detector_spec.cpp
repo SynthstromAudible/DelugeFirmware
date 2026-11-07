@@ -10,8 +10,7 @@
 using namespace deluge::dsp;
 
 namespace {
-/// Whether two levels are the same bits: a level can be NaN (a block whose sum wraps negative), and two NaNs from the
-/// same arithmetic are the same bits though they never compare equal.
+/// Whether two levels are the same bits.
 bool same(fp::StereoLevel a, float l, float r) {
 	return std::bit_cast<uint32_t>(a.l) == std::bit_cast<uint32_t>(l)
 	       && std::bit_cast<uint32_t>(a.r) == std::bit_cast<uint32_t>(r);
@@ -44,6 +43,33 @@ describe level_detector("the level detector", ${
 			mismatches += same(got, want.l, want.r) ? 0 : 1;
 		}
 		expect(mismatches).to_equal(0);
+	});
+
+	it("reads a full-scale block near ln 2^31, its sums not overflowing", _ {
+		fp::LevelDetector detector;
+		const std::vector<test::RawFrame> frames(128, test::RawFrame{.l = INT32_MIN, .r = INT32_MAX});
+		fp::StereoLevel level{};
+		for (int b = 0; b < 20; b++) {
+			level = detector.measure(test::typed_frames(std::span{frames}));
+		}
+		expect(level.l > 21.4f && level.l < 21.5f).to_be_true();
+		expect(level.r > 21.4f && level.r < 21.5f).to_be_true();
+	});
+
+	it("measures a block from the caller's means as from its frames", _ {
+		fp::LevelDetector from_frames;
+		fp::LevelDetector from_means;
+		const auto frames = block(3, 128, 4);
+		int64_t sum_l = 0;
+		int64_t sum_r = 0;
+		for (const test::RawFrame f : frames) {
+			sum_l += (f.l ^ (f.l >> 31)) >> 8;
+			sum_r += (f.r ^ (f.r >> 31)) >> 8;
+		}
+		const fp::StereoLevel a = from_frames.measure(test::typed_frames(std::span{frames}));
+		const fp::StereoLevel b = from_means.measure_means(256.f * static_cast<float>(sum_l) / 128.f,
+		                                                   256.f * static_cast<float>(sum_r) / 128.f, 128);
+		expect(same(a, b.l, b.r)).to_be_true();
 	});
 
 	it("starts from silence after a reset", _ {

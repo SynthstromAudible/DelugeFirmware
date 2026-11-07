@@ -105,6 +105,7 @@ public:
 		int32_t depth;
 		int32_t offset;
 		int32_t feedback;
+		bool operator==(const Words&) const = default;
 	};
 
 	/// @brief The block's param values.

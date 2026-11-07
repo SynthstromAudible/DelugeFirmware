@@ -452,7 +452,7 @@ describe cm_composition("scenes::context_menu::ContextMenuScene composition", $ 
 		expect(s.occludes_grid()).to_be_false();
 		// `greyout_mask()` is where the greyout lives: legacy's
 		// `getGreyoutColsAndRows` sets `*cols = 0xFFFFFFFF` and leaves `*rows` at the caller's zero
-		// (`gui/ui/ui.cpp:103-112`), which is a mask, not the shell's halve-everything dim. Same
+		// (`gui/ui/ui.cpp:104-113`), which is a mask, not the shell's halve-everything dim. Same
 		// split `MenuScene` and `RenameScene` make.
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFFu});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});

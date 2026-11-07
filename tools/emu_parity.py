@@ -20,7 +20,11 @@ settings read as empty on both images and the pads are sampled as shown.
     tools/emu_parity.py --ref main.elf --test build/RelWithDebInfo/deluge.elf \\
         --card tests/fixtures/card -j 4 tests/ui-scripts/parity/*.txt
 
-Exit codes: 0 every snapshot matched; 1 a snapshot differed or a run failed.
+Each snapshot reads MATCH, PHASE or DIFF (see classify(); the report holds each one's verdict and differences).
+PHASE is a difference only in when a value showed: every part ends the window the same on both images, or, with
+--calibrate, a second run of either image differs from its first at that snapshot too.
+
+Exit codes: 0 every snapshot matched or differed only in phase; 1 a snapshot differed or a run failed.
 """
 
 import argparse
@@ -538,6 +542,33 @@ def differences(ref: list[dict], test: list[dict]) -> list[str]:
     return out or ["the same values on both, in different panels"]
 
 
+def classify(
+    ref: list[dict],
+    test: list[dict],
+    ref2: list[dict] | None,
+    test2: list[dict] | None = None,
+) -> str:
+    """A snapshot's verdict: MATCH when the windows show the same values; PHASE when they differ only in when they
+    showed them, which needs one of two things to be true: every part of the panel ends the window the same on both
+    (the OLED, the pads, the knob rings, each LED and each PIC setting, so the difference is in the panels before the
+    last: a scroll frame or a blink caught at another moment) and both images flashed the same pads, as a flash is an
+    event rather than a state the window ends in; or a second run of either image (@p ref2, @p test2)
+    differs from its first here too, so that image cannot repeat itself at this snapshot. Anything else is DIFF."""
+    if not differences(ref, test):
+        return "MATCH"
+    last_ref, last_test = ref[-1], test[-1]
+    if all(
+        json.dumps(last_ref.get(name)) == json.dumps(last_test.get(name))
+        for name in ("oled", "pads", "gold", "leds", "pic")
+    ) and parts(ref).get("flashes") == parts(test).get("flashes"):
+        return "PHASE"
+    if ref2 is not None and differences(ref, ref2):
+        return "PHASE"
+    if test2 is not None and differences(test, test2):
+        return "PHASE"
+    return "DIFF"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument(
@@ -581,6 +612,12 @@ def main() -> int:
         action="store_true",
         help="keep the SD image built from --card in the artifact directory (4 GB; deleted after the run by default)",
     )
+    ap.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="run each image a second time beside the two (four emulators a script), so a difference either "
+        "image shows against itself reads PHASE",
+    )
     ap.add_argument("scripts", nargs="+", type=Path)
     args = ap.parse_args()
     # delugemu's run.sh runs from its own directory, so every path it is given is absolute.
@@ -601,8 +638,12 @@ def main() -> int:
         )
     buttons = button_table()
 
-    def compare(script: Path) -> dict[str, list[str]]:
-        with concurrent.futures.ThreadPoolExecutor(2) as pool:
+    sides = [("ref", args.ref), ("test", args.test)] + (
+        [("ref2", args.ref), ("test2", args.test)] if args.calibrate else []
+    )
+
+    def compare(script: Path) -> dict[str, dict]:
+        with concurrent.futures.ThreadPoolExecutor(len(sides)) as pool:
             jobs = {
                 side: pool.submit(
                     run_image,
@@ -614,7 +655,7 @@ def main() -> int:
                     buttons,
                     args.audio_wav,
                 )
-                for side, elf in (("ref", args.ref), ("test", args.test))
+                for side, elf in sides
             }
             got = {}
             for side, job in jobs.items():
@@ -633,9 +674,17 @@ def main() -> int:
             f"{side}: {r}" for side, r in got.items() if isinstance(r, BaseException)
         ]
         if errors:
-            return {"run": errors}
+            return {"run": {"verdict": "DIFF", "diff": errors}}
         return {
-            name: differences(got["ref"][name], got["test"][name])
+            name: {
+                "verdict": classify(
+                    got["ref"][name],
+                    got["test"][name],
+                    got.get("ref2", {}).get(name),
+                    got.get("test2", {}).get(name),
+                ),
+                "diff": differences(got["ref"][name], got["test"][name]),
+            }
             for name in got["ref"]
         }
 
@@ -646,14 +695,14 @@ def main() -> int:
     if args.sd is None and not args.keep_card:
         sd.unlink()
     for script, snaps in results.items():
-        for name, diff in snaps.items():
-            report[f"{script.stem}/{name}"] = diff
-            status = "MATCH" if not diff else "DIFF"
+        for name, result in snaps.items():
+            report[f"{script.stem}/{name}"] = result
+            diff = result["diff"]
             print(
-                f"{status:5} {script.stem}/{name}"
+                f"{result['verdict']:5} {script.stem}/{name}"
                 + ("" if not diff else "  " + "; ".join(diff))
             )
-            failed |= bool(diff)
+            failed |= result["verdict"] == "DIFF"
     (out / "report.json").write_text(json.dumps(report, indent=1))
     print(f"emu_parity: artifacts in {out}")
     return 1 if failed else 0

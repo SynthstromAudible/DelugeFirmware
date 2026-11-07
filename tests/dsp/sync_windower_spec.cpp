@@ -21,6 +21,7 @@
 // is the golden harness's job; here we pin the structural invariants. Dual-arch (x86 SIMDe + ARM).
 
 #include "dsp-next/core/buffer_view.h"
+#include "dsp-next/fixed/sync/resetter.h"
 #include "dsp-next/fixed/sync/sync_windower.h"
 #include "sync_reference.h"
 #include <array>
@@ -105,6 +106,15 @@ uint32_t xorshift(uint32_t& x) {
 
 // clang-format off
 describe sync_windower("deluge::dsp::fixed SyncWindower", ${
+	it("takes the reciprocal as the integer quotient, at every divisor", _ {
+		int32_t mismatches = 0;
+		for (uint32_t divisor = 2; divisor <= 65536; divisor++) {
+			const uint32_t increment = (divisor - 1) << 16 | 1; // rounds up to divisor
+			mismatches += deluge::dsp::fixed::resetter_reciprocal(increment) == static_cast<int32_t>(2147483648u / divisor) ? 0 : 1;
+		}
+		expect(mismatches).to_equal(0);
+	});
+
 	it("yields one full-length window when the resetter never crosses over", _ {
 		std::vector<SyncWindower::Window> windows = collect(kSlowResetter);
 		expect(windows.size()).to_equal(static_cast<std::size_t>(1));

@@ -21,6 +21,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/track_chain.h"
 #include "foundation/function_ref.h"
+#include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
 #include "model/fx/reverb_candidate.h"
@@ -86,8 +87,9 @@ public:
 	[[nodiscard]] ChainView& view() { return view_; }
 	[[nodiscard]] const ChainView& view() const { return view_; }
 
-	/// @brief Renders one block: the chain around @p content, added into @p output, then the clip's param automation
-	/// ticks. Unlike usual, @p modelStack's timeline counter may be null.
+	/// @brief Renders one block: @p content, then the chain over it, added into @p output, then the clip's param
+	/// automation ticks. Once the content has gone silent and the chain's tails have died away, the chain is skipped
+	/// until the content renders again. Unlike usual, @p modelStack's timeline counter may be null.
 	/// @param modelStack The track's model stack.
 	/// @param paramManager The active clip's params (or the track's, with no clip).
 	/// @param output The song's mix, which the channel adds into.
@@ -107,9 +109,30 @@ public:
 	bool rendered_last_time = false;
 
 private:
+	/// @brief The clip's param automation moves on by @p frames while the clock runs and the clip is active.
+	void tickParamAutomation(ModelStackWithTimelineCounter* modelStack, ParamManager& paramManager, size_t frames,
+	                         const ChannelBlock& block);
+	/// @brief How long the mod FX and the compressor keep sounding once their input is silent, in samples; 0 when
+	///        neither is on.
+	[[nodiscard]] int32_t samplesUntilTailsEnd(ParamManager& paramManager);
+	/// @brief Starts skipping the chain once the content rendered nothing, the delay has no repeats left, nothing
+	///        stutters or records the track (@p held), and the mod FX and compressor tails have died away.
+	void reassessSkipping(ParamManager& paramManager, bool held);
+	void startSkipping();
+	/// @brief Back from skipping: the mod FX's LFO and the sidechain catch up with the time skipped.
+	void stopSkipping(ParamManager& paramManager);
+
 	EffectsBinding binding_;
 	ChainView view_;
 	effects::TrackChain chain_;
+	/// The chain's remembered param conversions, render tier only.
+	ChainConversions conversions_;
+	/// Whether the chain is skipped: only the content renders, and the chain runs again once it renders something.
+	bool skipping_ = false;
+	/// When to start skipping, once the tails have died away; 0 while not waiting.
+	uint32_t start_skipping_at_ = 0;
+	/// When skipping started, for catching up on stopping.
+	uint32_t time_started_skipping_ = 0;
 };
 
 } // namespace deluge::model

@@ -1,0 +1,1161 @@
+{
+  "headwords": [
+    {
+      "head": "Accessibility",
+      "match": ["accessibility"]
+    },
+    {
+      "head": "Accidentals",
+      "match": ["sharps", "flats"],
+      "refs": [
+        {
+          "label": "Sharps or flats",
+          "href": "/guidebook/04-sequencing/08-note-scales#sharps-or-flats",
+          "section": "4.8"
+        }
+      ]
+    },
+    {
+      "head": "Affect entire",
+      "match": ["affect-entire", "affect entire"]
+    },
+    {
+      "head": "Affect group",
+      "match": [
+        "affect group",
+        "affect entire",
+        "affect parameters",
+        "affect controls"
+      ]
+    },
+    {
+      "head": "Alphanumeric keyboard",
+      "match": ["alphanumeric keyboard", "alphanumeric keypad"]
+    },
+    {
+      "head": "Architecture",
+      "match": ["architecture"]
+    },
+    {
+      "head": "Arpeggiator",
+      "match": ["arpeggiator", "arp"]
+    },
+    {
+      "head": "Arranger view",
+      "match": ["arranger", "arrangement"],
+      "also": ["Session view", "White clips"],
+      "refs": [
+        {
+          "label": "Renaming MIDI tracks in arranger",
+          "href": "/guidebook/03-clips/06-naming-clips-tracks#renaming-midi-tracks-in-arranger",
+          "section": "3.6"
+        }
+      ]
+    },
+    {
+      "head": "Audio clip",
+      "match": ["audio clip", "audio clips", "audio loop", "audio overdub"],
+      "also": ["Recording", "Sample"]
+    },
+    {
+      "head": "Audio export",
+      "match": ["audio export"]
+    },
+    {
+      "head": "Audio input",
+      "match": [
+        "audio in",
+        "audio input",
+        "audio inputs",
+        "line in",
+        "live audio",
+        "monitoring",
+        "input monitoring",
+        "audio thru",
+        "getting audio"
+      ]
+    },
+    {
+      "head": "Audition pad",
+      "match": ["audition", "audition pads"]
+    },
+    {
+      "head": "Automation",
+      "match": [
+        "automation",
+        "automating",
+        "recording parameter",
+        "parameter control movements",
+        "manual parameter changes"
+      ],
+      "also": ["Parameter"]
+    },
+    {
+      "head": "Battery",
+      "match": ["battery", "charging", "powering", "power up"],
+      "refs": [
+        {
+          "label": "Battery display",
+          "href": "/guidebook/21-settings-and-system/01-system-settings#battery-display",
+          "section": "21.1"
+        }
+      ]
+    },
+    {
+      "head": "Bitcrush",
+      "match": ["bitcrush"]
+    },
+    {
+      "head": "Chord",
+      "match": ["chord", "chords"]
+    },
+    {
+      "head": "Clip",
+      "match": ["clip", "clips"],
+      "not": [
+        "clip view",
+        "audio clip",
+        "audio clips",
+        "white clip",
+        "fill clip",
+        "fill clips",
+        "midi clip",
+        "cv clip",
+        "cv clips"
+      ],
+      "also": ["Audio clip", "Clip view", "Fill clip", "White clips"],
+      "refs": [
+        {
+          "label": "Default clip type",
+          "href": "/guidebook/03-clips/03-creating-a-clip#default-clip-type",
+          "section": "3.3"
+        },
+        {
+          "label": "Preset changes apply to every clip",
+          "href": "/guidebook/03-clips/04-presets#preset-changes-apply-to-every-clip",
+          "section": "3.4"
+        },
+        {
+          "label": "New-clip picker",
+          "href": "/guidebook/12-session-view/04-working-in-session-grid-view#new-clip-picker",
+          "section": "12.4"
+        },
+        {
+          "label": "Selected-clip pulsing",
+          "href": "/guidebook/12-session-view/04-working-in-session-grid-view#selected-clip-pulsing",
+          "section": "12.4"
+        }
+      ]
+    },
+    {
+      "head": "Clip view",
+      "match": ["clip view"]
+    },
+    {
+      "head": "Colour",
+      "match": ["colour", "colours", "color"],
+      "refs": [
+        {
+          "label": "Sound editor colours",
+          "href": "/guidebook/07-synthesizers/05-sound-editor-synthesizer-parameters#sound-editor-colours",
+          "section": "7.5"
+        }
+      ]
+    },
+    {
+      "head": "Community Features",
+      "match": ["community features"]
+    },
+    {
+      "head": "Compressor",
+      "match": ["compressor", "compressors", "sidechain"],
+      "refs": [
+        {
+          "label": "Compressor blend",
+          "href": "/guidebook/11-effects/03-sidechain-compressor#compressor-blend",
+          "section": "11.3"
+        }
+      ]
+    },
+    {
+      "head": "Controls",
+      "match": [
+        "controls",
+        "operating controls",
+        "custom parameter",
+        "affect controls"
+      ]
+    },
+    {
+      "head": "Copy and paste",
+      "match": ["copying rows", "paste gently", "copying and pasting"]
+    },
+    {
+      "head": "Count-in",
+      "match": ["count-in"],
+      "refs": [
+        {
+          "label": "Metronome during count-in",
+          "href": "/guidebook/04-sequencing/04-recording-pattern-sequences#metronome-during-count-in",
+          "section": "4.4"
+        }
+      ]
+    },
+    {
+      "head": "CPU",
+      "match": ["cpu", "processing power"]
+    },
+    {
+      "head": "Cross-screen editing",
+      "match": ["cross-screen", "multiple screens"]
+    },
+    {
+      "head": "CV",
+      "match": ["cv", "cv2", "gate", "trigger clock"]
+    },
+    {
+      "head": "Decimation",
+      "match": ["decimation"]
+    },
+    {
+      "head": "Delay",
+      "match": ["delay"],
+      "sections": ["11.6"],
+      "refs": [
+        {
+          "label": "Delay sync type when cloning",
+          "href": "/guidebook/11-effects/06-delay#delay-sync-type-when-cloning",
+          "section": "11.6"
+        }
+      ]
+    },
+    {
+      "head": "Distortion",
+      "match": [
+        "distortion",
+        "saturation",
+        "bitcrush",
+        "decimation",
+        "wavefold"
+      ]
+    },
+    {
+      "head": "Drum pad grid",
+      "match": ["drum pad", "grid pad view"]
+    },
+    {
+      "head": "DX7",
+      "match": ["dx7", "algorithm display"],
+      "refs": [
+        {
+          "label": "Algorithm display",
+          "href": "/guidebook/07-synthesizers/08-dx7-synth#algorithm-display",
+          "section": "7.8"
+        },
+        {
+          "label": "DX7 in kits",
+          "href": "/guidebook/07-synthesizers/08-dx7-synth#dx7-in-kits",
+          "section": "7.8"
+        }
+      ]
+    },
+    {
+      "head": "Effects",
+      "match": ["effects", "mod-fx", "fx"],
+      "also": ["Delay", "Distortion", "EQ", "Reverb", "Stutter"]
+    },
+    {
+      "head": "Envelope",
+      "match": ["envelope", "envelopes"]
+    },
+    {
+      "head": "EQ",
+      "match": ["eq", "equalisation", "bass", "treble", "frequency range"]
+    },
+    {
+      "head": "Euclidean sequencing",
+      "match": ["euclidean"]
+    },
+    {
+      "head": "Factory reset",
+      "match": ["factory reset"]
+    },
+    {
+      "head": "Favourites",
+      "match": ["favourites"]
+    },
+    {
+      "head": "Files",
+      "match": ["file structure", "file browser", "files"]
+    },
+    {
+      "head": "Fill",
+      "match": ["fill"],
+      "not": ["fill clip", "fill clips"]
+    },
+    {
+      "head": "Fill clip",
+      "match": ["fill clip", "fill clips"]
+    },
+    {
+      "head": "Filter",
+      "match": ["filter", "filters", "lpf", "hpf"]
+    },
+    {
+      "head": "Firmware",
+      "match": ["firmware", "update"],
+      "not": ["firmware variants"]
+    },
+    {
+      "head": "FM synthesis",
+      "match": ["fm"]
+    },
+    {
+      "head": "Folder",
+      "match": ["folder"]
+    },
+    {
+      "head": "Foot controller",
+      "match": ["foot controller", "foot switch"]
+    },
+    {
+      "head": "Grain",
+      "match": ["grain"]
+    },
+    {
+      "head": "Grid",
+      "match": ["grid"],
+      "not": ["song grid view", "grid view", "grid pad view", "drum pad grid"]
+    },
+    {
+      "head": "Hardware",
+      "match": [
+        "hardware",
+        "rear panel",
+        "front panel",
+        "connectors",
+        "usb",
+        "dc power",
+        "sd card",
+        "headphone",
+        "outputs",
+        "mic input",
+        "line input"
+      ]
+    },
+    {
+      "head": "Hold press",
+      "match": ["hold press", "hold presses"],
+      "refs": [
+        {
+          "label": "Hold press time",
+          "href": "/guidebook/02-basics/02-general-operating-controls#hold-press-time",
+          "section": "2.2"
+        }
+      ]
+    },
+    {
+      "head": "Iteration",
+      "match": ["iteration"]
+    },
+    {
+      "head": "Keyboard view",
+      "match": ["keyboard view", "isomorphic", "in-key keyboard", "keyboard"],
+      "not": ["alphanumeric keyboard", "external keyboard"],
+      "refs": [
+        {
+          "label": "Drum keyboard zoom levels",
+          "href": "/guidebook/05-keyboard-views/02-alternate-drum-pad-grid-view#drum-keyboard-zoom-levels",
+          "section": "5.2"
+        }
+      ]
+    },
+    {
+      "head": "Kit",
+      "match": ["kit", "kits"],
+      "also": ["Kit row", "Drum pad grid"],
+      "refs": [
+        {
+          "label": "DX7 in kits",
+          "href": "/guidebook/07-synthesizers/08-dx7-synth#dx7-in-kits",
+          "section": "7.8"
+        }
+      ]
+    },
+    {
+      "head": "Kit row",
+      "match": [
+        "kit row",
+        "kit rows",
+        "sound row",
+        "sounds within a kit",
+        "synth row"
+      ]
+    },
+    {
+      "head": "Launching",
+      "match": ["launch", "launching", "arming", "armed"]
+    },
+    {
+      "head": "LFO",
+      "match": ["lfo", "lfos", "low frequency oscillators"],
+      "refs": [
+        {
+          "label": "Warble LFO shape",
+          "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators#warble-lfo-shape",
+          "section": "10.3"
+        }
+      ]
+    },
+    {
+      "head": "Looping",
+      "match": ["loop", "loops", "looping", "looper", "overdub"],
+      "not": ["loop markers"]
+    },
+    {
+      "head": "Lumi",
+      "match": ["lumi"]
+    },
+    {
+      "head": "Macros",
+      "match": ["macro pads", "song macros"],
+      "refs": [
+        {
+          "label": "Bright and dim macro pads",
+          "href": "/guidebook/12-session-view/07-song-macros#bright-and-dim-macro-pads",
+          "section": "12.7"
+        }
+      ]
+    },
+    {
+      "head": "Metronome",
+      "match": ["metronome"],
+      "refs": [
+        {
+          "label": "Metronome during count-in",
+          "href": "/guidebook/04-sequencing/04-recording-pattern-sequences#metronome-during-count-in",
+          "section": "4.4"
+        }
+      ]
+    },
+    {
+      "head": "MIDI",
+      "match": [
+        "midi",
+        "takeover",
+        "sync",
+        "leader",
+        "follower",
+        "external keyboard",
+        "external controller"
+      ],
+      "refs": [
+        {
+          "label": "Renaming MIDI tracks in arranger",
+          "href": "/guidebook/03-clips/06-naming-clips-tracks#renaming-midi-tracks-in-arranger",
+          "section": "3.6"
+        },
+        {
+          "label": "LFO2 sync",
+          "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators#lfo2-sync",
+          "section": "10.3"
+        },
+        {
+          "label": "Delay sync type when cloning",
+          "href": "/guidebook/11-effects/06-delay#delay-sync-type-when-cloning",
+          "section": "11.6"
+        },
+        {
+          "label": "Relative takeover",
+          "href": "/guidebook/18-midi/03-midi-in#relative-takeover",
+          "section": "18.3"
+        }
+      ]
+    },
+    {
+      "head": "MIDI CCs",
+      "match": ["ccs"],
+      "refs": [
+        {
+          "label": "Hide unlabelled CCs",
+          "href": "/guidebook/18-midi/09-midi-out-controls#hide-unlabelled-ccs",
+          "section": "18.9"
+        }
+      ]
+    },
+    {
+      "head": "Mod-FX",
+      "match": ["mod-fx", "modulation effects"],
+      "sections": ["11.8"]
+    },
+    {
+      "head": "Modulation",
+      "match": ["modulation", "modulators", "mod matrix"],
+      "also": ["Envelope", "LFO"]
+    },
+    {
+      "head": "MPE",
+      "match": ["mpe", "polyphonic aftertouch"]
+    },
+    {
+      "head": "Multisample",
+      "match": ["multisample", "multisamples"]
+    },
+    {
+      "head": "Mute",
+      "match": ["mute", "muting"],
+      "refs": [
+        {
+          "label": "mute pads in clip view",
+          "href": "/guidebook/03-clips/02-clip-view-overview#audition--mute-pads--clip-view",
+          "section": "3.2"
+        },
+        {
+          "label": "muting and unmuting tracks in arranger view",
+          "href": "/guidebook/14-arranger-view/02-arranger-relationship-with-the-other-views",
+          "section": "14.2"
+        }
+      ]
+    },
+    {
+      "head": "Note",
+      "match": ["note", "notes"],
+      "not": [
+        "note scales",
+        "notes when",
+        "additional automation view notes",
+        "notes on kits"
+      ],
+      "refs": [
+        {
+          "label": "Note row play direction",
+          "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance#note-row-play-direction",
+          "section": "4.7"
+        }
+      ]
+    },
+    {
+      "head": "Nudge",
+      "match": ["nudge", "nudging"]
+    },
+    {
+      "head": "OLED",
+      "match": ["oled", "7seg", "fonts", "rounded corners"],
+      "refs": [
+        {
+          "label": "Fonts",
+          "href": "/guidebook/21-settings-and-system/06-oled-display#fonts",
+          "section": "21.6"
+        },
+        {
+          "label": "Rounded corners",
+          "href": "/guidebook/21-settings-and-system/06-oled-display#rounded-corners",
+          "section": "21.6"
+        }
+      ]
+    },
+    {
+      "head": "Oscillator",
+      "match": [
+        "oscillator",
+        "oscillators",
+        "waveform source",
+        "single cycle",
+        "single-cycle",
+        "waveforms"
+      ],
+      "not": ["low frequency oscillators"]
+    },
+    {
+      "head": "Pad colours",
+      "match": ["pad colours", "pad brightness", "refresh rate"],
+      "refs": [
+        {
+          "label": "Saved pad brightness",
+          "href": "/guidebook/21-settings-and-system/04-deluge-pad-colours#saved-pad-brightness",
+          "section": "21.4"
+        }
+      ]
+    },
+    {
+      "head": "Parameter",
+      "match": ["parameter", "parameters"],
+      "also": ["Automation", "Sound editor"],
+      "refs": [
+        {
+          "label": "Parameter shortcut overlay",
+          "href": "/guidebook/07-synthesizers/08-dx7-synth#parameter-shortcut-overlay",
+          "section": "7.8"
+        }
+      ]
+    },
+    {
+      "head": "Patch cables",
+      "match": ["patch cables", "cables"]
+    },
+    {
+      "head": "Performance view",
+      "match": ["performance view"]
+    },
+    {
+      "head": "Pitch",
+      "match": ["pitch", "transpose", "transposing", "root note"]
+    },
+    {
+      "head": "Play direction",
+      "match": ["play direction", "playback mode", "reversing playback"],
+      "refs": [
+        {
+          "label": "Note row play direction",
+          "href": "/guidebook/04-sequencing/07-note-creativity-probability-iteration-dependance#note-row-play-direction",
+          "section": "4.7"
+        }
+      ]
+    },
+    {
+      "head": "Playing",
+      "match": ["playing", "playback", "play"],
+      "not": ["play direction", "playback mode", "reversing playback"],
+      "refs": [
+        {
+          "label": "Playback start behaviour",
+          "href": "/guidebook/04-sequencing/03-tempo-swing#playback-start-behaviour",
+          "section": "4.3"
+        },
+        {
+          "label": "Playing from the scroll position",
+          "href": "/guidebook/14-arranger-view/05-arranger-view-advanced#playing-from-the-scroll-position",
+          "section": "14.5"
+        }
+      ]
+    },
+    {
+      "head": "Polyphony",
+      "match": ["polyphony", "voices", "unison", "voice"],
+      "refs": [
+        {
+          "label": "Maximum voices",
+          "href": "/guidebook/07-synthesizers/09-deluge-voices#maximum-voices",
+          "section": "7.9"
+        },
+        {
+          "label": "Voice usage menu",
+          "href": "/guidebook/07-synthesizers/09-deluge-voices#voice-usage-menu",
+          "section": "7.9"
+        },
+        {
+          "label": "Voice count display",
+          "href": "/guidebook/21-settings-and-system/05-deluge-cpu-performance#voice-count-display",
+          "section": "21.5"
+        }
+      ]
+    },
+    {
+      "head": "Preset",
+      "match": ["preset", "presets", "factory library"],
+      "refs": [
+        {
+          "label": "Preset changes apply to every clip",
+          "href": "/guidebook/03-clips/04-presets#preset-changes-apply-to-every-clip",
+          "section": "3.4"
+        }
+      ]
+    },
+    {
+      "head": "Probability",
+      "match": ["probabilities", "probability"]
+    },
+    {
+      "head": "Program change",
+      "match": ["program change", "program numbers"],
+      "refs": [
+        {
+          "label": "Program numbers 0 to 127",
+          "href": "/guidebook/18-midi/10-midi-out-within-kits-songs#program-numbers-0-to-127",
+          "section": "18.10"
+        }
+      ]
+    },
+    {
+      "head": "Quantize",
+      "match": ["quantization", "quantizing", "humanizing"]
+    },
+    {
+      "head": "Quick reference",
+      "match": ["quick reference", "shortcuts", "shortcut"],
+      "refs": [
+        {
+          "label": "Parameter shortcut overlay",
+          "href": "/guidebook/07-synthesizers/08-dx7-synth#parameter-shortcut-overlay",
+          "section": "7.8"
+        },
+        {
+          "label": "New drum randomizer shortcuts",
+          "href": "/guidebook/09-kits/04-kit-presets-samples#new-drum-randomizer-shortcuts",
+          "section": "9.4"
+        }
+      ]
+    },
+    {
+      "head": "Randomize",
+      "match": ["random", "randomizer", "randomness"],
+      "refs": [
+        {
+          "label": "Drum randomizer without a limit",
+          "href": "/guidebook/09-kits/04-kit-presets-samples#drum-randomizer-without-a-limit",
+          "section": "9.4"
+        },
+        {
+          "label": "New drum randomizer shortcuts",
+          "href": "/guidebook/09-kits/04-kit-presets-samples#new-drum-randomizer-shortcuts",
+          "section": "9.4"
+        }
+      ]
+    },
+    {
+      "head": "Recording",
+      "match": [
+        "recording",
+        "record",
+        "sampling",
+        "step recording",
+        "live recording"
+      ],
+      "also": ["Automation", "Looping", "Resampling"]
+    },
+    {
+      "head": "Rename",
+      "match": ["edit name", "rename", "renaming"],
+      "refs": [
+        {
+          "label": "Renaming MIDI tracks in arranger",
+          "href": "/guidebook/03-clips/06-naming-clips-tracks#renaming-midi-tracks-in-arranger",
+          "section": "3.6"
+        }
+      ]
+    },
+    {
+      "head": "Repeat",
+      "match": ["repeat"]
+    },
+    {
+      "head": "Resampling",
+      "match": ["resampling", "re-sampling"]
+    },
+    {
+      "head": "Reverb",
+      "match": ["reverb"],
+      "sections": ["11.7"]
+    },
+    {
+      "head": "Sample",
+      "match": ["sample", "samples", "sampling"],
+      "also": ["Audio clip", "Multisample", "Recording", "Waveform editor"]
+    },
+    {
+      "head": "Saving & loading",
+      "match": [
+        "saving",
+        "loading",
+        "load",
+        "save",
+        "collect media",
+        "transferring",
+        "collecting media"
+      ],
+      "refs": [
+        {
+          "label": "Saving animation",
+          "href": "/guidebook/21-settings-and-system/06-oled-display#saving-animation",
+          "section": "21.6"
+        }
+      ]
+    },
+    {
+      "head": "Scale",
+      "match": ["scale", "scales", "custom scale", "sharpening"],
+      "refs": [
+        {
+          "label": "Checking the scale with a long press",
+          "href": "/guidebook/04-sequencing/08-note-scales#checking-the-scale-with-a-long-press",
+          "section": "4.8"
+        }
+      ]
+    },
+    {
+      "head": "Scrolling",
+      "match": ["scrolling", "scroll", "navigating"],
+      "refs": [
+        {
+          "label": "Playing from the scroll position",
+          "href": "/guidebook/14-arranger-view/05-arranger-view-advanced#playing-from-the-scroll-position",
+          "section": "14.5"
+        }
+      ]
+    },
+    {
+      "head": "Section",
+      "match": ["section", "sections"],
+      "refs": [
+        {
+          "label": "Editing section repeats in green mode",
+          "href": "/guidebook/12-session-view/04-working-in-session-grid-view#editing-section-repeats-in-green-mode",
+          "section": "12.4"
+        },
+        {
+          "label": "24 sections",
+          "href": "/guidebook/12-session-view/05-launching#24-sections",
+          "section": "12.5"
+        }
+      ]
+    },
+    {
+      "head": "Sequencing",
+      "match": ["sequence", "sequencing", "sequencer", "pattern", "patterns"]
+    },
+    {
+      "head": "Session grid view",
+      "match": ["session grid view", "song grid view", "grid view"],
+      "not": ["session row view", "song row view"]
+    },
+    {
+      "head": "Session row view",
+      "match": ["session row view", "song row view", "row view"]
+    },
+    {
+      "head": "Session view",
+      "match": ["session view", "session mode", "song view", "song mode"],
+      "also": ["Session grid view", "Session row view"]
+    },
+    {
+      "head": "Settings",
+      "match": ["settings", "setting", "configuration", "system parameter"],
+      "not": [
+        "setting the",
+        "setting a",
+        "setting up",
+        "setting sound",
+        "setting kit",
+        "setting delay",
+        "setting reverb",
+        "setting mod-fx",
+        "setting eq",
+        "setting playback",
+        "setting tempo",
+        "setting midi",
+        "setting deluge"
+      ]
+    },
+    {
+      "head": "Slicing",
+      "match": ["chop", "lazy chop", "slice", "slicing"],
+      "refs": [
+        {
+          "label": "Default slice mode",
+          "href": "/guidebook/09-kits/05-sampling-recording-audio-within-kits#default-slice-mode",
+          "section": "9.5"
+        }
+      ]
+    },
+    {
+      "head": "Solo",
+      "match": ["solo", "soloing"]
+    },
+    {
+      "head": "Song",
+      "match": ["song", "songs"],
+      "not": [
+        "song view",
+        "song row view",
+        "song grid view",
+        "song mod-fx",
+        "session view",
+        "session row view",
+        "session grid view",
+        "session mode"
+      ],
+      "refs": [
+        {
+          "label": "Exit menus with Song",
+          "href": "/guidebook/02-basics/04-menus#exit-menus-with-song",
+          "section": "2.4"
+        }
+      ]
+    },
+    {
+      "head": "Sound editor",
+      "match": ["sound editor", "nested menus", "menus"],
+      "refs": [
+        {
+          "label": "Exit menus by holding Back",
+          "href": "/guidebook/02-basics/04-menus#exit-menus-by-holding-back",
+          "section": "2.4"
+        },
+        {
+          "label": "Exit menus with Song",
+          "href": "/guidebook/02-basics/04-menus#exit-menus-with-song",
+          "section": "2.4"
+        },
+        {
+          "label": "Sound editor colours",
+          "href": "/guidebook/07-synthesizers/05-sound-editor-synthesizer-parameters#sound-editor-colours",
+          "section": "7.5"
+        }
+      ]
+    },
+    {
+      "head": "Stutter",
+      "match": ["stutter"]
+    },
+    {
+      "head": "Subtractive synthesis",
+      "match": ["subtractive"]
+    },
+    {
+      "head": "Swing",
+      "match": ["swing"]
+    },
+    {
+      "head": "Synth",
+      "match": ["synth", "synths", "synthesizer", "synthesizers", "synthesis"],
+      "also": [
+        "FM synthesis",
+        "Oscillator",
+        "Subtractive synthesis",
+        "Wavetable"
+      ]
+    },
+    {
+      "head": "SysEx",
+      "match": ["sysex"]
+    },
+    {
+      "head": "Tempo",
+      "match": ["tempo", "tap tempo", "magnitude"],
+      "refs": [
+        {
+          "label": "Four-press tap tempo",
+          "href": "/guidebook/04-sequencing/03-tempo-swing#four-press-tap-tempo",
+          "section": "4.3"
+        }
+      ]
+    },
+    {
+      "head": "Time-stretching",
+      "match": [
+        "time-stretching",
+        "time stretch",
+        "pitch / speed",
+        "grabbing tempo"
+      ]
+    },
+    {
+      "head": "Trimming",
+      "match": ["trimming"]
+    },
+    {
+      "head": "Triplets",
+      "match": ["triplet", "triplets"]
+    },
+    {
+      "head": "Undo",
+      "match": ["undo"],
+      "refs": [
+        {
+          "label": "in clip view",
+          "href": "/guidebook/03-clips/02-clip-view-overview",
+          "section": "3.2"
+        },
+        {
+          "label": "in arranger view",
+          "href": "/guidebook/14-arranger-view/03-arranger-view-basics",
+          "section": "14.3"
+        },
+        {
+          "label": "as a global MIDI command",
+          "href": "/guidebook/18-midi/04-global-midi-commands",
+          "section": "18.4"
+        }
+      ]
+    },
+    {
+      "head": "USB",
+      "match": ["usb", "usb host"]
+    },
+    {
+      "head": "Velocity",
+      "match": ["velocity"],
+      "refs": [
+        {
+          "label": "Velocity shown as brightness",
+          "href": "/guidebook/04-sequencing/05-note-characteristics#velocity-shown-as-brightness",
+          "section": "4.5"
+        }
+      ]
+    },
+    {
+      "head": "Views",
+      "match": ["views", "relationship between views"],
+      "also": ["Arranger view", "Clip view", "Keyboard view", "Session view"]
+    },
+    {
+      "head": "Volume",
+      "match": ["volume", "level"],
+      "refs": [
+        {
+          "label": "Preview volume",
+          "href": "/guidebook/02-basics/05-file-browser#preview-volume",
+          "section": "2.5"
+        }
+      ]
+    },
+    {
+      "head": "VU meter",
+      "match": ["vu meter"],
+      "refs": [
+        {
+          "label": "VU meter",
+          "href": "/guidebook/12-session-view/02-session-view-basics#vu-meter",
+          "section": "12.2"
+        }
+      ]
+    },
+    {
+      "head": "Wavefold",
+      "match": ["wavefold"]
+    },
+    {
+      "head": "Waveform editor",
+      "match": [
+        "waveform view",
+        "waveform editor",
+        "waveform editing",
+        "loop markers",
+        "start & end points",
+        "shift the waveform",
+        "quick editing"
+      ]
+    },
+    {
+      "head": "Wavetable",
+      "match": ["wavetable"]
+    },
+    {
+      "head": "White clips",
+      "match": ["white clip", "white clips", "white pads"]
+    },
+    {
+      "head": "Workflow",
+      "match": ["workflow"]
+    },
+    {
+      "head": "Zoom",
+      "match": ["zoom", "zooming"],
+      "refs": [
+        {
+          "label": "Zoom range",
+          "href": "/guidebook/04-sequencing/10-navigating-the-grid#zoom-range",
+          "section": "4.10"
+        },
+        {
+          "label": "Drum keyboard zoom levels",
+          "href": "/guidebook/05-keyboard-views/02-alternate-drum-pad-grid-view#drum-keyboard-zoom-levels",
+          "section": "5.2"
+        }
+      ]
+    }
+  ],
+  "see": [
+    {
+      "term": "ADSR",
+      "see": ["Envelope"]
+    },
+    {
+      "term": "Clone",
+      "see": ["Clip"]
+    },
+    {
+      "term": "Copy",
+      "see": ["Automation", "Clip", "Note"]
+    },
+    {
+      "term": "Delete",
+      "see": ["Automation", "Clip", "Kit row", "Sample", "Song"]
+    },
+    {
+      "term": "Drums",
+      "see": ["Kit"]
+    },
+    {
+      "term": "Duplicate",
+      "see": ["Clip"]
+    },
+    {
+      "term": "Export",
+      "see": ["Audio export", "Resampling"]
+    },
+    {
+      "term": "Instrument",
+      "see": ["Synth", "Kit", "MIDI", "CV"]
+    },
+    {
+      "term": "Length",
+      "see": ["Clip", "Note"]
+    },
+    {
+      "term": "Overdub",
+      "see": ["Looping"]
+    },
+    {
+      "term": "Pattern",
+      "see": ["Sequencing"]
+    },
+    {
+      "term": "Sidechain",
+      "see": ["Compressor"]
+    },
+    {
+      "term": "Song grid view",
+      "see": ["Session grid view"]
+    },
+    {
+      "term": "Song row view",
+      "see": ["Session row view"]
+    },
+    {
+      "term": "Song view",
+      "see": ["Session view"]
+    },
+    {
+      "term": "Track",
+      "see": ["Arranger view"]
+    }
+  ],
+  "external": [
+    {
+      "head": "Note row menu",
+      "label": "Features: Note and Note Row Editor",
+      "href": "/features/note_noterow_editor"
+    },
+    {
+      "head": "DX7 synth",
+      "label": "Features: DX Synth",
+      "href": "/features/dx_synth"
+    },
+    {
+      "head": "MIDI follow",
+      "label": "Features: MIDI Follow Mode",
+      "href": "/features/midi_follow_mode"
+    },
+    {
+      "head": "Patterns, saving and loading",
+      "label": "Features: Save / Load Patterns",
+      "href": "/features/save_load_patterns"
+    },
+    {
+      "head": "USB audio",
+      "label": "Features: USB Audio",
+      "href": "/features/usb_audio"
+    }
+  ]
+}

@@ -149,7 +149,7 @@ Clip::~Clip() {
 	}
 #if ALPHA_OR_BETA_VERSION
 	if (currentSong != nullptr && currentSong->getCurrentClip() == this) {
-		FREEZE_WITH_ERROR("E457");
+		FREEZE_WITH_ERROR("E471");
 	}
 #endif
 	// Drop this clip's DOM structural record so the tree store doesn't accumulate dead entries. Guarded on
@@ -608,7 +608,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
 			// This can run on the render (arrangement recording's ticks). There, deletingClipInstanceForClip() would
-			// freeze with E455: with no action it discards the undo logs and deletes the clip at once, and both hand
+			// freeze with E473: with no action it discards the undo logs and deletes the clip at once, and both hand
 			// clips to AudioEngine::retire(), which only the interaction tier may call. Believed unreachable: it needs
 			// the output's last instance to start at or after the record position, and arrangement recording clears
 			// the instances from that position on before it begins a new one.

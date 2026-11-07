@@ -55,7 +55,7 @@
 ///
 /// `Buttons::buttonAction` dereferences `getCurrentUI()` unconditionally at `hid/buttons.cpp:104`
 /// and `:134`, and `getCurrentUI()` in a spec process returns `lastUIBeforeNullifying`, which is
-/// null (`gui/ui/ui.cpp:95`, `:165-169`). `setRootUILowLevel` is the one door into that array that
+/// null (`gui/ui/ui.cpp:96`, `:166-170`). `setRootUILowLevel` is the one door into that array that
 /// runs no view's `opened()` -- `tables_3_spec.cpp` already drives it for the same reason.
 ///
 /// The stub must also **forward to `view.buttonAction`**, because `UI::buttonAction`'s base

@@ -140,8 +140,10 @@ static DelugeFaultRanges s_ranges;
 	return s_ranges.alt_stack_end;
 }
 
+// Either code range the board declared: the image's own, or code it runs from elsewhere (the GUI's, in SDRAM).
 [[gnu::always_inline]] static inline bool isCodePointer(uint32_t value) {
-	return s_ranges.code_start != 0 && value >= s_ranges.code_start && value < s_ranges.code_end;
+	return (s_ranges.code_start != 0 && value >= s_ranges.code_start && value < s_ranges.code_end)
+	       || (s_ranges.alt_code_start != 0 && value >= s_ranges.alt_code_start && value < s_ranges.alt_code_end);
 }
 
 [[gnu::always_inline]] static inline uint8_t getHexCharValue(char input) {

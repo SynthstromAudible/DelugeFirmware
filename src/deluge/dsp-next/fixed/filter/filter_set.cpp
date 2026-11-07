@@ -110,6 +110,7 @@ void FilterSet::reset() {
 	low_last_ = LowPassSlot::Kind::LADDER;
 	high_last_ = {.kind = HighPassSlot::Kind::LADDER};
 	route_ = FilterRoute::HIGH_TO_LOW;
+	last_args_.reset();
 }
 
 void FilterSet::hold_low_pass(LowPassSlot::Kind kind) {
@@ -140,6 +141,14 @@ void FilterSet::hold_high_pass(HighPassSlot::Kind kind) {
 
 int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
                              HighPassSlot high_slot, FilterRoute route) {
+	// The high-pass's resonance as it is configured, its low bits dropped: a change only there repeats the last
+	FilterConfig high_key = high;
+	high_key.resonance = Q<29>::from_raw((high.resonance.raw() >> 21) << 21);
+	const ConfigureArgs args{
+	    .gain = gain, .low = low, .low_slot = low_slot, .high = high_key, .high_slot = high_slot, .route = route};
+	if (last_args_ == args) {
+		return last_gain_;
+	}
 	low_slot_ = low_slot;
 	high_slot_ = high_slot;
 	route_ = route;
@@ -174,9 +183,8 @@ int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot 
 
 	if (high_slot.kind != HighPassSlot::Kind::OFF) {
 		hold_high_pass(high_slot.kind);
-		FilterConfig config = high;
-		// Changes in the resonance's low bits, made too often, rustle.
-		config.resonance = Q<29>::from_raw((high.resonance.raw() >> 21) << 21);
+		// Changes in the resonance's low bits, made too often, rustle: the configured resonance drops them.
+		FilterConfig config = high_key;
 		const bool mode_changed = !same_mode(high_last_, high_slot);
 		const bool from_off = high_last_.kind == HighPassSlot::Kind::OFF;
 		if (high_slot.kind == HighPassSlot::Kind::LADDER) {
@@ -201,6 +209,8 @@ int32_t FilterSet::configure(int32_t gain, const FilterConfig& low, LowPassSlot 
 	}
 	high_last_ = high_slot;
 
+	last_args_ = args;
+	last_gain_ = gain;
 	return gain;
 }
 

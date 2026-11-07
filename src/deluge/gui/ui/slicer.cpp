@@ -423,7 +423,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			SamplePlaybackGuide* guide = nullptr;
 			MultisampleRange* range;
 			Kit* kit = getCurrentKit();
-			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
+			SoundDrum* drum = &static_cast<SoundDrum&>(*kit->firstDrum);
 
 			if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
 				auto valid_voices_view = drum->voices() | std::views::filter([&](const Sound::ActiveVoice& voice) {

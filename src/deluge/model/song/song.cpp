@@ -530,11 +530,24 @@ bool Song::ensureAtLeastOneSessionClip() {
 		return false;
 	}
 
+	// A Song must have a Clip and an Instrument, and there's no recovering from running out of RAM this early
+	const auto outOfRam = [] [[noreturn]] {
+		// NOTIFY-DEFERRED: fatal path, never returns to the tick
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	};
+
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
+	if (!memory) {
+		outOfRam();
+	}
 	InstrumentClip* firstClip = new (memory) InstrumentClip(*this);
 
-	(void)live.clips.session_clips.insertClipAt(firstClip,
-	                                            0); // OOM impossible-in-practice this early; ignored
+	if (!live.clips.session_clips.insertClipAt(firstClip, 0)) {
+		firstClip->~InstrumentClip();
+		delugeDealloc(memory);
+		outOfRam();
+	}
 
 	firstClip->setLoopLength(kDefaultClipLength << project.transport.inside_world_tick_magnitude);
 
@@ -549,9 +562,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	// If that failed (really unlikely) we're really screwed
 	if (!newInstrument) {
-		// NOTIFY-DEFERRED: fatal path, never returns to the tick
-		display->displayError(Error::INSUFFICIENT_RAM);
-		while (1) {}
+		outOfRam();
 	}
 
 	newInstrument->setDirPath("SYNTHS");
@@ -2602,8 +2613,8 @@ void Song::deleteSoundsWhichWontSound() {
 deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
                                                      deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
-	const deluge::dsp::Q<27> volumePostFX =
-	    deluge::model::volume_from_knob(paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME));
+	const deluge::dsp::Q<27> volumePostFX = live.master_channel.conversions().volume(
+	    paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME), deluge::model::volume_from_knob);
 	// The outputs take the halved volume's word as their reverb adjust
 	const int32_t reverbAmountAdjust = halve_floor(volumePostFX).raw();
 
@@ -6047,7 +6058,7 @@ doHibernatingInstruments:
 }
 
 void Song::getCurrentRootNoteAndScaleName(etl::istring& buffer) {
-	char noteName[5];
+	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->project.scale.key.rootNote, noteName, &isNatural);
 

@@ -501,6 +501,67 @@ describe filter_set("FilterSet", ${
 		expect(render(kLowBand, kHighNotch, FilterRoute::HIGH_TO_LOW, false)).to_equal(kSvfPair);
 		expect(render(kLow24, kHighLadder, FilterRoute::PARALLEL, true)).to_equal(kRouteParallelStereo);
 	});
+	it("gives the same gain for the same settings, and works out a changed gain or slot again", _ {
+		Rig rig;
+		const int32_t first = rig.set.configure(kGain, kLow, kLow24, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW);
+		expect(rig.set.configure(kGain, kLow, kLow24, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW)).to_equal(first);
+
+		FilterConfig resonant_low = kLow;
+		resonant_low.resonance = Q<29>::from_raw(400000000);
+		FilterConfig resonant_high = kHigh;
+		resonant_high.resonance = Q<29>::from_raw(400000000);
+		const auto fresh = [](int32_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high) {
+			FilterSet set;
+			return set.configure(gain, low, low_slot, high, kHighLadder, FilterRoute::HIGH_TO_LOW);
+		};
+		expect(rig.set.configure(kGain / 2, kLow, kLow24, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW))
+		    .to_equal(fresh(kGain / 2, kLow, kLow24, kHigh));
+		expect(rig.set.configure(kGain, resonant_low, kLow24, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW))
+		    .to_equal(fresh(kGain, resonant_low, kLow24, kHigh));
+		expect(rig.set.configure(kGain, kLow, kLow24, resonant_high, kHighLadder, FilterRoute::HIGH_TO_LOW))
+		    .to_equal(fresh(kGain, kLow, kLow24, resonant_high));
+		expect(rig.set.configure(kGain, kLow, kLowBand, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW))
+		    .to_equal(fresh(kGain, kLow, kLowBand, kHigh));
+		expect(fresh(kGain / 2, kLow, kLow24, kHigh) != first).to_be_true();
+	});
+
+	it("takes a new route or high-pass mode with every other setting unchanged", _ {
+		deluge::synth_noise.seed(kSeed);
+		Rig rig;
+		std::ignore = rig.configure(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW);
+		std::ignore = rig.configure(kLow24, kHighLadder, FilterRoute::LOW_TO_HIGH);
+		deluge::synth_noise.seed(kSeed);
+		Rig fresh;
+		std::ignore = fresh.configure(kLow24, kHighLadder, FilterRoute::LOW_TO_HIGH);
+		deluge::synth_noise.seed(kSeed);
+		const auto routed = rig.mono(kInput);
+		deluge::synth_noise.seed(kSeed);
+		expect(routed).to_equal(fresh.mono(kInput));
+
+		std::ignore = rig.configure(kLow24, kHighBand, FilterRoute::LOW_TO_HIGH);
+		expect(rig.set.view().high_slot.kind == HighPassSlot::Kind::SVF).to_be_true();
+	});
+
+	it("takes a new cutoff in either filter with every other setting unchanged", _ {
+		const auto after = [](const FilterConfig& low, const FilterConfig& high) {
+			Rig rig;
+			std::ignore = rig.configure(kLow24, kHighLadder);
+			std::ignore = rig.configure(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW, low, high);
+			deluge::synth_noise.seed(kSeed);
+			return rig.mono(kInput);
+		};
+		const auto fresh = [](const FilterConfig& low, const FilterConfig& high) {
+			Rig rig;
+			std::ignore = rig.configure(kLow24, kHighLadder, FilterRoute::HIGH_TO_LOW, low, high);
+			deluge::synth_noise.seed(kSeed);
+			return rig.mono(kInput);
+		};
+		expect(after(kOpenLow, kHigh)).to_equal(fresh(kOpenLow, kHigh));
+		expect(after(kLow, kOpenHigh)).to_equal(fresh(kLow, kOpenHigh));
+		expect(fresh(kOpenLow, kHigh) != fresh(kLow, kHigh)).to_be_true();
+		expect(fresh(kLow, kOpenHigh) != fresh(kLow, kHigh)).to_be_true();
+	});
+
 	it("reports which filters are on", _ {
 		Rig rig;
 		expect(rig.set.is_on()).to_be_false();

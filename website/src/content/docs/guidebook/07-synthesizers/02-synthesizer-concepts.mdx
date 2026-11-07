@@ -1,0 +1,142 @@
+---
+title: "7.2 Synthesizer Concepts"
+description: "Deluge features subtractive, FM and wavetable synthesis with many customisable options."
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "7.2"
+  chapter: 7
+  pdfPages: [90, 91, 92, 93, 94, 95]
+  printedPages: [84, 85, 86, 87, 88, 89]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--1.svg?raw"
+import fig_fig_7_2_2 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--2.svg?raw"
+import fig_fig_7_2_3 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--3.svg?raw"
+import fig_fig_7_2_4 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--4.svg?raw"
+import fig_fig_7_2_5 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--5.svg?raw"
+import fig_fig_7_2_6 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--6.svg?raw"
+import fig_fig_7_2_7 from "../../../../assets/guidebook/figs/07-synthesizers__02-synthesizer-concepts--7.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge features subtractive, FM and wavetable synthesis with many customisable options. Some generic synthesis concepts are explained below.
+
+## Subtractive Synthesis
+
+Subtractive synthesis operates on the principle of one or more oscillators which generate a tone with harmonic content dependant on the wave shape and type. Harmonic frequencies are then ‘carved out’ using filters to subtract various elements from the signal. This affects the timbre and sound. Additional sound shaping with envelopes, modulation and effects enables more complex sound design.
+
+<Figure
+  id="fig-7.2-1"
+  src={fig_fig_7_2_1}
+  alt={
+    "Diagram: ENVELOPE and / ENVELOPE and / or MODULATION or MODULATION INPUT OSCILLATOR FILTER AMP OUTPUT One or more oscillators The audio signal…"
+  }
+  page={84}
+/>
+
+The basic subtractive concepts are shown in the diagram with many synthesizers expanding these concepts with more complex layering, synchronisation and tuning of oscillators, complex waveforms and noise generators, filters, modulation, effects and more.
+
+FM Synthesis generates sounds which are often described as metallic or bell-like. The generic concepts of FM Synthesis are explained.
+
+## FM Synthesis
+
+FM (frequency modulation) synthesis operates on the principle of an oscillator or “operator” generating an initial, basic wave known as the carrier. This then has its frequency rapidly modulated by an additional wave/oscillator known as the modulator. The exact configuration of, at times many carriers and modulators, is called an algorithm. Technically FM synthesis is just very fast vibrato - so fast that the modulation of frequency occurs at a rate which is itself in the “audio range”.
+
+<Figure
+  id="fig-7.2-2"
+  src={fig_fig_7_2_2}
+  alt={"Diagram: Modulator Feedback Frequency Pitch Feedback Carrier"}
+  page={85}
+/>
+
+By rapidly modulating the frequency of a wave, whole new repeating wave shapes are created.
+
+<Figure
+  id="fig-7.2-3"
+  src={fig_fig_7_2_3}
+  alt={
+    "Diagram: a waveform whose cycles bunch together and spread apart as its frequency is rapidly modulated, forming a new repeating wave shape"
+  }
+  page={85}
+/>
+
+Amplitude modulation can be carried out by other modulation devices such as LFO’s. Amplitude modulation can be found in many types of synthesizer.
+
+The third synthesizer type in Deluge is wavetable synthesis.
+
+## Wavetable Synthesis
+
+Wavetable synthesizers uses a collection of wave assembled into a package of wavetables. While subtractive synthesis uses a core wave-shape as its audio source, wavetable synthesizers use wavetables as the audio source. The key benefit bing the ability to navigate parts of the wavetable to generate different timbres and sounds. This is essentially the synth oscillator.
+
+Wavetables are navigated to specific wave parts which form the synth oscillator audio source.
+
+<Figure
+  id="fig-7.2-4"
+  src={fig_fig_7_2_4}
+  alt={
+    "Diagram: OSCILLATOR ENVELOPE and / ENVELOPE and / or MODULATION or MODULATION INPUT FILTER AMP OUTPUT levels can be set. Filters shape the sound by…"
+  }
+  page={86}
+/>
+
+The basic wavetable synthesis concepts are shown in the diagram. The core components are the wavetables as a source, typically generated from single cycles, and the ability to navigate the wavetable. Most other features and synth specific and often similar to subtractive synthesis.
+
+## Deluge Subtractive Synthesizer Overview
+
+Deluge has a subtractive synthesizer as default, with ring modulation mode option.
+
+### Deluge Subtractive Synthesis
+
+Deluge uses two oscillators. High-pass and low-pass filters and 2 LFO and envelope options. In addition the Deluge synth can use sample WAV files as the audio frequency source.
+
+<Figure
+  id="fig-7.2-5"
+  src={fig_fig_7_2_5}
+  alt={
+    "Diagram: Multiple Modulation Multiple Modulation 1 x Option Options Options Env 2 Env 1 Sidechain Oscillator 1 Oscillator ADSR ADSR Compressor…"
+  }
+  page={87}
+/>
+
+## Deluge FM Synthesizer Overview
+
+Deluge has FM synth features and parameters that are configurable.
+
+### Deluge FM Synthesis
+
+Deluge uses two carriers and two FM modulators. Regular modulation is also provided by 2 LFO and envelope options.
+
+<Figure
+  id="fig-7.2-6"
+  src={fig_fig_7_2_6}
+  alt={
+    "Diagram: 2 x Modulation 1 x Modulation 1 x Option Options Option Env 2 Env 1 Sidechain Carrier 1 Oscillator Volume ADSR ADSR Compressor Input…"
+  }
+  page={88}
+/>
+
+## Deluge Wavetable Synthesizer Overview
+
+Deluge has wavetable synthesizer capability which allows the oscillators TYPE to be set to WAVEtable and where a specific part of the wavetable can be selected as the audio source.
+
+### Deluge Wavetable Synthesis
+
+Deluge uses two oscillators plus same functionality also as the default subtractive synths and the audio chain. Wavetables in WAV or AIFF and MONO format can be assigned to one or both of the oscillators. Wave navigation per oscillator is also available in order to change the oscillator wave cycle used as the source. Modulating the wave position is a great way to add variation and movement to a sound.
+
+<Figure
+  id="fig-7.2-7"
+  src={fig_fig_7_2_7}
+  alt={
+    "Diagram: Wavetables Parameter (available by shortcut) adjusts wave position Multiple Modulation Multiple Modulation 1 x Option Options Options Env 2…"
+  }
+  page={89}
+/>
+
+Deluge supports Mono, WAV and AIF files with a cycle size to the ‘power of two’ starting at 8 upwards. The cycle size of 2048 is the most common. Wavetables can be downloaded freely online from various sources or can be user created directly. These can be stored, and subsequently selected from, the samples library on the SD Card. Many devices such as XFER’s Serum VST plug-in have readily available wavetables that are also compatible with the Deluge wavetable synthesizer. These along with any other specific wavetable files carry meta data tagged ‘clm’ along with the cycle size. Deluge can load any wave file as a wavetable but only the wavetable formatted files will follow the defined and recognised wavetable behaviour and sound.

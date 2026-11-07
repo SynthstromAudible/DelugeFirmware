@@ -273,7 +273,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("on a kit with affectEntire true, leaves affectEntire false in both the clip and the "
 	   "installed context", _ {
-		// `instrument_clip_view.cpp:3608-3616`: a note is selected on a kit row (so `context_for`
+		// `instrument_clip_view.cpp:3630-3638`: a note is selected on a kit row (so `context_for`
 		// resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is false,
 		// exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire`
 		// is independently true. Both facts at once is the case `context.h`'s own note on
@@ -354,7 +354,7 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
 	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
-	// (`instrument_clip_view.cpp:3608`, `:3812`), an explicit item -- so legacy never wipes on a
+	// (`instrument_clip_view.cpp:3630`, `:3834`), an explicit item -- so legacy never wipes on a
 	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
 	// is conditioned on `noteMode == NoteMode::None` as well as `node == ShellMenuNode::ContextRoot
 	// && clip != nullptr`: the first two hold for every `NoteMode` call too (neither note root has

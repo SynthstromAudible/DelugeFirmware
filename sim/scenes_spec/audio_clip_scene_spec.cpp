@@ -140,7 +140,7 @@ extern bool currentlyActioningSwungTickOrResettingPlayPos;
 /// **`Buttons::buttonAction` cannot be used to set it in a spec process**: its very first act after
 /// recording the press is `getCurrentUI()->buttonAction(...)` (in `Buttons::buttonAction`), and
 /// `getCurrentUI()` is null here (`numUIsOpen == 0` -> `lastUIBeforeNullifying`,
-/// `gui/ui/ui.cpp:165-170`). Found by segfault, not by reading.
+/// `gui/ui/ui.cpp:166-171`). Found by segfault, not by reading.
 /// @{
 namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
@@ -429,13 +429,13 @@ struct Rig {
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
 		// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
 		// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-		// (`model/song/song.cpp:3213-3215`), and `SampleHolder::getLoopLengthAtSystemSampleRate`
+		// (`model/song/song.cpp:3224-3226`), and `SampleHolder::getLoopLengthAtSystemSampleRate`
 		// divides by it (`model/sample/sample_holder.cpp:105-111`) -- so
 		// `setClipLengthEqualToSampleLength` computed a length of **zero** on BOTH sides, and the
 		// comparison passed while nothing happened. Caught by `expect_edit_matches`' "each side
 		// differs from the seed" half, which is the whole reason that half is there.
 		//
-		// 120 BPM, through `Song::setBPMInner`'s own arithmetic (`song.cpp:3072-3081`) rather than
+		// 120 BPM, through `Song::setBPMInner`'s own arithmetic (`song.cpp:3083-3092`) rather than
 		// by calling it: `setTempoFromNumSamples` reaches `playbackHandler`, and this process has
 		// no transport.
 		const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);

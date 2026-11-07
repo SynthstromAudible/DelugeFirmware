@@ -173,6 +173,10 @@ struct UiContext {
 	/// The lowering that produced the event, or null in a context built without one (a spec, or a
 	/// synthesised event). Null makes `press_used_up` false and `held_since` zero.
 	const InputLowering* lowering = nullptr;
+	/// The clock an encoder's acceleration is timed on, in milliseconds: legacy times it on the scheduler's clock
+	/// (`EncoderAcceleration::advance(…, getSystemTime(), …)`) while its UI timers, and `now_ms`, run on audio
+	/// samples. 0 in a context built without one.
+	uint32_t acceleration_clock_ms = 0;
 
 	/// @brief Has \p b's current press already been consumed by something else?
 	///
@@ -471,7 +475,7 @@ public:
 	/// @brief Called when this scene becomes the **input** top again because something above it
 	///        left.
 	///
-	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-228`), and it means the
+	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-229`), and it means the
 	/// same thing: input reaches this scene again after reaching something else. The stack fires it
 	/// only when `SceneStack::input_top()` genuinely changed hands, so a passive
 	/// `input_transparent()` layer -- a popup, a console line, the working animation -- appearing

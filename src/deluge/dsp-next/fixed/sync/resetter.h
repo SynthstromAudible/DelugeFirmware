@@ -47,7 +47,10 @@ namespace deluge::dsp::fixed {
 	if (rounded_up == 1) {
 		return INT32_MAX;
 	}
-	return static_cast<int32_t>(2147483648u / rounded_up);
+	// In double, 2^31 / rounded_up is exact when it is a whole number and otherwise at least 2^-16 from one, far more
+	// than its rounding, so truncating it gives the integer quotient; and the A9 divides doubles in hardware but not
+	// integers, so it is much quicker than the library's integer divide
+	return static_cast<int32_t>(2147483648.0 / rounded_up);
 }
 
 } // namespace deluge::dsp::fixed

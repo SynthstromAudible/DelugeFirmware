@@ -1,0 +1,78 @@
+---
+title: "3.9 Copying, Cloning & Deleting Clips"
+sidebar:
+  order: 8
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "3.9"
+  chapter: 3
+  pdfPages: [51, 52, 53, 54, 55, 169, 170, 171, 172, 173, 174, 176, 177, 178]
+  printedPages:
+    [45, 46, 47, 48, 49, 163, 164, 165, 166, 167, 168, 170, 171, 172]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+{/* From retired 12.6 Editing Clips in Session View: Session view also provides the functionality to edit certain features of clips from within this view. Changing instruments, cloning and deleting clips is possible. */}
+
+<StepFocus />
+
+## Copying a clip in session grid view
+
+<Steps>
+
+1. Hold :key[Pad] for the clip to copy + :key[Pad] for the empty location in the same column for the new clip, same instrument.
+2. Audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g. Synth to MIDI target)
+
+</Steps>
+
+## Cloning a clip from within session view
+
+<Steps>
+
+1. Press :key[Song] to switch to session view.
+2. Press & hold a :key[Pad] within the target clip row to clone + press a :key[Pad] on the destination row where the new cloned clip will be located.
+3. The clip will be cloned from the target to the destination and assigned a different section and won’t be launched. Cloned clips are initially linked to the original but can be edited.
+
+</Steps>
+
+## Unlinking cloned clips when using the same preset
+
+Clips with the same preset cannot be used multiple times within multiple instruments in the same song. If a preset is already in use, the preset can be unlinked from its “original” to create an independent version. Example, to reuse preset 10, a new unlinked version, can be created as 10A.
+
+<Steps>
+
+1. :key[Load + Synth] or :key[Load + Kit] to open a preset using the preset load menu as opposed to selecting a present by turning :key[Select].
+2. The alphanumeric keyboard will open to search a preset by name if required.
+3. :key[Turn Select] to choose the same preset that Is already used. Example preset 10.
+4. Press :key[Load] will show ‘THIS PRESET IS IN-USE ELSEWHERE IN YOUR SONG’, indicating this is a preset already in use in the song.
+5. Press & hold :key[Load] until ‘CLONE’ - clone displays.
+6. Press :key[Load] again, and a new independent version will be loaded. Example 10A.
+
+</Steps>
+
+## Deleting a clip from within session view
+
+<Steps>
+
+1. Press :key[Song] to switch to session view. If in Session grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] of the clip to delete + press :key[Save].
+3. The clip will be deleted. In session row view, the row above is moved down. Undo / redo functions are not available.
+
+</Steps>
+
+## Clearing clip notes
+
+<Steps>
+
+1. Press :key[Horizontal + BackUndo].
+2. Display shows ‘CLIP CLEARED’. Notes and their associated automation will be cleared from the clip, including notes out of view.
+
+</Steps>

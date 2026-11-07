@@ -96,10 +96,11 @@ public:
 		bool shift;
 		bool sticky;
 		uint32_t now_ms;
+		uint32_t acceleration_clock_ms;
 	};
 
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
-		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
+		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms, ctx.acceleration_clock_ms});
 		if (remove_self_on_event) {
 			// `MenuScene`'s answer to Back at depth 0 (`MenuScene::handle_event`'s Back arm),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
@@ -412,14 +413,10 @@ public:
 	}
 };
 
-/// @brief Put the guest's clock at \p ms.
-///
-/// `ShellHostUI::nowMs()` is `getSystemTime() * 1000` truncated to an integer, and `getSystemTime()`
-/// is seconds. The extra quarter-millisecond is not slop: `ms / 1000.0 * 1000.0` is not guaranteed
-/// to land back on `ms` in a double, and one ulp low truncates to `ms - 1`. A quarter of a
-/// millisecond is far below anything this file asserts about and far above that error.
+/// @brief Put the guest's clock at \p ms: `ShellHostUI::nowMs()` counts legacy's audio-sample counter, 44 samples
+///        a millisecond.
 void set_clock_ms(uint32_t ms) {
-	fakelegacyui::system_time_s = (static_cast<double>(ms) + 0.25) / 1000.0;
+	AudioEngine::audioSampleTimer = ms * 44;
 }
 
 /// @brief Run the guest's own timer chain for \p rounds callbacks, with **no input at all**.
@@ -600,7 +597,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(copy_of(OLED::main.bytes()) == rendered).to_be_true();
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
-		// time it calls here (`gui/ui/ui.cpp:394`).
+		// time it calls here (`gui/ui/ui.cpp:395`).
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
@@ -1001,7 +998,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("hands the main pads back when the guest closes while it owns them", _ {
-		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:232-241`), and by
+		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:233-241`), and by
 		// then its stack is empty and answers no -- so the guest itself must ask for the root view's
 		// main pads, or the keyboard's last frame stays on them.
 		Rig r;
@@ -1022,7 +1019,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 		expect(mainAsked).to_be_true();
 		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
-		// its stack (`gui/ui/ui.cpp:335-359`), so a request after the close would be dropped.
+		// its stack (`gui/ui/ui.cpp:336-360`), so a request after the close would be dropped.
 		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
 		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close) == fakelegacyui::UiCall::Render)
 		    .to_be_true();
@@ -1114,7 +1111,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
 		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
-		// the next UI down is about to be asked with (`gui/ui/ui.cpp:102-112`), so a false answer must
+		// the next UI down is about to be asked with (`gui/ui/ui.cpp:103-113`), so a false answer must
 		// leave them alone.
 		r.base.greyout = {};
 		uint32_t cols = 0xDEADBEEF;
@@ -1141,7 +1138,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(rows).to_equal(uint32_t(0x00000080));
 
 		// A scene above with an empty mask obeys the one beneath, as legacy's top-down walk does
-		// (`gui/ui/ui.cpp:102-112`): a popup over the menu leaves the menu's greyout standing.
+		// (`gui/ui/ui.cpp:103-113`): a popup over the menu leaves the menu's greyout standing.
 		r.over.overlay = true;
 		r.over.regions = PadRegions::None;
 		r.over.greyout = {};
@@ -1307,7 +1304,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
-		// (`gui/ui/ui.cpp:226`) before handing focus to the UI beneath, so a timer armed here would
+		// (`gui/ui/ui.cpp:227`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
 		// (`gui/ui_timer_manager.cpp`).
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
@@ -1420,7 +1417,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		r.guest.displayOrLanguageChanged();
 		// Legacy still hears about it: the base's `renderUIsForOled()` is what sets
-		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:82-84`).
+		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:83-85`).
 		expect(fakelegacyui::oled_redraws).to_equal(1);
 		// And the shell will actually re-render on its next tick, rather than serving the frame it
 		// happens to be holding.
@@ -1434,7 +1431,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		fakelegacyui::system_time_s = 0.25; // nowMs() == 250
+		AudioEngine::audioSampleTimer = 250 * 44; // nowMs() == 250
 		const ActionResult result = r.guest.padAction(5, 3, 137);
 
 		// **Nothing is routed by the hook itself.** `Shell::on_board_event` feeds the lowering;
@@ -1970,9 +1967,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig sticky;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(sticky.open()).to_be_true();
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.010; // a 10 ms tap
+		AudioEngine::audioSampleTimer = 1010 * 44; // a 10 ms tap
 		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		sticky.guest.shell().tick(10);
 		sticky.base.seen.clear();
@@ -1989,9 +1986,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// contrast with the block above explicit rather than incidental.
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 		expect(plain.open()).to_be_true();
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.010;
+		AudioEngine::audioSampleTimer = 1010 * 44;
 		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		plain.guest.shell().tick(10);
 		plain.base.seen.clear();
@@ -2040,9 +2037,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the ported item writes 500 ms
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.200; // a 200 ms tap: a hold at 100 ms, a tap at 500
+		AudioEngine::audioSampleTimer = 1200 * 44; // a 200 ms tap: a hold at 100 ms, a tap at 500
 		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		expect(r.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(500));
 		r.guest.shell().tick(200);
@@ -2067,9 +2064,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			Rig r;
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 			(void)r.open();
-			fakelegacyui::system_time_s = 1.000;
+			AudioEngine::audioSampleTimer = 1000 * 44;
 			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
-			fakelegacyui::system_time_s = 1.200; // a 200 ms tap, the same every time
+			AudioEngine::audioSampleTimer = 1200 * 44; // a 200 ms tap, the same every time
 			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 			r.guest.shell().tick(200);
 			r.base.seen.clear();
@@ -2102,7 +2099,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::service_wirings).to_equal(2);
 
 		// A refused open does not wire: `openUI` rolls the hierarchy back on `false`
-		// (`gui/ui/ui.cpp:266-271`), so there is no guest to serve.
+		// (`gui/ui/ui.cpp:267-272`), so there is no guest to serve.
 		Rig refused;
 		expect(fakelegacyui::service_wirings).to_equal(0); // the Rig ctor reset the counter
 		refused.guest.setInitialScene(SceneId{SceneKind::Null, 0});
@@ -2158,7 +2155,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
-		// to the UI beneath on the same call (`gui/ui/ui.cpp:228`) and that is what re-fills the
+		// to the UI beneath on the same call (`gui/ui/ui.cpp:229`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
 		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
@@ -2397,12 +2394,36 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.guest.shell().lowering().had_input_this_tick()).to_be_false();
 	});
 
+	it("times encoder acceleration on the scheduler's clock, as legacy does, apart from the UI clock", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		AudioEngine::audioSampleTimer = 100 * 44;
+		fakelegacyui::system_time_s = 1.5;
+		(void)r.guest.timerCallback();
+		expect(r.guest.shell().lowering().acceleration_clock_ms()).to_equal(uint32_t(1500));
+		expect(r.guest.shell().lowering().snapshot().acceleration_clock_ms).to_equal(uint32_t(1500));
+		expect(r.guest.shell().lowering().snapshot().now_ms).to_equal(uint32_t(100));
+	});
+
+	it("hands a routed event both clocks: the UI's and the one acceleration is timed on", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		AudioEngine::audioSampleTimer = 250 * 44;
+		fakelegacyui::system_time_s = 2.0;
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
+		(void)r.guest.timerCallback();
+		expect(r.base.seen.empty()).to_be_false();
+		expect(r.base.seen.back().now_ms).to_equal(uint32_t(250));
+		expect(r.base.seen.back().acceleration_clock_ms).to_equal(uint32_t(2000));
+	});
+
 	it("stamps events with the clock nowMs() reads, not the tick's", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		fakelegacyui::system_time_s = 1.5; // nowMs() == 1500
+		AudioEngine::audioSampleTimer = 1500 * 44; // nowMs() == 1500
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		// `end_tick` re-stamps the snapshot with the tick's own clock, which is what a scene reads
 		// as `ctx.now_ms` (`Shell::make_context`). The **feed's** clock is what the
@@ -2415,19 +2436,33 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(1500));
 	});
 
-	it("reads nowMs() from getSystemTime, so a different clock gives a different stamp", _ {
+	it("reads nowMs() from legacy's audio-sample counter, so a different count gives a different stamp", _ {
 		// The companion to the example above: vary only the clock. Without this, a `nowMs()` that
 		// returned a constant would pass everything above it.
 		Rig r;
 		expect(r.open()).to_be_true();
-		fakelegacyui::system_time_s = 0.037; // 37 ms
+		AudioEngine::audioSampleTimer = 37 * 44; // 37 ms
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(37));
 
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false);
-		fakelegacyui::system_time_s = 9.001; // 9001 ms
+		AudioEngine::audioSampleTimer = 9001 * 44; // 9001 ms
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(9001));
+	});
+
+	it("runs on legacy's UI clock, not the scheduler's: the audio-sample counter at 44 a millisecond", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		AudioEngine::audioSampleTimer = 4400;
+		fakelegacyui::system_time_s = 7.0; // the scheduler's clock, which nowMs() does not read
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		fakelegacyui::system_time_s = 9.0;
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		AudioEngine::audioSampleTimer = 4400 + 43;
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		AudioEngine::audioSampleTimer = 4400 + 44;
+		expect(r.guest.nowMs()).to_equal(uint32_t(101));
 	});
 
 	// ---- input: the hooks deliberately NOT wired ------------------------------------------------
@@ -2474,7 +2509,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// The same guest shape, varying only the one thing the refusal is about: no initial scene,
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
-		// hierarchy back to the previous UI (`gui/ui/ui.cpp:266-271`) -- an arm left standing here
+		// hierarchy back to the previous UI (`gui/ui/ui.cpp:267-272`) -- an arm left standing here
 		// would deliver this guest's `timerCallback` to *that* UI, since the manager dispatches to
 		// `getCurrentUI()` (`gui/ui_timer_manager.cpp`).
 		Rig refused;
@@ -2564,7 +2599,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// And it recovers the moment the guest is current again, which is the half that says the
 		// guard is not a wedge. In production `closeUI` does this through `focusRegained`
-		// (`gui/ui/ui.cpp:226-228`); here the topology is declared rather than simulated.
+		// (`gui/ui/ui.cpp:227-229`); here the topology is declared rather than simulated.
 		fakelegacyui::current_ui = &r.guest;
 		set_clock_ms(700);
 		(void)r.guest.timerCallback();
@@ -2653,7 +2688,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// What legacy does when a UI opened over the guest closes again: `closeUI` unsets the timer
-		// (`gui/ui/ui.cpp:226`) and then hands focus back (`:228`). Without the re-arm the guest
+		// (`gui/ui/ui.cpp:227`) and then hands focus back (`:229`). Without the re-arm the guest
 		// would tick normally until anything was opened over it and never again.
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250); // the guest was mid-animation
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -2695,7 +2730,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
 		// The close path, varying only the stack depth. `close()` is `closeUI(this)`, which unsets
-		// the timer itself (`gui/ui/ui.cpp:226`) -- so arming here would be undone one line later,
+		// the timer itself (`gui/ui/ui.cpp:227`) -- so arming here would be undone one line later,
 		// or worse, handed to the UI beneath.
 		Rig closing;
 		expect(closing.open()).to_be_true();

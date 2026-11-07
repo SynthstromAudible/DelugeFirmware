@@ -29,11 +29,11 @@ inline constexpr int16_t kOperatorParams = 21;
 /// @brief The voice byte holding the six operators' on/off bits, operator `op` at bit `op`.
 inline constexpr size_t kOperatorSwitch = 155;
 
-/// @brief The highest value @p param takes, inclusive (`DxParam::readValueAgain`, `param.cpp:73-127`): the per-operator
+/// @brief The highest value @p param takes, inclusive (`DxParam::readValueAgain`, `param.cpp:76-130`): the per-operator
 ///        table for an operator param, the global table for a global one, 99 otherwise (the random detune included).
 uint8_t upper_limit(int16_t param);
 
-/// @brief The parameter page's title for @p param (`DxParam::getTitle`, `param.cpp:282-322`): "random detune", "op4
+/// @brief The parameter page's title for @p param (`DxParam::getTitle`, `param.cpp:285-325`): "random detune", "op4
 ///        envelope" and the like for an operator param, "dx7 pitch env" for the pitch envelope, the global param's
 ///        long name otherwise.
 /// @param param The param.
@@ -60,16 +60,16 @@ int16_t global_row_param(int32_t row);
 /// @param row The row.
 int16_t operator_row_param(int32_t op, int32_t row);
 
-/// @brief A keyboard scaling curve's name (`curves`, `param.cpp:279`), values past the four curves named "????".
+/// @brief A keyboard scaling curve's name (`curves`, `param.cpp:282`), values past the four curves named "????".
 std::string_view curve_name(uint8_t value);
-/// @brief An LFO waveform's long name (`shapes_long`, `param.cpp:280`), values past sample-and-hold named as it.
+/// @brief An LFO waveform's long name (`shapes_long`, `param.cpp:283`), values past sample-and-hold named as it.
 std::string_view lfo_shape(uint8_t value);
 
-/// @brief The param a horizontal turn steps to (`DxParam::horizontalEncoderAction` without Shift, `param.cpp:214-222`):
+/// @brief The param a horizontal turn steps to (`DxParam::horizontalEncoderAction` without Shift, `param.cpp:217-225`):
 ///        @p param plus @p offset, below -1 wrapping to 143 and above 143 to -1.
 int16_t step_param(int16_t param, int32_t offset);
 
-/// @brief The param Shift + a horizontal turn steps to (`DxParam::horizontalEncoderAction`, `param.cpp:198-213`): the
+/// @brief The param Shift + a horizontal turn steps to (`DxParam::horizontalEncoderAction`, `param.cpp:201-216`): the
 ///        same param on the next operator, in the turn's direction and wrapping, whose switch is on.
 ///
 /// Nothing for the random detune and the globals past the pitch envelope's first rate, which legacy leaves alone. At
@@ -88,20 +88,20 @@ struct Pad {
 	bool operator==(const Pad&) const = default;
 };
 
-/// @brief The pad that blinks while the parameter page shows @p param (`DxParam::readValueAgain`, `param.cpp:100-145`):
+/// @brief The pad that blinks while the parameter page shows @p param (`DxParam::readValueAgain`, `param.cpp:103-148`):
 ///        an operator's row from the top, with its envelope, tuning and sensitivities across it; the pitch envelope,
 ///        algorithm, feedback and sync on row 1; the LFO and the random detune on row 0.
 /// @return The pad, or nothing for the keyboard scaling params (8-12), which blink none.
 std::optional<Pad> param_pad(int16_t param);
 
 /// @brief The param a pad picks on the parameter page's own pad layout (`DxParam::potentialShortcutPadAction`,
-///        `param.cpp:228-267`): an operator's row from the top, row 1 the pitch envelope, algorithm, feedback and sync,
+///        `param.cpp:231-270`): an operator's row from the top, row 1 the pitch envelope, algorithm, feedback and sync,
 ///        row 0 the LFO and the random detune.
 /// @return The param, or nothing for a pad that picks none (row 1 past column 10, row 0 past column 7).
 std::optional<int16_t> pad_param(uint8_t x, uint8_t y);
 
 /// @brief The param Shift + the keyboard's DX column pad for operator @p op opens the parameter page on
-///        (`DxParam::openForOpOrGlobal`, `param.cpp:508-536`): the operator's output level, or the algorithm for the
+///        (`DxParam::openForOpOrGlobal`, `param.cpp:514-542`): the operator's output level, or the algorithm for the
 ///        column's two global pads (@p op 6 and 7).
 ///
 /// With the page already showing (@p on_page), a press repeating that param toggles to the operator's coarse tuning
@@ -113,7 +113,7 @@ std::optional<int16_t> pad_param(uint8_t x, uint8_t y);
 int16_t column_param(int16_t current, int32_t op, bool on_page);
 
 /// @brief The keyboard DX column row that flashes white while the parameter page shows @p param
-///        (`DxParam::readValueAgain`'s `flash_row`, `param.cpp:98-122`): the operator's row, else row 1.
+///        (`DxParam::readValueAgain`'s `flash_row`, `param.cpp:101-125`): the operator's row, else row 1.
 int32_t flash_row(int16_t param);
 
 /// @brief `DxParam::blinkSideColumn`'s alternation: the flash row white for 100 ms, then its own colour for 300.
@@ -121,7 +121,7 @@ inline constexpr uint32_t kColumnFlashOnMs = 100;
 inline constexpr uint32_t kColumnFlashPeriodMs = 400;
 
 /// @brief The pad of the isomorphic keyboard that plays a keyboard scaling breakpoint's note, which the parameter page
-///        blinks (`renderScaling`, `param.cpp:372-395`): note @p breakpoint + 17, walked up the rows as the layout lays
+///        blinks (`renderScaling`, `param.cpp:375-398`): note @p breakpoint + 17, walked up the rows as the layout lays
 ///        them out.
 /// @param breakpoint    The breakpoint, 0-99.
 /// @param scroll_offset The keyboard's scroll offset, the note on its bottom-left pad.

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "effects/master_chain.h"
+#include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
 
@@ -47,11 +48,14 @@ public:
 	/// @return Which values the chain's knobs edit.
 	[[nodiscard]] ChainView& view() { return view_; }
 	[[nodiscard]] const ChainView& view() const { return view_; }
+	/// @return The chain's remembered param conversions. Render tier only.
+	[[nodiscard]] ChainConversions& conversions() { return conversions_; }
 
 private:
 	EffectsBinding binding_;
 	ChainView view_;
 	effects::MasterChain chain_;
+	ChainConversions conversions_;
 };
 
 } // namespace deluge::model

@@ -623,7 +623,7 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
 		return false;
 	}
-	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:56-70`),
+	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:59-73`),
 	// which records no undo.
 	deluge::edits::dxPatchFor(*sound, source, patch);
 	return true;

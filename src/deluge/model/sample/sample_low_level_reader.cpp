@@ -1031,6 +1031,94 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 	}
 }
 
+template <int32_t kChannels, int32_t kChannelsOut>
+[[gnu::always_inline]] inline void SampleLowLevelReader::readSamplesLinear(
+    deluge::dsp::Q<31>* __restrict__& oscBufferPos, deluge::dsp::Q<31> const* oscBufferEnd, int32_t jumpAmount,
+    int32_t byteDepth, int32_t phaseIncrement, int32_t& amplitude, int32_t amplitudeIncrement, bool skipFirstJump) {
+	static_assert(kChannelsOut <= kChannels);
+	using deluge::dsp::Q;
+	constexpr bool kStereo = (kChannels == 2);
+
+	Q<31>* __restrict__ out = oscBufferPos;
+	char const* __restrict__ playPos = currentPlayPos;
+	uint32_t phase = oscPos;
+	int32_t amplitudeNow = amplitude;
+
+	int16_t newestL = interpolator_.window_l()[0];
+	int16_t previousL = interpolator_.window_l()[1];
+	int16_t newestR = kStereo ? interpolator_.window_r()[0] : 0;
+	int16_t previousR = kStereo ? interpolator_.window_r()[1] : 0;
+
+	// Interpolator::interpolate_linear, then the condense and the mix, as the per-sample loop has them. The lerp is
+	// the 16-bit taps times their Q15 strengths, integer products read as the Q31 sample, as there.
+	auto output = [&]() __attribute__((always_inline)) {
+		const auto strength2 = static_cast<int16_t>(phase >> 9);
+		const auto strength1 = static_cast<int16_t>(std::numeric_limits<int16_t>::max() - strength2);
+		Q<31> l = Q<31>::from_raw((previousL * strength1) + (newestL * strength2));
+		Q<31> r{};
+		if constexpr (kStereo) {
+			r = Q<31>::from_raw((previousR * strength1) + (newestR * strength2));
+		}
+		if constexpr (kStereo && kChannelsOut == 1) {
+			l = add_wrap(halve_floor(l), halve_floor(r));
+		}
+		// The amplitude ramps as a word: the voice steps it by integer multiples of its increment.
+		amplitudeNow += amplitudeIncrement;
+		const auto gain = Q<31>::from_raw(amplitudeNow);
+		*out = deluge::audio::mixed_in(*out, l, gain);
+		out++;
+		if constexpr (kChannelsOut == 2) {
+			*out = deluge::audio::mixed_in(*out, r, gain);
+			out++;
+		}
+	};
+
+	if (skipFirstJump) {
+		output();
+	}
+	while (out != oscBufferEnd) {
+		// jumpForwardLinear
+		phase += phaseIncrement;
+		if (const int32_t numSamplesToJumpForward = static_cast<int32_t>(phase >> 24); numSamplesToJumpForward != 0) {
+			phase &= 16777215;
+			if (numSamplesToJumpForward > 2) {
+				playPos += (numSamplesToJumpForward - 2) * jumpAmount;
+			}
+			if (numSamplesToJumpForward >= 2) {
+				previousL = *reinterpret_cast<int16_t const*>(playPos + 2);
+				if constexpr (kStereo) {
+					previousR = *reinterpret_cast<int16_t const*>(playPos + 2 + byteDepth);
+				}
+				playPos += jumpAmount;
+			}
+			else {
+				previousL = newestL;
+				previousR = newestR;
+			}
+			newestL = *reinterpret_cast<int16_t const*>(playPos + 2);
+			if constexpr (kStereo) {
+				newestR = *reinterpret_cast<int16_t const*>(playPos + 2 + byteDepth);
+			}
+			playPos += jumpAmount;
+		}
+		output();
+	}
+
+	auto taps = interpolator_.fill_head(2);
+	if constexpr (kStereo) {
+		taps.put(previousL, previousR);
+		taps.put(newestL, newestR);
+	}
+	else {
+		taps.put(previousL);
+		taps.put(newestL);
+	}
+	oscPos = phase;
+	currentPlayPos = const_cast<char*>(playPos);
+	amplitude = amplitudeNow;
+	oscBufferPos = out;
+}
+
 constexpr static size_t kNumBitsInTableSize = 8;
 constexpr static size_t kRshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - kNumBitsInTableSize + 1);
 
@@ -1158,7 +1246,27 @@ skipFirstSmooth:
 		currentPlayPos = currentPlayPosNow - 2;
 	}
 
-	// Linear interpolation
+	// Linear interpolation over a resident region
+	else if (hasCurrentRegion()) [[likely]] {
+		const bool skipFirstJump = !*doneAnySamplesYet;
+		*doneAnySamplesYet = true;
+		if (numChannels == 2) {
+			if (numChannelsAfterCondensing == 2) {
+				readSamplesLinear<2, 2>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement,
+				                        *amplitude, amplitudeIncrement, skipFirstJump);
+			}
+			else {
+				readSamplesLinear<2, 1>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement,
+				                        *amplitude, amplitudeIncrement, skipFirstJump);
+			}
+		}
+		else {
+			readSamplesLinear<1, 1>(oscBufferPosNow, oscBufferEnd, jumpAmount, byteDepth, phaseIncrement, *amplitude,
+			                        amplitudeIncrement, skipFirstJump);
+		}
+	}
+
+	// Linear interpolation with no region to read: zeroes
 	else {
 		if (!*doneAnySamplesYet) {
 			*doneAnySamplesYet = true;

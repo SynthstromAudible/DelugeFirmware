@@ -1,5 +1,11 @@
 import type { ElementContent } from "hast"
-import { type Action, CONTROLS, titleCase } from "./controls.ts"
+import {
+  type Action,
+  CONTROLS,
+  resolveControl,
+  sequenceKeys,
+  titleCase,
+} from "./controls.ts"
 
 const icons = Object.fromEntries(
   await Promise.all(
@@ -17,49 +23,13 @@ const icons = Object.fromEntries(
 )
 
 const parseAction = (key: string): Action => {
-  const keywords = key.split(/\s+/).map((keyword) => keyword.toLowerCase())
-
-  const control = Object.entries(CONTROLS).find(([control]) => {
-    return keywords.includes(control.toLowerCase())
-  })
-
-  if (!control) {
-    const didYouMean = Object.entries(CONTROLS).find(([_, { didYouMean }]) => {
-      return didYouMean.some((alternative) =>
-        keywords.includes(alternative.toLowerCase()),
-      )
-    })
-
-    if (didYouMean) {
-      throw new Error(
-        `Unknown action: ${keywords.join(" ")}. Did you mean: ${didYouMean[0]}?`,
-      )
-    } else {
-      throw new Error(`Unknown action: ${keywords.join(" ")}`)
-    }
-  }
-
-  const [controlName, { toAction, display }] = control
-
-  const modifiers = keywords.filter(
-    (keyword) => keyword.toLowerCase() !== controlName.toLowerCase(),
-  )
-
-  return toAction(display || controlName, modifiers, keywords)
+  const { name, modifiers, keywords } = resolveControl(key)
+  const { toAction, display } = CONTROLS[name]
+  return toAction(display || name, modifiers, keywords)
 }
 
-const parseSequence = (sequence: string): Action[][] => {
-  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+/\s]/g)]
-
-  if (invalidCharacters.length)
-    throw new Error(
-      `Invalid character(s) found: ${JSON.stringify(invalidCharacters.flat())}`,
-    )
-
-  return sequence
-    .split(/\s?>\s?/)
-    .map((chord) => chord.split(/\s?\+\s?/).map(parseAction))
-}
+const parseSequence = (sequence: string): Action[][] =>
+  sequenceKeys(sequence).map((chord) => chord.map(parseAction))
 
 const displayAction = ({
   icon,

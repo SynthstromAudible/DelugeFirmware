@@ -40,8 +40,8 @@
 #include <cstring>
 
 FileReader::FileReader() {
-	void* temp = deluge::memory::alloc_sdram(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	fileClusterBufferBase = static_cast<char*>(deluge::memory::alloc_sdram(32768 + CACHE_LINE_SIZE * 2));
+	fileClusterBuffer = fileClusterBufferBase ? fileClusterBufferBase + CACHE_LINE_SIZE : nullptr;
 }
 
 // Used to read an in-memory file stream.
@@ -54,8 +54,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	if (!memoryBased)
-		deluge::memory::dealloc(fileClusterBuffer);
+	deluge::memory::dealloc(fileClusterBufferBase);
 }
 
 void FileReader::resetReader() {
@@ -72,6 +71,11 @@ void FileReader::resetReader() {
 // Returns whether successful loading took place
 // return true "if still going".
 bool FileReader::readFileClusterIfNecessary() {
+	if (!fileClusterBuffer) {
+		reachedBufferEnd = true;
+		return false;
+	}
+
 	if (memoryBased) {
 		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
 			reachedBufferEnd = true;

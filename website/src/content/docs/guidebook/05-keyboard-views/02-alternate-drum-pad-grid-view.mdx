@@ -1,0 +1,89 @@
+---
+title: "5.2 Alternate Drum Pad Grid View"
+description: "While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits."
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "5.2"
+  chapter: 5
+  pdfPages: [134, 135]
+  printedPages: [128, 129]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import fig_fig_5_2_1_a from "../../../../assets/guidebook/figs/05-keyboard-views__02-alternate-drum-pad-grid-view--1-a.svg?raw"
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_2_1 from "../../../../assets/guidebook/figs/05-keyboard-views__02-alternate-drum-pad-grid-view--1.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits. An alternate view presents the grid layout as MPC style drum pad zones using KEYBOARD when in KIT mode.
+
+{/* aside fig-5.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-5.2-1-a"
+  src={fig_fig_5_2_1_a}
+  alt={"Diagram: figure from guidebook page 128"}
+  page={128}
+/>
+
+<div>
+
+Notes to trigger the kit’s sounds can be played on drum pads, laid out as a series of 4 x 4 pads, each cluster controlling the sound and each pad controlling the velocity.
+
+This is available by pressing :key[Keyboard] when in Kit View
+
+</div>
+
+</div>
+
+<Figure
+  id="fig-5.2-1"
+  src={fig_fig_5_2_1}
+  alt={
+    "Pad grid: Sound 8 Sound 5 Sound Sound Sound 8 Sound 5 Sound 4 Sound 1 Sound Sound Sound 4 Sound 1 The kit sounds are mapped across the pad zones with…"
+  }
+  page={128}
+/>
+
+{/* /aside fig-5.2-1 */}
+
+<StepFocus />
+
+## Selecting grid pad view
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminates blue.
+2. Press :key[Kit], the button will be lit red.
+3. Press :key[Keyboard], the button will be lit blue,
+4. The grid will be presented in a colour coded drum pad style with 8 zones, each configured with 4 x 4 pads.
+5. To scroll the kit pad zones one at a time, :key[Turn Horizontal].
+6. To jump vertically the kit pad zones, :key[Turn Vertical].
+7. Tap a pad zone to play one of the 8 sounds. The 16 levels of velocity run from lowest velocity is bottom left pad and increases to the right and up the grid to the highest level top left. Each pad zone plays a kit sound, each pad within the zone represents the sound velocity level.
+
+</Steps>
+
+{/* TODO(kate): CHANGELOG.mdx: L369, L371 */}
+
+<VersionNote version="C1.3" label="Drum keyboard zoom levels" />
+
+## Loading and selecting from the drum keyboard <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L669, L673, L683, L684, L686 */}
+
+<Unwritten />

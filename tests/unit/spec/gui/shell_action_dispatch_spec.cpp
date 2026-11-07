@@ -139,14 +139,10 @@ struct Rig {
 	}
 };
 
-/// @brief Put the guest's clock at \p ms.
-///
-/// `ShellHostUI::nowMs()` is `getSystemTime() * 1000` truncated, and `getSystemTime()` is seconds.
-/// The extra quarter-millisecond is `shell_host_ui_spec.cpp`'s, for its reason: `ms / 1000.0 *
-/// 1000.0` is not guaranteed to land back on `ms` in a double, and one ulp low truncates to
-/// `ms - 1`.
+/// @brief Put the guest's clock at \p ms: `ShellHostUI::nowMs()` counts legacy's audio-sample counter, 44 samples
+///        a millisecond.
 void set_clock_ms(uint32_t ms) {
-	fakelegacyui::system_time_s = (static_cast<double>(ms) + 0.25) / 1000.0;
+	AudioEngine::audioSampleTimer = ms * 44;
 }
 
 } // namespace

@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/stereo_sample.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -51,9 +52,15 @@ public:
 	explicit LevelDetector(Settings settings);
 
 	/// @brief Measures one block.
-	/// @param block The block's frames, Q31.
+	/// @param block The block's frames, Q31; at most 256 of them, so the sums cannot overflow.
 	/// @return ln of each channel's smoothed mean absolute level (in q31 units), never −∞ (a 1e-24 floor).
 	[[nodiscard]] StereoLevel measure(std::span<const StereoSample> block);
+	/// @brief Measures a block whose mean absolute samples the caller has already taken.
+	/// @param mean_l The left channel's mean absolute sample, in q31 units.
+	/// @param mean_r The right channel's.
+	/// @param num_samples The block's length, which sets how far the smoothing advances.
+	/// @return As measure().
+	[[nodiscard]] StereoLevel measure_means(float mean_l, float mean_r, size_t num_samples);
 
 	/// @brief Returns to silence.
 	void reset();

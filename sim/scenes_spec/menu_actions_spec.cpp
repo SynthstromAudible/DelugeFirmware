@@ -405,16 +405,16 @@ struct PerformViewGuard {
 ///        `openUI(&performanceView)`.
 ///
 /// `nullifyUIs()` rather than `closeUI`, on `menu_entry_spec.cpp`'s terms: `closeUI` indexes
-/// `uiNavigationHierarchy[-1]` when the view it closes is the only entry (`gui/ui/ui.cpp:212-223`),
+/// `uiNavigationHierarchy[-1]` when the view it closes is the only entry (`gui/ui/ui.cpp:213-223`),
 /// and `nullifyUIs()` is what legacy itself calls to tear the hierarchy down (`:257-261`).
 ///
 /// **The one residue this cannot put back, stated rather than left to be discovered.**
-/// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:287`), and
-/// that variable is defined at `gui/ui/ui.cpp:95` with no declaration in `ui.h`, so it cannot be
+/// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:288`), and
+/// that variable is defined at `gui/ui/ui.cpp:96` with no declaration in `ui.h`, so it cannot be
 /// reset from here -- `tables_3_spec.cpp` records the same fact for the same reason. So
 /// after an example in this group, `getCurrentUI()` answers `&performanceView`
 /// instead of null, while `getRootUI()` still answers null -- it is a different function, at
-/// `ui.cpp:174-179`, and it reads only `numUIsOpen` (`:175-176`), never the residue. It is
+/// `ui.cpp:175-180`, and it reads only `numUIsOpen` (`:176-177`), never the residue. It is
 /// benign for this file on two counts, both checkable: nothing in `sim/scenes_spec/menu_actions_spec.cpp`
 /// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `DELUGE_SPEC` below,
 /// after the three groups that drive the port. An example added to this file that needs a null
@@ -552,7 +552,7 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 /// does NOT call `opened()` first the way `open_global_guest` does -- doing both would push the
 /// initial scene twice.
 ///
-/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:259`),
+/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:260`),
 ///          so with an empty hierarchy the guest lands at index 0 and becomes `getRootUI()` -- the
 ///          precondition `stemExportTypeForRootUI`'s note in `gui/ui/shell_action_dispatch.cpp`
 ///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
@@ -743,11 +743,11 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 
 	// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
 	// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-	// (`model/song/song.cpp:3213-3215`), and `getLoopLengthAtSystemSampleRate` divides by it
+	// (`model/song/song.cpp:3224-3226`), and `getLoopLengthAtSystemSampleRate` divides by it
 	// (`model/sample/sample_holder.cpp:105-113`) -- so the computed length would be **zero** and
 	// `adjustLoopLength` would write nothing while every assertion about "a popup happened" still
 	// passed. `audio_clip_scene_spec.cpp` found that the hard way; this is its arithmetic,
-	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3072-3081`) rather than by
+	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3083-3092`) rather than by
 	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
 	const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
 	f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
@@ -760,7 +760,7 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 ///        arms that `close()` have somewhere to close *to*.
 ///
 /// `closeUI` walks down from `numUIsOpen - 1` while `u >= 1` and then reads
-/// `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:206-228`, the loop at `:212` and the read at
+/// `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:207-229`, the loop at `:213` and the read at
 /// `:194`), so closing the only open UI indexes `[-1]` -- the fact `UiStackGuard`'s note above
 /// already records for `closeUI`. Seating this at index 0 with `openUI(&performanceView)` on top
 /// makes `close()` an in-bounds close onto an object with no behaviour of its own; `focusRegained`
@@ -1936,7 +1936,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 	//     VALUE must clear it and PARAM must leave it standing, so inverting the guard reddens both
 	//     examples on the line that names the reset rather than on the line that names the open;
 	//   * **the open** -- `isUIOpen(&performanceView)`, and NOT `getCurrentUI()`, which answers
-	//     `lastUIBeforeNullifying` on an empty hierarchy (`gui/ui/ui.cpp:165-169`) and so cannot
+	//     `lastUIBeforeNullifying` on an empty hierarchy (`gui/ui/ui.cpp:166-170`) and so cannot
 	//     tell "opened" from "an earlier example left this behind".
 	//
 	// Every example has a control leg that asserts the request really is sitting in the outbox, so no
@@ -2189,7 +2189,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(chosen_stem_export_type()).to_equal(-1);
 
 		// And the null root: `getRootUI()` answers `nullptr` while `numUIsOpen == 0`
-		// (`gui/ui/ui.cpp:174-179`), which is legacy's "during song load / swap" (`:93`).
+		// (`gui/ui/ui.cpp:175-180`), which is legacy's "during song load / swap" (`:94`).
 		// `nullifyUIs()` (`:257-261`) is how legacy itself gets there.
 		nullifyUIs();
 		expect(getRootUI() == nullptr).to_be_true();
@@ -2353,7 +2353,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      `focusRegained()` -- for a `ContextMenu`, one
 	//      `blinkLed(IndicatorLED::BACK)` (`gui/context_menu/context_menu.cpp:54-56`) -- and then
 	//      `return true`, **unconditionally**. That last word matters: the `!success` branch
-	//      (`gui/ui/ui.cpp:266-271`) pops the UI and calls `oldUI->focusRegained()`, which WOULD be
+	//      (`gui/ui/ui.cpp:267-272`) pops the UI and calls `oldUI->focusRegained()`, which WOULD be
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
@@ -2365,7 +2365,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// And the reverse direction is closed too, which the list above does not cover on its own:
 	// `View::midiLearnFlash` calls `getRootUI()->midiLearnFlash()`, so
 	// running `setupAndCheckAvailability()` *after* the open would be observable if the open moved
-	// the root. It cannot: `getRootUI()` reads `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:174-179`)
+	// the root. It cannot: `getRootUI()` reads `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:175-180`)
 	// and `openUI` writes index `numUIsOpen` (`:230`), which is >= 1 whenever a root view is open --
 	// the precondition `stemExportTypeForRootUI`'s own note in `gui/ui/shell_action_dispatch.cpp`
 	// states and these examples establish with `setRootUILowLevel(&sessionView)`.

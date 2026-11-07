@@ -132,7 +132,7 @@ private:
 		EqualizerValues result{};
 
 		for (auto* i : items) {
-			switch (const auto as_unpatched = static_cast<UnpatchedParam*>(i); as_unpatched->getP()) {
+			switch (const auto as_unpatched = &static_cast<UnpatchedParam&>(*i); as_unpatched->getP()) {
 			case params::UNPATCHED_BASS:
 				desired_order_items[0] = as_unpatched;
 				result.bass = as_unpatched->getValue() / 50.f;

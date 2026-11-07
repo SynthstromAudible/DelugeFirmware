@@ -31,6 +31,12 @@ class UI;
 /// and that table odr-uses every ported scene -- the whole `deluge_scenes` closure this suite does
 /// not build. The fake returns an empty registry, so the global exists and is inert; every example
 /// builds its own `ShellHostUI` over its own table.
+/// @brief Legacy's audio-sample counter, which `ShellHostUI::nowMs()` reads at 44 samples a millisecond. Defined
+///        here, as the engine that counts it is not built: a spec sets it, and `reset()` puts it back to 0.
+namespace AudioEngine {
+extern uint32_t audioSampleTimer;
+} // namespace AudioEngine
+
 namespace fakelegacyui {
 
 /// @name Recorders
@@ -93,13 +99,11 @@ int32_t ui_specific_armed_ms();
 
 /// @name The scheduler's two answers, made settable
 ///
-/// `ShellHostUI`'s input hooks read exactly two things from outside the shell: the clock
-/// (`getSystemTime()`) and whether the SD routine holds the lock (`isSDRoutineActive()`). Both are
-/// declared in `OSLikeStuff/scheduler_api.h` and defined in the task scheduler, which this suite
-/// does not build -- so they are defined here over these two variables, which is also what makes a
-/// deferral example drivable at all.
+/// `getSystemTime()` and `isSDRoutineActive()` are declared in `OSLikeStuff/scheduler_api.h` and defined
+/// in the task scheduler, which this suite does not build -- so they are defined here over these two
+/// variables. The guest reads only the second: its clock is `AudioEngine::audioSampleTimer` (above).
 /// @{
-/// What `getSystemTime()` returns, in seconds. `nowMs()` is this times 1000.
+/// What `getSystemTime()` returns, in seconds. The guest's clock is `AudioEngine::audioSampleTimer`, not this.
 extern double system_time_s;
 /// What `isSDRoutineActive()` returns.
 extern bool sd_routine_active;

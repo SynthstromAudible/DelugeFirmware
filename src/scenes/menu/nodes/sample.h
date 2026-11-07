@@ -45,7 +45,7 @@
 ///       `isRangeDependent`). The rest -- `LoopPoint`'s "make sure a Sample is loaded"
 ///       (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null `sampleHolder.
 ///       audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
-///       "already recording" (`gui/ui/audio_recorder.cpp:69-71`) -- is each scene's own `can()`,
+///       "already recording" (`gui/ui/audio_recorder.cpp:70-72`) -- is each scene's own `can()`,
 ///       consulted by its `on_enter`. A refused push is not a lost frame: `SceneStack::push`
 ///       (`shell/scene_stack.cpp`) unwinds and resumes the input top, which is the menu
 ///       whenever the refused scene is an opaque one (all of these are) -- and that is where

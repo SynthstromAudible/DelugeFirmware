@@ -416,8 +416,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a fast select turn accelerates the focused column's edit, as HorizontalMenu::calcNextKnobSpeed does", _ {
 		// `HorizontalMenu::selectEncoderAction` edits by `offset * calcNextKnobSpeed(offset)`
-		// (`kHorizontalMenuAcceleration`), truncated to an int: four +1 turns 10 ms apart multiply by
-		// 1.0, 1.5, 2.85 and 4.065, which move the value 1 + 1 + 2 + 4.
+		// (`kHorizontalMenuAcceleration`), truncated to an int: four +1 turns 10 ms apart on the clock
+		// acceleration is timed on multiply by 1.0, 1.5, 2.85 and 4.065, which move the value 1 + 1 + 2 + 4.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -427,9 +427,29 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		g_chain_col = 0;
 		for (uint32_t t = 600; t <= 630; t += 10) {
 			r.turn(1, t);
+			r.shell.set_acceleration_clock_ms(t);
 			r.shell.tick(t);
 		}
 		expect(g_chain_col).to_equal(8);
+	});
+
+	it("times the acceleration on its own clock: turns close on the tick's clock but a second apart on it do not accelerate", _ {
+		// Legacy times it on the scheduler's clock (`getSystemTime()`), apart from its UI timers' audio-sample clock.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		r.press(kCvX, kCvY, 200); // focus CHAIN_COL (column 3)
+		g_chain_col = 0;
+		uint32_t acceleration_clock = 10000;
+		for (uint32_t t = 600; t <= 630; t += 10) {
+			r.turn(1, t);
+			r.shell.set_acceleration_clock_ms(acceleration_clock);
+			acceleration_clock += 1000;
+			r.shell.tick(t);
+		}
+		expect(g_chain_col).to_equal(4);
 	});
 
 	it("an enum column's notification names the option, as Selection::getNotificationValue does", _ {

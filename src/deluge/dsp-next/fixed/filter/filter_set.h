@@ -27,6 +27,7 @@
 #include "dsp-next/fixed/filter/svf.h"
 #include "dsp-next/fixed/noise/cong.h"
 
+#include <optional>
 #include <span>
 
 namespace deluge::dsp::fixed {
@@ -182,6 +183,23 @@ private:
 	HighPassSlot high_last_{.kind = HighPassSlot::Kind::LADDER};
 	/// The route as configured.
 	FilterRoute route_{FilterRoute::HIGH_TO_LOW};
+
+	/// @brief What configure() was last given.
+	struct ConfigureArgs {
+		int32_t gain;
+		FilterConfig low;
+		LowPassSlot low_slot;
+		FilterConfig high;
+		HighPassSlot high_slot;
+		FilterRoute route;
+		bool operator==(const ConfigureArgs&) const = default;
+	};
+	/// The last configure()'s arguments, none after a reset. The same arguments again change nothing (a filter's
+	/// coefficients are its settings', and the resets and fades happen only on a change), so configure() returns
+	/// @ref last_gain_ without working them out again.
+	std::optional<ConfigureArgs> last_args_;
+	/// What the last configure() returned.
+	int32_t last_gain_ = 0;
 };
 
 } // namespace deluge::dsp::fixed

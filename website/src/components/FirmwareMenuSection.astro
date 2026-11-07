@@ -20,6 +20,15 @@ const trees = (data.trees ?? {}) as Record<string, MenuNode>
 const root = trees[treeKey]
 const rootTag = root?.tag ?? ""
 
+// Anchor ids for cross-links from the Guidebook (see remark-cross-links/terms.ts menuAnchor):
+// menu-<treeKey>-<varName>, on the first appearance of each item in this tree.
+const anchored = new Set<string>()
+function anchorAttr(node: MenuNode): string {
+  if (anchored.has(node.varName)) return ""
+  anchored.add(node.varName)
+  return ` id="menu-${escapeHtml(treeKey)}-${escapeHtml(node.varName)}"`
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -50,8 +59,13 @@ function renderRowContent(label: string, tags: string): string {
   return `<span class="menu-hierarchy-row-content"><span class="menu-hierarchy-row-label">${escapeHtml(label)}</span>${tags}</span>`
 }
 
-function renderBranch(label: string, tags: string, children: string): string {
-  return `<details class="menu-hierarchy-tree-item"><summary>${renderRowContent(label, tags)}</summary><ul>${children}</ul></details>`
+function renderBranch(
+  label: string,
+  tags: string,
+  children: string,
+  id = "",
+): string {
+  return `<details class="menu-hierarchy-tree-item"${id}><summary>${renderRowContent(label, tags)}</summary><ul>${children}</ul></details>`
 }
 
 function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
@@ -61,7 +75,7 @@ function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
     .map((child) => renderNestedList(child))
     .join("")
 
-  return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, children)}</li>`
+  return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, children, anchorAttr(node))}</li>`
 }
 
 function renderNestedList(node: MenuNode, labelOverride?: string): string {
@@ -77,11 +91,11 @@ function renderNestedList(node: MenuNode, labelOverride?: string): string {
       `${analogFullMenu.oled} (${analogShortMenu.code})`,
     )
 
-    return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, `${digital}${analog}`)}</li>`
+    return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, `${digital}${analog}`, anchorAttr(node))}</li>`
   }
 
   if (!node.children.length) {
-    return `<li class="menu-hierarchy-tree-leaf">${renderRowContent(label, tags)}</li>`
+    return `<li class="menu-hierarchy-tree-leaf"${anchorAttr(node)}>${renderRowContent(label, tags)}</li>`
   }
 
   return renderNestedBranch(node, labelOverride)
@@ -93,7 +107,7 @@ function renderTopLevelSection(node: MenuNode): string {
   const children = node.children
     .map((child) => renderNestedList(child))
     .join("")
-  return renderBranch(label, tags, children)
+  return renderBranch(label, tags, children, anchorAttr(node))
 }
 
 function renderTree(node: MenuNode | undefined, includeRoot: boolean): string {
@@ -126,3 +140,33 @@ function renderTree(node: MenuNode | undefined, includeRoot: boolean): string {
   data-tree-tag={rootTag}
   set:html={renderTree(root, showRoot)}
 />
+
+<script>
+  // A cross-link to a menu item (#menu-<tree>-<item>) opens the collapsed sections around it.
+  function revealMenuTarget() {
+    const id = decodeURIComponent(location.hash.slice(1))
+    if (!id.startsWith("menu-")) return
+    const target = document.getElementById(id)
+    if (!target) return
+    for (let el = target.parentElement; el; el = el.parentElement) {
+      if (el instanceof HTMLDetailsElement) el.open = true
+    }
+    if (target instanceof HTMLDetailsElement) target.open = true
+    document
+      .querySelectorAll(".menu-hierarchy-target")
+      .forEach((el) => el.classList.remove("menu-hierarchy-target"))
+    target.classList.add("menu-hierarchy-target")
+    target.scrollIntoView({ block: "center" })
+  }
+  revealMenuTarget()
+  window.addEventListener("hashchange", revealMenuTarget)
+</script>
+
+<style is:global>
+  .menu-hierarchy-target > summary,
+  li.menu-hierarchy-target {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+</style>

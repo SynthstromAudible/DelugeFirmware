@@ -433,7 +433,7 @@ Error StorageManager::parsePatternDocument(bool overwriteExisting, bool noScalin
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
-		if (fileSuccess) {
+		if (!fileSuccess) {
 			error = Error::SD_CARD;
 		}
 
@@ -465,6 +465,8 @@ Error StorageManager::parseSynthDrumDocument(deluge::storage::TreeDocument& docu
 
 	// If that somehow didn't work...
 	if (error != Error::NONE) {
+		// readFromFile() may already have backed up a ParamManager keyed by this drum
+		song->live.param_backup.deleteFor(newDrum);
 		void* toDealloc = static_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
 		deluge::memory::dealloc(toDealloc);
@@ -651,7 +653,7 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 FileWriter::FileWriter() {
 	bufferSize = 32768;
 	writeClusterBufferBase = static_cast<char*>(deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2));
-	writeClusterBuffer = writeClusterBufferBase + CACHE_LINE_SIZE;
+	writeClusterBuffer = writeClusterBufferBase ? writeClusterBufferBase + CACHE_LINE_SIZE : nullptr;
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -695,7 +697,7 @@ void FileWriter::resetWriter() {
 
 bool FileWriter::closeWriter() {
 	if (memoryBased) {
-		if (fileWriteBufferCurrentPos < bufferSize) {
+		if (writeClusterBuffer && fileWriteBufferCurrentPos < bufferSize) {
 			writeClusterBuffer[fileWriteBufferCurrentPos] = 0;
 			return true;
 		}
@@ -715,6 +717,11 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 }
 
 void FileWriter::writeByte(int8_t b) {
+
+	if (!writeClusterBuffer) {
+		fileAccessFailedDuringWrite = true;
+		return;
+	}
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
 		if (memoryBased) {
@@ -754,6 +761,9 @@ void FileWriter::writeChars(char const* output) {
 }
 
 Error FileWriter::writeBufferToFile() {
+	if (!writeClusterBuffer) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	auto written = file->write(
 	    std::span<const std::byte>(reinterpret_cast<const std::byte*>(writeClusterBuffer), fileWriteBufferCurrentPos));
 	if (!written || *written != fileWriteBufferCurrentPos) {

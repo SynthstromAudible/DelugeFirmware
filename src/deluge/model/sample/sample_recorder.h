@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "model/sample/level_handoff.h"
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_finalize_policy.h"
 #include "model/sample/recorder_write_policy.h"
@@ -161,7 +162,16 @@ public:
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
+	/// The recorder's level meter is showing, so the render keeps measuring the input after the threshold has
+	/// triggered. Set by the UI as a take starts.
+	std::atomic<bool> monitorInputLevels{false};
 	uint32_t minThresholdMargin = 0;
+
+	/// @brief [interaction] The input's smoothed log levels for the level meter, as the threshold reads them: the
+	///        loudest per-block means the render has measured since the last call, folded into the meter's envelope.
+	/// @details The peak rather than an average, so a short transient still shows at full level when the UI reads
+	///          less often than every block. Not for the render.
+	deluge::dsp::fp::StereoLevel getInputLevels();
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently{};
@@ -493,5 +503,11 @@ private:
 	void recycleBuffer(std::byte* buffer);
 	void releaseCaptureBuffers();
 
+	/// [render] The threshold's envelope: it decides when the take starts, so it runs every block.
 	deluge::dsp::fp::LevelDetector envelopeFollower{};
+	/// [interaction] The level meter's envelope, over what the render hands it in the three below.
+	deluge::dsp::fp::LevelDetector meterFollower_{};
+	deluge::dsp::fp::StereoLevel meterLevel_{};
+	/// The render's per-block levels, which getInputLevels() takes.
+	LevelHandoff pendingLevels_;
 };

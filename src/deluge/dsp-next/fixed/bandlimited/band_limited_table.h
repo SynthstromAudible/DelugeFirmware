@@ -17,6 +17,9 @@
 #pragma once
 
 #include "dsp-next/fixed/bandlimited/table.h"
+#include <array>
+#include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <utility>
@@ -35,92 +38,76 @@ struct Band {
 /// @brief A band-limited wave as a set of bands that selects itself by pitch.
 ///
 /// Each wave kernel (saw, square, triangle, analog saw/square) owns its LUTs and exposes only
-/// its BandlimitedTable. @ref select walks the bands and returns the first whose
-/// `max_phase_increment` covers @p phase_increment — the exact `if (inc <= X)` ladder the legacy
-/// `get_table_number` / triangle-ladder used, so substituting it is bit-exact. Pair it with a
+/// its BandlimitedTable. @ref select returns the first band whose `max_phase_increment` covers
+/// @p phase_increment — the exact `if (inc <= X)` ladder the legacy `get_table_number` /
+/// triangle-ladder used, so substituting it is bit-exact. Pair it with a
 /// @ref BandLimitedTableOscillator, which picks the band for the current pitch and renders it.
 class BandlimitedTable {
 	std::span<const Band> bands_;
+	/// For each bit width of a phase increment, the first band that can cover an increment that wide: the bands
+	/// whose thresholds are all below 2^(width - 1) are skipped. The thresholds go up by about sqrt(2) per band, so
+	/// at most a couple more compares finish the pick, where walking every band took up to twenty.
+	std::array<uint8_t, 33> first_for_width_{};
+
+	[[nodiscard]] static Table table_of(const Band& band) {
+		return Table{.samples =
+		                 std::span<const int16_t>{band.table, (static_cast<std::size_t>(1) << band.magnitude) + 1},
+		             .magnitude = band.magnitude};
+	}
 
 public:
-	constexpr explicit BandlimitedTable(std::span<const Band> bands) : bands_{bands} {}
+	constexpr explicit BandlimitedTable(std::span<const Band> bands) : bands_{bands} {
+		for (uint32_t width = 1; width <= 32; width++) {
+			uint8_t first = 0;
+			while (first + 1u < bands_.size() && bands_[first].max_phase_increment < (uint32_t{1} << (width - 1))) {
+				first++;
+			}
+			first_for_width_[width] = first;
+		}
+	}
 
 	[[nodiscard]] Table select(uint32_t phase_increment) const {
-		for (const Band& band : bands_) {
-			if (phase_increment <= band.max_phase_increment) {
-				return Table{std::span<const int16_t>{band.table, (static_cast<std::size_t>(1) << band.magnitude) + 1},
-				             band.magnitude};
-			}
+		std::size_t band = first_for_width_[std::bit_width(phase_increment)];
+		while (band + 1 < bands_.size() && phase_increment > bands_[band].max_phase_increment) {
+			band++;
 		}
-		const Band& last = bands_.back();
-		return Table{std::span<const int16_t>{last.table, (static_cast<std::size_t>(1) << last.magnitude) + 1},
-		             last.magnitude};
+		return table_of(bands_[band]);
 	}
 };
+
+namespace detail {
+/// The highest phase increment each standard band number is used for; the last is the catch-all.
+inline constexpr std::array<uint32_t, 20> kTableNumberBounds = {
+    1247086,  1764571,  2494173,  3526245,   4982560,   7040929,   9988296,   14035840,  19701684,  28256363,
+    40518559, 55063683, 79536431, 113025455, 165191049, 238609294, 306783378, 429496729, 715827882, 0xFFFFFFFF,
+};
+/// Each standard band's size magnitude.
+inline constexpr std::array<int8_t, 20> kTableSizeMagnitudes = {13, 12, 12, 11, 11, 11, 11, 11, 11, 11,
+                                                                11, 11, 11, 11, 10, 10, 10, 10, 9,  9};
+/// The lowest band number for each bit width of the phase increment: how many bounds are below 2^(width - 1).
+inline constexpr auto kFirstTableForBitWidth = [] {
+	std::array<uint8_t, 33> first{};
+	for (uint32_t width = 1; width <= 32; width++) {
+		for (uint32_t bound : kTableNumberBounds) {
+			first[width] += bound < (uint32_t{1} << (width - 1));
+		}
+	}
+	return first;
+}();
+} // namespace detail
 
 /// @brief The standard band number + size magnitude for a phase increment — the shared ladder
 /// used by the saw/square/analog band sets. Still used app-side for the crude/quality gate
 /// (`tableNumber < cpuDireness + 6`) and the analog→saw downgrade; the band *tables* now select
 /// themselves via @ref BandlimitedTable, but the band *index* is the quality measure.
-[[nodiscard]] inline std::pair<int32_t, int32_t> get_table_number(uint32_t phase_increment) {
-	if (phase_increment <= 1247086) {
-		return {0, 13};
-	}
-	if (phase_increment <= 1764571) {
-		return {1, 12};
-	}
-	if (phase_increment <= 2494173) {
-		return {2, 12};
-	}
-	if (phase_increment <= 3526245) {
-		return {3, 11};
-	}
-	if (phase_increment <= 4982560) {
-		return {4, 11};
-	}
-	if (phase_increment <= 7040929) {
-		return {5, 11};
-	}
-	if (phase_increment <= 9988296) {
-		return {6, 11};
-	}
-	if (phase_increment <= 14035840) {
-		return {7, 11};
-	}
-	if (phase_increment <= 19701684) {
-		return {8, 11};
-	}
-	if (phase_increment <= 28256363) {
-		return {9, 11};
-	}
-	if (phase_increment <= 40518559) {
-		return {10, 11};
-	}
-	if (phase_increment <= 55063683) {
-		return {11, 11};
-	}
-	if (phase_increment <= 79536431) {
-		return {12, 11};
-	}
-	if (phase_increment <= 113025455) {
-		return {13, 11};
-	}
-	if (phase_increment <= 165191049) {
-		return {14, 10};
-	}
-	if (phase_increment <= 238609294) {
-		return {15, 10};
-	}
-	if (phase_increment <= 306783378) {
-		return {16, 10};
-	}
-	if (phase_increment <= 429496729) {
-		return {17, 10};
-	}
-	if (phase_increment <= 715827882) {
-		return {18, 9};
-	}
-	return {19, 9};
+///
+/// The bounds go up by about sqrt(2) per band, so there are at most two of them in each power of two: the bit width
+/// gets within two bands, and two compares finish it.
+[[nodiscard]] constexpr std::pair<int32_t, int32_t> get_table_number(uint32_t phase_increment) {
+	int32_t table = detail::kFirstTableForBitWidth[std::bit_width(phase_increment)];
+	table += phase_increment > detail::kTableNumberBounds[table] ? 1 : 0;
+	table += phase_increment > detail::kTableNumberBounds[table] ? 1 : 0;
+	return {table, detail::kTableSizeMagnitudes[table]};
 }
 
 } // namespace deluge::dsp::fixed

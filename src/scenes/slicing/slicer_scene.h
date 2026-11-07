@@ -59,7 +59,7 @@
 ///
 /// `RecorderScene::after_render` asks `AudioEngine::sdRoutineBusy()` before it finishes a recording, because freeing a
 /// `SampleRecorder` suspended part-way through its own `cardRoutine()` leaves that routine running on freed memory
-/// (`gui/ui/audio_recorder.cpp:168-176`). The slicer's commit is not that shape:
+/// (`gui/ui/audio_recorder.cpp:289-297`). The slicer's commit is not that shape:
 ///
 ///   1. `cardRoutine()` exists only on `SampleRecorder`, and `Slicer::doSlice` frees no recorder: its one
 ///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.
@@ -73,7 +73,7 @@
 /// @par `on_resume()` and popups
 ///
 /// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), because `closeUI` calls `focusRegained()` on
-/// whatever it leaves on top (`gui/ui/ui.cpp:223-228`). A legacy popup is a display overlay, not a UI, while a shell
+/// whatever it leaves on top (`gui/ui/ui.cpp:223-229`). A legacy popup is a display overlay, not a UI, while a shell
 /// popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an
 /// `input_transparent()` overlay never holds it, so a popup the scene raises coming and going does not reset its
 /// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in

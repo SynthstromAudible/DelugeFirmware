@@ -21,6 +21,9 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#ifdef __arm__
+#include <arm_acle.h>
+#endif
 
 #include "dsp-next/core/high_word_asm.h"
 
@@ -31,6 +34,12 @@
 /// fixed_point.h's operations.
 
 namespace deluge::dsp::detail {
+
+/// The leading zero bits of @p input: 32 for 0, as the ARM `clz` gives. The compiler emits `clz` itself, and can
+/// fold it on a constant.
+[[gnu::always_inline]] constexpr int32_t clz(uint32_t input) {
+	return std::countl_zero(input);
+}
 
 // this is only defined for 32 bit arm
 #if defined(__arm__)
@@ -76,27 +85,15 @@ namespace deluge::dsp::detail {
 /// computes limit((val >> rshift), 2**bits)
 template <uint8_t bits>
 [[gnu::always_inline]] inline int32_t signed_saturate(int32_t val) {
-	int32_t out;
-	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
-	return out;
+	return __ssat(val, bits);
 }
 
 [[gnu::always_inline]] inline int32_t add_saturate(int32_t a, int32_t b) {
-	int32_t out;
-	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
+	return __qadd(a, b);
 }
 
 [[gnu::always_inline]] inline int32_t subtract_saturate(int32_t a, int32_t b) {
-	int32_t out;
-	asm("qsub %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-[[gnu::always_inline]] inline int32_t clz(uint32_t input) {
-	int32_t out;
-	asm("clz %0, %1" : "=r"(out) : "r"(input));
-	return out;
+	return __qsub(a, b);
 }
 
 ///@brief Convert from a float to a q31 value, saturating above 1.0
@@ -172,11 +169,6 @@ template <uint8_t bits>
 [[gnu::always_inline]] inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) - b;
 	return r > INT32_MAX ? INT32_MAX : (r < INT32_MIN ? INT32_MIN : static_cast<int32_t>(r));
-}
-
-[[gnu::always_inline]] inline int32_t clz(uint32_t input) {
-	// ARM `clz` returns 32 for 0; __builtin_clz(0) is UB. Match the hardware.
-	return input ? __builtin_clz(input) : 32;
 }
 
 [[gnu::always_inline]] constexpr int32_t q31_from_float(float value) {

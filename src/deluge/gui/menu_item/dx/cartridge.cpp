@@ -100,7 +100,9 @@ void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program) {
-	sound.sources[source].ensureDxPatch();
+	if (sound.sources[source].ensureDxPatch() == nullptr) {
+		return;
+	}
 	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[source]);
 	cartridge.unpackProgram(patch->params, program);
 	dxPatchFor(sound, source, *patch);

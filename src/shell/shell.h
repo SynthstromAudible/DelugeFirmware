@@ -249,6 +249,10 @@ public:
 	/// @param inhibit Whether either holds now.
 	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
 
+	/// @brief The clock encoder acceleration is timed on for the next tick (`UiContext::acceleration_clock_ms`).
+	/// @param ms The host's reading of that clock, in milliseconds.
+	void set_acceleration_clock_ms(uint32_t ms) { lowering_.set_acceleration_clock_ms(ms); }
+
 	/// @brief Restyle the menus' highlighting on every surface and repaint them: the host calls it at boot from the
 	///        card's setting and whenever the setting changes.
 	/// @param h The highlighting the card stores.

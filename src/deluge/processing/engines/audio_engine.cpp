@@ -170,7 +170,7 @@ uint64_t retireSequencePushed = 0;
 /// drain, acquire-loaded by reclaim: an entry whose sequence is at or below it has been let go of, and every effect of
 /// that let-go is visible. An entry is freed once this covers it AND two blocks have begun since its stamp.
 std::atomic<uint64_t> retireSequenceLetGo{0};
-/// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E459). A song of many
+/// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E474). A song of many
 /// outputs is let go of in one block and freed two blocks later -- a few milliseconds; this is far past that.
 #if defined(__SANITIZE_THREAD__)
 #define DELUGE_UNDER_TSAN 1
@@ -186,7 +186,7 @@ constexpr double kAwaitRetiredTimeoutSeconds = 5.0;
 #else
 constexpr double kAwaitRetiredTimeoutSeconds = 0.25;
 #endif
-/// How many render blocks AudioEngine::awaitRetired() waits for before it freezes (E459), whatever the clock says.
+/// How many render blocks AudioEngine::awaitRetired() waits for before it freezes (E474), whatever the clock says.
 /// A retired object is let go of at the next block and freed two blocks after its stamp, so 2-3 blocks is normal.
 /// Needed where getSystemTime() does not move inside a synchronous wait (the virtual-time host harnesses, which run
 /// the render inline). 1000 is over 300x the normal count; on the device, where a block is ~2.9 ms, it is ~2.9 s, so
@@ -336,13 +336,13 @@ void pushOrOverflow(const RetireRequest& r) {
 ///  - the render has never run (epoch 0, boot): nothing can reach it; let go inline and destroy now;
 ///  - otherwise: the render lets go at the top of its next block (the ring); destroy later.
 ///
-/// Only the interaction tier may retire (E455 otherwise). The ring is single-producer, and the retire list, the
+/// Only the interaction tier may retire (E473 otherwise). The ring is single-producer, and the retire list, the
 /// overflow list and reclaimRetired() are single-threaded on the interaction side. A retire from the render itself
 /// (the song swap, if it ever runs there) would need its own render-to-interaction handover of the destroy; that is
 /// left to the Song/Clip deletion work, and until then it freezes rather than corrupt the list.
 void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
-		FREEZE_WITH_ERROR("E455");
+		FREEZE_WITH_ERROR("E473");
 	}
 	const bool renderHasRun = renderDomain_.audio_epoch() != 0;
 	if (!renderHasRun) {
@@ -2483,7 +2483,7 @@ void retire(Clip* clip) {
 
 void retire(Song* song) {
 	if (song == currentSong) {
-		FREEZE_WITH_ERROR("E458");
+		FREEZE_WITH_ERROR("E472");
 	}
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
@@ -2510,7 +2510,7 @@ void awaitRetired() {
 	// Only the interaction tier may wait here: from the render, a single-executor host's inline drive would re-enter
 	// the render. The same code as a retire from the wrong tier.
 	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
-		FREEZE_WITH_ERROR("E455");
+		FREEZE_WITH_ERROR("E473");
 	}
 	// Inside an AudioExcludedSection the render cannot run a block (on host it waits for the section's lock; on the
 	// device the section masks its interrupt), so waiting for it would never end.
@@ -2538,7 +2538,7 @@ void awaitRetired() {
 			             retireOverflow.size());
 			std::fflush(stderr);
 #endif
-			FREEZE_WITH_ERROR("E459");
+			FREEZE_WITH_ERROR("E474");
 		}
 		deluge_audio_await_block();
 		reclaimRetired();

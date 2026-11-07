@@ -1,0 +1,40 @@
+---
+title: "7.8 DX7 Synth"
+sidebar:
+  order: 7
+guidebook:
+  section: "7.8"
+  chapter: 7
+  pdfPages: []
+  printedPages: []
+  firmware: "C1.2.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+import VersionNote from "../../../../components/guidebook/VersionNote.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+<StepFocus />
+
+## DX7 engine <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): Features page: /features/dx_synth; community_features: 4.5.7; CHANGELOG.mdx: L477, L479 */}
+
+<Unwritten>See [DX Synth](/features/dx_synth).</Unwritten>
+
+{/* TODO(kate): PRs: #5179; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Algorithm display" />
+
+{/* TODO(kate): PRs: #5171; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="DX7 in kits" />
+
+{/* TODO(kate): PRs: #5145; Not confirmed in the changelog: confirm before writing. */}
+
+<VersionNote version="C1.3" label="Parameter shortcut overlay" />

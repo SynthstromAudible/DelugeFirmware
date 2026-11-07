@@ -310,6 +310,12 @@ public:
 	///          it. `pads` also views this object's own storage, so the snapshot must not outlive
 	///          the lowering.
 	const ui::InputSnapshot& snapshot() const { return snap_; }
+
+	/// @brief The clock an encoder's acceleration is timed on, which the next `end_tick` puts in the snapshot.
+	/// @param ms The host's reading, in milliseconds (`ui::InputSnapshot::acceleration_clock_ms`).
+	void set_acceleration_clock_ms(uint32_t ms) { acceleration_clock_ms_ = ms; }
+	/// @return The last reading given.
+	uint32_t acceleration_clock_ms() const { return acceleration_clock_ms_; }
 	/// @brief The tick's one shared frame context: this snapshot, the widgets' gate, and the
 	///        claims every frame built this tick records into.
 	///
@@ -476,6 +482,7 @@ private:
 	/// @{
 	int32_t edge_accumulator_[kEncoderCount]{};                  ///< Partial detents, carried between ticks.
 	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
+	uint32_t acceleration_clock_ms_ = 0;                         ///< See set_acceleration_clock_ms().
 	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
 	int8_t initial_turn_direction_[kEncoderCount]{};             ///< `modEncoderInitialTurnDirection`, per role.
 	uint32_t last_turn_ms_[kEncoderCount]{};                     ///< `timeModEncoderLastTurned`, per role.
