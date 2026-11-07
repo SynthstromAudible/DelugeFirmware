@@ -27,6 +27,7 @@
 #include "gui/views/view.h"
 #include "hid/led/pad_leds.h"
 #include "model/output.h"
+#include "model/settings/runtime_feature_settings.h"
 #include <algorithm>
 
 namespace deluge::gui::track_edit_pulse {
@@ -60,6 +61,18 @@ void resetHeldPulse() {
 		pulse_columns[y] &= ~held_columns[y];
 		held_columns[y] = 0;
 	}
+}
+
+bool pulsesHeldTrack() {
+	return track_link::enabled()
+	       && runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrackEditPulseClip)
+	              != static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::Off);
+}
+
+bool pulsesHeldClip() {
+	return track_link::enabled()
+	       && runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrackEditPulseClip)
+	              == static_cast<uint32_t>(RuntimeFeatureStateTrackEditPulse::HoldTrackOrClip);
 }
 
 void settingsChanged() {
