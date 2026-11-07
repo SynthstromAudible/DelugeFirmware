@@ -390,6 +390,22 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 	});
 
+	it("cancels the popup legacy's display holds as it opens, as setup() does", _ {
+		// An audition leaves the drum's name up as a persistent popup (`InstrumentClipView::drawDrumName`); RECORD then
+		// opens the recorder over it, and `setup()`'s `display->cancelPopup()` takes it down.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		display->popupText("KICK");
+		expect(display->hasPopup()).to_be_true();
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		expect(display->hasPopup()).to_be_false();
+		closeGuest();
+		display = saved_display;
+	});
+
 	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};

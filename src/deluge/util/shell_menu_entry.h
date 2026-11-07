@@ -121,6 +121,9 @@ enum class ShellMenuNode : uint8_t {
 	///        (`gui/menu_item/file_selector.h:26`; the correspondence is stated at
 	///        `nodes::file0_selector`).
 	Osc0FileSelector,
+	/// @brief `deluge::scenes::menu::nodes::sample0_recorder`, the port of `sample0RecorderMenu`: the item whose hook
+	///        pushes the recorder on source 0.
+	Osc0Recorder,
 	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source", `gui/ui/menus.cpp`).
 	Dx,
 	/// @brief `deluge::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param

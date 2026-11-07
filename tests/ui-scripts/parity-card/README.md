@@ -58,3 +58,6 @@ shows the mode) and opens the recorder from its page, which draws the level mete
 
 `c38-recorder-take` opens the recorder from that page and ends the take with RECORD, which lands on the source page
 with the file selector focused.
+
+`c34-drum-record` loads a kit and presses RECORD with row 0's audition pad held, which makes a drum and opens the
+recorder on it; its (17,0) colour differs on ours as D11 says.

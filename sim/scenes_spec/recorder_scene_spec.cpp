@@ -31,6 +31,9 @@
 ///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_drum_creator.h"
+#include "gui/ui/ui.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
@@ -545,6 +548,16 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
+/// @brief The ShellMenu toggle on for the scope, and put back.
+struct ShellMenuOn {
+	RuntimeFeatureStateToggle saved =
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
+	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, RuntimeFeatureStateToggle::On); }
+	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	ShellMenuOn(const ShellMenuOn&) = delete;
+	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
+};
+
 /// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
 ///        milliseconds for the scope, and put it back.
 struct AudioClockAt {
@@ -895,6 +908,18 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		k.shell.init(SceneId{kRecorderSceneKind, 0});
 		k.shell.tick(0);
 		expect(k.recorded_name()).to_equal(std::string{"REC2"});
+	});
+
+	it("opens the drum creator's take in the guest on source 0's recorder item alone", _ {
+		// `enterDrumCreator`'s `setup(clip, &file0SelectorMenu, 0)` and `openUI(&audioRecorder)`: no page above the
+		// recorder, so the take's end leaves the menu and the clip view is in front again.
+		Guards g;
+		ShellMenuOn on;
+		KitRig k;
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(menu_scene().state().path[0] == &menu::nodes::sample0_recorder).to_be_true();
+		nullifyUIs();
 	});
 
 	it("defers the whole completion arm while the SD routine is running", _ {

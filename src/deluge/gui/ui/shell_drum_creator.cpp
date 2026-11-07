@@ -73,6 +73,13 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 	return true;
 }
 
+bool openShellDrumRecorder(InstrumentClip* clip) {
+	// `enterDrumCreator`'s `soundEditor.setup(clip, &menu_item::file0SelectorMenu, 0)` and `openUI(&audioRecorder)`.
+	// No drum is remembered: legacy deletes a creator's drum only on the browser's exit, and a take's drum stays.
+	return openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+	                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::Osc0Recorder);
+}
+
 void forgetShellDrumCreator() {
 	creatorDrum = nullptr;
 	setShellBrowserFromDrumCreator(false);

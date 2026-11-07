@@ -25,6 +25,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -72,7 +73,7 @@
 /// | # | site | what it wants | why it is not mapped |
 /// |---|---|---|---|
 /// | 10 | `gui/ui/browser/sample_claim.cpp:571-581` `SampleClaim::stepFinish` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()`. **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim, and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()`. **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`SoundEditor::maybeGetParentMenu` in `gui/ui/sound_editor.cpp`, the two writes at its end), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead. **So "two arbitrary `MenuItem*`s with no port" is no longer the reason this row is not gated:** `MenuScene::reroot_to_scene_opener_page()` plus `MenuWalkState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from the two unmapped sites and site 9's legacy fallback -- and it has not been made, which is why this row is in the not-gated table |
-/// | 14 | `gui/views/instrument_clip_view.cpp:5707-5712` `InstrumentClipView::enterDrumCreator` | **the same node site 8 wants**: its own body ran `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` a few lines earlier. | **not gated because it is a fallback, not an entry.** It runs only when `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` has just *refused*, and what legacy then shows is the file-selector item standing in for the browser it could not open. Routing it to the guest would enter `nodes::file0_selector`, whose own hook asks the shell to push the **ported** browser -- answering a failed browser open by opening a browser. That is a behaviour decision, not a node lookup, so the node being known is not enough to map it. The creator's browser itself is gated, ahead of this fallback: under the toggle `openShellDrumCreator` (`gui/ui/shell_drum_creator.h`) opens the ported browser on the new drum, so the fallback runs only on the legacy path |
+/// | 14 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterDrumCreator` | (a) RECORD (adding a drum row, or with an audition pad held): `openShellDrumRecorder` opens the guest on `nodes::sample0_recorder`, whose hook pushes the ported recorder; it leaves the menu at the take's end, as legacy's recorder leaves the clip view. **the same node site 8 wants**: its own body ran `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` a few lines earlier. | **not gated because it is a fallback, not an entry.** It runs only when `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` has just *refused*, and what legacy then shows is the file-selector item standing in for the browser it could not open. Routing it to the guest would enter `nodes::file0_selector`, whose own hook asks the shell to push the **ported** browser -- answering a failed browser open by opening a browser. That is a behaviour decision, not a node lookup, so the node being known is not enough to map it. The creator's browser itself is gated, ahead of this fallback: under the toggle `openShellDrumCreator` (`gui/ui/shell_drum_creator.h`) opens the ported browser on the new drum, so the fallback runs only on the legacy path |
 // clang-format on
 ///
 
@@ -94,6 +95,9 @@ bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 		return true;
 	case ShellMenuNode::Osc0FileSelector:
 		out = menu::node_id(menu::nodes::file0_selector);
+		return out != 0;
+	case ShellMenuNode::Osc0Recorder:
+		out = menu::node_id(menu::nodes::sample0_recorder);
 		return out != 0;
 	case ShellMenuNode::Dx:
 		out = menu::node_id(menu::nodes::dx_menu);
@@ -170,6 +174,9 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
 	}
 	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
+	// `setup()` cancels whatever popup legacy's display holds once it has found its item: a drum name an audition
+	// left up does not stay over the menu.
+	display->cancelPopup();
 	return openUI(&shellHostUI);
 }
 
