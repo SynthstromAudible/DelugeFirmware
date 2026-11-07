@@ -73,9 +73,9 @@ project::DocAutoParam* workingCopy(const ParamCollection& collection, int32_t pa
 /// @brief [render] The render changed @p copy: the next commit copies it into the model.
 void noteWorkingCopyWritten(const project::DocAutoParam& copy);
 
-/// @brief [interaction] With the render held off, copy every working copy the render changed into its model lane,
-///        and mark its collection for the next publish. Then release the copies whose take ended, and those held while
-///        written that the render did not write since the last commit.
+/// @brief [interaction] With the render held off, copy every working copy the render changed into its model lane (a
+///        copy whose take ended included), and mark its collection for the next publish. Then release the copies whose
+///        take ended, and those held while written that the render did not write since the last commit.
 void commitWorkingCopies();
 
 /// @brief [interaction] Commit, then release every working copy: freed once the render cannot be reading them. The
@@ -86,9 +86,9 @@ void releaseWorkingCopies();
 ///        repeating, deleting time, moving a note's MPE…): the take ends for its lanes.
 ///
 /// On the interaction tier, what is queued is written and the copies committed and released before the edit; the next
-/// commit makes copies again for the lanes still overriding. On the render, which edits lanes this way when an
-/// arrangement recording's clip reaches its end, each copy the render wrote is copied into the model first, then the
-/// render neither plays nor writes it, and the next commit frees it.
+/// commit makes copies again for the lanes still overriding. On the render, which ends the take this way when an
+/// arrangement take reaches its loop end, the render neither plays nor writes the copies from then on, and the next
+/// commit copies what the render wrote into them into the model and frees them.
 void endTake(ParamCollection& collection);
 
 /// @brief [interaction] Whether a take ended for some lanes since the last call (endTake(), releaseWorkingCopies()).

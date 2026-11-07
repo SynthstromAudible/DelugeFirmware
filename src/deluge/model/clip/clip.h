@@ -89,8 +89,14 @@ public:
 	[[nodiscard]] bool isArrangementOnlyClip() const;
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
+	/// @brief Append one repeat of the clip @p otherModelStack names to this one: its content, its automation unless
+	///        @p withParams is false, and its length.
 	virtual Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
-	                         ModelStackWithTimelineCounter* otherModelStack);
+	                         ModelStackWithTimelineCounter* otherModelStack, bool withParams = true);
+	/// @brief Append the automation of one repeat of the clip @p otherModelStack names to this clip's own params, at
+	///        @p offset: what appendClip() appends to them.
+	void appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+	                  int32_t offset);
 	Error resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                      ModelStackWithTimelineCounter* modelStackClone);
 	virtual Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,

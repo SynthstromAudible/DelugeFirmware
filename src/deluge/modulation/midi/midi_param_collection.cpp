@@ -250,6 +250,7 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
 		}
 	}
 
+	deluge::modulation::markLanesChanged(*this);
 	ticksTilNextEvent = 0;
 }
 

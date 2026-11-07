@@ -25,6 +25,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/working_copies.h"
+#include "modulation/params/staged_repeat.h"
 #include "playback/playback_handler.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
@@ -156,6 +157,9 @@ void applyRecordQueue() {
 }
 
 void commitRecording(::Song& song) {
+	// An arrangement take's repeats first: a working copy the render ended at a take's loop end is committed by the
+	// append, before the repeat is appended to its lane
+	catchUpArrangementTakes(song);
 	if (g_recordEvents.empty() && workingCopiesHeld() == 0) {
 		return;
 	}

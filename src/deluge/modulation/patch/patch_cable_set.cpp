@@ -695,6 +695,7 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 
 	FOR_EACH_PARAM_END
 
+	deluge::modulation::markLanesChanged(*this);
 	ticksTilNextEvent = 0;
 }
 

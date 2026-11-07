@@ -68,8 +68,8 @@ struct Entry {
 	project::DocAutoParam* copy = nullptr;
 	bool written = false;   ///< [render] set, [interaction] cleared: the render changed the copy since the last commit
 	Hold hold = Hold::TAKE; ///< [interaction]
-	/// [render] or [interaction] set: the take ended for the copy; neither tier plays, writes or commits it, and the
-	/// next commit frees it.
+	/// [render] or [interaction] set: the take ended for the copy; the render neither plays nor writes it, and the next
+	/// commit copies what the render wrote into it into the model, then frees it.
 	std::atomic<bool> ended = false;
 };
 
@@ -155,7 +155,7 @@ bool live(const Entry& entry) {
 
 /// Free the copies of the entries @p pick picks, each once the render cannot be reading it. With the render held
 /// off it picks, and the entries are emptied; a collection whose ended copy is freed is marked for the next publish,
-/// which carries what the render copied into its model. Out of memory, the picked entries are ended instead, and freed
+/// which plays its lanes from the model again. Out of memory, the picked entries are ended instead, and freed
 /// by a later commit.
 /// @return Whether an ended copy was freed.
 template <typename Pick>
@@ -274,11 +274,12 @@ void commitWorkingCopies() {
 		project::EditGuard guard{project::ModelEdit::NODE_KERNEL};
 		for (size_t i = 0; i < g_entries.size(); i++) {
 			Entry& entry = g_entries[i];
-			if (!live(entry)) {
+			// An ended copy the render wrote before its take ended is committed too: the render no longer writes it
+			if (entry.copy == nullptr) {
 				continue;
 			}
 			if (!entry.written) {
-				idle[i] = entry.hold == Hold::WRITES;
+				idle[i] = live(entry) && entry.hold == Hold::WRITES;
 				continue;
 			}
 			if (project::DocAutoParam* model = entry.collection->findDocParamForId(entry.paramId)) {
@@ -308,16 +309,9 @@ void endTake(ParamCollection& collection) {
 	}
 	if (memory::onRenderTier()) {
 		for (Entry& entry : g_entries) {
-			if (entry.collection != &collection || !live(entry)) {
-				continue;
+			if (entry.collection == &collection && live(entry)) {
+				entry.ended.store(true, std::memory_order_relaxed);
 			}
-			if (entry.written) {
-				if (project::DocAutoParam* model = collection.findDocParamForId(entry.paramId)) {
-					*model = *entry.copy;
-					noteRenderLaneWrite();
-				}
-			}
-			entry.ended.store(true, std::memory_order_relaxed);
 		}
 		return;
 	}

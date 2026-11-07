@@ -19,7 +19,9 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
+#include "model/clip/instrument_clip.h"
 #include "model/fx/chain_inputs.h"
+#include "modulation/params/staged_repeat.h"
 #include "util/notify.h"
 
 #include "chrono"
@@ -224,6 +226,9 @@ void letGoOfClip(Clip* clip) {
 					other->beingRecordedFromClip = nullptr;
 				}
 			}
+		}
+		if (clip->type == ClipType::INSTRUMENT) {
+			deluge::modulation::forgetRepeatSource(*currentSong, *static_cast<InstrumentClip*>(clip));
 		}
 	}
 }

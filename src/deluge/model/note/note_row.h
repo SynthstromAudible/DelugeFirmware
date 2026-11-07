@@ -319,8 +319,14 @@ public:
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
+	/// @brief Append one repeat of the row @p otherModelStack names, at @p offset: its notes, and its automation unless
+	///        @p withParams is false.
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
+	                    int32_t whichRepeatThisIs, int32_t otherClipLength, bool withParams = true);
+	/// @brief Append the automation of one repeat of the row @p otherModelStack names, at @p offset: what
+	///        appendNoteRow() appends to this row's params.
+	void appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
+	                  int32_t whichRepeatThisIs, int32_t otherClipLength);
 	/// @brief Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
 	///
 	/// Call only when the row's effective direction is REVERSE and flattening was requested.

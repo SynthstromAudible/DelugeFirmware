@@ -4147,8 +4147,26 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
+void NoteRow::appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
+                           int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
+	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
+	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
+	    || !otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		return;
+	}
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
+	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
+	int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
+
+	paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
+	                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), offset,
+	                                reverseThisRepeatWithLength, pingpongingGenerally);
+}
+
 Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
-                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
+                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength, bool withParams) {
 
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
@@ -4158,13 +4176,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
-
-		paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
-		                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), offset,
-		                                reverseThisRepeatWithLength, pingpongingGenerally);
+	if (withParams) {
+		appendParams(thisModelStack, otherModelStack, offset, whichRepeatThisIs, otherNoteRowLength);
 	}
 
 	int32_t numToInsert = std::ssize(otherNoteRow->notes);

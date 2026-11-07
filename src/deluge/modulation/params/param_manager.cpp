@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/params/tick_interpolation.h"
@@ -524,6 +525,7 @@ void ParamManagerForTimeline::generateRepeats(ModelStackWithThreeMainThings* mod
 void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* modelStack,
                                                  ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength,
                                                  int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	deluge::modulation::noteRenderLaneWrite(); // the render's own appends go to its working copies
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
 	                              // with its "while".
 	otherModelStack->paramManager->toForTimeline()

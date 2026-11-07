@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include <atomic>
 #include <string>
 
 class Song;
@@ -127,6 +128,16 @@ public:
 
 	NoteRowVector noteRows;
 
+	/// An arrangement take's repeats while it records. At each loop end the render appends a repeat of the source
+	/// clip's notes and counts it; the interaction tier appends the repeat's automation into the model before its next
+	/// job (deluge::modulation::catchUpArrangementTakes()).
+	std::atomic<uint32_t> repeatsAppended{0}; ///< [render] or [interaction] counted at each repeat appended
+	uint32_t repeatsInModel = 0;              ///< [interaction] the repeats whose automation the model holds
+	int32_t paramLength = 0;                  ///< [interaction] the length the model's automation covers
+	/// [interaction] set, [render] or [interaction] cleared: the clip the take repeats, kept until the model holds
+	/// every repeat counted; cleared when that clip goes.
+	std::atomic<InstrumentClip*> repeatSource{nullptr};
+
 	bool wrapEditing;
 	uint32_t wrapEditLevel{};
 
@@ -205,8 +216,16 @@ public:
 	void deleteOldDrumNames();
 	void ensureScrollWithinKitBounds();
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
-	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
-	                 ModelStackWithTimelineCounter* otherModelStack) override;
+	Error appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+	                 bool withParams = true) override;
+	/// @brief [interaction] Append the automation of one repeat of the clip @p otherModelStack names, at @p offset:
+	///        what appendClip() appends to this clip's params and to its note rows' that share its length.
+	void appendRepeatParams(ModelStackWithTimelineCounter* thisModelStack,
+	                        ModelStackWithTimelineCounter* otherModelStack, int32_t offset);
+	/// @brief [render] At a take's loop end, the take ends for the lanes the repeat's automation will be appended to,
+	///        as it does for lanes edited all at once: the next commit carries what the render recorded into them.
+	void endTakesForRepeat(ModelStackWithTimelineCounter* thisModelStack,
+	                       ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited() override;
 	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
 	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.

@@ -26,6 +26,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/edits/clip_address_for.h"
@@ -408,28 +409,37 @@ playingForwardNow:
 	}
 }
 
-Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
+Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+                       bool withParams) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-
-		bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
-
-		bool shouldReverseThisRepeat =
-		    (pingpongingGenerally && (((uint32_t)loopLength() / (uint32_t)otherClip->loopLength()) & 1))
-		    || (otherClip->sequenceDirectionMode == SequenceDirection::REVERSE);
-
-		int32_t reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip->loopLength() : 0;
-
-		paramManager.appendParamManager(
-		    thisModelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager),
-		    otherModelStack->addOtherTwoThingsButNoNoteRow(otherClip->output->toModControllable(),
-		                                                   &otherClip->paramManager),
-		    loopLength(), reverseThisRepeatWithLength, pingpongingGenerally);
+	if (withParams) {
+		appendParams(thisModelStack, otherModelStack, loopLength());
 	}
 	setLoopLength(loopLength() + otherClip->loopLength());
 
 	return Error::NONE;
+}
+
+void Clip::appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+                        int32_t offset) {
+	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
+	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
+	    || !otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		return;
+	}
+	bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
+
+	bool shouldReverseThisRepeat =
+	    (pingpongingGenerally && (((uint32_t)offset / (uint32_t)otherClip->loopLength()) & 1))
+	    || (otherClip->sequenceDirectionMode == SequenceDirection::REVERSE);
+
+	int32_t reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip->loopLength() : 0;
+
+	paramManager.appendParamManager(
+	    thisModelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager),
+	    otherModelStack->addOtherTwoThingsButNoNoteRow(otherClip->output->toModControllable(),
+	                                                   &otherClip->paramManager),
+	    offset, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
 // Accepts any pos >= -length.
@@ -1184,6 +1194,11 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
 				                                   true);
+				// The take's automation covers its length; each repeat its loop end appends is appended to it at the
+				// next commit (deluge::modulation::catchUpArrangementTakes())
+				auto* take = static_cast<InstrumentClip*>(newClip);
+				take->paramLength = newClip->loopLength();
+				take->repeatSource.store(static_cast<InstrumentClip*>(this), std::memory_order_release);
 			}
 
 			// Add to Song

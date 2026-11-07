@@ -375,6 +375,7 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                      pingpongingGenerally);
 	FOR_EACH_PARAM_END
 
+	deluge::modulation::markLanesChanged(*this);
 	ticksTilNextEvent = 0;
 }
 
