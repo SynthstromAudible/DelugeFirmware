@@ -116,9 +116,6 @@ public:
 	virtual void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                             bool shouldPingpong) = 0;
-	virtual void appendParamCollection(ModelStackWithParamCollection* modelStack,
-	                                   ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-	                                   int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) = 0;
 	virtual void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                          bool maySetupPatching) = 0;
 	virtual void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
@@ -151,16 +148,22 @@ public:
 	///        its published snapshot is searched by), in any order.
 	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
 
-	/// @brief [interaction] Call @p visit with each of this collection's lanes as appendParamCollection() with @p other
-	///        would leave them, changing none: a lane the append changes as a copy with the repeat appended, the rest
-	///        as they are, each with nodes, by the key forEachLane() gives it.
-	/// @param other        The collection repeated, of the same kind.
-	/// @param otherSummary @p other's summary: its flags say which of its lanes a ParamSet or PatchCableSet appends.
-	virtual void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-	                                 int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-	                                 deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
-		forEachLane(visit);
-	}
+	/// @brief [render] or [interaction] Call @p visit with the key of each lane of this collection that a repeat of
+	///        @p other, a collection of the same kind, appends to: each lane @p other has to repeat. Reads no lane.
+	/// @param otherSummary @p other's summary: its flags say which of its lanes a ParamSet or PatchCableSet repeats.
+	virtual void forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+	                                deluge::function_ref<void(int32_t)> visit) {}
+	/// @brief [interaction] Lane @p paramId of this collection to append a repeat to, made where the collection makes
+	///        its lanes as they are first written.
+	/// @return It, or nullptr when this collection has no such lane.
+	virtual deluge::project::DocAutoParam* laneToAppendTo(int32_t paramId) { return findDocParamForId(paramId); }
+
+	/// @brief [interaction] Call @p visit with each of this collection's lanes as a repeat of @p other appended at
+	///        @p oldLength would leave them, changing none: a lane the repeat changes as a copy with the repeat
+	///        appended, the rest as they are, each with nodes, by the key forEachLane() gives it.
+	void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+	                         int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+	                         deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit);
 
 	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
 	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty

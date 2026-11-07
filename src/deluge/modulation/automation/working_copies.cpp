@@ -19,6 +19,7 @@
 
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "foundation/function_ref.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
@@ -34,9 +35,11 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/staged_repeat.h"
 #include "processing/engines/audio_engine.h"
 
 #include <array>
@@ -51,6 +54,7 @@ namespace deluge::modulation {
 #if ALPHA_OR_BETA_VERSION
 uint32_t workingCopyOverflows = 0;
 uint32_t latchWritesWithoutCopy = 0;
+uint32_t renderTakeEnds = 0;
 #endif
 
 void noteLatchWithoutCopy() {
@@ -71,6 +75,10 @@ struct Entry {
 	/// [render] or [interaction] set: the take ended for the copy; the render neither plays nor writes it, and the next
 	/// commit copies what the render wrote into it into the model, then frees it.
 	std::atomic<bool> ended = false;
+	/// [render] or [interaction]: the repeats of its arrangement take (deluge::modulation::TakeRepeats) the copy holds
+	/// the automation of. The render appends the next into a live copy at the take's loop end; the interaction tier
+	/// appends each counted into a copy that does not hold it yet.
+	uint32_t held = 0;
 };
 
 /// [interaction] -> [render] Changed only with the render held off, but for `written` and `ended`.
@@ -146,7 +154,28 @@ void clear(Entry& entry) {
 	entry.written = false;
 	entry.hold = Hold::TAKE;
 	entry.ended.store(false, std::memory_order_relaxed);
+	entry.held = 0;
 }
+
+/// The entry holding the working copy of lane @p key of @p collection, live or ended, if any.
+Entry* entryOf(const ParamCollection& collection, int32_t key) {
+	if (!collection.hasWorkingCopies()) {
+		return nullptr;
+	}
+	for (Entry& entry : g_entries) {
+		if (entry.copy != nullptr && entry.collection == &collection && entry.paramId == key
+		    && entry.serial == collection.serial()) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+#if ALPHA_OR_BETA_VERSION
+/// [render] Working copies whose take ended at an arrangement take's loop end because the render could not append the
+/// repeat into them.
+uint32_t g_copiesEndedAtLoopEnd = 0;
+#endif
 
 /// Whether @p entry holds a copy whose take goes on.
 bool live(const Entry& entry) {
@@ -230,6 +259,11 @@ project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size
 	if (Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED)) {
 		action->recordParamChangeIfNotAlreadySnapshotted(&lane);
 	}
+	// A lane of an arrangement take: the model holds every repeat counted, so the copy does
+	const TakeRepeats* repeats = takeRepeatsOf(lane);
+	if (repeats != nullptr && repeats->inModel != repeats->appended.load(std::memory_order_acquire)) {
+		catchUpArrangementTakes(*lane.song);
+	}
 	project::DocAutoParam* copy = copyOf(*lane.doc(), room);
 	if (copy == nullptr) {
 		countOverflow();
@@ -241,6 +275,7 @@ project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size
 	slot->paramId = lane.paramId;
 	slot->copy = copy;
 	slot->hold = hold;
+	slot->held = repeats != nullptr ? repeats->inModel : 0;
 	WorkingCopies::count(collection, 1);
 	return copy;
 }
@@ -271,6 +306,12 @@ void commitWorkingCopies() {
 	// Held while written, and not written since the last commit: released below unless the render writes it first
 	std::array<bool, kWorkingCopies> idle{};
 	{
+		// The arrangement takes caught up first, with the render held off until the copies are committed: a committed
+		// copy then holds the repeats the model counts, and no more
+		AudioExcludedSection section;
+		if (currentSong != nullptr) {
+			catchUpArrangementTakes(*currentSong);
+		}
 		project::EditGuard guard{project::ModelEdit::NODE_KERNEL};
 		for (size_t i = 0; i < g_entries.size(); i++) {
 			Entry& entry = g_entries[i];
@@ -308,6 +349,9 @@ void endTake(ParamCollection& collection) {
 		return;
 	}
 	if (memory::onRenderTier()) {
+#if ALPHA_OR_BETA_VERSION
+		renderTakeEnds++;
+#endif
 		for (Entry& entry : g_entries) {
 			if (entry.collection == &collection && live(entry)) {
 				entry.ended.store(true, std::memory_order_relaxed);
@@ -375,6 +419,89 @@ void copyOverriddenLanes(Song& song) {
 			}
 		}
 	});
+}
+
+bool appendRepeatToCopy(ParamCollection& collection, int32_t key, uint32_t repeat, const project::DocAutoParam* src,
+                        const RepeatArgs& args) {
+	Entry* entry = entryOf(collection, key);
+	if (entry == nullptr) {
+		return false;
+	}
+	if (entry->held == repeat) {
+		if (src != nullptr && !src->nodes.empty()) {
+			// A live copy is the render's while it plays: written with it held off
+			std::optional<AudioExcludedSection> section;
+			if (live(*entry)) {
+				section.emplace();
+			}
+			project::appendParam(*entry->copy, *src, args.offset, args.reverseThisRepeatWithLength,
+			                     args.pingpongingGenerally);
+			entry->written = true;
+		}
+		entry->held++;
+	}
+	return true;
+}
+
+void appendRepeatIntoCopies(ParamCollection& collection, ParamCollection& source,
+                            const ParamCollectionSummary& sourceSummary, uint32_t repeat, const RepeatArgs& args) {
+	if (!collection.hasWorkingCopies()) {
+		return;
+	}
+	const LaneSnapshot* published = source.published();
+	collection.forEachAppendedKey(source, sourceSummary, [&](int32_t key) {
+		Entry* entry = entryOf(collection, key);
+		if (entry == nullptr || !live(*entry)) {
+			return;
+		}
+		const PublishedLane* src = published != nullptr ? published->find(key) : nullptr;
+		const size_t room = src != nullptr ? project::appendParamRoom(src->count) : 0;
+		project::DocAutoParam& copy = *entry->copy;
+		if (entry->held != repeat || published == nullptr || copy.nodes.capacity() < copy.nodes.size() + room) {
+			// Behind the take, its source lane not published, or no room: the take ends for it, as for lanes edited
+			// all at once, and the next commit carries it into the model, which the repeat is appended to
+			entry->ended.store(true, std::memory_order_relaxed);
+#if ALPHA_OR_BETA_VERSION
+			g_copiesEndedAtLoopEnd++;
+#endif
+			return;
+		}
+		if (src != nullptr) {
+			project::appendParam(copy, src->view(), args.offset, args.reverseThisRepeatWithLength,
+			                     args.pingpongingGenerally);
+			entry->written = true;
+		}
+		entry->held++;
+	});
+}
+
+void reserveRepeatInCopies(ParamCollection& collection, ParamCollection& source,
+                           const ParamCollectionSummary& sourceSummary) {
+	if (!collection.hasWorkingCopies()) {
+		return;
+	}
+	const LaneSnapshot* published = source.published();
+	collection.forEachAppendedKey(source, sourceSummary, [&](int32_t key) {
+		Entry* entry = entryOf(collection, key);
+		const PublishedLane* src = published != nullptr ? published->find(key) : nullptr;
+		if (entry == nullptr || !live(*entry) || src == nullptr) {
+			return;
+		}
+		// Room for the repeat beside the room the copy keeps for recorded writes
+		const size_t room = project::appendParamRoom(src->count) + kNodesPerRecordedWrite;
+		AudioExcludedSection section;
+		if (entry->copy->nodes.capacity() < entry->copy->nodes.size() + room) {
+			(void)entry->copy->nodes.reserveExtra(static_cast<int32_t>(room));
+		}
+	});
+}
+
+uint32_t copiesEndedAtLoopEnd() {
+#if ALPHA_OR_BETA_VERSION
+	return g_copiesEndedAtLoopEnd;
+#else
+	return 0;
+#endif
 }
 
 size_t workingCopiesHeld() {

@@ -23,6 +23,7 @@
 #include <utility>
 
 class InstrumentClip;
+class ModelStackWithAutoParam;
 class ModelStackWithNoteRow;
 class ModelStackWithTimelineCounter;
 class NoteRow;
@@ -104,6 +105,19 @@ void restageArrangementTakes(Song& song);
 /// @return Whether it swapped.
 bool swapStagedRepeat(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,
                       ModelStackWithTimelineCounter* otherModelStack);
+/// @brief [render] At @p take's loop end, after its notes and length were appended: the repeat appended into the live
+///        working copies of the lanes it appends to (appendRepeatIntoCopies()), before it is counted.
+void appendRepeatIntoTakeCopies(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,
+                                ModelStackWithTimelineCounter* otherModelStack);
+/// @brief [render] As appendRepeatIntoTakeCopies(), at the end of @p row of a take, which has its own length.
+void appendRepeatIntoRowCopies(NoteRow& row, ModelStackWithNoteRow* rowModelStack,
+                               ModelStackWithNoteRow* otherRowModelStack);
+
+/// @brief [render] or [interaction] The repeats of the arrangement take whose lane @p lane names: its row's when the
+/// row
+///        has its own length, else its clip's; none for a lane of no take recording.
+const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane);
+
 /// @brief [render] As swapStagedRepeat(), at the end of @p row of a take, which has its own length: @p rowModelStack
 /// names
 ///        it, @p otherRowModelStack the source's row.

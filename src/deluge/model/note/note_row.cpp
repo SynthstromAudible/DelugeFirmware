@@ -2103,12 +2103,12 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 				// The notes and the length; the interaction tier appends the repeat's automation before its next job
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
-				              otherNoteRow->loopLengthIfIndependent(), false);
+				              otherNoteRow->loopLengthIfIndependent());
 
 				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
 				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
 
-				endTakesForRepeat(*otherNoteRow);
+				deluge::modulation::appendRepeatIntoRowCopies(*this, modelStack, otherModelStackWithNoteRow);
 				// The repeat plays from its staged snapshots, published here
 				(void)deluge::modulation::swapStagedRowRepeat(*this, modelStack, otherModelStackWithNoteRow);
 				deluge::modulation::countRowRepeat(*this);
@@ -4167,37 +4167,8 @@ RepeatArgs NoteRow::repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t o
 	        .pingpongingGenerally = pingpongingGenerally};
 }
 
-void NoteRow::endTakesForRepeat(NoteRow& otherNoteRow) {
-	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
-	    || !otherNoteRow.paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		return;
-	}
-	// The collections the repeat appends to: those with automation
-	for (ParamCollectionSummary& summary : paramManager.summaries) {
-		if (summary.paramCollection == nullptr) {
-			break;
-		}
-		if (summary.containsAutomation()) {
-			deluge::modulation::endTake(*summary.paramCollection);
-		}
-	}
-}
-
-void NoteRow::appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
-                           int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
-	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
-	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
-	    || !otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		return;
-	}
-	const RepeatArgs args = repeatArgs(otherModelStack, offset, whichRepeatThisIs, otherNoteRowLength);
-	paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
-	                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), args.offset,
-	                                args.reverseThisRepeatWithLength, args.pingpongingGenerally);
-}
-
 Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
-                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength, bool withParams) {
+                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
@@ -4206,10 +4177,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
 	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
-
-	if (withParams) {
-		appendParams(thisModelStack, otherModelStack, offset, whichRepeatThisIs, otherNoteRowLength);
-	}
 
 	int32_t numToInsert = std::ssize(otherNoteRow->notes);
 	if (!numToInsert) {

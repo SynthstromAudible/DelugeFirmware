@@ -706,7 +706,7 @@ Error forEachRepeatedRow(InstrumentClip& clip, ModelStackWithTimelineCounter* th
 
 // Returns error
 Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                                 ModelStackWithTimelineCounter* otherModelStack, bool withParams) {
+                                 ModelStackWithTimelineCounter* otherModelStack) {
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 	int32_t whichRepeatThisIs = (uint32_t)loopLength() / (uint32_t)otherInstrumentClip->loopLength();
 
@@ -714,29 +714,12 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	    forEachRepeatedRow(*this, thisModelStack, otherModelStack,
 	                       [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
 		                       return row.appendNoteRow(thisRow, otherRow, loopLength(), whichRepeatThisIs,
-		                                                otherInstrumentClip->loopLength(), withParams);
+		                                                otherInstrumentClip->loopLength());
 	                       });
 	if (error != Error::NONE) {
 		return error;
 	}
-	return Clip::appendClip(thisModelStack, otherModelStack, withParams);
-}
-
-void InstrumentClip::appendRepeatParams(ModelStackWithTimelineCounter* thisModelStack,
-                                        ModelStackWithTimelineCounter* otherModelStack, int32_t offset) {
-	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
-	int32_t whichRepeatThisIs = (uint32_t)offset / (uint32_t)otherInstrumentClip->loopLength();
-
-	Error error = forEachRepeatedRow(
-	    *this, thisModelStack, otherModelStack,
-	    [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
-		    row.appendParams(thisRow, otherRow, offset, whichRepeatThisIs, otherInstrumentClip->loopLength());
-		    return Error::NONE;
-	    });
-	if (error != Error::NONE) {
-		return; // as appendClip(): a kit whose rows no longer match appends nothing
-	}
-	appendParams(thisModelStack, otherModelStack, offset);
+	return Clip::appendClip(thisModelStack, otherModelStack);
 }
 
 void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack) {
@@ -750,30 +733,14 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 		        ->addTimelineCounter(beingRecordedFromClip);
 
 		// The notes and the length; the interaction tier appends the repeat's automation before its next job
-		if (appendClip(thisModelStack, otherModelStack, false) == Error::NONE) {
-			endTakesForRepeat(thisModelStack, otherModelStack);
+		if (appendClip(thisModelStack, otherModelStack) == Error::NONE) {
+			deluge::modulation::appendRepeatIntoTakeCopies(*this, thisModelStack, otherModelStack);
 			// The repeat plays from its staged snapshots, published here
 			(void)deluge::modulation::swapStagedRepeat(*this, thisModelStack, otherModelStack);
 			deluge::modulation::countRepeat(*this);
 			deluge::modulation::takeLoopEnded(*this);
 		}
 	}
-}
-
-void InstrumentClip::endTakesForRepeat(ModelStackWithTimelineCounter* thisModelStack,
-                                       ModelStackWithTimelineCounter* otherModelStack) {
-	forEachRepeatedManager(thisModelStack, otherModelStack, loopLength(),
-	                       [](ParamManagerForTimeline& manager, ParamManagerForTimeline&, const RepeatArgs&) {
-		                       // The collections the repeat appends to: those with automation
-		                       for (ParamCollectionSummary& summary : manager.summaries) {
-			                       if (summary.paramCollection == nullptr) {
-				                       break;
-			                       }
-			                       if (summary.containsAutomation()) {
-				                       deluge::modulation::endTake(*summary.paramCollection);
-			                       }
-		                       }
-	                       });
 }
 
 void InstrumentClip::forEachRowWithOwnLength(
@@ -806,7 +773,7 @@ void InstrumentClip::forEachRepeatedManager(
 		                       return Error::NONE;
 	                       });
 	if (error != Error::NONE) {
-		return; // as appendRepeatParams(): a kit whose rows no longer match appends nothing more
+		return; // a kit whose rows no longer match its source's: appendClip() appended nothing
 	}
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherInstrumentClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
@@ -4658,7 +4625,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 									// As at the row's own end, with the repeat's automation appended at once
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent(), whichRepeatThisIs,
-									                       otherNoteRow->loopLengthIfIndependent(), false);
+									                       otherNoteRow->loopLengthIfIndependent());
 									noteRow->setLoopLengthIfIndependent(noteRow->loopLengthIfIndependent()
 									                                    + otherNoteRow->loopLengthIfIndependent());
 									deluge::modulation::countRowRepeat(*noteRow);
@@ -4681,7 +4648,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 							// As at the loop end, with the repeat's automation appended at once: the model's
 							// automation catches up to the clip's length before the note is placed in it
-							error = appendClip(thisModelStack, otherModelStack, false);
+							error = appendClip(thisModelStack, otherModelStack);
 							if (error == Error::NONE) {
 								deluge::modulation::countRepeat(*this);
 								deluge::modulation::catchUpArrangementTakes(*modelStack->song);

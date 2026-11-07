@@ -17,6 +17,7 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_edit.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/mod_controllable/delay_type.h"
@@ -28,6 +29,8 @@
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
+#include <algorithm>
+#include <vector>
 
 namespace {
 /// [render] or [interaction] The serial the next collection made is given.
@@ -65,6 +68,32 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 	deluge::modulation::noteRenderModelRead(); // in record mode, or a collection not yet published
 	const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
 	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
+}
+
+void ParamCollection::forEachLaneAppended(
+    ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	// The keys the repeat changes: those the other collection has nodes to repeat in
+	std::vector<int32_t> appended;
+	forEachAppendedKey(other, otherSummary, [&](int32_t key) {
+		const deluge::project::DocAutoParam* src = other.findDocParamForId(key);
+		if (src == nullptr || src->nodes.empty()) {
+			return;
+		}
+		appended.push_back(key);
+		const deluge::project::DocAutoParam* lane = findDocParamForId(key);
+		deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
+		deluge::project::appendParam(copy, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+		if (!copy.nodes.empty()) {
+			visit(key, copy);
+		}
+	});
+	forEachLane([&](int32_t key, const deluge::project::DocAutoParam& lane) {
+		if (std::ranges::find(appended, key) == appended.end()) {
+			visit(key, lane);
+		}
+	});
 }
 
 ParamCollection::~ParamCollection() {

@@ -235,26 +235,6 @@ void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelSt
 	}
 }
 
-void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                                ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                                int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
-
-	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (int32_t oi = 0; oi < std::ssize(otherMIDIParamCollection->params); oi++) {
-		uint8_t cc = otherMIDIParamCollection->params[oi].cc;
-		// Find the param in *this* collection for the same CC. There should be one.
-		int32_t ti = params.firstAtOrAfter(cc);
-		if (ti < std::ssize(params) && params[ti].cc == cc) {
-			params[ti].param.appendParam(*docForParam(ti), *otherMIDIParamCollection->docForParam(oi), oldLength,
-			                             reverseThisRepeatWithLength, pingpongingGenerally);
-		}
-	}
-
-	deluge::modulation::markLanesChanged(*this);
-	ticksTilNextEvent = 0;
-}
-
 void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                        bool maySetupPatching) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
@@ -454,35 +434,13 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
     }
 */
 
-namespace {
-/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
-deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
-                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
-                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
-	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-	return copy;
-}
-} // namespace
-
-void MIDIParamCollection::forEachLaneAppended(
-    ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/, int32_t oldLength,
-    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/,
+                                             deluge::function_ref<void(int32_t)> visit) {
+	// Each CC of this collection the other collection has a lane for
 	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
-	for (int32_t i = 0; i < std::ssize(params); i++) {
-		const int32_t cc = params[i].cc;
-		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);
-		const deluge::project::DocAutoParam* src = otherCollection.findDocParamForId(cc);
-		if (src != nullptr) {
-			const deluge::project::DocAutoParam copy =
-			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-			if (!copy.nodes.empty()) {
-				visit(cc, copy);
-			}
-		}
-		else if (lane != nullptr && !lane->nodes.empty()) {
-			visit(cc, *lane);
+	for (const MIDIParam& param : params) {
+		if (otherCollection.findDocParamForId(param.cc) != nullptr) {
+			visit(param.cc);
 		}
 	}
 }

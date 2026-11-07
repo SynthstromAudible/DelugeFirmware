@@ -1145,13 +1145,20 @@ void report() {
 				}
 			}
 		}
-		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u spare_misses=%u "
-		       "render_made_collections=%u\n",
+		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u copies_ended=%u "
+		       "render_take_ends=%u spare_misses=%u render_made_collections=%u\n",
 		       repeats, deluge::modulation::stagedRepeatSwaps, deluge::modulation::stagedRepeatMisses,
-		       deluge::modulation::latchWritesWithoutCopy, deluge::modulation::audioSpareMisses,
+		       deluge::modulation::latchWritesWithoutCopy, deluge::modulation::copiesEndedAtLoopEnd(),
+		       deluge::modulation::renderTakeEnds, deluge::modulation::audioSpareMisses,
 		       deluge::modulation::renderMadeCollections);
 		if (deluge::modulation::audioSpareMisses != 0 || deluge::modulation::renderMadeCollections != 0) {
 			fail("RS-TAKE-REPEATS", "an audio take's loop end made its next take on the render, or found no spare");
+		}
+		if (deluge::modulation::latchWritesWithoutCopy != 0 || deluge::modulation::copiesEndedAtLoopEnd() != 0
+		    || deluge::modulation::renderTakeEnds != 0) {
+			fail("RS-TAKE-REPEATS",
+			     "a take's recording stopped at a loop end: a copy ended there, or a latch write was "
+			     "skipped for want of one");
 		}
 		int32_t spares = 0;
 		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {

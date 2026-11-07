@@ -2701,7 +2701,7 @@ scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-TAKE-REPEATS", "RS-TAKE-LEFT", "RS-TAKE-STALE", "RS-KNOB", "RS-SNAPSHOT"]
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/arrangement_take.py"
-env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824", RENDER_SOURCE_EDIT = "1500" }
+env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
 builds = ["golden-vt-render"]
 requires = []
 tier = "nightly"

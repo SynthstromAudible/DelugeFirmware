@@ -409,12 +409,9 @@ playingForwardNow:
 	}
 }
 
-Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
-                       bool withParams) {
+Error Clip::appendClip(ModelStackWithTimelineCounter* /*thisModelStack*/,
+                       ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
-	if (withParams) {
-		appendParams(thisModelStack, otherModelStack, loopLength());
-	}
 	setLoopLength(loopLength() + otherClip->loopLength());
 
 	return Error::NONE;
@@ -429,21 +426,6 @@ RepeatArgs Clip::repeatArgs(const Clip& otherClip, int32_t offset) {
 	return {.offset = offset,
 	        .reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip.loopLength() : 0,
 	        .pingpongingGenerally = pingpongingGenerally};
-}
-
-void Clip::appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
-                        int32_t offset) {
-	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
-	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
-	    || !otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		return;
-	}
-	const RepeatArgs args = repeatArgs(*otherClip, offset);
-	paramManager.appendParamManager(
-	    thisModelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager),
-	    otherModelStack->addOtherTwoThingsButNoNoteRow(otherClip->output->toModControllable(),
-	                                                   &otherClip->paramManager),
-	    args.offset, args.reverseThisRepeatWithLength, args.pingpongingGenerally);
 }
 
 // Accepts any pos >= -length.

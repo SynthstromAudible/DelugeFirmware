@@ -157,8 +157,7 @@ void applyRecordQueue() {
 }
 
 void commitRecording(::Song& song) {
-	// An arrangement take's repeats first: a working copy the render ended at a take's loop end is committed by the
-	// append, before the repeat is appended to its lane
+	// An arrangement take's repeats first: each of its lanes, or its working copy, holds every repeat counted
 	catchUpArrangementTakes(song);
 	if (g_recordEvents.empty() && workingCopiesHeld() == 0) {
 		return;
@@ -182,6 +181,8 @@ void commitBeforeJob(::Song& song) {
 	// The latch may drift back on a lane a knob was turning when recording began, or when its take ended. Only here:
 	// an edit that ends a take and commits along the way makes no copy before it is whole.
 	const bool takeEnded = takeEndedSinceLastAsked();
+	// A copy made now holds every repeat of its take the render counted
+	catchUpArrangementTakes(song);
 	if (recording && (!takeOpen || takeEnded)) {
 		copyOverriddenLanes(song);
 	}

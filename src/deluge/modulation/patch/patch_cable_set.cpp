@@ -677,29 +677,6 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 	FOR_EACH_PARAM_END
 }
 
-void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                          ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                          int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
-	PatchCableSet* otherPatchCableSet = (PatchCableSet*)otherModelStack->paramCollection;
-
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated) // Iterate through the *other* ParamManager's stuff
-
-	PatchSource s = otherPatchCableSet->patchCables[c].from;
-	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destination);
-
-	if (i != 255) {
-		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
-		                                 reverseThisRepeatWithLength, pingpongingGenerally);
-	}
-
-	FOR_EACH_PARAM_END
-
-	deluge::modulation::markLanesChanged(*this);
-	ticksTilNextEvent = 0;
-}
-
 void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                  bool maySetupPatching) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
@@ -1174,38 +1151,14 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 	return &patchCables[i];
 }
 
-namespace {
-/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
-deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
-                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
-                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
-	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-	return copy;
-}
-} // namespace
-
-void PatchCableSet::forEachLaneAppended(
-    ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
-    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+                                       deluge::function_ref<void(int32_t)> visit) {
+	// Each cable of this set whose cable in the other set, from the same source to the same destination, is automated
 	auto& otherSet = static_cast<PatchCableSet&>(other);
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
-		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
-		// The other set's cable to the same destination from the same source, appended if it is automated
 		const int32_t o = otherSet.getPatchCableIndex(patchCables[c].from, patchCables[c].destination);
-		const bool appended = o != 255 && (otherSummary.whichParamsAreAutomated[o >> 5] & (1u << (o & 31))) != 0;
-		const deluge::project::DocAutoParam* src = appended ? otherSet.findDocParamForId(paramId) : nullptr;
-		if (src != nullptr) {
-			const deluge::project::DocAutoParam copy =
-			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-			if (!copy.nodes.empty()) {
-				visit(paramId, copy);
-			}
-		}
-		else if (lane != nullptr && !lane->nodes.empty()) {
-			visit(paramId, *lane);
+		if (o != 255 && (otherSummary.whichParamsAreAutomated[o >> 5] & (1u << (o & 31))) != 0) {
+			visit(getParamId(patchCables[c].destination, patchCables[c].from));
 		}
 	}
 }

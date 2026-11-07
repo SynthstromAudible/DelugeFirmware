@@ -211,19 +211,11 @@ public:
 	void deleteOldDrumNames();
 	void ensureScrollWithinKitBounds();
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
-	Error appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
-	                 bool withParams = true) override;
-	/// @brief [interaction] Append the automation of one repeat of the clip @p otherModelStack names, at @p offset:
-	///        what appendClip() appends to this clip's params and to its note rows' that share its length.
-	void appendRepeatParams(ModelStackWithTimelineCounter* thisModelStack,
-	                        ModelStackWithTimelineCounter* otherModelStack, int32_t offset);
-	/// @brief [render] At a take's loop end, the take ends for the lanes the repeat's automation will be appended to,
-	///        as it does for lanes edited all at once: the next commit carries what the render recorded into them.
-	void endTakesForRepeat(ModelStackWithTimelineCounter* thisModelStack,
-	                       ModelStackWithTimelineCounter* otherModelStack);
+	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
+	                 ModelStackWithTimelineCounter* otherModelStack) override;
 	/// @brief Call @p visit with each param manager of this take that a repeat at @p offset of the clip
 	///        @p otherModelStack names appends to, the source's paired one, and the append's arguments: as
-	///        appendRepeatParams() appends them.
+	///        the interaction tier appends them (deluge::modulation::catchUpArrangementTakes()).
 	/// @brief Call @p visit with each note row of this take whose source row has its own length, and that source row:
 	///        those repeat at their own end, each in its own stacks.
 	void

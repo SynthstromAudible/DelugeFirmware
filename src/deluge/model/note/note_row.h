@@ -322,17 +322,10 @@ public:
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
-	/// @brief Append one repeat of the row @p otherModelStack names, at @p offset: its notes, and its automation unless
-	///        @p withParams is false.
+	/// @brief Append one repeat of the row @p otherModelStack names, at @p offset: its notes. Its automation is
+	///        appended on the interaction tier (deluge::modulation::catchUpArrangementTakes()).
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                    int32_t whichRepeatThisIs, int32_t otherClipLength, bool withParams = true);
-	/// @brief Append the automation of one repeat of the row @p otherModelStack names, at @p offset: what
-	///        appendNoteRow() appends to this row's params.
-	void appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                  int32_t whichRepeatThisIs, int32_t otherClipLength);
-	/// @brief [render] At a take's row's own end, the take ends for the lanes the repeat of @p otherNoteRow appends to,
-	///        as it does for lanes edited all at once: the next commit carries what the render recorded into them.
-	void endTakesForRepeat(NoteRow& otherNoteRow);
+	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
 	/// @brief The arguments with which a repeat of the row @p otherModelStack names, the @p whichRepeatThisIs'th, is
 	///        appended at @p offset to a row's params.
 	static RepeatArgs repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,

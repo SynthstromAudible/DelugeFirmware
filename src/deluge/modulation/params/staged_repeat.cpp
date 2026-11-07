@@ -17,11 +17,13 @@
 
 #include "modulation/params/staged_repeat.h"
 
+#include "deluge-project/param_edit.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_collection.h"
@@ -56,7 +58,8 @@ struct TakeStacks {
 };
 
 /// Call @p visit with each collection of @p mine a repeat appends to, the source's (@p source) paired one and its
-/// summary: as appendParamManager() pairs them.
+/// summary: a take's collections and its source's, by their place in their managers, those of the take with
+/// automation.
 template <typename Visit>
 void forEachAppendedCollection(ParamManagerForTimeline& mine, ParamManagerForTimeline& source, Visit visit) {
 	for (size_t i = 0; i < std::size(mine.summaries); i++) {
@@ -101,6 +104,31 @@ auto rowWalk(NoteRow& row, ModelStackWithNoteRow* rowStack, ModelStackWithNoteRo
 	};
 }
 
+/// Append the repeat numbered @p repeat, at @p offset, of each manager @p walk visits: into each lane's working copy
+/// that does not hold it yet, else into the model's lane; the collections republish.
+void appendRepeat(uint32_t repeat, int32_t offset, ManagerWalk walk) {
+	walk(offset, [&](ParamManagerForTimeline& mine, ParamManagerForTimeline& source, const RepeatArgs& args) {
+		forEachAppendedCollection(
+		    mine, source,
+		    [&](ParamCollection& collection, ParamCollection& other, const ParamCollectionSummary& otherSummary) {
+			    collection.forEachAppendedKey(other, otherSummary, [&](int32_t key) {
+				    const project::DocAutoParam* src = other.findDocParamForId(key);
+				    if (appendRepeatToCopy(collection, key, repeat, src, args) || src == nullptr
+				        || src->nodes.empty()) {
+					    return;
+				    }
+				    if (project::DocAutoParam* lane = collection.laneToAppendTo(key)) {
+					    project::appendParam(*lane, *src, args.offset, args.reverseThisRepeatWithLength,
+					                         args.pingpongingGenerally);
+				    }
+			    });
+			    markLanesChanged(collection);
+			    collection.ticksTilNextEvent = 0;
+		    });
+		mine.ticksTilNextEvent = 0;
+	});
+}
+
 /// Append the automation of @p take's repeats counted and not yet in the model: its own, and each row's with its own
 /// length.
 void catchUp(Song& song, InstrumentClip& take) {
@@ -122,7 +150,9 @@ void catchUp(Song& song, InstrumentClip& take) {
 	if (source != nullptr) {
 		TakeStacks stacks{song, take, *source};
 		drain(repeats, [&] {
-			take.appendRepeatParams(stacks.take, stacks.source, repeats.paramLength);
+			appendRepeat(repeats.inModel, repeats.paramLength, [&](int32_t offset, ManagerVisit visit) {
+				take.forEachRepeatedManager(stacks.take, stacks.source, offset, visit);
+			});
 			repeats.paramLength += source->loopLength();
 		});
 		take.forEachRowWithOwnLength(
@@ -131,7 +161,7 @@ void catchUp(Song& song, InstrumentClip& take) {
 			    const int32_t otherLength = otherRow->getNoteRow()->loopLengthIfIndependent();
 			    TakeRepeats& r = row.repeats;
 			    drain(r, [&] {
-				    row.appendParams(thisRow, otherRow, r.paramLength, r.paramLength / otherLength, otherLength);
+				    appendRepeat(r.inModel, r.paramLength, rowWalk(row, thisRow, otherRow));
 				    r.paramLength += otherLength;
 			    });
 		    });
@@ -145,6 +175,18 @@ void catchUp(Song& song, InstrumentClip& take) {
 	if (take.beingRecordedFromClip == nullptr && whole) {
 		repeats.source.store(nullptr, std::memory_order_relaxed); // the take is over and whole
 	}
+}
+
+/// [render] At a loop end, the repeat numbered @p repeat of each manager @p walk visits at @p offset: appended into its
+/// lanes' live working copies.
+void appendRepeatIntoCopiesOf(uint32_t repeat, int32_t offset, ManagerWalk walk) {
+	walk(offset, [&](ParamManagerForTimeline& mine, ParamManagerForTimeline& source, const RepeatArgs& args) {
+		forEachAppendedCollection(
+		    mine, source,
+		    [&](ParamCollection& collection, ParamCollection& other, const ParamCollectionSummary& otherSummary) {
+			    appendRepeatIntoCopies(collection, other, otherSummary, repeat, args);
+		    });
+	});
 }
 
 /// Whether the arrangement records @p take now, from a source still there.
@@ -164,6 +206,7 @@ void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
 		         mine, source,
 		         [&](ParamCollection& collection, ParamCollection& other, const ParamCollectionSummary& otherSummary) {
 			         collections++;
+			         reserveRepeatInCopies(collection, other, otherSummary);
 			         if (LanePublication::stagedAgainst(collection, other.published())) {
 				         return;
 			         }
@@ -363,6 +406,39 @@ void restageArrangementTakes(Song& song) {
 			drop(take);
 		}
 	}
+}
+
+void appendRepeatIntoTakeCopies(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,
+                                ModelStackWithTimelineCounter* otherModelStack) {
+	const int32_t offset = take.loopLength() - ((Clip*)otherModelStack->getTimelineCounter())->loopLength();
+	appendRepeatIntoCopiesOf(take.repeats.appended.load(std::memory_order_relaxed), offset,
+	                         [&](int32_t at, ManagerVisit visit) {
+		                         take.forEachRepeatedManager(thisModelStack, otherModelStack, at, visit);
+	                         });
+}
+
+void appendRepeatIntoRowCopies(NoteRow& row, ModelStackWithNoteRow* rowModelStack,
+                               ModelStackWithNoteRow* otherRowModelStack) {
+	const int32_t offset = row.loopLengthIfIndependent() - otherRowModelStack->getNoteRow()->loopLengthIfIndependent();
+	appendRepeatIntoCopiesOf(row.repeats.appended.load(std::memory_order_relaxed), offset,
+	                         rowWalk(row, rowModelStack, otherRowModelStack));
+}
+
+const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane) {
+	TimelineCounter* counter = lane.getTimelineCounterAllowNull();
+	if (counter == nullptr || counter == lane.song) {
+		return nullptr; // a lane of the song's own params
+	}
+	auto* clip = static_cast<Clip*>(counter);
+	if (clip->type != ClipType::INSTRUMENT || !clip->isArrangementOnlyClip()) {
+		return nullptr;
+	}
+	auto& take = static_cast<InstrumentClip&>(*clip);
+	if (take.repeats.source.load(std::memory_order_relaxed) == nullptr) {
+		return nullptr;
+	}
+	NoteRow* row = lane.getNoteRowAllowNull();
+	return row != nullptr && row->loopLengthIfIndependent() != 0 ? &row->repeats : &take.repeats;
 }
 
 bool swapStagedRepeat(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,

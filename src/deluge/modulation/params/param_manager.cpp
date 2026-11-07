@@ -522,34 +522,6 @@ void ParamManagerForTimeline::generateRepeats(ModelStackWithThreeMainThings* mod
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_IF_ANY_END
 }
 
-void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* modelStack,
-                                                 ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength,
-                                                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::noteRenderLaneWrite(); // the render's own appends go to its working copies
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
-	                              // with its "while".
-	otherModelStack->paramManager->toForTimeline()
-	    ->ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do"
-	                                    // below with its "while".
-
-	ParamCollectionSummary* otherSummary = otherModelStack->paramManager->summaries;
-	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
-
-	ModelStackWithParamCollection* otherModelStackWithParamCollection =
-	    otherModelStack->addParamCollectionSummary(otherSummary);
-	summary->paramCollection->appendParamCollection(modelStackWithParamCollection, otherModelStackWithParamCollection,
-	                                                oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-}
-summary++;
-otherSummary++;
-}
-while (summary->paramCollection)
-	;
-
-ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about to
-                       // happen anyway, so shouldn't matter
-}
-
 // Note: you must only call this if playbackHandler.isEitherClockActive()
 void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack) {
 	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below

@@ -364,22 +364,6 @@ void ParamSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32
 	FOR_EACH_PARAM_END
 }
 
-void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                     ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                     int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
-	ParamSet* otherParamSet = (ParamSet*)otherModelStack->paramCollection;
-
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(*docForParam(p), *otherParamSet->docForParam(p), oldLength, reverseThisRepeatWithLength,
-	                      pingpongingGenerally);
-	FOR_EACH_PARAM_END
-
-	deluge::modulation::markLanesChanged(*this);
-	ticksTilNextEvent = 0;
-}
-
 void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                             bool maySetupPatching) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
@@ -873,36 +857,18 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
 
  */
 
-namespace {
-/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
-deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
-                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
-                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
-	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-	return copy;
-}
-} // namespace
-
-void ParamSet::forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary,
-                                   int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
-                                   deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
-	auto& otherSet = static_cast<ParamSet&>(other);
+void ParamSet::forEachAppendedKey(ParamCollection& /*other*/, const ParamCollectionSummary& otherSummary,
+                                  deluge::function_ref<void(int32_t)> visit) {
+	// Each param the other set automates
 	for (int32_t p = 0; p < numParams_; p++) {
-		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
-		const deluge::project::DocAutoParam* src = otherSet.findDocParamForId(p);
-		const bool appended = (otherSummary.whichParamsAreAutomated[p >> 5] & (1u << (p & 31))) != 0;
-		if (appended && src != nullptr) {
-			const deluge::project::DocAutoParam copy =
-			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-			if (!copy.nodes.empty()) {
-				visit(p, copy);
-			}
-		}
-		else if (lane != nullptr && !lane->nodes.empty()) {
-			visit(p, *lane);
+		if ((otherSummary.whichParamsAreAutomated[p >> 5] & (1u << (p & 31))) != 0) {
+			visit(p);
 		}
 	}
+}
+
+deluge::project::DocAutoParam* ParamSet::laneToAppendTo(int32_t paramId) {
+	return paramId >= 0 && paramId < numParams_ ? docForParam(paramId) : nullptr;
 }
 
 void ParamSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
