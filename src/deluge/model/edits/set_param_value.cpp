@@ -163,7 +163,7 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
 		stack->autoParam->projectScalarFromStore(stack, oldValue, isPlaying);
 		deluge::modulation::postLaneCommand(
-		    *stack, {.kind = deluge::modulation::RecordEvent::Kind::BASE, .value = newValue_}, 0);
+		    *stack, {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = newValue_}, 0);
 		settleCableDepth(stack);
 		return Error::NONE;
 	}
@@ -192,7 +192,7 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 			stack->autoParam->projectRegionFromStore(stack, oldValue, automatedBefore, *result);
 		}
 		deluge::modulation::postLaneCommand(*stack,
-		                                    {.kind = deluge::modulation::RecordEvent::Kind::REGION,
+		                                    {.kind = deluge::modulation::LaneCommand::Kind::REGION,
 		                                     .value = newValue_,
 		                                     .pos = pos_,
 		                                     .length = length_,

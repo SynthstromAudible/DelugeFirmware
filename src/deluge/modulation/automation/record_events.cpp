@@ -50,18 +50,16 @@ namespace {
 constexpr std::size_t kRecordEventCapacity = 64;
 util::SpscRing<RecordEvent, kRecordEventCapacity> g_recordEvents;
 
-/// [task] The nodes of PASTE commands queued, freed by the commit after the render applied them.
-std::vector<std::unique_ptr<project::CopiedAutomation>> g_pastes;
+/// [task] The Edits' changes queued, freed by the commit after the render made them.
+std::vector<std::unique_ptr<LaneCommand>> g_commands;
 
-/// Make @p command's change to @p lane, a working copy: an Edit's, not a recorded value.
-void applyCommand(project::DocAutoParam& lane, const RecordEvent& command) {
+/// Make @p command's change to @p lane, a working copy.
+void applyCommand(project::DocAutoParam& lane, const LaneCommand& command) {
 	switch (command.kind) {
-	case RecordEvent::Kind::VALUE:
-		break; // AutoParam::writeRecordedValue's, in applyRecordEvents
-	case RecordEvent::Kind::BASE:
+	case LaneCommand::Kind::BASE:
 		project::set_base(lane, command.value);
 		break;
-	case RecordEvent::Kind::REGION: {
+	case LaneCommand::Kind::REGION: {
 		const snapshot::RegionContext& r = command.region;
 		(void)project::setValueForRegion(lane, static_cast<uint32_t>(command.pos),
 		                                 static_cast<uint32_t>(command.length), command.value, r.effectiveLength,
@@ -69,12 +67,12 @@ void applyCommand(project::DocAutoParam& lane, const RecordEvent& command) {
 		                                 r.clockActive, r.livePos, r.currentlyPlayingReversed);
 		break;
 	}
-	case RecordEvent::Kind::CLEAR:
+	case LaneCommand::Kind::CLEAR:
 		lane.nodes.clear();
 		break;
-	case RecordEvent::Kind::PASTE:
-		project::pasteRegion(lane, command.pos, command.endPos, command.scale, command.effectiveLength,
-		                     command.isPatchCable, *command.pasted);
+	case LaneCommand::Kind::PASTE:
+		project::pasteRegion(lane, command.pos, command.endPos, command.scale, command.loopLength, command.isPatchCable,
+		                     command.pasted);
 		break;
 	}
 }
@@ -94,29 +92,26 @@ bool postRecordEvent(const RecordEvent& event) {
 	return g_recordEvents.try_push(event);
 }
 
-void postLaneCommand(ModelStackWithAutoParam const& lane, RecordEvent command, size_t room) {
+void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, size_t room) {
 	project::DocAutoParam* copy = workingCopy(*lane.paramCollection, lane.paramId);
 	if (copy == nullptr) {
 		return;
 	}
-	if (command.kind == RecordEvent::Kind::PASTE) {
-		g_pastes.push_back(std::make_unique<project::CopiedAutomation>(*command.pasted));
-		command.pasted = g_pastes.back().get();
-	}
+	g_commands.push_back(std::make_unique<LaneCommand>(std::move(command)));
+	RecordEvent event{.song = lane.song, .command = g_commands.back().get()};
 	const std::optional<project::ParamAddress> address = edits::addressFor(lane);
-	command.song = lane.song;
 	AudioExcludedSection section;
 	reserveForRecordedWrite(copy->nodes);
 	if (copy->nodes.capacity() < copy->nodes.size() + room) {
 		(void)copy->nodes.reserveExtra(static_cast<int32_t>(room));
 	}
 	if (address) {
-		command.lane = *address;
+		event.lane = *address;
 	}
-	if (!address || !postRecordEvent(command)) {
+	if (!address || !postRecordEvent(event)) {
 		// The render is excluded: make what it has queued, then this, so the changes land in order
 		applyRecordEvents(*lane.song);
-		applyCommand(*copy, command);
+		applyCommand(*copy, *event.command);
 		noteWorkingCopyWritten(*copy);
 	}
 }
@@ -138,11 +133,11 @@ void applyRecordEvents(::Song& song) {
 #if ALPHA_OR_BETA_VERSION
 		const size_t capacity = lane->nodes.capacity();
 #endif
-		if (event.kind == RecordEvent::Kind::VALUE) {
-			stack->autoParam->writeRecordedValue(*lane, event);
+		if (event.command != nullptr) {
+			applyCommand(*lane, *event.command);
 		}
 		else {
-			applyCommand(*lane, event);
+			stack->autoParam->writeRecordedValue(*lane, event);
 		}
 		noteWorkingCopyWritten(*lane);
 #if ALPHA_OR_BETA_VERSION
@@ -168,7 +163,7 @@ void commitRecording(::Song& song) {
 		AudioExcludedSection section;
 		applyRecordEvents(song);
 	}
-	g_pastes.clear(); // every queued PASTE has been applied
+	g_commands.clear(); // every queued Edit's change has been made
 	if (recording) {
 		commitWorkingCopies();
 	}

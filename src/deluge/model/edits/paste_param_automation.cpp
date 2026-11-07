@@ -27,19 +27,17 @@ Error PasteParamAutomation::apply(Context& ctx) {
 	}
 	stack->autoParam->paste(startPos_, endPos_, scaleFactor_, stack, copied_, isPatchCable);
 	if (copied_->nodes != nullptr && copied_->numNodes != 0) {
-		const deluge::project::CopiedAutomation pasted{
-		    .width = copied_->width,
-		    .nodes = std::vector<ParamNode>(copied_->nodes, copied_->nodes + copied_->numNodes),
-		};
-		deluge::modulation::postLaneCommand(*stack,
-		                                    {.kind = deluge::modulation::RecordEvent::Kind::PASTE,
-		                                     .effectiveLength = stack->getLoopLength(),
-		                                     .pos = startPos_,
-		                                     .endPos = endPos_,
-		                                     .scale = scaleFactor_,
-		                                     .isPatchCable = isPatchCable,
-		                                     .pasted = &pasted},
-		                                    static_cast<size_t>(copied_->numNodes) + 2);
+		deluge::modulation::postLaneCommand(
+		    *stack,
+		    {.kind = deluge::modulation::LaneCommand::Kind::PASTE,
+		     .pos = startPos_,
+		     .endPos = endPos_,
+		     .loopLength = stack->getLoopLength(),
+		     .scale = scaleFactor_,
+		     .isPatchCable = isPatchCable,
+		     .pasted = {.width = copied_->width,
+		                .nodes = std::vector<ParamNode>(copied_->nodes, copied_->nodes + copied_->numNodes)}},
+		    static_cast<size_t>(copied_->numNodes) + 2);
 	}
 	settleCableDepth(stack);
 	return Error::NONE;
