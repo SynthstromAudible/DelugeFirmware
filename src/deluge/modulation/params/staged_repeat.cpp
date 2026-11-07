@@ -19,6 +19,7 @@
 
 #include "deluge-project/param_edit.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip_array.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -195,8 +196,11 @@ bool recording(const InstrumentClip& take) {
 	       && take.repeats.source.load(std::memory_order_relaxed) != nullptr;
 }
 
-/// Stage the next of @p repeats on each collection @p walk's managers append to that does not hold it already.
+/// Stage the next of @p repeats on each collection @p walk's managers append to that does not hold it already: all of
+/// them when what is staged was built for another repeat.
 void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
+	const uint32_t next = repeats.appended.load(std::memory_order_acquire);
+	const bool rebuild = repeats.stagedFor.load(std::memory_order_relaxed) != next;
 	uint32_t collections = 0;
 	bool all = true;
 	repeats.anyStaged = true;
@@ -207,7 +211,8 @@ void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
 		         [&](ParamCollection& collection, ParamCollection& other, const ParamCollectionSummary& otherSummary) {
 			         collections++;
 			         reserveRepeatInCopies(collection, other, otherSummary);
-			         if (LanePublication::stagedAgainst(collection, other.published())) {
+			         const uint32_t sourcePublications = other.publications();
+			         if (!rebuild && LanePublication::stagedAgainst(collection, sourcePublications)) {
 				         return;
 			         }
 			         bool staged = false;
@@ -219,7 +224,7 @@ void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
 					                                            args.reverseThisRepeatWithLength,
 					                                            args.pingpongingGenerally, visit);
 				             },
-				             other.published());
+				             sourcePublications);
 			         } catch (...) {
 				         // out of memory: the loop end counts the repeat as missed
 			         }
@@ -227,7 +232,9 @@ void stageRepeats(TakeRepeats& repeats, ManagerWalk walk) {
 		         });
 	     });
 	repeats.stagedCollections.store(collections, std::memory_order_relaxed);
-	repeats.staged.store(all, std::memory_order_release);
+	repeats.stagedFor.store(next, std::memory_order_relaxed);
+	// A loop end while this built counted the repeat it is for: the next restage builds the one after
+	repeats.staged.store(all && repeats.appended.load(std::memory_order_acquire) == next, std::memory_order_release);
 }
 
 /// [render] Publish the next of @p repeats: each collection @p walk's managers append to swaps in its staged snapshot,
@@ -240,7 +247,9 @@ bool swapRepeats(TakeRepeats& repeats, int32_t offset, ManagerWalk walk) {
 		forEachCollection(mine,
 		                  [&](ParamCollection& collection) { found += LanePublication::canSwap(collection) ? 1 : 0; });
 	});
-	if (!staged || found != expected) {
+	// Staged for this repeat on every collection it appends to, or none is swapped
+	if (!staged || found != expected
+	    || repeats.stagedFor.load(std::memory_order_relaxed) != repeats.appended.load(std::memory_order_acquire)) {
 #if ALPHA_OR_BETA_VERSION
 		stagedRepeatMisses += expected != 0 ? 1 : 0;
 #endif
@@ -264,7 +273,11 @@ bool swapRepeats(TakeRepeats& repeats, int32_t offset, ManagerWalk walk) {
 /// Stage @p take's next repeat, and each of its rows' with its own length, where caught up: one counted and not yet in
 /// the model would be staged at the wrong length, and the next commit catches up.
 void stage(Song& song, InstrumentClip& take) {
-	TakeStacks stacks{song, take, *take.repeats.source.load(std::memory_order_relaxed)};
+	InstrumentClip* source = take.repeats.source.load(std::memory_order_acquire);
+	if (source == nullptr) {
+		return; // the source went since the take was found recording
+	}
+	TakeStacks stacks{song, take, *source};
 	take.repeats.anyStaged = true; // the take's own, or its rows'
 	const auto caughtUp = [](const TakeRepeats& r) { return r.inModel == r.appended.load(std::memory_order_acquire); };
 	if (caughtUp(take.repeats)) {
@@ -310,24 +323,29 @@ void dropAudioSpare(Song& song, AudioClip& take) {
 	}
 }
 
-/// Give @p take a spare, if it has none: a clone of its source, its lanes published, with room in the containers its
-/// loop end inserts the next take into.
+/// Give @p take a spare, if it has none or one cloned from other source lanes: a clone of its source, its lanes
+/// published, with room in its output's instances for the loop end to add the next take's. The room in the song's
+/// arrangement-only clips is made for every audio take at once (restageArrangementTakes()).
 void stageAudioSpare(Song& song, AudioClip& take) {
-	const ParamCollection* sourceParams = take.beingRecordedFromClip->paramManager.summaries[0].paramCollection;
-	const void* against = sourceParams != nullptr ? sourceParams->published() : nullptr;
+	// Read once: the render hands it over to the next take at a loop end, and lets go of it when the clip goes
+	Clip* source = take.beingRecordedFromClip;
+	if (source == nullptr) {
+		return;
+	}
+	const ParamCollection* sourceParams = source->paramManager.summaries[0].paramCollection;
+	const uint32_t against = sourceParams != nullptr ? sourceParams->publications() : 0;
 	if (take.spare.load(std::memory_order_relaxed) != nullptr) {
 		if (take.spareAgainst == against) {
 			return;
 		}
 		dropAudioSpare(song, take); // cloned from the source's lanes as they were
 	}
-	if (!song.live.clips.arrangement_only_clips.reserveExtra(1) || !take.output->clipInstances.reserveExtra(1)) {
+	if (!take.output->clipInstances.reserveExtra(1)) {
 		return;
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* stack =
-	    setupModelStackWithSong(memory, &song)->addTimelineCounter(take.beingRecordedFromClip);
-	if (take.beingRecordedFromClip->clone(stack) != Error::NONE) {
+	ModelStackWithTimelineCounter* stack = setupModelStackWithSong(memory, &song)->addTimelineCounter(source);
+	if (source->clone(stack) != Error::NONE) {
 		return;
 	}
 	auto* spare = static_cast<AudioClip*>(stack->getTimelineCounter());
@@ -361,9 +379,12 @@ void catchUpArrangementTakes(Song& song) {
 	if (!g_repeatsPending.exchange(false, std::memory_order_acquire)) {
 		return;
 	}
-	for (Clip* clip : song.live.clips.arrangement_only_clips) {
-		if (clip->type == ClipType::INSTRUMENT) {
-			auto& take = static_cast<InstrumentClip&>(*clip);
+	// By index, the size read again each time: the render inserts an audio take at the front at its loop end, which
+	// at worst visits a take twice
+	const ClipArray& takes = song.live.clips.arrangement_only_clips;
+	for (size_t i = 0; i < takes.size(); i++) {
+		if (takes[i]->type == ClipType::INSTRUMENT) {
+			auto& take = static_cast<InstrumentClip&>(*takes[i]);
 			if (take.repeats.source.load(std::memory_order_relaxed) != nullptr) {
 				catchUp(song, take);
 			}
@@ -382,9 +403,18 @@ void forgetRepeatSource(Song& song, const InstrumentClip& clip) {
 }
 
 void restageArrangementTakes(Song& song) {
-	// By index: making a spare reserves room in this container, which may move its storage
-	for (size_t i = 0; i < song.live.clips.arrangement_only_clips.size(); i++) {
-		Clip* clip = song.live.clips.arrangement_only_clips[i];
+	ClipArray& takes = song.live.clips.arrangement_only_clips;
+	// Room for every audio take's next take at once: their loop ends may fall in one block
+	int32_t audioTakes = 0;
+	for (size_t i = 0; i < takes.size(); i++) {
+		audioTakes += takes[i]->type == ClipType::AUDIO && recording(static_cast<AudioClip&>(*takes[i])) ? 1 : 0;
+	}
+	if (audioTakes != 0) {
+		(void)takes.reserveExtra(audioTakes);
+	}
+	// By index: the render inserts into this container at an audio take's loop end
+	for (size_t i = 0; i < takes.size(); i++) {
+		Clip* clip = takes[i];
 		if (clip->type == ClipType::AUDIO) {
 			auto& take = static_cast<AudioClip&>(*clip);
 			if (recording(take)) {
@@ -443,14 +473,16 @@ const TakeRepeats* takeRepeatsOf(const ModelStackWithAutoParam& lane) {
 
 bool swapStagedRepeat(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,
                       ModelStackWithTimelineCounter* otherModelStack) {
-	return swapRepeats(take.repeats, take.loopLength(), [&](int32_t offset, ManagerVisit visit) {
-		take.forEachRepeatedManager(thisModelStack, otherModelStack, offset, visit);
+	const int32_t offset = take.loopLength() - ((Clip*)otherModelStack->getTimelineCounter())->loopLength();
+	return swapRepeats(take.repeats, offset, [&](int32_t at, ManagerVisit visit) {
+		take.forEachRepeatedManager(thisModelStack, otherModelStack, at, visit);
 	});
 }
 
 bool swapStagedRowRepeat(NoteRow& row, ModelStackWithNoteRow* rowModelStack,
                          ModelStackWithNoteRow* otherRowModelStack) {
-	return swapRepeats(row.repeats, row.loopLengthIfIndependent(), rowWalk(row, rowModelStack, otherRowModelStack));
+	const int32_t offset = row.loopLengthIfIndependent() - otherRowModelStack->getNoteRow()->loopLengthIfIndependent();
+	return swapRepeats(row.repeats, offset, rowWalk(row, rowModelStack, otherRowModelStack));
 }
 
 #if defined(DELUGE_HOST)

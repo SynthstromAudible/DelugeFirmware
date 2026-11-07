@@ -46,9 +46,9 @@ public:
 	/// takes as the next take at the loop end, made, published and with room reserved for it on the interaction tier
 	/// (deluge::modulation::restageArrangementTakes()). In no container: no save or undo sees it.
 	std::atomic<AudioClip*> spare{nullptr};
-	/// [interaction] The source's published lanes the spare was cloned from: a spare cloned from other lanes is made
-	/// again.
-	const void* spareAgainst = nullptr;
+	/// [interaction] The source's lanes' publications() when the spare was cloned: a spare cloned from other lanes is
+	/// made again.
+	uint32_t spareAgainst = 0;
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) override;
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;

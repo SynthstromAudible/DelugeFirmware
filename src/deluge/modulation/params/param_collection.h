@@ -176,6 +176,10 @@ public:
 		return published_.load(std::memory_order_acquire);
 	}
 
+	/// @brief [render] or [interaction] How many snapshots this collection has published: a change says its published
+	///        lanes changed.
+	[[nodiscard]] uint32_t publications() const { return publications_.load(std::memory_order_acquire); }
+
 	/// @brief Which collection this is, of all made since boot: a request made on the render names it by this and its
 	///        address, so a collection made later at the same address is not taken for it.
 	[[nodiscard]] uint32_t serial() const { return serial_; }
@@ -200,9 +204,12 @@ private:
 	/// [render] -> [interaction] The snapshot the render's last swap replaced, for the interaction tier to retire. It
 	/// shares lanes with published_.
 	std::atomic<const deluge::modulation::LaneSnapshot*> superseded_{nullptr};
-	/// [interaction] The source collection's published snapshot when staged_ was built: a staged repeat built from
-	/// other source lanes is built again.
-	const deluge::modulation::LaneSnapshot* stagedAgainst_ = nullptr;
+	/// [interaction] The source collection's publications() when staged_ was built: a staged repeat built from other
+	/// source lanes is built again.
+	uint32_t stagedAgainst_ = 0;
+	/// [interaction] or [render] Counted at each snapshot published or swapped in: unlike the snapshot's address, never
+	/// the same for two snapshots.
+	std::atomic<uint32_t> publications_{0};
 	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
 	bool lanesDirty_ = false;
 	uint32_t serial_; ///< see serial()

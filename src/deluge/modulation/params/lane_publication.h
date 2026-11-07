@@ -154,15 +154,15 @@ public:
 	///        at its last swap, so that the published snapshot is the only one left sharing its lanes.
 	/// @return False when there was no room to retire the replaced one: it stays, and so does the staged one.
 	static bool settleStaged(ParamCollection& collection);
-	/// @brief [interaction] Whether @p collection holds a staged snapshot built while its source collection's published
-	///        snapshot was @p sourcePublished.
-	static bool stagedAgainst(const ParamCollection& collection, const LaneSnapshot* sourcePublished);
+	/// @brief [interaction] Whether @p collection holds a staged snapshot built while its source collection's
+	///        publications() were @p sourcePublications.
+	static bool stagedAgainst(const ParamCollection& collection, uint32_t sourcePublications);
 	/// @brief [interaction] Stage @p collection's next repeat: a snapshot of @p lanes, sharing the published snapshot's
 	///        unchanged lanes, for the render to swap in at the take's loop end. What was staged before is dropped and
 	///        what the render replaced at its last swap retired first.
-	/// @param sourcePublished The source collection's published snapshot the lanes were built from.
+	/// @param sourcePublications The source collection's publications() when the lanes were built from it.
 	/// @return False when out of memory: nothing is staged.
-	static bool stage(ParamCollection& collection, LaneSource lanes, const LaneSnapshot* sourcePublished);
+	static bool stage(ParamCollection& collection, LaneSource lanes, uint32_t sourcePublications);
 	/// @brief [render] Whether @p collection holds a staged snapshot it can swap in.
 	static bool canSwap(const ParamCollection& collection);
 	/// @brief [render] Publish @p collection's staged snapshot; the one it replaces is superseded, for the interaction

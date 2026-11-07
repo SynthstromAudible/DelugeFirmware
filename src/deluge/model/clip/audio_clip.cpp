@@ -939,6 +939,16 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			return;
 		}
 
+		// The next take is the spare the interaction tier cloned from the source, its lanes published: the render
+		// makes no clip and no param collection
+		AudioClip* newClip = spare.exchange(nullptr, std::memory_order_acq_rel);
+		if (newClip == nullptr) {
+			// This take plays on, its instance still open: the next loop end closes it at the length it played to
+			deluge::modulation::noteAudioSpareMissed();
+			return;
+		}
+		modelStack->setTimelineCounter(newClip);
+
 		int32_t arrangementRecordPos = playbackHandler.getActualArrangementRecordPos();
 
 		// Get that current clipInstance being recorded to
@@ -949,15 +959,6 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			// Close it off
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
-
-		// The next take is the spare the interaction tier cloned from the source, its lanes published: the render
-		// makes no clip and no param collection
-		AudioClip* newClip = spare.exchange(nullptr, std::memory_order_acq_rel);
-		if (newClip == nullptr) {
-			deluge::modulation::noteAudioSpareMissed();
-			return;
-		}
-		modelStack->setTimelineCounter(newClip);
 
 		newClip->beingRecordedFromClip = beingRecordedFromClip;
 		beingRecordedFromClip = nullptr;

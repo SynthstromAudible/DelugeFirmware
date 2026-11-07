@@ -269,7 +269,7 @@ project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size
 		countOverflow();
 		return nullptr;
 	}
-	AudioExcludedSection section;
+	std::optional<AudioExcludedSection> section{std::in_place};
 	slot->collection = &collection;
 	slot->serial = collection.serial();
 	slot->paramId = lane.paramId;
@@ -277,6 +277,11 @@ project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size
 	slot->hold = hold;
 	slot->held = repeats != nullptr ? repeats->inModel : 0;
 	WorkingCopies::count(collection, 1);
+	section.reset();
+	// A loop end since the take was caught up counted a repeat the copy, made before it was live, lacks
+	if (repeats != nullptr && repeats->appended.load(std::memory_order_acquire) != slot->held) {
+		catchUpArrangementTakes(*lane.song);
+	}
 	return copy;
 }
 
@@ -427,7 +432,8 @@ bool appendRepeatToCopy(ParamCollection& collection, int32_t key, uint32_t repea
 	if (entry == nullptr) {
 		return false;
 	}
-	if (entry->held == repeat) {
+	// A copy behind the take (none is, as made from a caught-up take) still takes the repeat at its own place
+	if (entry->held <= repeat) {
 		if (src != nullptr && !src->nodes.empty()) {
 			// A live copy is the render's while it plays: written with it held off
 			std::optional<AudioExcludedSection> section;
@@ -438,7 +444,7 @@ bool appendRepeatToCopy(ParamCollection& collection, int32_t key, uint32_t repea
 			                     args.pingpongingGenerally);
 			entry->written = true;
 		}
-		entry->held++;
+		entry->held = repeat + 1;
 	}
 	return true;
 }

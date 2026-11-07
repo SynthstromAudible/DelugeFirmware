@@ -40,7 +40,7 @@ namespace deluge::modulation {
 extern uint32_t stagedRepeatMisses;
 /// Loop ends at which the render swapped a take's staged repeat in.
 extern uint32_t stagedRepeatSwaps;
-/// Audio takes' loop ends that found no spare: the take did not go on. Must stay 0.
+/// Audio takes' loop ends that found no spare: the take played on into its next repeat. Must stay 0.
 extern uint32_t audioSpareMisses;
 #endif
 
@@ -60,6 +60,7 @@ struct TakeRepeats {
 		source.store(other.source.load(std::memory_order_relaxed), std::memory_order_relaxed);
 		staged.store(other.staged.load(std::memory_order_relaxed), std::memory_order_relaxed);
 		stagedCollections.store(other.stagedCollections.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		stagedFor.store(other.stagedFor.load(std::memory_order_relaxed), std::memory_order_relaxed);
 		anyStaged = other.anyStaged;
 		return *this;
 	}
@@ -74,6 +75,8 @@ struct TakeRepeats {
 	std::atomic<bool> staged{false};
 	/// [interaction] The collections the next repeat is staged on.
 	std::atomic<uint32_t> stagedCollections{0};
+	/// [interaction] The repeat staged: `appended` when it was built. A repeat counted meanwhile makes it another's.
+	std::atomic<uint32_t> stagedFor{0};
 	/// [interaction] Some collection of the take may hold a staged or superseded snapshot.
 	bool anyStaged = false;
 };

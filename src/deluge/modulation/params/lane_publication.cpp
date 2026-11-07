@@ -268,12 +268,12 @@ void LanePublication::gone(ParamCollection& collection) {
 	}
 }
 
-bool LanePublication::stagedAgainst(const ParamCollection& collection, const LaneSnapshot* sourcePublished) {
+bool LanePublication::stagedAgainst(const ParamCollection& collection, uint32_t sourcePublications) {
 	return collection.staged_.load(std::memory_order_relaxed) != nullptr
-	       && collection.stagedAgainst_ == sourcePublished;
+	       && collection.stagedAgainst_ == sourcePublications;
 }
 
-bool LanePublication::stage(ParamCollection& collection, LaneSource lanes, const LaneSnapshot* sourcePublished) {
+bool LanePublication::stage(ParamCollection& collection, LaneSource lanes, uint32_t sourcePublications) {
 	if (!settleStaged(collection)) {
 		return false;
 	}
@@ -282,7 +282,7 @@ bool LanePublication::stage(ParamCollection& collection, LaneSource lanes, const
 	if (staged == nullptr) {
 		return false;
 	}
-	collection.stagedAgainst_ = sourcePublished;
+	collection.stagedAgainst_ = sourcePublications;
 	collection.staged_.store(staged, std::memory_order_release);
 	return true;
 }
@@ -296,6 +296,7 @@ void LanePublication::swap(ParamCollection& collection) {
 	const LaneSnapshot* staged = collection.staged_.exchange(nullptr, std::memory_order_acq_rel);
 	collection.superseded_.store(collection.published_.exchange(staged, std::memory_order_acq_rel),
 	                             std::memory_order_release);
+	collection.publications_.fetch_add(1, std::memory_order_release);
 }
 
 bool LanePublication::settleStaged(ParamCollection& collection) {
@@ -415,6 +416,7 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		deluge::memory::NoAllocationScope noAllocation;
 		deluge::playback::MaskedSpan span{"publishLanes"};
 		collection.published_.store(next, std::memory_order_release);
+		collection.publications_.fetch_add(1, std::memory_order_release);
 		if (old != nullptr) { // a first publish replaces the model the render read, which holds the same lanes
 			collection.ticksTilNextEvent = 0;
 			manager.ticksTilNextEvent = 0;
