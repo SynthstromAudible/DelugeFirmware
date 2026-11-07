@@ -84,12 +84,11 @@ void FileCatalogue::emptyFileItems() {
 
 	AudioEngine::logAction("emptyFileItems");
 
-	// Erase in chunks from the end, keeping the audio routine fed in between - this can be thousands of items.
+	// Erase in chunks from the end: this can be thousands of items.
 	while (!fileItems.empty()) {
 		size_t chunk = std::min<size_t>(256, fileItems.size());
 		fileItems.erase(fileItems.end() - chunk, fileItems.end());
 		AudioEngine::logAction("emptyFileItems in loop");
-		AudioEngine::routineWithClusterLoading();
 	}
 	fileItems.shrink_to_fit();
 
@@ -98,12 +97,11 @@ void FileCatalogue::emptyFileItems() {
 
 void FileCatalogue::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
-	// Erase in chunks from the back of the range, keeping the audio routine fed in between.
+	// Erase in chunks from the back of the range.
 	while (stopAt > startAt) {
 		int32_t chunkStart = std::max(startAt, stopAt - 256);
 		fileItems.erase(fileItems.begin() + chunkStart, fileItems.begin() + stopAt);
 		stopAt = chunkStart;
-		AudioEngine::routineWithClusterLoading();
 	}
 }
 

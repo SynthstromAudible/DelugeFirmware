@@ -797,10 +797,7 @@ gotErrorAfterCreatingSong:
 #endif
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	{
-		deluge::storage::ActiveReaderScope reading(songDocument_.reader());
-		error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
-	}
+	error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
 	// The tree is only needed during the read.
 	songDocument_.release();
 	if (error != Error::NONE) {

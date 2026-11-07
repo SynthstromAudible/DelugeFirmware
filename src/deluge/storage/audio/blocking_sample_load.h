@@ -61,8 +61,6 @@ private:
 	int32_t scopeDepth_{0};
 	/// The scope depth ownFolder_ was opened at, or -1 when it is not open.
 	int32_t ownFolderDepth_{-1};
-	/// Clips seen while not reading the card: the audio routine runs on every eighth, starting with the first.
-	uint32_t clipsWithoutReading_{0};
 };
 
 } // namespace deluge::storage

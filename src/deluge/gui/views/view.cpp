@@ -2658,8 +2658,6 @@ getOut:
 
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &instrumentClipView || rootUI == &automationView) {
-			AudioEngine::routineWithClusterLoading();
-
 			instrumentClipView.recalculateColours();
 
 			uiNeedsRendering(rootUI);

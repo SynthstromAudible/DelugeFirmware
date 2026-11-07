@@ -1593,10 +1593,6 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	for (int32_t i = noteRowIndexStart; i < noteRowIndexEnd; i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 
-		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading();
-		}
-
 		int32_t yNote;
 
 		if (output->type == OutputType::KIT) {
@@ -1838,8 +1834,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
 
-	AudioEngine::routineWithClusterLoading();
-
 	AudioEngine::audioRoutineLocked = true;
 
 	/* Further stuff to optimize in here:
@@ -1913,7 +1907,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading();
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1946,9 +1939,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 					break;
 				}
 			}
-
-			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2292,7 +2282,6 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			AudioEngine::routineWithClusterLoading();
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3433,8 +3422,6 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				unbindNoteRowStructure(noteRows[i]);
 				noteRows.deleteNoteRowAtIndex(i);
-
-				AudioEngine::routineWithClusterLoading();
 			}
 			else {
 				i++;
@@ -4086,7 +4073,6 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = &noteRows[i];
 
 			if (!(noteRowCount & 15)) {
-				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("nlkr");
 			}
 

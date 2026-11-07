@@ -488,7 +488,6 @@ bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
-bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
 // For debugging
@@ -706,28 +705,6 @@ int32_t getNumVoices() {
 		return std::transform_reduce(all.cbegin(), all.cend(), 0, std::plus{},
 		                             [](auto sound) { return sound->voices().size(); });
 	});
-}
-
-void routineWithClusterLoading() {
-	logAction("AudioDriver::routineWithClusterLoading");
-	DELUGE_LOAD_TRACE("routine");
-
-	// In-memory deserialization (FileReader::callRoutines == false) opts out of the cooperative
-	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
-	// reads keep callRoutines == true. This also lets a headless host harness load a Song without
-	// standing up the audio engine.
-	if (activeReader != nullptr && !activeReader->shouldCallRoutines()) {
-		return;
-	}
-
-	routineBeenCalled = false;
-
-	if (!routineBeenCalled) {
-		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
-
-		logAction("call runRoutine() from routineWithClusterLoading()");
-		runRoutine();
-	}
 }
 
 void runRoutine() {
@@ -1801,7 +1778,6 @@ uint32_t routine() {
 		}
 	}
 	audioRoutineLocked = false;
-	routineBeenCalled = true;
 	return renders;
 }
 

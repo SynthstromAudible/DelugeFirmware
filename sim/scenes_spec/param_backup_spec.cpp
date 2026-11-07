@@ -56,12 +56,10 @@ Song* load_song(std::string_view xml) {
 		return nullptr;
 	}
 	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(deluge::storage::DocumentFormat::XML));
-	activeReader = &adapter;
 	Error error = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
 	if (error == Error::NONE) {
 		error = deluge::bridge::loadSong(*song, adapter);
 	}
-	activeReader = &smDeserializer;
 	return error == Error::NONE ? song : nullptr;
 }
 

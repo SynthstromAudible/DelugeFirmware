@@ -43,7 +43,7 @@ constexpr int32_t kGreyoutAmountFull = 6500000;
 /// (unexported) constant of the same value.
 constexpr uint32_t kBackpressureRetryMs = 20;
 /// Legacy's `UI_MS_PER_REFRESH` (`board_config.h:55`), the `Fade` tween's step cadence
-/// (`renderFade`, `pad_leds.cpp:1479`).
+/// (`renderFade`, `pad_leds.cpp:1478`).
 constexpr uint32_t kFadeCadenceMs = 50;
 
 /// @brief `count` distinct colours, deterministic from `seed`, for a scroll-tween spec: a flat
@@ -532,7 +532,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.row_colours = to_rows;
 		r.shell.tick(100); // halfway: offset == 1
 
-		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp:1431-1456`): the sidebar moves
+		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp:1430-1455`): the sidebar moves
 		// with the rows, unlike the horizontal case -- `scroll_vertical` shifts every column.
 		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
 		for (uint8_t y = 0; y < dims.rows; y++) {

@@ -30,9 +30,6 @@ BlockingSampleLoad::BlockingSampleLoad(bool mayReadCard, AudioLoadContext* conte
 
 Walk BlockingSampleLoad::rangeCheckpoint(int32_t rangeIndex) {
 	AudioEngine::logAction("Source::loadAllSamples");
-	if (!(rangeIndex & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
-		AudioEngine::routineWithClusterLoading();
-	}
 	return Walk::Continue;
 }
 
@@ -41,12 +38,6 @@ Walk BlockingSampleLoad::drumCheckpoint() {
 }
 
 void BlockingSampleLoad::clipCheckpoint() {
-	// If not reading files, high chance that we'll be searching through memory a lot and not reading the card
-	// (which would call the audio routine), so we'd better call the audio routine here.
-	if (!mayReadCard_ && !(clipsWithoutReading_++ & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
-		AudioEngine::logAction("Song::loadAllSamples");
-		AudioEngine::routineWithClusterLoading();
-	}
 }
 
 void BlockingSampleLoad::beginInstrumentScope(std::string_view dirPath, std::string_view name, ThingType thing,

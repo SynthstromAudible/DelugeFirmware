@@ -107,7 +107,6 @@ private:
 	int32_t currentOffset_{0}; ///< Byte offset in the file.
 	int32_t writeIndex_{0};    ///< Next FFT input slot.
 	int32_t biggestValueFound_{0};
-	int32_t count_{0}; ///< Samples read this pass; paces the audio yields.
 	int32_t lengthDoublingsNow_{0};
 	int32_t valueIndex_{0}; ///< Samples averaged into thisValue_ so far.
 	int32_t thisValue_{0};

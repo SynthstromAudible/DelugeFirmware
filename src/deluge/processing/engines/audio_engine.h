@@ -148,7 +148,6 @@ using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 uint32_t routine();
 bool routine_task();
-void routineWithClusterLoading();
 void runRoutine();
 
 void init();
@@ -282,7 +281,6 @@ int32_t* inputRingEnd();
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
-extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 /// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
 /// reverb. Its sync type is set only from the menu.

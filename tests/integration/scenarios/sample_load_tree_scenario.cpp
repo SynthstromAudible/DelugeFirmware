@@ -72,7 +72,6 @@
 #include <iterator>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -164,18 +163,6 @@ constexpr uint32_t kRenderBlockFrames = 128;
 
 constexpr int32_t kMaxWaitTicks = 200000;
 
-/// routineWithClusterLoading calls each load makes, measured on the fixture: the cadence that keeps audio running
-/// while a load walks the tree. Pinned so a walk that drops or adds a call is seen.
-///
-/// These calls keep the audio engine running while a load walks the tree; a ticked walk also returns to the run
-/// loop, so the count reflects how the walk is structured, not a property of the tree. The background waveform
-/// overview scan runs untraced (AudioFileManager::slowRoutine), so its calls, which fall wherever the app loop
-/// happens to run it, are not counted.
-constexpr int32_t kSongRoutines = 38;
-constexpr int32_t kSynthRoutines = 2;
-constexpr int32_t kKitRoutines = 4;
-constexpr int32_t kCrucialRoutines = 76;
-
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;
 /// Scenario ticks an async leg may take before it is called wedged. Every leg finishes well inside this.
@@ -236,10 +223,6 @@ bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
 int32_t g_waitTicks = 0;
-int32_t g_songRoutines = -1;
-int32_t g_synthRoutines = -1;
-int32_t g_kitRoutines = -1;
-int32_t g_crucialRoutines = -1;
 bool g_crucialClockAtLoad = false;
 /// Holders still waiting for a file when the arm wait was FIRST seen, and whether that moment was ever reached.
 /// The rest of the samples are loaded here; a pass that runs to completion before the user can arm has none left.
@@ -254,7 +237,6 @@ const char* g_traceLabel = "";
 /// "LT" for the song and preset windows, whose lines are compared with the saved baseline; "LTC" for the crucial load,
 /// whose lines go to a file of their own.
 const char* g_tracePrefix = "LT";
-int32_t g_traceRoutines = 0;
 /// While the async kit leg runs, set the first time a holder is bound with a file: the leg then drops its load after
 /// that tick, as a cancelled preset load is dropped.
 bool g_dropArmed = false;
@@ -289,9 +271,6 @@ void traceSink(const char* line) {
 	if (g_probeLinesOnly && !probeLine) {
 		return;
 	}
-	if (std::strcmp(line, "routine") == 0) {
-		g_traceRoutines++;
-	}
 	printf("%s %s %s\n", g_tracePrefix, g_traceLabel, line);
 	// LoadSongUI traces "crucial end" right after the crucial-only pass, before any later pass can bind anything.
 	if (std::strcmp(line, "crucial end") == 0) {
@@ -305,15 +284,13 @@ void traceSink(const char* line) {
 void openTrace(const char* label, const char* prefix = "LT") {
 	g_tracePrefix = prefix;
 	g_traceLabel = label;
-	g_traceRoutines = 0;
 	(void)deluge::storage::load_trace::setSink(&traceSink);
 	printf("%s %s begin\n", prefix, label);
 }
 
-int32_t closeTrace() {
+void closeTrace() {
 	(void)deluge::storage::load_trace::setSink(nullptr);
-	printf("%s %s end routines=%d\n", g_tracePrefix, g_traceLabel, g_traceRoutines);
-	return g_traceRoutines;
+	printf("%s %s end\n", g_tracePrefix, g_traceLabel);
 }
 
 // ── Fixture construction ─────────────────────────────────────────────────────
@@ -679,8 +656,7 @@ void checkSong() {
 			g_failures++;
 		}
 	}
-	printf("SLT-SONG synth=%d kit=%d clip=%d routines=%d\n", sawSynth ? 1 : 0, sawKit ? 1 : 0, sawClip ? 1 : 0,
-	       g_songRoutines);
+	printf("SLT-SONG synth=%d kit=%d clip=%d\n", sawSynth ? 1 : 0, sawKit ? 1 : 0, sawClip ? 1 : 0);
 	if (!sawSynth || !sawKit || !sawClip) {
 		printf("SLT-SONG FAIL the loaded song is missing a fixture part\n");
 		g_failures++;
@@ -697,8 +673,8 @@ void loadSynthPreset() {
 	if (error == Error::NONE) {
 		instrument->loadAllAudioFiles(true);
 	}
-	g_synthRoutines = closeTrace();
-	printf("SLT-SYNTH error=%d routines=%d\n", static_cast<int>(error), g_synthRoutines);
+	closeTrace();
+	printf("SLT-SYNTH error=%d\n", static_cast<int>(error));
 	if (error != Error::NONE || instrument == nullptr) {
 		printf("SLT-SYNTH FAIL the synth preset did not load\n");
 		g_failures++;
@@ -720,8 +696,8 @@ void loadKitPreset() {
 	if (error == Error::NONE) {
 		instrument->loadAllAudioFiles(true);
 	}
-	g_kitRoutines = closeTrace();
-	printf("SLT-KIT error=%d routines=%d\n", static_cast<int>(error), g_kitRoutines);
+	closeTrace();
+	printf("SLT-KIT error=%d\n", static_cast<int>(error));
 	if (error != Error::NONE || instrument == nullptr) {
 		printf("SLT-KIT FAIL the kit preset did not load\n");
 		g_failures++;
@@ -925,9 +901,8 @@ void renderWhileArmed() {
 void checkCrucialLoad() {
 	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
 	g_failures += deluge::harness::expectSongCoherent(*currentSong, "crucial");
-	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d routines=%d snapshot=%d\n",
-	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialRoutines,
-	       g_crucialSnapshotTaken ? 1 : 0);
+	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d snapshot=%d\n",
+	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialSnapshotTaken ? 1 : 0);
 	if (!g_crucialClockAtLoad) {
 		printf("SLT-CRUCIAL FAIL playback was not running when the load began\n");
 		g_failures++;
@@ -1535,14 +1510,14 @@ bool tickAsyncLeg() {
 		deluge_file_bytes_set_latency_ms(0);
 		g_probeLinesOnly = false;
 		g_firstProbeAnswerArmed = false;
-		(void)closeTrace();
+		closeTrace();
 	}
 	if (g_asyncLeg == AsyncLeg::Kit) {
 		g_dropArmed = false;
-		(void)closeTrace();
+		closeTrace();
 	}
 	if (g_asyncLeg == AsyncLeg::DroppedAnswer || g_asyncLeg == AsyncLeg::LivePair) {
-		(void)closeTrace();
+		closeTrace();
 	}
 	g_asyncSampleOpens =
 	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad) - g_sampleOpensBefore;
@@ -2021,11 +1996,11 @@ void runTick() {
 		break;
 	case Stage::LoadWait:
 		if (!loadSongUI.loadInFlight()) {
-			g_songRoutines = closeTrace();
+			closeTrace();
 			g_stage = Stage::SongCheck;
 		}
 		else if (++g_waitTicks > kMaxWaitTicks) {
-			(void)closeTrace();
+			closeTrace();
 			printf("SLT-SONG FAIL the song load never finished\n");
 			g_failures++;
 			g_stage = Stage::Report;
@@ -2162,13 +2137,13 @@ void runTick() {
 		if (!loadSongUI.loadInFlight()) {
 			// The hold ends with the leg, whether or not the arm tick was ever reached.
 			deluge_audio_load_set_latency_ms(0);
-			g_crucialRoutines = closeTrace();
+			closeTrace();
 			playbackHandler.endPlayback();
 			g_stage = Stage::CrucialCheck;
 		}
 		else if (++g_waitTicks > kMaxCrucialWaitTicks) {
 			deluge_audio_load_set_latency_ms(0);
-			(void)closeTrace();
+			closeTrace();
 			printf("SLT-CRUCIAL FAIL the crucial song's load never finished\n");
 			g_failures++;
 			g_stage = Stage::Report;
@@ -2203,17 +2178,6 @@ void runTick() {
 		g_stage = (g_asyncLeg == AsyncLeg::Done) ? Stage::Report : Stage::AsyncRelease;
 		break;
 	case Stage::Report:
-		printf("SLT-SUMMARY songRoutines=%d synthRoutines=%d kitRoutines=%d\n", g_songRoutines, g_synthRoutines,
-		       g_kitRoutines);
-		for (const auto& [load, got, pinned] :
-		     {std::tuple{"song", g_songRoutines, kSongRoutines}, std::tuple{"synth", g_synthRoutines, kSynthRoutines},
-		      std::tuple{"kit", g_kitRoutines, kKitRoutines},
-		      std::tuple{"crucial", g_crucialRoutines, kCrucialRoutines}}) {
-			if (got != pinned) {
-				printf("SLT-CADENCE FAIL load=%s routines=%d pinned=%d\n", load, got, pinned);
-				g_failures++;
-			}
-		}
 		printf("SLT-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
 		g_summaryPrinted = true;
@@ -2235,10 +2199,6 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_summaryPrinted = false;
 	g_failures = 0;
 	g_waitTicks = 0;
-	g_songRoutines = -1;
-	g_synthRoutines = -1;
-	g_kitRoutines = -1;
-	g_crucialRoutines = -1;
 	g_crucialClockAtLoad = false;
 	g_crucialUnboundAtArm = -1;
 	g_crucialBoundAtArm = -1;

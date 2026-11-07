@@ -167,7 +167,7 @@ void InstrumentClipView::openedInBackground() {
 
 	recalculateColours();
 
-	AudioEngine::routineWithClusterLoading();
+	AudioEngine::runRoutine();
 
 	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 

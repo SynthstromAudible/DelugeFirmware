@@ -15,7 +15,7 @@
 ///     `memory/general_memory_allocator.cpp:131`), so nothing has to call it first; and
 ///   * `currentSong`, which the model's own stack helpers read.
 ///
-/// and `ensureAtLeastOneSessionClip`'s own fallback branch (`song.cpp:379-404`, the `couldntLoad`
+/// and `ensureAtLeastOneSessionClip`'s own fallback branch (`song.cpp:370-395`, the `couldntLoad`
 /// label taken whenever the card has no preset to load) is a pure-model recipe for a synth clip:
 /// `StorageManager::createNewInstrument` + `setupAsDefaultSynth` + `setAudioInstrument` +
 /// `addOutput`. This header replays exactly that branch, so no `startupConditionalTask` hook and
@@ -86,7 +86,7 @@ inline Song* make_bare_song() {
 }
 
 /// @brief Attach `instrument` to `clip` and to `song` -- `ensureAtLeastOneSessionClip`'s tail
-///        (`song.cpp:398-402`), without the playback re-sync a spec has no clock for.
+///        (`song.cpp:389-393`), without the playback re-sync a spec has no clock for.
 inline void attach(Song* song, InstrumentClip* clip, Instrument* instrument, ParamManagerForTimeline& params) {
 	clip->setAudioInstrument(instrument, song, true, &params);
 	song->addOutput(instrument);
@@ -103,7 +103,7 @@ inline InstrumentClip* make_session_clip(Song* song) {
 } // namespace detail
 
 /// @brief A song whose one session clip drives a default `SoundInstrument` --
-///        `ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song.cpp:379-404`) verbatim.
+///        `ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song.cpp:370-395`) verbatim.
 inline SongFixture make_synth_song() {
 	SongFixture f;
 	f.song = detail::make_bare_song();
@@ -147,7 +147,7 @@ inline SongFixture make_cv_song() {
 	ParamManagerForTimeline params;
 	params.setupMIDI();
 	// `createNewInstrument` has no CV arm at all -- it falls through to `Kit`
-	// (`storage/storage_manager.cpp:557-560`); `createNewNonAudioInstrument` is the CV/MIDI one
+	// (`storage/storage_manager.cpp:544-547`); `createNewNonAudioInstrument` is the CV/MIDI one
 	// (`:603`), and is what `Song`'s own CV path uses.
 	auto* cv = static_cast<CVInstrument*>(StorageManager::createNewNonAudioInstrument(OutputType::CV, 0, 0));
 	cv->setChannel(both); // `cv_instrument.h:71-82` -- the dual-channel mode `cv2SourceMenu` needs

@@ -1204,13 +1204,10 @@ Song* readFixtureSong(const char* path) {
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 	deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
-	Deserializer* previous = activeReader;
-	activeReader = &adapter;
 	Error e = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
 	if (e == Error::NONE) {
 		e = deluge::bridge::loadSong(*song, adapter);
 	}
-	activeReader = previous;
 	check(e == Error::NONE, "read ids: the song loads");
 	return song;
 }

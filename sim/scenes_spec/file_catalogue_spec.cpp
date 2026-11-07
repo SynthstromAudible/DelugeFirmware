@@ -88,7 +88,7 @@ void seed(const std::vector<std::string>& names, bool folders = false) {
 /// @brief Sort the catalogue with `strcmpspecial` under the caller's own note-name flags.
 ///
 /// `Browser::sortFileItems()` forces `octaveStartsFromA = false`
-/// (`file_catalogue.cpp:398 sortFileItems`), so the
+/// (`file_catalogue.cpp:396 sortFileItems`), so the
 /// `octaveStartsFromA = true` search example -- which needs a list sorted by the comparator it will
 /// then binary-search under -- has to sort here instead. Same comparator, same projection as
 /// `sortFileItems()`.
@@ -157,7 +157,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 		browser.sortFileItems();
 
 		// Five directories; the `.keep` placeholders each holds are skipped by the dot-entry rule
-		// (`file_catalogue.cpp:202 readFileItemsForFolder`, the `entry->name[0] == '.'` continue).
+		// (`file_catalogue.cpp:200 readFileItemsForFolder`, the `entry->name[0] == '.'` continue).
 		expect(static_cast<int32_t>(FileCatalogue::fileItems.size())).to_equal(5);
 		expect(catalogue_order()).to_equal(std::string("KITS,SAMPLES,SETTINGS,SONGS,SYNTHS"));
 		expect(FileCatalogue::fileItems[0].isFolder).to_be_true();
@@ -511,7 +511,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 
 		FileCatalogue::deleteFolderAndDuplicateItems();
 		// Nothing here is a duplicate, so the only losses are the two edge entries the cull
-		// boundaries make untrustworthy (`file_catalogue.cpp:285 deleteFolderAndDuplicateItems`, tail).
+		// boundaries make untrustworthy (`file_catalogue.cpp:283 deleteFolderAndDuplicateItems`, tail).
 		expect(catalogue_order()).to_equal(std::string("B.XML,C.XML"));
 	});
 });

@@ -365,8 +365,6 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 
 			data->maxPerCol[col] = maxThisCol;
 			data->minPerCol[col] = minThisCol;
-
-			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -482,8 +480,6 @@ bool investigate_whole_cluster(Sample* sample, int32_t clusterIndex) {
 
 	// The sample's found range is left alone: the full-screen waveform scales its bars to it, and main's holds only
 	// what a render has scanned. Whole-cluster peaks folded in here would draw every later render's bars smaller.
-
-	AudioEngine::routineWithClusterLoading();
 
 	return true;
 }

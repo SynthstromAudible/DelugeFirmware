@@ -165,7 +165,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// the scene reads `SAMPLES/` off the fixture card, which holds a file. The
 /// next `openUI(&shellHostUI)` resets the stack, `BrowserScene::on_exit` calls
 /// `FileCatalogue::emptyFileItems`, and that pumps `AudioEngine::routineWithClusterLoading()`
-/// between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults** in a spec process,
+/// between chunks (`storage/file_catalogue.cpp:93`) -- which **segfaults** in a spec process,
 /// because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
 /// (`AudioEngine::inputRingPos`; `support/card_access.h` has the whole diagnosis).
 /// Measured: with the fix and without this latch, `menu_entry_spec` dies with SIGSEGV in
