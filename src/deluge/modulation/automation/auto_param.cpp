@@ -29,8 +29,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/track_parameter_edit.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -301,6 +303,12 @@ getOut:
 	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
+
+	// Link explicit edits across this output's clips when held in Session or persistently locked.
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .shouldLogAction = shouldLogAction,
+	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                             .isMPE = doMPEMode});
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1179,6 +1187,8 @@ yesChangeCurrentValue:
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          isAutomated());
+	Output::propagateParameterEdit(
+	    *modelStack, {.value = value, .region = deluge::model::AutomationRegion{pos, length, actionType}});
 }
 
 #define REGION_EDGE_LEFT 0

@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "gui/views/hold_pulse.h"
+#include "gui/views/session/track_pad_gesture.h"
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
@@ -120,6 +122,8 @@ public:
 
 	Clip* getClipForLayout();
 	int32_t getClipIndexForLayout();
+	// Starts or stops the held-pad pulse; returns true while a press is being tracked.
+	bool updateHeldPulse();
 
 	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
@@ -127,6 +131,12 @@ public:
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+	void gridPulseSelectedClip();
+	bool gridUpdateTrackPadGesture();
+
+	// Track editing hooks used by selection state, pulse rendering, and view changes.
+	bool gridTrackRowEnabled() const;
+	void gridEndTrackSelection();
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -157,9 +167,6 @@ public:
 
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
-
-	// pulse selected clip in grid view
-	void gridPulseSelectedClip();
 
 private:
 	int32_t lastLaunchCountdown = 0;
@@ -207,6 +214,23 @@ private:
 	bool viewingRecordArmingActive = false;
 	// Members for grid layout
 private:
+	// Track row gestures and rendering are internal to Session grid view.
+	ActionResult gridTrackPadAction(int32_t x, int32_t on);
+	ActionResult gridMoveHeldTrack(int32_t offset);
+	void gridEndTrackPadGesture();
+	bool gridIsTrackPadHeld(Output const* output) const;
+	// The output a held track pad, or a held clip pad on a locked track, would pulse.
+	Output* heldPulseCandidate();
+	// The output whose clips pulse: the candidate, once its press has outlasted a short press.
+	Output* heldPulseOutput() { return heldPulse.pulsingFor(heldPulseCandidate()); }
+	void gridRenderTrackRow(RGB* image, uint8_t* occupancy);
+	int32_t sessionClipRows() const;
+	int32_t sessionClipRowOffset() const { return gridTrackRowEnabled() ? 1 : 0; }
+
+	int32_t gridHeldTrackPad = -1;
+	TrackPadGesture gridTrackGesture;
+	HoldPulse heldPulse;
+
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],

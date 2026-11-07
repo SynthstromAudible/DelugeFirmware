@@ -104,6 +104,7 @@ public:
 	Destination* getDestinationForParam(int32_t p);
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
+	bool supportsLinking() const override { return true; }
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 

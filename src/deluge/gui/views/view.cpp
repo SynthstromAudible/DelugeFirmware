@@ -38,6 +38,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -1570,6 +1571,11 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
+
+	// Clear only the transient Session selection; output locks survive view changes.
+	if (deluge::gui::track_link::modeIsOn() && rootUI != &sessionView) {
+		sessionView.gridEndTrackSelection();
+	}
 	UIType uiType = UIType::NONE;
 	UIType uiContextType = UIType::NONE;
 	if (rootUI) {
@@ -1594,7 +1600,13 @@ void View::setModLedStates() {
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
-	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
+	if (deluge::gui::track_link::editingSelectedTrack()) {
+		// Track edit mode: the Affect-entire LED flashes to indicate that the mode is on.
+		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
+	}
 
 	bool onAutomationClipView = false;
 
