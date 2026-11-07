@@ -494,6 +494,9 @@ void ArrangerView::deleteOutput() {
 
 	output->clipInstances.empty(); // Because none of these have Clips, this is ok
 	output->cutAllSound();
+	if (auditionedOutput == output) {
+		auditionedOutput = nullptr; // cutAllSound() ended it, and the output is about to go away.
+	}
 	output->setTrackEditActive(false); // A hibernated output may be reused later; it mustn't keep the held edit scope.
 	currentSong->deleteOrHibernateOutput(output);
 
@@ -769,12 +772,6 @@ Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 }
 
 void ArrangerView::beginAudition(Output* output) {
-	// A Shift + audition lock gesture stays silent, including when forwarded from arranger automation view or
-	// Performance View. Session's own track-pad audition uses these functions independently.
-	if (silentTrackAudition && getRootUI() != &sessionView) {
-		return;
-	}
-
 	if (output->type == OutputType::AUDIO) {
 		return;
 	}
@@ -806,6 +803,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 			if (drum) {
 				kit->beginAuditioningforDrum(modelStackWithNoteRow, drum, kit->defaultVelocity, zeroMPEValues);
+				auditionedOutput = output;
 			}
 		}
 		else {
@@ -813,24 +811,21 @@ void ArrangerView::beginAudition(Output* output) {
 			note += 60;
 			((MelodicInstrument*)instrument)
 			    ->beginAuditioningForNote(modelStack, note, instrument->defaultVelocity, zeroMPEValues);
+			auditionedOutput = output;
+			auditionedNote = note;
 		}
 	}
 }
 
 void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
-	// A Shift + audition lock gesture stays silent, including when forwarded from arranger automation view or
-	// Performance View. Session's own track-pad audition uses these functions independently.
-	if (silentTrackAudition && getRootUI() != &sessionView) {
-		return;
-	}
-
-	if (output->type == OutputType::AUDIO) {
+	if (!isAuditioning(output)) {
 		return;
 	}
 
 	Instrument* instrument = (Instrument*)output;
 
 	if (!playbackHandler.playbackState || evenIfPlaying) {
+		auditionedOutput = nullptr;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -855,9 +850,8 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 			}
 		}
 		else {
-			int32_t note = (currentSong->key.rootNote + 120) % 12;
-			note += 60;
-			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, note);
+			// End the note that was started, not one recomputed from a root the song may since have been transposed to.
+			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, auditionedNote);
 		}
 	}
 }
@@ -969,8 +963,9 @@ doNewPress:
 
 			view.displayOutputName(output);
 
-			silentTrackAudition = deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed();
-			if (silentTrackAudition) {
+			auditionGesture.press(AudioEngine::audioSampleTimer,
+			                      deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed());
+			if (auditionGesture.silent()) {
 				deluge::gui::track_link::toggleLock(output);
 			}
 			else {
@@ -1001,7 +996,6 @@ doNewPress:
 
 void ArrangerView::auditionEnded() {
 	deluge::gui::track_edit_pulse::resetHeldPulse();
-	silentTrackAudition = false;
 	setNoSubMode();
 	setLedStates();
 
@@ -2681,7 +2675,9 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	AudioEngine::routineWithClusterLoading();
 
-	beginAudition(output);
+	if (!auditionGesture.silent()) {
+		beginAudition(output);
+	}
 }
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {
@@ -2712,7 +2708,9 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	view.displayOutputName(newInstrument);
 	view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 
-	beginAudition(newInstrument);
+	if (!auditionGesture.silent()) {
+		beginAudition(newInstrument);
+	}
 }
 
 void ArrangerView::changeOutputToAudio() {

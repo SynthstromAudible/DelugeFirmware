@@ -5047,18 +5047,15 @@ static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MO
 
 bool SessionView::gridUpdateTrackPadGesture() {
 	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
-		if (!gridTrackAuditioning
-		    && gridTrackGesture.shouldAudition(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
-			if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		if (auto* output = deluge::gui::track_link::selectedOutput()) {
+			// beginAudition() only sounds while playback is stopped; keep trying while the pad is held.
+			if (!arrangerView.isAuditioning(output)
+			    && gridTrackGesture.shouldAudition(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
 				arrangerView.beginAudition(output);
-				gridTrackAuditioning = (playbackHandler.playbackState == 0u);
 			}
-		}
-		if (gridTrackAuditioning && (playbackHandler.playbackState != 0u)) {
-			if (auto* output = deluge::gui::track_link::selectedOutput()) {
+			if (playbackHandler.playbackState != 0u) {
 				arrangerView.endAudition(output, true);
 			}
-			gridTrackAuditioning = false;
 		}
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 		return true;
@@ -5179,12 +5176,9 @@ int32_t SessionView::sessionClipRows() const {
 
 void SessionView::gridEndTrackPadGesture() {
 	deluge::gui::track_edit_pulse::resetHeldPulse();
-	if (gridTrackAuditioning) {
-		if (auto* output = deluge::gui::track_link::selectedOutput()) {
-			arrangerView.endAudition(output, true);
-		}
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		arrangerView.endAudition(output, true); // Only ends an audition this hold actually started.
 	}
-	gridTrackAuditioning = false;
 	gridHeldTrackPad = -1;
 }
 
