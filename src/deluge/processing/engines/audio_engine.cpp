@@ -1667,7 +1667,7 @@ bool routine_task() {
 	if (stemExport.renderingOffline()) {
 		return false;
 	}
-	if (ticksHeld()) {
+	if (audioTicksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return false;
 	}
@@ -1678,13 +1678,14 @@ namespace {
 /// The hold depth: how many AudioTickHolds are alive.
 std::atomic<uint32_t> tickHoldDepth{0};
 
-/// Whether routine() is running, on the tier running it. Only that tier reads or writes it.
-bool inRoutine = false;
+/// Whether routine() is running. The audio tier runs it, and so does the interaction tier at boot (runRoutine()) and
+/// for an offline export; the host runs those tiers on separate threads, hence the atomic.
+std::atomic<bool> inRoutine{false};
 
 /// Sets inRoutine for its scope, and clears it on unwind too: left set, every later tick would return at once.
 struct InRoutineGuard {
-	InRoutineGuard() { inRoutine = true; }
-	~InRoutineGuard() { inRoutine = false; }
+	InRoutineGuard() { inRoutine.store(true, std::memory_order_relaxed); }
+	~InRoutineGuard() { inRoutine.store(false, std::memory_order_relaxed); }
 	InRoutineGuard(const InRoutineGuard&) = delete;
 	InRoutineGuard& operator=(const InRoutineGuard&) = delete;
 };
@@ -1704,12 +1705,12 @@ AudioTickHold::~AudioTickHold() {
 	tickHoldDepth.fetch_sub(1, std::memory_order_release);
 }
 
-bool ticksHeld() noexcept {
+bool audioTicksHeld() noexcept {
 	return tickHoldDepth.load(std::memory_order_acquire) != 0;
 }
 
 bool audioBusy() noexcept {
-	return deluge_in_audio_context() || ticksHeld();
+	return deluge_in_audio_context() || audioTicksHeld();
 }
 
 #ifdef DELUGE_HOST
@@ -1722,7 +1723,7 @@ uint32_t routine() {
 
 	logAction("AudioDriver::routine");
 
-	if (inRoutine || ticksHeld()) {
+	if (inRoutine.load(std::memory_order_relaxed) || audioTicksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return 0; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		          // called from within this!

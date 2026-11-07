@@ -50,7 +50,11 @@ std::optional<uint32_t> g_innerRoutine;
 
 void reenter() {
 	g_reached++;
+	// Armed again for the inner call: routine() takes the hook before running it, so only a re-entry the guard lets
+	// through reaches it.
+	AudioEngine::setRoutineInjection(&countReach);
 	g_innerRoutine = AudioEngine::routine();
+	AudioEngine::setRoutineInjection(nullptr);
 }
 
 void report(const char* tag, bool ok, const char* detail) {
@@ -61,16 +65,16 @@ void report(const char* tag, bool ok, const char* detail) {
 }
 
 void checkIdle() {
-	report("ATH-IDLE", !AudioEngine::ticksHeld(), "no hold alive, so ticks are not held");
+	report("ATH-IDLE", !AudioEngine::audioTicksHeld(), "no hold alive, so ticks are not held");
 }
 
 void checkHold() {
 	bool inside = false;
 	{
 		AudioEngine::AudioTickHold hold;
-		inside = AudioEngine::ticksHeld();
+		inside = AudioEngine::audioTicksHeld();
 	}
-	const bool after = AudioEngine::ticksHeld();
+	const bool after = AudioEngine::audioTicksHeld();
 	report("ATH-HOLD", inside && !after, "held inside the hold's scope, released after it");
 }
 
@@ -79,9 +83,9 @@ void checkNested() {
 	{
 		AudioEngine::AudioTickHold outer;
 		{ AudioEngine::AudioTickHold inner; }
-		afterInner = AudioEngine::ticksHeld();
+		afterInner = AudioEngine::audioTicksHeld();
 	}
-	const bool afterOuter = AudioEngine::ticksHeld();
+	const bool afterOuter = AudioEngine::audioTicksHeld();
 	report("ATH-NESTED", afterInner && !afterOuter, "still held after the inner hold ends, released after the outer");
 }
 

@@ -23,7 +23,7 @@
 ///        `GOLDEN_SCENARIO=audio_tick_hold` on the booted app.
 ///
 /// `begin` runs every check and prints one line per check:
-///     ATH-IDLE     no hold alive: ticksHeld() is false
+///     ATH-IDLE     no hold alive: audioTicksHeld() is false
 ///     ATH-HOLD     a hold is held for its scope, and released after it
 ///     ATH-NESTED   nested holds release only when the outermost ends
 ///     ATH-HELD     a held tick does nothing: routine_task() is false, routine() 0, the routine body never reached

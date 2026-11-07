@@ -4,6 +4,8 @@ catalogues (the captured one, AudioEngine::routine(), raced on a flag that no lo
 genuinely inside audio_engine.cpp (frame #0 of the write side, not merely an ancestor of some other leaf). Baseline
 sanity check: the reverted-to-SITE-only audio_engine\.cpp pattern must still classify this ordinary,
 legitimately-covered case as known -- proves the fix round did not overcorrect into rejecting genuine site matches.
+Only frame #0 and the SUMMARY were renamed: the Location line and frame #1 are still the capture's, and the
+classifier reads neither.
 Expected verdict: known.
 
 WARNING: ThreadSanitizer: data race (pid=1606707)

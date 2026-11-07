@@ -155,9 +155,11 @@ void runRoutine();
 ///
 /// For an edit the tick must not interleave with, and for test fixtures that must not have a render land between a
 /// write and its check. Holds nest; ticks resume when the outermost one ends. The constructor waits out a render
-/// block already in flight (an empty AudioExcludedSection), so no edit made under the hold overlaps a block that began
-/// before it. On the device every tick a hold spans is a tick of silence, so hold for as short a span as the edit
-/// allows.
+/// block already in flight (an empty AudioExcludedSection). On the device that is the whole guarantee: the audio tier
+/// preempts and runs to completion, so no tick starts under the hold. On host the tick runs on another thread, and one
+/// that passed its check before the hold began can still render a block after the drain; only the snapshot boundary
+/// (M4) closes that. On the device every tick a hold spans is a tick of silence, so hold for as short a span as the
+/// edit allows.
 class AudioTickHold {
 public:
 	AudioTickHold();
@@ -170,11 +172,11 @@ public:
 
 /// @brief [task] [audio] Whether an AudioTickHold is alive anywhere.
 /// @return True while the hold depth is non-zero.
-bool ticksHeld() noexcept;
+bool audioTicksHeld() noexcept;
 
 /// @brief [task] [audio] Whether the audio routine is running or held: the caller is on the audio context, or a tick
 ///        hold is alive. Work that must not run inside the routine, such as a flash write, defers while this is true.
-/// @return `deluge_in_audio_context() || ticksHeld()`.
+/// @return `deluge_in_audio_context() || audioTicksHeld()`.
 bool audioBusy() noexcept;
 
 #ifdef DELUGE_HOST

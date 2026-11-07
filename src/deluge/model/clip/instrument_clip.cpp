@@ -1870,6 +1870,12 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	                                                     // in changeInstrumentPreset() after all Drums matched up
 	if (error != Error::NONE) {
 		FREEZE_WITH_ERROR("E039");
+		// The clip has left its old instrument and failed to take the new one. Past a resumed freeze the audio tick
+		// stays held for the rest of the session rather than render that half-swapped state.
+		static std::optional<AudioEngine::AudioTickHold> heldAfterFailedSwap;
+		if (!heldAfterFailedSwap) {
+			heldAfterFailedSwap.emplace();
+		}
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 

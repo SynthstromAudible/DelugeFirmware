@@ -151,12 +151,12 @@ void MidiLearn::begin() {
 	if (other_mode_active_ && !active_) {
 		return;
 	}
-	pressed_ = LearnTarget{};      // `:474` `thingPressedForMidiLearn = MidiLearn::NONE`
-	should_save_settings_ = false; // `:475`
-	active_ = true;                // `:476`
-	flash_step();                  // `:477` `midiLearnFlash()`
-	// `:478` `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` -- declarative here; see
-	// `leds()`.
+	pressed_ = LearnTarget{}; // `thingPressedForMidiLearn = MidiLearn::NONE`
+	should_save_settings_ = false;
+	active_ = true;
+	flash_step(); // `midiLearnFlash()`
+	              // `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` -- declarative here; see
+	              // `leds()`.
 }
 
 void MidiLearn::end() {
@@ -167,17 +167,17 @@ void MidiLearn::end() {
 			FlashStorage::writeSettings();
 		}
 	}
-	flash_remaining_ms_.reset(); // `:488` `unsetTimer(TimerName::MIDI_LEARN_FLASH)`
-	flash_on_ = false;           // `:489`
-	// `:490-492` `getRootUI()->midiLearnFlash()` is the root view's grid repaint. Here that is
+	flash_remaining_ms_.reset(); // `unsetTimer(TimerName::MIDI_LEARN_FLASH)`
+	flash_on_ = false;
+	// `getRootUI()->midiLearnFlash()` is the root view's grid repaint. Here that is
 	// `timer_repaints()`'s grid claim, which `Shell::tick` has already armed for the deadline this
 	// call is cancelling -- the gate fires once more and the scenes repaint with `flash_on()`
 	// false, which is exactly what legacy's call buys.
-	active_ = false; // `:494-496`
+	active_ = false;
 
-	// `:498-499` `playbackHandler.setLedStates()` + `setLedState(LEARN, false)`: declarative, see
+	// `playbackHandler.setLedStates()` + `setLedState(LEARN, false)`: declarative, see
 	// `leds()`. Not clearing `pressed_` here is legacy's too -- `endMIDILearn` leaves
-	// `thingPressedForMidiLearn` alone and the next `startMIDILearn` resets it (`:474`).
+	// `thingPressedForMidiLearn` alone and the next `startMIDILearn` resets it.
 }
 
 // -- The pressed thing ---------------------------------------------------------------------------

@@ -525,7 +525,7 @@ bool advance_overview_scan(Sample* sample, int32_t maxClusters) {
 		// back the seam with a real mutex-held check (Embassy); cooperative/C-host builds answer false
 		// unconditionally because storage there runs inline on the caller, so there's no FS mutex to
 		// report on and no deadlock of this shape to guard against.
-		if (deluge::sync::sd_busy() || AudioEngine::ticksHeld()) {
+		if (deluge::sync::sd_busy() || AudioEngine::audioTicksHeld()) {
 			return true;
 		}
 
