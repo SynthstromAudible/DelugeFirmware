@@ -21,6 +21,7 @@ For example, many devices and products run on the Arduino framework. This framew
 ![One line of Arduino code, digitalWrite(LED_BUILTIN, HIGH), runs unchanged on an Uno R3 and a Mega 2560, which use AVR chips, and on an Adafruit Metro M0 Express, which uses an ARM chip. The framework maps pin 13 to port pin PB5 on the Uno, PB7 on the Mega and PA17 on the Metro.](../../../assets/blog/what-the-deluge-stands-on/arduino-boards.svg)
 
 _The same line of code can be used across multiple boards. The framework knows how pin names map to specific port/pin combos for a given CPU and board._
+
 ## How things work today
 
 On the Deluge, this layer originally started out as Renesas' own vendor platform code and drivers (Renesas being the manufacturer of the Deluge's CPU, the RZ/A1L), and became entangled with the application code as it was further developed. This is evident in the way that both the RZ/A1L platform code and the application call into each other, and the way that the application does things such as reading raw bytes from the PIC or interacting with the SD routine.
