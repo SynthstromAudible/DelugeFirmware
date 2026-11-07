@@ -1863,17 +1863,6 @@ void MidiFollow::readDefaultsInline() {
 
 void MidiFollow::resetToDefaults() {
 	init();
-
-	// Default MIDI-follow input: channel 1 on any device, as MidiEngine starts with, so incoming MIDI plays the
-	// active instrument when there is no MIDIFollow.XML. A user's MIDIFollow.XML, when present, overrides channel A
-	// when the settings below are read.
-	// Not while settings recovered from a pre-c1.3 save are waiting to be persisted: channel A is one of them.
-	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
-		return;
-	}
-	LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
-	a.clear();
-	a.channelOrZone = 0; // MIDI channel 1; cable left null = match any input device (omni)
 }
 
 void MidiFollow::parseDefaults(Deserializer& reader) {

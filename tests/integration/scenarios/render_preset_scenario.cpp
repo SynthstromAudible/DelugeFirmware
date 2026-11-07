@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/render_preset_scenario.h"
+#include "scenarios/follow_channel.h"
 
 #include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
@@ -130,6 +131,7 @@ void stepLoading() {
 /// Capture and the note script start on the same frame, so the script's frames count from the capture's first.
 void stepStart() {
 	if (!g_midiPath.empty()) {
+		scenarios::followChannelOne();
 		g_midiEvents = deluge_host_midi_script_start(g_midiPath.c_str());
 		if (g_midiEvents < 0) {
 			fail("RP-MIDI", "the note script could not be read");
