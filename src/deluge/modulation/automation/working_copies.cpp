@@ -39,7 +39,6 @@
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <new>
@@ -161,14 +160,14 @@ bool live(const Entry& entry) {
 /// @return Whether an ended copy was freed.
 template <typename Pick>
 bool release(Pick pick) {
-	const auto picked = static_cast<size_t>(
-	    std::ranges::count_if(g_entries, [&](const Entry& entry) { return entry.copy != nullptr && pick(entry); }));
-	if (picked == 0) {
+	// Room for every copy held: @p pick may read what the render writes, so it is asked only with the render held off
+	const size_t held = workingCopiesHeld();
+	if (held == 0) {
 		return false;
 	}
 	bool reserved = true;
 	try {
-		AudioEngine::reserveRetirements(picked);
+		AudioEngine::reserveRetirements(held);
 	} catch (...) {
 		reserved = false;
 	}
