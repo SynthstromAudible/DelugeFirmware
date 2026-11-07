@@ -1,0 +1,20 @@
+# The sample browser's RECORD (ShellMenu card): opened with Shift + (0,5), RECORD while the audition pad (17,3) is held
+# does nothing and the browser stays; RECORD with nothing held replaces the browser with the audio recorder, and BACK
+# ends the take.
+300   button Shift down
+400   pad 0 5 down
+440   pad 0 5 up
+500   button Shift up
+2500  snapshot browser
+3000  pad 17 3 down
+3300  button Record down
+3320  button Record up
+3600  snapshot held_record
+4000  pad 17 3 up
+5000  snapshot refused
+5500  button Record down
+5520  button Record up
+7000  snapshot recorder
+7500  button Back down
+7520  button Back up
+9000  snapshot closed

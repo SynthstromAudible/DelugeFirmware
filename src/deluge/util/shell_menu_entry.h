@@ -22,9 +22,8 @@
 ///
 /// The *first tenant* of the shell guest: every place legacy enters `soundEditor` becomes
 /// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
-/// `RuntimeFeatureSettingType::ShellMenu`**. There are fifteen such places; thirteen of them route here and two stay
-/// on the legacy path, each for the reason its row gives. The table is in
-/// `gui/ui/shell_menu_entry.cpp`.
+/// `RuntimeFeatureSettingType::ShellMenu`**. There are fifteen such places; fourteen of them route here and one, site
+/// 10, stays on the legacy path for the reason its row gives. The table is in `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
@@ -96,10 +95,10 @@
 ///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
 ///     item, so it is not a thing a user can do wrong from behind this toggle. It is noted in
 ///     `src/scenes/README.md`'s boot-wiring section.
-///  5. **Two of the fifteen entry points still open the legacy `SoundEditor`** -- see
-///     `shell_menu_entry.cpp`'s table for which, and why each one is not mapped. A wrong node
-///     is worse than a legacy menu, so with the toggle on the firmware has *both* menus, reachable
-///     by different gestures.
+///  5. **One of the fifteen entry points still opens the legacy `SoundEditor`**: site 10, the legacy browser's own
+///     claim, which the toggle reaches only through site 9's legacy fallback -- see `shell_menu_entry.cpp`'s table.
+///     A wrong node is worse than a legacy menu, so with the toggle on the firmware has *both* menus, reachable by
+///     different gestures.
 
 #include <cstdint>
 
@@ -121,6 +120,9 @@ enum class ShellMenuNode : uint8_t {
 	///        (`gui/menu_item/file_selector.h:26`; the correspondence is stated at
 	///        `nodes::file0_selector`).
 	Osc0FileSelector,
+	/// @brief `deluge::scenes::menu::nodes::sample0_recorder`, the port of `sample0RecorderMenu`: the item whose hook
+	///        pushes the recorder on source 0.
+	Osc0Recorder,
 	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source", `gui/ui/menus.cpp`).
 	Dx,
 	/// @brief `deluge::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param
@@ -140,10 +142,15 @@ enum class ShellMenuNode : uint8_t {
 enum class NoteMode : uint8_t {
 	/// @brief Use whatever root `context_for` resolved -- every caller except the note family.
 	None,
-	/// @brief `MenuContext::Root::NoteEditor`.
+	/// @brief `MenuContext::Root::NoteEditor`, named as `enterNoteEditor` names `noteEditorRootMenu`: the undo log is
+	///        kept and a kit's `affectEntire` is cleared.
 	NoteEditor,
-	/// @brief `MenuContext::Root::NoteRowEditor`.
+	/// @brief `MenuContext::Root::NoteRowEditor`, named as `enterNoteRowEditor` names its root: the same two rules.
 	NoteRowEditor,
+	/// @brief `MenuContext::Root::NoteEditor` as `setup(clip)` infers it under `UI_MODE_NOTES_PRESSED` with no item
+	///        named (the automation view's SELECT): the undo log is wiped as for any inferred root, and a kit's
+	///        `affectEntire` is left as it is.
+	NoteEditorFromUiMode,
 };
 
 /// @brief Is the ported menu the one the fifteen entry points should open?
@@ -170,13 +177,11 @@ bool shellMenuEnabled();
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
 /// @param kitGlobalFx            `setup()`'s `setupKitGlobalFXMenu` member.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
-/// @param noteMode               Override the resolved root with `NoteEditor`/
-///                               `NoteRowEditor`, the way `enterNoteEditor`/`enterNoteRowEditor`
-///                               name an explicit item instead of letting `setup()` infer one from
-///                               `currentUIMode`. `None` for every other caller. Also stands the
-///                               undo-log wipe down for either value: legacy's
-///                               explicit-item call never takes `setup()`'s `item == nullptr` arm,
-///                               so a note-editor/note-row-editor open must not wipe either.
+/// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
+///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
+///                               `enterNoteEditor`/`enterNoteRowEditor`'s explicit item: no undo-log wipe, and the
+///                               kit `affectEntire` clear. `NoteEditorFromUiMode` is `setup(clip)`'s own inference:
+///                               the wipe, no clear. `None` for every other caller.
 /// @return Whether the guest is now open. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
@@ -219,5 +224,11 @@ bool openShellDxColumn(int32_t op);
 ///        menu re-roots at the note-row editor on PLAY DIRECTION, as legacy's `setup()` re-roots the open editor.
 /// @return Whether the note-row editor is now the menu's root.
 bool openShellNoteRowEditor(Clip* clip);
+
+/// @brief `InstrumentClipView::enterDrumCreator`'s fallback for the ported take: should the recorder the open guest is
+///        about to push refuse, the menu lands on `nodes::file0_selector` instead of going up, as legacy opens the
+///        editor on `file0SelectorMenu` after `openUI(&audioRecorder)` refused; that item's hook then pushes the
+///        browser. Call it right after the open that will push the recorder.
+void landShellMenuOnFileSelectorIfRecorderRefuses();
 
 } // namespace deluge::gui::ui

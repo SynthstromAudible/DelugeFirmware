@@ -9,6 +9,7 @@
 #include "ui/core/repaint_gate.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace deluge::ui::shell {
 
@@ -297,6 +298,13 @@ public:
 	///         never been pressed, which a bare timestamp compare would otherwise call a short
 	///         press for the first `short_press_ms` after construction.
 	bool was_short_press(ButtonId b, uint32_t now_ms) const;
+	/// @brief When \p b's most recent press began, held or released.
+	///
+	/// A release is the release of this press; a caller that took the press itself compares the stamp it kept, so a
+	/// release whose press went elsewhere is told apart.
+	/// @param b The button.
+	/// @return The `now_ms` of that press; empty for a button never pressed.
+	std::optional<uint32_t> last_press_ms(ButtonId b) const;
 	/// @brief Did anything the lowering accepted arrive this tick?
 	///
 	/// What the shell passes to `ui::RepaintGate::needs_frame`'s `had_input`.

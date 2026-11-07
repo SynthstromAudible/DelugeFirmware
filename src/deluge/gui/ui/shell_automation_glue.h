@@ -110,4 +110,10 @@ std::optional<ActionResult> forwardMarkerVertical(int32_t offset);
 /// @return Whether the press is the browser's, so the guest answers `DEALT_WITH`.
 bool browserTakesRecord();
 
+/// @brief `AudioRecorder::buttonAction`'s RECORD arm, which ends the take on the press and answers `DEALT_WITH`, so
+///        `Buttons`' RECORD tail stamps nothing and the release toggles no recording. The release is not taken.
+/// @param on Whether this is the press.
+/// @return Whether the press is the ported recorder's: it is the input top with a take armed.
+bool recorderTakesRecord(bool on);
+
 } // namespace deluge::gui::ui

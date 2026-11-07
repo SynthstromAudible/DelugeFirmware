@@ -423,12 +423,12 @@ does. The box is a fixed 100×40 `PopupStyle::Permanent` square with the title d
 `browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Three ship, the three the
 menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `BrowserId::DxSyx`.
 
-* **`accept` has four outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
-  `take_choice()` and closes, because the sample claim reaches the sound and the audio-file manager
-  through paths this layer may not name; `DeferAndWait` parks it and stays up until the host answers
-  `deferred_load_done`, as the `.syx` browser stays up while its bank is read. `gui::ui::dispatchShellChoices` performs it (with
-  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the page the chain lists the file
-  selector on: an oscillator's `source_group`, focused on the selector.
+* **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `DeferAndWait` parks the choice in
+  `take_choice()` and stays up until the host answers `deferred_load_done`, because the sample claim, the MIDI
+  definition load and the `.syx` read reach objects this layer may not name, and each legacy browser stays up until
+  its load ends. `gui::ui::dispatchShellChoices` performs it (the claim with `loadWithoutExiting = true`), and the
+  claim's success re-roots the covered menu onto the page the chain lists the file selector on (an oscillator's
+  `source_group`, focused on the selector) before the browser closes over it.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
   read with the press: a brand-new kit parks `BrowserChoice::Op::Slice` and the host opens the slicer
   once the file has loaded; any other kit refuses with legacy's popup; a synth claims.
@@ -461,7 +461,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   `ShellHostUI::scrollFinished`.
 * **The buttons.** LOAD's release toggles auto-load (not for an audio clip): each landed preview is claimed with
   `BrowserChoice::keep_open`, which neither closes the browser nor re-roots the menu. RECORD opens the recorder in
-  the browser's place, and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
+  the browser's place when no UI mode is up (a held audition pad is one), and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
   the host to free it (`menu::host_release_sample_file`), refusing with `main`'s popup when the song uses it, and
   otherwise opens the DELETE? menu, whose OK the host performs (`BrowserChoice::Op::DeleteFile`) before the file
   leaves the list (`BrowserScene::file_deleted`). The vertical encoder goes to the instrument clip view beneath
@@ -521,6 +521,17 @@ the item's own stack frame is the shell's tick plus a poll in `after_render`, ev
 recorder UI is live", `setMonitoringMode` among them, so the scene writes that same storage through
 `AudioEngine::setForegroundRecording`, in the order that keeps the pointer's visible window around
 the channel's (see the use-after-free in the ledger below).
+
+The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
+all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
+
+A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::oled::threshold_meter`,
+blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
+pre-roll margin.
+
+A take begun on the SAMPLE RECORDER page returns to its source's page with the file selector focused
+(`MenuWalkState::resume_landing`), as `osc::AudioRecorder::beginSession` re-roots before it opens the recorder; one
+opened on the item alone (the drum creator's) leaves the menu.
 
 ### The overlays (`overlay/`)
 
@@ -715,7 +726,9 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
-| The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record, so an Off the shell never saw can go unsent; the one case against `main` is the RECORD LED after the recorder closes. | `src/shell/leds.cpp`'s `led_send_needed`; `tests/ui-scripts/parity/DIFFERENCES.md` D81 |
+| The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record, so an Off the shell never saw can go unsent; no case against `main` is known. | `src/shell/leds.cpp`'s `led_send_needed` |
+| A RECORD press a scene takes never toggles recording on its release; `main` toggles on such a release within 500 ms of a RECORD tap the transport took. | `GlobalControls::tail_button_action`; `tests/ui-scripts/parity/DIFFERENCES.md` D127 |
+| After a sample take lands on the oscillator's page, the focused file selector's own shortcut pad blinks; `main`'s blocking recorder loop re-plans the recorder's pad after the take. | `MenuScene::on_resume`; `tests/ui-scripts/parity/DIFFERENCES.md` D128 |
 | A notification's 2000 ms starts when a consumer pops it, not when it was raised, and its title and value are fitted into 46 bytes value-first, where `OLED::displayNotification` measures the untruncated title. | `Notices::drain`, `notice_notification`; `tests/ui-scripts/parity/DIFFERENCES.md` D97 |
 | Shift + a horizontal turn on the DX7 parameter page at the pitch envelope's first rate, every operator off: legacy hangs, the port stays on the param. | `tests/ui-scripts/parity/DIFFERENCES.md` D87 |
 | The DX7 shortcut fallback tests the pad's source on this sound, where legacy tests the source the previous menu left. | `tests/ui-scripts/parity/DIFFERENCES.md` D90 |
@@ -732,9 +745,8 @@ it leaves both lists.
 
 | legacy | gap | what porting it takes |
 |---|---|---|
-| two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
+| one `openUI(&soundEditor)` site | site 10 of `gui/ui/shell_menu_entry.cpp`'s table, the legacy browser's claim, still opens the legacy `SoundEditor` with the toggle on, for the reason that table gives | a decision, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
-| the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
 | the catalogue claim over a browsing session | the leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim | claim-on-open/release-on-close, with the load/save browsers |
 | the remaining root views | `SessionScene`, the instrument clip view, `ArrangerScene`, `KeyboardScene`, `PerformanceScene`, `AutomationScene` | a scene each |

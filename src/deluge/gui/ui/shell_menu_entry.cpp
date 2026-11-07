@@ -25,6 +25,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -47,7 +48,7 @@
 /// The fifteen are not uniform, and a reader deciding whether to add a sixteenth needs to know
 /// which shape it is.
 ///
-/// **Gated (thirteen).** Each one's `else` is byte-for-byte what it ran before.
+/// **Gated (fourteen).** Each one's `else` is byte-for-byte what it ran before.
 ///
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
@@ -58,31 +59,23 @@
 /// | 4 | `gui/views/performance_view.cpp:896-912` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view`. Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
 /// | 5 | `gui/views/audio_clip_view.cpp:405-420` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`gui/ui/sound_editor.cpp:2056`) | `Root::AudioClip` (`context_for`) |
 /// | 6 | `model/clip/instrument_clip_minder.cpp:466-473` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`gui/ui/sound_editor.cpp:2024-2052`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order |
-/// | 7 | `gui/views/automation_view.cpp:1463-1485` `AutomationView::handleSelectEncoderButtonAction` | the same, except the clip is `nullptr` on the arranger (so: the song root) **and** the arm also runs under `UI_MODE_NOTES_PRESSED` | the same six, or `Root::Song` when `onArrangerView`. **Only under `UI_MODE_NONE`**: see the note below |
+/// | 7 | `gui/views/automation_view.cpp` `AutomationView::handleSelectEncoderButtonAction` | `setup(clip)` as site 6, except the clip is `nullptr` on the arranger (so: the song root), and the arm also runs under `UI_MODE_NOTES_PRESSED` with pad selection on, where `setup()` infers `noteEditorRootMenu` for an instrument clip | the same six, `Root::Song` when `onArrangerView`, and `Root::NoteEditor` through `NoteMode::NoteEditorFromUiMode` under `UI_MODE_NOTES_PRESSED` on an instrument clip |
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
 /// | 12 | `gui/views/instrument_clip_view.cpp:3572-3597` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`sound_editor.cpp:2018-2020`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it |
 /// | 13 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Not while the legacy `soundEditor` is current (audition + the sequence-direction shortcut inside an editor site 9's legacy fallback opened), which keeps opening the legacy editor. Inside the ported menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
 /// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view (the current UI is neither `soundEditor` nor `sampleMarkerEditor`) | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad | `openShellMenuAtShortcut`, the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`: the horizontal page listing it, focused on it). The DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). A press from the sample-marker editor stays legacy, as does any pad the port resolves no node for |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:304-305` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`gui/ui/menus.cpp:1735`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
 /// | 15 | `gui/ui/keyboard/column_controls/dx.cpp:101-108` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`gui/menu_item/dx/param.cpp:514-542`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
+/// | 14 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterDrumCreator` | `soundEditor.setup(clip, &file0SelectorMenu, 0)`, then `openUI(&audioRecorder)` for a take or `openUI(&sampleBrowser)`; if that refuses, `openUI(&soundEditor)`, whose `FileSelector::beginSession` opens the browser again | (a) RECORD (adding a drum row, or with an audition pad held): `openShellDrumRecorder` opens the guest on `nodes::sample0_recorder`, whose hook pushes the ported recorder; it leaves the menu at the take's end, as legacy's recorder leaves the clip view. A refused take lands on `nodes::file0_selector` instead (`landShellMenuOnFileSelectorIfRecorderRefuses`), whose hook pushes the ported browser, as legacy's fallback does. (b) Otherwise `openShellDrumCreator` opens the guest on `nodes::file0_selector`, whose hook pushes the ported browser on the new drum. The legacy fallback runs under the toggle only when the guest itself refused to open; it tries the guest on the file selector and never opens the legacy editor |
 ///
-/// **Not gated (two).** Each keeps opening `soundEditor` whatever the toggle says, for the reason its row
+/// **Not gated (one).** It keeps opening `soundEditor` whatever the toggle says, for the reason its row
 /// gives.
 ///
 /// | # | site | what it wants | why it is not mapped |
 /// |---|---|---|---|
-/// | 10 | `gui/ui/browser/sample_claim.cpp:571-581` `SampleClaim::stepFinish` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()`. **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim, and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()`. **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`SoundEditor::maybeGetParentMenu` in `gui/ui/sound_editor.cpp`, the two writes at its end), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead. **So "two arbitrary `MenuItem*`s with no port" is no longer the reason this row is not gated:** `MenuScene::reroot_to_scene_opener_page()` plus `MenuWalkState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from the two unmapped sites and site 9's legacy fallback -- and it has not been made, which is why this row is in the not-gated table |
-/// | 14 | `gui/views/instrument_clip_view.cpp:5707-5712` `InstrumentClipView::enterDrumCreator` | **the same node site 8 wants**: its own body ran `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` a few lines earlier. | **not gated because it is a fallback, not an entry.** It runs only when `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` has just *refused*, and what legacy then shows is the file-selector item standing in for the browser it could not open. Routing it to the guest would enter `nodes::file0_selector`, whose own hook asks the shell to push the **ported** browser -- answering a failed browser open by opening a browser. That is a behaviour decision, not a node lookup, so the node being known is not enough to map it. The creator's browser itself is gated, ahead of this fallback: under the toggle `openShellDrumCreator` (`gui/ui/shell_drum_creator.h`) opens the ported browser on the new drum, so the fallback runs only on the legacy path |
+/// | 10 | `gui/ui/browser/sample_claim.cpp:571-581` `SampleClaim::stepFinish` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two arbitrary `MenuItem*`s the browser was handed on the way in | this is the *legacy* browser: the ported one parks its choice in `BrowserScene::take_choice()`. **That outbox is drained and the re-rooting is done** -- `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) takes it every guest tick and performs the claim, and `shellSampleClaimDone`'s success arm then calls `MenuScene::reroot_to_scene_opener_page()`. **This pair is still never written under the toggle, and that is deliberate**: it is written in exactly one place, `SoundEditor::maybeGetParentMenu` (`SoundEditor::maybeGetParentMenu` in `gui/ui/sound_editor.cpp`, the two writes at its end), which the ported path never enters -- and `shellSampleClaimDone` claims with `loadWithoutExiting = true`, which skips the block that would have read it. Reviving that block would have let a stale pair from a pre-toggle legacy session re-root the *legacy* editor; the port re-roots `MenuState::path`/`depth` instead. **So "two arbitrary `MenuItem*`s with no port" is no longer the reason this row is not gated:** `MenuScene::reroot_to_scene_opener_page()` plus `MenuWalkState::scene_opener` ARE that pair's port. What is left is a decision rather than a lookup -- this is the *legacy* browser, reached with the toggle on only from site 9's legacy fallback -- and it has not been made, which is why this row is in the not-gated table |
 // clang-format on
 ///
-/// @note **Site 7 is conditionally gated, and that is the honest half of it.**
-///       `AutomationView::handleSelectEncoderButtonAction` runs under `UI_MODE_NONE` *or*
-///       `UI_MODE_NOTES_PRESSED && padSelectionOn`, and in the second
-///       case `setup(clip)` reaches `gui/ui/sound_editor.cpp:2018-2020` and opens
-///       `noteEditorRootMenu` -- the root site 12 reaches through `NoteMode::NoteEditor`, which
-///       this site does not pass. So the gate there also tests the UI mode, and the note-editor case falls
-///       through to the legacy statements. Sites 6 and 5 need no such test: both are already
-///       `currentUIMode == UI_MODE_NONE` arms.
 
 namespace deluge::gui::ui {
 namespace {
@@ -102,6 +95,9 @@ bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 		return true;
 	case ShellMenuNode::Osc0FileSelector:
 		out = menu::node_id(menu::nodes::file0_selector);
+		return out != 0;
+	case ShellMenuNode::Osc0Recorder:
+		out = menu::node_id(menu::nodes::sample0_recorder);
 		return out != 0;
 	case ShellMenuNode::Dx:
 		out = menu::node_id(menu::nodes::dx_menu);
@@ -178,6 +174,9 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
 	}
 	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
+	// `setup()` cancels whatever popup legacy's display holds once it has found its item: a drum name an audition
+	// left up does not stay over the menu.
+	display->cancelPopup();
 	return openUI(&shellHostUI);
 }
 
@@ -215,8 +214,8 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// reads the clip as it stood before the clear below, exactly as legacy's own
 	// `soundEditor.setup` call runs before its `if (clip->affectEntire)` clear).
 	if (noteMode != NoteMode::None) {
-		ctx.root = noteMode == NoteMode::NoteEditor ? menu::MenuContext::Root::NoteEditor
-		                                            : menu::MenuContext::Root::NoteRowEditor;
+		ctx.root = noteMode == NoteMode::NoteRowEditor ? menu::MenuContext::Root::NoteRowEditor
+		                                               : menu::MenuContext::Root::NoteEditor;
 	}
 
 	const menu::Node* root = rootNodeFor(ctx);
@@ -242,20 +241,19 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// on: without the allocation the ported file selector's browser refuses to open on a synth whose
 	// source has no ranges yet, while the toggle-OFF leg opens it.
 	//
-	// **`noteMode != NoteMode::None` must not wipe either.** `InstrumentClipView::enterNoteEditor`
-	// and `InstrumentClipView::enterNoteRowEditor` each call
-	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
-	// -- an explicit item, never `nullptr` -- so legacy's `item == nullptr` arm above never runs for
-	// either, and the undo log survives a note-editor/note-row-editor open. `NoteMode` is spelled as
-	// an *override of the resolved root*, not as a `ShellMenuNode` leaf, so `node` alone (still
-	// `ContextRoot` for both note roots) cannot carry this distinction; `noteMode` has to gate the
-	// wipe directly, the same way it already gates the root override and the `affectEntire` clear
-	// below.
-	if (node == ShellMenuNode::ContextRoot && clip != nullptr && noteMode == NoteMode::None) {
+	// **A named note root must not wipe either.** `InstrumentClipView::enterNoteEditor` and
+	// `InstrumentClipView::enterNoteRowEditor` call `soundEditor.setup(clip, &noteEditorRootMenu)` /
+	// `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- an explicit item -- so legacy's `item == nullptr` arm above
+	// never runs for either, and the undo log survives. The automation view's notes-pressed SELECT is the other shape:
+	// `setup(clip)` with no item, which wipes and then infers the note editor from `UI_MODE_NOTES_PRESSED`
+	// (`NoteMode::NoteEditorFromUiMode`). Only the two named roots clear a kit's `affectEntire` after the open, as
+	// their callers do.
+	const bool namedNoteRoot = noteMode == NoteMode::NoteEditor || noteMode == NoteMode::NoteRowEditor;
+	if (node == ShellMenuNode::ContextRoot && clip != nullptr && !namedNoteRoot) {
 		actionLogger.deleteAllLogs();
 	}
 
-	if (noteMode != NoteMode::None) {
+	if (namedNoteRoot) {
 		clearKitAffectEntireForNoteMode(ctx, clip);
 	}
 
@@ -327,6 +325,10 @@ bool openShellNoteRowEditor(Clip* clip) {
 	adoptShellMenuContext();
 	shellHostUI.refreshRootFacts();
 	return true;
+}
+
+void landShellMenuOnFileSelectorIfRecorderRefuses() {
+	deluge::scenes::menu_scene().arm_refused_recorder_landing(menu::nodes::file0_selector);
 }
 
 } // namespace deluge::gui::ui

@@ -146,7 +146,8 @@ bool guestKnobsSeeAutomationEditor();
 
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.
-///        The guest's other passive overlays are dropped with its stack, and the kit context it gave `soundEditor` is
+///        `ShellHostUI::closeGuest` hands the guest's notice popup over first; the console strip, the working
+///        animation and the banner are dropped with its stack, and the kit context it gave `soundEditor` is
 ///        cleared. `wireShellGuestServices()` installs it.
 /// @param now_ms The guest's clock at the close, which the popup's lifetime is read against.
 void handOffGuestOverlays(uint32_t now_ms);

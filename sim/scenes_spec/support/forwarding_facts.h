@@ -2,7 +2,7 @@
 
 /// @file
 /// @brief `ForwardingFacts`: the host's runtime facts with a chosen few answered otherwise, for an example that needs a
-///        state the host cannot be put into on demand (a sample load running, a popup up).
+///        state the host cannot be put into on demand (a sample load running, a popup up, a note auditioned).
 
 #include "scenes/bind/runtime_facts.h"
 
@@ -20,11 +20,15 @@ public:
 	struct Overrides {
 		bool sample_load_in_flight = false; ///< a sample load said to be running
 		bool popup_showing = false;         ///< a popup said to be up
+		bool auditioning = false;           ///< legacy's `UI_MODE_AUDITIONING` said to be up
 	};
 	ForwardingFacts(const deluge::scenes::bind::RuntimeFacts& real, Overrides overrides)
 	    : real_(real), overrides_(overrides) {}
 	[[nodiscard]] bool sample_load_in_flight() const override { return overrides_.sample_load_in_flight; }
 	[[nodiscard]] bool popup_showing() const override { return overrides_.popup_showing; }
+	[[nodiscard]] bool auditioning() const override { return overrides_.auditioning; }
+	/// @brief Answer @p overrides from now on, for an example whose state changes part-way.
+	void set(Overrides overrides) { overrides_ = overrides; }
 	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
 	                                                    uint8_t source) const override {
 		return real_.default_range(slot, source);

@@ -22,7 +22,10 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/menu_view_of.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -36,6 +39,7 @@
 
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/ui.h"
 #include "util/shell_menu_entry.h"
 
@@ -44,14 +48,18 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/screensaver.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -383,6 +391,73 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		// ...and the log survived, which is the half a `clip != nullptr` test alone would get wrong.
 		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
 		closeGuest();
+	});
+
+	it("site 14's legacy fallback opens the guest on the file selector, never the legacy editor", _ {
+		// Reached under the toggle only when the guest's own open refused and legacy's `setup()` did not. A boot
+		// numbers every node, so the only way there is an id missing: numbered over the file selector alone, the
+		// recorder item has none and `openShellDrumRecorder` refuses; legacy's `openUI(&audioRecorder)` then refuses a
+		// take already running.
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		RootUIGuard root_guard;
+		const auto drum_take = [&](deluge::scenes::spec::SongFixture& f) {
+			NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.insertNoteRowAtIndex(0);
+			expect(row != nullptr).to_be_true();
+			if (row == nullptr) {
+				return;
+			}
+			alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithNoteRow* stack =
+			    setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip)->addNoteRow(0, row);
+			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+			instrumentClipView.enterDrumCreator(stack, /*doRecording=*/true);
+			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		};
+
+		{
+			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+			setRootUILowLevel(&instrumentClipView);
+			const menu::Node* const just_the_selector[] = {&nodes::file0_selector};
+			(void)menu::assign_node_ids(just_the_selector);
+			drum_take(f);
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(isUIOpen(&soundEditor)).to_be_false();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
+			closeGuest();
+		}
+		{
+			// Neither node numbered: the guest cannot open either, and the legacy editor still does not.
+			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+			setRootUILowLevel(&instrumentClipView);
+			const menu::Node* const neither[] = {&nodes::root_song};
+			(void)menu::assign_node_ids(neither);
+			drum_take(f);
+			expect(isUIOpen(&shellHostUI)).to_be_false();
+			expect(isUIOpen(&soundEditor)).to_be_false();
+			nullifyUIs();
+		}
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		display = saved_display;
+	});
+
+	it("cancels the popup legacy's display holds as it opens, as setup() does", _ {
+		// An audition leaves the drum's name up as a persistent popup (`InstrumentClipView::drawDrumName`); RECORD then
+		// opens the recorder over it, and `setup()`'s `display->cancelPopup()` takes it down.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		display->popupText("KICK");
+		expect(display->hasPopup()).to_be_true();
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		expect(display->hasPopup()).to_be_false();
+		closeGuest();
+		display = saved_display;
 	});
 
 	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
@@ -892,8 +967,99 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		currentSong = saved_song;
 	});
 });
+namespace {
+/// @brief The automation view as the root, a pad held with pad selection on, and the toggle on; all put back.
+struct HeldPadInAutomation {
+	deluge::hid::display::OLED oled_display;
+	deluge::hid::Display* saved_display = display;
+	uint32_t saved_mode = currentUIMode;
+	bool saved_pad_selection = automationView.padSelectionOn;
+	bool saved_arranger = automationView.onArrangerView;
+	RootUIGuard root_guard;
+	explicit HeldPadInAutomation(bool arranger = false) {
+		display = &oled_display;
+		setRootUILowLevel(&automationView);
+		automationView.onArrangerView = arranger;
+		automationView.padSelectionOn = true;
+		currentUIMode = UI_MODE_NOTES_PRESSED;
+	}
+	~HeldPadInAutomation() {
+		currentUIMode = saved_mode;
+		automationView.padSelectionOn = saved_pad_selection;
+		automationView.onArrangerView = saved_arranger;
+		display = saved_display;
+	}
+	HeldPadInAutomation(const HeldPadInAutomation&) = delete;
+	HeldPadInAutomation& operator=(const HeldPadInAutomation&) = delete;
+	/// The press `AutomationView::buttonAction` routes to `handleSelectEncoderButtonAction`.
+	void select() { (void)automationView.buttonAction(deluge::hid::button::SELECT_ENC, true); }
+};
+} // namespace
+
+describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what setup(clip) infers", $ {
+	// The note leaves read through the note bridge, which boot wires (`deluge.cpp`) and this binary does not.
+	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
+
+	it("opens the note editor on an instrument clip, wiping the undo log as setup() does with no item", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		HeldPadInAutomation held;
+		// `ActionLogger::getNewAction` takes an action only while the root is the current UI, which it is here.
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+
+		held.select();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		// `setup(clip)` with no item wipes before it picks `noteEditorRootMenu`, unlike `enterNoteEditor`'s named root.
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("leaves a kit's affect-entire on, where enterNoteEditor clears it", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		auto* clip = static_cast<InstrumentClip*>(kit.clip);
+		clip->affectEntire = true;
+		HeldPadInAutomation held;
+
+		held.select();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(clip->affectEntire).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_true();
+		closeGuest();
+		clip->affectEntire = false;
+	});
+
+	it("opens an audio clip's root, and the arranger's song root, as setup() does under the same mode", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
+		{
+			HeldPadInAutomation held;
+			// The press's LED refresh asks the root UI for affect-entire, and `AutomationView::getAffectEntire` reads
+			// `getCurrentInstrumentClip()->affectEntire` with no audio-clip arm: on the device a read of a low address,
+			// here a fault. The gate reads only the clip, so this half keeps the audio clip view as the root.
+			setRootUILowLevel(&audioClipView);
+			held.select();
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+			closeGuest();
+		}
+		{
+			HeldPadInAutomation held{/*arranger=*/true};
+			held.select();
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+			closeGuest();
+		}
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn)
+            menu_entry_midi_learn, menu_entry_automation_notes)

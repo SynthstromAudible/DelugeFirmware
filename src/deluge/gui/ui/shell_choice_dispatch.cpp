@@ -373,6 +373,9 @@ void dispatchScroll() {
 } // namespace
 
 void shellSampleClaimDone(bool success) {
+	// The browser waits for its claim, as `claimCurrentFile` runs with it up: a success closes it, a failure leaves it
+	// up for another file. Ignored by a browser that is not waiting (a folder menu's claim).
+	browser_scene().deferred_load_done(success);
 	if (!success) {
 		return;
 	}

@@ -1,5 +1,5 @@
 /// @file
-/// @brief The **choice seam** (`scenes/browser/browser_scene.h`'s `Descriptor::accept` / `Defer`)
+/// @brief The **choice seam** (`scenes/browser/browser_scene.h`'s `Descriptor::accept` / `DeferAndWait`)
 ///        and its consumer, driven through a real `Shell` and a real `ShellHostUI` over the real
 ///        scene registry.
 ///
@@ -9,8 +9,8 @@
 ///
 ///   * **Covered:** that a real file press through the ported browser parks exactly one
 ///     `BrowserChoice`; that `gui::ui::dispatchShellChoices` is what takes it out of the outbox;
-///     that the poll is reached **by the guest's own `timerCallback`**, on a tick where the browser
-///     has already closed itself; that polling an empty outbox neither reports nor eats anything;
+///     that the poll is reached **by the guest's own `timerCallback`**, with the browser still up,
+///     waiting for the claim; that polling an empty outbox neither reports nor eats anything;
 ///     and that `sampleClaimTargetFor` splits a chosen path exactly the way
 ///     `SampleBrowser::getCurrentFilePath()` builds one.
 ///   * **The claim:** that the drain *points the legacy browser* at the chosen directory and
@@ -28,7 +28,7 @@
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
 /// (in `scenes/menu/nodes/sample.cpp`) opens the scene and files `MenuWalkState::pending_scene`
 /// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
-/// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
+/// the stack would empty the moment the claim's completion closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm -- `closeUI` on a guest that is not
 /// on the legacy UI stack, i.e. the index `-1` read `openPerformanceView`'s doc in
 /// `gui/ui/shell_action_dispatch.cpp` describes. A rig that has to avoid a production path is a rig that is testing
@@ -50,6 +50,7 @@
 #include "scenes/menu/nodes/sample.h"
 #include "scenes/menu/walk.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
 #include "shell/profiles/deluge.h"
@@ -783,9 +784,11 @@ describe browser_choice_dispatch(
 			        control.open_browser();
 			        expect(control.browser_on_stack()).to_be_true();
 			        control.enter();
-			        // `Defer` parks AND closes in one statement (`BrowserScene::enter_key_press`'s `Defer` arm),
-			        // so both halves of it are asserted here, on the leg that is allowed to look.
-			        expect(control.browser_on_stack()).to_be_false();
+			        // The press parks and the browser waits for the claim (`BrowserScene::enter_key_press`'s
+			        // `DeferAndWait` arm), so both halves are asserted here, on the leg that is allowed to look.
+			        expect(control.browser_on_stack()).to_be_true();
+			        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
+
 			        const std::optional<browser::BrowserChoice> choice = browser::browser_scene().take_choice();
 			        expect(choice.has_value()).to_be_true();
 			        expect(static_cast<int>(choice.has_value() ? choice->id : browser::BrowserId::Count))
@@ -824,7 +827,7 @@ describe browser_choice_dispatch(
 	        });
 
 	    it(
-	        "is reached BY the guest's own tick, on a tick where the browser has already closed itself", _ {
+	        "is reached BY the guest's own tick, with the browser still up for the claim", _ {
 		        // The composition, end to end and with nothing stubbed: a real `ShellHostUI` over the real
 		        // `scene_registry()`, a real enter press through the guest's own `padAction`, and the guest's
 		        // own `timerCallback()` -- which is the only thing this example calls that could drain
@@ -848,10 +851,10 @@ describe browser_choice_dispatch(
 			        }
 			        expect(control.browser_on_stack()).to_be_true();
 			        control.press_enter(&GuestRig::shell_step);
-			        // The state the drain actually runs in, asserted on the leg that may look: the browser is
-			        // already gone, and the menu it was opened from is still underneath it -- so the guest's
-			        // own `closeGuest()` arm (`ShellHostUI::timerCallback`'s) is not what happens here.
-			        expect(control.browser_on_stack()).to_be_false();
+			        // The state the drain actually runs in, asserted on the leg that may look: the browser is still up,
+			        // waiting for the claim, over the menu it was opened from.
+			        expect(control.browser_on_stack()).to_be_true();
+
 			        expect(control.ui.shell().stack().depth() > 0).to_be_true();
 			        // The press really files, on this exact path, through this exact guest. Without this the
 			        // example below passes on a press that never filed anything.
@@ -868,7 +871,7 @@ describe browser_choice_dispatch(
 		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
 
 		        r.press_enter(&GuestRig::guest_step);
-		        expect(r.browser_on_stack()).to_be_false();
+		        expect(r.browser_on_stack()).to_be_true();
 		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
 	        });
     });
@@ -894,9 +897,9 @@ describe browser_choice_claim(
 		        r.open_browser();
 		        r.enter();
 
-		        // `BrowserScene::on_exit` empties the scenes' catalogue as it closes, and nothing has
-		        // been requested yet.
-		        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_true();
+		        // The browser is up, waiting, with its listing still in the scenes' catalogue (the claim carries its
+		        // own path and reads none of it), and nothing has been requested yet.
+		        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_false();
 		        expect(spy.dispatches).to_equal(0);
 
 		        // The legacy browser's own state is pointed somewhere else entirely -- as under the
@@ -938,11 +941,12 @@ describe browser_choice_claim(
 			        }
 			        expect(control.browser_on_stack()).to_be_true();
 			        control.press_enter(&GuestRig::shell_step);
-			        // The press filed, the browser closed -- and nothing claimed, because the shell's
-			        // tick is not the guest's.
-			        expect(control.browser_on_stack()).to_be_false();
+			        // The press filed and the browser waits -- and nothing claimed, because the shell's tick is not
+			        // the guest's.
+			        expect(control.browser_on_stack()).to_be_true();
 			        expect(spy.dispatches).to_equal(0);
-			        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_true();
+			        // The waiting browser keeps its listing; the claim reads none of it.
+			        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_false();
 			        expect(browser::browser_scene().take_choice().has_value()).to_be_true();
 		        }
 
@@ -956,7 +960,7 @@ describe browser_choice_claim(
 		        expect(spy.dispatches).to_equal(0);
 
 		        r.press_enter(&GuestRig::guest_step);
-		        expect(r.browser_on_stack()).to_be_false();
+		        expect(r.browser_on_stack()).to_be_true();
 		        // Three guest ticks, one choice, one claim: the drain is not re-entered on the ticks
 		        // after the outbox is empty.
 		        expect(spy.dispatches).to_equal(1);
@@ -1033,6 +1037,90 @@ describe browser_choice_claim(
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoWaveTable).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.loadWithoutExiting).to_be_true();
 	        });
+
+	    it(
+	        "keeps the browser up until the claim lands, then closes it over the source page", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+
+		        // `claimCurrentFile` loads with the browser up; the claim here has not landed yet.
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_true();
+		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
+
+		        // The completion the request carries, called as the claim calls it once the file is in.
+		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        if (ClaimSpy::last.completion != nullptr) {
+			        ClaimSpy::last.completion(true);
+		        }
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
+		        // The menu beneath was moved onto the source page while the browser covered it, and resuming did not
+		        // step it back up off that page.
+		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().depth).to_equal(0);
+	        });
+
+	    it(
+	        "leaves the browser up for another file, and the menu where it was, when the claim fails", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        if (ClaimSpy::last.completion != nullptr) {
+			        ClaimSpy::last.completion(false);
+		        }
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_true();
+		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_false();
+		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+	        });
+
+	    it(
+	        "with horizontal menus off, leaves the menu once the claim lands, as main's editor goes up from the file "
+	        "selector",
+	        _ {
+		        // No page lists the file selector, so the claim re-roots nothing (`reroot_to_scene_opener_page`), and
+		        // `main`'s editor regains focus with `shouldGoUpOneLevelOnBegin` set: going up from depth 0 exits it.
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        select_language();
+		        (void)menu::assign_node_ids(nodes::kAllRoots);
+		        MenuContext ctx = r.model.ctx();
+		        ctx.horizontal_menus = false;
+		        menu_scene().open(nodes::file0_selector, ctx);
+		        r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        if (ClaimSpy::last.completion != nullptr) {
+			        ClaimSpy::last.completion(true);
+		        }
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(scene_on_stack(r.shell, menu_scene().kind())).to_be_false();
+	        });
     });
 
 describe browser_choice_reroot(
@@ -1086,9 +1174,8 @@ describe browser_choice_reroot(
 		        // here only so a failure below cannot be blamed on the press not having landed.
 		        expect(spy.dispatches).to_equal(1);
 
-		        // The browser closed and the menu resumed, and `go_up_on_resume`'s `ascend()` had
-		        // nowhere to go from depth 0: without the re-rooting the user is left staring at the
-		        // file selector's own title screen.
+		        // The browser is up for the claim and the menu beneath is where the press left it: on the file
+		        // selector, at the root.
 		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
@@ -1429,6 +1516,37 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		shellHostUI.shell().stack().pop();
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true(); // the menu beneath leaves it to the global RECORD
+	});
+
+	it("claims RECORD's press, and only its press, from the global RECORD while the recorder is frontmost", _ {
+		// `AudioRecorder::buttonAction` ends the take on the press and answers `DEALT_WITH`, so `Buttons`' RECORD tail
+		// stamps nothing; the release is `NOT_DEALT_WITH`, and the tail judges it by its last stamp, which toggles no
+		// recording.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sample0_recorder, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::sample0_recorder)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		// The press ended the take; tear the stack down so the recorder is thrown away rather than left armed.
+		while (shellHostUI.shell().stack().depth() > 0) {
+			shellHostUI.shell().stack().pop(SceneKind::Null);
+		}
+		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {

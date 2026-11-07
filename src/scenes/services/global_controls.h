@@ -529,6 +529,10 @@ private:
 	/// the SAVE press does (`:241`). They can never both be held, because each arm's press branch
 	/// requires `UI_MODE_NONE`.
 	uint32_t save_pressed_ms_ = 0;
+	/// The lowering's stamp of the last RECORD press the transport tail itself took (`tail_button_action`). A release
+	/// belongs to the button's latest press, so one whose press a scene took finds a different stamp there and does not
+	/// toggle recording.
+	std::optional<uint32_t> record_press_ms_;
 
 	/// `View::clipArmFlashOn` and its `TimerName::PLAY_ENABLE_FLASH` deadline.
 	bool clip_arm_flash_on_ = false;

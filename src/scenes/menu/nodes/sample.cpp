@@ -22,8 +22,10 @@
 
 #include "scenes/browser/browser_scene.h" // FileBrowserItem::on_focus opens this
 #include "scenes/marker/marker_scene.h"   // MarkerItem::on_focus opens this
+#include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h" // AudioRecorderItem::on_focus opens this
 
@@ -120,41 +122,19 @@ void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 }
 
 void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `osc::AudioRecorder::beginSession` (`gui/menu_item/osc/audio_recorder.h:36-58`): set the
-	// source, then `openUI(&audioRecorder)`. **`SceneId::arg` is unused** -- there is exactly one
-	// recorder screen and `RecorderScene::on_enter` ignores it.
-	//
-	// Legacy's `parentMenuHeadingTo` / `menuItemHeadingTo` arm (`:40-48`) has no port. The pair is
-	// written by `SoundEditor::maybeGetParentMenu`,
-	// whose recorder arm (`:2097-2103`) points a recorder at the matching file
-	// selector; this arm then re-roots `menuItemNavigationRecord` onto the source page with that
-	// selector focused and clears `shouldGoUpOneLevelOnBegin`, so a finished recording lands on the
-	// source page rather than one level out from the recorder. `MenuState::path`/`depth` already are
-	// that record, and re-rooting it is `MenuScene`'s to do rather than an item's -- an item writing
-	// the menu's own navigation state is exactly what `MenuState`'s mailbox contract (`menu_scene.h`)
-	// exists to avoid.
-	//
-	// **The `MenuScene` half exists and this arm is still unpaid.**
-	// `MenuScene::reroot_to_scene_opener_page()` exists, and this item already records the half it owns:
-	// `MenuWalkState::scene_opener` is written for every scene push, this one included. What is missing
-	// is a *caller* -- `deluge::gui::ui::shellSampleClaimDone` calls it because the browser's choice
-	// is drained through `BrowserScene::take_choice()`, and `RecorderScene` has no equivalent outbox
-	// and no dispatcher draining one.
-	//
-	// **The re-rooting itself is the browser's, statement for statement** (easy to misread): `:42` assigns
-	// `soundEditor.navigationDepth = 0` and `:43` then indexes `menuItemNavigationRecord` *with*
-	// that member, so `[navigationDepth]` here IS `[0]`. The two arms differ only in the order of
-	// those two statements. What a caller would additionally have to carry is the pair's own
-	// content -- `parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally and `menuItemHeadingTo`
-	// is the matching *file selector*, not the recorder (`sound_editor.cpp:2098-2100`) -- and
-	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuWalkState::go_up_on_resume`.
-	// So the consequence here is still one extra BACK press after a recording.
-	//
-	// `process()` is not called either: legacy runs the recorder
-	// as a blocking loop from this stack frame (`gui/ui/audio_recorder.cpp:314-363`), while the
-	// scene is driven by the shell's own tick (`recorder_scene.h` §1).
+	// `osc::AudioRecorder::beginSession`: set the source, then `openUI(&audioRecorder)`. `SceneId::arg` is unused --
+	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's `process()` loop is
+	// the shell's own tick (`recorder_scene.h`).
 	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
+	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu` gives a recorder on the chain's SAMPLE
+	// RECORDER page its source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens
+	// the recorder, so the take returns to the source page with the selector focused. A recorder opened on the item
+	// alone (the drum creator's take) has no page above it, and the menu goes up as usual.
+	if (state.depth > 0 && state.path[state.depth - 1] == &nodes::recorder
+	    && renders_horizontal(nodes::recorder, ctx)) {
+		state.walk.resume_landing = source_index() == 0 ? &nodes::file0_selector : &nodes::file1_selector;
+	}
 }
 
 } // namespace deluge::scenes::menu::nodes

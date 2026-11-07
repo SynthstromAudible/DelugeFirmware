@@ -45,6 +45,7 @@
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/transition.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
 namespace deluge::gui::ui {
@@ -365,6 +366,11 @@ bool browserTakesRecord() {
 	       && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample
 	       && audioRecorder.recordingSource == AudioInputChannel::NONE && getCurrentClip() != nullptr
 	       && getCurrentClip()->type != ClipType::AUDIO;
+}
+
+bool recorderTakesRecord(bool on) {
+	const deluge::scenes::recorder::RecorderScene& recorder = deluge::scenes::recorder::recorder_scene();
+	return on && &shellHostUI.shell().stack().input_top() == &recorder && recorder.recording();
 }
 
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {

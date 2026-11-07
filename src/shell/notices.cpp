@@ -111,6 +111,15 @@ bool PopupScene::expired(uint32_t now_ms) const {
 	return timeout_ms_ != 0 && static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
 }
 
+std::optional<uint32_t> PopupScene::remaining_ms(uint32_t now_ms) const {
+	if (timeout_ms_ == 0) {
+		return std::nullopt;
+	}
+	// Difference form, as `expired`.
+	const auto left = static_cast<int32_t>(deadline_ms_ - now_ms);
+	return left > 0 ? static_cast<uint32_t>(left) : 0U;
+}
+
 void PopupScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
@@ -451,6 +460,17 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	if (!working_.armed() && notification_.expired(now_ms)) {
 		stack_.remove(SceneKind::Notification);
 	}
+}
+
+std::optional<Notices::ShownPopup> Notices::shown_popup(uint32_t now_ms) const {
+	const bool stacked =
+	    std::ranges::any_of(stack_.scenes(), [](const Scene* s) { return s->kind() == SceneKind::Popup; });
+	if (!stacked || popup_.expired(now_ms)) {
+		return std::nullopt;
+	}
+	return ShownPopup{.text = std::string{popup_.text()},
+	                  .popup_type = popup_.popup_type(),
+	                  .remaining_ms = popup_.remaining_ms(now_ms)};
 }
 
 uint32_t Notices::timeout_for(uint8_t popup_type) const {

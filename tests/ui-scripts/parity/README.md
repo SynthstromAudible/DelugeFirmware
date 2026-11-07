@@ -69,6 +69,11 @@ SHIFT turn. Both read values `main` draws exactly: `main`'s build truncates a no
 hidden (D71), so a strength is read with the cursor on its hundredths, or at 0. `sm30-cable-column-midi-cv` presses
 MIDI and CV with each column focused, before its strength page is open: neither switches the cable's polarity.
 
+`sm31-automation-note-editor` opens the note editor from the automation view (pad selection on, a grid pad held,
+SELECT) and drives it there: the held pad's release, a Vertical turn, a grid press, SHIFT + a shortcut pad, a Select
+turn and BACK, which returns to the automation overview. It makes no Horizontal turn, on which `main` freezes (E379)
+with no note under the held pad.
+
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
 preset shows the conversion in every comparison that touches it instead of the UI.

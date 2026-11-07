@@ -31,14 +31,23 @@
 ///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_drum_creator.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
+#include "support/global_guest_menu.h"
+#include "util/shell_menu_entry.h"
 
 #include "shell/leds.h"
 #include "shell/profiles/deluge.h"
@@ -82,12 +91,14 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -224,12 +235,9 @@ struct Rig {
 
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 
-	/// @brief Press a button down. `ButtonId` -> board matrix coordinate, so the shell's own
-	///        lowering runs rather than a synthesised `UiEvent`.
-	///
-	/// Press only, no release: `AudioRecorder::buttonAction` acts on the press and refuses the
-	/// release outright (`AudioRecorder::buttonAction`).
-	void press(ButtonId b, uint32_t at_ms) {
+	/// @brief Press or release a button. `ButtonId` -> board matrix coordinate, so the shell's own lowering runs
+	///        rather than a synthesised `UiEvent`.
+	void button(ButtonId b, bool down, uint32_t at_ms) {
 		const std::span<const ButtonId> matrix = profile.button_by_matrix;
 		for (size_t i = 0; i < matrix.size(); i++) {
 			if (matrix[i] != b) {
@@ -237,9 +245,34 @@ struct Rig {
 			}
 			const auto x = static_cast<uint8_t>(i % profile.button_cols);
 			const auto y = static_cast<uint8_t>(i / profile.button_cols);
-			shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, 255}, at_ms);
+			shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(down ? 255 : 0)},
+			                     at_ms);
 			return;
 		}
+	}
+	/// @brief Press a button down. `AudioRecorder::buttonAction` acts on the press and refuses the release.
+	void press(ButtonId b, uint32_t at_ms) { button(b, true, at_ms); }
+	/// @brief Release a button.
+	void release(ButtonId b, uint32_t at_ms) { button(b, false, at_ms); }
+	/// @brief Press or release grid pad (@p x, @p y).
+	void pad(uint8_t x, uint8_t y, bool down, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(down ? 64 : 0)}, at_ms);
+	}
+	/// @brief Open the sound menu on @p node with the horizontal-menus feature on, as the ShellMenu card has it.
+	void open_menu(const menu::Node& node) {
+		MenuContext c = ctx();
+		c.horizontal_menus = true;
+		menu_scene().open(node, c);
+		shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
+	}
+	/// @brief Is a scene of @p kind on the stack?
+	bool has(deluge::ui::shell::SceneKind kind) {
+		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
+			if (s->kind() == kind) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool on_stack() {
@@ -518,6 +551,33 @@ struct Guards {
 	DrainedNotices notices;
 	EnglishL10n l10n;
 	NoForegroundRecording publication;
+};
+
+/// @brief The ShellMenu toggle on for the scope, and put back.
+struct ShellMenuOn {
+	RuntimeFeatureStateToggle saved =
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
+	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, RuntimeFeatureStateToggle::On); }
+	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	ShellMenuOn(const ShellMenuOn&) = delete;
+	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
+};
+
+/// @brief Whether the recorder is on @p shell's stack.
+bool recorder_on_stack(deluge::ui::shell::Shell& shell) {
+	return std::ranges::any_of(shell.stack().scenes(),
+	                           [](const deluge::ui::shell::Scene* s) { return s->kind() == kRecorderSceneKind; });
+}
+
+/// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
+///        milliseconds for the scope, and put it back.
+struct AudioClockAt {
+	uint32_t saved = AudioEngine::audioSampleTimer;
+	explicit AudioClockAt(uint32_t ms) { set(ms); }
+	~AudioClockAt() { AudioEngine::audioSampleTimer = saved; }
+	void set(uint32_t ms) { AudioEngine::audioSampleTimer = static_cast<uint32_t>(uint64_t{ms} * kSampleRate / 1000); }
+	AudioClockAt(const AudioClockAt&) = delete;
+	AudioClockAt& operator=(const AudioClockAt&) = delete;
 };
 
 extern "C" bool deluge_host_storage_hold_fs(bool hold);
@@ -861,6 +921,92 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(k.recorded_name()).to_equal(std::string{"REC2"});
 	});
 
+	it("opens the drum creator's take in the guest on source 0's recorder item alone", _ {
+		// `enterDrumCreator`'s `setup(clip, &file0SelectorMenu, 0)` and `openUI(&audioRecorder)`: no page above the
+		// recorder, so the take's end leaves the menu and the clip view is in front again.
+		Guards g;
+		ShellMenuOn on;
+		KitRig k;
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(menu_scene().state().path[0] == &menu::nodes::sample0_recorder).to_be_true();
+		nullifyUIs();
+	});
+
+	it("lands the drum creator's refused take on source 0's file selector, which asks for the browser", _ {
+		// `enterDrumCreator`'s fallback: `openUI(&audioRecorder)` refused, so legacy opens the editor on
+		// `file0SelectorMenu`, whose `FileSelector::beginSession` opens the sample browser. A take already running
+		// (here an output recording) is the refusal `RecorderScene::can` makes.
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		{
+			PublishedOutputRecording output;
+			expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+			// The menu's render files the recorder's push; the router applies it, the recorder refuses, the menu resumes.
+			for (int32_t i = 0; i < 4 && menu_scene().state().path[0] == &menu::nodes::sample0_recorder; i++) {
+				(void)shellHostUI.timerCallback();
+			}
+		}
+		expect(recorder_scene().last_enter_refused()).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(menu_scene().state().path[0] == &menu::nodes::file0_selector).to_be_true();
+		// The leaf's hook asked for the browser, which the menu's next render pushes.
+		expect(menu_scene().state().walk.pending_scene.kind == browser::kBrowserSceneKind).to_be_true();
+		nullifyUIs();
+	});
+
+	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
+		expect(recorder_scene().last_enter_refused()).to_be_false();
+		// The take ends from outside (its `on_exit` aborts the recorder); the menu resumes and goes up, out.
+		(void)shellHostUI.shell().stack().remove(kRecorderSceneKind);
+		for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(menu_scene().state().path[0] == &menu::nodes::file0_selector).to_be_false();
+		nullifyUIs();
+	});
+
+	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		{
+			PublishedOutputRecording output;
+			expect(deluge::gui::ui::openShellMenu(k.song.clip, 0, false, false, false, false,
+			                                      deluge::gui::ui::ShellMenuNode::Osc0Recorder))
+			    .to_be_true();
+			for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
+				(void)shellHostUI.timerCallback();
+			}
+		}
+		expect(recorder_scene().last_enter_refused()).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		nullifyUIs();
+	});
+
 	it("defers the whole completion arm while the SD routine is running", _ {
 		// `AudioRecorder::slowRoutine`'s guard (`:168-176`), which `after_render()` needs for the
 		// same reason: `finish_recording()` frees the recorder, and freeing one that is suspended
@@ -972,6 +1118,34 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `AudioRecorder::getGreyoutColsAndRows` (`:58-61`): `*cols = 0xFFFFFFFF`, rows untouched.
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().cols)).to_equal(static_cast<int64_t>(0xFFFFFFFF));
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().rows)).to_equal(static_cast<int64_t>(0));
+	});
+
+	it("leaves every pad to the view beneath: a grid overlay that draws no region", _ {
+		// `AudioRecorder` overrides neither `renderMainPads` nor `renderSidebar`: `main` shows the view's mute and
+		// audition columns under the recorder, greyed by `getGreyoutColsAndRows`.
+		expect(recorder_scene().is_grid_overlay()).to_be_true();
+		expect(recorder_scene().pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+		expect(recorder_scene().draws_pads()).to_be_false();
+	});
+
+	it("flashes its source's recorder shortcut pad once every blink cycle while armed", _ {
+		// `opened()`'s `setupShortcutBlink(currentSourceIndex, 4, 0)` and `blinkShortcut()`: frequency 0 flashes the
+		// param pad on every cycle's param step, 20 ms into each 200 ms cycle.
+		Guards g;
+		Rig r;
+		r.open();
+		const size_t from = r.fake.flashes_sent.size();
+		for (uint32_t at = 0; at <= 400; at += 10) {
+			r.tick(at);
+		}
+		const std::vector<deluge::ui::grid::PadFlash> flashes{
+		    r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
+		expect(flashes.size()).to_equal(size_t{2}); // at 20 ms and 220 ms
+		for (const deluge::ui::grid::PadFlash& flash : flashes) {
+			expect(static_cast<int32_t>(flash.x)).to_equal(0);
+			expect(static_cast<int32_t>(flash.y)).to_equal(4);
+			expect(flash.colour == deluge::ui::grid::FlashColour::Default).to_be_true();
+		}
 	});
 
 	it("restarts both shared blinks as the recording begins", _ {
@@ -1162,6 +1336,170 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r64.tick(deluge::scenes::recorder::kRecorderPollMs);
 		expect_golden(self, "../ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
 		recorder_scene().recorder()->numSamplesCaptured = 0;
+	});
+
+	// --- the SAMPLE RECORDER page ---------------------------------------------------------------------
+
+	it("lands Shift + its shortcut pad on the SAMPLE RECORDER page, focused on source 0's item, and opens nothing", _ {
+		// `SoundEditor::setup` asks `maybeGetParentMenu` for the chain page that lists the item and begins that page,
+		// focused on it (`recorderMenu`); only a select there opens the recorder.
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::source0);
+		r.tick(0);
+		r.press(ButtonId::Shift, 10);
+		r.tick(10);
+		r.pad(0, 4, true, 20);
+		r.tick(20);
+		r.pad(0, 4, false, 30);
+		r.tick(30);
+		r.release(ButtonId::Shift, 40);
+		for (uint32_t at = 40; at <= 80; at += 10) {
+			r.tick(at);
+		}
+		expect(menu::node_id(menu::nodes::recorder) != 0).to_be_true();
+		expect(menu_scene().state().path[0] == &menu::nodes::recorder).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(0);
+		expect(r.on_stack()).to_be_false();
+		expect(recorder_scene().recording()).to_be_false();
+	});
+
+	it("opens from a select on that page, over the page", _ {
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::recorder);
+		r.tick(0);
+		r.press(ButtonId::SelectEnc, 10);
+		r.tick(10);
+		r.release(ButtonId::SelectEnc, 20);
+		for (uint32_t at = 20; at <= 50; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		expect(menu_scene().state().path[0] == &menu::nodes::recorder).to_be_true();
+		expect(menu_scene().state().depth).to_equal(1);
+		expect(menu_scene().state().path[1] == &menu::nodes::sample0_recorder).to_be_true();
+	});
+
+	it("returns a take begun on the SAMPLE RECORDER page to its source page, the file selector focused", _ {
+		// `osc::AudioRecorder::beginSession` re-roots onto `sourceMenuGroup`, focused on the file selector, before it
+		// opens the recorder, so the take lands there.
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::recorder);
+		r.tick(0);
+		r.press(ButtonId::SelectEnc, 10);
+		r.tick(10);
+		r.release(ButtonId::SelectEnc, 20);
+		for (uint32_t at = 20; at <= 50; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC004.WAV"};
+		rec->status = RecorderStatus::COMPLETE;
+		for (uint32_t at = 60; at <= 90; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_false();
+		expect(menu_scene().state().path[0] == &menu::nodes::source_group).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		// The take made source 0 a sample source, whose page lists the type first and the file selector second.
+		expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(1);
+
+		// The landing blinks the focused file selector's own pad, (0, 5). `main` goes on flashing the recorder's
+		// (0, 4) there, which its blocking recorder loop re-plans after the take: accepted as `main`'s bug (D128).
+		const size_t from = r.fake.flashes_sent.size();
+		for (uint32_t at = 100; at <= 500; at += 10) {
+			r.tick(at);
+		}
+		bool own_pad = false;
+		bool recorder_pad = false;
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			own_pad = own_pad || (r.fake.flashes_sent[i].x == 0 && r.fake.flashes_sent[i].y == 5);
+			recorder_pad = recorder_pad || (r.fake.flashes_sent[i].x == 0 && r.fake.flashes_sent[i].y == 4);
+		}
+		expect(own_pad).to_be_true();
+		expect(recorder_pad).to_be_false();
+	});
+
+	it("leaves the menu after a take opened on the item alone, as the drum creator's take leaves the clip view", _ {
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::sample0_recorder);
+		for (uint32_t at = 0; at <= 30; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->status = RecorderStatus::COMPLETE;
+		rec->hadCardError = true; // attach nothing; this example is about where the menu goes
+		for (uint32_t at = 40; at <= 70; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_false();
+		expect(r.has(deluge::ui::shell::SceneKind::FirstApp)).to_be_false();
+	});
+
+	// --- the threshold take ---------------------------------------------------------------------------
+
+	it("draws AudioRecorder::renderOLED's threshold screen while waiting, its threshold line lit and dark", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_true();
+		const std::string lit = r.oled();
+		clock.set(400); // the line is dark from 290 ms to 570 ms of its 750 ms cycle
+		r.tick(10);
+		const std::string dark = r.oled();
+		// LEGACY, from its own sentinel, on the recorder the scene published.
+		const std::string legacy_dark = legacy_oled(false);
+		clock.set(0);
+		expect(lit).to_equal(legacy_oled(false));
+		expect(dark).to_equal(legacy_dark);
+		expect(lit == dark).to_be_false();
+	});
+
+	it("starts RECORDING once the take passes its threshold margin, with the solid meter and the record dot", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		expect(rec->minThresholdMargin > 0u).to_be_true();
+		rec->numSamplesCaptured = rec->minThresholdMargin; // the pre-roll a threshold take holds before it starts
+		r.tick(10);
+		expect(recorder_scene().capturing()).to_be_false();
+		expect(r.oled()).to_equal(legacy_oled(false));
+		rec->numSamplesCaptured = rec->minThresholdMargin + 1;
+		r.tick(20);
+		expect(recorder_scene().capturing()).to_be_true();
+		expect(r.oled()).to_equal(legacy_oled(true));
+		rec->numSamplesCaptured = 0;
+	});
+
+	it("asks the render to measure the input's levels for a threshold take, and only for one", _ {
+		// `opened()`'s `recorder->monitorInputLevels = display->haveOLED() && isThresholdRecording()`.
+		Guards g;
+		{
+			Rig r;
+			r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+			r.open();
+			r.tick(0);
+			expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_true();
+		}
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::OFF;
+		r.open();
+		r.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_false();
+		expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_false();
 	});
 });
 // clang-format on

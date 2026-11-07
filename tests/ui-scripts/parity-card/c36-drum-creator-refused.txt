@@ -1,0 +1,17 @@
+# The drum creator's sample browser refused: on a card whose SAMPLES is a file, SHIFT + KIT makes the boot clip a
+# fresh kit and its drum creator's browser cannot list. `main` leaves the user on the kit's clip view with the browser's
+# error popup up (the editor it falls back to goes up and out at once), then shows NEW KIT CREATED. A SELECT afterwards
+# opens the new drum's sound menu, and BACK closes it. Run on `tests/fixtures/card-samples-file` (`--card`).
+100   snapshot boot
+300   button Shift down
+350   button Kit down
+370   button Kit up
+400   button Shift up
+500   snapshot popup
+2300  snapshot refused
+5000  button SelectEnc down
+5020  button SelectEnc up
+6000  snapshot select
+7000  button Back down
+7020  button Back up
+8000  snapshot back

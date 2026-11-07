@@ -5676,11 +5676,14 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// the editor configured for kit-global FX while Affect Entire was enabled.
 	soundEditor.setupKitGlobalFXMenu = false;
 
-	// Under the shell menu the ported browser opens on the new drum (`gui/ui/shell_drum_creator.h`); recording keeps
-	// legacy's audio recorder.
-	if (!doRecording && deluge::gui::ui::shellMenuEnabled()
-	    && deluge::gui::ui::openShellDrumCreator(getCurrentInstrumentClip(), newDrum)) {
-		return;
+	// Under the shell menu the ported browser, or for a take the ported recorder, opens on the new drum
+	// (`gui/ui/shell_drum_creator.h`).
+	if (deluge::gui::ui::shellMenuEnabled()) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
+		                : deluge::gui::ui::openShellDrumCreator(clip, newDrum)) {
+			return;
+		}
 	}
 
 	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
@@ -5703,8 +5706,19 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	}
 
 	if (!success) {
-		// Not routed to the shell menu: this is a fallback that runs only when `openUI(&audioRecorder)` /
-		// `openUI(&sampleBrowser)` has just refused. See `gui/ui/shell_menu_entry.cpp`'s table.
+		// The recorder or the browser refused: `main` opens the editor on the file selector, whose own session opens
+		// the browser again (`FileSelector::beginSession`). Under the shell menu this runs only when the guest's own
+		// open above refused, and the legacy editor must not open: the guest is tried once more, on the file
+		// selector, and its refusal is said as `setup()`'s is.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			if (!deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
+			                                    /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
+			                                    deluge::gui::ui::ShellMenuNode::Osc0FileSelector)) {
+				display->displayError(Error::UNSPECIFIED);
+			}
+			return;
+		}
 		openUI(&soundEditor);
 	}
 }

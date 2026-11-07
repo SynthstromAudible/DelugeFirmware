@@ -1393,7 +1393,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(marker::marker_scene().holding_marker()).to_be_false();
 	});
 
-	it("RecorderScene: both doors arm a real recorder, and only one of them closes tidily", _ {
+	it("RecorderScene: both doors arm a real recorder, and both close tidily", _ {
 		reset_globals();
 		install_display();
 		spec::QuietAudio quiet;
@@ -1412,7 +1412,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
-		expect(result.snapshots).to_equal(uint32_t{7});
+		expect(result.snapshots).to_equal(uint32_t{8});
 
 		// Armed for real TWICE -- once through SOUND -> ACTIONS -> RECORD TO SAMPLE, once through the
 		// shortcut pad -- and gone again both times. The second entry is itself an assertion: it
@@ -1438,11 +1438,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// unconditionally would have hung `recorder_->sample` -- a `Sample` with no captured frames
 		// and a file that `abort()` deletes -- on the oscillator.
 		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
-		// The scene closed itself both times. Where that leaves the menu is what the two closes
-		// differ in, and the run ends on the second: the shortcut jump re-rooted the path onto the
-		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and closes the menu
-		// (`after_shortcut_stop.state` names no menu scene). `after_stop`, seven hundred milliseconds
-		// earlier, is the other outcome -- the ACTIONS list, cursor still on the row the descent came from.
+		// The scene closed itself both times, and both doors opened it from the SAMPLE RECORDER page, so both
+		// closes land on the source page with the file selector focused (`after_stop`, `after_shortcut_stop`).
 	});
 });
 // clang-format on

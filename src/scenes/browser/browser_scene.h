@@ -130,13 +130,10 @@ enum class AcceptOutcome : uint8_t {
 	/// The descriptor refused or failed; stay open. The scene raises `error` as a notice first
 	/// (legacy's `display->displayError(error)` followed by `return`).
 	Stay,
-	/// The descriptor cannot act from this layer: park the choice in `take_choice()` and close.
-	///
-	/// The sample and MIDI descriptors answer this, and it is not a placeholder -- see `Descriptor::accept`.
-	Defer,
 	/// The descriptor cannot act from this layer and its load has to end before the browser may close: park the choice
 	/// in `take_choice()` and stay up, taking no other file, until the host calls `BrowserScene::deferred_load_done`.
-	/// `DxSyxBrowser`'s read, which leaves the browser up on a failure and closes it on a success.
+	/// Each legacy browser loads with itself still up and closes once the load has ended (`claimCurrentFile`,
+	/// `LoadMidiDeviceDefinitionUI::definitionLoaded`, `DxSyxBrowser`'s read), and stays up when it fails.
 	DeferAndWait,
 };
 
@@ -205,8 +202,8 @@ struct Descriptor {
 
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
 	///
-	/// @note **The sample and MIDI descriptors answer `Defer`, and that is a finding rather than a stub.** (The `.syx`
-	///       one answers `DeferAndWait`, for the same reason: its read goes through `dxCartridge`.)
+	/// @note **Every file descriptor answers `DeferAndWait`, and that is a finding rather than a stub.** (The `.syx`
+	///       one's read goes through `dxCartridge`, for the same reason as the two below.)
 	///       `SampleBrowser`'s file arm requests a sample claim (`gui/ui/browser/sample_claim.h`),
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
@@ -215,7 +212,7 @@ struct Descriptor {
 	///       `scenes/menu/action.h` was built for, and the same answer: the scene parks the chosen
 	///       path in `take_choice()` and `gui::ui::dispatchShellChoices` performs the load.
 	///
-	/// @note **The `Defer` dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
+	/// @note **The sample dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
 	/// *return* affordance:
 	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
@@ -507,7 +504,7 @@ public:
 
 	/// @brief Collect the file the scene could not load itself, exactly once.
 	///
-	/// The outbox `Descriptor::accept`'s `Defer` answer fills in; `MenuScene::take_action()` is the
+	/// The outbox `Descriptor::accept`'s `DeferAndWait` answer fills in; `MenuScene::take_action()` is the
 	/// same shape for the verb half of the same wall. `Descriptor::accept` says why the choice
 	/// cannot be performed from here.
 	///
@@ -515,8 +512,9 @@ public:
 	/// which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
 	/// performs the sample claim (`SampleClaim`) against the parked path. Like `take_action()`'s,
 	/// the slot is **one deep and overwrites silently**. A second choice inside one guest tick would
-	/// need two presses in that tick: the `Defer` arm closes the scene as it parks, and a folder
-	/// menu's accept parks while the load it starts refuses further presses (`Descriptor::busy`).
+	/// need two presses in that tick: an Enter parks and refuses the next until the host answers
+	/// `deferred_load_done`, and a folder menu's accept parks while the load it starts refuses further presses
+	/// (`Descriptor::busy`).
 	/// @return The choice, or `std::nullopt` when none is waiting.
 	std::optional<BrowserChoice> take_choice();
 
@@ -569,10 +567,6 @@ public:
 	/// @brief Whether a preview was asked for and the host has not yet answered; `next_timer()` polls meanwhile, so the
 	///        host's dispatcher keeps ticking the load.
 	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
-
-	/// @brief Whether a choice is waiting for `take_choice()`.
-	/// @return True between a file press parking its path and the consumer draining it.
-	[[nodiscard]] bool has_choice() const { return choice_.has_value(); }
 
 	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
 	///
@@ -627,7 +621,7 @@ private:
 	/// @brief `SampleBrowser::horizontalEncoderAction`: zoom or scroll the preview, or reveal the keyboard and walk the
 	///        cursor.
 	deluge::ui::shell::Result horizontal_turn(int32_t delta);
-	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD and KEYBOARD arms.
+	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD, RECORD and Shift+SAVE arms.
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
 	/// @brief The favourites the browser shows: the host's, unless a spec gave its own.

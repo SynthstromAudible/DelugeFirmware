@@ -22,8 +22,8 @@
 ///        `gui/ui/shell_action_dispatch.h` is the verb half of.
 ///
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::Defer`, `BrowserScene::enter_key_press` parks the chosen path and closes the scene in one
-/// statement, and `BrowserScene::take_choice()` hands it out exactly once.
+/// `AcceptOutcome::DeferAndWait`, `BrowserScene::enter_key_press` parks the chosen path and keeps the browser up, and
+/// `BrowserScene::take_choice()` hands it out exactly once; the claim's completion answers `deferred_load_done`.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
 /// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach `soundEditor`,
@@ -115,6 +115,9 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 /// `menuItemHeadingTo`/`parentMenuHeadingTo` pair is left alone: nothing on the ported path writes
 /// it, and a stale pair from a legacy session would re-root the legacy editor.
 ///
+/// It answers the waiting browser first (`BrowserScene::deferred_load_done`): a success closes it, a failure leaves it
+/// up for another file, as `claimCurrentFile`'s error arm leaves `main`'s up.
+///
 /// @param success Whether the claim ended claimed. A cancelled claim calls nothing.
 void shellSampleClaimDone(bool success);
 
@@ -203,30 +206,24 @@ void setShellBrowserFromDrumCreator(bool fromCreator);
 /// **after** `Shell::tick` and **above** the close check that can return early -- both for the
 /// reasons `dispatchShellActions`' call site gives, and one more that is this drain's own.
 ///
-/// @par The scene is already gone by the time this runs, and that is the point
+/// @par The browser is still up while the claim runs
 ///
-/// `Defer` **parks and closes in the same statement**: `choice_ = BrowserChoice{...}` then
-/// `return close()`, and `close()` is
-/// `Action::Kind::Remove` naming the browser's own kind. The router applies that inside
-/// the same `Shell::tick` that routed the press, so by the time this drain runs the browser is off
-/// the stack and the ported menu underneath is frontmost again. Nothing here may assume otherwise --
-/// there is no state in which a choice is pending *and* the browser is still up.
+/// `DeferAndWait` parks and stays: `choice_ = BrowserChoice{...}` and `awaiting_deferred_` are set together, and the
+/// browser refuses input while the claim is in flight (`RuntimeFacts::sample_load_in_flight`). The claim's completion,
+/// `shellSampleClaimDone`, answers `deferred_load_done` and re-roots the covered menu; the browser closes on its next
+/// render, as `claimCurrentFile` closes `main`'s once the file is in.
 ///
 /// @par Order against `dispatchShellActions`, and whether both can be pending at once
 ///
-/// Both drains run after `Shell::tick`, actions first. **Yes, both can be pending on the same
-/// tick**, and the path is real rather than theoretical: the browser's `Remove` is applied at
-/// `Shell::tick`'s step 3, so the menu underneath is frontmost again by
-/// steps 5-6 and gets its own `after_render()` at step 7 (`:402-410`) -- on the very tick the choice
-/// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
-/// in the browser's.
+/// Both drains run after `Shell::tick`, actions first. A choice is parked while the browser is the input top, so the
+/// menu beneath files nothing on that tick; the order matters only for the one interaction below.
 ///
 /// Neither drain reads the other's mailbox and neither is gated on the other, so the order changes
 /// nothing observable. It is fixed as **actions, then choices** for the one interaction that is
 /// real: `MenuAction::StartStemExport`'s arm removes the ported menu from
 /// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp`), and the
 /// re-rooting the claim performs writes that same menu's navigation state
-/// (`BrowserScene`'s note on the `Defer` dispatcher, applied through
+/// (`BrowserScene`'s note on the sample dispatcher, applied through
 /// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be
 /// applied to a menu the same tick's verb was about to take off the stack.
 ///

@@ -13300,5 +13300,27 @@
     "name": "DX7 presets",
     "title": "DX7 presets",
     "type": "basic"
+  },
+  {
+    "children": [
+      {
+        "available_when": "is_subtractive",
+        "id": 6,
+        "name": "Record to sample *",
+        "title": "Record to sample *",
+        "type": "basic"
+      },
+      {
+        "available_when": "is_subtractive",
+        "id": 7,
+        "name": "Record to sample *",
+        "title": "Record to sample *",
+        "type": "basic"
+      }
+    ],
+    "id": 561,
+    "name": "Sample recorder",
+    "title": "Sample recorder",
+    "type": "submenu"
   }
 ]

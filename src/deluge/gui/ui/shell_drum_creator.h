@@ -35,6 +35,17 @@ namespace deluge::gui::ui {
 /// @return Whether the guest is now open; false leaves nothing open and nothing remembered.
 bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum);
 
+/// @brief Open the ported recorder on the drum the creator has just made and selected, for RECORD while a drum row is
+///        being added or auditioned.
+///
+/// The guest opens on source 0's recorder item alone, whose hook pushes the recorder; with no page above the item the
+/// take's end leaves the menu, as `AudioRecorder::close` leaves the clip view in front. The recorder names the drum.
+/// If the recorder refuses, the menu lands on source 0's file selector, whose hook pushes the browser, as legacy's
+/// fallback opens it.
+/// @param clip The kit clip the drum was made in.
+/// @return Whether the guest is now open.
+bool openShellDrumRecorder(InstrumentClip* clip);
+
 /// @brief Forget the drum the creator made, without touching it: a guest is opening, and it is not the creator's.
 void forgetShellDrumCreator();
 

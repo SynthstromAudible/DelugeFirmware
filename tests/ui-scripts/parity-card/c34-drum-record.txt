@@ -1,0 +1,19 @@
+# The drum creator's recorder (ShellMenu card): KIT loads the first kit; RECORD while row 0's audition pad is held makes
+# a new drum on the row and opens the audio recorder on it, BACK ends the take and the clip view returns, and an
+# audition shows the row's new name.
+100   snapshot boot
+6000  button Kit down
+6020  button Kit up
+8950  snapshot kit
+9500  pad 17 0 down
+9800  button Record down
+9820  button Record up
+10000 pad 17 0 up
+11000 snapshot recorder
+12000 snapshot recorder_b
+13000 button Back down
+13020 button Back up
+15000 snapshot closed
+15500 pad 17 0 down
+15550 pad 17 0 up
+16500 snapshot row_name

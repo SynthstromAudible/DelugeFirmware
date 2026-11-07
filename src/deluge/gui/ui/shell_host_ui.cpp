@@ -529,21 +529,14 @@ ActionResult ShellHostUI::timerCallback() {
 	// the same two reasons.**
 	//
 	// `BrowserScene::take_choice()` is the menu outbox's twin:
-	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
+	// one slot, filled by `Descriptor::accept`'s `DeferAndWait` answer, announcing nothing. **After the
 	// tick**, because the choice is filed while `Shell::tick` routes the press
 	// (`BrowserScene::enter_key_press`, reached from step 3's `pump_input` or step 7's
 	// `after_render`). **Above the close check**, so
 	// no path through this function can skip it. **Unconditional**, because asking is what takes it.
 	//
-	// **After `dispatchShellActions()`, and that order is written down rather than incidental.** Both
-	// mailboxes can hold something on the same tick: `Defer` closes the browser in the same statement
-	// that parks the choice, so the ported menu underneath is frontmost again by steps 5-6 and gets
-	// its own `after_render()` at step 7 -- on the very tick the choice
-	// was filed. Neither drain reads the other's mailbox, so nothing observable turns on the
-	// order except the interaction `shell_choice_dispatch.h` states in full.
-	//
-	// **By the time this runs the browser is already off the shell's stack** -- `Defer` parks *and*
-	// closes -- so there is no "drain while the browser is still open" state for this line to be in.
+	// **After `dispatchShellActions()`**, for the one interaction `shell_choice_dispatch.h` states in full. The
+	// browser is still up when this runs: it waits for the claim this starts.
 	dispatchShellChoices();
 
 	// The slicer's loads -- the open a SLICE asked for above, an audition, a slice -- advance on the guest's ticks, as
@@ -1004,6 +997,12 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		armTickSoon();
 		return ActionResult::DEALT_WITH;
 	}
+	// The recorder's RECORD ends the take (the recorder acts on the press fed above) and is not the global RECORD's as
+	// well: its release must find no stamp of this press in `Buttons`' RECORD tail (`AudioRecorder::buttonAction`).
+	if (b == deluge::hid::button::RECORD && recorderTakesRecord(on)) {
+		armTickSoon();
+		return ActionResult::DEALT_WITH;
+	}
 
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
@@ -1296,6 +1295,17 @@ void ShellHostUI::closeGuest() {
 	discardShellDrumCreatorBeforeClose();
 	releaseShellSlicerBeforeClose();
 
+	// A popup the guest's notices still show goes to legacy's display with the time it had left: legacy has one
+	// display, and its popup outlives whichever UI raised it (`main`'s refused browser leaves its editor with the error
+	// up). Before the knob popup's hand-off, which takes legacy's one popup slot after it, as the later of two legacy
+	// draws.
+	if (const std::optional<deluge::ui::shell::Notices::ShownPopup> shown = shell_.notices().shown_popup(nowMs())) {
+		display->displayPopup(shown->text.c_str(), shown->remaining_ms.has_value() ? 3 : 0, false, 255, 1,
+		                      static_cast<PopupType>(shown->popup_type));
+		if (shown->remaining_ms.has_value()) {
+			uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(*shown->remaining_ms));
+		}
+	}
 	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {
 		closeHook_(nowMs());

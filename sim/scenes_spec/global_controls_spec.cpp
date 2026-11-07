@@ -218,6 +218,21 @@ StubUI& stub_ui() {
 	return instance;
 }
 
+/// @brief A `UI` that takes the RECORD press and nothing else, as the sample browser and the audio recorder do.
+class RecordTakingUI final : public UI {
+public:
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override {
+		return on && b == deluge::hid::button::RECORD ? ActionResult::DEALT_WITH : ActionResult::NOT_DEALT_WITH;
+	}
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
+	UIType getUIType() override { return UIType::NONE; }
+};
+
+RecordTakingUI& record_taking_ui() {
+	static RecordTakingUI instance;
+	return instance;
+}
+
 /// @brief `deluge_profile()`'s button matrix, inverted: the `(x, y)` a `DELUGE_EVENT_BUTTON`
 ///        carries for @p b.
 ///
@@ -330,6 +345,18 @@ struct GcRig {
 		}
 		lowering.end_tick(at_ms);
 		return last;
+	}
+
+	/// @brief Press or release @p b through the real lowering at @p at_ms, its events taken by a scene above this
+	///        service: the lowering sees the edge, `GlobalControls` does not.
+	void press_elsewhere(ButtonId b, bool on, uint32_t at_ms) {
+		now_ms = at_ms;
+		const auto [x, y] = matrix_xy(b);
+		lowering.begin_tick(at_ms);
+		lowering.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+		UiEvent e{UiEvent::Kind::AllReleased};
+		while (lowering.next(e)) {}
+		lowering.end_tick(at_ms);
 	}
 };
 
@@ -510,6 +537,54 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, false, 3'000 + 2 * GlobalControls::kShortPressMs);
 		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
 		expect(playbackHandler.recording == legacy_result).to_be_true();
+	});
+
+	it("transport tail: does not toggle recording on the release of a RECORD press a UI took, both sides", _ {
+		// The sample browser's RECORD and the recorder's own stop take the press; the release reaches the tail. With
+		// no tail press in the last 500 ms, `main` does not toggle either (`Buttons::buttonAction` judges the release by
+		// the last press it stamped, long past).
+		static spec::SongFixture fixture = spec::make_synth_song();
+
+		release_all_legacy_buttons();
+		expect(reset_transport(100'000)).to_be_true();
+		AudioEngine::audioSampleTimer += kSampleRate; // any earlier stamp is long past
+		setRootUILowLevel(&record_taking_ui());
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
+		setRootUILowLevel(&stub_ui());
+		const RecordingMode legacy_result = playbackHandler.recording;
+		expect(legacy_result == RecordingMode::OFF).to_be_true();
+
+		playbackHandler.recording = RecordingMode::ARRANGEMENT;
+
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		rig.press_elsewhere(ButtonId::Record, true, 5'000);
+		rig.press(ButtonId::Record, false, 5'010);
+		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording == legacy_result).to_be_true();
+	});
+
+	it("transport tail: a RECORD press a UI took does not toggle on release even right after a tail tap", _ {
+		// The rule, where `main` departs from it (accepted as `main`'s bug): a RECORD tap the tail toggles, then within
+		// 500 ms a second press a UI takes. `main` judges the second release by the first press's stamp and toggles
+		// again; the port toggles only on the release of a press it took.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+
+		rig.press(ButtonId::Record, true, 6'000);
+		rig.press(ButtonId::Record, false, 6'050);
+		const RecordingMode after_tap = playbackHandler.recording;
+		expect(after_tap != RecordingMode::OFF).to_be_true(); // the tail's own tap toggled
+
+		rig.press_elsewhere(ButtonId::Record, true, 6'200);
+		rig.press(ButtonId::Record, false, 6'250);
+		expect(playbackHandler.recording == after_tap).to_be_true();
 	});
 
 	it("transport tail: declines PLAY and RECORD while MIDI learn is active, and claims them otherwise", _ {

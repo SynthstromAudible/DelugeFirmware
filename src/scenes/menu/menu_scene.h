@@ -500,6 +500,12 @@ public:
 	///         `Dirty::Oled`, since its caller runs between the shell's ticks.
 	bool reroot_to_scene_opener_page();
 
+	/// @brief Where the menu goes when it resumes from a recorder push that refused, in place of going up: legacy's
+	///        `enterDrumCreator`, whose fallback after a refused `openUI(&audioRecorder)` opens the editor on the file
+	///        selector. Spent by the next resume that follows a push; dropped by `open` and `reset_process_state`.
+	/// @param landing The node to land on.
+	void arm_refused_recorder_landing(const Node& landing) { refused_recorder_landing_ = &landing; }
+
 	/// @brief Where a Shift + main pad from a scene the menu opened (the sample marker editor) jumps:
 	///        `SoundEditor::potentialShortcutPadAction` asked from outside the editor, on the plain shortcut table
 	///        (the second layer and the patching-source column are the editor's own screen's).
@@ -565,6 +571,11 @@ private:
 	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target), and begin the voice usage
 	///        page's session afresh.
 	void retarget(const Node& node);
+	/// @brief Re-root onto the horizontal page or group that lists @p item, focused on it -- the body
+	///        `reroot_to_scene_opener_page` and the recorder's return share.
+	/// @param item The item to land on.
+	/// @return As `reroot_to_scene_opener_page`.
+	bool reroot_to_page_listing(const Node& item);
 
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
@@ -611,6 +622,8 @@ private:
 	bool landing_survives_resume_ = false;
 	/// The `.syx` browser over the menu read a bank: its resume lands on the cartridge page (`land_dx_cartridge`).
 	bool land_dx_cartridge_ = false;
+	/// `arm_refused_recorder_landing`'s node, until the next resume from a push spends it.
+	const Node* refused_recorder_landing_ = nullptr;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
 	/// The host's hold mode (`set_affect_entire_hold`): survives a shortcut's `Replace`, as legacy's UI mode does.
