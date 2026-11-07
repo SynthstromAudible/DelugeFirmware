@@ -5263,7 +5263,7 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 	}
 	gridTrackGesture.press(silent);
 	// Audition immediately, as arranger's audition pads do (only while playback is stopped).
-	if (!silent) {
+	if (!silent && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditAudition)) {
 		arrangerView.beginAudition(output);
 	}
 	view.displayOutputName(output);
