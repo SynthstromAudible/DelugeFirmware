@@ -5047,15 +5047,10 @@ static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MO
 
 bool SessionView::gridUpdateTrackPadGesture() {
 	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
-		if (auto* output = deluge::gui::track_link::selectedOutput()) {
-			// beginAudition() only sounds while playback is stopped; keep trying while the pad is held.
-			if (!arrangerView.isAuditioning(output)
-			    && gridTrackGesture.shouldAudition(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
-				arrangerView.beginAudition(output);
-			}
-			if (playbackHandler.playbackState != 0u) {
-				arrangerView.endAudition(output, true);
-			}
+		// Like arranger, a held track's audition stops once playback starts.
+		auto* output = deluge::gui::track_link::selectedOutput();
+		if ((output != nullptr) && (playbackHandler.playbackState != 0u)) {
+			arrangerView.endAudition(output, true);
 		}
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 		return true;
@@ -5218,7 +5213,11 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 	if (silent) {
 		deluge::gui::track_link::toggleLock(output);
 	}
-	gridTrackGesture.press(AudioEngine::audioSampleTimer, silent);
+	gridTrackGesture.press(silent);
+	// Audition immediately, as arranger's audition pads do (only while playback is stopped).
+	if (!silent) {
+		arrangerView.beginAudition(output);
+	}
 	view.displayOutputName(output);
 	uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 	requestRendering(this);
