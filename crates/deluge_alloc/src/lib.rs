@@ -338,7 +338,15 @@ mod tests {
     #[test]
     fn a_size_no_block_can_be_is_refused() {
         let (_buf, h) = aligned_arena(1 << 16);
-        for size in [1usize << 31, usize::MAX, usize::MAX - 8] {
+        // At and just below the largest block, an over-aligned request rounds up past the last class
+        let largest = tlsf::BLOCK_SIZE_MAX;
+        for size in [
+            largest,
+            largest - 64,
+            1usize << 31,
+            usize::MAX,
+            usize::MAX - 8,
+        ] {
             for align in [16usize, 64] {
                 assert!(
                     unsafe { deluge_alloc(h, size, align) }.is_null(),
