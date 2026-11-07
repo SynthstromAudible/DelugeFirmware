@@ -49,6 +49,7 @@ uint32_t staleLanes = 0;
 uint32_t publishFailures = 0;
 uint32_t renderModelWrites = 0;
 uint32_t laneRequestOverflows = 0;
+uint32_t renderMadeCollections = 0;
 #endif
 
 namespace {
@@ -234,6 +235,11 @@ void noteRenderLaneWrite() {
 }
 
 void LanePublication::made(ParamCollection& /*collection*/) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::memory::onRenderTier()) {
+		renderMadeCollections++;
+	}
+#endif
 	g_anyPending.store(true, std::memory_order_relaxed);
 }
 
@@ -493,6 +499,39 @@ int32_t LanePublication::check(Song& song) {
 		}
 	});
 	return differing;
+}
+
+bool LanePublication::publishManager(ParamManagerForTimeline& manager) {
+	if (!mayPublish()) {
+		return false;
+	}
+	bool published = true;
+	for (ParamCollectionSummary& summary : manager.summaries) {
+		if (summary.paramCollection == nullptr) {
+			break;
+		}
+		published = publish(*summary.paramCollection, manager) && published;
+	}
+	return published;
+}
+
+int32_t LanePublication::stagedLeft(Song& song) {
+	int32_t left = 0;
+	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline&) {
+		left += (collection.staged_.load(std::memory_order_relaxed) != nullptr
+		         || collection.superseded_.load(std::memory_order_relaxed) != nullptr)
+		            ? 1
+		            : 0;
+	});
+	return left;
+}
+
+bool publishParamManager(ParamManagerForTimeline& manager) {
+	return LanePublication::publishManager(manager);
+}
+
+int32_t stagedSnapshotsLeft(Song& song) {
+	return LanePublication::stagedLeft(song);
 }
 
 int32_t checkPublished(Song& song) {

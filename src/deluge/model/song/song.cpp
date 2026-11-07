@@ -3297,6 +3297,12 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 }
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
+	// An arrangement take's spare goes with it
+	if (clip->type == ClipType::AUDIO) {
+		if (AudioClip* spare = static_cast<AudioClip*>(clip)->spare.exchange(nullptr)) {
+			deleteClipObject(spare, songBeingDestroyedToo, InstrumentRemoval::NONE);
+		}
+	}
 
 	// The clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
 	// the clip is valid; erase the entry after the clip (and its bound ParamSets) are destructed below.

@@ -7,12 +7,16 @@ automation at every loop end. The scenario prints:
     RS-TAKE         each take's length and lanes, from the model after the run. Byte-compared with the baseline: the
                     lanes each repeat appended, and those the knobs recorded, as the app made them when the baseline
                     was recorded.
-    RS-TAKE-PLAYED  for each repeat a take grew by, what the render plays across it (its working copy of a lane, else
-                    the lane's published snapshot) against the model, at each of the model's nodes in the repeat. Every
-                    one must match: a take whose appended repeat is not what the render plays plays the old lanes.
+    RS-TAKE-PLAYED  at each loop end of a take (a row's own end included), on the render: what it plays across the
+                    repeat (its working copy of a lane, else the lane's published snapshot) against the source's lanes
+                    shifted into the repeat, at each of their nodes. Every one must match: a repeat whose lanes are not
+                    what the render plays plays the old lanes.
     RS-KNOB         every knob turn landed in its clip's take.
     RS-PCM          the rendered output, against the baseline's.
-The scenario itself fails a run in which the render read or wrote a lane in the model (RS-SNAPSHOT).
+The scenario itself fails a run in which the render read or wrote a lane in the model (RS-SNAPSHOT) or made a param
+collection, a repeat was not staged and swapped in at its loop end or an audio take found no spare (RS-TAKE-REPEATS),
+a spare or a staged snapshot was left once recording ended (RS-TAKE-LEFT), or a collection's published lanes are not
+its model's after the take (RS-TAKE-STALE).
 
 ARRANGE_TAKE_UPDATE=1 records the baseline (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) instead of
 comparing with it, whatever else the run reports: a baseline is recorded on the commit the gate compares against.

@@ -39,6 +39,8 @@ namespace deluge::modulation {
 extern uint32_t stagedRepeatMisses;
 /// Loop ends at which the render swapped a take's staged repeat in.
 extern uint32_t stagedRepeatSwaps;
+/// Audio takes' loop ends that found no spare: the take did not go on. Must stay 0.
+extern uint32_t audioSpareMisses;
 #endif
 
 /// A take's repeats while the arrangement records it, and its next repeat staged: a take clip's, or a row's of it with
@@ -89,8 +91,12 @@ void catchUpArrangementTakes(Song& song);
 /// @brief [render] @p clip is going: no take repeats it any more, and a repeat counted for one is not appended.
 void forgetRepeatSource(Song& song, const InstrumentClip& clip);
 
+/// @brief [render] An audio take's loop end found no spare (counted).
+void noteAudioSpareMissed();
+
 /// @brief [interaction] Stage each recording take's next repeat where it is not staged, or was staged from source lanes
-///        since republished, and drop what is staged for takes no longer recording. At the end of each job's publish.
+///        since republished; give each recording audio take a spare; and drop what is staged, and the spare, of takes
+///        no longer recording. At the end of each job's publish.
 void restageArrangementTakes(Song& song);
 
 /// @brief [render] At @p take's loop end, publish its staged repeat: every collection the repeat appends to swaps in

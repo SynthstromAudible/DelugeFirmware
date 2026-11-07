@@ -47,6 +47,8 @@ extern uint32_t publishFailures;
 extern uint32_t renderModelWrites;
 /// The render's lane requests that found the queue full and were dropped: must stay 0.
 extern uint32_t laneRequestOverflows;
+/// Param collections the render made: must stay 0.
+extern uint32_t renderMadeCollections;
 #endif
 
 /// @brief [render] or [interaction] Count a lane the render resolved through the model, if on the render.
@@ -104,6 +106,14 @@ void markLanesChanged(ParamCollection& collection);
 ///        operation's end they stay, so a write through a lane still held is published at the next point.
 void publishDirtyLanes(bool settle = false);
 
+/// @brief [interaction] Publish each collection of @p manager, which no walk of the song reaches yet: an arrangement
+///        take's spare, before the render takes it.
+/// @return False when out of memory, or when a publish may not happen now.
+bool publishParamManager(ParamManagerForTimeline& manager);
+
+/// @brief [interaction] The collections of @p song holding a staged or superseded snapshot.
+int32_t stagedSnapshotsLeft(Song& song);
+
 /// @brief [interaction] Publish every collection of @p song before it is handed to the render: a song not yet current
 ///        is reached by no walk after an edit or a job.
 /// @return False when out of memory: those collections are read in the model until a later walk publishes them.
@@ -135,6 +145,10 @@ public:
 	static bool publishSong(Song& song);
 	/// @brief [interaction] As checkPublished().
 	static int32_t check(Song& song);
+	/// @brief [interaction] As publishParamManager().
+	static bool publishManager(ParamManagerForTimeline& manager);
+	/// @brief [interaction] As stagedSnapshotsLeft().
+	static int32_t stagedLeft(Song& song);
 
 	/// @brief [interaction] Drop @p collection's staged snapshot, unpublished, and retire the one the render replaced
 	///        at its last swap, so that the published snapshot is the only one left sharing its lanes.

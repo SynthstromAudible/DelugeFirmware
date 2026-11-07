@@ -29,6 +29,7 @@
 #include "libdeluge/tier.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/change_effect.h"
@@ -1144,9 +1145,23 @@ void report() {
 				}
 			}
 		}
-		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u\n", repeats,
-		       deluge::modulation::stagedRepeatSwaps, deluge::modulation::stagedRepeatMisses,
-		       deluge::modulation::latchWritesWithoutCopy);
+		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u spare_misses=%u "
+		       "render_made_collections=%u\n",
+		       repeats, deluge::modulation::stagedRepeatSwaps, deluge::modulation::stagedRepeatMisses,
+		       deluge::modulation::latchWritesWithoutCopy, deluge::modulation::audioSpareMisses,
+		       deluge::modulation::renderMadeCollections);
+		if (deluge::modulation::audioSpareMisses != 0 || deluge::modulation::renderMadeCollections != 0) {
+			fail("RS-TAKE-REPEATS", "an audio take's loop end made its next take on the render, or found no spare");
+		}
+		int32_t spares = 0;
+		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {
+			spares += clip->type == ClipType::AUDIO && static_cast<AudioClip*>(clip)->spare.load() != nullptr ? 1 : 0;
+		}
+		const int32_t staged = deluge::modulation::stagedSnapshotsLeft(*currentSong);
+		printf("RS-TAKE-LEFT spares=%d staged=%d\n", spares, static_cast<int>(staged));
+		if (spares != 0 || staged != 0) {
+			fail("RS-TAKE-LEFT", "a spare or a staged snapshot was left after recording ended");
+		}
 		if (deluge::modulation::stagedRepeatMisses != 0 || deluge::modulation::stagedRepeatSwaps != repeats) {
 			fail("RS-TAKE-REPEATS", "a take's repeat was not staged and swapped in at its loop end");
 		}

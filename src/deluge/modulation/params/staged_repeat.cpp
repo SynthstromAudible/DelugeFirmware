@@ -17,6 +17,7 @@
 
 #include "modulation/params/staged_repeat.h"
 
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -35,6 +36,7 @@ namespace deluge::modulation {
 #if ALPHA_OR_BETA_VERSION
 uint32_t stagedRepeatMisses = 0;
 uint32_t stagedRepeatSwaps = 0;
+uint32_t audioSpareMisses = 0;
 #endif
 
 namespace {
@@ -252,6 +254,56 @@ void drop(InstrumentClip& take) {
 }
 } // namespace
 
+namespace {
+/// Whether the arrangement records the audio take @p take now.
+bool recording(const AudioClip& take) {
+	return playbackHandler.recording == RecordingMode::ARRANGEMENT && take.beingRecordedFromClip != nullptr;
+}
+
+/// Delete @p take's spare, if any.
+void dropAudioSpare(Song& song, AudioClip& take) {
+	if (AudioClip* spare = take.spare.exchange(nullptr, std::memory_order_acq_rel)) {
+		song.deleteClipObject(spare, false, InstrumentRemoval::NONE);
+	}
+}
+
+/// Give @p take a spare, if it has none: a clone of its source, its lanes published, with room in the containers its
+/// loop end inserts the next take into.
+void stageAudioSpare(Song& song, AudioClip& take) {
+	const ParamCollection* sourceParams = take.beingRecordedFromClip->paramManager.summaries[0].paramCollection;
+	const void* against = sourceParams != nullptr ? sourceParams->published() : nullptr;
+	if (take.spare.load(std::memory_order_relaxed) != nullptr) {
+		if (take.spareAgainst == against) {
+			return;
+		}
+		dropAudioSpare(song, take); // cloned from the source's lanes as they were
+	}
+	if (!song.live.clips.arrangement_only_clips.reserveExtra(1) || !take.output->clipInstances.reserveExtra(1)) {
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack =
+	    setupModelStackWithSong(memory, &song)->addTimelineCounter(take.beingRecordedFromClip);
+	if (take.beingRecordedFromClip->clone(stack) != Error::NONE) {
+		return;
+	}
+	auto* spare = static_cast<AudioClip*>(stack->getTimelineCounter());
+	if (!publishParamManager(spare->paramManager)) {
+		song.deleteClipObject(spare, false, InstrumentRemoval::NONE);
+		return;
+	}
+	take.spareAgainst = against;
+	take.spare.store(spare, std::memory_order_release);
+}
+
+} // namespace
+
+void noteAudioSpareMissed() {
+#if ALPHA_OR_BETA_VERSION
+	audioSpareMisses++;
+#endif
+}
+
 void countRepeat(InstrumentClip& take) {
 	take.repeats.appended.fetch_add(1, std::memory_order_release);
 	g_repeatsPending.store(true, std::memory_order_release);
@@ -287,7 +339,19 @@ void forgetRepeatSource(Song& song, const InstrumentClip& clip) {
 }
 
 void restageArrangementTakes(Song& song) {
-	for (Clip* clip : song.live.clips.arrangement_only_clips) {
+	// By index: making a spare reserves room in this container, which may move its storage
+	for (size_t i = 0; i < song.live.clips.arrangement_only_clips.size(); i++) {
+		Clip* clip = song.live.clips.arrangement_only_clips[i];
+		if (clip->type == ClipType::AUDIO) {
+			auto& take = static_cast<AudioClip&>(*clip);
+			if (recording(take)) {
+				stageAudioSpare(song, take);
+			}
+			else {
+				dropAudioSpare(song, take);
+			}
+			continue;
+		}
 		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}

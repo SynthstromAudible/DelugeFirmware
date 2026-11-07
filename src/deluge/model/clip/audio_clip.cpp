@@ -21,6 +21,7 @@
 #include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "model/sample/clip_increment.h"
+#include "modulation/params/staged_repeat.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
 // `model/sample/`: `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
@@ -949,12 +950,14 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 
-		Error error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
-		if (error != Error::NONE) {
+		// The next take is the spare the interaction tier cloned from the source, its lanes published: the render
+		// makes no clip and no param collection
+		AudioClip* newClip = spare.exchange(nullptr, std::memory_order_acq_rel);
+		if (newClip == nullptr) {
+			deluge::modulation::noteAudioSpareMissed();
 			return;
 		}
-
-		Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+		modelStack->setTimelineCounter(newClip);
 
 		newClip->beingRecordedFromClip = beingRecordedFromClip;
 		beingRecordedFromClip = nullptr;
@@ -966,7 +969,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		clipInstanceI++;
 
-		error = deluge::error_of(output->clipInstances.insertAt(clipInstanceI)); // Shouldn't be able to fail...
+		Error error = deluge::error_of(output->clipInstances.insertAt(clipInstanceI)); // Shouldn't be able to fail...
 		if (error != Error::NONE) {
 			return;
 		}
