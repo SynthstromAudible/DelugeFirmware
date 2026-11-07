@@ -38,3 +38,7 @@ the content card with ShellMenu on (`.superpowers/emu-card/content-shellmenu`: t
 card's `SETTINGS/CommunityFeatures.XML`), ShellMenu off on `content`, and `sm19` with `--audio-wav`. Windows over a
 blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
 100 ms after the press, before it times out.
+
+The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
+preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
+preset shows the conversion in every comparison that touches it instead of the UI.
