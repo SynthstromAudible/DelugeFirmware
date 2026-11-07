@@ -75,7 +75,7 @@ inline Song* make_bare_song() {
 	GlobalEffectable::initParams(&song->paramManager);
 	song->setupDefault();
 
-	// `deluge.cpp:392`. The scenes layer itself never reads this global (`context.cpp` takes a
+	// `deluge.cpp:393`. The scenes layer itself never reads this global (`context.cpp` takes a
 	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
 	// `isParamQuantizedStutter` (`modulation/params/param.cpp`), the `getCurrent*()`
 	// helpers at `model/song/song.cpp:91-137`. Leaving it null would make those a latent crash for

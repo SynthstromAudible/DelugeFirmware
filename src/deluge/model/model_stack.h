@@ -30,7 +30,8 @@ class ParamCollection;
 class AutoParam;
 namespace deluge::project {
 struct DocAutoParam;
-}
+struct LaneView;
+} // namespace deluge::project
 class ModelStackWithAutoParam;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
@@ -283,6 +284,9 @@ public:
 	/// back to paramCollection->docParamForId(paramId). Defined out-of-line in auto_param.cpp.
 	/// @return The param's DocAutoParam.
 	deluge::project::DocAutoParam* doc() const;
+	/// @brief [render] or [interaction] The lane as the render plays it (ParamCollection::playedLane()); on the
+	///        interaction tier, a playhead move included, the model's own (doc()).
+	deluge::project::LaneView laneView() const;
 };
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0

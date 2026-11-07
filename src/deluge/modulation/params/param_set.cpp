@@ -34,6 +34,7 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -107,6 +108,7 @@ void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
 	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
 	dropped = std::move(domStore_);
 	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
+	deluge::modulation::markLanesChanged(*this);
 }
 
 void ParamSet::ownExternalStore() {
@@ -135,6 +137,7 @@ void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
 }
 
 deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
+	deluge::modulation::markLanesChanged(*this);
 	// A ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
 	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
 	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
@@ -855,3 +858,13 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
         }
 
  */
+
+void ParamSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	// The lanes the render's lookup finds: the bound store's, or an unbound set's params' own
+	for (int32_t p = 0; p < numParams_; p++) {
+		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(p, *lane);
+		}
+	}
+}

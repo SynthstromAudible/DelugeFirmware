@@ -43,6 +43,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -874,6 +875,7 @@ void LoadSongUI::tickEssential() {
 
 void LoadSongUI::runArmSegment() {
 	preLoadedSong->project.metadata.name = enteredText;
+	(void)deluge::modulation::publishSongLanes(*preLoadedSong); // the swap, armed or now, hands it to the render
 
 	loadToDelete_ = currentSong;
 

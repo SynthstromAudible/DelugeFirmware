@@ -76,6 +76,7 @@
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -359,6 +360,7 @@ void setupBlankSong() {
 	preLoadedSong->ensureAtLeastOneSessionClip();
 
 	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
+	(void)deluge::modulation::publishSongLanes(*preLoadedSong);
 	currentSong = preLoadedSong;
 	preLoadedSong = nullptr;
 	deluge::markMappingIndexStale(); // the index is the current song's
@@ -747,7 +749,10 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 		// Before any job reads interaction-owned state the render's work changes: do what it asked for since the last
 		// job.
 		deluge::playback::applyRenderRequests();
-		return appLoop.service(now_us, reasons);
+		const uint64_t next = appLoop.service(now_us, reasons);
+		// The lanes the jobs changed, published for the render now the jobs are done with them
+		deluge::modulation::publishDirtyLanes(true);
+		return next;
 	} catch (...) {
 		// appLoop.service() already catches a throwing job's own body, so this is something else --
 		// e.g. a bad reasons value hitting undefined behaviour above the job loop. There is no job to

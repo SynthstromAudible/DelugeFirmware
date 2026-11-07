@@ -28,6 +28,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/structural_edit_probe.h"
@@ -247,6 +248,14 @@ void report() {
 		                            : "the app rendered in stereo with nothing plugged in");
 	}
 #if ALPHA_OR_BETA_VERSION
+	printf("RP-SNAPSHOT model_reads=%u render_writes=%u requests_dropped=%u\n", deluge::modulation::renderModelReads,
+	       deluge::modulation::renderPublishedWrites, deluge::modulation::laneRequestOverflows);
+	if (deluge::modulation::renderModelReads != 0 || deluge::modulation::renderPublishedWrites != 0) {
+		fail("RP-SNAPSHOT", "outside record mode the render read or wrote a lane in the model");
+	}
+	if (deluge::modulation::laneRequestOverflows != 0) {
+		fail("RP-SNAPSHOT", "a lane request the render made found the queue full");
+	}
 	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
 	       deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {

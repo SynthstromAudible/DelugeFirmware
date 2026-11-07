@@ -34,6 +34,10 @@ public:
 	///        `util::SnapshotDomain`). Must outlive this `RetireList`.
 	explicit RetireList(const util::SnapshotDomain& domain) : domain_(domain) {}
 
+	/// @brief [task] Make room for @p more retire() calls, so they cannot fail for want of memory.
+	/// @throws std::bad_alloc (or the allocator's exception) when there is no room.
+	void reserve(std::size_t more) { retired_.reserve(retired_.size() + more); }
+
 	/// @brief [task] Hand over ownership of `object`, stamped with the current audio epoch. Destroyed
 	///        immediately if the render has never run (epoch 0: no reader to protect against), otherwise held
 	///        until `reclaim()` proves it unreachable. Safe to call from inside a `destroy` callback running

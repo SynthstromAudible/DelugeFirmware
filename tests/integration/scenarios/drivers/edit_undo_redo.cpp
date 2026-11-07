@@ -70,6 +70,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -95,6 +96,8 @@
 #include "scenarios/drivers/driver.h"
 
 namespace {
+/// Collections found publishing stale lanes.
+int32_t g_lanesStale = 0;
 
 using deluge::scenarios::driver::Io;
 
@@ -232,7 +235,8 @@ void laneAgreementTarget(Song* song) {
 		if (fresh.setupWithPatching() == Error::NONE) {
 			PatchedParamSet* set = fresh.getPatchedParamSet();
 			check(set->findDocParamForId(0) == nullptr, "a fresh set starts unbound");
-			check(isUnheldLane(set->findDocForParam(0)), "an unbound set reads the unheld lane");
+			const deluge::project::LaneView unbound = set->playedLane(0);
+			check(unbound.empty() && unbound.base == 0, "an unbound set's lane plays as an unautomated one");
 			check(set->findDocParamForId(0) == nullptr, "reading an unbound set creates no store");
 
 			// The render's lookup of an unbound set's lane misses: it gets the unheld lane, writes nothing to it,
@@ -258,13 +262,23 @@ void laneAgreementTarget(Song* song) {
 			else {
 				check(false, "the fresh set's lane is reachable");
 			}
-			(void)set->docForParam(0);
-			check(&set->findDocForParam(0) == set->findDocParamForId(0), "a bound set reads its store's lane");
+			(void)set->docForParam(0)->nodes.insertSorted(0);
+			check(set->playedLane(0).size() == 1, "a bound set's lane plays its store's");
 		}
 	}
 	std::fprintf(io.out, "LH-AGREE checked=%d mismatches=%d\n", static_cast<int>(checked),
 	             static_cast<int>(mismatches));
 	check(mismatches == 0, "the collection's lane is the one its address resolves to");
+}
+
+/// Every collection's published snapshot must still equal its model after an edit, an undo or a redo.
+void checkLanesPublished(int line) {
+	const int32_t stale = deluge::modulation::checkPublished(*currentSong);
+	if (stale != 0) {
+		std::fprintf(io.err, "line %d: %d collection(s) published lanes that differ from the model\n", line,
+		             static_cast<int>(stale));
+		g_lanesStale += stale;
+	}
 }
 
 // Script apply(SetParamValue) -> undo -> redo over one resolved param lane, asserting the invariants.
@@ -286,6 +300,7 @@ void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{*addr, newValue, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "apply succeeds");
+	checkLanesPublished(__LINE__);
 	Snapshot post = snapshotOf(msap);
 	check(post.currentValue == newValue, "forward: value mutated");
 
@@ -298,10 +313,12 @@ void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* 
 
 	// (3) Real UNDO restores the pre-edit lane state (cv + nodes).
 	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
+	checkLanesPublished(__LINE__);
 	check(equalSnapshot(snapshotOf(msap), pre), "undo restores cv+nodes to pre-edit");
 
 	// (4) Real REDO re-applies the edited lane state.
 	actionLogger.revert(AFTER, /*updateVisually=*/false, /*doNavigation=*/false);
+	checkLanesPublished(__LINE__);
 	check(equalSnapshot(snapshotOf(msap), post), "redo restores cv+nodes to post-edit");
 }
 
@@ -332,10 +349,13 @@ void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t 
 	actionLogger.firstAction[AFTER] = nullptr;
 	deluge::edits::RemoveNote rem{deluge::edits::noteRowAddressFor(*ms), pos0, ms};
 	check(deluge::edits::apply(ctx, rem) == Error::NONE, "note-remove: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(!noteAtPos(noteRow, pos0), "note-remove: note absent after remove");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, pos0), "note-remove: undo restores the note");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(!noteAtPos(noteRow, pos0), "note-remove: redo removes the note again");
 
 	// B. AddNote it back into the now-clear slot (same length -> no overlap) -> undo -> redo.
@@ -343,10 +363,13 @@ void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t 
 	actionLogger.firstAction[AFTER] = nullptr;
 	deluge::edits::AddNote add{deluge::edits::noteRowAddressFor(*ms), pos0, len0, vel0, prob0, iter0, /*fill=*/0, ms};
 	check(deluge::edits::apply(ctx, add) == Error::NONE, "note-add: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, pos0), "note-add: note present after add");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(!noteAtPos(noteRow, pos0), "note-add: undo removes the note");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, pos0), "note-add: redo restores the note");
 	(void)label;
 }
@@ -386,11 +409,14 @@ void cableTarget(Song* song) {
 	deluge::edits::EditCable add =
 	    deluge::edits::EditCable::add(ms, {PatchSource::RANDOM, cutoff, deluge::synth::CablePolarity::BIPOLAR});
 	check(deluge::edits::apply(ctx, add) == Error::NONE, "cable add: applies");
+	checkLanesPublished(__LINE__);
 	const deluge::instrument::CableRecords after = cables.records();
 	check(after.size() == before.size() + 1, "cable add: one more record");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records() == before, "cable add: undo restores the records");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records() == after, "cable add: redo re-adds in the same order");
 
 	// SET_POLARITY
@@ -399,11 +425,14 @@ void cableTarget(Song* song) {
 	deluge::edits::EditCable polarity =
 	    deluge::edits::EditCable::setPolarity(ms, added, deluge::synth::CablePolarity::UNIPOLAR);
 	check(deluge::edits::apply(ctx, polarity) == Error::NONE, "cable polarity: applies");
+	checkLanesPublished(__LINE__);
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records()[*cables.records().find(PatchSource::RANDOM, cutoff)].polarity
 	          == deluge::synth::CablePolarity::BIPOLAR,
 	      "cable polarity: undo");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records()[*cables.records().find(PatchSource::RANDOM, cutoff)].polarity
 	          == deluge::synth::CablePolarity::UNIPOLAR,
 	      "cable polarity: redo");
@@ -416,15 +445,19 @@ void cableTarget(Song* song) {
 	if (!cables.records().find(PatchSource::RANDOM, resonance).has_value()) {
 		deluge::edits::EditCable reroute = deluge::edits::EditCable::reroute(ms, at, resonance);
 		check(deluge::edits::apply(ctx, reroute) == Error::NONE, "cable reroute: applies");
+		checkLanesPublished(__LINE__);
 		const size_t moved = *cables.records().find(PatchSource::RANDOM, resonance);
 		check(cables.docForParam(static_cast<int32_t>(moved))->current_value == 98765, "cable reroute: depth moves");
 		actionLogger.revert(BEFORE, false, false);
+		checkLanesPublished(__LINE__);
 		at = *cables.records().find(PatchSource::RANDOM, cutoff);
 		check(cables.docForParam(static_cast<int32_t>(at))->current_value == 98765,
 		      "cable reroute: undo moves it back");
 		actionLogger.revert(AFTER, false, false);
+		checkLanesPublished(__LINE__);
 		check(cables.records().find(PatchSource::RANDOM, resonance).has_value(), "cable reroute: redo");
 		actionLogger.revert(BEFORE, false, false);
+		checkLanesPublished(__LINE__);
 	}
 
 	// REMOVE, with a depth on the cable
@@ -434,13 +467,16 @@ void cableTarget(Song* song) {
 	const deluge::instrument::CableRecords withCable = cables.records();
 	deluge::edits::EditCable remove = deluge::edits::EditCable::remove(ms, at);
 	check(deluge::edits::apply(ctx, remove) == Error::NONE, "cable remove: applies");
+	checkLanesPublished(__LINE__);
 	check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "cable remove: removes");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records() == withCable, "cable remove: undo restores the records in order");
 	const size_t restored = *cables.records().find(PatchSource::RANDOM, cutoff);
 	check(cables.docForParam(static_cast<int32_t>(restored))->current_value == 123456,
 	      "cable remove: undo restores the depth");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "cable remove: redo removes");
 
 	// Create-on-edit: a depth written to a missing cable adds it; one undo takes back both.
@@ -454,10 +490,13 @@ void cableTarget(Song* song) {
 	deluge::edits::SetParamValue write{*deluge::edits::addressFor(*depth), 1 << 28, 0, 0,
 	                                   deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(ctx, write);
+	checkLanesPublished(__LINE__);
 	check(cables.records().size() == bare.size() + 1, "create-on-edit: one more record");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(cables.records() == bare, "create-on-edit: one undo removes the cable");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	const std::optional<size_t> created = cables.records().find(PatchSource::RANDOM, cutoff);
 	check(created.has_value() && cables.patchCables[*created].param.getCurrentValue() == (1 << 28),
 	      "create-on-edit: redo restores the depth");
@@ -472,9 +511,11 @@ void cableTarget(Song* song) {
 	deluge::edits::SetParamValue clear{*deluge::edits::addressFor(*zero), 0, 0, 0,
 	                                   deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(ctx, clear);
+	checkLanesPublished(__LINE__);
 	if (clip->isActiveOnOutput()) {
 		check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "delete-at-zero: removes the cable");
 		actionLogger.revert(BEFORE, false, false);
+		checkLanesPublished(__LINE__);
 		check(cables.records() == live, "delete-at-zero: one undo restores the cable in order");
 		const std::optional<size_t> back = cables.records().find(PatchSource::RANDOM, cutoff);
 		check(back.has_value() && cables.patchCables[*back].param.getCurrentValue() == (1 << 28),
@@ -576,10 +617,13 @@ void lengthTarget(Song* song) {
 	deluge::edits::SetNoteRowLength edit{deluge::edits::noteRowAddressFor(*ms), newLen, /*oldPos=*/0,
 	                                     noteRow->hasIndependentPlayPos(), ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "length: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(ms->getLoopLength() == newLen, "length: note-row length changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(ms->getLoopLength() == oldLen, "length: undo restores old length");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(ms->getLoopLength() == newLen, "length: redo re-applies new length");
 
 	song->setCurrentClip(nullptr);
@@ -635,10 +679,13 @@ void shiftTarget(Song* song) {
 	deluge::edits::ShiftNoteRow edit{deluge::edits::noteRowAddressFor(*ms), /*shiftAmount=*/3,
 	                                 /*shiftAutomation=*/false, /*shiftSequenceAndMPE=*/true, ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "shift: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) != before, "shift: note positions changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) == before, "shift: undo restores positions");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) != before, "shift: redo re-applies");
 
 	song->setCurrentClip(nullptr);
@@ -701,11 +748,14 @@ void euclideanTarget(Song* song) {
 	    deluge::edits::noteRowAddressFor(*ms),
 	    /*offset=*/newNumNotes - origCount,    newNumNotes, numStepsAvailable, effectiveLength, squareWidth, ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "euclidean: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == newNumNotes, "euclidean: note count matches requested events");
 	check(notePositions(noteRow) != before, "euclidean: note pattern changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) == before, "euclidean: undo restores original notes");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == newNumNotes, "euclidean: redo re-applies the pattern");
 
 	song->setCurrentClip(nullptr);
@@ -777,10 +827,13 @@ void repeatTarget(Song* song) {
 	                                   wrapEditLevel,
 	                                   ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "repeat: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == origTotal + 1, "repeat: one repeat note added");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == origTotal, "repeat: undo restores the original note count");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == origTotal + 1, "repeat: redo re-adds the repeat");
 
 	song->setCurrentClip(nullptr);
@@ -843,12 +896,15 @@ void nudgeTarget(Song* song) {
 	                              /*nudgeMPE=*/true,
 	                              ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "nudge: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, notePos + 1), "nudge: note moved right by 1");
 	check(!noteAtPos(noteRow, notePos), "nudge: original slot now empty");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, notePos), "nudge: undo restores the note");
 	check(!noteAtPos(noteRow, notePos + 1), "nudge: undo clears the nudged slot");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(noteAtPos(noteRow, notePos + 1), "nudge: redo re-applies the nudge");
 
 	song->setCurrentClip(nullptr);
@@ -894,11 +950,14 @@ void clipShiftTarget(Song* song) {
 	deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*clip), /*shiftAmount=*/3,
 	                              /*shiftAutomation=*/false, /*shiftSequenceAndMPE=*/true, ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-shift: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(edit.shifted(), "clip-shift: the engine reported a shift");
 	check(notePositions(noteRow) != before, "clip-shift: note positions changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) == before, "clip-shift: undo restores positions");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(notePositions(noteRow) != before, "clip-shift: redo re-applies");
 
 	song->setCurrentClip(nullptr);
@@ -944,10 +1003,13 @@ void clipClearTarget(Song* song) {
 	deluge::edits::ClearClip edit{*deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
 	                              /*clearSequenceAndMPE=*/true};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-clear: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(totalNotes(clip) == 0, "clip-clear: all notes cleared");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(totalNotes(clip) == before, "clip-clear: undo restores the notes");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(totalNotes(clip) == 0, "clip-clear: redo re-clears");
 
 	song->setCurrentClip(nullptr);
@@ -988,14 +1050,17 @@ void clipMultiplyTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::MultiplyClip edit{deluge::edits::clipAddressFor(*clip), ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-multiply: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == lenBefore * 2, "clip-multiply: length doubled");
 	// Content is duplicated into the new second half; exact doubling isn't guaranteed (boundary notes /
 	// independent-length rows), so assert it grew and rely on undo for the exact-restoration invariant.
 	check(totalNotes(clip) >= notesBefore, "clip-multiply: content duplicated (grew)");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == lenBefore, "clip-multiply: undo restores length");
 	check(totalNotes(clip) == notesBefore, "clip-multiply: undo restores notes");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == lenBefore * 2, "clip-multiply: redo re-doubles");
 
 	song->setCurrentClip(nullptr);
@@ -1012,10 +1077,13 @@ void swingTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetSwing edit{target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "swing: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(song->project.groove.swing_amount == target, "swing: value set");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(song->project.groove.swing_amount == before, "swing: undo restores");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(song->project.groove.swing_amount == target, "swing: redo re-applies");
 }
 
@@ -1053,6 +1121,7 @@ void clipLengthTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "set-length: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == newLength, "set-length: length set");
 
 	// The DocClip holds the length the accessor returns.
@@ -1067,8 +1136,10 @@ void clipLengthTarget(Song* song) {
 	}
 
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == before, "set-length: undo restores length");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == newLength, "set-length: redo re-applies");
 
 	// The clip is bound to its DOM record. Poke the DocClip directly (bypassing
@@ -1165,6 +1236,7 @@ void audioClipMarkerTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "marker-drag: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == newLength, "marker-drag: length set");
 	check(clip->sampleHolder.endPos == (uint64_t)newEndPosSamples, "marker-drag: endPos set to dragged value");
 
@@ -1182,10 +1254,12 @@ void audioClipMarkerTarget(Song* song) {
 	actionLogger.closeAction(actionType);
 
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == oldLength, "marker-drag: undo restores length");
 	check(clip->sampleHolder.endPos == oldValue, "marker-drag: undo restores marker (ConsequenceClipLength backpatch)");
 
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == newLength, "marker-drag: redo re-applies length");
 	check(clip->sampleHolder.endPos == (uint64_t)newEndPosSamples, "marker-drag: redo re-applies marker");
 
@@ -1223,6 +1297,7 @@ void audioClipResizeTarget(Song* song) {
 	deluge::edits::ResizeAudioClip edit{*deluge::edits::clipAddressFor(*clip),
 	                                    deluge::edits::ResizeAudioClip::Kind::END, oldLength * 2, oldLength};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "resize: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == oldLength * 2, "resize: length set");
 	const uint64_t newEnd = clip->sampleHolder.endPos;
 	check(newEnd != oldEnd, "resize: end marker moved");
@@ -1230,10 +1305,12 @@ void audioClipResizeTarget(Song* song) {
 	      "resize: one undo step");
 
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == oldLength, "resize: undo restores length");
 	check(clip->sampleHolder.endPos == oldEnd, "resize: undo restores marker");
 
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->loopLength() == oldLength * 2, "resize: redo re-applies length");
 	check(clip->sampleHolder.endPos == newEnd, "resize: redo re-applies marker");
 
@@ -1303,6 +1380,7 @@ void audioClipSetSampleTarget(Song* song) {
 	check(clip->docAudioClip_->end_pos == newEndPos, "set-sample: endPos set (docAudioClip_)");
 
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(clip->sampleHolder.filePath.empty(), "set-sample: undo restores empty filePath (sampleHolder)");
 	check(clip->docAudioClip_->file_path.empty(),
 	      "set-sample: undo restores empty filePath (docAudioClip_ round-trip)");
@@ -1322,10 +1400,13 @@ void tempoTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetTempo edit{target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "tempo: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: value changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(song->project.transport.samples_per_timer_tick_big == before, "tempo: undo restores");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: redo re-applies");
 }
 
@@ -1392,10 +1473,13 @@ void pasteTarget(Song* song) {
 	deluge::edits::PasteNoteRow edit{deluge::edits::noteRowAddressFor(*ms), &copied, /*scaleFactor=*/1.0f,
 	                                 /*screenEndPos=*/clip->loopLength(),   action,  ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == before + 1, "paste: one note pasted");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == before, "paste: undo removes the pasted note");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(std::ssize(noteRow->notes) == before + 1, "paste: redo re-pastes");
 
 	song->setCurrentClip(nullptr);
@@ -1437,6 +1521,7 @@ void kitAddTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::AddKitRow edit{kit, noteRow, DrumType::GATE, ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "kit-add: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(edit.drum() != nullptr, "kit-add: a drum was created");
 	check(drumCount(kit) == before + 1, "kit-add: kit gained a drum");
 	check(kit->getDrumIndex(edit.drum()) >= 0, "kit-add: drum is in the kit");
@@ -1446,6 +1531,21 @@ void kitAddTarget(Song* song) {
 }
 
 // Delete a SOUND-drum kit row via RemoveKitRow (apply-only — non-undoable by design).
+/// Whether a row of any clip, other than @p except's, plays @p drum. Compares addresses only.
+bool anyRowPlays(Song* song, const Drum* drum, const Clip* except = nullptr) {
+	for (Clip* clip : AllClips::everywhere(song)) {
+		if (clip == except || clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		for (NoteRow& row : static_cast<InstrumentClip*>(clip)->noteRows) {
+			if (row.drum == drum) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void kitRemoveTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	SoundDrum* drum = nullptr;
@@ -1458,8 +1558,9 @@ void kitRemoveTarget(Song* song) {
 		if (drumCount(kit) < 2) { // keep at least one drum around
 			continue;
 		}
+		// As the UI's deleteDrum: only a drum no other clip's row plays, whose rows would be left naming it
 		for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
-			if (d->type == DrumType::SOUND) {
+			if (d->type == DrumType::SOUND && !anyRowPlays(song, d, cl)) {
 				clip = (InstrumentClip*)cl;
 				drum = (SoundDrum*)d;
 				break;
@@ -1479,8 +1580,11 @@ void kitRemoveTarget(Song* song) {
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::RemoveKitRow edit{deluge::edits::kitRowAddressFor(*kit, *drum), drum, ms};
+	const Drum* removed = drum; // compared by address only once it is freed
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "kit-remove: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(drumCount(kit) == before - 1, "kit-remove: kit lost a drum"); // drum is now freed; do NOT touch it
+	check(!anyRowPlays(song, removed), "kit-remove: no clip's row still plays the removed drum");
 
 	song->setCurrentClip(nullptr);
 }
@@ -1512,10 +1616,13 @@ void arrangementTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::EditClipInstance edit{output, inst, inst->pos, newLength, inst->clip, action};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "arrangement: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(inst->length == newLength, "arrangement: length changed");
 	actionLogger.revert(BEFORE, false, false);
+	checkLanesPublished(__LINE__);
 	check(inst->length == before, "arrangement: undo restores length");
 	actionLogger.revert(AFTER, false, false);
+	checkLanesPublished(__LINE__);
 	check(inst->length == newLength, "arrangement: redo re-applies");
 }
 
@@ -1545,6 +1652,7 @@ void launchStyleTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipLaunchStyle edit{clip, target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "launch-style: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->launchStyle() == target, "launch-style: accessor set");
 	// Loaded clips are bound: the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
@@ -1564,6 +1672,7 @@ void colourTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipColour edit{*deluge::edits::clipAddressFor(*clip), /*offset=*/5};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "colour: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->colourOffset() == static_cast<int16_t>(before + 5), "colour: colour nudged");
 	// Loaded clips are bound (load-binding pass): the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
@@ -1608,6 +1717,7 @@ void sectionTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipSection edit{clip, target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "section: apply succeeds");
+	checkLanesPublished(__LINE__);
 	check(clip->section() == target, "section: accessor set");
 	// Loaded clips are bound: the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
@@ -1780,8 +1890,10 @@ void recordExpressionTarget(Song* song) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::RecordExpressionValue edit{*address, before + 1234567, 0, false};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "record-expression: applies");
+		checkLanesPublished(__LINE__);
 		check(lane->autoParam->getCurrentValue() == before + 1234567, "record-expression: the lane takes the value");
 		actionLogger.revert(BEFORE, false, false);
+		checkLanesPublished(__LINE__);
 		check(lane->autoParam->getCurrentValue() == before, "record-expression: undo gives the value back");
 		return;
 	}
@@ -1825,6 +1937,7 @@ void undoAcrossClipDeleteTarget(Song* song) {
 			deluge::edits::Context ctx{*currentSong, currentSong->project};
 			deluge::edits::SetParamValue turn{*address, before + 12345678};
 			check(deluge::edits::apply(ctx, turn) == Error::NONE, "undo-across-delete: the turn applies");
+			checkLanesPublished(__LINE__);
 			if (actionLogger.firstAction[BEFORE] != nullptr) {
 				actionLogger.firstAction[BEFORE]->openForAdditions = false;
 			}
@@ -1840,11 +1953,15 @@ void undoAcrossClipDeleteTarget(Song* song) {
 			action->openForAdditions = false;
 			check(song->clipForId(clipId) == nullptr, "undo-across-delete: the clip is gone");
 			actionLogger.revert(BEFORE, false, false);
+			checkLanesPublished(__LINE__);
 			actionLogger.revert(BEFORE, false, false);
+			checkLanesPublished(__LINE__);
 			check(song->clipForId(clipId) != nullptr, "undo-across-delete: undo brings the clip back by its id");
 			check(valueNow() == before, "undo-across-delete: undo brings the lane back");
 			actionLogger.revert(AFTER, false, false);
+			checkLanesPublished(__LINE__);
 			actionLogger.revert(AFTER, false, false);
+			checkLanesPublished(__LINE__);
 			check(song->clipForId(clipId) == nullptr, "undo-across-delete: redo deletes the clip again");
 			return;
 		}
@@ -1945,8 +2062,10 @@ void newShapesTarget(Song* song) {
 			deluge::edits::SetParamValue edit{*address, before + 7654321, 0, 0,
 			                                  deluge::edits::SetParamValue::Resolve::EXACT};
 			check(deluge::edits::apply(ctx, edit) == Error::NONE, "melodic row: the write applies");
+			checkLanesPublished(__LINE__);
 			check(lane->autoParam->getCurrentValue() == before + 7654321, "melodic row: the lane takes the value");
 			actionLogger.revert(BEFORE, false, false);
+			checkLanesPublished(__LINE__);
 			check(lane->autoParam->getCurrentValue() == before, "melodic row: undo gives the value back");
 			exactByShape["melodic row written"]++;
 		}
@@ -2094,7 +2213,8 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	check(deluge::modulation::laneSplits == 0, "every lane the interaction tier resolved is the render's");
 #endif
 	std::free(xml);
-	return failures ? 3 : 0;
+	std::fprintf(io.out, "EUR-SNAPSHOT stale=%d\n", static_cast<int>(g_lanesStale));
+	return (failures != 0 || g_lanesStale != 0) ? 3 : 0;
 }
 
 } // namespace

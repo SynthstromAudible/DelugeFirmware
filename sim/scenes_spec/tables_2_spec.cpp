@@ -1367,7 +1367,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:223-227`), so a polarity the
 		// user chose *before* the cable existed survives its creation.
 		//
-		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:438`),
+		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:443`),
 		// so the *default* needs no help -- what would be lost is a chosen one. Hence the sentinel
 		// below: the page is put in the polarity that is NOT the source's default, and the created
 		// cable must come out in it.

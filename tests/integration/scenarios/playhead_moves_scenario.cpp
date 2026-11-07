@@ -18,7 +18,9 @@
 #include "scenarios/playhead_moves_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -29,10 +31,14 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/shift_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -41,6 +47,7 @@
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/playhead_checks.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/preset_acquisition.h"
@@ -89,6 +96,8 @@ enum class Leg : uint8_t {
 	ArrangerRecord,
 	Clone,
 	Resume,
+	SelfRepair,
+	ClipStop,
 	Done,
 };
 
@@ -116,6 +125,16 @@ uint32_t g_actionsBefore = 0;
 uint64_t g_hash = 0;
 /// Arrangement-only clips before the move: arrangement recording makes one per armed output.
 int32_t g_arrangementClipsBefore = 0;
+/// Render writes to lanes outside record mode before the move.
+uint32_t g_laneWritesBefore = 0;
+/// Collections found publishing lanes that differ from the model, after every leg.
+int32_t g_lanesStale = 0;
+/// CLIPSHIFT: whether, right after the shift, the volume cursor played the shifted lane's value at the playhead.
+bool g_cursorOnShiftedLane = false;
+/// Blocks a leg plays long enough to reach a node event or a launch: some 2.3 s.
+constexpr int32_t kBlocksToEvent = 800;
+/// A mono-expression base set before a clip is stopped.
+constexpr int32_t kExpressionBase = 1 << 24;
 /// What the injected block saw: the timer and swung ticks it actioned, or -1 if it never ran.
 int64_t g_injectedTicks = -1;
 
@@ -161,6 +180,10 @@ const char* legName(Leg leg) {
 		return "CLONE";
 	case Leg::Resume:
 		return "RESUME";
+	case Leg::SelfRepair:
+		return "SELFREPAIR";
+	case Leg::ClipStop:
+		return "CLIPSTOP";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -290,6 +313,94 @@ void logRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
 	g_runnerLog.masked = g_runnerLog.masked || deluge_audio_excluded_depth() > 0;
 }
 
+/// Whether the retired marker has been freed.
+bool g_markerFreed = false;
+
+void freeMarker(void* marker) {
+	g_markerFreed = true;
+	deluge::memory::dealloc(marker);
+}
+
+/// Memory retired while the render may read it is freed only once two render blocks have begun since.
+bool selfTestRetire() {
+	static DelugeStereoSample silence[kRenderBlockFrames]{};
+	static DelugeStereoSample output[kRenderBlockFrames]{};
+	// The render has to have run for retirement to wait on it
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	g_markerFreed = false;
+	AudioEngine::retireMemory(deluge::memory::alloc_sdram(16), &freeMarker);
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	AudioEngine::reclaimRetired();
+	const bool keptOneBlock = !g_markerFreed;
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	deluge_app_render(silence, output, kRenderBlockFrames);
+	AudioEngine::reclaimRetired();
+	return keptOneBlock && g_markerFreed;
+}
+
+/// Out of memory building a snapshot: the old one stays published, the failure is counted, the next publish point
+/// publishes the lane, and once what was replaced is reclaimed the published lanes hold what they held before.
+bool selfTestPublishOutOfMemory() {
+	ParamSet& set = *currentSong->paramManager.getUnpatchedParamSet();
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t bytesBefore = deluge::modulation::publishedBytes.load(std::memory_order_relaxed);
+#endif
+	constexpr int32_t p = deluge::modulation::params::UNPATCHED_STUTTER_RATE;
+	// A length no other lane of the boot song has, so the failure made is this lane's copy
+	constexpr int32_t kNodes = 37;
+	const deluge::project::DocAutoParam before = *set.docForParam(p);
+	auto edit = [&](int32_t value) {
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		deluge::project::DocAutoParam& lane = *set.docForParam(p);
+		lane.nodes.clear();
+		for (int32_t n = 0; n < kNodes; n++) {
+			const int32_t i = lane.nodes.insertSorted(n * 3).value_or(-1);
+			if (i >= 0) {
+				lane.nodes[i].value = value + n;
+			}
+		}
+	};
+	edit(0);
+	deluge::modulation::publishDirtyLanes(true);
+	const deluge::modulation::LaneSnapshot* first = set.published();
+
+	edit(1000);
+	bool counted = true;
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t failuresBefore = deluge::modulation::publishFailures;
+#endif
+	deluge::memory::failNextAllocationOfSize(sizeof(deluge::modulation::PublishedLane)
+	                                         + (kNodes * sizeof(deluge::project::ParamNode)));
+	deluge::modulation::publishDirtyLanes(true);
+#if ALPHA_OR_BETA_VERSION
+	counted = deluge::modulation::publishFailures == failuresBefore + 1;
+#endif
+	const bool kept = set.published() == first;
+
+	deluge::modulation::publishDirtyLanes(true);
+	const deluge::modulation::PublishedLane* now = (set.published() != nullptr) ? set.published()->find(p) : nullptr;
+	const bool republished = set.published() != first && now != nullptr && now->equals(*set.docForParam(p));
+
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		*set.docForParam(p) = before;
+	}
+	deluge::modulation::publishDirtyLanes(true);
+	// What the publishes replaced is freed two render blocks on
+	static DelugeStereoSample silence[kRenderBlockFrames]{};
+	static DelugeStereoSample output[kRenderBlockFrames]{};
+	for (int32_t block = 0; block < 3; block++) {
+		deluge_app_render(silence, output, kRenderBlockFrames);
+	}
+	AudioEngine::reclaimRetired();
+	bool released = true;
+#if ALPHA_OR_BETA_VERSION
+	released = deluge::modulation::publishedBytes.load(std::memory_order_relaxed) == bytesBefore;
+#endif
+	return first != nullptr && counted && kept && republished && released
+	       && !deluge::memory::allocationFailurePending();
+}
+
 /// As logRunner, and the notify 10 makes a move of its own that defers 20 and 21.
 void nestingRunner(const deluge::playback::MoveEffects::DelayNotify& notify) {
 	logRunner(notify);
@@ -374,10 +485,36 @@ void selfTestEffects() {
 	MoveEffects::setRunnerForTest(nullptr);
 
 	char line[128];
-	snprintf(line, sizeof(line), "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d\n",
-	         order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
-	         render ? 1 : 0);
+	const bool retire = selfTestRetire();
+	const bool publishOutOfMemory = selfTestPublishOutOfMemory();
+	snprintf(
+	    line, sizeof(line),
+	    "PM-EFFECTS order=%d nested=%d room=%d room_ran=%d unmasked=%d drain=%d render=%d retire=%d publish_oom=%d\n",
+	    order ? 1 : 0, nested ? 1 : 0, static_cast<int>(room), roomRan ? 1 : 0, unmasked ? 1 : 0, drain ? 1 : 0,
+	    render ? 1 : 0, retire ? 1 : 0, publishOutOfMemory ? 1 : 0);
 	std::fputs(line, stdout);
+}
+
+/// g_clip's synth volume lane, as automateVolume() reaches it.
+ModelStackWithAutoParam* volumeLane(char* memory) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId =
+	    three->addParamCollectionAndId(summary->paramCollection, summary, deluge::modulation::params::LOCAL_VOLUME);
+	return withId->paramCollection->getAutoParamFromId(withId, false);
+}
+
+/// g_clip's first mono-expression lane.
+ModelStackWithAutoParam* expressionLane(char* memory) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	(void)g_clip->paramManager.getOrCreateExpressionParamSet();
+	ParamCollectionSummary* summary = g_clip->paramManager.getExpressionParamSetSummary();
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId = three->addParamCollectionAndId(summary->paramCollection, summary, 0);
+	return withId->paramCollection->getAutoParamFromId(withId, true);
 }
 
 bool setupLeg() {
@@ -451,6 +588,20 @@ void prepareMove() {
 		}
 		break;
 	}
+	case Leg::SelfRepair: {
+		// A node at the lane's loop length, which no edit leaves: the render's self-repair is what removes it.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* volume = volumeLane(memory);
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*volume->doc(), g_clip->loopLength(), 1 << 27, false);
+		break;
+	}
+	case Leg::ClipStop: {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* expression = expressionLane(memory);
+		expression->autoParam->setCurrentValueWithNoReversionOrRecording(expression, kExpressionBase);
+		break;
+	}
 	case Leg::ArrangerRecord:
 		// Recording session to arranger with the clip's output armed: the switch begins arrangement recording there.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
@@ -516,8 +667,18 @@ void move() {
 		currentSong->setClipLength(g_clip, g_clip->loopLength() * 2, nullptr);
 		break;
 	case Leg::ClipShift: {
+		// A quarter of the loop moves the volume lane's step under the playhead
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)g_clip->shiftHorizontally(setupModelStackWithTimelineCounter(memory, currentSong, g_clip), 3, true, true);
+		deluge::edits::Context context{*currentSong, currentSong->project};
+		deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*g_clip), g_clip->loopLength() / 4, true, true,
+		                              setupModelStackWithTimelineCounter(memory, currentSong, g_clip)};
+		(void)deluge::edits::apply(context, edit);
+		// The move positioned the cursor on the shifted lane, not the one published before the shift
+		alignas(ModelStackWithAutoParam) char laneMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* volume = volumeLane(laneMemory);
+		g_cursorOnShiftedLane = volume->autoParam->played()
+		                        == deluge::project::getValueAtPos(
+		                            *volume->doc(), static_cast<uint32_t>(g_clip->getLivePos()), g_clip->loopLength());
 		break;
 	}
 	case Leg::RowMute: {
@@ -566,6 +727,27 @@ void move() {
 		// As stopping recording to the arranger does
 		currentSong->resumeClipsClonedForArrangementRecording();
 		break;
+	case Leg::SelfRepair:
+		// The render reaches the lane's node events
+		for (int32_t block = 0; block < kBlocksToEvent; block++) {
+			renderBlock(false);
+		}
+		// As the app loop does: the render's requests before a job, the lanes they changed published at its end
+		deluge::playback::applyRenderRequests();
+		deluge::modulation::publishDirtyLanes(true);
+		break;
+	case Leg::ClipStop: {
+		// Armed to stop: the render stops it at the next launch
+		int32_t index = static_cast<int32_t>(currentSong->live.clips.session_clips.getIndexForClip(g_clip));
+		session.toggleClipStatus(g_clip, &index, false, 0);
+		for (int32_t block = 0; block < kBlocksToEvent; block++) {
+			renderBlock(false);
+		}
+		// As the app loop does: the render's requests before a job, the lanes they changed published at its end
+		deluge::playback::applyRenderRequests();
+		deluge::modulation::publishDirtyLanes(true);
+		break;
+	}
 	case Leg::Done:
 		break;
 	}
@@ -609,6 +791,28 @@ void printLine() {
 		const bool cloned = active != nullptr && active != g_clip && active->beingRecordedFromClip == g_clip;
 		used += snprintf(line + used, sizeof(line) - used, g_leg == Leg::Clone ? " cloned=%d" : " resumed=%d",
 		                 (g_leg == Leg::Clone ? cloned : active == g_clip) ? 1 : 0);
+	}
+	if (g_leg == Leg::SelfRepair || g_leg == Leg::ClipStop) {
+#if ALPHA_OR_BETA_VERSION
+		const auto writes = static_cast<unsigned>(deluge::modulation::renderPublishedWrites - g_laneWritesBefore);
+#else
+		const unsigned writes = 0;
+#endif
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		if (g_leg == Leg::SelfRepair) {
+			const deluge::project::DocAutoParam& lane = *volumeLane(memory)->doc();
+			const bool erased = lane.nodes.empty() || lane.nodes[std::ssize(lane.nodes) - 1].pos < g_clip->loopLength();
+			used += snprintf(line + used, sizeof(line) - used, " render_writes=%u erased=%d", writes, erased ? 1 : 0);
+		}
+		else {
+			ModelStackWithAutoParam* expression = expressionLane(memory);
+			used += snprintf(line + used, sizeof(line) - used, " render_writes=%u stopped=%d played=%d base=%d", writes,
+			                 currentSong->isClipActive(g_clip) ? 0 : 1, expression->autoParam->played() == 0 ? 0 : 1,
+			                 expression->doc()->current_value == 0 ? 0 : 1);
+		}
+	}
+	if (g_leg == Leg::ClipShift) {
+		used += snprintf(line + used, sizeof(line) - used, " cursor=%d", g_cursorOnShiftedLane ? 1 : 0);
 	}
 	if (g_leg == Leg::ArrangerRecord) {
 		const auto clips = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());
@@ -655,6 +859,8 @@ void runTick() {
 			g_stage = Stage::Summary;
 			break;
 		}
+		// The setup's lanes, published as the app loop does when a job ends: these steps run outside it.
+		deluge::modulation::publishDirtyLanes(true);
 		startClock();
 		g_timerAtStart = AudioEngine::audioSampleTimer;
 		g_blocks = 0;
@@ -685,6 +891,9 @@ void runTick() {
 		g_actionsBefore = deluge::playback::maskedActions;
 #endif
 		g_allocBefore = deluge::memory::maskedAllocations();
+#if ALPHA_OR_BETA_VERSION
+		g_laneWritesBefore = deluge::modulation::renderPublishedWrites;
+#endif
 		g_hash = 0xcbf29ce484222325ULL;
 		g_injectedTicks = -1;
 		move();
@@ -692,6 +901,7 @@ void runTick() {
 			renderBlock(true);
 		}
 		printLine();
+		g_lanesStale += deluge::modulation::checkPublished(*currentSong);
 		g_stage = Stage::After;
 		break;
 	case Stage::After:
@@ -707,6 +917,17 @@ void runTick() {
 			         static_cast<unsigned>(site.longestUs), static_cast<unsigned>(site.count));
 			std::fputs(spanLine, stdout);
 		});
+#if ALPHA_OR_BETA_VERSION
+		{
+			// Lanes the render resolved through the model, over every leg played outside record mode; the bytes the
+			// published lanes hold at the end
+			char snapshotLine[96];
+			snprintf(snapshotLine, sizeof(snapshotLine), "PM-SNAPSHOT model_reads=%u stale=%d lanes_bytes=%u\n",
+			         static_cast<unsigned>(deluge::modulation::renderModelReads), static_cast<int>(g_lanesStale),
+			         static_cast<unsigned>(deluge::modulation::publishedBytes.load(std::memory_order_relaxed)));
+			std::fputs(snapshotLine, stdout);
+		}
+#endif
 		char line[48];
 		snprintf(line, sizeof(line), "PM-RESULT failures=%d\n", static_cast<int>(g_failures));
 		std::fputs(line, stdout);

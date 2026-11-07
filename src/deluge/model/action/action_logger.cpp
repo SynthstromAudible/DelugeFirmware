@@ -44,6 +44,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/params/lane_publication.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -349,6 +350,7 @@ Action* ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDi
 // Clip resize.
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
 	D_PRINTLN("ActionLogger::revert");
+	deluge::modulation::LaneOperation operation; // its lanes published for the render once it is whole
 	if (currentSong != nullptr) {
 		deluge::modulation::drainRecordEvents(*currentSong); // what is undone includes every value recorded
 	}

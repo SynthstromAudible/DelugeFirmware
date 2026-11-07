@@ -31,6 +31,7 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
+#include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -80,6 +81,7 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
+	deluge::modulation::markLanesChanged(*this);
 	// When bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its cc,
 	// so save and runtime edits share the persistent store (the inline nodes_ is then unused). Unbound, the CC owns
 	// its store inline and rides with the MIDIParam through the vector's reorders.
@@ -105,6 +107,7 @@ void MIDIParamCollection::bindDomMidiExternal(std::vector<deluge::project::DocMi
 	// The render resolves the CCs' lanes through domMidiRef_: it sees the inline lanes or the tree's, never neither.
 	EditGuard guard{ModelEdit::PARAM_STORE};
 	domMidiRef_ = ext;
+	deluge::modulation::markLanesChanged(*this);
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::findDomMidiNodes(uint8_t cc) const {
@@ -365,7 +368,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated(*docForParam(i))) {
+		if (param->isAutomated(playedLane(params[i].cc))) {
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(params[i].cc, param);
@@ -438,3 +441,13 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+void MIDIParamCollection::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		const int32_t cc = params[i].cc;
+		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(cc, *lane);
+		}
+	}
+}

@@ -22,11 +22,19 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
 #include "playback/move_section.h"
 #include "plugin-api/types/param_mapping.h"
 
-ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
+namespace {
+/// [render] or [interaction] The serial the next collection made is given.
+std::atomic<uint32_t> g_nextSerial{1};
+} // namespace
+
+ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary)
+    : objectSize(newObjectSize), serial_(g_nextSerial.fetch_add(1, std::memory_order_relaxed)) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreAutomated[i] = 0;
 	}
@@ -34,9 +42,26 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreInterpolating[i] = 0;
 	}
+	deluge::modulation::LanePublication::made(*this);
+}
+
+ParamCollection::ParamCollection(const ParamCollection& other)
+    : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent),
+      serial_(g_nextSerial.fetch_add(1, std::memory_order_relaxed)) {
+	deluge::modulation::LanePublication::made(*this);
+}
+
+deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
+	if (const deluge::modulation::LaneSnapshot* snapshot = deluge::modulation::snapshotToPlay(*this)) {
+		const deluge::modulation::PublishedLane* lane = snapshot->find(paramId);
+		return (lane != nullptr) ? lane->view() : deluge::project::LaneView{};
+	}
+	const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
 }
 
 ParamCollection::~ParamCollection() {
+	deluge::modulation::LanePublication::gone(*this);
 }
 
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

@@ -16,9 +16,13 @@
  */
 
 #pragma once
-#include <cstdint>
 
+#include "deluge-project/lane_view.h"
+#include "foundation/function_ref.h"
 #include "modulation/params/param.h"
+
+#include <atomic>
+#include <cstdint>
 
 class ParamManagerForTimeline;
 class Sound;
@@ -41,10 +45,19 @@ class ParamCollectionSummary;
 namespace deluge::project {
 struct DocAutoParam;
 }
+namespace deluge::modulation {
+struct LaneSnapshot;
+class LanePublication;
+} // namespace deluge::modulation
 
 class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
+	/// @brief A copy of @p other's lanes' owner, with no snapshot of its own yet: the next walk of the song that plays
+	/// it
+	///        publishes one.
+	ParamCollection(const ParamCollection& other);
+	ParamCollection& operator=(const ParamCollection&) = delete;
 	virtual ~ParamCollection();
 
 	/// @brief Resolve the DOM node-store handle for the param identified by @p paramId (as carried on a
@@ -133,6 +146,33 @@ public:
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 	virtual deluge::modulation::params::Kind getParamKind() = 0;
 
+	/// @brief [interaction] Call @p visit with each of this collection's lanes that has nodes, by its paramId (the key
+	///        its published snapshot is searched by), in any order.
+	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
+
+	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
+	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty
+	///        view with base 0; every reader of one stops there.
+	deluge::project::LaneView playedLane(int32_t paramId);
+
+	/// @brief [render] or [interaction] The snapshot the render plays this collection's lanes from; nullptr before its
+	///        first publish.
+	[[nodiscard]] const deluge::modulation::LaneSnapshot* published() const {
+		return published_.load(std::memory_order_acquire);
+	}
+
+	/// @brief Which collection this is, of all made since boot: a request made on the render names it by this and its
+	///        address, so a collection made later at the same address is not taken for it.
+	[[nodiscard]] uint32_t serial() const { return serial_; }
+
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent{};
+
+private:
+	friend class deluge::modulation::LanePublication;
+	/// [interaction] -> [render] Swapped only with the render held off; read by the render once per collection event.
+	std::atomic<const deluge::modulation::LaneSnapshot*> published_{nullptr};
+	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
+	bool lanesDirty_ = false;
+	uint32_t serial_; ///< see serial()
 };

@@ -123,7 +123,7 @@ public:
 	///
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp:280`) but the host injector uses it; its `x` is the encoder index and its
+	/// (`deluge.cpp:281`) but the host injector uses it; its `x` is the encoder index and its
 	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
