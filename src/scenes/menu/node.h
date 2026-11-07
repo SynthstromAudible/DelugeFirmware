@@ -704,9 +704,9 @@ struct CustomItem {
 	///        horizontal page, open it directly -- no permission check, no range check, no
 	///        notification?
 	///
-	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp:40-43`):
+	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp`):
 	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
-	/// horizontal forward (`submenu.cpp:187-198`) with **no call to `checkPermissionToBeginSession`
+	/// horizontal forward (`submenu.cpp`) with **no call to `checkPermissionToBeginSession`
 	/// at all** -- unlike every other way into this item (a button focus, an already-focused button
 	/// press) which does check it (`horizontal_menu.cpp:427-428`, `:663-668`). `Node::
 	/// allow_session_from_horizontal`'s own doc says how a select press reads that bit; whether the
@@ -715,7 +715,7 @@ struct CustomItem {
 	///
 	/// Only `FileBrowserItem` overrides this to true. A select press enters every other
 	/// `allow_session_from_horizontal` column (`Submenu::selectButtonPress` returns the column itself,
-	/// `submenu.cpp:187-198`), through `enter_child` with its permission and range checks.
+	/// `submenu.cpp`), through `enter_child` with its permission and range checks.
 	virtual bool opens_directly_on_horizontal_select() const { return false; }
 
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
@@ -906,11 +906,11 @@ struct Node {
 	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
 	///
 	/// Six legacy classes override it to true: five scene openers -- `FileSelector`
-	/// (`gui/menu_item/file_selector.h:35`), `osc::AudioRecorder` (`osc/audio_recorder.h:76`), `sample::Start` /
-	/// `sample::End` (`sample/start.h:25`, `sample/end.h:25`) and `audio_clip::SampleMarkerEditor`
-	/// (`audio_clip/sample_marker_editor.h:34`), the nodes `nodes/sample.h` builds from
+	/// (`gui/menu_item/file_selector.h`), `osc::AudioRecorder` (`osc/audio_recorder.h`), `sample::Start` /
+	/// `sample::End` (`sample/start.h`, `sample/end.h`) and `audio_clip::SampleMarkerEditor`
+	/// (`audio_clip/sample_marker_editor.h`), the nodes `nodes/sample.h` builds from
 	/// `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` -- and `PatchCableStrength`
-	/// (`patch_cable_strength.h:50`), whose two fixed columns are `nodes::vibrato` and `nodes::sidechain_volume`
+	/// (`patch_cable_strength.h`), whose two fixed columns are `nodes::vibrato` and `nodes::sidechain_volume`
 	/// (`nodes::fixed_cable_column`).
 	///
 	/// Two legacy call sites read it, both on a `Layout::Horizontal` page's *button* paths, and
@@ -927,7 +927,7 @@ struct Node {
 	///     `MUST_SELECT_RANGE` (unconditionally here; the bit does not suppress *this* range check,
 	///     only the new-focus one above), then `enterSubmenu`.
 	///
-	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp:187-198`, #4854)
+	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp`, #4854)
 	/// returns the focused column itself when this is true, and the select arm enters it the general way, which is
 	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`. `FileSelector` alone opens
 	/// without entering (`CustomItem::opens_directly_on_horizontal_select`).

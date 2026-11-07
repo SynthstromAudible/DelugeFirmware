@@ -265,7 +265,7 @@ size_t depth_of(const MenuState& state) {
 namespace {
 
 /// @brief A cable strength's value text for @p use: the value over 100 to two places, cut to three characters on a
-///        column at or below -10.00 (`decimal.cpp:184-186`, "-10.50" keeps "-10").
+///        column at or below -10.00 (`decimal.cpp`, "-10.50" keeps "-10").
 ValueText spell_cable_value(int32_t value, ValueTextUse use, std::span<char> out) {
 	char buf[16];
 	size_t len = 0;
@@ -504,7 +504,7 @@ deluge::synth::CableTarget strength_destination(const MenuState& state, PatchCab
 	return destination_for(state, which == PatchCableStrengthItem::Which::Range);
 }
 
-/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`).
+/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`).
 int32_t strength_read(const MenuContext& ctx, const MenuState& state, PatchCableStrengthItem::Which which) {
 	// `:195-198` -- no cable yet reads as zero depth.
 	return cable_value_to_menu(
@@ -601,11 +601,11 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 /// `f.origin.y` carries. On the reference geometry (`OLED_MAIN_TOPMOST_PIXEL` is 5) each lands on the canvas row
 /// `PatchCableStrength::renderOLED` names, and on the taller panel the page hugs the visible top as one piece:
 ///
-///   * the diagram's first row, `extraY + OLED_MAIN_TOPMOST_PIXEL` (`:93`) -- canvas 6; here the rect's own y of 0,
+///   * the diagram's first row, `extraY + OLED_MAIN_TOPMOST_PIXEL` -- canvas 6; here the rect's own y of 0,
 ///     plus `routing_chain`'s internal `+1`;
-///   * the number's top, `textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4` (`:181`) -- canvas 10; here `kValueTextY` = 5,
+///   * the number's top, `textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4` -- canvas 10; here `kValueTextY` = 5,
 ///     its cursor and tick on frame rows 19-21;
-///   * the switch's slot band, `startY = 34` (`:137`) -- canvas 34; here `kPolaritySwitchY` = 29.
+///   * the switch's slot band, `startY = 34` -- canvas 34; here `kPolaritySwitchY` = 29.
 ///
 /// @{
 
@@ -615,7 +615,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 ///        unclipped as legacy's is (`SIDE LEVEL` runs to column 60).
 constexpr int32_t kValueBandX = 70;
 
-/// @brief The number's top row, frame-local (`textY`, `patch_cable_strength.cpp:181 renderOLED`), and its band's
+/// @brief The number's top row, frame-local (`textY`, `patch_cable_strength.cpp renderOLED`), and its band's
 ///        height: the 13-row digits, a clear row, and the cursor's and tick's three.
 /// @{
 constexpr int32_t kValueTextY = 5;
@@ -623,7 +623,7 @@ constexpr int32_t kValueBandHeight = deluge::gfx::oled::kTextBigSizeY + 4;
 /// @}
 
 /// @brief The polarity switch's slot band, frame-local -- legacy's `startY = 34`
-///        (`patch_cable_strength.cpp:137 renderOLED`).
+///        (`patch_cable_strength.cpp renderOLED`).
 ///
 /// `segmented_switch` inks two rows *above* this one for its bracket (`ui/oled/routing.h`), so the page's real ink
 /// starts at 27; the number's band ends at 21. Five clear rows between them, which is legacy's own gap.
@@ -676,10 +676,10 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		                                   kNoPolarityWidth, -1);
 	}
 
-	// `getMinValue`/`getMaxValue` (`patch_cable_strength.h:36-37`).
+	// `getMinValue`/`getMaxValue` (`patch_cable_strength.h`).
 	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
 
-	// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp:332-343`): a turn while Select is held
+	// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp`): a turn while Select is held
 	// switches a polarised source's polarity -- up unipolar, down bipolar --, edits nothing, and uses the press up so
 	// its release opens nothing. This page is never a horizontal column here (a column draws through
 	// `present_column`), which is legacy's `!isInHorizontalMenu()`.
@@ -690,7 +690,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		state.tick.use_up_select = true;
 	}
 
-	// `renderOLED`'s number (`:165-195`), right of the diagram.
+	// `renderOLED`'s number, right of the diagram.
 	const deluge::gfx::oled::Rect value_rect{kValueBandX, kValueTextY, bounds.w - kValueBandX, kValueBandHeight};
 	const deluge::ui::Response r = deluge::ui::oled::cable_strength_value(
 	    f, value_rect, state.edit_int, kRange, state.decimal_pos, state.cursor_blink, /*take_turn=*/!polarity_turn);
@@ -751,7 +751,7 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell::UiEvent& event,
                                                          const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                                          const MenuContext& ctx, MenuState& state) const {
-	// `PatchCableStrength::buttonAction` (`patch_cable_strength.cpp:318-330`): on the press, MIDI makes a polarised
+	// `PatchCableStrength::buttonAction` (`patch_cable_strength.cpp`): on the press, MIDI makes a polarised
 	// source's cable bipolar and CV unipolar. Everything else is the scene's.
 	using deluge::ui::shell::ButtonId;
 	if (event.kind != deluge::ui::shell::UiEvent::Kind::Button || !event.on
@@ -764,7 +764,7 @@ deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell
 }
 
 void PatchCableStrengthItem::leds(deluge::ui::LedFrame& f, const MenuContext& /*ctx*/, const MenuState& state) const {
-	// `updatePolarityUI` (`patch_cable_strength.cpp:397-402`): MIDI for a bipolar cable, CV for a unipolar one, neither
+	// `updatePolarityUI` (`patch_cable_strength.cpp`): MIDI for a bipolar cable, CV for a unipolar one, neither
 	// for a source with no polarity.
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};

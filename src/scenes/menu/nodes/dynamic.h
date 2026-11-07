@@ -69,7 +69,7 @@ inline constexpr int32_t kLowestDeviceNum = -3;
 
 /// @brief The most device rows one frame materialises.
 ///
-/// `hostedMIDIDevices` is a `fast_vector` with no fixed bound (`io/midi/midi_device_manager.h:121`),
+/// `hostedMIDIDevices` is a `fast_vector` with no fixed bound (`io/midi/midi_device_manager.h`),
 /// and this layer allocates nothing, so the row array is a frame local of exactly the size every
 /// other list page here uses -- `kMaxDynamicChildren` (`node.h`), which is also
 /// `MenuScene::kMaxMenuChildren` and `MultiRangeItem`'s own `kMaxRows`. A rig with more than 64

@@ -472,7 +472,7 @@ void dispatchShellActions() {
 		break;
 
 	case MenuAction::FileSelectorOpened:
-		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp:49-51`).
+		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`).
 		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 			keyboardScreen.exitAuditionMode();
 		}

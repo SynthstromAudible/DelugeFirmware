@@ -897,7 +897,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a patch cable strength's banner is its value over 100, two places", _ {
-		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:73-75`).
+		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h`).
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
@@ -1265,9 +1265,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("the VIBRATO column spells its strength in the column face; DUCK draws the ducking meter over +/-50.00", _ {
-		// `Decimal::renderInHorizontalMenu` (`decimal.cpp:176-192`, rendering style NUMBER): the value over 100, three
+		// `Decimal::renderInHorizontalMenu` (`decimal.cpp`, rendering style NUMBER): the value over 100, three
 		// characters at or below -10.00. `sidechain::VolumeShortcut` renders SIDECHAIN_DUCKING (`sidechain/volume.h`),
-		// normalised by 5000 because its maximum is over 50 (`number.cpp:402`).
+		// normalised by 5000 because its maximum is over 50 (`number.cpp`).
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
@@ -1290,8 +1290,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a select on the MASTER page's VIBRATO column opens its strength page, whose select opens MODULATE DEPTH", _ {
 		// `Submenu::selectButtonPress` returns a column that `allowToBeginSessionFromHorizontalMenu()`
-		// (`submenu.cpp:187-198`), which `PatchCableStrength` answers true (`patch_cable_strength.h:50`); only the
-		// page's own select goes on to the range picker (`patch_cable_strength.cpp:302-306`).
+		// (`submenu.cpp`), which `PatchCableStrength` answers true (`patch_cable_strength.h`); only the
+		// page's own select goes on to the range picker (`patch_cable_strength.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1327,8 +1327,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a select turn on the VIBRATO column moves its cable 1.00 a detent, and 0.01 with SHIFT held", _ {
-		// `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`) is what the column shows, and
-		// `Decimal::getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`) the step.
+		// `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`) is what the column shows, and
+		// `Decimal::getNumberEditSize` on a horizontal page (`decimal.cpp`) the step.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

@@ -105,17 +105,17 @@ void segmented_switch(OledFrame& f, gfx::oled::Rect area, std::span<const std::s
                       std::span<const int32_t> widths, int32_t selected);
 
 /// @brief The cable-strength number: `PatchCableStrength::renderOLED`'s third block
-///        (`patch_cable_strength.cpp:165-195`) and `Decimal`'s cursor and step.
+///        (`patch_cable_strength.cpp`) and `Decimal`'s cursor and step.
 ///
 /// The value is in hundredths (+/-5000 is +/-50.00), drawn in the 13 px face right-aligned three columns in from
 /// @p rect's right edge (`drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - 3)`), with legacy's three departures from
 /// a plain decimal:
 ///
-///   * a zero fraction place is hidden while the cursor is left of it (`hiddenZeroesCount`, `:170-173`): 22.00 with the
+///   * a zero fraction place is hidden while the cursor is left of it (`hiddenZeroesCount`): 22.00 with the
 ///     cursor on the units reads `22`, and with it on the hundredths `2200`;
 ///   * the fraction is marked by a two-column, three-row tick under the digits at its left edge, not a period, and
-///     only while a fraction place shows (`:189-194`);
-///   * the cursor is one row and one digit (`kTextBigSpacingX`) wide, on the row under the digits (`:185-187`); its
+///     only while a fraction place shows;
+///   * the cursor is one row and one digit (`kTextBigSpacingX`) wide, on the row under the digits; its
 ///     lit phase inverts over the tick.
 ///
 /// The digits are the exact value. Legacy's GCC build divides by `std::pow(10, hidden)` under fast-math and truncates,

@@ -70,7 +70,7 @@
 /// `delayHorizontalScrollUntil` escape and X_ENC guard are `MenuScene::route_horizontal_turn`.
 ///
 /// `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME fallback walk
-/// (`patch_cable_strength/regular.cpp:51-62`) is in `PatchCableStrengthItem::on_focus`.
+/// (`patch_cable_strength/regular.cpp`) is in `PatchCableStrengthItem::on_focus`.
 /// `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which arrive as grid input -- are
 /// `source_press` below.
 
@@ -254,7 +254,7 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
-///        `patch_cable_strength.h:73-75`) and the column (`Decimal::renderInHorizontalMenu`, `decimal.cpp:176-192`,
+///        `patch_cable_strength.h`) and the column (`Decimal::renderInHorizontalMenu`, `decimal.cpp`,
 ///        rendering style NUMBER), both the value over 100 to two places; the column keeps three characters of a value
 ///        at or below -10.00.
 ValueText cable_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
@@ -270,15 +270,15 @@ inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem:
 /// @}
 
 /// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
-///        `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`), 0 where there is no cable.
+///        `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`), 0 where there is no cable.
 int32_t vibrato_strength(const MenuContext& ctx);
 /// @brief The same for `kSidechainVolumeItem`'s cable (SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND).
 int32_t ducking_strength(const MenuContext& ctx);
 
 /// @brief @p n as a fixed cable's column on a horizontal page: it reads @p get, ranges over +/-50.00
-///        (`getMinValue`/`getMaxValue`, `patch_cable_strength.h:36-37`), steps 1.00 a detent and 0.01 with SELECT or
-///        SHIFT held (`Decimal::getNumberEditSize`, `decimal.cpp:49-54`), and a select press on it opens its own
-///        strength page (`allowToBeginSessionFromHorizontalMenu`, `patch_cable_strength.h:50`). The column's edit is
+///        (`getMinValue`/`getMaxValue`, `patch_cable_strength.h`), steps 1.00 a detent and 0.01 with SELECT or
+///        SHIFT held (`Decimal::getNumberEditSize`, `decimal.cpp`), and a select press on it opens its own
+///        strength page (`allowToBeginSessionFromHorizontalMenu`, `patch_cable_strength.h`). The column's edit is
 ///        written by the item's `commit`, as on the page.
 /// @param n   The cable's custom node.
 /// @param get Its strength getter.

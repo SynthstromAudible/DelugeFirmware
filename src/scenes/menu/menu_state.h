@@ -100,7 +100,7 @@ struct MenuWalkState {
 	bool range_picker_pending = false;
 	/// The node that will be entered once a range is chosen -- legacy's
 	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:334-336`). Kept after that node opens, until the next
+	/// `selectButtonPress` returns (`multi_range.cpp`). Kept after that node opens, until the next
 	/// substitution or a re-root replaces it: legacy only ever writes the member, so the picker reached again by BACK
 	/// still heads there.
 	const Node* pending_after_range = nullptr;

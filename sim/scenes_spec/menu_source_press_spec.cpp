@@ -250,7 +250,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("lights MIDI on a bipolar cable's page and CV on a unipolar one, and the two buttons switch it", _ {
-		// `PatchCableStrength::buttonAction` and `updatePolarityUI` (`patch_cable_strength.cpp:318-330`, `:397-402`).
+		// `PatchCableStrength::buttonAction` and `updatePolarityUI` (`patch_cable_strength.cpp`).
 		select_language();
 		Rig r;
 		r.open_velocity_cable();
@@ -266,7 +266,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("puts MIDI and CV out on BACK from the page", _ {
-		// `endSession` (`patch_cable_strength.cpp:75-78`); the MASTER page focused on VOLUME lights KIT only.
+		// `endSession` (`patch_cable_strength.cpp`); the MASTER page focused on VOLUME lights KIT only.
 		select_language();
 		Rig r;
 		r.open_velocity_cable();
@@ -291,7 +291,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("a turn with Select held switches the polarity, leaves the strength, and its release opens nothing", _ {
-		// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp:332-343`): up unipolar, down bipolar,
+		// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp`): up unipolar, down bipolar,
 		// `selectButtonPressUsedUp`.
 		select_language();
 		Rig r;
@@ -314,7 +314,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("SHIFT and a turn edits the strength five places a detent and leaves the polarity", _ {
-		// `SoundEditor::selectEncoderAction`'s 5x under SHIFT (`sound_editor.cpp:1317-1320`), then
+		// `SoundEditor::selectEncoderAction`'s 5x under SHIFT (`sound_editor.cpp`), then
 		// `Decimal::selectEncoderAction`; no polarity arm without Select held.
 		select_language();
 		Rig r;

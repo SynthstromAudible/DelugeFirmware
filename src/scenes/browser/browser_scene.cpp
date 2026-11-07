@@ -2120,7 +2120,7 @@ Result BrowserScene::long_press() {
 		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
 	}
 	if (ctx_.is_kit) {
-		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:561-565`).
+		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp`).
 		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
 		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}

@@ -195,7 +195,7 @@ Response cable_strength_value(OledFrame& f, Rect rect, int32_t& value, Range ran
 	}
 	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 
-	// `:170-176` -- the dropped places are zeros, so the division is exact.
+	// The dropped places are zeros, so the division is exact.
 	const int32_t hidden = std::clamp<int32_t>(2 - non_zero_decimals(value), 0, edit_pos);
 	const int32_t shown_pos = edit_pos - hidden;
 	std::array<char, 12> buf{};
@@ -208,16 +208,16 @@ Response cable_strength_value(OledFrame& f, Rect rect, int32_t& value, Range ran
 	const int32_t under = rect.y + kDigitHeight + 1;
 
 	f.clear(rect);
-	// `:181-183` -- `drawStringAlignRight(numberBuf, textY, digitWidth, digitHeight, OLED_MAIN_WIDTH_PIXELS - 3)`.
+	// `drawStringAlignRight(numberBuf, textY, digitWidth, digitHeight, OLED_MAIN_WIDTH_PIXELS - 3)`.
 	text(f, Rect{rect.x, rect.y, right - rect.x, kDigitHeight}, digits,
 	     TextStyle{.font = gfx::oled::FontId::MetricBold13, .align = Align::Right});
-	// `:189-194` -- the tick, two columns at the fraction's left edge, three rows under the digits.
+	// The tick, two columns at the fraction's left edge, three rows under the digits.
 	if (const int32_t fraction_places = 2 - hidden; fraction_places > 0) {
 		const int32_t separator_x = right - fraction_places * kDigitWidth;
 		f.vline(separator_x, under, under + 2);
 		f.vline(separator_x - 1, under, under + 2);
 	}
-	// `:185-187` -- the cursor, one row under the edited place, inverted over whatever is drawn there.
+	// The cursor, one row under the edited place, inverted over whatever is drawn there.
 	if (blink_lit(blink, now)) {
 		f.invert(Rect{right - (shown_pos + 1) * kDigitWidth, under, kDigitWidth, 1});
 	}

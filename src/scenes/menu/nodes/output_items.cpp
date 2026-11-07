@@ -259,7 +259,7 @@ std::optional<serialization::Value> MidiDeviceLinkedItem::definition_file(const 
 }
 
 bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
-	// `readCurrentValue` (`linked.h:33-36`): linked when the track names a file.
+	// `readCurrentValue` (`linked.h`): linked when the track names a file.
 	const std::optional<serialization::Value> file = definition_file(ctx);
 	return file && !file->str().empty();
 }

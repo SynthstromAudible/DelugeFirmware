@@ -354,7 +354,7 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
 	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
-	// (`instrument_clip_view.cpp:3586`, `:3799`), an explicit item -- so legacy never wipes on a
+	// (`instrument_clip_view.cpp`), an explicit item -- so legacy never wipes on a
 	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
 	// is conditioned on `noteMode == NoteMode::None` as well as `node == ShellMenuNode::ContextRoot
 	// && clip != nullptr`: the first two hold for every `NoteMode` call too (neither note root has

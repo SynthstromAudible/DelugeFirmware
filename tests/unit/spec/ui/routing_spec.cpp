@@ -26,7 +26,7 @@ using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `routing_chain` / `segmented_switch` / `cable_strength_value` -- the three blocks of legacy
-// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp:80-195`): the first two draw a
+// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp`): the first two draw a
 // *routing*, the third its strength. Pinned the three ways this directory pins a widget:
 //
 // First, byte for byte against the legacy routine: `legacy_diagram` / `legacy_switch` below are
@@ -164,7 +164,7 @@ Rect diagram_rect() {
 	return Rect{0, 0, 128, 48};
 }
 
-/// @brief `PatchCableStrength::renderOLED`'s number block (`patch_cable_strength.cpp:165-195`), transcribed with the
+/// @brief `PatchCableStrength::renderOLED`'s number block (`patch_cable_strength.cpp`), transcribed with the
 ///        division exact (legacy's GCC build truncates it under fast-math: DIFFERENCES.md D71) and the blink drawn lit.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
