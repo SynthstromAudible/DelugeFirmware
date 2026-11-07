@@ -42,6 +42,7 @@ public:
 	void focusRegained() override;
 	// Starts or stops the held-pad pulse; returns true while a press is being tracked.
 	bool updateHeldPulse();
+	bool isLockedClipInstanceHeld(Output const* output) const;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);

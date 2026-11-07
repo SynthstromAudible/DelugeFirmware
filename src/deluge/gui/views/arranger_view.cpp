@@ -1796,6 +1796,11 @@ void ArrangerView::recordEditPadPress(Output* output, ClipInstance* clipInstance
 	pressedClipInstanceOutput = output;
 
 	interactWithClipInstance(output, y, clipInstance);
+
+	if (isLockedClipInstanceHeld(output)) {
+		deluge::gui::track_edit_pulse::resetHeldPulse();
+		uiNeedsRendering(this, 1u << y, 0);
+	}
 }
 
 // Only call if this is the currentUI. May be called during audio / playback routine
@@ -2376,7 +2381,8 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 		}
 	}
 
-	if (deluge::gui::track_link::enabled() && output == heldPulse.pulsingFor(heldPulseCandidate())) {
+	if (deluge::gui::track_link::enabled()
+	    && (output == heldPulse.pulsingFor(heldPulseCandidate()) || isLockedClipInstanceHeld(output))) {
 		for (int32_t x = 0; x < renderWidth; ++x) {
 			if (imageThisRow[x] != colours::black) {
 				imageThisRow[x] = deluge::gui::track_edit_pulse::renderPulse(imageThisRow[x], *output, imageThisRow, x,
@@ -3524,4 +3530,9 @@ bool ArrangerView::updateHeldPulse() {
 		deluge::gui::track_edit_pulse::scheduleHoldCheck(heldPulse.remaining(now, kShortPressTime));
 	}
 	return heldPulse.tracking();
+}
+
+bool ArrangerView::isLockedClipInstanceHeld(Output const* output) const {
+	return isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && (output != nullptr) && output == pressedClipInstanceOutput
+	       && output->isTrackLocked();
 }
