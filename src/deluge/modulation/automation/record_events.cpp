@@ -22,6 +22,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/lane_publication.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
 #include <cstddef>
@@ -73,6 +74,7 @@ void applyRecordEvents(::Song& song) {
 #if ALPHA_OR_BETA_VERSION
 			const size_t capacity = lane.nodes.capacity();
 #endif
+			noteRenderLaneWrite();
 			stack->autoParam->writeRecordedValue(lane, event);
 #if ALPHA_OR_BETA_VERSION
 			if (lane.nodes.capacity() != capacity) {

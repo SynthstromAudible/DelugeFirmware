@@ -818,6 +818,7 @@ yesCancelOverriding:
 recordOverNodeJustReached:
 				// Recording: the render reads the model's lane (deluge::modulation::lanesLive()), and writes it here.
 				auto& nodesRef = modelStack->doc()->nodes;
+				deluge::modulation::noteRenderLaneWrite();
 				ParamNode& reached = nodesRef[iJustReached];
 				nodeJustReached = &reached;
 

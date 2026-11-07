@@ -40,6 +40,10 @@ extern uint32_t staleLanes;
 extern uint32_t publishFailures;
 /// Writes the render made to a lane outside record mode: must stay 0.
 extern uint32_t renderPublishedWrites;
+/// Lanes the render resolved through the model in record mode.
+extern uint32_t renderModelReadsRecording;
+/// Writes the render made to a model lane, in any mode.
+extern uint32_t renderModelWrites;
 /// The render's lane requests that found the queue full and were dropped: must stay 0.
 extern uint32_t laneRequestOverflows;
 #endif
@@ -58,8 +62,7 @@ void noteRenderModelRead();
 bool playsPublished();
 
 /// @brief [render] or [interaction] The snapshot a lane read of @p collection plays now, or nullptr to read the model.
-///        The render plays the published lanes outside record mode (playsPublished()), once the collection has any; a
-///        collection not yet published is read in the model, and counted.
+///        The render plays the published lanes outside record mode (playsPublished()), once the collection has any.
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
 /// @brief [render] or [interaction] Count a write to a lane made on the render outside record mode.
 void noteRenderLaneWrite();

@@ -56,6 +56,7 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 		const deluge::modulation::PublishedLane* lane = snapshot->find(paramId);
 		return (lane != nullptr) ? lane->view() : deluge::project::LaneView{};
 	}
+	deluge::modulation::noteRenderModelRead(); // in record mode, or a collection not yet published
 	const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
 	return (lane != nullptr) ? deluge::project::LaneView::of(*lane) : deluge::project::LaneView{};
 }

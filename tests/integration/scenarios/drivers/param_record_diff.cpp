@@ -34,6 +34,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_clip_length.h"
+#include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/song_serialization.h"
@@ -401,6 +405,61 @@ void queuedUndoCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	probeFailed |= !same;
 }
 
+/// The value @p lane holds at @p pos of a loop @p len long.
+int32_t valueAt(ModelStackWithAutoParam* lane, int32_t pos, int32_t len) {
+	return deluge::project::getValueAtPos(*lane->doc(), static_cast<uint32_t>(pos), len);
+}
+
+/// A value recorded into @p lane at @p pos, and the render's next block.
+void recordAt(ModelStackWithAutoParam* lane, int32_t value, int32_t pos) {
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(value, lane, true, pos, true, false);
+	renderBlockStart();
+}
+
+// An automation-view region write to a lane while it records, between two recorded values: the lane keeps the region
+// and both values. Checked on stderr.
+void regionWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*lane);
+	if (!address) {
+		std::fprintf(io.err, "region-while-recording: the lane has no address\n");
+		probeFailed = true;
+		return;
+	}
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 300000000, len / 8);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue region{*address, -400000000, len / 2, len / 8};
+	const bool applied = deluge::edits::apply(ctx, region) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, 600000000, len * 7 / 8);
+	const bool kept = applied && valueAt(lane, len / 8, len) == 300000000
+	                  && valueAt(lane, len / 2 + len / 16, len) == -400000000
+	                  && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "region-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
+// The clip's length doubled while a lane records: the value recorded before it and one recorded past the old end are
+// both in the lane. The length is set back after. Checked on stderr.
+void lengthWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 200000000, len / 4);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength longer{deluge::edits::clipAddressFor(*clip), static_cast<uint32_t>(len * 2), nullptr,
+	                                    clip};
+	const bool applied = deluge::edits::apply(ctx, longer) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, -500000000, len * 3 / 2);
+	const bool kept =
+	    applied && valueAt(lane, len / 4, len * 2) == 200000000 && valueAt(lane, len * 3 / 2, len * 2) == -500000000;
+	std::fprintf(io.err, "length-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+	deluge::edits::SetClipLength back{deluge::edits::clipAddressFor(*clip), static_cast<uint32_t>(len), nullptr, clip};
+	(void)deluge::edits::apply(ctx, back);
+	renderBlockStart();
+}
+
 // Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
 // reversed clip's, each with its take undone and redone; then the latch drifting back across a clip lane's nodes.
 void clipCases(Song* song) {
@@ -499,6 +558,8 @@ void clipCases(Song* song) {
 	if (synth != nullptr) {
 		burstCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
 		queuedUndoCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
+		regionWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_FREQ));
+		lengthWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_RESONANCE));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }
@@ -625,10 +686,21 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 
 	clipCases(song);
 #if ALPHA_OR_BETA_VERSION
-	if (deluge::modulation::renderModelReads != 0) {
-		std::fprintf(io.err, "the render read %u lane(s) in the model outside record mode\n",
-		             static_cast<unsigned>(deluge::modulation::renderModelReads));
-		probeFailed = true;
+	// Recording included: the render writes only its own copies of the lanes it records, and logs no undo.
+	const struct {
+		uint32_t count;
+		const char* what;
+	} renderTouches[] = {
+	    {deluge::modulation::renderModelReads, "read a model lane outside record mode"},
+	    {deluge::modulation::renderModelReadsRecording, "read a model lane while recording"},
+	    {deluge::modulation::renderModelWrites, "wrote a model lane"},
+	    {deluge::modulation::renderUndoCalls, "logged undo"},
+	};
+	for (const auto& touch : renderTouches) {
+		if (touch.count != 0) {
+			std::fprintf(io.err, "the render %s %u time(s)\n", touch.what, static_cast<unsigned>(touch.count));
+			probeFailed = true;
+		}
 	}
 #endif
 	if (probeFailed) {

@@ -47,6 +47,8 @@ uint32_t renderModelReads = 0;
 uint32_t staleLanes = 0;
 uint32_t publishFailures = 0;
 uint32_t renderPublishedWrites = 0;
+uint32_t renderModelReadsRecording = 0;
+uint32_t renderModelWrites = 0;
 uint32_t laneRequestOverflows = 0;
 #endif
 
@@ -203,8 +205,8 @@ bool lanesLive() {
 
 void noteRenderModelRead() {
 #if ALPHA_OR_BETA_VERSION
-	if (deluge::memory::onRenderTier() && !lanesLive()) {
-		renderModelReads++;
+	if (deluge::memory::onRenderTier()) {
+		(lanesLive() ? renderModelReadsRecording : renderModelReads)++;
 	}
 #endif
 }
@@ -217,17 +219,16 @@ const LaneSnapshot* snapshotToPlay(const ParamCollection& collection) {
 	if (!playsPublished()) {
 		return nullptr;
 	}
-	const LaneSnapshot* published = collection.published();
-	if (published == nullptr) {
-		noteRenderModelRead();
-	}
-	return published;
+	return collection.published();
 }
 
 void noteRenderLaneWrite() {
 #if ALPHA_OR_BETA_VERSION
-	if (deluge::memory::onRenderTier() && !lanesLive()) {
-		renderPublishedWrites++;
+	if (deluge::memory::onRenderTier()) {
+		renderModelWrites++;
+		if (!lanesLive()) {
+			renderPublishedWrites++;
+		}
 	}
 #endif
 }
