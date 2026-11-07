@@ -16,15 +16,14 @@ In modern embedded devices, such as synthesizers, samplers, keyboards, controlle
 
 Instead, this is often left to a dedicated platform layer, allowing some level of abstraction between whatever runtime or application code may exist and the hardware itself. This increases portability and ease of development, while also allowing for better separation of concerns.
 
-For example, many devices run on the Arduino framework. This framework is responsible for knowing details of both the CPU, and (to some degree) the board, and then presenting an easy-to-use facade over top which allows fairly easy portability between various Arduino boards. It is a relatively simple endeavor to port a program written for an older Uno R3 to a Mega or even an Adafruit Metro.
+For example, many devices and products run on the Arduino framework. This framework is responsible for knowing details of both the CPU, and (to some degree) the board, and then presenting an easy-to-use facade over top which allows fairly easy portability between various Arduino boards. It is a relatively simple endeavor to port a program written for an older Uno R3 to a Mega or even an Adafruit Metro.
 
 ![One line of Arduino code, digitalWrite(LED_BUILTIN, HIGH), runs unchanged on an Uno R3 and a Mega 2560, which use AVR chips, and on an Adafruit Metro M0 Express, which uses an ARM chip. The framework maps pin 13 to port pin PB5 on the Uno, PB7 on the Mega and PA17 on the Metro.](../../../assets/blog/what-the-deluge-stands-on/arduino-boards.svg)
 
-_One line of code, three boards and two kinds of processor. The framework knows which port pin is pin 13 on each board, so the sketch never has to._
-
+_The same line of code can be used across multiple boards. The framework knows how pin names map to specific port/pin combos for a given CPU and board._
 ## How things work today
 
-On the Deluge, this layer originally started out as Renesas' own vendor platform code and drivers, and became entangled with the application code as it was further developed. This is evident in the way that both the RZA1 platform code and the application call into each other, and the way that the application does things such as reading raw bytes from the PIC or interacting with the SD routine.
+On the Deluge, this layer originally started out as Renesas' own vendor platform code and drivers (Renesas being the manufacturer of the Deluge's CPU, the RZ/A1L), and became entangled with the application code as it was further developed. This is evident in the way that both the RZ/A1L platform code and the application call into each other, and the way that the application does things such as reading raw bytes from the PIC or interacting with the SD routine.
 
 Essentially, the Deluge is married to its hardware by nature of this entanglement, and in order to get it running on anything else (such as x86 or ARM64), this had to be remedied.
 
@@ -32,18 +31,11 @@ The solution to this was to start from scratch: an entirely new set of layers, w
 
 Ultimately this required recreating most of Renesas' drivers, and even writing new ones, that were up to spec and matched what we needed.
 
-<!--
-- On main, the application talks to the hardware directly.
-- 55 app files include RZA1/ hardware headers: UART most often (25 includes), then system (13) and OLED (11).
-- deluge.cpp reads raw PIC bytes with uartGetChar. If the SD routine is busy, it pushes the byte back with uartPutCharBack and tries later.
-- The app can't run anywhere except on a Deluge, so it can only be tested on one.
--->
-
 ![Before and after map. On main, the sequencer, sound engine, UI and project code share one program with the hardware drivers, task scheduler, FatFS filesystem, fault handler and heap cores. On next, the first four stay in the C++ app above libdeluge, and the other five moved below it into the Rust platform.](../../../assets/blog/what-the-deluge-stands-on/what-moved.svg)
 
-_What sits on each side of the contract. The musical parts of the firmware stayed in the app. The machinery underneath them moved below libdeluge._
+_How old drivers map to implementations and crates in the new stack, as well as the libdeluge boundary used to enforce this._
 
-## So what are a HAL and BSP anyways?
+## HALs and BSPs
 
 A "HAL" or "Hardware Abstraction Layer" acts as the first real layer between an application and silicon. It's typically intended for a single CPU model or a CPU family, and has details about which memory locations correspond to different peripherals. In the case of Rust, it also acts as a safety barrier, presenting a safe "owning" API that works in conjunction with Rust's borrow-checker to hide the messy unsafe details of poking raw registers and memory locations.
 
@@ -55,17 +47,17 @@ So now, the HAL is responsible for receiving the UART data into a DMA ring, and 
 
 ![A pad press on main arrives in the application as raw PIC bytes. On next it passes through the HAL and BSP and reaches the application as a pad event, and pad colours travel back the same way.](../../../assets/blog/what-the-deluge-stands-on/pad-press.svg)
 
-_One pad press and its LED response. On `main`, the app handles raw bytes. On `next`, it receives a pad event and sends pad colours, and nothing above the gold line knows the PIC exists._
+_A single pad press and its LED response. On the current firmware, the app handles raw bytes. On `next`, it receives a pad event and sends pad colours, while the layer below is actually responsible for the hardware-specific translation and messaging._
 
 ## This is not a Rust rewrite
 
-Some may see this as the beginning of a full-stack Rust rewrite. While that may occur in the long term, it's orthogonal to the problem this is solving. Instead, it's simply that Rust is best solution to this particularly problem, due to both its language architecture and Embassy (which will be discussed in a subsequent blog post).
+Some may see this as the beginning of a full-stack Rust rewrite. While that may occur in the long term, it's orthogonal to the problem this is solving. Instead, it's simply that Rust is best solution to this particularly problem, due to both its language architecture and the Embassy framework (which will be discussed in a subsequent blog post). Rust is very useful for the kind of safety-critical code that _should_ exist below this boundary, such as an allocator and platform-specific cache management.
+
+In addition to this, Embassy gives us a lot of extra stuff "for free" if we implement the HAL and BSP correctly. Things like USB support for both host and device, interrupt-based task scheduling, etc. This is all extremely valuable for a (soft) real-time instrument, and means that we don't have to maintain as much code ourselves.
 
 The Deluge application itself is, and remains, C++ due to the advantages that gives us and our limited time.
 
-## The contract: libdeluge
-
-So how is this possible?
+## The boundary: libdeluge
 
 Both Rust and C++ (as well as many other languages) interface very well with C. Because of this, we can use C as a way to "translate" between the two layers, creating a contract that both must follow in order to work properly. In programmer terms, this is called an "ABI boundary".
 
@@ -80,17 +72,15 @@ There are now a number of C headers that act as that contract, and even nicer is
 
 ![An example of the contract check: bindgen turns the C header into a Rust declaration, abi_pin compares it with the Rust export, and a wrong type stops the build.](../../../assets/blog/what-the-deluge-stands-on/contract-check.svg)
 
-_How the contract catches a mistake. The `u32` is a made-up error: the real export takes a `u16`._
+_How this contract catches a mistake: introducing a u32 where a u16 is expected causes the rust binding system to emit a compile-time error rather than silently continue._
 
 ## In-place replacement
 
-So how does one go about actually doing this?
-
 ![Timeline from June to October 2026: new parts are added above the line and old parts are removed below it, ending with the legacy BSP retired on September 29.](../../../assets/blog/what-the-deluge-stands-on/timeline.svg)
 
-_Four months from the first boundary headers to the old BSP being retired, with additions above the line and removals below it._
+_The retirement timeline, over four months._
 
-The first step is to look at the already existing boundary, and begin routing both the Renesas C platform code and the C++ application calls through new C headers.
+The first step to migrating all of this is to look at the already existing boundary, and begin routing both the Renesas C platform code and the C++ application calls through new C headers.
 
 Following convention of the way platform code is typically provided as a library, I decided to call this platform layer "libdeluge".
 
@@ -102,7 +92,7 @@ For a long time all three existed independently, until more and more pieces move
 
 ![Three stages of the swap. First, the Renesas code moved behind libdeluge. Then three implementations of libdeluge ran side by side: the Renesas C code and the Rust BSP on the Deluge, and a C host on a computer. Finally only the Rust BSP remained, built for both the Deluge and a computer.](../../../assets/blog/what-the-deluge-stands-on/three-stages.svg)
 
-_The app and the contract stayed put the whole time. Only what sat underneath libdeluge changed._
+_How things changed beneath libdeluge over the migration._
 
 <!--
 - No flag day: drivers moved behind the contract one at a time, and the firmware kept working throughout.
@@ -110,13 +100,9 @@ _The app and the contract stayed put the whole time. Only what sat underneath li
 - Mention the long stretch where both existed, if you have a good story from it.
 -->
 
-## Why not keep what was there?
+## The End Goal
 
-The main reason behind migrating from the platform-specific Renesas code to Rust/Embassy is that Embassy gives us a lot of extra stuff "for free" if we implement the HAL and BSP correctly. Things like USB support for both host and device, interrupt-based task scheduling, etc. Embassy then sits underneath that boundary, alongside the HAL/BSP, allowing us to move even more down into Rust. Again, this will be discussed more in the blog post on tasks and scheduling.
-
-## What does this actually mean for us?
-
-In brief, it allows us to run the Deluge's application code almost anywhere, including on our own computers. Instead of having to rely on slow architectural emulators like QEMU or Unicorn, doing this meant having a hosted platform implementation very early on. This speeds up testing _considerably_, as things like rendering songs and checking hashes can happen in seconds instead of minutes.
+To be brief, doing all this allows us to run the Deluge's application code almost anywhere, including on our own computers. Instead of having to rely on slow architectural emulators like QEMU or Unicorn, doing this meant having a hosted platform implementation very early on. This speeds up testing _considerably_, as things like rendering songs and checking hashes can happen in seconds instead of minutes.
 
 Once the Rust/Embassy side of things was introduced and things were migrated onto it, Embassy _itself_ offers a hosted build and executor, meaning the C hosted libdeluge implementation was quickly retired and stopped being a maintenance burden whenever the ABI changed.
 
@@ -130,7 +116,7 @@ Because of this, we now have `./dbt sim`, which is the Deluge, running natively 
 
 ![The same C++ application and the same Rust BSP run on the Deluge and in the simulator. Only the endpoints under the BSP change, from real parts to their desktop stand-ins.](../../../assets/blog/what-the-deluge-stands-on/two-worlds.svg)
 
-_Everything above the fork is shared between the Deluge and the simulator. Only the endpoints change._
+_How the application is shared and reused between multiple platforms without modification other than new platform library linking._
 
 ## What's left?
 
