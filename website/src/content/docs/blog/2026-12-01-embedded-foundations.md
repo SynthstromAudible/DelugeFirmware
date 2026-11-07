@@ -18,9 +18,9 @@ Instead, this is often left to a dedicated platform layer, allowing some level o
 
 For example, many devices run on the Arduino framework. This framework is responsible for knowing details of both the CPU, and (to some degree) the board, and then presenting an easy-to-use facade over top which allows fairly easy portability between various Arduino boards. It is a relatively simple endeavor to port a program written for an older Uno R3 to a Mega or even an Adafruit Metro.
 
-![One line of Arduino code, digitalWrite(LED_BUILTIN, HIGH), runs unchanged on an Uno R3, a Mega 2560 and an Adafruit Metro. The framework maps pin 13 to port pin PB5 on the Uno and Metro, and PB7 on the Mega.](../../../assets/blog/what-the-deluge-stands-on/arduino-boards.svg)
+![One line of Arduino code, digitalWrite(LED_BUILTIN, HIGH), runs unchanged on an Uno R3 and a Mega 2560, which use AVR chips, and on an Adafruit Metro M0 Express, which uses an ARM chip. The framework maps pin 13 to port pin PB5 on the Uno, PB7 on the Mega and PA17 on the Metro.](../../../assets/blog/what-the-deluge-stands-on/arduino-boards.svg)
 
-_One line of code, three boards. The framework knows that pin 13 is a different port pin on the Mega than on the Uno or the Metro, so the sketch never has to._
+_One line of code, three boards and two kinds of processor. The framework knows which port pin is pin 13 on each board, so the sketch never has to._
 
 ## How things work today
 
@@ -45,13 +45,13 @@ _What sits on each side of the contract. The musical parts of the firmware staye
 
 ## So what are a HAL and BSP anyways?
 
-A "HAL" or "Hardware Abstraction Layer" acts as the first real layer between an application and silicon. It's typically intended for a single CPU or CPU family, and has details about which memory locations correspond to different peripherals. In the case of Rust, it also acts as a safety barrier, presenting a safe "owning" API that works in conjunction with Rust's borrow-checker to hide the messy unsafe details of poking raw registers and memory locations.
+A "HAL" or "Hardware Abstraction Layer" acts as the first real layer between an application and silicon. It's typically intended for a single CPU model or a CPU family, and has details about which memory locations correspond to different peripherals. In the case of Rust, it also acts as a safety barrier, presenting a safe "owning" API that works in conjunction with Rust's borrow-checker to hide the messy unsafe details of poking raw registers and memory locations.
 
 A "BSP" or "Board Support Package" is what it sounds like on the tin: if the HAL abstracts details of a CPU, then the BSP does the same for an entire board. This includes things like drivers for whatever I2C, SPI, and UART devices may be connected to the CPU, and also simplifications for interacting with them. This is also where a lot of aliasing and binding happens, so that instead of saying "turn on the LED on Pin 13 in inverted mode", you can instead say "turn on the SYNC LED".
 
-Together, these two layers act as a way to hide details inside them. Whereas previously, if you pressed a button the Deluge, the application would read raw bytes directly from the UART peripheral and queue up events and handle the appropriate response itself before sending out raw color bytes, now that behavior is moved to _below_ the platform boundary.
+Together, these two layers act as a way to hide details inside them. Whereas previously, if you pressed a button the Deluge, the application would read raw bytes directly from the UART peripheral and queue up events and handle the appropriate response itself before sending out raw color bytes, instead that behavior is moved to _below_ the platform boundary.
 
-Instead, the HAL is now responsible for receiving the UART data into a DMA ring, and the BSP is responsible for decoding it, instead simply presenting the application with a queue of events saying "hey, this is what's happened since you last checked." And the application can go "neat, I need these things to change" and the BSP will properly convert those outgoing commands to the hardware-specific operations that need to be performed.
+So now, the HAL is responsible for receiving the UART data into a DMA ring, and the BSP is responsible for decoding it, instead simply presenting the application with a queue of events saying "hey, this is what's happened since you last checked." And the application can go "neat, I need these things to change" and the BSP will properly convert those outgoing commands to the hardware-specific operations that need to be performed.
 
 ![A pad press on main arrives in the application as raw PIC bytes. On next it passes through the HAL and BSP and reaches the application as a pad event, and pad colours travel back the same way.](../../../assets/blog/what-the-deluge-stands-on/pad-press.svg)
 
@@ -59,7 +59,7 @@ _One pad press and its LED response. On `main`, the app handles raw bytes. On `n
 
 ## This is not a Rust rewrite
 
-Some may see this as the beginning of a full-stack Rust rewrite. While that may occur in the long term, it's orthogonal to the problem this is solving. Instead, it's simply that Rust is best solution to this particularly problem, due to both its language architecture and Embassy, which will be discussed in a subsequent blog post.
+Some may see this as the beginning of a full-stack Rust rewrite. While that may occur in the long term, it's orthogonal to the problem this is solving. Instead, it's simply that Rust is best solution to this particularly problem, due to both its language architecture and Embassy (which will be discussed in a subsequent blog post).
 
 The Deluge application itself is, and remains, C++ due to the advantages that gives us and our limited time.
 
@@ -112,15 +112,15 @@ _The app and the contract stayed put the whole time. Only what sat underneath li
 
 ## Why not keep what was there?
 
-The main reason behind migrating from the platform-specific Renesas code to Rust/Embassy, is that Embassy gives us a lot of extra stuff "for free" if we implement the HAL and BSP correctly. Things like USB support for both host and device, interrupt-based task scheduling, etc. Embassy then sits underneath that boundary, alongside the HAL/BSP, allowing us to move even more down into Rust. Again, this will be discussed more in the blog post on tasks and scheduling.
+The main reason behind migrating from the platform-specific Renesas code to Rust/Embassy is that Embassy gives us a lot of extra stuff "for free" if we implement the HAL and BSP correctly. Things like USB support for both host and device, interrupt-based task scheduling, etc. Embassy then sits underneath that boundary, alongside the HAL/BSP, allowing us to move even more down into Rust. Again, this will be discussed more in the blog post on tasks and scheduling.
 
-## What does this actually mean?
+## What does this actually mean for us?
 
-In brief, it allows us to run the Deluge's application code almost anywhere, including on our own computers. Instead of having to rely on slow architectural emulators like QEMU or Unicorn, doing this meant having a hosted platform implementation very early on. This sped up testing _considerably_, as things like rendering songs and checking hashes could happen in seconds instead of minutes.
+In brief, it allows us to run the Deluge's application code almost anywhere, including on our own computers. Instead of having to rely on slow architectural emulators like QEMU or Unicorn, doing this meant having a hosted platform implementation very early on. This speeds up testing _considerably_, as things like rendering songs and checking hashes can happen in seconds instead of minutes.
 
 Once the Rust/Embassy side of things was introduced and things were migrated onto it, Embassy _itself_ offers a hosted build and executor, meaning the C hosted libdeluge implementation was quickly retired and stopped being a maintenance burden whenever the ABI changed.
 
-Because of this, we now have `./dbt sim`, which is the Deluge, running natively on your computer for simulation, and much more complex testing harnesses.
+Because of this, we now have `./dbt sim`, which is the Deluge, running natively on your computer for simulation, and much more complex testing harnesses for integration testing.
 
 <!--
 - The simulator: the same app and BSP run on a computer through dbt sim, which sets up post 2 on testing.
