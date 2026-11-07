@@ -1408,40 +1408,20 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// The take made source 0 a sample source, whose page lists the type first and the file selector second.
 		expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(1);
 
-		// The landing plans no blink of its own: the recorder's (0, 4) goes on flashing over the source page, as
-		// `main`'s sound editor keeps the blink `AudioRecorder::opened` set up ...
-		size_t from = r.fake.flashes_sent.size();
+		// The landing blinks the focused file selector's own pad, (0, 5). `main` goes on flashing the recorder's
+		// (0, 4) there, which its blocking recorder loop re-plans after the take: accepted as `main`'s bug (D128).
+		const size_t from = r.fake.flashes_sent.size();
 		for (uint32_t at = 100; at <= 500; at += 10) {
 			r.tick(at);
 		}
-		expect(r.fake.flashes_sent.size() > from).to_be_true();
-		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
-			expect(static_cast<int32_t>(r.fake.flashes_sent[i].x)).to_equal(0);
-			expect(static_cast<int32_t>(r.fake.flashes_sent[i].y)).to_equal(4);
-		}
-		// ... until the focus moves (Shift + sample 0's REVERSE pad), which plans the focused item's own.
-		r.press(ButtonId::Shift, 510);
-		r.tick(510);
-		r.pad(0, 1, true, 520);
-		r.tick(520);
-		r.pad(0, 1, false, 530);
-		r.tick(530);
-		r.release(ButtonId::Shift, 540);
-		for (uint32_t at = 540; at <= 900; at += 10) {
-			r.tick(at);
-		}
-		from = r.fake.flashes_sent.size();
-		for (uint32_t at = 910; at <= 1300; at += 10) {
-			r.tick(at);
-		}
-		expect(menu_scene().focused() != &menu::nodes::file0_selector).to_be_true();
+		bool own_pad = false;
 		bool recorder_pad = false;
 		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			own_pad = own_pad || (r.fake.flashes_sent[i].x == 0 && r.fake.flashes_sent[i].y == 5);
 			recorder_pad = recorder_pad || (r.fake.flashes_sent[i].x == 0 && r.fake.flashes_sent[i].y == 4);
 		}
+		expect(own_pad).to_be_true();
 		expect(recorder_pad).to_be_false();
-		// And for good: the hold went with the focus, so coming back to the file selector blinks its own pad.
-		expect(menu_scene().state().blink_hold_node == nullptr).to_be_true();
 	});
 
 	it("leaves the menu after a take opened on the item alone, as the drum creator's take leaves the clip view", _ {

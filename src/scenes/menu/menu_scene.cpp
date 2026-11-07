@@ -35,7 +35,7 @@
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
-#include "scenes/recorder/recorder_scene.h" // on_resume: the recorder's shortcut row and its refusal
+#include "scenes/recorder/recorder_scene.h" // on_resume: a refused recorder push
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -271,13 +271,7 @@ void MenuScene::on_resume() {
 	// A recorder opened on the SAMPLE RECORDER page returns to its source's page, the file selector focused, in place
 	// of the step up (`MenuWalkState::resume_landing`); the re-root's `retarget` spends the step up with the walk.
 	if (const Node* landing = std::exchange(st_.walk.resume_landing, nullptr); landing != nullptr) {
-		if (reroot_to_page_listing(*landing)) {
-			// `main` re-plans no blink as it lands: the recorder's own, on its source's (x, 4) pad, goes on until the
-			// focus moves.
-			st_.blink_hold_node = landing;
-			st_.blink_hold_plan =
-			    exclusive_blink(landing == &nodes::file1_selector ? 1 : 0, recorder::kRecordShortcutY, 0);
-		}
+		(void)reroot_to_page_listing(*landing);
 	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;

@@ -397,13 +397,6 @@ struct MenuState {
 	/// The counter step `render_grid` last flashed, so each step flashes once however many frames
 	/// fall inside it; `UINT32_MAX` for none since the anchor.
 	uint32_t blink_fired_step = UINT32_MAX;
-	/// The node whose blink `blink_hold_plan` stands in for while it stays the blink's subject: the recorder's
-	/// shortcut blink, which `main`'s sound editor keeps after a take lands on the source page (`AudioRecorder::opened`
-	/// set it up, and the landing plans nothing new) until a screen change re-plans it. `render_grid` drops it once the
-	/// subject moves.
-	const Node* blink_hold_node = nullptr;
-	/// What blinks for `blink_hold_node` meanwhile.
-	BlinkPlan blink_hold_plan{};
 	/// The last grid frame was covered by a scene that takes the input: the menu plans no blink and asks no wake.
 	bool blink_covered = false;
 	/// The list cursor the blink was planned at, for an item whose blink waits after each move
