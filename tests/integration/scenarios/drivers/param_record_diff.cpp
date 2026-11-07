@@ -41,6 +41,7 @@
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_clip_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/shift_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/song_serialization.h"
@@ -503,6 +504,45 @@ void pasteWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane
 	probeFailed |= !kept;
 }
 
+// The clip shifted a quarter of its loop while a lane records, between two recorded values: the first value moved with
+// the shift, and the second is there. Checked on stderr.
+void shiftWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 300000000, len / 8);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	deluge::edits::ShiftClip shift{deluge::edits::clipAddressFor(*clip), len / 4, true, true,
+	                               setupModelStackWithTimelineCounter(memory, currentSong, clip)};
+	const bool applied = deluge::edits::apply(ctx, shift) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, 600000000, len * 7 / 8);
+	const bool kept =
+	    applied && valueAt(lane, len / 8 + len / 4, len) == 300000000 && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "shift-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
+// The clip's length halved while a lane records: the node recorded past the new end is trimmed, and a value recorded
+// after is there. The length is set back after. Checked on stderr.
+void halveWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 300000000, len * 3 / 4);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength shorter{deluge::edits::clipAddressFor(*clip), static_cast<uint32_t>(len / 2), nullptr,
+	                                     clip};
+	const bool applied = deluge::edits::apply(ctx, shorter) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, 600000000, len / 8);
+	const auto& nodes = lane->doc()->nodes;
+	const bool trimmed = std::ranges::none_of(nodes, [&](const ParamNode& node) { return node.pos >= len / 2; });
+	const bool kept = applied && trimmed && valueAt(lane, len / 8, len / 2) == 600000000;
+	std::fprintf(io.err, "halve-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+	deluge::edits::SetClipLength back{deluge::edits::clipAddressFor(*clip), static_cast<uint32_t>(len), nullptr, clip};
+	(void)deluge::edits::apply(ctx, back);
+	renderBlockStart();
+}
+
 // The clip's length doubled while a lane records: the value recorded before it and one recorded past the old end are
 // both in the lane. The length is set back after. Checked on stderr.
 void lengthWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
@@ -668,6 +708,8 @@ void clipCases(Song* song) {
 		playbackHandler.recording = RecordingMode::NORMAL;
 		deleteWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_A_PHASE_WIDTH));
 		pasteWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_B_PHASE_WIDTH));
+		shiftWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_LPF_MORPH));
+		halveWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_MORPH));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }

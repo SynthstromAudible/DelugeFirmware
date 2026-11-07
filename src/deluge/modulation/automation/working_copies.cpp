@@ -39,9 +39,11 @@
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <array>
 #include <new>
 #include <optional>
+#include <utility>
 
 namespace deluge::modulation {
 
@@ -68,6 +70,9 @@ struct Entry {
 
 /// [interaction] -> [render] Changed only with the render held off.
 std::array<Entry, kWorkingCopies> g_entries;
+
+/// [interaction] A take ended for some lanes since the commit last asked.
+bool g_takeEnded = false;
 
 void countOverflow() {
 #if ALPHA_OR_BETA_VERSION
@@ -233,6 +238,36 @@ void releaseWorkingCopies() {
 		}
 		AudioEngine::retireMemory(copy, &destroyCopy);
 	}
+}
+
+void endTake(ParamCollection& collection) {
+	if (!collection.hasWorkingCopies() || memory::onRenderTier()) {
+		return;
+	}
+	commitWorkingCopies();
+	const auto held = static_cast<size_t>(
+	    std::ranges::count_if(g_entries, [&](const Entry& entry) { return entry.collection == &collection; }));
+	try {
+		AudioEngine::reserveRetirements(held);
+	} catch (...) {
+		return; // out of memory: the copies stay, committed
+	}
+	for (Entry& entry : g_entries) {
+		if (entry.collection != &collection) {
+			continue;
+		}
+		project::DocAutoParam* copy = entry.copy;
+		{
+			AudioExcludedSection section;
+			clear(entry);
+		}
+		AudioEngine::retireMemory(copy, &destroyCopy);
+	}
+	g_takeEnded = true;
+}
+
+bool takeEndedSinceLastAsked() {
+	return std::exchange(g_takeEnded, false);
 }
 
 void dropWorkingCopies(ParamCollection& collection) {

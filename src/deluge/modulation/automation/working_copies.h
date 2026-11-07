@@ -72,6 +72,16 @@ void commitWorkingCopies();
 /// @brief [interaction] Commit, then release every working copy: freed once the render cannot be reading them.
 void releaseWorkingCopies();
 
+/// @brief [interaction] An edit of every lane of @p collection (shifting, trimming, repeating, deleting time…): the
+/// take
+///        ends for its lanes, so the copies are committed and released before the edit, and the next commit makes
+///        copies again for those still overriding. On the render, which edits lanes this way only while arrangement
+///        recording, nothing.
+void endTake(ParamCollection& collection);
+
+/// @brief [interaction] Whether a take ended for some lanes since the last call (endTake()).
+bool takeEndedSinceLastAsked();
+
 /// @brief [render] or [interaction] @p collection is going: its working copies are dropped and freed, uncommitted.
 ///        The render cannot reach a collection being destroyed, nor its copies.
 void dropWorkingCopies(ParamCollection& collection);
