@@ -13,6 +13,10 @@
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 
+namespace AudioEngine {
+uint32_t audioSampleTimer = 0;
+} // namespace AudioEngine
+
 namespace fakelegacyui {
 
 std::vector<UI*> closed;
@@ -94,6 +98,7 @@ void reset() {
 	render_requests.clear();
 	ui_calls.clear();
 	system_time_s = 0.0;
+	AudioEngine::audioSampleTimer = 0;
 	sd_routine_active = false;
 	shift_button_pressed = false;
 	shift_stuck = false;

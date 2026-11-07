@@ -31,8 +31,8 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -704,13 +704,7 @@ void ShellHostUI::armTickSoon() {
 // ---------------------------------------------------------------------------------------------
 
 uint32_t ShellHostUI::nowMs() const {
-	const double seconds = getSystemTime();
-	if (!(seconds > 0.0)) {
-		// Also the NaN arm: every comparison against a NaN is false, so the negated `>` catches it.
-		// Before the scheduler starts there is no elapsed time to report and 0 is the honest answer.
-		return 0;
-	}
-	return static_cast<uint32_t>(static_cast<uint64_t>(seconds * 1000.0));
+	return clock_.advance(AudioEngine::audioSampleTimer);
 }
 
 void ShellHostUI::feed(const DelugeInputEvent& ev) {

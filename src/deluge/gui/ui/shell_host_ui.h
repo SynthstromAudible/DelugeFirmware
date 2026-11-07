@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_clock.h"
 #include "gui/ui/shell_guest_surfaces.h"
 #include "gui/ui/ui.h"
 #include "shell/profiles/deluge.h"
@@ -317,7 +318,7 @@ public:
 	/// @{
 	/// @brief What `UITimerManager::setTimer` multiplies a millisecond duration by
 	///        (`gui/ui_timer_manager.cpp:252-254`).
-	static constexpr int32_t kTimerSamplesPerMs = 44;
+	static constexpr int32_t kTimerSamplesPerMs = SampleClockMs::kSamplesPerMs;
 	/// @brief The shortest re-arm the guest will ask for. See `@par Why the floor is 1 ms`.
 	static constexpr int32_t kMinRearmMs = 1;
 	/// @brief The longest, and it is arithmetic rather than policy: `setTimer` computes `ms * 44`
@@ -376,19 +377,21 @@ public:
 	/// @brief The shell's clock, in milliseconds, for every hook that has to stamp one, and for
 	///        host code that reads a scene's clock-driven state between ticks.
 	///
-	/// `getSystemTime()` is seconds since scheduler start (`OSLikeStuff/scheduler_api.h:74`,
-	/// `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:204-206`), which is the unit
-	/// `LoweringConfig`'s thresholds are already expressed in -- unlike
-	/// `AudioEngine::audioSampleTimer`, legacy's other clock, which counts audio samples and would
-	/// need a lossy `/ 44` on every call. A wall clock is forbidden inside `src/shell/**` and
+	/// It is legacy's UI clock: `AudioEngine::audioSampleTimer` at 44 samples a millisecond, the count
+	/// `UITimerManager::setTimer` arms legacy's timers in and the guest's own wake (`UI_SPECIFIC`) with
+	/// them. On one base, a blink the shell times and one legacy times keep their phase, and both stop
+	/// when the audio stops, as legacy's do. A wall clock is forbidden inside `src/shell/**` and
 	/// `src/ui/**` (`shell-no-clock`); supplying one is exactly what a host is for.
 	///
-	/// @return Milliseconds since start, wrapping every ~49.7 days. The shell's own arithmetic is
-	///         unsigned differences throughout, so the wrap costs one interval, not correctness.
-	/// @note Not `static`, so the tick can be given a different clock in one place if it needs one.
+	/// @return Milliseconds since start, wrapping every ~49.7 days, carried on across the counter's own
+	///         wrap (`SampleClockMs`). The shell's own arithmetic is unsigned differences throughout, so
+	///         the wrap costs one interval, not correctness.
 	uint32_t nowMs() const;
 
 private:
+	/// The milliseconds `nowMs()` counts from the audio-sample counter; a reading moves it on, hence `mutable`.
+	mutable SampleClockMs clock_;
+
 	/// @brief Copy the shell's grid into legacy's pad image, for the columns \p x0 to \p x1 and the
 	///        rows \p whichRows selects, and report whether the guest owns \p region.
 	///

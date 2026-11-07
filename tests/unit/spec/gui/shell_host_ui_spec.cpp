@@ -412,14 +412,10 @@ public:
 	}
 };
 
-/// @brief Put the guest's clock at \p ms.
-///
-/// `ShellHostUI::nowMs()` is `getSystemTime() * 1000` truncated to an integer, and `getSystemTime()`
-/// is seconds. The extra quarter-millisecond is not slop: `ms / 1000.0 * 1000.0` is not guaranteed
-/// to land back on `ms` in a double, and one ulp low truncates to `ms - 1`. A quarter of a
-/// millisecond is far below anything this file asserts about and far above that error.
+/// @brief Put the guest's clock at \p ms: `ShellHostUI::nowMs()` counts legacy's audio-sample counter, 44 samples
+///        a millisecond.
 void set_clock_ms(uint32_t ms) {
-	fakelegacyui::system_time_s = (static_cast<double>(ms) + 0.25) / 1000.0;
+	AudioEngine::audioSampleTimer = ms * 44;
 }
 
 /// @brief Run the guest's own timer chain for \p rounds callbacks, with **no input at all**.
@@ -1434,7 +1430,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		fakelegacyui::system_time_s = 0.25; // nowMs() == 250
+		AudioEngine::audioSampleTimer = 250 * 44; // nowMs() == 250
 		const ActionResult result = r.guest.padAction(5, 3, 137);
 
 		// **Nothing is routed by the hook itself.** `Shell::on_board_event` feeds the lowering;
@@ -1970,9 +1966,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig sticky;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(sticky.open()).to_be_true();
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.010; // a 10 ms tap
+		AudioEngine::audioSampleTimer = 1010 * 44; // a 10 ms tap
 		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		sticky.guest.shell().tick(10);
 		sticky.base.seen.clear();
@@ -1989,9 +1985,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// contrast with the block above explicit rather than incidental.
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 		expect(plain.open()).to_be_true();
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.010;
+		AudioEngine::audioSampleTimer = 1010 * 44;
 		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		plain.guest.shell().tick(10);
 		plain.base.seen.clear();
@@ -2040,9 +2036,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the ported item writes 500 ms
-		fakelegacyui::system_time_s = 1.000;
+		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
-		fakelegacyui::system_time_s = 1.200; // a 200 ms tap: a hold at 100 ms, a tap at 500
+		AudioEngine::audioSampleTimer = 1200 * 44; // a 200 ms tap: a hold at 100 ms, a tap at 500
 		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 		expect(r.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(500));
 		r.guest.shell().tick(200);
@@ -2067,9 +2063,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			Rig r;
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 			(void)r.open();
-			fakelegacyui::system_time_s = 1.000;
+			AudioEngine::audioSampleTimer = 1000 * 44;
 			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
-			fakelegacyui::system_time_s = 1.200; // a 200 ms tap, the same every time
+			AudioEngine::audioSampleTimer = 1200 * 44; // a 200 ms tap, the same every time
 			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
 			r.guest.shell().tick(200);
 			r.base.seen.clear();
@@ -2402,7 +2398,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		fakelegacyui::system_time_s = 1.5; // nowMs() == 1500
+		AudioEngine::audioSampleTimer = 1500 * 44; // nowMs() == 1500
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		// `end_tick` re-stamps the snapshot with the tick's own clock, which is what a scene reads
 		// as `ctx.now_ms` (`Shell::make_context`). The **feed's** clock is what the
@@ -2415,19 +2411,33 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(1500));
 	});
 
-	it("reads nowMs() from getSystemTime, so a different clock gives a different stamp", _ {
+	it("reads nowMs() from legacy's audio-sample counter, so a different count gives a different stamp", _ {
 		// The companion to the example above: vary only the clock. Without this, a `nowMs()` that
 		// returned a constant would pass everything above it.
 		Rig r;
 		expect(r.open()).to_be_true();
-		fakelegacyui::system_time_s = 0.037; // 37 ms
+		AudioEngine::audioSampleTimer = 37 * 44; // 37 ms
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(37));
 
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false);
-		fakelegacyui::system_time_s = 9.001; // 9001 ms
+		AudioEngine::audioSampleTimer = 9001 * 44; // 9001 ms
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true);
 		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(9001));
+	});
+
+	it("runs on legacy's UI clock, not the scheduler's: the audio-sample counter at 44 a millisecond", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		AudioEngine::audioSampleTimer = 4400;
+		fakelegacyui::system_time_s = 7.0; // the scheduler's clock, which nowMs() does not read
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		fakelegacyui::system_time_s = 9.0;
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		AudioEngine::audioSampleTimer = 4400 + 43;
+		expect(r.guest.nowMs()).to_equal(uint32_t(100));
+		AudioEngine::audioSampleTimer = 4400 + 44;
+		expect(r.guest.nowMs()).to_equal(uint32_t(101));
 	});
 
 	// ---- input: the hooks deliberately NOT wired ------------------------------------------------
