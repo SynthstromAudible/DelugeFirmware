@@ -35,7 +35,7 @@
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
-#include "scenes/recorder/recorder_scene.h" // on_resume: the recorder's shortcut row
+#include "scenes/recorder/recorder_scene.h" // on_resume: the recorder's shortcut row and its refusal
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -84,6 +84,7 @@ int64_t pow10_of(int32_t exponent) {
 
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
+	refused_recorder_landing_ = nullptr;
 	const DxState dx = st_.dx;
 	st_ = MenuState{};
 	st_.dx = dx;
@@ -124,6 +125,7 @@ void MenuScene::retarget(const Node& node) {
 }
 
 void MenuScene::reset_process_state() {
+	refused_recorder_landing_ = nullptr;
 	walk_.forget_rows();
 	st_.dx = DxState{};
 	pending_retarget_ = 0;
@@ -279,7 +281,15 @@ void MenuScene::on_resume() {
 	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
-		walk_.ascend(core(), visit_.session);
+		const Node* const landing = std::exchange(refused_recorder_landing_, nullptr);
+		if (landing != nullptr && recorder::recorder_scene().last_enter_refused()) {
+			// `enterDrumCreator`'s fallback after a refused `openUI(&audioRecorder)`: the editor on the file selector,
+			// whose session opens the sample browser. Retargeting onto the leaf runs its hook, which asks for the push.
+			retarget(*landing);
+		}
+		else {
+			walk_.ascend(core(), visit_.session);
+		}
 	}
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.

@@ -214,6 +214,9 @@ public:
 	/// @param ctx The context to test.
 	/// @return True if `on_enter` will get as far as trying to allocate a recorder.
 	static bool can(const menu::MenuContext& ctx);
+	/// @brief Whether the last `on_enter` refused: the take could not begin (`can`, the drum's name, the recorder's
+	///        allocation). The menu reads it as it resumes from that refused push.
+	[[nodiscard]] bool last_enter_refused() const { return last_enter_refused_; }
 
 	deluge::ui::shell::SceneKind kind() const override { return kRecorderSceneKind; }
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -284,6 +287,8 @@ private:
 	/// Whether the next `leds()` restarts both shared blinks: the recording began (`blinkLed(BACK)`,
 	/// `blinkLed(RECORD, 255, 1)`).
 	bool blink_restart_ = false;
+	/// Whether the last `on_enter` refused; see `last_enter_refused`.
+	bool last_enter_refused_ = false;
 	/// When the shortcut blink's counter started: the take's first grid pass.
 	std::optional<uint32_t> blink_anchor_ms_{};
 	/// The counter step last fired, so two repaints inside one step flash once.

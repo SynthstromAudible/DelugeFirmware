@@ -22,7 +22,10 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/menu_view_of.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -388,6 +391,57 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		// ...and the log survived, which is the half a `clip != nullptr` test alone would get wrong.
 		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
 		closeGuest();
+	});
+
+	it("site 14's legacy fallback opens the guest on the file selector, never the legacy editor", _ {
+		// Reached under the toggle only when the guest's own open refused and legacy's `setup()` did not. A boot
+		// numbers every node, so the only way there is an id missing: numbered over the file selector alone, the
+		// recorder item has none and `openShellDrumRecorder` refuses; legacy's `openUI(&audioRecorder)` then refuses a
+		// take already running.
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		RootUIGuard root_guard;
+		const auto drum_take = [&](deluge::scenes::spec::SongFixture& f) {
+			NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.insertNoteRowAtIndex(0);
+			expect(row != nullptr).to_be_true();
+			if (row == nullptr) {
+				return;
+			}
+			alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithNoteRow* stack =
+			    setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip)->addNoteRow(0, row);
+			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+			instrumentClipView.enterDrumCreator(stack, /*doRecording=*/true);
+			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		};
+
+		{
+			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+			setRootUILowLevel(&instrumentClipView);
+			const menu::Node* const just_the_selector[] = {&nodes::file0_selector};
+			(void)menu::assign_node_ids(just_the_selector);
+			drum_take(f);
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(isUIOpen(&soundEditor)).to_be_false();
+			expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
+			closeGuest();
+		}
+		{
+			// Neither node numbered: the guest cannot open either, and the legacy editor still does not.
+			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+			setRootUILowLevel(&instrumentClipView);
+			const menu::Node* const neither[] = {&nodes::root_song};
+			(void)menu::assign_node_ids(neither);
+			drum_take(f);
+			expect(isUIOpen(&shellHostUI)).to_be_false();
+			expect(isUIOpen(&soundEditor)).to_be_false();
+			nullifyUIs();
+		}
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		display = saved_display;
 	});
 
 	it("cancels the popup legacy's display holds as it opens, as setup() does", _ {

@@ -744,7 +744,7 @@ it leaves both lists.
 
 | legacy | gap | what porting it takes |
 |---|---|---|
-| two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
+| one `openUI(&soundEditor)` site | site 10 of `gui/ui/shell_menu_entry.cpp`'s table, the legacy browser's claim, still opens the legacy `SoundEditor` with the toggle on, for the reason that table gives | a decision, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
 | the catalogue claim over a browsing session | the leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim | claim-on-open/release-on-close, with the load/save browsers |

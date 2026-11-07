@@ -5706,8 +5706,19 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	}
 
 	if (!success) {
-		// The legacy path's fallback, after `openUI(&audioRecorder)` or `openUI(&sampleBrowser)` refused: see
-		// `gui/ui/shell_menu_entry.cpp`'s table.
+		// The recorder or the browser refused: `main` opens the editor on the file selector, whose own session opens
+		// the browser again (`FileSelector::beginSession`). Under the shell menu this runs only when the guest's own
+		// open above refused, and the legacy editor must not open: the guest is tried once more, on the file
+		// selector, and its refusal is said as `setup()`'s is.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			if (!deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
+			                                    /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
+			                                    deluge::gui::ui::ShellMenuNode::Osc0FileSelector)) {
+				display->displayError(Error::UNSPECIFIED);
+			}
+			return;
+		}
 		openUI(&soundEditor);
 	}
 }

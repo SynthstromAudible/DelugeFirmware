@@ -33,9 +33,11 @@
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -44,6 +46,8 @@
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
+#include "support/global_guest_menu.h"
+#include "util/shell_menu_entry.h"
 
 #include "shell/leds.h"
 #include "shell/profiles/deluge.h"
@@ -87,6 +91,7 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -558,6 +563,12 @@ struct ShellMenuOn {
 	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
 };
 
+/// @brief Whether the recorder is on @p shell's stack.
+bool recorder_on_stack(deluge::ui::shell::Shell& shell) {
+	return std::ranges::any_of(shell.stack().scenes(),
+	                           [](const deluge::ui::shell::Scene* s) { return s->kind() == kRecorderSceneKind; });
+}
+
 /// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
 ///        milliseconds for the scope, and put it back.
 struct AudioClockAt {
@@ -919,6 +930,80 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
 		expect(menu_scene().state().depth).to_equal(0);
 		expect(menu_scene().state().path[0] == &menu::nodes::sample0_recorder).to_be_true();
+		nullifyUIs();
+	});
+
+	it("lands the drum creator's refused take on source 0's file selector, which asks for the browser", _ {
+		// `enterDrumCreator`'s fallback: `openUI(&audioRecorder)` refused, so legacy opens the editor on
+		// `file0SelectorMenu`, whose `FileSelector::beginSession` opens the sample browser. A take already running
+		// (here an output recording) is the refusal `RecorderScene::can` makes.
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		{
+			PublishedOutputRecording output;
+			expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+			// The menu's render files the recorder's push; the router applies it, the recorder refuses, the menu resumes.
+			for (int32_t i = 0; i < 4 && menu_scene().state().path[0] == &menu::nodes::sample0_recorder; i++) {
+				(void)shellHostUI.timerCallback();
+			}
+		}
+		expect(recorder_scene().last_enter_refused()).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		expect(menu_scene().state().path[0] == &menu::nodes::file0_selector).to_be_true();
+		// The leaf's hook asked for the browser, which the menu's next render pushes.
+		expect(menu_scene().state().walk.pending_scene.kind == browser::kBrowserSceneKind).to_be_true();
+		nullifyUIs();
+	});
+
+	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
+		expect(recorder_scene().last_enter_refused()).to_be_false();
+		// The take ends from outside (its `on_exit` aborts the recorder); the menu resumes and goes up, out.
+		(void)shellHostUI.shell().stack().remove(kRecorderSceneKind);
+		for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(menu_scene().state().path[0] == &menu::nodes::file0_selector).to_be_false();
+		nullifyUIs();
+	});
+
+	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
+		Guards g;
+		ShellMenuOn on;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		// The clip view under the guest, as on the device: the guest's close needs a UI to close back to.
+		setRootUILowLevel(&instrumentClipView);
+		{
+			PublishedOutputRecording output;
+			expect(deluge::gui::ui::openShellMenu(k.song.clip, 0, false, false, false, false,
+			                                      deluge::gui::ui::ShellMenuNode::Osc0Recorder))
+			    .to_be_true();
+			for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
+				(void)shellHostUI.timerCallback();
+			}
+		}
+		expect(recorder_scene().last_enter_refused()).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
 		nullifyUIs();
 	});
 

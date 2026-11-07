@@ -165,7 +165,8 @@ bool RecorderScene::setup_recording() {
 }
 
 bool RecorderScene::on_enter(const SceneId& id) {
-	(void)id; // No instance argument: there is exactly one recorder screen.
+	(void)id;                   // No instance argument: there is exactly one recorder screen.
+	last_enter_refused_ = true; // until the take has begun
 	if (!can(ctx_)) {
 		return false;
 	}
@@ -190,6 +191,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	}
 	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`) on success.
 	blink_restart_ = setup_recording();
+	last_enter_refused_ = !blink_restart_;
 	return blink_restart_;
 }
 

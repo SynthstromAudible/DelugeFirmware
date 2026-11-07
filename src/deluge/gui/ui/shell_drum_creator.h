@@ -40,6 +40,8 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum);
 ///
 /// The guest opens on source 0's recorder item alone, whose hook pushes the recorder; with no page above the item the
 /// take's end leaves the menu, as `AudioRecorder::close` leaves the clip view in front. The recorder names the drum.
+/// If the recorder refuses, the menu lands on source 0's file selector, whose hook pushes the browser, as legacy's
+/// fallback opens it.
 /// @param clip The kit clip the drum was made in.
 /// @return Whether the guest is now open.
 bool openShellDrumRecorder(InstrumentClip* clip);
