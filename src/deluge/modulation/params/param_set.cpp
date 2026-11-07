@@ -18,6 +18,7 @@
 #include "modulation/params/param_set.h"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -871,6 +872,38 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
         }
 
  */
+
+namespace {
+/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
+deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
+                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
+                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
+	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	return copy;
+}
+} // namespace
+
+void ParamSet::forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+                                   int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+                                   deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	auto& otherSet = static_cast<ParamSet&>(other);
+	for (int32_t p = 0; p < numParams_; p++) {
+		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		const deluge::project::DocAutoParam* src = otherSet.findDocParamForId(p);
+		const bool appended = (otherSummary.whichParamsAreAutomated[p >> 5] & (1u << (p & 31))) != 0;
+		if (appended && src != nullptr) {
+			const deluge::project::DocAutoParam copy =
+			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+			if (!copy.nodes.empty()) {
+				visit(p, copy);
+			}
+		}
+		else if (lane != nullptr && !lane->nodes.empty()) {
+			visit(p, *lane);
+		}
+	}
+}
 
 void ParamSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	// The lanes the render's lookup finds: the bound store's, or an unbound set's params' own

@@ -37,6 +37,13 @@ class PatchCableSet;
 class MIDIParamCollection;
 class PatchedParamSet;
 class UnpatchedParamSet;
+/// The arguments of one repeat's append to a param manager (ParamManagerForTimeline::appendParamManager()).
+struct RepeatArgs {
+	int32_t offset;                      ///< where the repeat goes: the length already there
+	int32_t reverseThisRepeatWithLength; ///< 0 to copy the repeat straight, else the length to mirror it within
+	bool pingpongingGenerally;           ///< whether a pingpong direction flip applies
+};
+
 class ParamManagerForTimeline;
 class ParamCollectionSummary;
 

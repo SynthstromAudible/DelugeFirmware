@@ -151,6 +151,17 @@ public:
 	///        its published snapshot is searched by), in any order.
 	virtual void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {}
 
+	/// @brief [interaction] Call @p visit with each of this collection's lanes as appendParamCollection() with @p other
+	///        would leave them, changing none: a lane the append changes as a copy with the repeat appended, the rest
+	///        as they are, each with nodes, by the key forEachLane() gives it.
+	/// @param other        The collection repeated, of the same kind.
+	/// @param otherSummary @p other's summary: its flags say which of its lanes a ParamSet or PatchCableSet appends.
+	virtual void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+	                                 int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+	                                 deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+		forEachLane(visit);
+	}
+
 	/// @brief [render] or [interaction] Lane @p paramId as the render plays it: the published lane where
 	///        deluge::modulation::snapshotToPlay() gives a snapshot, else the model's. A lane with no nodes is an empty
 	///        view with base 0; every reader of one stops there.
@@ -186,6 +197,9 @@ private:
 	/// [render] -> [interaction] The snapshot the render's last swap replaced, for the interaction tier to retire. It
 	/// shares lanes with published_.
 	std::atomic<const deluge::modulation::LaneSnapshot*> superseded_{nullptr};
+	/// [interaction] The source collection's published snapshot when staged_ was built: a staged repeat built from
+	/// other source lanes is built again.
+	const deluge::modulation::LaneSnapshot* stagedAgainst_ = nullptr;
 	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
 	bool lanesDirty_ = false;
 	uint32_t serial_; ///< see serial()

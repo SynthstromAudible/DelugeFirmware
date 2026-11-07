@@ -751,31 +751,54 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 		// The notes and the length; the interaction tier appends the repeat's automation before its next job
 		if (appendClip(thisModelStack, otherModelStack, false) == Error::NONE) {
 			endTakesForRepeat(thisModelStack, otherModelStack);
+			// The repeat plays from its staged snapshots, published here
+			(void)deluge::modulation::swapStagedRepeat(*this, thisModelStack, otherModelStack);
 			deluge::modulation::countRepeat(*this);
+			deluge::modulation::takeLoopEnded(*this);
 		}
 	}
 }
 
 void InstrumentClip::endTakesForRepeat(ModelStackWithTimelineCounter* thisModelStack,
                                        ModelStackWithTimelineCounter* otherModelStack) {
-	const auto endTakes = [](ParamManager& manager, ParamManager& other) {
-		if (!manager.containsAnyParamCollectionsIncludingExpression()
-		    || !other.containsAnyParamCollectionsIncludingExpression()) {
-			return;
-		}
-		for (ParamCollectionSummary& summary : manager.summaries) {
-			if (summary.paramCollection == nullptr) {
-				break;
-			}
-			deluge::modulation::endTake(*summary.paramCollection);
-		}
-	};
-	(void)forEachRepeatedRow(*this, thisModelStack, otherModelStack,
-	                         [&](NoteRow& row, ModelStackWithNoteRow*, ModelStackWithNoteRow* otherRow) {
-		                         endTakes(row.paramManager, otherRow->getNoteRow()->paramManager);
-		                         return Error::NONE;
-	                         });
-	endTakes(paramManager, ((Clip*)otherModelStack->getTimelineCounter())->paramManager);
+	forEachRepeatedManager(thisModelStack, otherModelStack, loopLength(),
+	                       [](ParamManagerForTimeline& manager, ParamManagerForTimeline&, const RepeatArgs&) {
+		                       // The collections the repeat appends to: those with automation
+		                       for (ParamCollectionSummary& summary : manager.summaries) {
+			                       if (summary.paramCollection == nullptr) {
+				                       break;
+			                       }
+			                       if (summary.containsAutomation()) {
+				                       deluge::modulation::endTake(*summary.paramCollection);
+			                       }
+		                       }
+	                       });
+}
+
+void InstrumentClip::forEachRepeatedManager(
+    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
+    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
+	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
+	const int32_t otherLength = otherInstrumentClip->loopLength();
+	int32_t whichRepeatThisIs = (uint32_t)offset / (uint32_t)otherLength;
+	Error error =
+	    forEachRepeatedRow(*this, thisModelStack, otherModelStack,
+	                       [&](NoteRow& row, ModelStackWithNoteRow*, ModelStackWithNoteRow* otherRow) {
+		                       NoteRow* otherNoteRow = otherRow->getNoteRow();
+		                       if (row.paramManager.containsAnyParamCollectionsIncludingExpression()
+		                           && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			                       visit(row.paramManager, otherNoteRow->paramManager,
+			                             NoteRow::repeatArgs(otherRow, offset, whichRepeatThisIs, otherLength));
+		                       }
+		                       return Error::NONE;
+	                       });
+	if (error != Error::NONE) {
+		return; // as appendRepeatParams(): a kit whose rows no longer match appends nothing more
+	}
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()
+	    && otherInstrumentClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		visit(paramManager, otherInstrumentClip->paramManager, repeatArgs(*otherInstrumentClip, offset));
+	}
 }
 
 bool InstrumentClip::wantsToBeginLinearRecording(Song* song) {

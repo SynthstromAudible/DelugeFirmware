@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -452,6 +453,39 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+namespace {
+/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
+deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
+                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
+                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
+	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	return copy;
+}
+} // namespace
+
+void MIDIParamCollection::forEachLaneAppended(
+    ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/, int32_t oldLength,
+    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		const int32_t cc = params[i].cc;
+		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);
+		const deluge::project::DocAutoParam* src = otherCollection.findDocParamForId(cc);
+		if (src != nullptr) {
+			const deluge::project::DocAutoParam copy =
+			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+			if (!copy.nodes.empty()) {
+				visit(cc, copy);
+			}
+		}
+		else if (lane != nullptr && !lane->nodes.empty()) {
+			visit(cc, *lane);
+		}
+	}
+}
 
 void MIDIParamCollection::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t i = 0; i < std::ssize(params); i++) {

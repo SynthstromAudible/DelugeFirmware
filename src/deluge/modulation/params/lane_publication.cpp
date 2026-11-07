@@ -30,6 +30,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/staged_repeat.h"
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -261,6 +262,36 @@ void LanePublication::gone(ParamCollection& collection) {
 	}
 }
 
+bool LanePublication::stagedAgainst(const ParamCollection& collection, const LaneSnapshot* sourcePublished) {
+	return collection.staged_.load(std::memory_order_relaxed) != nullptr
+	       && collection.stagedAgainst_ == sourcePublished;
+}
+
+bool LanePublication::stage(ParamCollection& collection, LaneSource lanes, const LaneSnapshot* sourcePublished) {
+	if (!settleStaged(collection)) {
+		return false;
+	}
+	// Nothing is staged now, so the render cannot swap: the published snapshot stays as it is while this builds
+	LaneSnapshot* staged = buildSnapshot(lanes, collection.published());
+	if (staged == nullptr) {
+		return false;
+	}
+	collection.stagedAgainst_ = sourcePublished;
+	collection.staged_.store(staged, std::memory_order_release);
+	return true;
+}
+
+bool LanePublication::canSwap(const ParamCollection& collection) {
+	return collection.staged_.load(std::memory_order_acquire) != nullptr
+	       && collection.superseded_.load(std::memory_order_relaxed) == nullptr;
+}
+
+void LanePublication::swap(ParamCollection& collection) {
+	const LaneSnapshot* staged = collection.staged_.exchange(nullptr, std::memory_order_acq_rel);
+	collection.superseded_.store(collection.published_.exchange(staged, std::memory_order_acq_rel),
+	                             std::memory_order_release);
+}
+
 bool LanePublication::settleStaged(ParamCollection& collection) {
 	if (collection.staged_.load(std::memory_order_relaxed) == nullptr
 	    && collection.superseded_.load(std::memory_order_relaxed) == nullptr) {
@@ -391,7 +422,18 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 }
 
 void LanePublication::publishDirty(bool settle) {
-	if (currentSong == nullptr || g_publishing || !mayPublish() || !g_anyPending.load(std::memory_order_relaxed)) {
+	if (currentSong == nullptr || g_publishing || !mayPublish()) {
+		return;
+	}
+	walkDirty(settle);
+	if (settle) {
+		// A job's end: the arrangement takes' next repeats are staged from what it published
+		restageArrangementTakes(*currentSong);
+	}
+}
+
+void LanePublication::walkDirty(bool settle) {
+	if (!g_anyPending.load(std::memory_order_relaxed)) {
 		return;
 	}
 	struct Walk {

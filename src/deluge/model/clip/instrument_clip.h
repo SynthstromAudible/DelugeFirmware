@@ -18,10 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "foundation/function_ref.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/staged_repeat.h"
 #include <atomic>
 #include <string>
 
@@ -128,15 +130,8 @@ public:
 
 	NoteRowVector noteRows;
 
-	/// An arrangement take's repeats while it records. At each loop end the render appends a repeat of the source
-	/// clip's notes and counts it; the interaction tier appends the repeat's automation into the model before its next
-	/// job (deluge::modulation::catchUpArrangementTakes()).
-	std::atomic<uint32_t> repeatsAppended{0}; ///< [render] or [interaction] counted at each repeat appended
-	uint32_t repeatsInModel = 0;              ///< [interaction] the repeats whose automation the model holds
-	int32_t paramLength = 0;                  ///< [interaction] the length the model's automation covers
-	/// [interaction] set, [render] or [interaction] cleared: the clip the take repeats, kept until the model holds
-	/// every repeat counted; cleared when that clip goes.
-	std::atomic<InstrumentClip*> repeatSource{nullptr};
+	/// An arrangement take's repeats while it records (deluge::modulation::catchUpArrangementTakes()).
+	deluge::modulation::TakeRepeats repeats;
 
 	bool wrapEditing;
 	uint32_t wrapEditLevel{};
@@ -226,6 +221,12 @@ public:
 	///        as it does for lanes edited all at once: the next commit carries what the render recorded into them.
 	void endTakesForRepeat(ModelStackWithTimelineCounter* thisModelStack,
 	                       ModelStackWithTimelineCounter* otherModelStack);
+	/// @brief Call @p visit with each param manager of this take that a repeat at @p offset of the clip
+	///        @p otherModelStack names appends to, the source's paired one, and the append's arguments: as
+	///        appendRepeatParams() appends them.
+	void forEachRepeatedManager(
+	    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
+	    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit);
 	void instrumentBeenEdited() override;
 	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
 	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.

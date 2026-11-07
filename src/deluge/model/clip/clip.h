@@ -97,6 +97,8 @@ public:
 	///        @p offset: what appendClip() appends to them.
 	void appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
 	                  int32_t offset);
+	/// @brief The arguments with which a repeat of @p otherClip at @p offset is appended to a clip's params.
+	static RepeatArgs repeatArgs(const Clip& otherClip, int32_t offset);
 	Error resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                      ModelStackWithTimelineCounter* modelStackClone);
 	virtual Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,

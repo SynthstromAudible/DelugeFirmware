@@ -73,6 +73,10 @@ public:
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 	/// @copydoc ParamCollection::forEachLane
 	void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
+	/// @copydoc ParamCollection::forEachLaneAppended
+	void forEachLaneAppended(ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+	                         int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+	                         deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
 
 	/// @brief Compile the records into the routing the render walks, reordering the records (and the cables'
 	/// automation cursors) into the compiled order.

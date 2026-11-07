@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -1171,6 +1172,42 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 		return nullptr;
 	}
 	return &patchCables[i];
+}
+
+namespace {
+/// @p lane with @p src's repeat appended, as appendParamCollection() appends it, for a staged repeat.
+deluge::project::DocAutoParam appendedCopy(const deluge::project::DocAutoParam* lane,
+                                           const deluge::project::DocAutoParam& src, int32_t oldLength,
+                                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
+	deluge::project::DocAutoParam copy = lane != nullptr ? *lane : deluge::project::DocAutoParam{};
+	deluge::project::appendParam(copy, src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+	return copy;
+}
+} // namespace
+
+void PatchCableSet::forEachLaneAppended(
+    ParamCollection& other, const ParamCollectionSummary& otherSummary, int32_t oldLength,
+    int32_t reverseThisRepeatWithLength, bool pingpongingGenerally,
+    deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	auto& otherSet = static_cast<PatchCableSet&>(other);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
+		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+		// The other set's cable to the same destination from the same source, appended if it is automated
+		const int32_t o = otherSet.getPatchCableIndex(patchCables[c].from, patchCables[c].destination);
+		const bool appended = o != 255 && (otherSummary.whichParamsAreAutomated[o >> 5] & (1u << (o & 31))) != 0;
+		const deluge::project::DocAutoParam* src = appended ? otherSet.findDocParamForId(paramId) : nullptr;
+		if (src != nullptr) {
+			const deluge::project::DocAutoParam copy =
+			    appendedCopy(lane, *src, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+			if (!copy.nodes.empty()) {
+				visit(paramId, copy);
+			}
+		}
+		else if (lane != nullptr && !lane->nodes.empty()) {
+			visit(paramId, *lane);
+		}
+	}
 }
 
 void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {

@@ -420,6 +420,17 @@ Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStack
 	return Error::NONE;
 }
 
+RepeatArgs Clip::repeatArgs(const Clip& otherClip, int32_t offset) {
+	bool pingpongingGenerally = (otherClip.sequenceDirectionMode == SequenceDirection::PINGPONG);
+
+	bool shouldReverseThisRepeat = (pingpongingGenerally && (((uint32_t)offset / (uint32_t)otherClip.loopLength()) & 1))
+	                               || (otherClip.sequenceDirectionMode == SequenceDirection::REVERSE);
+
+	return {.offset = offset,
+	        .reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip.loopLength() : 0,
+	        .pingpongingGenerally = pingpongingGenerally};
+}
+
 void Clip::appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
                         int32_t offset) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
@@ -427,19 +438,12 @@ void Clip::appendParams(ModelStackWithTimelineCounter* thisModelStack, ModelStac
 	    || !otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		return;
 	}
-	bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
-
-	bool shouldReverseThisRepeat =
-	    (pingpongingGenerally && (((uint32_t)offset / (uint32_t)otherClip->loopLength()) & 1))
-	    || (otherClip->sequenceDirectionMode == SequenceDirection::REVERSE);
-
-	int32_t reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip->loopLength() : 0;
-
+	const RepeatArgs args = repeatArgs(*otherClip, offset);
 	paramManager.appendParamManager(
 	    thisModelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager),
 	    otherModelStack->addOtherTwoThingsButNoNoteRow(otherClip->output->toModControllable(),
 	                                                   &otherClip->paramManager),
-	    offset, reverseThisRepeatWithLength, pingpongingGenerally);
+	    args.offset, args.reverseThisRepeatWithLength, args.pingpongingGenerally);
 }
 
 // Accepts any pos >= -length.
@@ -1197,8 +1201,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				// The take's automation covers its length; each repeat its loop end appends is appended to it at the
 				// next commit (deluge::modulation::catchUpArrangementTakes())
 				auto* take = static_cast<InstrumentClip*>(newClip);
-				take->paramLength = newClip->loopLength();
-				take->repeatSource.store(static_cast<InstrumentClip*>(this), std::memory_order_release);
+				take->repeats.paramLength = newClip->loopLength();
+				take->repeats.source.store(static_cast<InstrumentClip*>(this), std::memory_order_release);
 			}
 
 			// Add to Song

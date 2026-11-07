@@ -4147,6 +4147,18 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
+RepeatArgs NoteRow::repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,
+                               int32_t otherNoteRowLength) {
+	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
+	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
+	return {.offset = offset,
+	        .reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0,
+	        .pingpongingGenerally = pingpongingGenerally};
+}
+
 void NoteRow::appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
                            int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
@@ -4154,15 +4166,10 @@ void NoteRow::appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWith
 	    || !otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		return;
 	}
-	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
-	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
-	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
-	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
-	int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
-
+	const RepeatArgs args = repeatArgs(otherModelStack, offset, whichRepeatThisIs, otherNoteRowLength);
 	paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
-	                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), offset,
-	                                reverseThisRepeatWithLength, pingpongingGenerally);
+	                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), args.offset,
+	                                args.reverseThisRepeatWithLength, args.pingpongingGenerally);
 }
 
 Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,

@@ -327,6 +327,10 @@ public:
 	///        appendNoteRow() appends to this row's params.
 	void appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                  int32_t whichRepeatThisIs, int32_t otherClipLength);
+	/// @brief The arguments with which a repeat of the row @p otherModelStack names, the @p whichRepeatThisIs'th, is
+	///        appended at @p offset to a row's params.
+	static RepeatArgs repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,
+	                             int32_t otherClipLength);
 	/// @brief Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
 	///
 	/// Call only when the row's effective direction is REVERSE and flattening was requested.
