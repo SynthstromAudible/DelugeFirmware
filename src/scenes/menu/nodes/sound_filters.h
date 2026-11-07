@@ -64,9 +64,9 @@ struct MenuContext;
 namespace deluge::scenes::menu::nodes {
 
 inline constexpr Node lpf_mode =
-    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "lpfMode"}),
-               sid(deluge::l10n::String::STRING_FOR_LPF_MODE));
+    with_affect_entire(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
+                                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "lpfMode"}),
+                                  sid(deluge::l10n::String::STRING_FOR_LPF_MODE)));
 inline constexpr Node lpf_freq = with_column_draw(
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ},
@@ -88,9 +88,9 @@ inline constexpr const Node* kLpfChildren[] = {&lpf_mode, &lpf_freq, &lpf_res, &
 inline constexpr Node lpf = submenu(sid(deluge::l10n::String::STRING_FOR_LPF), kLpfChildren, Layout::Horizontal);
 
 inline constexpr Node hpf_mode =
-    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "hpfMode"}),
-               sid(deluge::l10n::String::STRING_FOR_HPF_MODE));
+    with_affect_entire(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_MODE), Kind::Enum,
+                                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "hpfMode"}),
+                                  sid(deluge::l10n::String::STRING_FOR_HPF_MODE)));
 inline constexpr Node hpf_freq = with_column_draw(
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_FREQ},
@@ -116,12 +116,12 @@ inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), k
 /// Four slots wide -- `FilterRouting::getOccupiedSlots()`, which draws the
 /// whole page rather than one column. Affect-entire routes only the drums with both filters on
 /// (`filter_route.h:49-50`).
-inline constexpr Node filter_routing = with_option_list_column(without_notification(
+inline constexpr Node filter_routing = with_affect_entire(with_option_list_column(without_notification(
     without_column_label(with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
                                                  {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
                                                   .path = "filterRoute",
                                                   .fan_out_when = fan_out::kBothFilters}),
-                                    4))));
+                                    4)))));
 
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);

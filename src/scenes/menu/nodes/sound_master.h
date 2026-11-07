@@ -53,9 +53,9 @@ namespace deluge::scenes::menu::nodes {
 /// @{
 /// @}
 
-inline constexpr Node synth_mode = setting_item(
+inline constexpr Node synth_mode = with_affect_entire(setting_item(
     sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), Kind::Enum,
-    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "mode", .fan_out_when = fan_out::kRingable});
+    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "mode", .fan_out_when = fan_out::kRingable}));
 
 inline constexpr Node master_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),

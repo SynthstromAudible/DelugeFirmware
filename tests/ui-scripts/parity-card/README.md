@@ -37,3 +37,7 @@ parameter, since a bare pad leaves the menu for the clip.
 MIDI device definition, `MIDI_DEVICES/DEFINITION/BLOFELD.XML`. It turns the boot clip's track into a MIDI track, links
 that definition from DEVICE DEFINITION > LINKED (the file's name then shows two rows under LINKED), and walks SETTINGS >
 MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.
+
+`c33-kit-affect-entire` covers AFFECT ENTIRE in a kit row's menu: the clip's toggle on an item that does not use it (the
+root list, the kit's own root) and the fast-blinking hold on one that does (the row's LPF frequency), with a turn under
+it.

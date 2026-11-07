@@ -40,6 +40,11 @@ const Node* selected_child(const MenuContext& ctx, const MenuState& st, const No
 /// @brief The node the encoders edit: a focused leaf, a horizontal page's focused value column, else `nullptr`.
 const Node* focused_value(const MenuContext& ctx, const MenuState& st);
 
+/// @brief `getCurrentMenuItem()->usesAffectEntire()`: a leaf's own answer (`node_uses_affect_entire`); on a horizontal
+///        page the focused column's; on a vertical list the cursor row's when that row does not enter
+///        (`flips_in_place`), else false (`Submenu::usesAffectEntire`).
+bool uses_affect_entire(const MenuContext& ctx, const MenuState& st);
+
 /// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
 const CustomItem* focused_custom(const MenuState& st);
 

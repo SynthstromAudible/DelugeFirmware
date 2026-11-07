@@ -23,17 +23,20 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_note_mode.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -218,6 +221,9 @@ int32_t lastRangeCount = -1;
 /// `MultiRange::selectEncoderAction` does on every arm; the clip view is left as it was.
 int32_t lastRangeBottom = -1;
 int32_t lastRangeTop = -1;
+/// The menu's screen at the last guest tick: `SoundEditor::beginScreen` re-renders the root's range display on every
+/// screen change (`possibleChangeToCurrentRangeDisplay`), which redraws a kit's selected-drum pad for affect-entire.
+const deluge::scenes::menu::Node* lastScreen = nullptr;
 } // namespace
 
 void refreshShellRangeDisplay() {
@@ -229,8 +235,9 @@ void refreshShellRangeDisplay() {
 	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
 	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
 	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
+	const deluge::scenes::menu::Node* screen = open ? deluge::scenes::menu_scene().focused() : nullptr;
 	const bool edges_only = range == lastRangeShown && source == lastRangeSource && highlighting == lastHighlighting
-	                        && count == lastRangeCount;
+	                        && count == lastRangeCount && screen == lastScreen;
 	if (edges_only && bottom == lastRangeBottom && top == lastRangeTop) {
 		return;
 	}
@@ -240,6 +247,7 @@ void refreshShellRangeDisplay() {
 	lastRangeCount = count;
 	lastRangeBottom = bottom;
 	lastRangeTop = top;
+	lastScreen = screen;
 	// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard and nothing else, so the
 	// clip view's sidebar keeps the highlight it had.
 	RootUI* root = getRootUI();
@@ -309,6 +317,35 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on
 		}
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool on) {
+	if (b != deluge::hid::button::AFFECT_ENTIRE || !shellMenuFrontmost()) {
+		return std::nullopt;
+	}
+	const Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
+	if (clip == nullptr || clip->type != ClipType::INSTRUMENT || activeNoteMode() != NoteModeKind::None) {
+		return std::nullopt;
+	}
+	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	if (menu.takes_affect_entire()) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
+				menu.set_affect_entire_hold(true);
+			}
+		}
+		else if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+			view.setModLedStates();
+			currentUIMode = UI_MODE_NONE;
+			menu.set_affect_entire_hold(false);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	const ActionResult result = instrumentClipView.InstrumentClipMinder::buttonAction(b, on);
+	menu.set_clip_affect_entire(static_cast<const InstrumentClip*>(clip)->affectEntire);
+	shellHostUI.refreshRootFacts();
+	return result;
 }
 
 void shellMenuReadValueAgain() {

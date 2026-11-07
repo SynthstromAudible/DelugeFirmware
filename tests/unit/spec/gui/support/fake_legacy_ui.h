@@ -252,6 +252,8 @@ extern int menu_view_forwards;
 extern std::optional<ActionResult> menu_view_answer;
 extern std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate; ///< nullopt: Shift with shift, else Forward
 extern bool sequence_direction_answer;
+extern int menu_affect_entire_forwards;
+extern std::optional<ActionResult> menu_affect_entire_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;

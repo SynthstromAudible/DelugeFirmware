@@ -979,6 +979,11 @@ struct Node {
 	/// `voice::PolyphonyType` falls back to `Selection::selectButtonPress()` (the page stays), which this flag says.
 	bool chain_falls_back_to_selection = false;
 
+	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
+	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
+	///        UNPATCHED_SOUND param answers true without it (`node_uses_affect_entire`).
+	bool uses_affect_entire = false;
+
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
 	///        legacy's four-slot `Selection`s whose `renderInHorizontalMenu` is `drawPixelsForOled`.
 	bool option_list_column = false;
@@ -1085,6 +1090,20 @@ constexpr bool flips_in_place(const Node& n) {
 ///        every `Kind::Enum` is a `Selection`, whose `selectButtonPress` from a page answers `NO_NAVIGATION`.
 constexpr bool stays_on_page(const Node& n) {
 	return n.kind == Kind::Enum && (n.select_chain == nullptr || n.chain_falls_back_to_selection);
+}
+
+/// @brief `n` with `uses_affect_entire` set.
+constexpr Node with_affect_entire(Node n) {
+	n.uses_affect_entire = true;
+	return n;
+}
+
+/// @brief Legacy's `usesAffectEntire()` for one item: every `patched_param::Integer` and `UnpatchedParam` (the
+///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included), and the items marked
+///        with `with_affect_entire`.
+constexpr bool node_uses_affect_entire(const Node& n) {
+	return n.uses_affect_entire || n.bind.param.kind == deluge::modulation::params::Kind::PATCHED
+	       || n.bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND;
 }
 
 /// @brief `n` with `option_list_column` set.

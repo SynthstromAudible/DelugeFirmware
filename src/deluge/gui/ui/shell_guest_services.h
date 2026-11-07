@@ -130,6 +130,14 @@ bool shellSamplePreviewSounds();
 /// @return `DEALT_WITH` for SAVE under the menu, whatever it did; nullopt for any other button or with no menu up.
 std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on);
 
+/// @brief AFFECT ENTIRE while the ported menu is frontmost, as `SoundEditor::buttonAction`'s AFFECT_ENTIRE arm takes it
+///        over an instrument clip's view outside the note modes: in a kit row's menu on an item that uses it, the hold
+///        mode (`UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, `MenuScene::set_affect_entire_hold`); anywhere else
+///        the clip minder's own arm, which toggles a kit clip's affect-entire.
+/// @return The clip minder's answer, or `DEALT_WITH` for the hold; nullopt for any other button, with no menu up, or
+///         off an instrument clip's view.
+std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool on);
+
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();
 

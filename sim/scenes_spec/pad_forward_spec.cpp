@@ -56,6 +56,7 @@
 
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "notify/dirty_set.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -936,6 +937,68 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(deluge::gui::ui::menuCurrent()).to_be_true();
 		instrumentClipView.setSelectedDrum(b, false);
 		expect(kit->selectedDrum == a).to_be_true();
+	});
+
+	it("on a kit row's item that uses it, AFFECT ENTIRE holds; elsewhere it toggles the clip's affect-entire", _ {
+		// `SoundEditor::buttonAction`'s AFFECT_ENTIRE arm: the hold mode on `editingKitRow() && usesAffectEntire()`,
+		// otherwise `instrumentClipView.InstrumentClipMinder::buttonAction`.
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_kit_song();
+		auto* a = spec::add_drum<SoundDrum>(fx);
+		(void)spec::add_drum<SoundDrum>(fx);
+		static_cast<Kit*>(fx.instrument)->selectedDrum = a;
+		fx.clip->affectEntire = false;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true(); // the row's FILTER page
+		shellHostUI.shell().tick(1);
+		currentUIMode = UI_MODE_NONE;
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, true);
+		expect(currentUIMode).to_equal(uint32_t(UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR));
+		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_true();
+		expect(fx.clip->affectEntire).to_be_false();
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, false);
+		expect(currentUIMode).to_equal(uint32_t(UI_MODE_NONE));
+		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_false();
+		// The hold starts only with no UI mode up (`currentUIMode == UI_MODE_NONE`).
+		currentUIMode = UI_MODE_AUDITIONING;
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, true);
+		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_false();
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, false);
+		currentUIMode = UI_MODE_NONE;
+
+		GlobalGuestGuard::empty_guest_stack();
+		nullifyUIs();
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 2, 0)).to_be_true(); // the OSC page; walk up to the root
+		menu_scene().open(nodes::root_drum, menu_scene().menu_context());
+		shellHostUI.shell().tick(2);
+		expect(menu_scene().takes_affect_entire()).to_be_false();
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, true);
+		expect(fx.clip->affectEntire).to_be_true();
+		expect(menu_scene().menu_context().affect_entire).to_be_true();
+		expect(currentUIMode).to_equal(uint32_t(UI_MODE_NONE));
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, false);
+		(void)shellHostUI.buttonAction(deluge::hid::button::AFFECT_ENTIRE, true);
+		expect(fx.clip->affectEntire).to_be_false();
+	});
+
+	it("re-renders the clip view's sidebar on every screen change, as beginScreen does", _ {
+		// `SoundEditor::beginScreen` -> `possibleChangeToCurrentRangeDisplay`: the sidebar redraws on each new screen,
+		// which is when a kit's selected-drum pad goes dark under affect-entire (`drawAuditionSquare`).
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 2, 0)).to_be_true();
+		shellHostUI.shell().tick(1);
+		deluge::gui::ui::refreshShellRangeDisplay();
+		whichSideRowsNeedRendering = 0;
+		deluge::gui::ui::refreshShellRangeDisplay(); // the same screen: nothing
+		expect(whichSideRowsNeedRendering).to_equal(0u);
+		menu_scene().open(nodes::sound_root, menu_scene().menu_context());
+		shellHostUI.shell().tick(2);
+		deluge::gui::ui::refreshShellRangeDisplay(); // a new screen: the sidebar
+		expect(whichSideRowsNeedRendering != 0).to_be_true();
 	});
 
 	it("selects the played note's range under the picker, highlights the range's notes, and re-renders the root", _ {

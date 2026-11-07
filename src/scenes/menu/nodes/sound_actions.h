@@ -88,11 +88,11 @@ inline constexpr Node sequence_direction =
 // `OutputMidiNoteForDrum`'s (`note_for_drum.h:29-30`). Both render a plain number
 // (`Integer::drawInteger`), so `Hint::None`.
 inline constexpr Node output_midi_channel =
-    setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"});
-inline constexpr Node output_midi_note =
+    with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
+                                    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"}));
+inline constexpr Node output_midi_note = with_affect_entire(
     setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/noteForDrum"});
+                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/noteForDrum"}));
 
 inline constexpr const Node* kOutputMidiChildren[] = {&output_midi_channel, &output_midi_note};
 inline constexpr Node output_midi = submenu(sid(deluge::l10n::String::STRING_FOR_MIDI), kOutputMidiChildren);

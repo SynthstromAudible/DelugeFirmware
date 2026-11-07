@@ -89,11 +89,11 @@ namespace deluge::scenes::menu::nodes {
 	          sid(deluge::l10n::String::title_id)))
 
 inline constexpr Node randomizer_lock =
-    with_column_art(with_short_column_label(with_flips_in_list(with_selection_is_toggle(
-                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), Kind::Enum,
-                                                arp_row("arpeggiator/randomizerLock")),
-                                   sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE))))),
-                    lock_art);
+    with_affect_entire(with_column_art(with_short_column_label(with_flips_in_list(with_selection_is_toggle(with_title(
+                                           setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK),
+                                                        Kind::Enum, arp_row("arpeggiator/randomizerLock")),
+                                           sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE))))),
+                                       lock_art));
 
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.

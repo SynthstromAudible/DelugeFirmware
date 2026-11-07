@@ -45,11 +45,11 @@ namespace deluge::scenes::menu::nodes {
 // Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
 // (`unison/detune.h`), `StereoSpread::getMaxValue` (`stereoSpread.h`), each over `Number`'s
 // default minimum of 0 where no minimum is overridden.
-inline constexpr Node unison_detune = with_column_draw(
+inline constexpr Node unison_detune = with_affect_entire(with_column_draw(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/detune"}),
                sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE)),
-    detune_draw);
+    detune_draw));
 // Declared before `unison_count`, which chains to it: `with_select_chain` needs its address.
 //
 // `kUnisonChildren` below still fixes the **on-screen** order (count, detune, spread) -- declaration
@@ -58,10 +58,10 @@ inline constexpr Node unison_detune = with_column_draw(
 // parent moves on to its next child, so `unison_spread` is numbered as `unison_count`'s chain target
 // and lands *ahead* of `unison_detune` (221 vs 222 in the shipped dump). That is a consequence of
 // the walk, not of this reordering, so the ids of the unison nodes do not follow their on-screen order.
-inline constexpr Node unison_spread =
+inline constexpr Node unison_spread = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/spread"}, Hint::Knob),
-               sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE));
+               sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE)));
 
 /// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h`): a select press on the
 ///        count opens the stereo spread, unconditionally.
@@ -73,13 +73,13 @@ inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
 	return &unison_spread;
 }
 
-inline constexpr Node unison_count = with_column_art(
+inline constexpr Node unison_count = with_affect_entire(with_column_art(
     without_column_label(with_select_chain(
         with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), Kind::Int,
                                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/num"}),
                    sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
         unison_count_chain, kUnisonCountChain)),
-    unison_count_art);
+    unison_count_art));
 
 inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune, &unison_spread};
 inline constexpr Node unison =

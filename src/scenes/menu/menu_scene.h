@@ -199,6 +199,15 @@ public:
 	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
 	///        at the next tick, as a shortcut's jump is.
 	void reroot(const Node& root, const MenuContext& ctx, const Node& column);
+	/// @brief Whether AFFECT ENTIRE is this menu's hold rather than the clip's toggle: a kit row's menu
+	///        (`editingKitRow()`) on an item that uses it (`menu::uses_affect_entire`).
+	bool takes_affect_entire() const;
+	/// @brief Enter or leave `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host decides: while held a
+	///        param write reaches every drum (`MenuContext::affect_entire_held`) and AFFECT ENTIRE blinks fast.
+	void set_affect_entire_hold(bool on);
+	/// @brief The clip's affect-entire changed under the open menu (the clip minder's toggle):
+	/// `MenuContext::affect_entire`.
+	void set_clip_affect_entire(bool on) { ctx_.affect_entire = on; }
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
@@ -603,6 +612,10 @@ private:
 	bool land_dx_cartridge_ = false;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
+	/// The host's hold mode (`set_affect_entire_hold`): survives a shortcut's `Replace`, as legacy's UI mode does.
+	bool holding_affect_entire_ = false;
+	/// Restart the fast blink at the next `leds`: the press, and a select or BACK press or a select turn while held.
+	bool affect_entire_blink_restart_ = false;
 	/// The clock of the last grid render, which `next_timer` measures the DX column's next flip from.
 	uint32_t render_ms_ = 0;
 	/// Whether the keyboard DX column flashes: the parameter page over the keyboard, drawn at least once.

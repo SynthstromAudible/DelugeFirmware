@@ -90,6 +90,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
+	holding_affect_entire_ = false;
 	pads_.forget_landing();
 	retarget(root);
 }
@@ -308,6 +309,22 @@ void MenuScene::dx_column_press(int32_t op) {
 		pending_retarget_ = node_id(nodes::dx_param);
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+bool MenuScene::takes_affect_entire() const {
+	if (!ctx_.is_kit || ctx_.is_kit_global_fx || ctx_.root == MenuContext::Root::NoteEditor
+	    || ctx_.root == MenuContext::Root::NoteRowEditor) {
+		return false;
+	}
+	return menu::uses_affect_entire(ctx_, st_);
+}
+
+void MenuScene::set_affect_entire_hold(bool on) {
+	holding_affect_entire_ = on;
+	affect_entire_blink_restart_ = on;
+	ctx_.affect_entire_held = on;
+	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
@@ -636,6 +653,16 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
 	visit_.learn.leds(st_, f, shared_blink);
+
+	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` while the hold is on an item that uses it; off it, legacy's
+	// `view.setModLedStates()` shows the clip's own state, which an undeclared LED hands back.
+	if (holding_affect_entire_ && takes_affect_entire()) {
+		if (std::exchange(affect_entire_blink_restart_, false)) {
+			f.restart(deluge::ui::BlinkRate::Fast);
+		}
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::AffectEntire),
+		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1028,12 +1055,19 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 }
 
 Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
-	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
-	// (`UnpatchedParam::writeCurrentValue`). The AFFECT-ENTIRE button is an ordinary button, so
-	// its own press and release both reach here and keep this in step before any write path runs;
-	// `bindings::write` is the only reader.
-	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
+	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host enters and leaves
+	// (`set_affect_entire_hold`); `bindings::write` reads it. Re-asserted here because `on_enter` re-installs the
+	// context.
+	ctx_.affect_entire_held = holding_affect_entire_;
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	// A select or BACK press, and a select turn, restart the hold's blink (`sound_editor.cpp`'s three
+	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
+	if (holding_affect_entire_
+	    && (((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) && event.on
+	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
+	        || (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select))) {
+		affect_entire_blink_restart_ = true;
+	}
 
 	// A MIDI message is an offer for MIDI learn, and nothing else here reads it.
 	switch (event.kind) {

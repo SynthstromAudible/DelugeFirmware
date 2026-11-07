@@ -963,6 +963,15 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		return *result;
 	}
 
+	// AFFECT ENTIRE under the menu: the hold on a kit row's item that uses it, else the clip's own toggle.
+	if (const std::optional<ActionResult> result = forwardMenuAffectEntire(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
 	// The exact inverse of `deluge.cpp`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
 	// `hid::Button` is `9 * (y + kDisplayHeight * 2) + x` and `toXY` undoes it
 	// (`hid/button.h`, `hid/button.cpp`). Feeding matrix coordinates rather than a

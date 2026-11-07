@@ -56,9 +56,9 @@ namespace deluge::scenes::menu::nodes {
 /// @}
 
 /// A sound's, or where the menu edits an audio clip, the clip's own.
-inline constexpr Node voice_priority = setting_item(
+inline constexpr Node voice_priority = with_affect_entire(setting_item(
     sid(deluge::l10n::String::STRING_FOR_PRIORITY), Kind::Enum,
-    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"});
+    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"}));
 // `VoiceCount::getMinValue`/`getMaxValue` (`voice/polyphony.h:56-57`), rendered as a plain NUMBER
 // (`:58`). Declared before `polyphony`, which chains to it; `kVoiceChildren` below still fixes the
 // on-screen order.
@@ -75,7 +75,7 @@ inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuCont
 	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::infinity, .dy = 1};
 }
 
-inline constexpr Node voice_count = with_column_name(
+inline constexpr Node voice_count = with_affect_entire(with_column_name(
     with_value_text(
         with_column_art(with_value_style(setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
                                                       {.kind = deluge::scenes::bind::Target::Kind::SOUND,
@@ -84,7 +84,7 @@ inline constexpr Node voice_count = with_column_name(
                                          deluge::ui::oled::ValueStyle{.off_at_zero = true}),
                         voice_count_art),
         off_at_zero_text),
-    sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
+    sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT)));
 
 /// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h`): a select press opens the voice count when the
 ///        mode is POLY, and otherwise falls back to `Selection::selectButtonPress()`: from the VOICE page that stays
@@ -96,11 +96,11 @@ inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
 	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
 }
 
-inline constexpr Node polyphony =
+inline constexpr Node polyphony = with_affect_entire(
     with_column_name(with_chain_falls_back_to_selection(with_select_chain(
                          setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
                          polyphony_chain, kPolyphonyChain)),
-                     sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT));
+                     sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT)));
 inline constexpr Node portamento =
     with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
                                             {deluge::modulation::params::Kind::UNPATCHED_SOUND,

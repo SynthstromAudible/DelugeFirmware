@@ -63,6 +63,8 @@ int menu_view_forwards = 0;
 std::optional<ActionResult> menu_view_answer{};
 std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate{};
 bool sequence_direction_answer = false;
+int menu_affect_entire_forwards = 0;
+std::optional<ActionResult> menu_affect_entire_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -136,6 +138,8 @@ void reset() {
 	menu_view_answer = std::nullopt;
 	shortcut_gate = std::nullopt;
 	sequence_direction_answer = false;
+	menu_affect_entire_forwards = 0;
+	menu_affect_entire_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -431,6 +435,11 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button, bool) {
 std::optional<ActionResult> forwardMenuViewButton(deluge::hid::Button, bool) {
 	fakelegacyui::menu_view_forwards++;
 	return fakelegacyui::menu_view_answer;
+}
+
+std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button, bool) {
+	fakelegacyui::menu_affect_entire_forwards++;
+	return fakelegacyui::menu_affect_entire_answer;
 }
 
 bool automationEditorTakesKnobs() {
