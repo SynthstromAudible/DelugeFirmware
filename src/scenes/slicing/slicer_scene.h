@@ -55,13 +55,13 @@
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
-/// @par The commit does not need `RecorderScene`'s SD-routine guard
+/// @par The commit does not need `RecorderScene`'s card-busy guard
 ///
 /// `RecorderScene::after_render` asks `AudioEngine::sdRoutineBusy()` before it finishes a recording, because freeing a
-/// `SampleRecorder` suspended part-way through its own `cardRoutine()` leaves that routine running on freed memory
-/// (`gui/ui/audio_recorder.cpp:168-176`). The slicer's commit is not that shape:
+/// `SampleRecorder` whose last cluster write is still out frees the buffer the driver writes from. The slicer's commit
+/// is not that shape:
 ///
-///   1. `cardRoutine()` exists only on `SampleRecorder`, and `Slicer::doSlice` frees no recorder: its one
+///   1. Only a `SampleRecorder` lends the driver a buffer like that, and `Slicer::doSlice` frees no recorder: its one
 ///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.
 ///   2. The commit is input-driven. Legacy refuses the Select from inside a card routine
 ///      (`REMIND_ME_OUTSIDE_CARD_ROUTINE`), and that defer-and-retry gate is `InputLowering::set_sd_busy`, not a

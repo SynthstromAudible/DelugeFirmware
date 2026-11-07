@@ -541,7 +541,7 @@ struct CardBusy {
 };
 
 /// @brief Run @p body while the card is busy (`CardBusy`).
-void in_sd_routine(const std::function<void()>& body) {
+void while_card_busy(const std::function<void()>& body) {
 	const CardBusy busy;
 	body();
 }
@@ -861,10 +861,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(k.recorded_name()).to_equal(std::string{"REC2"});
 	});
 
-	it("defers the whole completion arm while the SD routine is running", _ {
-		// `AudioRecorder::slowRoutine`'s guard (`:168-176`), which `after_render()` needs for the
-		// same reason: `finish_recording()` frees the recorder, and freeing one that is suspended
-		// part-way through its own `cardRoutine()` leaves that routine running on freed memory.
+	it("defers the whole completion arm while the card is busy", _ {
+		// `AudioRecorder::slowRoutine`'s guard, which `after_render()` needs for the same reason:
+		// `finish_recording()` frees the recorder, and a take that ended on a card error may still
+		// have its last cluster write out, from the buffer the free releases.
 		Guards g;
 		Rig r;
 		r.open();
@@ -873,8 +873,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC000.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 
-		// The poll tick that would finish it, run from inside a real card routine.
-		in_sd_routine([&r] { r.tick(10); });
+		// The poll tick that would finish it, run while the filesystem lock is held.
+		while_card_busy([&r] { r.tick(10); });
 
 		// Nothing freed, nothing attached, nothing closed.
 		expect(recorder_scene().recording()).to_be_true();

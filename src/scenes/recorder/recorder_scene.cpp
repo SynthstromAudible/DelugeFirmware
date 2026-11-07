@@ -261,21 +261,13 @@ Result RecorderScene::after_render() {
 
 	// `process()`'s completion arm (`:207-223`).
 	if (recorder_->status >= RecorderStatus::COMPLETE || recorder_->hadCardError) {
-		// **Not from inside the card routine.** `finish_recording()` below frees the recorder
-		// through `AudioEngine::discardRecorder`, and legacy states the hazard on its *other*
-		// caller, `AudioRecorder::slowRoutine` (`:168-176`): the recorder may be suspended part-way
-		// through its own `cardRoutine()`, so freeing it there leaves that `cardRoutine()` running
-		// on freed memory and then frees it a second time. `slowRoutine` is registered
-		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:574-576`) *and* carries this same
-		// explicit test, for the one call path that bypasses the scheduler.
-		//
-		// `process()` (`:194-243`) is NOT a precedent for going unguarded, though it calls
-		// `finishRecording` with no test: it pumps `AudioEngine::routineWithClusterLoading()`
-		// itself (`:195`) as the first statement of its own loop, so it is the outermost thing on
-		// the stack and can never be re-entered while a card routine is suspended part-way.
-		// `after_render()` has neither property -- it runs from `Shell::tick`, which has no
-		// scheduler registration of its own and which UI code demonstrably reaches while
-		// `isSDRoutineActive()` is true (that is why UI code across `gui/` consults it at all).
+		// **Not while the card is busy.** `finish_recording()` below frees the recorder through
+		// `AudioEngine::discardRecorder`, and a take that ended on a card error may still have its
+		// last cluster write out: the driver writes from the recorder's buffer until that write
+		// answers (`SampleRecorder::settled`, `WriteStep::StalledWait`). `sdRoutineBusy()` is true
+		// while any filesystem operation is in flight, which covers that write; it is broader than
+		// this recorder's own pending write, and stands in for it until the free waits on the
+		// recorder itself. Legacy's `AudioRecorder::slowRoutine` carries the same test.
 		//
 		// Deferring costs nothing: `next_timer()` re-polls at `kRecorderPollMs`, so the completion
 		// arm runs on the next tick instead. The whole arm is deferred, not just the free, because

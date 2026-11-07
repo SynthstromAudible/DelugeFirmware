@@ -2356,17 +2356,10 @@ bool sdRoutineBusy() {
 	return deluge::sync::sd_busy();
 }
 
-// PLEASE don't call this if there's any chance you might be in the SD card routine...
-// ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
-// cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
-// time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
-// leaving the rule as a comment for each caller to honour, enforce it.
-//
-// Diagnostic only, not a hard invariant: sd_busy() answers "is ANY filesystem operation in flight anywhere", not "is
-// THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
-// not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
-// this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
-// operation.
+// Don't call this while sdRoutineBusy(): a take that ended on a card error may still have its last cluster write
+// out, and the driver writes from the buffer this frees until that write answers. Diagnostic only: sd_busy() answers
+// "is ANY filesystem operation in flight", not "is THIS recorder's write in flight", so a busy signal here is logged
+// rather than frozen on.
 void discardRecorder(SampleRecorder* recorder) {
 	if (ALPHA_OR_BETA_VERSION && sdRoutineBusy()) {
 		D_PRINTLN("discardRecorder: sd_busy() was true on entry");

@@ -196,10 +196,8 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
-	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
-	// that cardRoutine() running on freed memory (then freeing it a second time). The Embassy scheduler runs
-	// cardRoutine() inline and to completion, so it is never suspended part-way; this guard covers the rest.
+	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids while the card is busy: a take that
+	// ended on a card error may still have its last cluster write out, from the buffer the free releases.
 	if (deluge::sync::sd_busy()) {
 		return;
 	}

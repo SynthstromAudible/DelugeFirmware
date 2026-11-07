@@ -371,13 +371,13 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
 AudioInputChannel foregroundRecordingSource();
 /// @brief Is it unsafe to free a `SampleRecorder` right now?
 ///
-/// `discardRecorder` destroys and frees the object, and that must not happen from inside the SD
-/// routine: the recorder may be suspended part-way through its own `cardRoutine()`, so freeing it
-/// there leaves that `cardRoutine()` running on freed memory and then frees it a second time.
-/// `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`) is where legacy states that,
-/// and its guard is `deluge::sync::sd_busy()` -- exactly this condition.
-/// `discardRecorder`'s own ALPHA_OR_BETA diagnostic now reads this function too, so the precondition
-/// has one spelling rather than two.
+/// `discardRecorder` destroys and frees the object, buffers included, and a take that ended on a card
+/// error may still have its last cluster write out: the driver writes from the recorder's buffer until
+/// that write answers (`SampleRecorder::settled`). This is `deluge::sync::sd_busy()`, true while any
+/// filesystem operation is in flight, which covers that write. It is broader than the one recorder's
+/// pending write, and stands in for it until the free waits on the recorder itself.
+/// `AudioRecorder::slowRoutine` asks `sd_busy()` for the same reason, and `discardRecorder`'s own
+/// ALPHA_OR_BETA diagnostic reads this function, so the precondition has one spelling.
 ///
 /// A sibling of the seam above, and here for the same reason: the other caller that has to ask is
 /// `deluge::scenes::recorder::RecorderScene`, and `src/scenes` may include neither
