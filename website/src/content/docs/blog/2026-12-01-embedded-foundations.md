@@ -1,7 +1,6 @@
 ---
 title: "Embedded Foundations"
 date: 2026-12-01
-draft: true
 authors:
   - Katherine Whitlock
 ---
