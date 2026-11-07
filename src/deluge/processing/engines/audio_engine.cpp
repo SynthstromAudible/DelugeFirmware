@@ -101,6 +101,7 @@
 #include <numeric>
 #include <optional>
 #include <ranges>
+#include <utility>
 
 // Last, after every other header: these declare namespace deluge::util, which would shadow the global ::util for
 // the headers above that name util:: from inside namespace deluge.
@@ -1254,11 +1255,7 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 	try {
 		return AudioEngine::routine_task();
 	} catch (...) {
-		// routine() may have thrown after setting audioRoutineLocked and before clearing it; left set,
-		// that reentrancy guard would make every future tick return false and silence audio for good.
-		// Clear it here so the next tick renders. Nothing else to report to: this tick counts as one
-		// that rendered nothing.
-		AudioEngine::audioRoutineLocked = false;
+		// routine()'s re-entry guard clears on unwind, so the next tick renders; this one rendered nothing.
 		return false;
 	}
 }
@@ -1671,26 +1668,77 @@ bool routine_task() {
 	if (stemExport.renderingOffline()) {
 		return false;
 	}
-	if (audioRoutineLocked) {
+	if (ticksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return false;
 	}
 	return routine() > 0;
 }
+
+namespace {
+/// The hold depth: how many AudioTickHolds are alive.
+std::atomic<uint32_t> tickHoldDepth{0};
+
+/// Whether routine() is running, on the tier running it. Only that tier reads or writes it.
+bool inRoutine = false;
+
+/// Sets inRoutine for its scope, and clears it on unwind too: left set, every later tick would return at once.
+struct InRoutineGuard {
+	InRoutineGuard() { inRoutine = true; }
+	~InRoutineGuard() { inRoutine = false; }
+	InRoutineGuard(const InRoutineGuard&) = delete;
+	InRoutineGuard& operator=(const InRoutineGuard&) = delete;
+};
+
+#ifdef DELUGE_HOST
+void (*routineInjection)() = nullptr;
+#endif
+} // namespace
+
+AudioTickHold::AudioTickHold() {
+	tickHoldDepth.fetch_add(1, std::memory_order_acq_rel);
+	// Wait out a render block already in flight: the section cannot begin until it ends.
+	{ AudioExcludedSection drain; }
+}
+
+AudioTickHold::~AudioTickHold() {
+	tickHoldDepth.fetch_sub(1, std::memory_order_release);
+}
+
+bool ticksHeld() noexcept {
+	return tickHoldDepth.load(std::memory_order_acquire) != 0;
+}
+
+bool audioBusy() noexcept {
+	return deluge_in_audio_context() || ticksHeld();
+}
+
+#ifdef DELUGE_HOST
+void setRoutineInjection(void (*hook)()) {
+	routineInjection = hook;
+}
+#endif
+
 uint32_t routine() {
 
 	logAction("AudioDriver::routine");
 
-	if (audioRoutineLocked) {
+	if (inRoutine || ticksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return 0; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		          // called from within this!
 	}
 
-	audioRoutineLocked = true;
+	InRoutineGuard guard;
+
+#ifdef DELUGE_HOST
+	if (void (*hook)() = std::exchange(routineInjection, nullptr); hook != nullptr) {
+		hook();
+	}
+#endif
 
 #if MEM_GUARD
-	// Periodically validate the whole heap from a safe point. audioRoutineLocked guards against re-entry, and
+	// Periodically validate the whole heap from a safe point. inRoutine guards against re-entry, and
 	// checkEverythingOk additionally bails if an alloc/dealloc is in flight (lock held), so the boundary tags are
 	// stable while we walk.
 	static uint32_t memGuardWalkCountdown = MEM_GUARD_WALK_INTERVAL;
@@ -1776,7 +1824,6 @@ uint32_t routine() {
 			}
 		}
 	}
-	audioRoutineLocked = false;
 	return renders;
 }
 

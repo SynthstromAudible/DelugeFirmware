@@ -21,6 +21,7 @@
 
 #include "scenarios/audio_header_dump_scenario.h"
 #include "scenarios/audio_load_ab_scenario.h"
+#include "scenarios/audio_tick_hold_scenario.h"
 #include "scenarios/card_reinsert_scenario.h"
 #include "scenarios/clear_song_undo_scenario.h"
 #include "scenarios/clip_lifetime_scenario.h"
@@ -77,6 +78,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"audio_load_ab", nullptr, &deluge_scenario_audio_load_ab_begin, &deluge_scenario_audio_load_ab_complete,
      &deluge_scenario_audio_load_ab_dispatch_step, &deluge_scenario_audio_load_ab_step_done,
      &deluge_scenario_audio_load_ab_failures},
+    {"audio_tick_hold", nullptr, &deluge_scenario_audio_tick_hold_begin, &deluge_scenario_audio_tick_hold_complete,
+     &deluge_scenario_audio_tick_hold_dispatch_step, &deluge_scenario_audio_tick_hold_step_done,
+     &deluge_scenario_audio_tick_hold_failures},
     {"cable_decode", nullptr, &deluge_scenario_cable_decode_begin, &deluge_scenario_cable_decode_complete,
      &deluge_scenario_cable_decode_dispatch_step, &deluge_scenario_cable_decode_step_done,
      &deluge_scenario_cable_decode_failures},

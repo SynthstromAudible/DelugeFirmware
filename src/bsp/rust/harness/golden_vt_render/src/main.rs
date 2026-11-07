@@ -1534,7 +1534,7 @@ fn main() {
             "clock_input" | "mapping_dispatch" | "param_projection" | "param_table_check"
             | "param_target_check" | "param_clone" | "patch_routing" | "document_version"
             | "preset_parse" | "effect_owners" | "edit_substrate" | "xml_replay_diff"
-            | "model_decode_diff" => memory_card::install(None),
+            | "model_decode_diff" | "audio_tick_hold" => memory_card::install(None),
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }

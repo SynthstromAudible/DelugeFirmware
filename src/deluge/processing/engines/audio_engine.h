@@ -150,6 +150,39 @@ uint32_t routine();
 bool routine_task();
 void runRoutine();
 
+/// @brief [interaction] Holds off the audio tick for its scope: while any hold is alive, `routine_task()` and
+///        `routine()` return at once without rendering.
+///
+/// For an edit the tick must not interleave with, and for test fixtures that must not have a render land between a
+/// write and its check. Holds nest; ticks resume when the outermost one ends. The constructor waits out a render
+/// block already in flight (an empty AudioExcludedSection), so no edit made under the hold overlaps a block that began
+/// before it. On the device every tick a hold spans is a tick of silence, so hold for as short a span as the edit
+/// allows.
+class AudioTickHold {
+public:
+	AudioTickHold();
+	~AudioTickHold();
+	AudioTickHold(const AudioTickHold&) = delete;
+	AudioTickHold& operator=(const AudioTickHold&) = delete;
+	AudioTickHold(AudioTickHold&&) = delete;
+	AudioTickHold& operator=(AudioTickHold&&) = delete;
+};
+
+/// @brief [task] [audio] Whether an AudioTickHold is alive anywhere.
+/// @return True while the hold depth is non-zero.
+bool ticksHeld() noexcept;
+
+/// @brief [task] [audio] Whether the audio routine is running or held: the caller is on the audio context, or a tick
+///        hold is alive. Work that must not run inside the routine, such as a flash write, defers while this is true.
+/// @return `deluge_in_audio_context() || ticksHeld()`.
+bool audioBusy() noexcept;
+
+#ifdef DELUGE_HOST
+/// @brief [interaction] Host-only test seam: run @p hook once, the next time `routine()` gets past its re-entry and
+///        hold checks; nullptr clears it. A throwing hook stands in for a throw out of the routine.
+void setRoutineInjection(void (*hook)());
+#endif
+
 void init();
 /// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
 /// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
