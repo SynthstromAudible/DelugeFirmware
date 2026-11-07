@@ -30,15 +30,32 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_node.h"
+#include "model/snapshot/param_snapshot.h"
+#include <cstddef>
 #include <cstdint>
 
+class ModelStackWithAutoParam;
 class Song;
+
+namespace deluge::project {
+struct CopiedAutomation;
+}
 
 namespace deluge::modulation {
 
 /// @brief A value recorded into a lane while playing, with every input the live-record kernel reads that is not the
-/// lane's own nodes.
+/// lane's own nodes; or an Edit made to a lane being recorded, which the render applies to its working copy in order
+/// with the values recorded.
 struct RecordEvent {
+	/// What the event does to the lane's working copy.
+	enum class Kind : uint8_t {
+		VALUE,  ///< a recorded value: the fields below
+		BASE,   ///< `value` becomes the base
+		REGION, ///< `value` over [pos, pos + length), as project::setValueForRegion with `region`
+		CLEAR,  ///< every node deleted
+		PASTE,  ///< `pasted` over [pos, endPos), scaled by `scale`, as project::pasteRegion over `effectiveLength`
+	};
+	Kind kind{Kind::VALUE};
 	const ::Song* song{nullptr}; ///< the song @ref lane is addressed in
 	project::ParamAddress lane{};
 	int32_t livePos{0};
@@ -53,6 +70,14 @@ struct RecordEvent {
 	/// The write may delete a node it leaves in a straight run: not MPE, an interpolating param, not reversed.
 	bool deleteLinearRun{false};
 	bool backtrackingCouldLoopBack{false};
+	int32_t pos{0};    ///< REGION, PASTE: the start
+	int32_t length{0}; ///< REGION
+	int32_t endPos{0}; ///< PASTE
+	float scale{1.0F}; ///< PASTE
+	bool isPatchCable{false};
+	snapshot::RegionContext region{}; ///< REGION
+	/// PASTE: the nodes pasted, owned by the interaction tier until the commit after the event is applied.
+	const project::CopiedAutomation* pasted{nullptr};
 };
 
 /// @brief [task] The nodes one recorded write can add to its lane: the cleared region's two edges, and one the latch
@@ -62,6 +87,14 @@ inline constexpr int32_t kNodesPerRecordedWrite = 3;
 /// @brief [task] Make room in @p nodes for a recorded write and for every write still queued, so the render does not
 /// grow the vector when it writes them. With the render excluded.
 void reserveForRecordedWrite(project::ParamNodeVector& nodes);
+
+/// @brief [task] An Edit made @p command's change to @p lane in the model: if the lane is being recorded, the render
+///        makes it to its working copy too, in order with the values recorded. Room for @p room more nodes is made in
+///        the copy first.
+/// @param lane    The lane, on the interaction tier.
+/// @param command The change, its kind and arguments set; a PASTE's nodes are copied and held until applied.
+/// @param room    Nodes the change can add.
+void postLaneCommand(ModelStackWithAutoParam const& lane, RecordEvent command, size_t room);
 
 /// @brief [task] Queue @p event for the render.
 /// @return false when the queue is full: the caller, with the render excluded, writes the queue and then its event.

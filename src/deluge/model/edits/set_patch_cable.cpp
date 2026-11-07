@@ -6,6 +6,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/snapshot/param_snapshot.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable.h"
 
 namespace deluge::edits {
@@ -26,6 +27,8 @@ Error SetPatchCable::apply(Context& ctx) {
 		else {
 			stack->autoParam->setBase(*stack->doc(), value_);
 		}
+		deluge::modulation::postLaneCommand(*stack,
+		                                    {.kind = deluge::modulation::RecordEvent::Kind::BASE, .value = value_}, 0);
 		return Error::NONE;
 	}
 	// The strength write binds the sound's cable set to the record where it is not yet, which copies the new cable, its

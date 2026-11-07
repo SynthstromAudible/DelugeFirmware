@@ -5,6 +5,7 @@
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 
 namespace deluge::edits {
 
@@ -18,6 +19,7 @@ Error DeleteParamAutomation::apply(Context& ctx) {
 	// (recordParamChangeIfNotAlreadySnapshotted, stealData=true).
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, addition_);
 	stack->autoParam->deleteAutomation(action, stack);
+	deluge::modulation::postLaneCommand(*stack, {.kind = deluge::modulation::RecordEvent::Kind::CLEAR}, 0);
 	settleCableDepth(stack);
 	return Error::NONE;
 }

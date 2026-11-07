@@ -16,8 +16,10 @@
  */
 
 #include "modulation/automation/record_events.h"
+#include "deluge-project/param_edit.h"
 #include "io/debug/log.h"
 #include "libdeluge/system.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
@@ -28,6 +30,9 @@
 #include "util/spsc_ring.h"
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+#include <optional>
+#include <vector>
 
 namespace deluge::modulation {
 
@@ -44,6 +49,35 @@ namespace {
 /// Room for the values one interaction-tier pass records between two render blocks.
 constexpr std::size_t kRecordEventCapacity = 64;
 util::SpscRing<RecordEvent, kRecordEventCapacity> g_recordEvents;
+
+/// [task] The nodes of PASTE commands queued, freed by the commit after the render applied them.
+std::vector<std::unique_ptr<project::CopiedAutomation>> g_pastes;
+
+/// Make @p command's change to @p lane, a working copy: an Edit's, not a recorded value.
+void applyCommand(project::DocAutoParam& lane, const RecordEvent& command) {
+	switch (command.kind) {
+	case RecordEvent::Kind::VALUE:
+		break; // AutoParam::writeRecordedValue's, in applyRecordEvents
+	case RecordEvent::Kind::BASE:
+		project::set_base(lane, command.value);
+		break;
+	case RecordEvent::Kind::REGION: {
+		const snapshot::RegionContext& r = command.region;
+		(void)project::setValueForRegion(lane, static_cast<uint32_t>(command.pos),
+		                                 static_cast<uint32_t>(command.length), command.value, r.effectiveLength,
+		                                 r.interpolateLeftNode, r.interpolateRightNode, r.recordingLinearly,
+		                                 r.clockActive, r.livePos, r.currentlyPlayingReversed);
+		break;
+	}
+	case RecordEvent::Kind::CLEAR:
+		lane.nodes.clear();
+		break;
+	case RecordEvent::Kind::PASTE:
+		project::pasteRegion(lane, command.pos, command.endPos, command.scale, command.effectiveLength,
+		                     command.isPatchCable, *command.pasted);
+		break;
+	}
+}
 } // namespace
 
 void reserveForRecordedWrite(project::ParamNodeVector& nodes) {
@@ -58,6 +92,33 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes) {
 
 bool postRecordEvent(const RecordEvent& event) {
 	return g_recordEvents.try_push(event);
+}
+
+void postLaneCommand(ModelStackWithAutoParam const& lane, RecordEvent command, size_t room) {
+	project::DocAutoParam* copy = workingCopy(*lane.paramCollection, lane.paramId);
+	if (copy == nullptr) {
+		return;
+	}
+	if (command.kind == RecordEvent::Kind::PASTE) {
+		g_pastes.push_back(std::make_unique<project::CopiedAutomation>(*command.pasted));
+		command.pasted = g_pastes.back().get();
+	}
+	const std::optional<project::ParamAddress> address = edits::addressFor(lane);
+	command.song = lane.song;
+	AudioExcludedSection section;
+	reserveForRecordedWrite(copy->nodes);
+	if (copy->nodes.capacity() < copy->nodes.size() + room) {
+		(void)copy->nodes.reserveExtra(static_cast<int32_t>(room));
+	}
+	if (address) {
+		command.lane = *address;
+	}
+	if (!address || !postRecordEvent(command)) {
+		// The render is excluded: make what it has queued, then this, so the changes land in order
+		applyRecordEvents(*lane.song);
+		applyCommand(*copy, command);
+		noteWorkingCopyWritten(*copy);
+	}
 }
 
 // [audio], or [task] with the render excluded: then the interaction tier is the only consumer while it runs.
@@ -77,7 +138,12 @@ void applyRecordEvents(::Song& song) {
 #if ALPHA_OR_BETA_VERSION
 		const size_t capacity = lane->nodes.capacity();
 #endif
-		stack->autoParam->writeRecordedValue(*lane, event);
+		if (event.kind == RecordEvent::Kind::VALUE) {
+			stack->autoParam->writeRecordedValue(*lane, event);
+		}
+		else {
+			applyCommand(*lane, event);
+		}
 		noteWorkingCopyWritten(*lane);
 #if ALPHA_OR_BETA_VERSION
 		if (lane->nodes.capacity() != capacity) {
@@ -101,6 +167,7 @@ void commitRecording(::Song& song) {
 		AudioExcludedSection section;
 		applyRecordEvents(song);
 	}
+	g_pastes.clear(); // every queued PASTE has been applied
 	if (recording) {
 		commitWorkingCopies();
 	}

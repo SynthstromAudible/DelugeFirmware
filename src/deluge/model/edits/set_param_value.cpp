@@ -16,6 +16,7 @@
 #include "model/song/song.h"               // engine Song (tc != song comparison)
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
@@ -161,6 +162,8 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 		const int32_t oldValue = stack->autoParam->getCurrentValue();
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
 		stack->autoParam->projectScalarFromStore(stack, oldValue, isPlaying);
+		deluge::modulation::postLaneCommand(
+		    *stack, {.kind = deluge::modulation::RecordEvent::Kind::BASE, .value = newValue_}, 0);
 		settleCableDepth(stack);
 		return Error::NONE;
 	}
@@ -182,11 +185,19 @@ Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 		if (action != nullptr) {
 			action->recordParamChangeIfNotAlreadySnapshotted(stack);
 		}
-		std::optional<deluge::project::RegionWriteResult> result = deluge::snapshot::ParamSnapshot::applyPatch(
-		    ctx.model, address_, newValue_, pos_, length_, gatherRegionContext(stack));
+		const deluge::snapshot::RegionContext region = gatherRegionContext(stack);
+		std::optional<deluge::project::RegionWriteResult> result =
+		    deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, pos_, length_, region);
 		if (result.has_value()) {
 			stack->autoParam->projectRegionFromStore(stack, oldValue, automatedBefore, *result);
 		}
+		deluge::modulation::postLaneCommand(*stack,
+		                                    {.kind = deluge::modulation::RecordEvent::Kind::REGION,
+		                                     .value = newValue_,
+		                                     .pos = pos_,
+		                                     .length = length_,
+		                                     .region = region},
+		                                    deluge::modulation::kNodesPerRecordedWrite);
 		settleCableDepth(stack);
 		return Error::NONE;
 	}

@@ -36,7 +36,9 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/clip_address_for.h"
+#include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/paste_param_automation.h"
 #include "model/edits/set_clip_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
@@ -44,6 +46,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/automation/record_events.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
@@ -445,6 +448,61 @@ void regionWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lan
 	probeFailed |= !kept;
 }
 
+// A lane's automation deleted while it records, between two recorded values: the first value's node is gone and the
+// second is there. Checked on stderr.
+void deleteWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*lane);
+	if (!address) {
+		std::fprintf(io.err, "delete-while-recording: the lane has no address\n");
+		probeFailed = true;
+		return;
+	}
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 300000000, len / 8);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::DeleteParamAutomation erase{*address};
+	const bool applied = deluge::edits::apply(ctx, erase) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, 600000000, len * 7 / 8);
+	const auto& nodes = lane->doc()->nodes;
+	const bool firstGone = std::ranges::none_of(nodes, [&](const ParamNode& node) { return node.pos == len / 8; });
+	const bool kept = applied && firstGone && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "delete-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
+// Automation pasted into a lane while it records, between two recorded values: the lane holds the pasted nodes and
+// both values. Checked on stderr.
+void pasteWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*lane);
+	if (!address) {
+		std::fprintf(io.err, "paste-while-recording: the lane has no address\n");
+		probeFailed = true;
+		return;
+	}
+	const int32_t len = clip->loopLength();
+	recordAt(lane, 300000000, len / 8);
+	ParamNode copiedNodes[2]{};
+	copiedNodes[0].pos = 0;
+	copiedNodes[0].value = -100000000;
+	copiedNodes[1].pos = len / 16;
+	copiedNodes[1].value = 200000000;
+	CopiedParamAutomation copied;
+	copied.width = len / 8;
+	copied.nodes = copiedNodes;
+	copied.numNodes = 2;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::PasteParamAutomation paste{*address, len / 2, len / 2 + len / 8, 1.0F, &copied};
+	const bool applied = deluge::edits::apply(ctx, paste) == Error::NONE;
+	renderBlockStart();
+	recordAt(lane, 600000000, len * 7 / 8);
+	const bool kept = applied && valueAt(lane, len / 8, len) == 300000000 && valueAt(lane, len / 2, len) == -100000000
+	                  && valueAt(lane, len / 2 + len / 16, len) == 200000000
+	                  && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "paste-while-recording: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
 // The clip's length doubled while a lane records: the value recorded before it and one recorded past the old end are
 // both in the lane. The length is set back after. Checked on stderr.
 void lengthWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
@@ -607,6 +665,9 @@ void clipCases(Song* song) {
 		regionWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_FREQ));
 		lengthWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_RESONANCE));
 		overriddenAtRecordStartCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_B_VOLUME));
+		playbackHandler.recording = RecordingMode::NORMAL;
+		deleteWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_A_PHASE_WIDTH));
+		pasteWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_B_PHASE_WIDTH));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }
