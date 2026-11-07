@@ -89,8 +89,12 @@ public:
 	[[nodiscard]] bool isArrangementOnlyClip() const;
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
+	/// @brief Append one repeat of the clip @p otherModelStack names to this take: its content and its length. Its
+	///        automation is appended on the interaction tier (deluge::modulation::catchUpArrangementTakes()).
 	virtual Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                         ModelStackWithTimelineCounter* otherModelStack);
+	/// @brief The arguments with which a repeat of @p otherClip at @p offset is appended to a clip's params.
+	static RepeatArgs repeatArgs(const Clip& otherClip, int32_t offset);
 	Error resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                      ModelStackWithTimelineCounter* modelStackClone);
 	virtual Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,

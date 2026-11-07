@@ -23,7 +23,9 @@
 
 class ModelStackWithAutoParam;
 class ParamCollection;
+class ParamCollectionSummary;
 class Song;
+struct RepeatArgs;
 
 namespace deluge::project {
 struct DocAutoParam;
@@ -46,6 +48,8 @@ inline constexpr size_t kWorkingCopies = 32;
 extern uint32_t workingCopyOverflows;
 /// Latch writes the render skipped on a lane with no working copy.
 extern uint32_t latchWritesWithoutCopy;
+/// Takes the render ended by an edit of lanes all at once (endTake() on the render): none of its own edits does.
+extern uint32_t renderTakeEnds;
 #endif
 
 /// @brief [render] The latch reached a lane with no working copy: it plays on and writes nothing.
@@ -73,22 +77,45 @@ project::DocAutoParam* workingCopy(const ParamCollection& collection, int32_t pa
 /// @brief [render] The render changed @p copy: the next commit copies it into the model.
 void noteWorkingCopyWritten(const project::DocAutoParam& copy);
 
-/// @brief [interaction] With the render held off, copy every working copy the render changed into its model lane,
-///        and mark its collection for the next publish. Then release the copies whose take ended, and those held while
-///        written that the render did not write since the last commit.
+/// @brief [interaction] With the render held off, catch the arrangement takes up (catchUpArrangementTakes()), then
+///        copy every working copy the render changed into its model lane (a copy whose take ended included), and mark
+///        its collection for the next publish. Then release the copies whose
+///        take ended, and those held while written that the render did not write since the last commit.
 void commitWorkingCopies();
 
 /// @brief [interaction] Commit, then release every working copy: freed once the render cannot be reading them. The
 ///        next commit while recording makes copies again for the lanes still overriding.
 void releaseWorkingCopies();
 
+/// @brief [interaction] The repeat numbered @p repeat of an arrangement take, appended to lane @p key of @p collection:
+///        into its working copy if it has one (live or ended) not holding it yet. @p src is the source's lane (none or
+///        empty: nothing to append, and the copy holds the repeat as it is).
+/// @return Whether the lane has a working copy: its model lane is then left alone, and the commit carries the copy.
+bool appendRepeatToCopy(ParamCollection& collection, int32_t key, uint32_t repeat, const project::DocAutoParam* src,
+                        const RepeatArgs& args);
+
+/// @brief [render] At an arrangement take's loop end, append the repeat numbered @p repeat of @p source into each live
+///        working copy of @p collection's lanes it appends to, from @p source's published lanes, within the room
+///        reserveRepeatInCopies() made. A copy behind the take, without room, or whose source lane is not published has
+///        its take ended instead (counted, copiesEndedAtLoopEnd()).
+void appendRepeatIntoCopies(ParamCollection& collection, ParamCollection& source,
+                            const ParamCollectionSummary& sourceSummary, uint32_t repeat, const RepeatArgs& args);
+
+/// @brief [interaction] Make room in each live working copy of @p collection's lanes for a repeat of @p source.
+void reserveRepeatInCopies(ParamCollection& collection, ParamCollection& source,
+                           const ParamCollectionSummary& sourceSummary);
+
+/// @brief [render] or [interaction] Working copies whose take ended at an arrangement take's loop end (alpha and beta
+///        builds; 0 otherwise).
+uint32_t copiesEndedAtLoopEnd();
+
 /// @brief [render] or [interaction] An edit of @p collection's lanes outside the record queue (shifting, trimming,
 ///        repeating, deleting time, moving a note's MPE…): the take ends for its lanes.
 ///
 /// On the interaction tier, what is queued is written and the copies committed and released before the edit; the next
-/// commit makes copies again for the lanes still overriding. On the render, which edits lanes this way when an
-/// arrangement recording's clip reaches its end, each copy the render wrote is copied into the model first, then the
-/// render neither plays nor writes it, and the next commit frees it.
+/// commit makes copies again for the lanes still overriding. None of the render's own edits ends a take; one that did
+/// (counted, renderTakeEnds) would leave the copies neither played nor written, and the next commit would carry what
+/// the render wrote into them into the model and free them.
 void endTake(ParamCollection& collection);
 
 /// @brief [interaction] Whether a take ended for some lanes since the last call (endTake(), releaseWorkingCopies()).

@@ -1158,7 +1158,68 @@ def loud_audio_parts(fx: dict) -> tuple[str, str]:
     return track, clip.replace("SAMPLES/RS/A.WAV", LOUD_SAMPLE)
 
 
+# A bar at the song's 120 BPM, about 2 s: an arrangement take of RS_ARRANGE_TAKE's clips repeats each of them three
+# times or more within the default render.
+TAKE_TICKS = 384
+# The synth's automation: its volume stepping down and back within the bar, and its low-pass cutoff ramping down to
+# the middle of the bar and stepping back up at its end, so a repeat carries both stepped and interpolated nodes.
+TAKE_SYNTH_VOLUME = _steps(0x4CCCCCA8, [(0x20000000, 96), (0x4CCCCCA8, 288)])
+TAKE_SYNTH_LPF = (
+    f"0x{0x7FFFFFFF:08X}{0x7FFFFFFF:08X}00000000{0x10000000:08X}{192 | 0x80000000:08X}"
+    f"{0x7FFFFFFF:08X}{352:08X}"
+)
+# The kit's first drum's row: its cutoff stepping down for the second half of the bar.
+TAKE_ROW_LPF = _steps(0x7FFFFFFF, [(0x20000000, 192)])
+# The kit's second row is half a bar long, so it repeats at its own end: its cutoff stepping down for the second half of
+# its length.
+TAKE_SHORT_ROW_TICKS = TAKE_TICKS // 2
+TAKE_SHORT_ROW_LPF = _steps(0x7FFFFFFF, [(0x30000000, TAKE_SHORT_ROW_TICKS // 2)])
+# The audio clip's volume stepping up for the last quarter of the bar.
+TAKE_AUDIO = _host(params=f'volume="{_steps(0x00000000, [(0x30000000, 288)])}"')
+
+
+def arrange_take_song(voices: list[tuple[str, str, int]]) -> str:
+    """One synth, a kit and an audio track, each playing a one-bar session clip with automation, for a gate that
+    records them into the arrangement (RENDER_ARRANGE_RECORD) and turns their knobs while it does (RENDER_KNOB): each
+    take's clip repeats its source clip's notes and automation at every loop end."""
+    name, file, note = voices[0]
+    frames = RATE * SAMPLE_SECONDS
+    sound = SOUND.format(name=name, file=file, frames=frames)
+    synth_clip = (
+        CLIP.format(name=name, ticks=TAKE_TICKS, note=note)
+        .replace('volume="0x4CCCCCA8"', f'volume="{TAKE_SYNTH_VOLUME}"')
+        .replace('lpfFrequency="0x7FFFFFFF"', f'lpfFrequency="{TAKE_SYNTH_LPF}"')
+    )
+    drums = [
+        _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 96), (192, 96)]),
+        _drum("RSD2", "SAMPLES/RS/B.WAV", [(96, 96)]),
+    ]
+    kit, kit_clip = kit_parts(DRY, drums)
+    # Each row's cutoff, in row order: the first soundParams in the clip is the first row's.
+    kit_clip = kit_clip.replace(
+        'lpfFrequency="0x7FFFFFFF"', f'lpfFrequency="{TAKE_ROW_LPF}"', 1
+    )
+    kit_clip = kit_clip.replace(
+        'lpfFrequency="0x7FFFFFFF"', f'lpfFrequency="{TAKE_SHORT_ROW_LPF}"', 1
+    )
+    kit_clip = kit_clip.replace(
+        '<noteRow drumIndex="1" ',
+        f'<noteRow drumIndex="1" length="{TAKE_SHORT_ROW_TICKS}" ',
+    )
+    track, audio_clip = audio_parts(TAKE_AUDIO)
+    clips = [kit_clip, audio_clip]
+    clips = [
+        c.replace(f'length="{CLIP_TICKS}"', f'length="{TAKE_TICKS}"') for c in clips
+    ]
+    return song_xml(
+        [],
+        instruments=sound + kit + track,
+        clips=synth_clip + "".join(clips),
+    )
+
+
 SONGS = {
+    "RS_ARRANGE_TAKE": arrange_take_song,
     "RS_KIT_FX": lambda v: kit_song(v, FX),
     "RS_KIT_DRY": lambda v: kit_song(v, DRY),
     "RS_AUDIO_FX": lambda v: audio_song(v, FX),

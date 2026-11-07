@@ -647,38 +647,23 @@ void baseWhileOverridingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane
 	actionLogger.revert(BEFORE, false, false);
 }
 
-#if ALPHA_OR_BETA_VERSION
-/// Model lanes the render read and wrote where a case makes it do so: an arrangement recording's clip reaching its end.
-uint32_t renderModelReadsExpected = 0;
-uint32_t renderModelWritesExpected = 0;
-#endif
-
-// A value recorded into a lane, then the render shifting the clip's lanes itself in the same block, as an arrangement
-// recording's clip does at its end: the value is in the model, shifted, and a value recorded after is there. Checked on
-// stderr.
+// A value recorded into a lane, then the render ending the lane's take in the same block, as an arrangement take's
+// loop end does before its repeat is appended: the render writes no model lane, the next commit carries the value into
+// the model, and a value recorded after is there. Checked on stderr.
 void renderTakeEndCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	const int32_t len = clip->loopLength();
 	AudioEngine::audioSampleTimer += 100;
 	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, lane, true, len / 8, true, false);
-#if ALPHA_OR_BETA_VERSION
-	const uint32_t readsBefore = deluge::modulation::renderModelReads;
-	const uint32_t writesBefore = deluge::modulation::renderModelWrites;
-#endif
 	{
 		deluge::memory::RenderBlock block;
 		deluge::modulation::applyRecordEvents(*currentSong);
-		lane->paramCollection->shiftHorizontally(lane, len / 4, len);
+		deluge::modulation::endTake(*lane->paramCollection);
 	}
-	bool committedOnRender = true;
-#if ALPHA_OR_BETA_VERSION
-	renderModelReadsExpected += deluge::modulation::renderModelReads - readsBefore;
-	renderModelWritesExpected += deluge::modulation::renderModelWrites - writesBefore;
-	committedOnRender = deluge::modulation::renderModelWrites - writesBefore == 1;
-#endif
+	const bool notYet = valueAt(lane, len / 8, len) != 300000000;
 	deluge::modulation::commitBeforeJob(*currentSong);
+	const bool committed = valueAt(lane, len / 8, len) == 300000000;
 	recordAt(lane, 600000000, len * 7 / 8);
-	const bool kept = committedOnRender && valueAt(lane, len / 8 + len / 4, len) == 300000000
-	                  && valueAt(lane, len * 7 / 8, len) == 600000000;
+	const bool kept = notYet && committed && valueAt(lane, len * 7 / 8, len) == 600000000;
 	std::fprintf(io.err, "render-take-end: %s\n", kept ? "kept" : "LOST");
 	probeFailed |= !kept;
 }
@@ -945,14 +930,14 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 
 	clipCases(song);
 #if ALPHA_OR_BETA_VERSION
-	// Recording included: the render writes only its own copies of the lanes it records, and logs no undo.
-	// But for the lanes an arrangement recording's clip edits at its end (renderTakeEndCase).
+	// Recording included, a take the render ends among it (renderTakeEndCase): the render writes only its own copies
+	// of the lanes it records, reads no model lane, and logs no undo.
 	const struct {
 		uint32_t count;
 		const char* what;
 	} renderTouches[] = {
-	    {deluge::modulation::renderModelReads - renderModelReadsExpected, "read a model lane"},
-	    {deluge::modulation::renderModelWrites - renderModelWritesExpected, "wrote a model lane"},
+	    {deluge::modulation::renderModelReads, "read a model lane"},
+	    {deluge::modulation::renderModelWrites, "wrote a model lane"},
 	    {deluge::modulation::renderUndoCalls, "logged undo"},
 	    {deluge::modulation::latchWritesWithoutCopy, "latched a lane that had no working copy"},
 	};

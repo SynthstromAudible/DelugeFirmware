@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -234,25 +235,6 @@ void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelSt
 	}
 }
 
-void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                                ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                                int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
-
-	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (int32_t oi = 0; oi < std::ssize(otherMIDIParamCollection->params); oi++) {
-		uint8_t cc = otherMIDIParamCollection->params[oi].cc;
-		// Find the param in *this* collection for the same CC. There should be one.
-		int32_t ti = params.firstAtOrAfter(cc);
-		if (ti < std::ssize(params) && params[ti].cc == cc) {
-			params[ti].param.appendParam(*docForParam(ti), *otherMIDIParamCollection->docForParam(oi), oldLength,
-			                             reverseThisRepeatWithLength, pingpongingGenerally);
-		}
-	}
-
-	ticksTilNextEvent = 0;
-}
-
 void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                        bool maySetupPatching) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
@@ -451,6 +433,17 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/,
+                                             deluge::function_ref<void(int32_t)> visit) {
+	// Each CC of this collection the other collection has a lane for
+	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
+	for (const MIDIParam& param : params) {
+		if (otherCollection.findDocParamForId(param.cc) != nullptr) {
+			visit(param.cc);
+		}
+	}
+}
 
 void MIDIParamCollection::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
 	for (int32_t i = 0; i < std::ssize(params); i++) {

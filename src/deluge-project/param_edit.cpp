@@ -877,6 +877,11 @@ void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {
 
 void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
                  bool pingpongingGenerally) {
+	appendParam(dest, LaneView::of(src), oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+}
+
+void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                 bool pingpongingGenerally) {
 	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& destNodes = dest.nodes;
 	const auto& srcNodes = src.nodes;

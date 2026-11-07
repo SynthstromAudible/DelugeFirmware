@@ -27,7 +27,11 @@
 #include "gui/views/session_view.h"
 #include "harness/streaming_underrun.h"
 #include "libdeluge/tier.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
@@ -39,9 +43,13 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/staged_repeat.h"
+#include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
@@ -474,6 +482,300 @@ void readMetronome() {
 	}
 }
 
+void fail(const char* marker, const char* what);
+
+/// RENDER_ARRANGE_RECORD: `1`; unset by default. Play begins recording the session into the arrangement, as holding
+/// record and pressing the session button while stopped does: each session clip playing gets an instance from the
+/// arrangement's start, and a knob turned on one (RENDER_KNOB) clones it into a take that repeats it at each loop end.
+bool g_arrangeRecord = false;
+
+/// RENDER_KNOB: `<block>:<synth|kit|audio>:<lpf|volume>:<value>,...`, ascending; empty by default. At each block,
+/// counted from playback's start, the low-pass cutoff or the volume of that output's session clip is set to @c value
+/// (signed Q31) as a knob turns it: by its SetParamValue Edit, written where a knob writes (into the take while the
+/// arrangement records the clip).
+struct KnobTurn {
+	uint64_t block;
+	OutputType type;
+	bool lpf;
+	int32_t value;
+};
+std::vector<KnobTurn> g_knobAt;
+size_t g_knobsDone = 0;
+int32_t g_knobsApplied = 0;
+
+/// RENDER_SOURCE_EDIT: `<block>`; unset by default. At that block, counted from playback's start, the low-pass cutoff
+/// of the session kit clip's first row is set over the second eighth of its loop, as automation view sets a held pad's
+/// region: an edit of the clip a take repeats, which the repeats appended after it carry. Nothing else republishes that
+/// row's take while it records, so only the edit's own republish restages the take's next repeat.
+std::optional<uint64_t> g_sourceEditAt;
+bool g_sourceEditAsked = false;
+bool g_sourceEdited = false;
+
+void readArrangeRecord() {
+	const char* record = std::getenv("RENDER_ARRANGE_RECORD");
+	g_arrangeRecord = record != nullptr && std::strcmp(record, "1") == 0;
+	g_knobAt.clear();
+	g_knobsDone = 0;
+	g_knobsApplied = 0;
+	g_sourceEditAt.reset();
+	g_sourceEdited = false;
+	if (const char* at = std::getenv("RENDER_SOURCE_EDIT"); at != nullptr && *at != '\0') {
+		g_sourceEditAt = std::strtoull(at, nullptr, 10);
+	}
+	g_sourceEditAsked = g_sourceEditAt.has_value();
+	const char* list = std::getenv("RENDER_KNOB");
+	for (const char* at = list; at != nullptr && *at != '\0';) {
+		const char* comma = std::strchr(at, ',');
+		const std::string item(at, comma != nullptr ? static_cast<size_t>(comma - at) : std::strlen(at));
+		at = comma != nullptr ? comma + 1 : nullptr;
+		char type[8] = {};
+		char param[8] = {};
+		unsigned long long block = 0;
+		long long value = 0;
+		if (std::sscanf(item.c_str(), "%llu:%7[a-z]:%7[a-z]:%lld", &block, type, param, &value) != 4) {
+			fail("RS-KNOB", "a knob turn is not <block>:<synth|kit|audio>:<lpf|volume>:<value>");
+			continue;
+		}
+		const std::string kind = type;
+		g_knobAt.push_back({block,
+		                    kind == "synth" ? OutputType::SYNTH
+		                    : kind == "kit" ? OutputType::KIT
+		                                    : OutputType::AUDIO,
+		                    std::strcmp(param, "lpf") == 0, static_cast<int32_t>(value)});
+	}
+}
+
+/// @brief Begin playback recording the session into the arrangement, as SessionView does for record held and the
+/// session button pressed while stopped.
+void beginArrangementRecording() {
+	Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD, ActionAddition::NOT_ALLOWED);
+	arrangerView.xScrollWhenPlaybackStarted = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
+	if (action != nullptr) {
+		action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
+	}
+	currentSong->clearArrangementBeyondPos(arrangerView.xScrollWhenPlaybackStarted, action);
+	if (currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted) != Error::NONE) {
+		fail("RS-ARRANGE", "the session clips' first instances could not be placed");
+		return;
+	}
+	playbackHandler.recording = RecordingMode::ARRANGEMENT;
+	playbackHandler.setupPlaybackUsingInternalClock();
+	arrangement.playbackStartedAtPos = arrangerView.xScrollWhenPlaybackStarted;
+}
+
+/// The first session clip of an output of @p type.
+Clip* sessionClipOf(OutputType type) {
+	for (int32_t c = 0; c < std::ssize(currentSong->live.clips.session_clips); c++) {
+		Clip* clip = currentSong->live.clips.session_clips[c];
+		if (clip->output != nullptr && clip->output->type == type) {
+			return clip;
+		}
+	}
+	return nullptr;
+}
+
+/// @brief Turn @p turn's knob at render block @p block.
+void turnKnob(uint64_t block, const KnobTurn& turn) {
+	Clip* clip = sessionClipOf(turn.type);
+	if (clip == nullptr) {
+		fail("RS-KNOB", "the song has no session clip of the output a knob turn names");
+		return;
+	}
+	namespace params = deluge::modulation::params;
+	const bool patched = turn.type == OutputType::SYNTH;
+	ParamCollectionSummary* summary =
+	    patched ? clip->paramManager.getPatchedParamSetSummary() : clip->paramManager.getUnpatchedParamSetSummary();
+	const int32_t id = patched ? static_cast<int32_t>(turn.lpf ? params::LOCAL_LPF_FREQ : params::LOCAL_VOLUME)
+	                           : static_cast<int32_t>(turn.lpf ? params::UNPATCHED_LPF_FREQ : params::UNPATCHED_VOLUME);
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* three = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    memory, currentSong, clip->output->toModControllable(), clip, &clip->paramManager);
+	ModelStackWithParamId* withId = three->addParamCollectionAndId(summary->paramCollection, summary, id);
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId, true);
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), turn.value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::WRITE};
+	(void)deluge::edits::apply(context, edit);
+	Clip* active = clip->output->getActiveClip();
+	const bool intoTake = active != nullptr && active->beingRecordedFromClip == clip;
+	g_knobsApplied += intoTake ? 1 : 0;
+	printf("RS-KNOB block=%llu param=%d value=%d take=%d\n", static_cast<unsigned long long>(block), id, turn.value,
+	       intoTake ? 1 : 0);
+}
+
+/// @brief Edit the session kit clip's first row's low-pass cutoff lane at render block @p block (RENDER_SOURCE_EDIT).
+void editSource(uint64_t block) {
+	auto* clip = static_cast<InstrumentClip*>(sessionClipOf(OutputType::KIT));
+	NoteRow* row = clip != nullptr && !clip->noteRows.empty() ? &clip->noteRows[0] : nullptr;
+	if (row == nullptr || row->drum == nullptr) {
+		fail("RS-SOURCE-EDIT", "the song has no session kit clip with a drum row");
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane =
+	    setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, clip, clip->getNoteRowId(row, 0), row,
+	                                                       row->drum->toModControllable(), &row->paramManager)
+	        ->getPatchedAutoParamFromId(deluge::modulation::params::LOCAL_LPF_FREQ);
+	const int32_t eighth = clip->loopLength() / 8;
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*lane), 1 << 30, eighth, eighth,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
+	g_sourceEdited = deluge::edits::apply(context, edit) == Error::NONE;
+	printf("RS-SOURCE-EDIT block=%llu applied=%d\n", static_cast<unsigned long long>(block), g_sourceEdited ? 1 : 0);
+}
+
+/// @brief Call @p visit with each param collection of @p clip, and the note row it belongs to (-1: the clip's own).
+template <typename Visit>
+void forEachCollection(Clip& clip, Visit visit) {
+	const auto visitManager = [&](ParamManager& manager, int32_t row) {
+		for (ParamCollectionSummary& summary : manager.summaries) {
+			if (summary.paramCollection != nullptr) {
+				visit(*summary.paramCollection, row);
+			}
+		}
+	};
+	visitManager(clip.paramManager, -1);
+	if (clip.type == ClipType::INSTRUMENT) {
+		auto& instrumentClip = static_cast<InstrumentClip&>(clip);
+		int32_t r = 0;
+		for (NoteRow& row : instrumentClip.noteRows) {
+			visitManager(row.paramManager, r++);
+		}
+	}
+}
+
+/// [render] The nodes of the takes' repeats compared with what the render plays, and those that differed.
+int32_t g_playedChecked = 0;
+int32_t g_playedMismatched = 0;
+
+/// What the render plays of lane @p paramId of @p collection: its working copy while it has one, else the lane's
+/// published snapshot; none before the collection's first publish.
+std::optional<deluge::project::LaneView> playedLane(ParamCollection& collection, int32_t paramId) {
+	if (const deluge::project::DocAutoParam* copy = deluge::modulation::workingCopy(collection, paramId)) {
+		return deluge::project::LaneView::of(*copy);
+	}
+	const deluge::modulation::LaneSnapshot* snapshot = collection.published();
+	if (snapshot == nullptr) {
+		return std::nullopt;
+	}
+	const deluge::modulation::PublishedLane* published = snapshot->find(paramId);
+	return published != nullptr ? published->view() : deluge::project::LaneView{};
+}
+
+/// @brief Call @p visit with each param manager of @p take and its source's (@p source) paired one, and the note row
+/// (-1: the clip's own): a kit's rows by index, another instrument's by note, as a take's repeats pair them.
+template <typename Visit>
+void forEachPairedManager(InstrumentClip& take, InstrumentClip& source, Visit visit) {
+	visit(take.paramManager, source.paramManager, -1);
+	const bool kit = take.output->type == OutputType::KIT;
+	for (int32_t r = 0; r < std::ssize(source.noteRows); r++) {
+		NoteRow& sourceRow = source.noteRows[r];
+		if (sourceRow.loopLengthIfIndependent() != 0) {
+			continue;
+		}
+		for (int32_t t = 0; t < std::ssize(take.noteRows); t++) {
+			NoteRow& takeRow = take.noteRows[t];
+			if (kit ? t == r : takeRow.y() == sourceRow.y()) {
+				visit(takeRow.paramManager, sourceRow.paramManager, r);
+				break;
+			}
+		}
+	}
+}
+
+/// [render] Compare what the render plays of @p mine's lanes across a repeat from @p oldLength to @p newLength with
+/// what it repeats, @p theirs's lanes: at each of their nodes, the take's lane plays the node's value at the node's
+/// position in the repeat. The sources play forward, so a repeat is their lanes shifted.
+void checkRepeatPlayed(ParamManager& mine, ParamManager& theirs, int32_t oldLength, int32_t newLength, int32_t clip,
+                       int32_t repeat, int32_t row) {
+	for (size_t i = 0; i < std::size(theirs.summaries); i++) {
+		ParamCollection* sourceCollection = theirs.summaries[i].paramCollection;
+		ParamCollection* collection = mine.summaries[i].paramCollection;
+		if (sourceCollection == nullptr || collection == nullptr) {
+			break;
+		}
+		sourceCollection->forEachLane([&](int32_t paramId, const deluge::project::DocAutoParam& lane) {
+			const std::optional<deluge::project::LaneView> played = playedLane(*collection, paramId);
+			if (!played) {
+				return; // not published yet: the render reads the model, which RS-SNAPSHOT counts
+			}
+			int32_t checked = 0;
+			int32_t mismatched = 0;
+			for (const deluge::project::ParamNode& node : lane.nodes) {
+				const uint32_t pos = static_cast<uint32_t>(oldLength + node.pos);
+				const int32_t got =
+				    played->empty() ? played->base : deluge::project::getValueAtPos(*played, pos, newLength);
+				checked++;
+				mismatched += got != node.value ? 1 : 0;
+			}
+			g_playedChecked += checked;
+			g_playedMismatched += mismatched;
+			printf("RS-TAKE-PLAYED clip=%d repeat=%d row=%d kind=%d lane=%d checked=%d mismatched=%d\n", clip, repeat,
+			       row, static_cast<int>(collection->getParamKind()), paramId, checked, mismatched);
+		});
+	}
+}
+
+/// @brief [render] At @p take's loop end (@p row null), or at the own end of @p row of it, once its repeat is appended
+/// and swapped in: what the render plays across the repeat is what it repeats (checkRepeatPlayed()).
+void checkTakePlayed(InstrumentClip& take, NoteRow* row) {
+	auto* source = static_cast<InstrumentClip*>(take.beingRecordedFromClip);
+	if (source == nullptr) {
+		return;
+	}
+	const auto& takes = currentSong->live.clips.arrangement_only_clips;
+	const int32_t t = static_cast<int32_t>(std::ranges::find(takes, &take) - takes.begin());
+	if (row == nullptr) {
+		const int32_t newLength = take.loopLength();
+		const int32_t oldLength = newLength - source->loopLength();
+		const int32_t repeat = newLength / source->loopLength() - 1;
+		forEachPairedManager(take, *source, [&](ParamManager& mine, ParamManager& theirs, int32_t r) {
+			checkRepeatPlayed(mine, theirs, oldLength, newLength, t, repeat, r);
+		});
+		return;
+	}
+	const int32_t r = static_cast<int32_t>(row - &take.noteRows[0]);
+	NoteRow& sourceRow = source->noteRows[r]; // a kit's: the take's rows are its source's, by index
+	const int32_t newLength = row->loopLengthIfIndependent();
+	const int32_t sourceLength = sourceRow.loopLengthIfIndependent();
+	checkRepeatPlayed(row->paramManager, sourceRow.paramManager, newLength - sourceLength, newLength, t,
+	                  newLength / sourceLength - 1, r);
+}
+
+/// @brief Print every arrangement take's lanes from the model: its length, then each lane's base and nodes (position,
+/// value, `i` interpolated or `s` stepped), lanes by row then kind then id.
+void dumpTakes() {
+	const auto& takes = currentSong->live.clips.arrangement_only_clips;
+	printf("RS-TAKE clips=%zu\n", static_cast<size_t>(std::ssize(takes)));
+	for (int32_t t = 0; t < std::ssize(takes); t++) {
+		Clip* clip = takes[t];
+		printf("RS-TAKE clip=%d type=%d len=%d\n", t, static_cast<int>(clip->type), clip->loopLength());
+		struct Line {
+			int32_t row;
+			int32_t kind;
+			int32_t paramId;
+			std::string text;
+		};
+		std::vector<Line> lines;
+		forEachCollection(*clip, [&](ParamCollection& collection, int32_t row) {
+			const int32_t kind = static_cast<int32_t>(collection.getParamKind());
+			collection.forEachLane([&](int32_t paramId, const deluge::project::DocAutoParam& lane) {
+				std::string text = "base=" + std::to_string(lane.current_value) + " nodes=";
+				for (const deluge::project::ParamNode& node : lane.nodes) {
+					text += std::to_string(node.pos) + "," + std::to_string(node.value)
+					        + (node.interpolated ? ",i " : ",s ");
+				}
+				lines.push_back({row, kind, paramId, std::move(text)});
+			});
+		});
+		std::ranges::sort(lines, {}, [](const Line& l) { return std::tuple{l.row, l.kind, l.paramId}; });
+		for (const Line& line : lines) {
+			printf("RS-TAKE clip=%d row=%d kind=%d lane=%d %s\n", t, line.row, line.kind, line.paramId,
+			       line.text.c_str());
+		}
+	}
+}
+
 /// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
 /// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
@@ -653,7 +955,12 @@ void stepPlay() {
 		inputRoutine();
 	}
 	deluge_host_capture_start();
-	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+	if (g_arrangeRecord) {
+		beginArrangementRecording();
+	}
+	else {
+		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+	}
 	g_wasPlaying = false;
 	g_ticks = 0;
 	g_stage = Stage::Playing;
@@ -706,6 +1013,14 @@ void stepPlaying() {
 		printf("RS-METRONOME block=%llu on=%d\n", static_cast<unsigned long long>(g_blocksRendered),
 		       playbackHandler.metronomeOn ? 1 : 0);
 	}
+	while (g_knobsDone < g_knobAt.size() && g_blocksRendered >= g_knobAt[g_knobsDone].block) {
+		turnKnob(g_blocksRendered, g_knobAt[g_knobsDone]);
+		g_knobsDone++;
+	}
+	if (g_sourceEditAt && !g_sourceEdited && g_blocksRendered >= *g_sourceEditAt) {
+		editSource(g_blocksRendered);
+		g_sourceEditAt.reset();
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -730,6 +1045,7 @@ void stepPlaying() {
 }
 
 void report() {
+	deluge::modulation::setTakeLoopEndHook(nullptr);
 	deluge_streaming_set_fill_latency_ms(0);
 	deluge_streaming_set_fill_read_latency_us(0);
 	printf("RS-MODEL fill_delay_ms=%u fill_read_us=%u burst=%llu:%llu:%u\n", g_model.delayMs, g_model.readUs,
@@ -808,6 +1124,66 @@ void report() {
 			fail("RS-METRONOME", "the metronome was not switched on");
 		}
 	}
+	if (g_arrangeRecord) {
+		// Every collection's published snapshot holds its model's lanes once the take is over: a take whose repeats
+		// were appended where nothing republished them plays lanes the model no longer holds
+		const int32_t stale = deluge::modulation::checkPublished(*currentSong);
+		printf("RS-TAKE-STALE collections=%d\n", static_cast<int>(stale));
+		if (stale != 0) {
+			fail("RS-TAKE-STALE", "a collection's published lanes are not its model's after the take");
+		}
+		dumpTakes();
+		printf("RS-TAKE-PLAYED checked=%d mismatched=%d\n", g_playedChecked, g_playedMismatched);
+#if ALPHA_OR_BETA_VERSION
+		uint32_t repeats = 0;
+		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {
+			if (clip->type == ClipType::INSTRUMENT) {
+				auto* take = static_cast<InstrumentClip*>(clip);
+				repeats += take->repeats.appended.load();
+				for (NoteRow& row : take->noteRows) {
+					repeats += row.repeats.appended.load();
+				}
+			}
+		}
+		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u copies_ended=%u "
+		       "render_take_ends=%u spare_misses=%u render_made_collections=%u\n",
+		       repeats, deluge::modulation::stagedRepeatSwaps, deluge::modulation::stagedRepeatMisses,
+		       deluge::modulation::latchWritesWithoutCopy, deluge::modulation::copiesEndedAtLoopEnd(),
+		       deluge::modulation::renderTakeEnds, deluge::modulation::audioSpareMisses,
+		       deluge::modulation::renderMadeCollections);
+		if (deluge::modulation::audioSpareMisses != 0 || deluge::modulation::renderMadeCollections != 0) {
+			fail("RS-TAKE-REPEATS", "an audio take's loop end made its next take on the render, or found no spare");
+		}
+		if (deluge::modulation::latchWritesWithoutCopy != 0 || deluge::modulation::copiesEndedAtLoopEnd() != 0
+		    || deluge::modulation::renderTakeEnds != 0) {
+			fail("RS-TAKE-REPEATS",
+			     "a take's recording stopped at a loop end: a copy ended there, or a latch write was "
+			     "skipped for want of one");
+		}
+		int32_t spares = 0;
+		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {
+			spares += clip->type == ClipType::AUDIO && static_cast<AudioClip*>(clip)->spare.load() != nullptr ? 1 : 0;
+		}
+		const int32_t staged = deluge::modulation::stagedSnapshotsLeft(*currentSong);
+		printf("RS-TAKE-LEFT spares=%d staged=%d\n", spares, static_cast<int>(staged));
+		if (spares != 0 || staged != 0) {
+			fail("RS-TAKE-LEFT", "a spare or a staged snapshot was left after recording ended");
+		}
+		if (deluge::modulation::stagedRepeatMisses != 0 || deluge::modulation::stagedRepeatSwaps != repeats) {
+			fail("RS-TAKE-REPEATS", "a take's repeat was not staged and swapped in at its loop end");
+		}
+#endif
+		printf("RS-KNOB applied=%d asked=%zu\n", g_knobsApplied, g_knobAt.size());
+		if (g_knobsApplied != static_cast<int32_t>(g_knobAt.size())) {
+			fail("RS-KNOB", "a knob turn asked for did not land in its clip's take");
+		}
+		if (g_sourceEditAsked && !g_sourceEdited) {
+			fail("RS-SOURCE-EDIT", "the source edit asked for was not applied");
+		}
+		if (g_playedChecked == 0) {
+			fail("RS-TAKE-PLAYED", "no take grew by a repeat with automation in it");
+		}
+	}
 	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
 	printf("RS-DELAY-ARENA shortfalls=%u regions=%zu jobs=%u\n", deluge::model::delayArena().shortfalls(),
 	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
@@ -882,6 +1258,10 @@ void deluge_scenario_render_song_begin(void) {
 	g_modFxSwitchedNoRing = 0;
 	g_modFxSwitchedGrain = 0;
 	readMetronome();
+	readArrangeRecord();
+	deluge::modulation::setTakeLoopEndHook(g_arrangeRecord ? &checkTakePlayed : nullptr);
+	g_playedChecked = 0;
+	g_playedMismatched = 0;
 	readReverbSwitches();
 	g_reverbSwitchesDone = 0;
 	g_reverbSwitched = 0;

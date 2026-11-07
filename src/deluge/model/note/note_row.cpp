@@ -39,6 +39,7 @@
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/move_section.h"
@@ -2100,11 +2101,18 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 				int32_t whichRepeatThisIs =
 				    (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent();
 
+				// The notes and the length; the interaction tier appends the repeat's automation before its next job
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
 				              otherNoteRow->loopLengthIfIndependent());
 
 				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
 				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
+
+				deluge::modulation::appendRepeatIntoRowCopies(*this, modelStack, otherModelStackWithNoteRow);
+				// The repeat plays from its staged snapshots, published here
+				(void)deluge::modulation::swapStagedRowRepeat(*this, modelStack, otherModelStackWithNoteRow);
+				deluge::modulation::countRowRepeat(*this);
+				deluge::modulation::takeLoopEnded(*clip, this);
 			}
 		}
 
@@ -4147,6 +4155,18 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
+RepeatArgs NoteRow::repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,
+                               int32_t otherNoteRowLength) {
+	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
+	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
+	return {.offset = offset,
+	        .reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0,
+	        .pingpongingGenerally = pingpongingGenerally};
+}
+
 Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
                              int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
@@ -4157,15 +4177,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
 	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
-
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
-
-		paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
-		                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), offset,
-		                                reverseThisRepeatWithLength, pingpongingGenerally);
-	}
 
 	int32_t numToInsert = std::ssize(otherNoteRow->notes);
 	if (!numToInsert) {

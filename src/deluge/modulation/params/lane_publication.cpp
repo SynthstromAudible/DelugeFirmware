@@ -30,6 +30,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_collection_summary.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/staged_repeat.h"
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -48,6 +49,7 @@ uint32_t staleLanes = 0;
 uint32_t publishFailures = 0;
 uint32_t renderModelWrites = 0;
 uint32_t laneRequestOverflows = 0;
+uint32_t renderMadeCollections = 0;
 #endif
 
 namespace {
@@ -65,14 +67,36 @@ bool mayPublish() {
 	       && deluge_audio_excluded_depth() == 0 && g_operations == 0;
 }
 
+/// Whether @p kept holds @p entry's lane itself: a lane shared between snapshots is the same object under the same key.
+bool shares(const LaneSnapshot* kept, const LaneSnapshot::Entry& entry) {
+	return kept != nullptr && kept->find(entry.key) == entry.lane;
+}
+
 /// Free a snapshot never published, @p next, and the lanes it was built with (@p built) that @p old does not share.
 void discard(std::span<const LaneSnapshot::Entry> built, LaneSnapshot* next, const LaneSnapshot* old) {
 	for (const LaneSnapshot::Entry& entry : built) {
-		if (old == nullptr || old->find(entry.key) != entry.lane) {
+		if (!shares(old, entry)) {
 			PublishedLane::destroy(const_cast<PublishedLane*>(entry.lane));
 		}
 	}
 	LaneSnapshot::destroy(next);
+}
+
+/// The retireMemory() calls retiring @p snapshot and its lanes @p kept does not share takes.
+size_t retirementsFor(const LaneSnapshot& snapshot, const LaneSnapshot* kept) {
+	return 1 + std::ranges::count_if(snapshot.entries(), [&](const LaneSnapshot::Entry& entry) {
+		       return !shares(kept, entry);
+	       });
+}
+
+/// Retire @p snapshot and its lanes @p kept does not share, with room already reserved for them.
+void retireReserved(const LaneSnapshot& snapshot, const LaneSnapshot* kept) {
+	for (const LaneSnapshot::Entry& entry : snapshot.entries()) {
+		if (!shares(kept, entry)) {
+			AudioEngine::retireMemory(const_cast<PublishedLane*>(entry.lane), &PublishedLane::destroy);
+		}
+	}
+	AudioEngine::retireMemory(const_cast<LaneSnapshot*>(&snapshot), &LaneSnapshot::destroy);
 }
 
 /// Call @p visit with every collection of every param manager @p song plays -- its own, each clip's and each note
@@ -211,6 +235,11 @@ void noteRenderLaneWrite() {
 }
 
 void LanePublication::made(ParamCollection& /*collection*/) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::memory::onRenderTier()) {
+		renderMadeCollections++;
+	}
+#endif
 	g_anyPending.store(true, std::memory_order_relaxed);
 }
 
@@ -218,12 +247,82 @@ void LanePublication::gone(ParamCollection& collection) {
 	// Freed now, not retired: the render reaches a snapshot only through its collection, within a block, and a
 	// collection being destroyed is already out of the render's reach (or the collection itself would be read freed).
 	// Retiring would also hold back a load's wait for the outgoing song, whose collections go when it is freed.
-	if (const LaneSnapshot* old = collection.published_.exchange(nullptr)) {
-		for (const LaneSnapshot::Entry& entry : old->entries()) {
-			PublishedLane::destroy(const_cast<PublishedLane*>(entry.lane));
-		}
-		LaneSnapshot::destroy(const_cast<LaneSnapshot*>(old));
+	// The staged and superseded snapshots share lanes with the published one, and the superseded one with the staged:
+	// each lane is freed with the first snapshot holding it.
+	const LaneSnapshot* published = collection.published_.exchange(nullptr);
+	const LaneSnapshot* staged = collection.staged_.exchange(nullptr);
+	const LaneSnapshot* superseded = collection.superseded_.exchange(nullptr);
+	if (published != nullptr) {
+		discardSnapshot(published, nullptr);
 	}
+	if (staged != nullptr) {
+		discardSnapshot(staged, published);
+	}
+	if (superseded != nullptr) {
+		for (const LaneSnapshot::Entry& entry : superseded->entries()) {
+			if (!shares(published, entry) && !shares(staged, entry)) {
+				PublishedLane::destroy(const_cast<PublishedLane*>(entry.lane));
+			}
+		}
+		LaneSnapshot::destroy(const_cast<LaneSnapshot*>(superseded));
+	}
+}
+
+bool LanePublication::stagedAgainst(const ParamCollection& collection, uint32_t sourcePublications) {
+	return collection.staged_.load(std::memory_order_relaxed) != nullptr
+	       && collection.stagedAgainst_ == sourcePublications;
+}
+
+bool LanePublication::stage(ParamCollection& collection, LaneSource lanes, uint32_t sourcePublications) {
+	if (!settleStaged(collection)) {
+		return false;
+	}
+	// Nothing is staged now, so the render cannot swap: the published snapshot stays as it is while this builds
+	LaneSnapshot* staged = buildSnapshot(lanes, collection.published());
+	if (staged == nullptr) {
+		return false;
+	}
+	collection.stagedAgainst_ = sourcePublications;
+	collection.staged_.store(staged, std::memory_order_release);
+	return true;
+}
+
+bool LanePublication::canSwap(const ParamCollection& collection) {
+	return collection.staged_.load(std::memory_order_acquire) != nullptr
+	       && collection.superseded_.load(std::memory_order_relaxed) == nullptr;
+}
+
+void LanePublication::swap(ParamCollection& collection) {
+	const LaneSnapshot* staged = collection.staged_.exchange(nullptr, std::memory_order_acq_rel);
+	collection.superseded_.store(collection.published_.exchange(staged, std::memory_order_acq_rel),
+	                             std::memory_order_release);
+	collection.publications_.fetch_add(1, std::memory_order_release);
+}
+
+bool LanePublication::settleStaged(ParamCollection& collection) {
+	if (collection.staged_.load(std::memory_order_relaxed) == nullptr
+	    && collection.superseded_.load(std::memory_order_relaxed) == nullptr) {
+		return true;
+	}
+	const LaneSnapshot* staged = nullptr;
+	const LaneSnapshot* superseded = nullptr;
+	{
+		// Taken with the render held off, so it cannot swap one in between: the published snapshot is then stable
+		AudioExcludedSection masked;
+		staged = collection.staged_.exchange(nullptr);
+		superseded = collection.superseded_.exchange(nullptr);
+	}
+	const LaneSnapshot* published = collection.published();
+	if (superseded != nullptr && !retireSnapshot(superseded, published)) {
+		AudioExcludedSection masked;
+		collection.superseded_.store(superseded);
+		collection.staged_.store(staged);
+		return false;
+	}
+	if (staged != nullptr) {
+		discardSnapshot(staged, published);
+	}
+	return true;
 }
 
 void LanePublication::mark(ParamCollection& collection) {
@@ -243,23 +342,18 @@ bool LanePublication::matches(ParamCollection& collection) {
 	return published != nullptr && same && lanes == published->count;
 }
 
-bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeline& manager) {
-	if (collection.published() != nullptr && matches(collection)) {
-		return true;
-	}
-	const LaneSnapshot* old = collection.published();
-
-	uint32_t lanes = 0;
-	collection.forEachLane([&](int32_t, const project::DocAutoParam&) { lanes++; });
-	LaneSnapshot* next = LaneSnapshot::make(lanes);
+LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old) {
+	uint32_t count = 0;
+	lanes([&](int32_t, const project::DocAutoParam&) { count++; });
+	LaneSnapshot* next = LaneSnapshot::make(count);
 	if (next == nullptr) {
-		return false;
+		return nullptr;
 	}
 	// Each lane the old snapshot holds unchanged is shared; the rest are copied
 	std::span<LaneSnapshot::Entry> entries = next->entriesToFill();
 	uint32_t filled = 0;
 	bool outOfMemory = false;
-	collection.forEachLane([&](int32_t key, const project::DocAutoParam& lane) {
+	lanes([&](int32_t key, const project::DocAutoParam& lane) {
 		if (outOfMemory || filled == entries.size()) {
 			return;
 		}
@@ -273,21 +367,45 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 	});
 	if (outOfMemory) {
 		discard(entries.first(filled), next, old);
-		return false;
+		return nullptr;
 	}
 	std::ranges::sort(entries, {}, &LaneSnapshot::Entry::key);
+	return next;
+}
+
+void discardSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
+	discard(snapshot->entries(), const_cast<LaneSnapshot*>(snapshot), kept);
+}
+
+bool retireSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
+	try {
+		AudioEngine::reserveRetirements(retirementsFor(*snapshot, kept));
+	} catch (...) {
+		return false;
+	}
+	retireReserved(*snapshot, kept);
+	return true;
+}
+
+bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeline& manager) {
+	// The staged and superseded snapshots share lanes with the published one, which this retires
+	if (!settleStaged(collection)) {
+		return false;
+	}
+	if (collection.published() != nullptr && matches(collection)) {
+		return true;
+	}
+	const LaneSnapshot* old = collection.published();
+	LaneSnapshot* next = buildSnapshot([&](LaneVisit visit) { collection.forEachLane(visit); }, old);
+	if (next == nullptr) {
+		return false;
+	}
 
 	// Room to retire what the new snapshot replaces, made before the swap so retiring it cannot fail
-	size_t retirements = 0;
-	if (old != nullptr) {
-		retirements = 1 + std::ranges::count_if(old->entries(), [&](const LaneSnapshot::Entry& entry) {
-			              return next->find(entry.key) != entry.lane;
-		              });
-	}
 	try {
-		AudioEngine::reserveRetirements(retirements);
+		AudioEngine::reserveRetirements(old != nullptr ? retirementsFor(*old, next) : 0);
 	} catch (...) {
-		discard(entries, next, old);
+		discardSnapshot(next, old);
 		return false;
 	}
 
@@ -298,6 +416,7 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		deluge::memory::NoAllocationScope noAllocation;
 		deluge::playback::MaskedSpan span{"publishLanes"};
 		collection.published_.store(next, std::memory_order_release);
+		collection.publications_.fetch_add(1, std::memory_order_release);
 		if (old != nullptr) { // a first publish replaces the model the render read, which holds the same lanes
 			collection.ticksTilNextEvent = 0;
 			manager.ticksTilNextEvent = 0;
@@ -305,18 +424,24 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 	}
 
 	if (old != nullptr) {
-		for (const LaneSnapshot::Entry& entry : old->entries()) {
-			if (next->find(entry.key) != entry.lane) {
-				AudioEngine::retireMemory(const_cast<PublishedLane*>(entry.lane), &PublishedLane::destroy);
-			}
-		}
-		AudioEngine::retireMemory(const_cast<LaneSnapshot*>(old), &LaneSnapshot::destroy);
+		retireReserved(*old, next);
 	}
 	return true;
 }
 
 void LanePublication::publishDirty(bool settle) {
-	if (currentSong == nullptr || g_publishing || !mayPublish() || !g_anyPending.load(std::memory_order_relaxed)) {
+	if (currentSong == nullptr || g_publishing || !mayPublish()) {
+		return;
+	}
+	walkDirty(settle);
+	if (settle) {
+		// A job's end: the arrangement takes' next repeats are staged from what it published
+		restageArrangementTakes(*currentSong);
+	}
+}
+
+void LanePublication::walkDirty(bool settle) {
+	if (!g_anyPending.load(std::memory_order_relaxed)) {
 		return;
 	}
 	struct Walk {
@@ -376,6 +501,39 @@ int32_t LanePublication::check(Song& song) {
 		}
 	});
 	return differing;
+}
+
+bool LanePublication::publishManager(ParamManagerForTimeline& manager) {
+	if (!mayPublish()) {
+		return false;
+	}
+	bool published = true;
+	for (ParamCollectionSummary& summary : manager.summaries) {
+		if (summary.paramCollection == nullptr) {
+			break;
+		}
+		published = publish(*summary.paramCollection, manager) && published;
+	}
+	return published;
+}
+
+int32_t LanePublication::stagedLeft(Song& song) {
+	int32_t left = 0;
+	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline&) {
+		left += (collection.staged_.load(std::memory_order_relaxed) != nullptr
+		         || collection.superseded_.load(std::memory_order_relaxed) != nullptr)
+		            ? 1
+		            : 0;
+	});
+	return left;
+}
+
+bool publishParamManager(ParamManagerForTimeline& manager) {
+	return LanePublication::publishManager(manager);
+}
+
+int32_t stagedSnapshotsLeft(Song& song) {
+	return LanePublication::stagedLeft(song);
 }
 
 int32_t checkPublished(Song& song) {

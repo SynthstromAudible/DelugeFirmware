@@ -15,6 +15,7 @@
 #include "deluge-project/doc_audio_clip.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -72,6 +73,7 @@
 #include "modulation/automation/record_events.h"
 #include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
+#include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -1967,6 +1969,78 @@ void workingCopiesTarget(Song* song) {
 	check(lane->doc()->current_value == baseBefore, "working-copies: the take's undo gives the lane back");
 }
 
+// A snapshot built apart from publishing, from a synth clip's patched lanes and their published snapshot: it holds the
+// same lanes, shares each unchanged one with the published snapshot, copies a changed one, and is freed again without
+// touching the published one.
+void stagedSnapshotTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (Clip* candidate : song->live.clips.session_clips) {
+		if (candidate->type == ClipType::INSTRUMENT && candidate->output != nullptr
+		    && candidate->output->type == OutputType::SYNTH) {
+			clip = static_cast<InstrumentClip*>(candidate);
+			break;
+		}
+	}
+	if (clip == nullptr) {
+		std::fprintf(io.out, "# no-synth-clip-for-staged-snapshot\n");
+		return;
+	}
+	std::fprintf(io.out, "# target staged-snapshot\n");
+	namespace modulation = deluge::modulation;
+	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane =
+	    setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr, clip->output->toModControllable(),
+	                                                       &clip->paramManager)
+	        ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+	ParamCollection& collection = *lane->paramCollection;
+	{
+		// A lane with nodes, published: the lanes a built snapshot shares
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*lane->doc(), clip->loopLength() / 2, 1 << 28, false);
+	}
+	modulation::markLanesChanged(collection);
+	modulation::publishDirtyLanes(true);
+	const modulation::LaneSnapshot* published = collection.published();
+	check(published != nullptr && published->find(lane->paramId) != nullptr,
+	      "staged-snapshot: the collection is published with the lane");
+	if (published == nullptr) {
+		return;
+	}
+	const auto lanes = [&](modulation::LaneVisit visit) { collection.forEachLane(visit); };
+
+	const modulation::LaneSnapshot* same = modulation::buildSnapshot(lanes, published);
+	bool holdsAll = same != nullptr && same->count == published->count && same->count > 0;
+	bool sharesAll = holdsAll;
+	collection.forEachLane([&](int32_t key, const deluge::project::DocAutoParam& model) {
+		const modulation::PublishedLane* built = same != nullptr ? same->find(key) : nullptr;
+		holdsAll = holdsAll && built != nullptr && built->equals(model);
+		sharesAll = sharesAll && built == published->find(key);
+	});
+	check(holdsAll, "staged-snapshot: a built snapshot holds the collection's lanes");
+	check(sharesAll, "staged-snapshot: each unchanged lane is shared with the published snapshot");
+	if (same != nullptr) {
+		modulation::discardSnapshot(same, published);
+	}
+
+	// A lane given a node the published snapshot lacks is copied; the rest stay shared
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*lane->doc(), clip->loopLength() / 4, 1 << 27, false);
+	}
+	const modulation::LaneSnapshot* changed = modulation::buildSnapshot(lanes, published);
+	const modulation::PublishedLane* copied = changed != nullptr ? changed->find(lane->paramId) : nullptr;
+	check(copied != nullptr && copied != published->find(lane->paramId) && copied->equals(*lane->doc()),
+	      "staged-snapshot: a changed lane is copied");
+	if (changed != nullptr) {
+		modulation::discardSnapshot(changed, published);
+	}
+	check(collection.published() == published && modulation::checkPublished(*song) > 0,
+	      "staged-snapshot: building publishes nothing");
+	modulation::markLanesChanged(collection);
+	modulation::publishDirtyLanes(true);
+	check(modulation::checkPublished(*song) == 0, "staged-snapshot: the change publishes as before");
+}
+
 // The MPE value a played note sends, written through its Edit with the clock stopped: the lane takes it, and one undo
 // gives back what it was (the engine's own unautomated-change record).
 void recordExpressionTarget(Song* song) {
@@ -2307,6 +2381,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	undoAcrossClipDeleteTarget(song);
 	recordExpressionTarget(song);
 	workingCopiesTarget(song);
+	stagedSnapshotTarget(song);
 	newShapesTarget(song);
 
 #if ALPHA_OR_BETA_VERSION

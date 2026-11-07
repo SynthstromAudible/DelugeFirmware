@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -676,28 +677,6 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 	FOR_EACH_PARAM_END
 }
 
-void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                          ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                          int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
-	PatchCableSet* otherPatchCableSet = (PatchCableSet*)otherModelStack->paramCollection;
-
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated) // Iterate through the *other* ParamManager's stuff
-
-	PatchSource s = otherPatchCableSet->patchCables[c].from;
-	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destination);
-
-	if (i != 255) {
-		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
-		                                 reverseThisRepeatWithLength, pingpongingGenerally);
-	}
-
-	FOR_EACH_PARAM_END
-
-	ticksTilNextEvent = 0;
-}
-
 void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                  bool maySetupPatching) {
 	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
@@ -1170,6 +1149,18 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 		return nullptr;
 	}
 	return &patchCables[i];
+}
+
+void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+                                       deluge::function_ref<void(int32_t)> visit) {
+	// Each cable of this set whose cable in the other set, from the same source to the same destination, is automated
+	auto& otherSet = static_cast<PatchCableSet&>(other);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		const int32_t o = otherSet.getPatchCableIndex(patchCables[c].from, patchCables[c].destination);
+		if (o != 255 && (otherSummary.whichParamsAreAutomated[o >> 5] & (1u << (o & 31))) != 0) {
+			visit(getParamId(patchCables[c].destination, patchCables[c].from));
+		}
+	}
 }
 
 void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {

@@ -55,9 +55,6 @@ public:
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong) override;
-	void appendParamCollection(ModelStackWithParamCollection* modelStack,
-	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) override;
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) override;
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
@@ -123,6 +120,9 @@ public:
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 	/// @copydoc ParamCollection::forEachLane
 	void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
+	/// @copydoc ParamCollection::forEachAppendedKey
+	void forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+	                        deluge::function_ref<void(int32_t)> visit) override;
 
 private:
 	/// DOM-owned node store (nullptr = unbound). RAII-freed with the collection.

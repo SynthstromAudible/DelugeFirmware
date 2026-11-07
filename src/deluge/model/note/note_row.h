@@ -25,6 +25,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/staged_repeat.h"
 #include "processing/sound/sound_instrument.h"
 #include "sequence/iterance.h"
 
@@ -244,6 +245,8 @@ public:
 	bool hasIndependentPlayPos();
 
 	ParamManagerForTimeline paramManager;
+	/// A take's row with its own length repeats at its own end (deluge::modulation::catchUpArrangementTakes()).
+	deluge::modulation::TakeRepeats repeats;
 	Drum* drum;
 	OldDrumNameHead firstOldDrumName;
 	NoteVector notes{};
@@ -319,8 +322,14 @@ public:
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
+	/// @brief Append one repeat of the row @p otherModelStack names, at @p offset: its notes. Its automation is
+	///        appended on the interaction tier (deluge::modulation::catchUpArrangementTakes()).
 	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
 	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
+	/// @brief The arguments with which a repeat of the row @p otherModelStack names, the @p whichRepeatThisIs'th, is
+	///        appended at @p offset to a row's params.
+	static RepeatArgs repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,
+	                             int32_t otherClipLength);
 	/// @brief Flatten a reversed sequence after a plain clone: reverse this row's notes and automation in place.
 	///
 	/// Call only when the row's effective direction is REVERSE and flattening was requested.
