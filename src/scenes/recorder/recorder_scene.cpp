@@ -39,6 +39,15 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
+/// The record dot's half-period while recording, and the threshold line's cycle while waiting, lit for its first
+/// 290 ms and from 570 ms on (`AudioRecorder::getThresholdMeterState`).
+/// @{
+constexpr uint32_t kRecordDotHalfPeriodMs = 480;
+constexpr uint32_t kThresholdBlinkCycleMs = 750;
+constexpr uint32_t kThresholdLitUntilMs = 290;
+constexpr uint32_t kThresholdLitFromMs = 570;
+/// @}
+
 constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
@@ -140,6 +149,9 @@ bool RecorderScene::setup_recording() {
 	recorder_->allowFileAlterationAfter = true;
 	// `shouldNormalize` defaults true and `opened()` does not pass it (`:94`).
 	recorder_->allowNormalization = true;
+	// `recorder->monitorInputLevels = display->haveOLED() && isThresholdRecording()`: the render keeps measuring the
+	// input for the meter after the threshold has triggered. Every panel this scene draws on is an OLED.
+	recorder_->monitorInputLevels.store(threshold_take(), std::memory_order_relaxed);
 
 	// `recordingSource = newMode` (`:138`, "This sets recording to begin happening even as the file
 	// is created"). **This is not bookkeeping.** Nine subsystems read the pair
@@ -211,7 +223,11 @@ void RecorderScene::on_exit() {
 // The recording
 
 bool RecorderScene::capturing() const {
-	return recorder_ != nullptr && recorder_->numSamplesCaptured != 0;
+	return recorder_ != nullptr && recorder_->numSamplesCaptured > recorder_->minThresholdMargin;
+}
+
+bool RecorderScene::threshold_take() const {
+	return recorder_ != nullptr && recorder_->startValueThreshold > 0;
 }
 
 void RecorderScene::end_recording_soon() {
@@ -362,13 +378,18 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	(void)role;
 	const uint32_t now = f.now_ms();
 
-	// `renderOLED` (`:116-119`), through the toolkit rather than through `Canvas::drawStringCentred`
-	// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects
-	// (`gfx/oled/font.h`'s `kTextBigSizeY`); the centring is over the frame's own width, which is legacy's
-	// `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
-	deluge::ui::oled::text(f, deluge::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::gfx::oled::kTextBigSizeY},
-	                       capturing() ? kRecording : kWaiting,
-	                       {.font = deluge::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
+	if (threshold_take()) {
+		deluge::ui::oled::threshold_meter(f, meter_state(f.bounds().w));
+	}
+	else {
+		// `renderOLED`'s plain arm, through the toolkit rather than through `Canvas::drawStringCentred`
+		// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects; the centring is over
+		// the frame's own width, which is legacy's `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
+		deluge::ui::oled::text(
+		    f, deluge::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::gfx::oled::kTextBigSizeY},
+		    capturing() ? kRecording : kWaiting,
+		    {.font = deluge::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
+	}
 
 	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a
 	// scene that drew this tick, so without a repaint the completion poll stops the moment the last
@@ -381,6 +402,29 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	if (recorder_ != nullptr) {
 		f.gate().request_repaint_after(kRecorderPollMs, now);
 	}
+}
+
+deluge::ui::oled::ThresholdMeter RecorderScene::meter_state(int32_t width) const {
+	// The meter's ends from the input's levels (a mono take shows its one channel on both), the threshold's x, and the
+	// blink, on the audio clock legacy blinks by.
+	const auto animation_ms =
+	    static_cast<uint32_t>(static_cast<uint64_t>(AudioEngine::audioSampleTimer) * 1000 / kSampleRate);
+	const auto level = recorder_->getInputLevels();
+	const float right = recorder_->recordingNumChannels == 2 ? level.r : level.l;
+	deluge::ui::oled::ThresholdMeter m{
+	    .level_end_x = {deluge::ui::oled::threshold_meter_x(level.l, width),
+	                    deluge::ui::oled::threshold_meter_x(right, width)},
+	    .threshold_x = deluge::ui::oled::threshold_meter_x(recorder_->startValueThreshold, width),
+	    .recording = capturing(),
+	};
+	if (m.recording) {
+		m.blink_on = (animation_ms / kRecordDotHalfPeriodMs) % 2 == 0;
+	}
+	else {
+		const uint32_t phase = animation_ms % kThresholdBlinkCycleMs;
+		m.blink_on = phase < kThresholdLitUntilMs || phase >= kThresholdLitFromMs;
+	}
+	return m;
 }
 
 void RecorderScene::render_grid(deluge::ui::grid::GridFrame& f) {

@@ -1,0 +1,20 @@
+# The recorder's threshold take (ShellMenu card): RECORD held with two Select turns sets the song's threshold to LOW
+# (the first turn shows the mode), Shift + (0,4) lands on the SAMPLE RECORDER page and SELECT opens the recorder, which
+# draws the level-meter screen: WAITING..., the channel labels, the caution line and the blinking threshold line.
+# BACK ends the take.
+1000  button Record down
+1300  encoder Select +2
+1700  encoder Select +1
+2500  button Record up
+5000  button Shift down
+5100  pad 0 4 down
+5150  pad 0 4 up
+5200  button Shift up
+6500  snapshot recorder_page
+7000  button SelectEnc down
+7020  button SelectEnc up
+8000  snapshot waiting
+9000  snapshot waiting_b
+10000 button Back down
+10020 button Back up
+12000 snapshot closed

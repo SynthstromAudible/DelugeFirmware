@@ -52,3 +52,6 @@ the browser's error popup over the new kit's clip view.
 
 `c39-browser-record-audition` opens the sample browser with Shift + (0,5) and presses RECORD with the audition pad
 (17,3) held, which the browser refuses, then without it, which opens the recorder.
+
+`c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
+shows the mode) and opens the recorder from its page, which draws the level meter.

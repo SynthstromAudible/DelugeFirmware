@@ -545,6 +545,17 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
+/// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
+///        milliseconds for the scope, and put it back.
+struct AudioClockAt {
+	uint32_t saved = AudioEngine::audioSampleTimer;
+	explicit AudioClockAt(uint32_t ms) { set(ms); }
+	~AudioClockAt() { AudioEngine::audioSampleTimer = saved; }
+	void set(uint32_t ms) { AudioEngine::audioSampleTimer = static_cast<uint32_t>(uint64_t{ms} * kSampleRate / 1000); }
+	AudioClockAt(const AudioClockAt&) = delete;
+	AudioClockAt& operator=(const AudioClockAt&) = delete;
+};
+
 extern "C" bool deluge_host_storage_hold_fs(bool hold);
 
 /// @brief Hold the filesystem lock for the scope: `AudioEngine::sdRoutineBusy()` genuinely true.
@@ -1259,6 +1270,66 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(menu_scene().state().path[0] == &menu::nodes::recorder).to_be_true();
 		expect(menu_scene().state().depth).to_equal(1);
 		expect(menu_scene().state().path[1] == &menu::nodes::sample0_recorder).to_be_true();
+	});
+
+	// --- the threshold take ---------------------------------------------------------------------------
+
+	it("draws AudioRecorder::renderOLED's threshold screen while waiting, its threshold line lit and dark", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_true();
+		const std::string lit = r.oled();
+		clock.set(400); // the line is dark from 290 ms to 570 ms of its 750 ms cycle
+		r.tick(10);
+		const std::string dark = r.oled();
+		// LEGACY, from its own sentinel, on the recorder the scene published.
+		const std::string legacy_dark = legacy_oled(false);
+		clock.set(0);
+		expect(lit).to_equal(legacy_oled(false));
+		expect(dark).to_equal(legacy_dark);
+		expect(lit == dark).to_be_false();
+	});
+
+	it("starts RECORDING once the take passes its threshold margin, with the solid meter and the record dot", _ {
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		expect(rec->minThresholdMargin > 0u).to_be_true();
+		rec->numSamplesCaptured = rec->minThresholdMargin; // the pre-roll a threshold take holds before it starts
+		r.tick(10);
+		expect(recorder_scene().capturing()).to_be_false();
+		expect(r.oled()).to_equal(legacy_oled(false));
+		rec->numSamplesCaptured = rec->minThresholdMargin + 1;
+		r.tick(20);
+		expect(recorder_scene().capturing()).to_be_true();
+		expect(r.oled()).to_equal(legacy_oled(true));
+		rec->numSamplesCaptured = 0;
+	});
+
+	it("asks the render to measure the input's levels for a threshold take, and only for one", _ {
+		// `opened()`'s `recorder->monitorInputLevels = display->haveOLED() && isThresholdRecording()`.
+		Guards g;
+		{
+			Rig r;
+			r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+			r.open();
+			r.tick(0);
+			expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_true();
+		}
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::OFF;
+		r.open();
+		r.tick(0);
+		expect(recorder_scene().threshold_take()).to_be_false();
+		expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_false();
 	});
 });
 // clang-format on

@@ -525,6 +525,10 @@ the channel's (see the use-after-free in the ledger below).
 The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
 all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
 
+A threshold take (the song's threshold mode on) draws `main`'s level-meter screen through `ui::oled::threshold_meter`,
+blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
+pre-roll margin.
+
 ### The overlays (`overlay/`)
 
 `ParamPopupScene` (the mod-encoder value popup) and `CountInScene` are input-transparent grid

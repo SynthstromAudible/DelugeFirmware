@@ -147,6 +147,7 @@
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
 #include "ui/grid/effects.h"
+#include "ui/oled/threshold_meter.h"
 
 #include <cstdint>
 #include <optional>
@@ -239,9 +240,13 @@ public:
 	/// @{
 	/// @return Is a recorder armed -- i.e. is the scene between `on_enter` and the sample landing?
 	bool recording() const { return recorder_ != nullptr; }
-	/// @return Has the recorder captured its first sample? Legacy's `updatedRecordingStatus`
-	///         (`:234`), read rather than cached.
+	/// @return Has the take started? Legacy's `updatedRecordingStatus`, read rather than cached:
+	///         `numSamplesCaptured > minThresholdMargin`, since a threshold take holds its pre-roll before the input
+	///         passes the threshold.
 	bool capturing() const;
+	/// @return Is this a threshold take -- the song's threshold mode was on as the take was armed? Legacy's
+	///         `isThresholdRecording`: the recorder keeps the threshold it was given after the input has passed it.
+	bool threshold_take() const;
 	/// @return Has a stop been asked for -- legacy's `endRecordingSoon` having run (`:159-166`)?
 	bool stopping() const { return stopping_; }
 	/// @return The armed recorder, or null. A spec drives the state machine through it, exactly as
@@ -254,6 +259,8 @@ private:
 	///        member -- `recorder_ != nullptr` is the same fact.
 	/// @return False when no recorder could be allocated (legacy's `INSUFFICIENT_RAM` arm).
 	bool setup_recording();
+	/// @brief `AudioRecorder::getThresholdMeterState`, for a panel @p width wide.
+	deluge::ui::oled::ThresholdMeter meter_state(int32_t width) const;
 	/// @brief `AudioRecorder::endRecordingSoon` (`:159-166`).
 	void end_recording_soon();
 	/// @brief `AudioRecorder::finishRecording` (`:245-253`).
