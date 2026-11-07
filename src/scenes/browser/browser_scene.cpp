@@ -1963,13 +1963,15 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 			auto_load_ = !auto_load_;
 		}
 		return r;
-	case ButtonId::Record:
-		// The recorder replaces the browser, with no mode up, and never for an audio clip, whose RECORD goes on to the
-		// base browser and then to the global RECORD.
+	case ButtonId::Record: {
+		// The recorder replaces the browser with no UI mode up -- a held audition pad is `main`'s
+		// `UI_MODE_AUDITIONING`, which legacy holds because the view beneath takes that pad -- and never for an audio
+		// clip, whose RECORD goes on to the base browser and then to the global RECORD.
 		if (ctx_.is_audio_clip) {
 			return std::nullopt;
 		}
-		if (on && !mode_up()) {
+		const bool auditioning = ctx_.facts != nullptr && ctx_.facts->auditioning();
+		if (on && !mode_up() && !auditioning) {
 			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
 			// it is not what leaves) and the recorder takes its place.
 			recorder::recorder_scene().open(ctx_);
@@ -1978,6 +1980,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 			    Action{.kind = Action::Kind::Push, .id = SceneId{recorder::kRecorderSceneKind, 0}});
 		}
 		return r;
+	}
 	case ButtonId::Save: {
 		// Shift+SAVE on a file offers to delete it, once the song is known not to use it; the preview stops either
 		// way.

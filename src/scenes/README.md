@@ -461,7 +461,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   `ShellHostUI::scrollFinished`.
 * **The buttons.** LOAD's release toggles auto-load (not for an audio clip): each landed preview is claimed with
   `BrowserChoice::keep_open`, which neither closes the browser nor re-roots the menu. RECORD opens the recorder in
-  the browser's place, and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
+  the browser's place when no UI mode is up (a held audition pad is one), and the host answers it `DEALT_WITH` so the global RECORD stays out. Shift+SAVE on a file asks
   the host to free it (`menu::host_release_sample_file`), refusing with `main`'s popup when the song uses it, and
   otherwise opens the DELETE? menu, whose OK the host performs (`BrowserChoice::Op::DeleteFile`) before the file
   leaves the list (`BrowserScene::file_deleted`). The vertical encoder goes to the instrument clip view beneath

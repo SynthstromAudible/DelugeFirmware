@@ -3239,6 +3239,32 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(released.handled && released.actions.empty()).to_be_true();
 	});
 
+	it("takes RECORD and does nothing while an audition pad is held", _ {
+		// `SampleBrowser::buttonAction`'s RECORD arm returns at once under any UI mode, and a held audition pad is
+		// `UI_MODE_AUDITIONING`: the browser stays and no take starts. The audition column is the view's, so the mode
+		// is legacy's fact, not a pad the guest holds.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = true}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(pressed.handled && pressed.actions.empty()).to_be_true();
+		const Result released = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Record}, d.ctx);
+		expect(released.handled && released.actions.empty()).to_be_true();
+		// The audition pad up, the same press opens the recorder.
+		facts.set({.auditioning = false});
+		const Result opened = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		expect(find_action(opened, ShellAction::Kind::Push) != nullptr).to_be_true();
+	});
+
 	it("takes no BACK, RECORD or Shift+SAVE while Select is held, nor a Select press while X_ENC is", _ {
 		// `currentUIMode` gates all of them in `main`: a Select hold and a held X_ENC are UI modes.
 		CleanBrowser clean;

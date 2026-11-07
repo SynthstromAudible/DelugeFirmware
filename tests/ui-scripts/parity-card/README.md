@@ -49,3 +49,6 @@ load takes about 400 ms on the emulator, so the window sits well inside it on bo
 `c36-drum-creator-refused` runs on its own card, `tests/fixtures/card-samples-file` (`--card`): the ShellMenu card
 with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's drum creator then falls back the way `main` does:
 the browser's error popup over the new kit's clip view.
+
+`c39-browser-record-audition` opens the sample browser with Shift + (0,5) and presses RECORD with the audition pad
+(17,3) held, which the browser refuses, then without it, which opens the recorder.

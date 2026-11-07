@@ -621,7 +621,7 @@ private:
 	/// @brief `SampleBrowser::horizontalEncoderAction`: zoom or scroll the preview, or reveal the keyboard and walk the
 	///        cursor.
 	deluge::ui::shell::Result horizontal_turn(int32_t delta);
-	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD and KEYBOARD arms.
+	/// @brief `SampleBrowser::buttonAction`'s X_ENC, LOAD, RECORD and Shift+SAVE arms.
 	/// @return The answer, or nullopt for a button those arms do not take.
 	std::optional<deluge::ui::shell::Result> sample_button(deluge::ui::shell::ButtonId button, bool on);
 	/// @brief The favourites the browser shows: the host's, unless a spec gave its own.
