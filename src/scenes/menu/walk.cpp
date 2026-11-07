@@ -319,11 +319,11 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 		return;
 	}
 
-	// The picker's job is done the moment the item it was heading to opens -- legacy drops
-	// `menuItemHeadingTo` on the floor the same way, by simply navigating past it.
+	// The item the picker stood in for has opened, so the picker is no longer the reason it is not shown. The item
+	// stays recorded: `main` only ever writes `multiRangeMenu.menuItemHeadingTo`, so BACK from the item lands on a
+	// picker that still blinks the item's shortcut and whose select press enters it again.
 	if (&child == st.walk.pending_after_range) {
 		st.walk.range_picker_pending = false;
-		st.walk.pending_after_range = nullptr;
 	}
 	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
 	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one

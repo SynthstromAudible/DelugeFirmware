@@ -1721,6 +1721,48 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 	});
 
+	it("the range picker still heads to its item after the item opened, so BACK lands on a picker that re-enters it", _ {
+		// `multiRangeMenu.menuItemHeadingTo` is only ever written (`SoundEditor::setup`, `HorizontalMenu`): entering
+		// the item leaves it set. After BACK, `goUpOneLevel` maps the picker to it and `updatePadLightsFor` blinks its
+		// shortcut, and `MultiRange::selectButtonPress` returns it again.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.shell.tick(140);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+
+		r.button(kBackX, kBackY, true, 150);
+		r.shell.tick(160);
+		r.button(kBackX, kBackY, false, 170);
+		r.shell.tick(180);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 190);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 190);
+		r.shell.tick(200);
+		expect(depth_of()).to_equal(2);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+	});
+
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
 		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:212`); a voice start writes it too
 		// (`Source::getRange`), and the open picker's cursor stays where it was.
