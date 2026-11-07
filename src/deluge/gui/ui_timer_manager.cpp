@@ -145,6 +145,10 @@ void UITimerManager::routine() {
 					deluge::gui::track_edit_pulse::pulseTimer();
 					break;
 
+				case TimerName::TRACK_HOLD_PULSE:
+					deluge::gui::track_edit_pulse::holdTimer();
+					break;
+
 				case TimerName::SELECTED_CLIP_PULSE:
 					sessionView.gridPulseSelectedClip();
 					break;

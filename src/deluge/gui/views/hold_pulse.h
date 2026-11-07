@@ -41,6 +41,11 @@ public:
 	Output* pulsingFor(Output const* candidate) const { return (candidate == candidate_) ? pulsing_ : nullptr; }
 	// Still waiting for a press to reach the hold time.
 	bool waiting() const { return candidate_ != nullptr && pulsing_ == nullptr; }
+	// Time left until the waiting press becomes a hold, in the same units as `now`; 0 if it is due or not waiting.
+	uint32_t remaining(uint32_t now, uint32_t holdTime) const {
+		uint32_t elapsed = now - since_;
+		return (waiting() && elapsed < holdTime) ? holdTime - elapsed : 0;
+	}
 	bool tracking() const { return candidate_ != nullptr || pulsing_ != nullptr; }
 
 private:

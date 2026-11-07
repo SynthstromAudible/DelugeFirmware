@@ -3491,7 +3491,8 @@ Output* ArrangerView::heldPulseCandidate() const {
 }
 
 bool ArrangerView::updateHeldPulse() {
-	if (heldPulse.update(heldPulseCandidate(), AudioEngine::audioSampleTimer, kShortPressTime)) {
+	uint32_t now = AudioEngine::audioSampleTimer;
+	if (heldPulse.update(heldPulseCandidate(), now, kShortPressTime)) {
 		deluge::gui::track_edit_pulse::resetHeldPulse();
 		bool settled = currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 		if (getRootUI() == this && getCurrentUI() == this && settled) {
@@ -3499,7 +3500,7 @@ bool ArrangerView::updateHeldPulse() {
 		}
 	}
 	if (heldPulse.waiting()) {
-		deluge::gui::track_edit_pulse::keepTicking();
+		deluge::gui::track_edit_pulse::scheduleHoldCheck(heldPulse.remaining(now, kShortPressTime));
 	}
 	return heldPulse.tracking();
 }
