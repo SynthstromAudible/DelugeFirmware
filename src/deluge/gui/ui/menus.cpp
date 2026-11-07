@@ -229,6 +229,9 @@
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1843,7 +1846,11 @@ class LoopSongMenuToggle final : public ToggleBoolDyn {
 public:
 	using ToggleBoolDyn::ToggleBoolDyn;
 	bool isRelevant(ModControllableAudio*, int32_t) const override {
-		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong);
+		UI* activeView = getUIUpOneLevel();
+		bool isGridView =
+		    activeView == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong)
+		       && (isGridView || activeView == &arrangerView);
 	}
 };
 
