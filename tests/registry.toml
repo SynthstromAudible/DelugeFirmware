@@ -2925,6 +2925,19 @@ group = "tooling"
 runtime = "~1s"
 
 [[harness]]
+name = "run-parity-runner"
+path = "tests/ui-scripts/parity"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script"
+run = ["python3", "-m", "unittest", "test_run_parity"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
 name = "audible-window-tooling"
 path = "tools/audible_window"
 level = "unit"

@@ -90,8 +90,19 @@ def free_udp_port():
         return s.getsockname()[1]
 
 
-def advance(dz, seconds):
-    dz.run_until(dz.vclock_ns() + int(seconds * 1e9), timeout=600.0)
+class Schedule:
+    """The script's own clock: every wait moves an absolute target, and the emulator runs to it. A stop lands a little
+    after its target; measured from "now", those overshoots add up over a long script and the two images drift apart
+    (by 14 s over `midi_follow`), so the same timeout falls in different snapshots."""
+
+    def __init__(self, dz):
+        self.dz = dz
+        self.target_ns = dz.vclock_ns()
+
+    def wait(self, seconds):
+        self.target_ns += round(seconds * 1e9)
+        if self.target_ns > self.dz.vclock_ns():
+            self.dz.run_until(self.target_ns, timeout=600.0)
 
 
 class AbortWatch:
@@ -173,8 +184,9 @@ def launch(session_cls, qmp_client_cls, emu, elf, card, extra, workdir, midi):
         repo_root=emu,
         run_log=log,
     )
-    advance(dz, BOOT_WAIT)
-    return dz, emu_port, watch
+    schedule = Schedule(dz)
+    schedule.wait(BOOT_WAIT)
+    return dz, emu_port, watch, schedule
 
 
 def drain(midi):
@@ -198,14 +210,14 @@ def screen(dz, random_pads=()):
     }
 
 
-def snapshot(dz, midi, random_pads=()):
+def snapshot(dz, schedule, midi, random_pads=()):
     """The distinct states the screen shows over the window, in order, and the DIN MIDI sent since the last snapshot."""
     frames = []
     for _ in range(WINDOW_READS):
         state = screen(dz, random_pads)
         if state not in frames:
             frames.append(state)
-        advance(dz, WINDOW / WINDOW_READS)
+        schedule.wait(WINDOW / WINDOW_READS)
     return {"frames": frames, "midi": drain(midi).hex(" ")}
 
 
@@ -221,7 +233,7 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
     midi = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     midi.bind(("127.0.0.1", 0))
     midi.setblocking(False)
-    dz, emu_port, watch = launch(
+    dz, emu_port, watch, schedule = launch(
         session_cls, qmp_client_cls, emu, elf, card, extra, workdir, midi
     )
     try:
@@ -233,7 +245,7 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
                 if verb != "up":
                     dz.button(c["col"], c["row"], True)
                 if verb == "press":
-                    advance(dz, int(args[1]) / 1000.0 if len(args) > 1 else 0.12)
+                    schedule.wait(int(args[1]) / 1000.0 if len(args) > 1 else 0.12)
                 if verb != "down":
                     dz.button(c["col"], c["row"], False)
             elif verb in ("paddown", "padup", "pad"):
@@ -241,7 +253,7 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
                 if verb != "padup":
                     dz.pad_event(x, y, True)
                 if verb == "pad":
-                    advance(dz, int(args[2]) / 1000.0 if len(args) > 2 else 0.12)
+                    schedule.wait(int(args[2]) / 1000.0 if len(args) > 2 else 0.12)
                 if verb != "paddown":
                     dz.pad_event(x, y, False)
             elif verb == "turn":
@@ -256,17 +268,17 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
                 random_pads.add((int(args[0]), int(args[1])))
                 continue
             elif verb == "wait":
-                advance(dz, float(args[0]))
+                schedule.wait(float(args[0]))
                 continue
             elif verb == "snapshot":
                 label = args[0]
                 if label in snaps:
                     raise RunError(f"{where}: snapshot label {label!r} used twice")
-                snaps[label] = snapshot(dz, midi, random_pads)
+                snaps[label] = snapshot(dz, schedule, midi, random_pads)
                 continue
             else:
                 raise RunError(f"{where}: unknown verb {verb!r}")
-            advance(dz, SETTLE)
+            schedule.wait(SETTLE)
         if watch.aborts:
             console = ""
             run_log = getattr(dz, "run_log", None)
