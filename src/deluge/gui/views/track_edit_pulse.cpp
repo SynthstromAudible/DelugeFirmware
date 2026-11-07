@@ -147,8 +147,7 @@ void pulseTimer() {
 	if (tracking_hold) {
 		uiTimerManager.setTimer(TimerName::TRACK_LOCK_PULSE, kPulseInterval);
 	}
-	if (root != pulse_ui || (root != &sessionView && root != &arrangerView)
-	    || (root == &sessionView && !sessionView.gridTrackRowEnabled())) {
+	if (root != pulse_ui || (root != &sessionView && root != &arrangerView)) {
 		return;
 	}
 	bool track_menu = root == &sessionView && getCurrentUI() == &soundEditor && track_link::isMenuOpen();
@@ -167,7 +166,9 @@ void pulseTimer() {
 	// and other menus retain exclusive ownership of the pad image.
 	if ((getCurrentUI() != root && !track_menu) || PadLEDs::renderingLock
 	    || (track_menu && soundEditor.should_render_shortcut_overlay())
-	    || (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+	    || (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
+	        && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW
+	        && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 		return;
 	}
 	if (track_menu) {

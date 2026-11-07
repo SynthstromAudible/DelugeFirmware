@@ -741,6 +741,9 @@ void SessionView::beginEditingSectionRepeatsNum() {
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	auto refreshPulse = util::finally([this] { updateHeldPulse(); });
+	Output* lockedBefore = heldLockedClipOutput();
+	auto refreshLockedPulse = util::finally([&] { refreshLockedClipPulse(lockedBefore); });
+
 	if (gridTrackRowEnabled() && yDisplay == 0 && xDisplay < kDisplayWidth) {
 		return gridTrackPadAction(xDisplay, on);
 	}
@@ -1134,6 +1137,9 @@ justEndClipPress:
 }
 
 void SessionView::clipPressEnded() {
+	Output* lockedBefore = heldLockedClipOutput();
+	auto refreshPulse = util::finally([&] { refreshLockedClipPulse(lockedBefore); });
+
 	// End stuttering since this can also end selection
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
 		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
@@ -2773,6 +2779,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	uint32_t whichRowsCouldntBeRendered = 0;
 	uint32_t whichRowsNeedRefinement = 0;
+	Output* lockedHeld = heldLockedClipOutput();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2781,7 +2788,16 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (whichRows & (1 << yDisplay)) {
+			deluge::gui::track_edit_pulse::clearPulseRow(image[yDisplay], yDisplay);
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
+			Clip* rowClip = getClipOnScreen(yDisplay);
+			if ((lockedHeld != nullptr) && (rowClip != nullptr) && rowClip->output == lockedHeld) {
+				// Every pad pulses, so a clip without notes still shows the pulse.
+				for (int32_t x = 0; x < kDisplayWidth; ++x) {
+					image[yDisplay][x] = deluge::gui::track_edit_pulse::renderPulse(image[yDisplay][x], *lockedHeld,
+					                                                                image[yDisplay], x, yDisplay, true);
+				}
+			}
 			if (!success) {
 				Clip* clip = getClipOnScreen(yDisplay);
 				if (clip && clip->type == ClipType::AUDIO) {
@@ -3469,6 +3485,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
 	Output* heldOutput = heldPulseOutput();
+	Output* lockedHeld = heldLockedClipOutput();
 
 	PadLEDs::renderingLock = true;
 
@@ -3490,7 +3507,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
 			image[y][x] = gridRenderClipColor(clip, x, y);
-			if ((heldOutput != nullptr) && clip->output == heldOutput) {
+			if (((heldOutput != nullptr) && clip->output == heldOutput) || clip->output == lockedHeld) {
 				image[y][x] =
 				    deluge::gui::track_edit_pulse::renderPulse(image[y][x], *clip->output, image[y], x, y, true);
 			}
@@ -5252,4 +5269,24 @@ bool SessionView::updateHeldPulse() {
 		deluge::gui::track_edit_pulse::scheduleHoldCheck(heldPulse.remaining(now, kShortPressTime));
 	}
 	return heldPulse.tracking();
+}
+
+Output* SessionView::heldLockedClipOutput() {
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+		return nullptr;
+	}
+	Clip* clip = getClipForLayout();
+	return ((clip != nullptr) && clip->output->isTrackLocked()) ? clip->output : nullptr;
+}
+
+void SessionView::refreshLockedClipPulse(Output const* lockedBefore) {
+	if (heldLockedClipOutput() == lockedBefore) {
+		return;
+	}
+	deluge::gui::track_edit_pulse::resetHeldPulse();
+	// Releasing a pad may start a transition into the clip (explode, expand, etc.); don't repaint over it.
+	if (getCurrentUI() == this
+	    && (currentUIMode == UI_MODE_NONE || isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW))) {
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
 }
