@@ -1170,6 +1170,10 @@ TAKE_SYNTH_LPF = (
 )
 # The kit's first drum's row: its cutoff stepping down for the second half of the bar.
 TAKE_ROW_LPF = _steps(0x7FFFFFFF, [(0x20000000, 192)])
+# The kit's second row is half a bar long, so it repeats at its own end: its cutoff stepping down for the second half of
+# its length.
+TAKE_SHORT_ROW_TICKS = TAKE_TICKS // 2
+TAKE_SHORT_ROW_LPF = _steps(0x7FFFFFFF, [(0x30000000, TAKE_SHORT_ROW_TICKS // 2)])
 # The audio clip's volume stepping up for the last quarter of the bar.
 TAKE_AUDIO = _host(params=f'volume="{_steps(0x00000000, [(0x30000000, 288)])}"')
 
@@ -1188,12 +1192,19 @@ def arrange_take_song(voices: list[tuple[str, str, int]]) -> str:
     )
     drums = [
         _drum("RSD1", "SAMPLES/RS/A.WAV", [(0, 96), (192, 96)]),
-        _drum("RSD2", "SAMPLES/RS/B.WAV", [(96, 96), (288, 96)]),
+        _drum("RSD2", "SAMPLES/RS/B.WAV", [(96, 96)]),
     ]
     kit, kit_clip = kit_parts(DRY, drums)
-    # The first row's cutoff: the first soundParams in the clip is that row's.
+    # Each row's cutoff, in row order: the first soundParams in the clip is the first row's.
     kit_clip = kit_clip.replace(
         'lpfFrequency="0x7FFFFFFF"', f'lpfFrequency="{TAKE_ROW_LPF}"', 1
+    )
+    kit_clip = kit_clip.replace(
+        'lpfFrequency="0x7FFFFFFF"', f'lpfFrequency="{TAKE_SHORT_ROW_LPF}"', 1
+    )
+    kit_clip = kit_clip.replace(
+        '<noteRow drumIndex="1" ',
+        f'<noteRow drumIndex="1" length="{TAKE_SHORT_ROW_TICKS}" ',
     )
     track, audio_clip = audio_parts(TAKE_AUDIO)
     clips = [kit_clip, audio_clip]

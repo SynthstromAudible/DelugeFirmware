@@ -20,9 +20,12 @@
 
 #include <atomic>
 #include <cstdint>
+#include <utility>
 
 class InstrumentClip;
+class ModelStackWithNoteRow;
 class ModelStackWithTimelineCounter;
+class NoteRow;
 class Song;
 
 /// An arrangement take's repeats. While the arrangement records a clip, its take repeats it at every loop end: the
@@ -38,13 +41,31 @@ extern uint32_t stagedRepeatMisses;
 extern uint32_t stagedRepeatSwaps;
 #endif
 
-/// A take's repeats while the arrangement records it, and its next repeat staged.
+/// A take's repeats while the arrangement records it, and its next repeat staged: a take clip's, or a row's of it with
+/// its own length, which repeats at its own end.
 struct TakeRepeats {
+	TakeRepeats() = default;
+	/// A copy starts with no repeats: a clip or row copied is not the take.
+	TakeRepeats(const TakeRepeats& /*other*/) {}
+	TakeRepeats& operator=(const TakeRepeats& /*other*/) { return *this = TakeRepeats{}; }
+	/// A row moved within its vector, with the render held off, keeps its repeats.
+	TakeRepeats(TakeRepeats&& other) noexcept { *this = std::move(other); }
+	TakeRepeats& operator=(TakeRepeats&& other) noexcept {
+		appended.store(other.appended.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		inModel = other.inModel;
+		paramLength = other.paramLength;
+		source.store(other.source.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		staged.store(other.staged.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		stagedCollections.store(other.stagedCollections.load(std::memory_order_relaxed), std::memory_order_relaxed);
+		anyStaged = other.anyStaged;
+		return *this;
+	}
+
 	std::atomic<uint32_t> appended{0}; ///< [render] or [interaction] counted at each repeat appended
 	uint32_t inModel = 0;              ///< [interaction] the repeats whose automation the model holds
 	int32_t paramLength = 0;           ///< [interaction] the length the model's automation covers
 	/// [interaction] set, [render] or [interaction] cleared: the clip the take repeats, kept until the model holds
-	/// every repeat counted; cleared when that clip goes.
+	/// every repeat counted; cleared when that clip goes. A row's repeats use its clip's.
 	std::atomic<InstrumentClip*> source{nullptr};
 	/// [interaction] set, [render] cleared: the next repeat is staged on every collection it appends to.
 	std::atomic<bool> staged{false};
@@ -57,6 +78,8 @@ struct TakeRepeats {
 /// @brief [render] or [interaction] A repeat of @p take's source was appended to @p take (its notes and its length):
 ///        the interaction tier appends its automation at its next commit.
 void countRepeat(InstrumentClip& take);
+/// @brief [render] or [interaction] As countRepeat(), for @p row of a take, which has its own length.
+void countRowRepeat(NoteRow& row);
 
 /// @brief [interaction] Append into the model the automation of each repeat counted for each arrangement take of
 ///        @p song and not yet appended, oldest first, at the length the model's automation covers. First thing in
@@ -75,15 +98,20 @@ void restageArrangementTakes(Song& song);
 /// @return Whether it swapped.
 bool swapStagedRepeat(InstrumentClip& take, ModelStackWithTimelineCounter* thisModelStack,
                       ModelStackWithTimelineCounter* otherModelStack);
+/// @brief [render] As swapStagedRepeat(), at the end of @p row of a take, which has its own length: @p rowModelStack
+/// names
+///        it, @p otherRowModelStack the source's row.
+bool swapStagedRowRepeat(NoteRow& row, ModelStackWithNoteRow* rowModelStack, ModelStackWithNoteRow* otherRowModelStack);
 
 #if defined(DELUGE_HOST)
-/// @brief Host only: run @p hook on the render at each take's loop end, once its repeat is appended and swapped in;
-///        nullptr clears it.
-void setTakeLoopEndHook(void (*hook)(InstrumentClip& take));
-/// @brief [render] Host only: run the hook set, if any, for @p take.
-void takeLoopEnded(InstrumentClip& take);
+/// @brief Host only: run @p hook on the render at each take's loop end, and at each of its rows' own end (@p row;
+/// nullptr
+///        for the clip's), once its repeat is appended and swapped in; nullptr clears it.
+void setTakeLoopEndHook(void (*hook)(InstrumentClip& take, NoteRow* row));
+/// @brief [render] Host only: run the hook set, if any, for @p take and @p row.
+void takeLoopEnded(InstrumentClip& take, NoteRow* row = nullptr);
 #else
-inline void takeLoopEnded(InstrumentClip& /*take*/) {
+inline void takeLoopEnded(InstrumentClip& /*take*/, NoteRow* /*row*/ = nullptr) {
 }
 #endif
 

@@ -224,6 +224,12 @@ public:
 	/// @brief Call @p visit with each param manager of this take that a repeat at @p offset of the clip
 	///        @p otherModelStack names appends to, the source's paired one, and the append's arguments: as
 	///        appendRepeatParams() appends them.
+	/// @brief Call @p visit with each note row of this take whose source row has its own length, and that source row:
+	///        those repeat at their own end, each in its own stacks.
+	void
+	forEachRowWithOwnLength(ModelStackWithTimelineCounter* thisModelStack,
+	                        ModelStackWithTimelineCounter* otherModelStack,
+	                        deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit);
 	void forEachRepeatedManager(
 	    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
 	    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit);

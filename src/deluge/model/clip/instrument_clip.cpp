@@ -657,13 +657,14 @@ Error InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTi
 }
 
 namespace {
-/// Call @p visit with each note row of the take @p thisModelStack names that repeats its source's (@p otherModelStack)
-/// with the clip's length, and the source's row: a kit's by index, another instrument's by note. A row with its own
-/// length repeats at its own end instead. Stops at the first error @p visit returns.
+/// Call @p visit with each note row of the take @p thisModelStack names and the source's (@p otherModelStack) row it
+/// repeats: a kit's by index, another instrument's by note. Those whose source row has its own length when @p ownLength
+/// (they repeat at their own end), else the rest (they repeat with the clip). Stops at the first error @p visit
+/// returns.
 /// @return Error::UNSPECIFIED for a kit whose rows no longer match its source's, else the first error.
 template <typename Visit>
 Error forEachRepeatedRow(InstrumentClip& clip, ModelStackWithTimelineCounter* thisModelStack,
-                         ModelStackWithTimelineCounter* otherModelStack, Visit visit) {
+                         ModelStackWithTimelineCounter* otherModelStack, Visit visit, bool ownLength = false) {
 	auto* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 	if (clip.output->type == OutputType::KIT) {
 		if (std::ssize(clip.noteRows) != std::ssize(otherInstrumentClip->noteRows)) {
@@ -671,7 +672,7 @@ Error forEachRepeatedRow(InstrumentClip& clip, ModelStackWithTimelineCounter* th
 		}
 		for (int32_t i = 0; i < std::ssize(clip.noteRows); i++) {
 			NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-			if (otherNoteRow->loopLengthIfIndependent()) {
+			if ((otherNoteRow->loopLengthIfIndependent() != 0) != ownLength) {
 				continue;
 			}
 			NoteRow* thisNoteRow = &clip.noteRows[i];
@@ -685,7 +686,7 @@ Error forEachRepeatedRow(InstrumentClip& clip, ModelStackWithTimelineCounter* th
 	}
 	for (int32_t i = 0; i < std::ssize(otherInstrumentClip->noteRows); i++) {
 		NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-		if (otherNoteRow->loopLengthIfIndependent()) {
+		if ((otherNoteRow->loopLengthIfIndependent() != 0) != ownLength) {
 			continue;
 		}
 		int32_t noteRowId = otherNoteRow->y();
@@ -773,6 +774,18 @@ void InstrumentClip::endTakesForRepeat(ModelStackWithTimelineCounter* thisModelS
 			                       }
 		                       }
 	                       });
+}
+
+void InstrumentClip::forEachRowWithOwnLength(
+    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+    deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
+	(void)forEachRepeatedRow(
+	    *this, thisModelStack, otherModelStack,
+	    [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
+		    visit(row, thisRow, otherRow);
+		    return Error::NONE;
+	    },
+	    true);
 }
 
 void InstrumentClip::forEachRepeatedManager(
@@ -4642,11 +4655,14 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 									int32_t whichRepeatThisIs =
 									    noteRow->loopLengthIfIndependent() / otherNoteRow->loopLengthIfIndependent();
+									// As at the row's own end, with the repeat's automation appended at once
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent(), whichRepeatThisIs,
-									                       otherNoteRow->loopLengthIfIndependent());
+									                       otherNoteRow->loopLengthIfIndependent(), false);
 									noteRow->setLoopLengthIfIndependent(noteRow->loopLengthIfIndependent()
 									                                    + otherNoteRow->loopLengthIfIndependent());
+									deluge::modulation::countRowRepeat(*noteRow);
+									deluge::modulation::catchUpArrangementTakes(*modelStack->song);
 								}
 							}
 						}

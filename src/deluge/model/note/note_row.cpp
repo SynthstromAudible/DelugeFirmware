@@ -39,6 +39,7 @@
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/move_section.h"
@@ -2100,11 +2101,18 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 				int32_t whichRepeatThisIs =
 				    (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent();
 
+				// The notes and the length; the interaction tier appends the repeat's automation before its next job
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
-				              otherNoteRow->loopLengthIfIndependent());
+				              otherNoteRow->loopLengthIfIndependent(), false);
 
 				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
 				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
+
+				endTakesForRepeat(*otherNoteRow);
+				// The repeat plays from its staged snapshots, published here
+				(void)deluge::modulation::swapStagedRowRepeat(*this, modelStack, otherModelStackWithNoteRow);
+				deluge::modulation::countRowRepeat(*this);
+				deluge::modulation::takeLoopEnded(*clip, this);
 			}
 		}
 
@@ -4157,6 +4165,22 @@ RepeatArgs NoteRow::repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t o
 	return {.offset = offset,
 	        .reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0,
 	        .pingpongingGenerally = pingpongingGenerally};
+}
+
+void NoteRow::endTakesForRepeat(NoteRow& otherNoteRow) {
+	if (!paramManager.containsAnyParamCollectionsIncludingExpression()
+	    || !otherNoteRow.paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		return;
+	}
+	// The collections the repeat appends to: those with automation
+	for (ParamCollectionSummary& summary : paramManager.summaries) {
+		if (summary.paramCollection == nullptr) {
+			break;
+		}
+		if (summary.containsAutomation()) {
+			deluge::modulation::endTake(*summary.paramCollection);
+		}
+	}
 }
 
 void NoteRow::appendParams(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,

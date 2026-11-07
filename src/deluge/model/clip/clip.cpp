@@ -1202,6 +1202,9 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				// next commit (deluge::modulation::catchUpArrangementTakes())
 				auto* take = static_cast<InstrumentClip*>(newClip);
 				take->repeats.paramLength = newClip->loopLength();
+				for (NoteRow& row : take->noteRows) {
+					row.repeats.paramLength = row.loopLengthIfIndependent();
+				}
 				take->repeats.source.store(static_cast<InstrumentClip*>(this), std::memory_order_release);
 			}
 

@@ -682,47 +682,63 @@ void forEachPairedManager(InstrumentClip& take, InstrumentClip& source, Visit vi
 	}
 }
 
-/// @brief [render] At @p take's loop end, once its repeat is appended and swapped in, compare what the render plays
-/// across the repeat with what it repeats: at each node of each of the source's lanes, the take's lane plays that
-/// node's value at the node's position in the repeat. The sources play forward, so a repeat is their lanes shifted.
-void checkTakePlayed(InstrumentClip& take) {
+/// [render] Compare what the render plays of @p mine's lanes across a repeat from @p oldLength to @p newLength with
+/// what it repeats, @p theirs's lanes: at each of their nodes, the take's lane plays the node's value at the node's
+/// position in the repeat. The sources play forward, so a repeat is their lanes shifted.
+void checkRepeatPlayed(ParamManager& mine, ParamManager& theirs, int32_t oldLength, int32_t newLength, int32_t clip,
+                       int32_t repeat, int32_t row) {
+	for (size_t i = 0; i < std::size(theirs.summaries); i++) {
+		ParamCollection* sourceCollection = theirs.summaries[i].paramCollection;
+		ParamCollection* collection = mine.summaries[i].paramCollection;
+		if (sourceCollection == nullptr || collection == nullptr) {
+			break;
+		}
+		sourceCollection->forEachLane([&](int32_t paramId, const deluge::project::DocAutoParam& lane) {
+			const std::optional<deluge::project::LaneView> played = playedLane(*collection, paramId);
+			if (!played) {
+				return; // not published yet: the render reads the model, which RS-SNAPSHOT counts
+			}
+			int32_t checked = 0;
+			int32_t mismatched = 0;
+			for (const deluge::project::ParamNode& node : lane.nodes) {
+				const uint32_t pos = static_cast<uint32_t>(oldLength + node.pos);
+				const int32_t got =
+				    played->empty() ? played->base : deluge::project::getValueAtPos(*played, pos, newLength);
+				checked++;
+				mismatched += got != node.value ? 1 : 0;
+			}
+			g_playedChecked += checked;
+			g_playedMismatched += mismatched;
+			printf("RS-TAKE-PLAYED clip=%d repeat=%d row=%d kind=%d lane=%d checked=%d mismatched=%d\n", clip, repeat,
+			       row, static_cast<int>(collection->getParamKind()), paramId, checked, mismatched);
+		});
+	}
+}
+
+/// @brief [render] At @p take's loop end (@p row null), or at the own end of @p row of it, once its repeat is appended
+/// and swapped in: what the render plays across the repeat is what it repeats (checkRepeatPlayed()).
+void checkTakePlayed(InstrumentClip& take, NoteRow* row) {
 	auto* source = static_cast<InstrumentClip*>(take.beingRecordedFromClip);
 	if (source == nullptr) {
 		return;
 	}
-	const int32_t newLength = take.loopLength();
-	const int32_t oldLength = newLength - source->loopLength();
 	const auto& takes = currentSong->live.clips.arrangement_only_clips;
 	const int32_t t = static_cast<int32_t>(std::ranges::find(takes, &take) - takes.begin());
-	const int32_t repeat = newLength / source->loopLength() - 1;
-	forEachPairedManager(take, *source, [&](ParamManager& mine, ParamManager& theirs, int32_t row) {
-		for (size_t i = 0; i < std::size(theirs.summaries); i++) {
-			ParamCollection* sourceCollection = theirs.summaries[i].paramCollection;
-			ParamCollection* collection = mine.summaries[i].paramCollection;
-			if (sourceCollection == nullptr || collection == nullptr) {
-				break;
-			}
-			sourceCollection->forEachLane([&](int32_t paramId, const deluge::project::DocAutoParam& lane) {
-				const std::optional<deluge::project::LaneView> played = playedLane(*collection, paramId);
-				if (!played) {
-					return; // not published yet: the render reads the model, which RS-SNAPSHOT counts
-				}
-				int32_t checked = 0;
-				int32_t mismatched = 0;
-				for (const deluge::project::ParamNode& node : lane.nodes) {
-					const uint32_t pos = static_cast<uint32_t>(oldLength + node.pos);
-					const int32_t got =
-					    played->empty() ? played->base : deluge::project::getValueAtPos(*played, pos, newLength);
-					checked++;
-					mismatched += got != node.value ? 1 : 0;
-				}
-				g_playedChecked += checked;
-				g_playedMismatched += mismatched;
-				printf("RS-TAKE-PLAYED clip=%d repeat=%d row=%d kind=%d lane=%d checked=%d mismatched=%d\n", t, repeat,
-				       row, static_cast<int>(collection->getParamKind()), paramId, checked, mismatched);
-			});
-		}
-	});
+	if (row == nullptr) {
+		const int32_t newLength = take.loopLength();
+		const int32_t oldLength = newLength - source->loopLength();
+		const int32_t repeat = newLength / source->loopLength() - 1;
+		forEachPairedManager(take, *source, [&](ParamManager& mine, ParamManager& theirs, int32_t r) {
+			checkRepeatPlayed(mine, theirs, oldLength, newLength, t, repeat, r);
+		});
+		return;
+	}
+	const int32_t r = static_cast<int32_t>(row - &take.noteRows[0]);
+	NoteRow& sourceRow = source->noteRows[r]; // a kit's: the take's rows are its source's, by index
+	const int32_t newLength = row->loopLengthIfIndependent();
+	const int32_t sourceLength = sourceRow.loopLengthIfIndependent();
+	checkRepeatPlayed(row->paramManager, sourceRow.paramManager, newLength - sourceLength, newLength, t,
+	                  newLength / sourceLength - 1, r);
 }
 
 /// @brief Print every arrangement take's lanes from the model: its length, then each lane's base and nodes (position,
@@ -1108,13 +1124,24 @@ void report() {
 		}
 	}
 	if (g_arrangeRecord) {
+		// Every collection's published snapshot holds its model's lanes once the take is over: a take whose repeats
+		// were appended where nothing republished them plays lanes the model no longer holds
+		const int32_t stale = deluge::modulation::checkPublished(*currentSong);
+		printf("RS-TAKE-STALE collections=%d\n", static_cast<int>(stale));
+		if (stale != 0) {
+			fail("RS-TAKE-STALE", "a collection's published lanes are not its model's after the take");
+		}
 		dumpTakes();
 		printf("RS-TAKE-PLAYED checked=%d mismatched=%d\n", g_playedChecked, g_playedMismatched);
 #if ALPHA_OR_BETA_VERSION
 		uint32_t repeats = 0;
 		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {
 			if (clip->type == ClipType::INSTRUMENT) {
-				repeats += static_cast<InstrumentClip*>(clip)->repeats.appended.load();
+				auto* take = static_cast<InstrumentClip*>(clip);
+				repeats += take->repeats.appended.load();
+				for (NoteRow& row : take->noteRows) {
+					repeats += row.repeats.appended.load();
+				}
 			}
 		}
 		printf("RS-TAKE-REPEATS repeats=%u swaps=%u misses=%u latch_without_copy=%u\n", repeats,
