@@ -592,8 +592,14 @@ void MidiEngine::checkIncomingUsbMidi() {
 	for (int32_t ip = 0; ip < DELUGE_USB_NUM_CONTROLLERS; ip++) {
 
 		bool aPeripheral = !deluge_midi_usb_is_host();
-		if (aPeripheral && !deluge_midi_usb_peripheral_connected()) {
-			continue;
+		if (aPeripheral) {
+			// The USB stack's `usb_peri_configured` / `usb_peri_detach`: the BSP owns the stack, so the configured
+			// state is read here and the upstream cables follow it.
+			const bool configured = deluge_midi_usb_peripheral_connected();
+			MIDIDeviceManager::notePeripheralConnected(ip, configured);
+			if (!configured) {
+				continue;
+			}
 		}
 		// assumes only single device in peripheral mode
 		int32_t numDevicesNow = aPeripheral ? 1 : MAX_NUM_USB_MIDI_DEVICES;

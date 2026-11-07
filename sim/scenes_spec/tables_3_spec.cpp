@@ -91,6 +91,7 @@ using deluge::hid::display::OLED;
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/usb/usb_audio.h"
 
 #include "processing/engines/cv_engine.h"
 
@@ -3442,6 +3443,48 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		const auto issues = menu::validate_tree(subtree, contexts, {}, {},
 		                                        menu::ValidateOptions{.skip_shortcut_sweep = true});
 		expect(issues.size()).to_equal(size_t(0));
+	});
+
+	it("lists the two upstream USB ports once a host configures the Deluge, and drops them when it goes", _ {
+		// main's USB stack calls `configuredAsPeripheral` on SET_CONFIGURATION and `detachedAsPeripheral` on detach;
+		// here the MIDI routine reports the BSP's configured state through `notePeripheralConnected`.
+		CableFixture cables;
+		cables.set(1, 0, 0, {});
+		MIDICable* rows[nodes::kMaxDeviceRows];
+		expect(nodes::connected_cables(rows)).to_equal(size_t{1});
+
+		MIDIDeviceManager::notePeripheralConnected(0, true);
+		expect(nodes::connected_cables(rows)).to_equal(size_t{3});
+		expect(rows[1] == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(rows[2] == &MIDIDeviceManager::upstreamUSBMIDICable2).to_be_true();
+		expect(connectedUSBMIDIDevices[0][0].cable[0] == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+
+		MIDIDeviceManager::notePeripheralConnected(0, false);
+		expect(nodes::connected_cables(rows)).to_equal(size_t{1});
+		expect(connectedUSBMIDIDevices[0][0].cable[0] == nullptr).to_be_true();
+	});
+
+	it("acts on a change of the configured state only, as the USB stack's two callbacks did", _ {
+		// A repeated `true` must not run `configuredAsPeripheral` again (it would re-send the capability messages);
+		// a disconnect the cables already know of must not run `detachedAsPeripheral`.
+		CableFixture cables;
+		cables.set(1, 0, 0, {});
+		MIDIDeviceManager::notePeripheralConnected(0, true);
+		MIDIDeviceManager::upstreamUSBMIDICable1.connectionFlags = 0; // a marker: a second configure would set it again
+		MIDIDeviceManager::notePeripheralConnected(0, true);
+		expect(int(MIDIDeviceManager::upstreamUSBMIDICable1.connectionFlags)).to_equal(0);
+		MIDIDeviceManager::notePeripheralConnected(0, false);
+		MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags = 1; // a marker: a second detach would clear it
+		MIDIDeviceManager::notePeripheralConnected(0, false);
+		expect(int(MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags)).to_equal(1);
+	});
+
+	it("opening the USB device opens the MIDI routine's USB reads, as openUSBPeripheral did", _ {
+		const uint8_t saved = usbCurrentlyInitialized;
+		usbCurrentlyInitialized = false;
+		deluge::usb_audio::startDevice();
+		expect(usbCurrentlyInitialized != 0).to_be_true();
+		usbCurrentlyInitialized = saved;
 	});
 });
 

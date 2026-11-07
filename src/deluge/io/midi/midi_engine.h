@@ -173,6 +173,9 @@ private:
 	uint32_t midiDue_{0}; ///< Due time given to MIDI as it's queued, see setMIDIDue()
 };
 
+/// @brief Whether the USB stack is open; `MidiEngine::checkIncomingUsbMidi` reads USB-MIDI only while it is.
+extern uint8_t usbCurrentlyInitialized;
+
 uint32_t setupUSBMessage(MIDIMessage message);
 
 extern MidiEngine midiEngine;

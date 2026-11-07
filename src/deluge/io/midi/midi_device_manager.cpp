@@ -372,6 +372,24 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	deluge::markMappingDevicesChanged();
 }
 
+namespace {
+/// The configured state `notePeripheralConnected` last acted on, per USB controller; false at boot, as the cables are.
+bool peripheralConfigured[DELUGE_USB_NUM_CONTROLLERS] = {};
+} // namespace
+
+void notePeripheralConnected(int32_t ip, bool connected) {
+	if (connected == peripheralConfigured[ip]) {
+		return;
+	}
+	peripheralConfigured[ip] = connected;
+	if (connected) {
+		configuredAsPeripheral(ip);
+	}
+	else {
+		detachedAsPeripheral(ip);
+	}
+}
+
 // Returns NULL if insufficient details found, or not enough RAM to create
 MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 
