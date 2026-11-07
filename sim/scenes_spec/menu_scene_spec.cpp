@@ -1623,7 +1623,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp:334-336`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`multi_range.cpp:336-338`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
@@ -1638,7 +1638,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
-		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:212`); a voice start writes it too
+		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:214`); a voice start writes it too
 		// (`Source::getRange`), and the open picker's cursor stays where it was.
 		select_language();
 		deluge::notify::dirty().drain();

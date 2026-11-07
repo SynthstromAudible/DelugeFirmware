@@ -1834,7 +1834,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
 
-	AudioEngine::audioRoutineLocked = true;
+	// No audio tick runs while the instrument is swapped under this clip. Once the render reads snapshots (M4, the
+	// snapshot boundary) the swap publishes a new one, and this span can shrink or go.
+	std::optional<AudioEngine::AudioTickHold> hold;
+	hold.emplace();
 
 	/* Further stuff to optimize in here:
 	 * -- Delete surplus NoteRows in advance (must stop those Drums playing)
@@ -1904,7 +1907,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 
 	// Can safely call audio routine again now
-	AudioEngine::audioRoutineLocked = false;
+	hold.reset();
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
 

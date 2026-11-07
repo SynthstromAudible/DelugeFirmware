@@ -127,23 +127,18 @@ struct NoSdRoot {
 	NoSdRoot& operator=(const NoSdRoot&) = delete;
 };
 
-/// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the audio routine does
-///        nothing while an example runs.
+/// @brief Hold off the audio tick for the scope, so the audio routine does nothing while an example runs.
 ///
-/// `audioRoutineLocked` is the engine's answer to "do not run the routine right now": the audio
-/// tier's `routine_task()` and `routine()` return at once while it is set, so no render interleaves
-/// with what an example asserts. Code that defers while the routine runs takes its deferring branch
-/// too: `View::endMIDILearn` and the port skip the settings write, and the background waveform
-/// overview scan waits (`deluge::sample::advance_overview_scan`). Restores whatever it found.
+/// An `AudioEngine::AudioTickHold`: the audio tier's `routine_task()` and `routine()` return at once while it is
+/// alive, so no render interleaves with what an example asserts. Code that defers while the routine is busy takes its
+/// deferring branch too: `View::endMIDILearn` and the port skip the settings write, and the background waveform
+/// overview scan waits (`deluge::sample::advance_overview_scan`). Holds nest, so one inside the scenario's whole-file
+/// hold leaves ticks held when it ends.
 ///
-/// @note This is a **spec-side** guard. Shipped code must never hold this latch around ordinary
-///       work: on the device it would silence the audio for as long as it is held.
+/// @note A spec-side guard, held for a whole example. Shipped code holds ticks only around the edit itself: on the
+///       device every held tick is silence.
 struct QuietAudio {
-	bool saved = AudioEngine::audioRoutineLocked;
-	QuietAudio() { AudioEngine::audioRoutineLocked = true; }
-	~QuietAudio() { AudioEngine::audioRoutineLocked = saved; }
-	QuietAudio(const QuietAudio&) = delete;
-	QuietAudio& operator=(const QuietAudio&) = delete;
+	AudioEngine::AudioTickHold hold;
 };
 
 } // namespace deluge::scenes::spec

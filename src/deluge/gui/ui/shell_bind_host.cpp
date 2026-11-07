@@ -646,12 +646,14 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-201`): range storage is about
+	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-203`): range storage is about
 	// to change, so every voice is unassigned and none may be assigned during the allocation.
 	sound->killAllVoices();
-	AudioEngine::audioRoutineLocked = true;
-	::MultiRange* inserted = sound->sources[source].ranges.insertMultiRange(at);
-	AudioEngine::audioRoutineLocked = false;
+	::MultiRange* inserted = nullptr;
+	{
+		AudioEngine::AudioTickHold hold;
+		inserted = sound->sources[source].ranges.insertMultiRange(at);
+	}
 	if (inserted == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
@@ -670,7 +672,7 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:234-285`): `deleteMultiRange` unassigns the voices.
+	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:236-287`): `deleteMultiRange` unassigns the voices.
 	sound->deleteMultiRange(source, index);
 	if (lower_top && index > 0) {
 		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;

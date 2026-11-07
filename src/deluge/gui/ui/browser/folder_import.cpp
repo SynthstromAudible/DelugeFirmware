@@ -680,9 +680,11 @@ bool FolderImport::finishMulti() {
 	// it's going to use
 	if (numSamples > 1) {
 		soundEditor.currentSound->killAllVoices();
-		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
-		AudioEngine::audioRoutineLocked = false;
+		bool success = false;
+		{
+			AudioEngine::AudioTickHold hold;
+			success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
+		}
 
 		if (!success) {
 			delugeDealloc(sortArea);
@@ -702,8 +704,6 @@ bool FolderImport::finishMulti() {
 	}
 
 	soundEditor.setCurrentMultiRange(0);
-
-	AudioEngine::audioRoutineLocked = false;
 
 	// If we've ended up with some samples a whole octave higher than the others, this may be in error
 	int32_t whichSampleIsAnOctaveUp = 0;
