@@ -45,6 +45,9 @@ blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn
 INPUT toggle flip on their list, and a choice column (POLYPHONY on the VOICE page, set to MONO) stays on its page. Its
 turns count the dropped first detent after boot (`+3` to ARPEGGIATOR) and none after (`+5` to USB AUDIO).
 
+`sm26-follow-channel` covers a MIDI follow channel's own screen: the differentiation line, the device and the channel,
+turned through CHANNEL 1, UNASSIGNED and both MPE zones, and the device a learned note names.
+
 `sm24-sidechain-columns` and `sm25-cable-polarity` cover the patch-cable strength items. `sm24` opens the two fixed
 cables' columns from their shortcut pads (the SIDECHAIN page's DUCK meter, the MASTER page's VIBRATO text), SELECT on
 each into its strength page and on to MODULATE DEPTH, and BACK out again. `sm25` drives a strength page: the cursor

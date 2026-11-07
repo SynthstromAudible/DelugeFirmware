@@ -280,6 +280,11 @@ using NotificationSuffixFn = size_t (*)(const MenuContext& ctx, std::span<char> 
 /// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
 using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
+/// @brief `Binding::leaf_draw`'s hook: legacy's `drawInteger` override that draws an `Int` item's whole screen below
+///        its title, given the value after this tick's edit and the screen's side-scroll state.
+using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
+                            deluge::ui::ScrollText& scroll);
+
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
 	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
@@ -457,6 +462,9 @@ struct Binding {
 	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar.
 	///        Null for every ordinary node.
 	ValueTextFn leaf_text = nullptr;
+	/// @brief Legacy's `drawInteger` override that draws the item's own screen (`LeafDrawFn`). Null for every ordinary
+	///        node.
+	LeafDrawFn leaf_draw = nullptr;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
@@ -1190,6 +1198,12 @@ constexpr Node with_turn(Node n, TurnFn turn) {
 /// @brief `n` naming its full-screen value with @p text while it answers (`Binding::leaf_text`).
 constexpr Node with_leaf_text(Node n, ValueTextFn text) {
 	n.bind.leaf_text = text;
+	return n;
+}
+
+/// @brief `n` drawing its full-screen value with @p draw (`Binding::leaf_draw`).
+constexpr Node with_leaf_draw(Node n, LeafDrawFn draw) {
+	n.bind.leaf_draw = draw;
 	return n;
 }
 

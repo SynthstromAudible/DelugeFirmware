@@ -420,19 +420,40 @@ std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const
 }
 
 bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	return visit_.learn.note_on(ctx_, st_, cable, channel, note);
+	const bool learned = visit_.learn.note_on(ctx_, st_, cable, channel, note);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	return visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
+	const bool learned = visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	return visit_.learn.program_change(ctx_, st_, cable, channel, program);
+	const bool learned = visit_.learn.program_change(ctx_, st_, cable, channel, program);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 void MenuScene::unlearn() {
 	visit_.learn.unlearn(ctx_, st_);
+	read_learned_value_again();
+}
+
+void MenuScene::read_learned_value_again() {
+	const Node* at = focused();
+	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom && at->bind.get != nullptr
+	    && (at->learn != nullptr || at->unlearn != nullptr)) {
+		read_value_again();
+	}
 }
 
 bool MenuScene::wants_learn_blink() const {
@@ -1013,8 +1034,13 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::MidiProgramChange:
-	case UiEvent::Kind::MidiPitchBend:
-		return Result{.handled = visit_.learn.offer(ctx_, st_, event, ctx)};
+	case UiEvent::Kind::MidiPitchBend: {
+		const bool used = visit_.learn.offer(ctx_, st_, event, ctx);
+		if (used) {
+			read_learned_value_again();
+		}
+		return Result{.handled = used};
+	}
 	default:
 		break;
 	}
@@ -1033,6 +1059,9 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
 	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
 		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+	}
+	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn && event.on) {
+		read_learned_value_again(); // SHIFT + LEARN's unlearn
 	}
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it

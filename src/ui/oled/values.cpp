@@ -113,6 +113,11 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		}
 	}
 
+	if (style.draw != nullptr) {
+		style.draw(f, rect, value, style.hook_ctx);
+		return resp;
+	}
+
 	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
 	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
 	// that matches the legacy panel-relative offset and centring.

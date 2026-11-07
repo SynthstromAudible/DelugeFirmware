@@ -739,7 +739,6 @@ it leaves both lists.
 | `ClipView`'s clip shift (Y_ENC, or X_ENC held + CLIP) | `AudioClipScene` claims it, as legacy does, and does nothing: two of `Clip::shiftHorizontally`'s arguments depend on whether the automation view is current | port it with `AutomationScene` |
 | `AudioClipView::renderSidebar`'s macro arm | `View::renderMacros` while holding SONG; its reads are all outside this layer | the arm, once the macro state is reachable |
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
-| the MIDI follow channel's screen | `midi::FollowChannel::drawInteger` (input differentiation, device, channel) has no port; the node draws a bare number (`parity/DIFFERENCES.md` D73) | a drawing for the nineteen nodes |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
 | select editing gated by UI mode | `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes`; `MenuScene` edits on every turn | a UI-mode fact handed to the scene; `tests/ui-scripts/parity/DIFFERENCES.md` D94 |
 | `Submenu::shouldForwardButtons`' `buttonAction` | legacy forwards a horizontal page's buttons to its focused value column; the port routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column; `tests/ui-scripts/parity/DIFFERENCES.md` D95 |

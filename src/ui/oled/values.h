@@ -38,7 +38,10 @@ struct ValueStyle {
 	/// An item whose `selectEncoderAction` moves the value its own way: the value a turn of `offset` detents makes from
 	/// `value` (clamped to the range after), or `nullopt` for the step.
 	std::optional<int32_t> (*turn)(int32_t value, int32_t offset, const void* hook_ctx) = nullptr;
-	/// Passed to `label` and `turn`.
+	/// An item whose `drawInteger` draws its own screen: called with the value after this tick's edit, in place of the
+	/// digits (`midi::FollowChannel`). The edit is `int_value`'s as for any integer.
+	void (*draw)(OledFrame& f, gfx::oled::Rect rect, int32_t value, const void* hook_ctx) = nullptr;
+	/// Passed to `label`, `turn` and `draw`.
 	const void* hook_ctx = nullptr;
 };
 

@@ -309,8 +309,9 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	struct LabelCall {
 		const Node* node;
 		const MenuContext* ctx;
+		deluge::ui::ScrollText* scroll;
 	};
-	const LabelCall call{&node, &ctx};
+	const LabelCall call{&node, &ctx, &st.scroll[st.depth < kMenuDepth ? st.depth : 0]};
 	style.hook_ctx = &call;
 	if (node.bind.turn != nullptr) {
 		style.turn = [](int32_t value, int32_t offset, const void* c) -> std::optional<int32_t> {
@@ -323,6 +324,12 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 			const auto& lc = *static_cast<const LabelCall*>(c);
 			const ValueText vt = lc.node->bind.leaf_text(*lc.ctx, value, ValueTextUse::Column, out);
 			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
+		};
+	}
+	if (node.bind.leaf_draw != nullptr) {
+		style.draw = [](deluge::ui::oled::OledFrame& frame, deluge::gfx::oled::Rect, int32_t value, const void* c) {
+			const auto& lc = *static_cast<const LabelCall*>(c);
+			lc.node->bind.leaf_draw(frame, *lc.ctx, value, *lc.scroll);
 		};
 	}
 	const deluge::ui::Response r =

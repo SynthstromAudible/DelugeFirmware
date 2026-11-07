@@ -552,6 +552,11 @@ private:
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
 
+	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
+	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
+	///        and `FollowKitRootNote::learnNoteOn` call `setValue` as well as storing the input, and redraw.
+	void read_learned_value_again();
+
 	MenuState st_{};
 #ifdef DELUGE_HOST
 	/// What the last `after_render` drained, in order (`drain_trace`).

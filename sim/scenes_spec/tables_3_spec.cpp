@@ -2842,6 +2842,71 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 		expect(last_popup_string()).to_equal(uint16_t(0));
 		saved.restore();
 	});
+
+	it("a follow channel's turn wraps through unassigned as legacy's FollowChannel::selectEncoderAction does", _ {
+		// Past either end the channel becomes unassigned and its learned device is forgotten (`midiInput.clear()`); from
+		// unassigned a turn up lands on channel 1 and a turn down on the MPE upper zone.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		midiEngine.midiFollowChannelType[0].clear();
+		midiEngine.midiFollowChannelType[0].cable = &fake_cable();
+		midiEngine.midiFollowChannelType[0].channelOrZone = 0;
+		const std::string unassigned = std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE);
+		Rig r;
+		r.open(nodes::midi_follow_channel_a, settings.ctx);
+		r.shell.tick(0);
+
+		r.turn(-1, 10);
+		r.shell.tick(20);
+		expect(follow_state(0)).to_equal(unassigned);
+		r.turn(-1, 30);
+		r.shell.tick(40);
+		expect(follow_state(0)).to_equal(std::string{"-/"} + std::to_string(MIDI_CHANNEL_MPE_UPPER_ZONE));
+		r.turn(1, 50);
+		r.shell.tick(60);
+		expect(follow_state(0)).to_equal(unassigned);
+		r.turn(1, 70);
+		r.shell.tick(80);
+		expect(follow_state(0)).to_equal(std::string{"-/0"});
+		r.turn(3, 90);
+		r.shell.tick(100);
+		expect(follow_state(0)).to_equal(std::string{"-/3"});
+	});
+
+	it("a learn or unlearn on a follow channel's own screen shows the channel it leaves, as setValue does", _ {
+		// `FollowChannel::learnCC`/`learnNoteOn` and `unlearnAction` set the item's value as well as the learned input,
+		// and redraw when the item is the current one; `FollowKitRootNote::learnNoteOn` the same.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		midiEngine.midiFollowChannelType[0].clear();
+		midiEngine.midiFollowChannelType[0].channelOrZone = 0;
+		{
+			Rig r;
+			r.open(nodes::midi_follow_channel_a, settings.ctx);
+			r.shell.tick(0);
+			expect(menu_scene().state().edit_int).to_equal(0);
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 4, 20, 64)).to_be_true();
+			expect(menu_scene().state().edit_int).to_equal(4);
+			shift_learn();
+			expect(menu_scene().state().edit_int).to_equal(int32_t{MIDI_CHANNEL_NONE});
+		}
+		{
+			Rig k;
+			k.open(nodes::midi_follow_kit_root_note, settings.ctx);
+			k.shell.tick(0);
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 4, 61, 100)).to_be_true();
+			expect(menu_scene().state().edit_int).to_equal(61);
+		}
+	});
+
+	it("every follow channel draws its own screen and turns its own way", _ {
+		for (const Node* node : nodes::kMidiFollowChannelChildren) {
+			expect(node->bind.leaf_draw != nullptr).to_be_true();
+			expect(node->bind.turn != nullptr).to_be_true();
+		}
+	});
 });
 
 describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors and the MIDI device list", $ {
@@ -3476,6 +3541,41 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		r.shell.tick(300);
 		expect_golden(self, "../ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
 		saved.restore();
+	});
+
+	// `FollowChannel::drawInteger` draws MIDI-command-shaped rows on canvas rows 20 / 29 / 38: the input-differentiation
+	// line, the device (or DEVICE UNASSIGNED), and CHANNEL n, an MPE zone or CHANNEL UNASSIGNED. sm26-follow-channel
+	// holds the same screens against main.
+	it("renders a follow channel's own screen: a channel, an MPE zone, unassigned, and a learned device", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		struct Case {
+			int32_t channel;
+			bool cable;
+			const char* golden;
+		};
+		const Case kCases[] = {
+		    {0, false, "menu_follow_channel_1"},
+		    {MIDI_CHANNEL_MPE_LOWER_ZONE, false, "menu_follow_channel_lower_zone"},
+		    {MIDI_CHANNEL_NONE, false, "menu_follow_channel_unassigned"},
+		    {3, true, "menu_follow_channel_learned"},
+		};
+		for (const Case& c : kCases) {
+			midiEngine.midiFollowChannelType[0].clear();
+			midiEngine.midiFollowChannelType[0].channelOrZone = c.channel;
+			midiEngine.midiFollowChannelType[0].cable = c.cable ? &fake_cable() : nullptr;
+			Rig r;
+			r.open(nodes::midi_follow_channel_a, settings.ctx);
+			r.shell.tick(0);
+			expect_golden(self, std::string{"../ui/menu/"} + c.golden + "_48.pbm", r.fake.pbm(0));
+		}
+		midiEngine.midiFollowChannelType[0].clear();
+		midiEngine.midiFollowChannelType[0].channelOrZone = 0;
+		Rig r{board_64(), profile_64()};
+		r.open(nodes::midi_follow_channel_a, settings.ctx);
+		r.shell.tick(0);
+		expect_golden(self, "../ui/menu/menu_follow_channel_1_64.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the settings root list on a 64-row panel", _ {
