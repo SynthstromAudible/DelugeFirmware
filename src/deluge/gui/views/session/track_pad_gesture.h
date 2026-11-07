@@ -19,18 +19,13 @@
 
 #include <cstdint>
 
-// Shift is captured at press time so releasing Shift before the pad cannot
-// accidentally audition a locked track.
+// Shift is captured at press time: a Shift press toggles the track lock instead of auditioning, even if Shift is
+// released while the pad is still held.
 class TrackPadGesture {
 public:
-	void press(uint32_t now, bool silent) {
-		started = now;
-		silentPress = silent;
-	}
-	bool shouldAudition(uint32_t now, uint32_t holdTime) const { return !silentPress && now - started >= holdTime; }
+	void press(bool silent) { silentPress = silent; }
 	bool silent() const { return silentPress; }
 
 private:
-	uint32_t started = 0;
 	bool silentPress = false;
 };
