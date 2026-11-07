@@ -11,7 +11,7 @@
 1420  button SelectEnc up
 1500  button Shift up
 2200  snapshot settings
-2500  encoder Select +6
+2500  encoder Select +7
 3200  snapshot defaults-row
 3500  button SelectEnc down
 3520  button SelectEnc up
@@ -27,7 +27,7 @@
 7500  button SelectEnc down
 7520  button SelectEnc up
 8200  snapshot highlighting
-8500  encoder Select -1
+8500  encoder Select -2
 9200  snapshot highlighting-full
 9500  button Back down
 9520  button Back up
@@ -38,7 +38,7 @@
 11500 button Back down
 11520 button Back up
 12200 snapshot defaults-full
-12500 encoder Select +13
+12500 encoder Select +14
 13200 snapshot pad-brightness-row
 13500 button SelectEnc down
 13520 button SelectEnc up

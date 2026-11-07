@@ -11,6 +11,7 @@
 6700  encoder Select +1
 6800  encoder Select +1
 6900  encoder Select +1
+7000  encoder Select +1
 7500  snapshot type-dx7
 8000  button SelectEnc down
 8020  button SelectEnc up
@@ -48,18 +49,16 @@
 21000 encoder Select +1
 21100 encoder Select +1
 21200 encoder Select +1
+21300 encoder Select +1
 21500 snapshot osc1-row
 22000 button SelectEnc down
 22020 button SelectEnc up
 23000 snapshot osc1
-23500 button SelectEnc down
-23520 button SelectEnc up
 24500 snapshot vertical-type
 25000 encoder Select +1
 25100 encoder Select +1
 25200 encoder Select +1
 25300 encoder Select +1
-25400 encoder Select +1
 26000 snapshot vertical-type-dx7
 26500 button SelectEnc down
 26520 button SelectEnc up

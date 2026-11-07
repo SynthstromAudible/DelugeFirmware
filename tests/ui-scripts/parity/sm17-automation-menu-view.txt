@@ -2,8 +2,9 @@
 # page; CLIP puts the automation view on that param in menu view and CLIP again returns to the clip view. In menu
 # view a shortcut to another param returns to the clip view, and BACK out of the menu leaves the view in menu view.
 # Entered through the menu instead (which reopens on FILTERS afterwards), BACK from the LPF page to the filters list returns to the clip view. On a patch
-# cable's page (MOD MATRIX) CLIP selects the cable; KEYBOARD from menu view leaves it for the keyboard. Every snapshot
-# has a 1 s window (blinks). Run on the ShellMenu card.
+# cable's page (MOD MATRIX) CLIP selects the cable without entering menu view, so KEYBOARD there swaps the clip view
+# for the keyboard. Last, KEYBOARD from the LPF page's menu view opens the keyboard under the menu, and KEYBOARD again
+# leaves it. Every snapshot has a 1 s window (blinks). Run on the ShellMenu card.
 100   snapshot boot
 300   button Shift down
 500   pad 8 7 down
@@ -86,3 +87,20 @@
 37320 button Back down
 37340 button Back up
 38040 snapshot keyboard_closed
+39000 button Keyboard down
+39020 button Keyboard up
+39700 snapshot clip_again
+40000 button Shift down
+40200 pad 8 7 down
+40240 pad 8 7 up
+40440 button Shift up
+41140 snapshot lpf_page_again
+41440 button Clip down
+41460 button Clip up
+42160 snapshot menu_view_lpf
+42460 button Keyboard down
+42480 button Keyboard up
+43180 snapshot keyboard_from_menu_view
+43480 button Keyboard down
+43500 button Keyboard up
+44200 snapshot keyboard_from_menu_view_back

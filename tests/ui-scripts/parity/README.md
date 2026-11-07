@@ -9,8 +9,10 @@ Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/s
 through SelectEnc, which opens the ported menu when ShellMenu is on. They remain valid with ShellMenu off, where the
 same presses walk the legacy menus.
 
-`sm00-select-turn` checks the emulator's encoder input before anything leans on it: five separate single Select
-detents each move the sound menu's list one row on both images, ShellMenu on and off. `sm10-patched-blink` covers the
+`sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
+detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images, ShellMenu
+on and off. A black encoder drops the first detent of its first turn after boot and of any turn that reverses its
+direction (each decoder starts at its detent's resting state): count one extra detent for those turns. `sm10-patched-blink` covers the
 patched-param and patching-source blinks; its snapshots have 1 s windows because a source patched to a param flashes
 once every 800 ms, and a shorter window decides by phase alone whether it sees the flash.
 

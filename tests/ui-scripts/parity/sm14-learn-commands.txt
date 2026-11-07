@@ -11,7 +11,7 @@
 1420  button SelectEnc up
 1500  button Shift up
 2200  snapshot settings
-2500  encoder Select +4
+2500  encoder Select +5
 2800  button SelectEnc down
 2820  button SelectEnc up
 3500  snapshot midi

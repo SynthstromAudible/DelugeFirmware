@@ -14,7 +14,7 @@
 9500  button Back down
 9520  button Back up
 10500 snapshot folder-menu-closed
-11000 encoder Select +2
+11000 encoder Select +3
 12000 snapshot on-drums
 12500 button SelectEnc down
 12520 button SelectEnc up
