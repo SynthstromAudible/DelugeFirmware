@@ -5221,7 +5221,8 @@ Output* SessionView::heldPulseCandidate() {
 }
 
 bool SessionView::updateHeldPulse() {
-	if (heldPulse.update(heldPulseCandidate(), AudioEngine::audioSampleTimer, kShortPressTime)) {
+	uint32_t now = AudioEngine::audioSampleTimer;
+	if (heldPulse.update(heldPulseCandidate(), now, kShortPressTime)) {
 		deluge::gui::track_edit_pulse::resetHeldPulse();
 		// Releasing a pad may start a transition into the clip (explode, expand, etc.); don't repaint over it.
 		if (getCurrentUI() == this
@@ -5230,7 +5231,7 @@ bool SessionView::updateHeldPulse() {
 		}
 	}
 	if (heldPulse.waiting()) {
-		deluge::gui::track_edit_pulse::keepTicking();
+		deluge::gui::track_edit_pulse::scheduleHoldCheck(heldPulse.remaining(now, kShortPressTime));
 	}
 	return heldPulse.tracking();
 }

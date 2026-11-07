@@ -62,9 +62,20 @@ void resetHeldPulse() {
 	}
 }
 
-void keepTicking() {
-	if (!uiTimerManager.isTimerSet(TimerName::TRACK_LOCK_PULSE)) {
-		uiTimerManager.setTimer(TimerName::TRACK_LOCK_PULSE, kPulseInterval);
+void scheduleHoldCheck(uint32_t samples) {
+	uiTimerManager.setTimerSamples(TimerName::TRACK_HOLD_PULSE, static_cast<int32_t>(std::max<uint32_t>(samples, 1)));
+}
+
+void holdTimer() {
+	if (!track_link::enabled()) {
+		return;
+	}
+	auto* root = getRootUI();
+	if (root == &sessionView) {
+		sessionView.updateHeldPulse();
+	}
+	else if (root == &arrangerView) {
+		arrangerView.updateHeldPulse();
 	}
 }
 
@@ -119,7 +130,7 @@ void pulseTimer() {
 	if (!track_link::enabled()) {
 		return;
 	}
-	// A held pad starts pulsing once it reaches the hold time; keep ticking until then.
+	// Also re-check the held pad here, so its pulse ends even if no pad event reported the release.
 	bool tracking_hold = (root == &sessionView)    ? sessionView.updateHeldPulse()
 	                     : (root == &arrangerView) ? arrangerView.updateHeldPulse()
 	                                               : false;
