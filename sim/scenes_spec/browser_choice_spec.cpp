@@ -50,6 +50,7 @@
 #include "scenes/menu/nodes/sample.h"
 #include "scenes/menu/walk.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
 #include "shell/profiles/deluge.h"
@@ -1515,6 +1516,37 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		shellHostUI.shell().stack().pop();
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true(); // the menu beneath leaves it to the global RECORD
+	});
+
+	it("claims RECORD's press, and only its press, from the global RECORD while the recorder is frontmost", _ {
+		// `AudioRecorder::buttonAction` ends the take on the press and answers `DEALT_WITH`, so `Buttons`' RECORD tail
+		// stamps nothing; the release is `NOT_DEALT_WITH`, and the tail judges it by its last stamp, which toggles no
+		// recording.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		SongRig model;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sample0_recorder, model.ctx());
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::sample0_recorder)});
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(openUI(&shellHostUI)).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		// The press ended the take; tear the stack down so the recorder is thrown away rather than left armed.
+		while (shellHostUI.shell().stack().depth() > 0) {
+			shellHostUI.shell().stack().pop(SceneKind::Null);
+		}
+		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {

@@ -1,5 +1,6 @@
 scene app16/561
 led Back blink 110
+led CrossScreen on
 led Kit on
-led Synth on
+led Scale on
 flash 0 4 0

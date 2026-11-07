@@ -253,6 +253,14 @@ struct MenuWalkState {
 	/// this scene can walk its own tables, so only half the pair is stored and the other half is
 	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
 	const Node* scene_opener = nullptr;
+	/// @brief Where the menu lands when the scene on top closes: this item, focused on the chain page that lists it,
+	///        at depth 0. Null to go up as `go_up_on_resume` says.
+	///
+	/// `osc::AudioRecorder`'s heading pair: `SoundEditor::maybeGetParentMenu` gives a recorder reached on the chain's
+	/// SAMPLE RECORDER page its source's file selector on `sourceMenuGroup`, and `AudioRecorder::beginSession`
+	/// re-roots onto it before it opens the recorder, so the take, however it ends, returns there. Written by
+	/// `AudioRecorderItem::on_focus`, spent by `MenuScene::on_resume`, dropped by `retarget` with the rest of the walk.
+	const Node* resume_landing = nullptr;
 	/// @brief Close the whole menu after this tick -- legacy's `soundEditor.exitCompletely()` from an item's
 	///        `selectButtonPress` (the DX7 cartridge page's). Written by a `CustomItem`'s `render`, drained by
 	///        `MenuScene::after_render` into a `Remove`.
@@ -389,6 +397,13 @@ struct MenuState {
 	/// The counter step `render_grid` last flashed, so each step flashes once however many frames
 	/// fall inside it; `UINT32_MAX` for none since the anchor.
 	uint32_t blink_fired_step = UINT32_MAX;
+	/// The node whose blink `blink_hold_plan` stands in for while it stays the blink's subject: the recorder's
+	/// shortcut blink, which `main`'s sound editor keeps after a take lands on the source page (`AudioRecorder::opened`
+	/// set it up, and the landing plans nothing new) until a screen change re-plans it. `render_grid` drops it once the
+	/// subject moves.
+	const Node* blink_hold_node = nullptr;
+	/// What blinks for `blink_hold_node` meanwhile.
+	BlinkPlan blink_hold_plan{};
 	/// The last grid frame was covered by a scene that takes the input: the menu plans no blink and asks no wake.
 	bool blink_covered = false;
 	/// The list cursor the blink was planned at, for an item whose blink waits after each move

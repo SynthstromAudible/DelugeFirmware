@@ -997,6 +997,12 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		armTickSoon();
 		return ActionResult::DEALT_WITH;
 	}
+	// The recorder's RECORD ends the take (the recorder acts on the press fed above) and is not the global RECORD's as
+	// well: its release must find no stamp of this press in `Buttons`' RECORD tail (`AudioRecorder::buttonAction`).
+	if (b == deluge::hid::button::RECORD && recorderTakesRecord(on)) {
+		armTickSoon();
+		return ActionResult::DEALT_WITH;
+	}
 
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:

@@ -65,7 +65,10 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
-	const BlinkPlan plan = plan_blinks(ctx, st, *node);
+	if (st.blink_hold_node != nullptr && st.blink_hold_node != node) {
+		st.blink_hold_node = nullptr;
+	}
+	const BlinkPlan plan = st.blink_hold_node == node ? st.blink_hold_plan : plan_blinks(ctx, st, *node);
 	// An item that delays its blink (the patch cables list) starts over on every cursor move, as its own
 	// `readValueAgain` restarts the wait, even when the plan stays the same.
 	const uint16_t delay = node->custom != nullptr ? node->custom->blink_delay_ms() : 0;

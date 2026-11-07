@@ -529,6 +529,10 @@ A threshold take (the song's threshold mode on) draws `main`'s level-meter scree
 blinking on the audio clock as legacy does, and the take counts as started once it has captured more than its
 pre-roll margin.
 
+A take begun on the SAMPLE RECORDER page returns to its source's page with the file selector focused
+(`MenuWalkState::resume_landing`), as `osc::AudioRecorder::beginSession` re-roots before it opens the recorder; one
+opened on the item alone (the drum creator's) leaves the menu.
+
 ### The overlays (`overlay/`)
 
 `ParamPopupScene` (the mod-encoder value popup) and `CountInScene` are input-transparent grid
@@ -742,7 +746,6 @@ it leaves both lists.
 |---|---|---|
 | two `openUI(&soundEditor)` sites | sites 10 and 14 of `gui/ui/shell_menu_entry.cpp`'s table still open the legacy `SoundEditor` with the toggle on, each for the reason that table gives | a decision per site, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
-| the recorder's return path | a finished recording should land on the source page with the file selector focused; nothing calls `reroot_to_scene_opener_page()` for the recorder, which has no outbox to drain | a caller on the recorder's completion |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
 | the catalogue claim over a browsing session | the leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim | claim-on-open/release-on-close, with the load/save browsers |
 | the remaining root views | `SessionScene`, the instrument clip view, `ArrangerScene`, `KeyboardScene`, `PerformanceScene`, `AutomationScene` | a scene each |

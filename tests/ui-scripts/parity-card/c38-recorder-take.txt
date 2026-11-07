@@ -1,0 +1,17 @@
+# The recorder's return (ShellMenu card): Shift + (0,4) from the clip view lands on the SAMPLE RECORDER page, SELECT
+# opens the recorder on source 0, and RECORD ends the take, which lands on the oscillator's source page with the file
+# selector focused on the new recording; BACK from there leaves the menu.
+1000  button Shift down
+1100  pad 0 4 down
+1150  pad 0 4 up
+1200  button Shift up
+2500  snapshot page
+3000  button SelectEnc down
+3020  button SelectEnc up
+4500  snapshot recorder
+5000  button Record down
+5020  button Record up
+7500  snapshot source_page
+8000  button Back down
+8020  button Back up
+9500  snapshot closed

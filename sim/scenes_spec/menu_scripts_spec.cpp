@@ -1439,7 +1439,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// and a file that `abort()` deletes -- on the oscillator.
 		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
 		// The scene closed itself both times, and both doors opened it from the SAMPLE RECORDER page, so both
-		// closes step out of the item onto that page (`after_stop`, `after_shortcut_stop`).
+		// closes land on the source page with the file selector focused (`after_stop`, `after_shortcut_stop`).
 	});
 });
 // clang-format on

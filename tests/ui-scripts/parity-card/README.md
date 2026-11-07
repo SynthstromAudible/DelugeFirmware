@@ -15,8 +15,8 @@ a folder as ranges; `c19-kit-load-all-empty` runs LOAD ALL on `SAMPLES/Artists`,
 `c20` to `c22` build a multisample as c18 does (MULTISAMPLES on the drums folder, the import landing on the clip view)
 and open the note-range picker with Shift + pad (2,1), OSC1's transpose: `c20` the picker, its memory of the played
 range and the root's range highlight; `c21` the edge, insert and delete edits and SAVE; `c22` the keyboard screen,
-entered before any menu. `c23` walks the sample source items on one sample loaded as c10 loads it, and the recorder's
-return. Popups and console text last about a second, so their snapshots sit inside that window on both firmwares.
+entered before any menu. `c23` walks the sample source items on one sample loaded as c10 loads it, and Shift + (0,4), which lands on the
+SAMPLE RECORDER page. Popups and console text last about a second, so their snapshots sit inside that window on both firmwares.
 
 `c24` to `c27` run on the content card with `EnableDX7Engine` set in `SETTINGS/CommunityFeatures.XML` (with and
 without `shellMenu`). The firmware's MOD7 is the emulator's `Mod6`: held with SYNTH it creates an FM synth, which opens
@@ -55,3 +55,6 @@ the browser's error popup over the new kit's clip view.
 
 `c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
 shows the mode) and opens the recorder from its page, which draws the level meter.
+
+`c38-recorder-take` opens the recorder from that page and ends the take with RECORD, which lands on the source page
+with the file selector focused.

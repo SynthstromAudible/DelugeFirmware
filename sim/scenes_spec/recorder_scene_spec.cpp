@@ -1272,6 +1272,86 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(menu_scene().state().path[1] == &menu::nodes::sample0_recorder).to_be_true();
 	});
 
+	it("returns a take begun on the SAMPLE RECORDER page to its source page, the file selector focused", _ {
+		// `osc::AudioRecorder::beginSession` re-roots onto `sourceMenuGroup`, focused on the file selector, before it
+		// opens the recorder, so the take lands there.
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::recorder);
+		r.tick(0);
+		r.press(ButtonId::SelectEnc, 10);
+		r.tick(10);
+		r.release(ButtonId::SelectEnc, 20);
+		for (uint32_t at = 20; at <= 50; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC004.WAV"};
+		rec->status = RecorderStatus::COMPLETE;
+		for (uint32_t at = 60; at <= 90; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_false();
+		expect(menu_scene().state().path[0] == &menu::nodes::source_group).to_be_true();
+		expect(menu_scene().state().depth).to_equal(0);
+		// The take made source 0 a sample source, whose page lists the type first and the file selector second.
+		expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(1);
+
+		// The landing plans no blink of its own: the recorder's (0, 4) goes on flashing over the source page, as
+		// `main`'s sound editor keeps the blink `AudioRecorder::opened` set up ...
+		size_t from = r.fake.flashes_sent.size();
+		for (uint32_t at = 100; at <= 500; at += 10) {
+			r.tick(at);
+		}
+		expect(r.fake.flashes_sent.size() > from).to_be_true();
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			expect(static_cast<int32_t>(r.fake.flashes_sent[i].x)).to_equal(0);
+			expect(static_cast<int32_t>(r.fake.flashes_sent[i].y)).to_equal(4);
+		}
+		// ... until the focus moves (Shift + sample 0's REVERSE pad), which plans the focused item's own.
+		r.press(ButtonId::Shift, 510);
+		r.tick(510);
+		r.pad(0, 1, true, 520);
+		r.tick(520);
+		r.pad(0, 1, false, 530);
+		r.tick(530);
+		r.release(ButtonId::Shift, 540);
+		for (uint32_t at = 540; at <= 900; at += 10) {
+			r.tick(at);
+		}
+		from = r.fake.flashes_sent.size();
+		for (uint32_t at = 910; at <= 1300; at += 10) {
+			r.tick(at);
+		}
+		expect(menu_scene().focused() != &menu::nodes::file0_selector).to_be_true();
+		bool recorder_pad = false;
+		for (size_t i = from; i < r.fake.flashes_sent.size(); i++) {
+			recorder_pad = recorder_pad || (r.fake.flashes_sent[i].x == 0 && r.fake.flashes_sent[i].y == 4);
+		}
+		expect(recorder_pad).to_be_false();
+		// And for good: the hold went with the focus, so coming back to the file selector blinks its own pad.
+		expect(menu_scene().state().blink_hold_node == nullptr).to_be_true();
+	});
+
+	it("leaves the menu after a take opened on the item alone, as the drum creator's take leaves the clip view", _ {
+		Guards g;
+		Rig r;
+		r.open_menu(menu::nodes::sample0_recorder);
+		for (uint32_t at = 0; at <= 30; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_true();
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->status = RecorderStatus::COMPLETE;
+		rec->hadCardError = true; // attach nothing; this example is about where the menu goes
+		for (uint32_t at = 40; at <= 70; at += 10) {
+			r.tick(at);
+		}
+		expect(r.on_stack()).to_be_false();
+		expect(r.has(deluge::ui::shell::SceneKind::FirstApp)).to_be_false();
+	});
+
 	// --- the threshold take ---------------------------------------------------------------------------
 
 	it("draws AudioRecorder::renderOLED's threshold screen while waiting, its threshold line lit and dark", _ {

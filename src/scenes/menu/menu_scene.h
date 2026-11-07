@@ -565,6 +565,11 @@ private:
 	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target), and begin the voice usage
 	///        page's session afresh.
 	void retarget(const Node& node);
+	/// @brief Re-root onto the horizontal page or group that lists @p item, focused on it -- the body
+	///        `reroot_to_scene_opener_page` and the recorder's return share.
+	/// @param item The item to land on.
+	/// @return As `reroot_to_scene_opener_page`.
+	bool reroot_to_page_listing(const Node& item);
 
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);

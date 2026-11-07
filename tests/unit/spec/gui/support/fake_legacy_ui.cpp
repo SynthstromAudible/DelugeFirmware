@@ -471,6 +471,11 @@ bool browserTakesRecord() {
 	return false;
 }
 
+bool recorderTakesRecord(bool on) {
+	(void)on;
+	return false;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }

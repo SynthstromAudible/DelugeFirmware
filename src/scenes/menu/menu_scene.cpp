@@ -35,6 +35,7 @@
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
+#include "scenes/recorder/recorder_scene.h" // on_resume: the recorder's shortcut row
 
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
@@ -265,6 +266,17 @@ void MenuScene::on_resume() {
 		st_.walk.go_up_on_resume = false;
 		walk_.descend_to(core(), visit_.session, nodes::dx_cartridge);
 	}
+	// A recorder opened on the SAMPLE RECORDER page returns to its source's page, the file selector focused, in place
+	// of the step up (`MenuWalkState::resume_landing`); the re-root's `retarget` spends the step up with the walk.
+	if (const Node* landing = std::exchange(st_.walk.resume_landing, nullptr); landing != nullptr) {
+		if (reroot_to_page_listing(*landing)) {
+			// `main` re-plans no blink as it lands: the recorder's own, on its source's (x, 4) pad, goes on until the
+			// focus moves.
+			st_.blink_hold_node = landing;
+			st_.blink_hold_plan =
+			    exclusive_blink(landing == &nodes::file1_selector ? 1 : 0, recorder::kRecordShortcutY, 0);
+		}
+	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		walk_.ascend(core(), visit_.session);
@@ -364,16 +376,19 @@ bool MenuScene::select_range_for_note(int32_t note) {
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
-	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
+	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk. Legacy reads its pair only
+	// when both halves are set (`SampleClaim::stepFinish`, `gui/ui/browser/sample_claim.cpp`).
 	const Node* item = st_.walk.scene_opener;
-	if (item == nullptr || st_.path[0] == nullptr) {
-		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
-		// Legacy's own guard is the same shape -- the pair is only read when both halves are
-		// non-null (`SampleClaim::stepFinish`, `gui/ui/browser/sample_claim.cpp`).
+	return item != nullptr && reroot_to_page_listing(*item);
+}
+
+bool MenuScene::reroot_to_page_listing(const Node& item) {
+	if (st_.path[0] == nullptr) {
+		// No menu at all (`on_model_changed`'s song swap empties the path).
 		return false;
 	}
-	// With the feature off legacy's chain is `nullopt`, so `maybeGetParentMenu` writes no pair and `claimCurrentFile`
-	// leaves the menu where the browser was opened from.
+	// With the feature off legacy's chain is `nullopt`, so `maybeGetParentMenu` writes no pair and the menu stays where
+	// the scene was opened from.
 	if (!ctx_.horizontal_menus) {
 		return false;
 	}
@@ -382,38 +397,30 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (i >= r.size() || r[i] == nullptr) {
 		return false;
 	}
-	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2077-2085`): the first menu of the root's chain that
-	// lists the item, which for an oscillator's file selector is the whole `sourceMenuGroup`, paged across its five
-	// members, not the member page. A root whose chain lists the item nowhere falls back to the page that does (the
-	// audio clip's sample page). Legacy answers `nullptr` when no menu lists the item, and its caller then does
-	// nothing at all -- which is this `false`.
+	// `maybeGetParentMenu`'s search: the first menu of the root's chain that lists the item, which for an oscillator's
+	// file selector is the whole `source_group`, paged across its five members. A root whose chain lists the item
+	// nowhere falls back to the page that does (the audio clip's sample page). Legacy answers `nullptr` when no menu
+	// lists the item, and its caller then does nothing -- which is this `false`.
 	const Node* page = nullptr;
 	for (const Node* candidate : chain_for(ctx_.root)) {
-		if (candidate != nullptr && page_lists(*candidate, *item)) {
+		if (candidate != nullptr && page_lists(*candidate, item)) {
 			page = candidate;
 			break;
 		}
 	}
 	if (page == nullptr) {
-		page = horizontal_page_listing(*r[i], *item);
+		page = horizontal_page_listing(*r[i], item);
 	}
 	if (page == nullptr) {
 		return false;
 	}
-	// `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo; soundEditor.navigationDepth =
-	// 0` (`gui/ui/browser/sample_browser.cpp:975-976`). `retarget` is the port's spelling of both
-	// at once, and it is the right one rather than a convenient one: legacy's two statements throw
-	// away everything above index 0 of the record, which is exactly the per-visit state `retarget`
-	// drops (see its body).
+	// `menuItemNavigationRecord[0] = parentMenuHeadingTo; navigationDepth = 0`: `retarget` is both at once, and drops
+	// exactly the per-visit state legacy's two statements throw away.
 	retarget(*page);
-	// `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`). It is a separate statement
-	// here for the reason the header gives -- legacy's focus lives on the page object, the port's
-	// lives at the page's *depth* -- and it runs after `retarget`, which resets `columns[0]`.
-	// Legacy discards `focusChild`'s bool at this site (it is only consulted in
-	// `SoundEditor::setup`), so an item its page no longer shows simply leaves the page
-	// focused on its first column, which is what falling out of this loop does.
-	walk_.focus_column(core(), *item);
-	// The claim that calls this ends on its own job, between the guest's ticks: ask for the frame that shows the page.
+	// `parentMenuHeadingTo->focusChild(menuItemHeadingTo)`, after `retarget`, which resets `columns[0]`. An item the
+	// page no longer shows leaves the page on its first column, as legacy's discarded `focusChild` does.
+	walk_.focus_column(core(), item);
+	// Callers run between the guest's ticks: ask for the frame that shows the page.
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 	return true;
 }
@@ -1012,9 +1019,8 @@ Result MenuScene::after_render_navigation() {
 		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and
 		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
-		// own `openUI`. The four items with no return affordance record one too and nothing ever
-		// reads it -- `reroot_to_scene_opener_page()` is called only from the sample claim -- which
-		// is cheaper than teaching this arm which items have a pair.
+		// own `openUI`. Items with no return affordance record one too and nothing reads it; the
+		// recorder's return is `MenuWalkState::resume_landing`, which its item writes.
 		st_.walk.scene_opener = focused();
 		r.handled = true;
 	}
