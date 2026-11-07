@@ -721,11 +721,12 @@ Track Edit has its own submenu, `Track Edit (TRKE)`, in `COMMUNITY FEATURES`:
 
 - **Track Edit (EDIT):** turn Track Edit on or off. Default: off. The other settings below only appear while it is on.
 - **Grid Row (GRID):** show the row of track pads in Session grid view. Default: on. With it off, grid view keeps all eight rows for clips and the Session track pad gestures below are unavailable; locks, arranger gestures and clip view shortcuts still work.
+- **Track Audition (AUDI):** audition a track as soon as its grid track pad is pressed, as with arranger audition pads (only while playback is stopped, and not for audio tracks). Default: off. Only shown while Grid Row is on; arranger audition pads are not affected.
 - **Pulse Clip (PULS):** which held pads pulse their track's clips. `Off`; `Hold track (TRAK)` for a held track pad or arranger audition pad (default); or `Hold track or clip (TRCL)`, which also pulses when holding a clip of a locked track. Lock indicators on track and audition pads pulse regardless.
 
 With Grid Row on, the bottom sixteen pads in Session grid view are reserved for tracks. Session row view keeps all eight rows for clips. The row follows grid track order (the arranger output order), leaving seven rows above it for clips. It stays visible when scrolling clips. Grid launch/edit and optional loop mode pads keep their original positions.
 
-- **Hold a track pad:** show its name and edit its parameters across its clips. The track auditions as soon as the pad is pressed, as in arranger: only while playback is stopped, and no audition for audio tracks. Release stops audition. After the short-press interval, the track's clips also pulse towards their blurred track colour.
+- **Hold a track pad:** show its name and edit its parameters across its clips. With Track Audition on, the track auditions as soon as the pad is pressed; release stops audition. After the short-press interval, the track's clips also pulse towards their blurred track colour.
 - **Hold a track pad + turn horizontal:** reorder the track columns and the corresponding arranger outputs. The held track stays beneath your finger while the other columns scroll around it.
 - **Hold an audition pad in arranger:** edit that output's parameters across its clips, as with a held track pad.
 - **Shift + track pad:** silently toggle that output's track lock. Other tracks keep their locks. When a locked track's pad is released, the track pad pulses instead of its clips, and the Session display and control LEDs return to their normal state. Back clears the current selection without unlocking outputs.

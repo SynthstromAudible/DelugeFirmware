@@ -50,13 +50,24 @@ public:
 };
 
 // Track Edit submenu items. Changing one redraws the pads underneath, so lock and held pulses update immediately.
-// Settings that only matter while Track Edit is on are hidden until it is.
-template <typename Base, bool kNeedsTrackEdit>
+// Settings that only matter while Track Edit (or its grid row) is on are hidden until it is.
+enum class TrackEditShownWhen { Always, TrackEditOn, GridRowOn };
+
+template <typename Base, TrackEditShownWhen kShownWhen>
 class TrackEditSetting final : public Base {
 public:
 	using Base::Base;
 	bool isRelevant(ModControllableAudio*, int32_t) const override {
-		return !kNeedsTrackEdit || runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+		bool track_edit = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+		switch (kShownWhen) {
+		case TrackEditShownWhen::Always:
+			return true;
+		case TrackEditShownWhen::TrackEditOn:
+			return track_edit;
+		case TrackEditShownWhen::GridRowOn:
+			return track_edit && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditGridRow);
+		}
+		return true;
 	}
 	void writeCurrentValue() override {
 		Base::writeCurrentValue();
@@ -89,11 +100,16 @@ OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalM
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
-TrackEditSetting<SettingToggle, false> menu_track_edit(RuntimeFeatureSettingType::TrackEdit);
-TrackEditSetting<SettingToggle, true> menu_track_edit_grid_row(RuntimeFeatureSettingType::TrackEditGridRow);
-TrackEditSetting<Setting, true> menu_track_edit_pulse_clip(RuntimeFeatureSettingType::TrackEditPulseClip);
+TrackEditSetting<SettingToggle, TrackEditShownWhen::Always> menu_track_edit(RuntimeFeatureSettingType::TrackEdit);
+TrackEditSetting<SettingToggle, TrackEditShownWhen::TrackEditOn>
+    menu_track_edit_grid_row(RuntimeFeatureSettingType::TrackEditGridRow);
+TrackEditSetting<SettingToggle, TrackEditShownWhen::GridRowOn>
+    menu_track_edit_audition(RuntimeFeatureSettingType::TrackEditAudition);
+TrackEditSetting<Setting, TrackEditShownWhen::TrackEditOn>
+    menu_track_edit_pulse_clip(RuntimeFeatureSettingType::TrackEditPulseClip);
 Submenu menu_track_edit_submenu(l10n::String::STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT,
-                                {&menu_track_edit, &menu_track_edit_grid_row, &menu_track_edit_pulse_clip});
+                                {&menu_track_edit, &menu_track_edit_grid_row, &menu_track_edit_audition,
+                                 &menu_track_edit_pulse_clip});
 Setting menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{

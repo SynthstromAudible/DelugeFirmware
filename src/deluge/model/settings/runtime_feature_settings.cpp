@@ -211,6 +211,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditGridRow],
 	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_GRID_ROW, "trackEditGridRow",
 	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrackEditAudition],
+	                  STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_AUDITION, "trackEditAudition",
+	                  RuntimeFeatureStateToggle::Off);
 	auto& track_edit_pulse = settings[RuntimeFeatureSettingType::TrackEditPulseClip];
 	track_edit_pulse.displayName = STRING_FOR_COMMUNITY_FEATURE_TRACK_EDIT_PULSE_CLIP;
 	track_edit_pulse.xmlName = "trackEditPulseClip";
