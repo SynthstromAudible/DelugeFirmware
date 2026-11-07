@@ -338,20 +338,16 @@ gotError:
 }
 
 deluge::dsp::fp::StereoLevel SampleRecorder::getInputLevels() {
-	const uint32_t numSamples = pendingLevelNumSamples_.exchange(0, std::memory_order_relaxed);
-	const float meanL = pendingPeakMeanL_.exchange(0, std::memory_order_relaxed);
-	const float meanR = pendingPeakMeanR_.exchange(0, std::memory_order_relaxed);
-	if (numSamples > 0) {
-		meterLevel_ = meterFollower_.measure_means(meanL, meanR, numSamples);
+	const LevelHandoff::Taken taken = pendingLevels_.take();
+	if (taken.samples > 0) {
+		meterLevel_ = meterFollower_.measure_means(taken.mean_l, taken.mean_r, taken.samples);
 	}
 	return meterLevel_;
 }
 
 void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 	meterLevel_ = {};
-	pendingPeakMeanL_.store(0, std::memory_order_relaxed);
-	pendingPeakMeanR_.store(0, std::memory_order_relaxed);
-	pendingLevelNumSamples_.store(0, std::memory_order_relaxed);
+	pendingLevels_.clear();
 
 	if (config.neverUseThreshold) {
 		D_PRINTLN("ignoring threshold");
@@ -2061,14 +2057,8 @@ doFinishCapturing:
 				const auto numSamplesFloat = static_cast<float>(numSamplesThisCycle);
 				meanL = static_cast<float>(levelSumL) / numSamplesFloat;
 				meanR = static_cast<float>(levelSumR) / numSamplesFloat;
-				// The meter's: the loudest block since the UI last read it
-				if (pendingPeakMeanL_.load(std::memory_order_relaxed) < meanL) {
-					pendingPeakMeanL_.store(meanL, std::memory_order_relaxed);
-				}
-				if (pendingPeakMeanR_.load(std::memory_order_relaxed) < meanR) {
-					pendingPeakMeanR_.store(meanR, std::memory_order_relaxed);
-				}
-				pendingLevelNumSamples_.fetch_add(numSamplesThisCycle, std::memory_order_relaxed);
+				// The meter's: the loudest block since the screen last took them
+				pendingLevels_.put(meanL, meanR, numSamplesThisCycle);
 			}
 
 			// if we're threshold recording and didn't detect audio in previous cycles

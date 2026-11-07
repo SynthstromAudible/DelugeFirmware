@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "model/sample/level_handoff.h"
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_finalize_policy.h"
 #include "model/sample/recorder_write_policy.h"
@@ -507,10 +508,6 @@ private:
 	/// [interaction] The level meter's envelope, over what the render hands it in the three below.
 	deluge::dsp::fp::LevelDetector meterFollower_{};
 	deluge::dsp::fp::StereoLevel meterLevel_{};
-	/// The loudest per-block mean absolute samples since the UI last read them, and how many samples they cover.
-	/// The render raises them; getInputLevels() takes them. A block landing between its read and its clear can be
-	/// lost, which a meter redrawn every few ms does not show.
-	std::atomic<float> pendingPeakMeanL_{0};
-	std::atomic<float> pendingPeakMeanR_{0};
-	std::atomic<uint32_t> pendingLevelNumSamples_{0};
+	/// The render's per-block levels, which getInputLevels() takes.
+	LevelHandoff pendingLevels_;
 };
