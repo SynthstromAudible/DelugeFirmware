@@ -2690,6 +2690,25 @@ group = "model"
 runtime = "~5s"
 
 [[harness]]
+name = "arrangement-take"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "investigative"
+gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take_baselines): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio clip, a bar each) recorded from the start with a knob turned on each clip, cloning it into a take that repeats it at every loop end, must leave every take's length and lanes byte for byte as the baseline's and render the same output (RS-TAKE, RS-PCM); what the render plays across each repeat must be the take's appended lanes (RS-TAKE-PLAYED); every knob turn must land in its take (RS-KNOB); and the render must neither read nor write a lane in the model (RS-SNAPSHOT)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-KNOB", "RS-SNAPSHOT"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/arrangement_take.py"
+env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824" }
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
 name = "audio-clip-edit-diff"
 path = "."
 level = "integration"
