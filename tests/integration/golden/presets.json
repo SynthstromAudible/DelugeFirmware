@@ -63,7 +63,7 @@
   "frames": 88200,
   "peak": 356695296,
   "rms_db": -26.49,
-  "sha256": "7c0b39b0944a07b4c438488c203f9c0c81c04d7b96c66a589f4eb23ddeb1e2ac"
+  "sha256": "e1648ff4933268cb06e74ed72e0231942ebf11ad3b6d710c717577866d1d5ba2"
  },
  "community/Analohania": {
   "frames": 88200,
@@ -279,7 +279,7 @@
   "frames": 88200,
   "peak": 771668224,
   "rms_db": -30.37,
-  "sha256": "a8eda57137a7771bb0d5545383443c1a25cde5e390d32a84fe38a9185fb55f87"
+  "sha256": "0db22a30e9a993a6880501075614a6b29e5400f792ecffb357c815dc6dde3240"
  },
  "community/Fw Landscape": {
   "frames": 88200,
@@ -651,7 +651,7 @@
   "frames": 88200,
   "peak": 368214528,
   "rms_db": -19.46,
-  "sha256": "47af590b4eb0b37b8f9fe662da116764897cbd55857831b43d0b7b0ca01a0ff8"
+  "sha256": "05fb43f9c01044613b7063f781efc61e2d2f2af5a12d667ff14600503dba50e7"
  },
  "community/Synthetic 1": {
   "frames": 88200,

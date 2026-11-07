@@ -1578,6 +1578,8 @@ doCutModFXTail:
 
 					int32_t waitSamplesModfx = 0;
 					switch (modControllableSnapshot().effects.mod_fx.type) {
+					case ModFXType::NONE: // the compressor's release alone
+						break;
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
