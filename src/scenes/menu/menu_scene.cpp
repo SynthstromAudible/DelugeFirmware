@@ -132,6 +132,8 @@ void MenuScene::reset_process_state() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
+	// A definition browser that opened over an earlier visit is no blink of this one.
+	(void)browser::browser_scene().take_load_blink();
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (see `SceneId`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
@@ -257,6 +259,7 @@ void MenuScene::on_resume() {
 	}
 	visit_.use_up_select = true;
 	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
+	visit_.load_blink = browser::browser_scene().take_load_blink() || visit_.load_blink;
 	if (std::exchange(land_dx_cartridge_, false) && focused() == &nodes::dx_browse) {
 		// `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)`, with `shouldGoUpOneLevelOnBegin` cleared: no going up.
 		st_.walk.go_up_on_resume = false;
@@ -654,6 +657,9 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	}
 	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
+	if (visit_.load_blink) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), shared_blink);
+	}
 	visit_.learn.leds(st_, f, shared_blink);
 
 	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` while the hold is on an item that uses it; off it, legacy's

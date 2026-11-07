@@ -464,6 +464,9 @@ public:
 	void set_drum_creator_next(bool from_creator) { drum_creator_next_ = from_creator; }
 	/// @brief Which descriptor the last `on_enter` selected.
 	BrowserId browser_id() const { return id_; }
+	/// @brief Whether a MIDI device-definition browser opened since the last call, and clear it. That browser is a
+	///        legacy `LoadUI`, whose `focusRegained` blinks LOAD, and the blink outlives it under the menu.
+	bool take_load_blink() { return std::exchange(load_blink_pending_, false); }
 	/// @brief `QwertyUI::enteredText` -- the name shown on the selected row.
 	std::string_view entered_text() const { return std::string_view{entered_, entered_len_}; }
 	/// @brief `Browser::fileIndexSelected`; -1 while there is no real selection.
@@ -779,6 +782,8 @@ private:
 	int8_t preview_direction_ = 0;
 	/// The next `leds()` restarts BACK's blink: the browser has just opened.
 	bool back_blink_restart_ = true;
+	/// The browser that opened blinks LOAD (`take_load_blink`): set by a successful `on_enter`.
+	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
 	services::Favourites* favourites_override_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.

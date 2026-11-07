@@ -108,6 +108,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 constexpr uint8_t kSelectEncoder = 3;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+constexpr uint8_t kBackX = 7, kBackY = 1;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -260,6 +261,16 @@ void press_child(Rig& r, const Node& parent, const Node& child, const MenuContex
 	}
 	r.enter();
 	r.step();
+}
+
+/// @brief Whether @p f declares LOAD on the shared normal blink, as `blinkLed(IndicatorLED::LOAD)` runs it.
+bool load_blinks(const deluge::ui::LedFrame& f) {
+	for (const auto& [id, state] : f.entries()) {
+		if (id == static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Load)) {
+			return state.kind == deluge::ui::LedState::Kind::Shared && state.rate == deluge::ui::BlinkRate::Normal;
+		}
+	}
+	return false;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -656,6 +667,54 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(static_cast<int>(browser::browser_scene().browser_id()))
 		    .to_equal(static_cast<int>(browser::BrowserId::MidiDeviceDefinition));
 		expect(std::string{browser::browser_scene().current_dir()}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
+	});
+
+	it("blinks LOAD while the definition browser is up, and the menu keeps it blinking once the browser closes", _ {
+		// `LoadUI::focusRegained`'s `blinkLed(IndicatorLED::LOAD)` as the browser opens; the sound editor's
+		// `setLedStates` never touches LOAD, so it blinks on under the menu until the menu closes.
+		CleanScenes clean;
+		spec::QuietAudio quiet;
+		ScratchCard card;
+		MidiRig rig;
+		rig.instrument()->deviceDefinitionFileName.clear();
+
+		Rig r;
+		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
+		r.step();
+		r.step();
+		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_true();
+		{
+			deluge::ui::LedFrame f;
+			browser::browser_scene().leds(f);
+			expect(load_blinks(f)).to_be_true();
+		}
+
+		for (int32_t i = 0; i < 20; i++) {
+			r.step(); // the listing lands; the browser refuses buttons until it has
+		}
+		r.button(kBackX, kBackY, true); // BACK in the default folder closes the browser
+		r.button(kBackX, kBackY, false);
+		r.step();
+		r.step();
+		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
+		{
+			deluge::ui::LedFrame f;
+			menu_scene().leds(f);
+			expect(load_blinks(f)).to_be_true();
+		}
+	});
+
+	it("declares no LOAD blink from a menu that opened no definition browser", _ {
+		// The unlink arm opens nothing, so nothing ever blinked LOAD.
+		CleanScenes clean;
+		MidiRig rig;
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
+		Rig r;
+		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
+		r.step();
+		deluge::ui::LedFrame f;
+		menu_scene().leds(f);
+		expect(load_blinks(f)).to_be_false();
 	});
 
 	it("does not toggle when the menu is restored onto it -- the browser's own load survives", _ {

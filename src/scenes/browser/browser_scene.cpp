@@ -401,6 +401,7 @@ void BrowserScene::open(const menu::MenuContext& ctx) {
 }
 
 bool BrowserScene::on_enter(const SceneId& id) {
+	load_blink_pending_ = false;
 	const bool from_creator = std::exchange(drum_creator_next_, false);
 	if (id.arg >= static_cast<uint16_t>(BrowserId::Count)) {
 		return false;
@@ -467,6 +468,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 		favourites().set_category("SAMPLES"); // `SampleBrowser::opened`
 	}
 
+	// `LoadUI::focusRegained`, the last step of a definition browser's successful `opened`.
+	load_blink_pending_ = id_ == BrowserId::MidiDeviceDefinition;
 	request_open();
 	return true;
 }
@@ -1265,6 +1268,11 @@ Result BrowserScene::back() {
 	// `Browser::backButtonAction` -> `goUpOneDirectoryLevel`: the "already at the top" case is answered synchronously
 	// and exits the browser; anything else dispatches the listing.
 	const std::string_view dir = current_dir();
+	// `LoadMidiDeviceDefinitionUI::buttonAction`: BACK in the definitions' default folder closes the browser rather
+	// than climbing out of it.
+	if (id_ == BrowserId::MidiDeviceDefinition && dir == kMidiDeviceDir) {
+		return close();
+	}
 	const size_t slash = dir.rfind('/');
 	if (slash == std::string_view::npos || slash == 0) {
 		return close();
@@ -1514,6 +1522,11 @@ void BrowserScene::leds(deluge::ui::LedFrame& f) {
 	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	// `LoadUI::focusRegained`'s `blinkLed(IndicatorLED::LOAD)`, on BACK's phase. The sample browser is not a `LoadUI`.
+	if (id_ == BrowserId::MidiDeviceDefinition) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load),
+		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	}
 	if (id_ != BrowserId::Sample) {
 		return;
 	}

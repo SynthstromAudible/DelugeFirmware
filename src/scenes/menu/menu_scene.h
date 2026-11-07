@@ -647,6 +647,9 @@ private:
 		/// A scene the entry opened at once covers the menu: legacy's `SoundEditor::opened` opened it from
 		/// `beginScreen`, before `focusRegained` set the editor's LEDs, so the menu declares none until it resumes.
 		bool leds_held_back = false;
+		/// A MIDI device-definition browser opened over this visit: LOAD blinks on under the menu, since the sound
+		/// editor's `setLedStates` never stops the blink its `LoadUI` started; leaving the menu does (`View`).
+		bool load_blink = false;
 	};
 	Visit visit_{};
 	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).
