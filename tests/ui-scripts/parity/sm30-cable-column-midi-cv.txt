@@ -1,0 +1,43 @@
+# ShellMenu: MIDI and CV pressed while a horizontal page's patch-cable column is focused. On the SIDECHAIN page with
+# DUCK focused, `main` moves the page's cursor (MIDI to SHAPE, CV to ATTACK) and the SELECT that follows leaves the
+# menu; on the MASTER page with VIBRATO focused, MIDI and CV change nothing, and the cable's strength page still reads
+# BI, as it does with no press (`sm24`). Neither column switches the cable's polarity. Run on the ShellMenu card, and
+# once with ShellMenu off as the control.
+100   snapshot boot
+300   button Shift down
+400   pad 10 2 down
+440   pad 10 2 up
+500   button Shift up
+1500  snapshot duck-column
+2500  button Midi down
+2520  button Midi up
+3500  snapshot duck-after-midi
+4500  button Cv down
+4520  button Cv up
+5500  snapshot duck-after-cv
+6500  button SelectEnc down
+6520  button SelectEnc up
+7500  snapshot duck-select
+8500  button Back down
+8520  button Back up
+9500  snapshot duck-back
+10300 button Shift down
+10400 pad 6 2 down
+10440 pad 6 2 up
+10500 button Shift up
+11500 snapshot vibrato-column
+12500 button Midi down
+12520 button Midi up
+13500 snapshot vibrato-after-midi
+14500 button Cv down
+14520 button Cv up
+15500 snapshot vibrato-after-cv
+16500 button SelectEnc down
+16520 button SelectEnc up
+17500 snapshot vibrato-strength
+18500 button Back down
+18520 button Back up
+19500 snapshot vibrato-back
+20500 button Back down
+20520 button Back up
+21500 snapshot closed
