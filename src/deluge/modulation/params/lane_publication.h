@@ -17,12 +17,17 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "foundation/function_ref.h"
 
 #include <cstdint>
 
 class Song;
 class ParamCollection;
 class ParamManagerForTimeline;
+
+namespace deluge::project {
+struct DocAutoParam;
+}
 
 /// Lanes as the render plays them. Outside record mode the render reads each collection's lanes from an immutable
 /// snapshot the interaction tier publishes after every edit; it reads no model lane and writes none.
@@ -54,6 +59,22 @@ void noteRenderModelRead();
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
 /// @brief [render] or [interaction] Count a write to a model lane, if made on the render.
 void noteRenderLaneWrite();
+
+/// Lanes visited as ParamCollection::forEachLane() visits a collection's: each with nodes, by its paramId.
+using LaneVisit = deluge::function_ref<void(int32_t, const project::DocAutoParam&)>;
+/// A set of lanes: called with a visit, it visits each.
+using LaneSource = deluge::function_ref<void(LaneVisit)>;
+
+/// @brief [interaction] A snapshot of the lanes @p lanes visits, sharing each lane @p old holds unchanged and copying
+///        the rest. Not published: publish it, or free it with discardSnapshot().
+/// @return It, or nullptr when out of memory.
+LaneSnapshot* buildSnapshot(LaneSource lanes, const LaneSnapshot* old);
+/// @brief [interaction] Free @p snapshot, which the render cannot reach, and each of its lanes @p kept does not share.
+void discardSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept);
+/// @brief [interaction] Free @p snapshot, which the render may be reading in its current block, and each of its lanes
+///        @p kept does not share, once the render cannot be reading them (AudioEngine::retireMemory()).
+/// @return False when there was no room to retire them: nothing is freed and the caller keeps @p snapshot.
+bool retireSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept);
 
 /// @brief [interaction] Compare every published collection's snapshot with its model: the same lanes, each with the
 ///        same base and nodes.
@@ -114,6 +135,11 @@ public:
 	static bool publishSong(Song& song);
 	/// @brief [interaction] As checkPublished().
 	static int32_t check(Song& song);
+
+	/// @brief [interaction] Drop @p collection's staged snapshot, unpublished, and retire the one the render replaced
+	///        at its last swap, so that the published snapshot is the only one left sharing its lanes.
+	/// @return False when there was no room to retire the replaced one: it stays, and so does the staged one.
+	static bool settleStaged(ParamCollection& collection);
 
 private:
 	/// @brief Publish @p collection if its lanes differ from its snapshot.

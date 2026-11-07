@@ -176,8 +176,16 @@ public:
 private:
 	friend class deluge::modulation::LanePublication;
 	friend class deluge::modulation::WorkingCopies;
-	/// [interaction] -> [render] Swapped only with the render held off; read by the render once per collection event.
+	/// [interaction] -> [render] Swapped only with the render held off, or by the render itself at a staged swap; read
+	/// by the render once per collection event.
 	std::atomic<const deluge::modulation::LaneSnapshot*> published_{nullptr};
+	/// [interaction] -> [render] The snapshot the render publishes itself at an arrangement take's loop end: its lanes
+	/// with the next repeat appended, built and set on the interaction tier, taken by the render. It shares lanes with
+	/// published_.
+	std::atomic<const deluge::modulation::LaneSnapshot*> staged_{nullptr};
+	/// [render] -> [interaction] The snapshot the render's last swap replaced, for the interaction tier to retire. It
+	/// shares lanes with published_.
+	std::atomic<const deluge::modulation::LaneSnapshot*> superseded_{nullptr};
 	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
 	bool lanesDirty_ = false;
 	uint32_t serial_; ///< see serial()
