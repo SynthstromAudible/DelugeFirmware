@@ -32,7 +32,7 @@
 
 #include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
-#include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
+#include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
 
@@ -267,12 +267,7 @@ void MenuScene::on_resume() {
 	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
-		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
-		// (`SampleClaim::stepFinish` closes the browser and reopens the editor there, `sample_claim.cpp:563-577`;
-		// here `reroot_to_scene_opener_page`). Going up from depth 0 first would close the menu under it.
-		if (!(st_.depth == 0 && browser::browser_scene().has_choice())) {
-			walk_.ascend(core(), visit_.session);
-		}
+		walk_.ascend(core(), visit_.session);
 	}
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.

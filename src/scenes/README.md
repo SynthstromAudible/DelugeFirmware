@@ -423,12 +423,12 @@ does. The box is a fixed 100×40 `PopupStyle::Permanent` square with the title d
 `browser::BrowserScene` is one browser with a `Descriptor` per legacy subclass. Three ship, the three the
 menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `BrowserId::DxSyx`.
 
-* **`accept` has four outcomes.** `Close` and `Stay` are legacy's; `Defer` parks the choice in
-  `take_choice()` and closes, because the sample claim reaches the sound and the audio-file manager
-  through paths this layer may not name; `DeferAndWait` parks it and stays up until the host answers
-  `deferred_load_done`, as the `.syx` browser stays up while its bank is read. `gui::ui::dispatchShellChoices` performs it (with
-  `loadWithoutExiting = true`) and the claim's success re-roots the menu onto the page the chain lists the file
-  selector on: an oscillator's `source_group`, focused on the selector.
+* **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `DeferAndWait` parks the choice in
+  `take_choice()` and stays up until the host answers `deferred_load_done`, because the sample claim, the MIDI
+  definition load and the `.syx` read reach objects this layer may not name, and each legacy browser stays up until
+  its load ends. `gui::ui::dispatchShellChoices` performs it (the claim with `loadWithoutExiting = true`), and the
+  claim's success re-roots the covered menu onto the page the chain lists the file selector on (an oscillator's
+  `source_group`, focused on the selector) before the browser closes over it.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
   read with the press: a brand-new kit parks `BrowserChoice::Op::Slice` and the host opens the slicer
   once the file has loaded; any other kit refuses with legacy's popup; a synth claims.

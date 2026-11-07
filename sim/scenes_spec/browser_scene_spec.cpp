@@ -2004,7 +2004,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 });
 
 describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
-	it("parks the chosen sample for the application's dispatcher and closes", _ {
+	it("parks the chosen sample for the application's dispatcher and waits for its load", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2012,30 +2012,57 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		(void)browser_scene().take_choice(); // drain
 
-		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs`
-		// and `instrumentClipView` -- five symbols behind the `scenes-includes-outside` wall. So the
-		// descriptor answers `Defer` and the scene parks the path, exactly as
-		// `MenuScene::take_action()` parks a verb it cannot perform.
+		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which loads with the browser up under the
+		// working animation and closes it once the file is in. The claim names `soundEditor`, `AudioEngine`, `slicer`,
+		// `PadLEDs` and `instrumentClipView`, behind the `scenes-includes-outside` wall, so the descriptor parks the
+		// path and the browser waits for the host's answer.
 		Error unused = Error::NONE;
 		expect(static_cast<int>(
 		           browser::descriptor(BrowserId::Sample).accept(context_of(f), "SAMPLES/CLAP.WAV", unused)))
-		    .to_equal(static_cast<int>(AcceptOutcome::Defer));
+		    .to_equal(static_cast<int>(AcceptOutcome::DeferAndWait));
 
 		r.enter();
-		expect(r.browser_on_stack()).to_be_false();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
-		// Read through defaults rather than through `choice->`: a mutant that leaves the outbox empty
-		// must fail this example, not abort the process inside `std::optional::operator->` before
-		// any other example has run.
+		// Read through defaults rather than through `choice->`: a mutant that leaves the outbox empty must fail this
+		// example, not abort the process inside `std::optional::operator->`.
 		expect(static_cast<int>(choice.has_value() ? choice->id : BrowserId::Count))
 		    .to_equal(static_cast<int>(BrowserId::Sample));
-		// `getCurrentFilePath()`'s own spelling: the directory, a separator, the filename WITH its
-		// extension.
 		expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{"SAMPLES/CLAP.WAV"});
-		// Exactly once.
+
+		// One load at a time: a second Enter while it is out parks nothing.
+		r.enter();
 		expect(browser_scene().take_choice().has_value()).to_be_false();
+
+		browser_scene().deferred_load_done(true); // the claim's completion
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_false();
+	});
+
+	it("stays up for another file when the sample's load fails", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		(void)browser_scene().take_choice(); // drain
+
+		r.enter();
+		expect(browser_scene().take_choice().has_value()).to_be_true();
+		// `claimCurrentFile`'s error arm: the animation goes, the error shows, the browser stays.
+		browser_scene().deferred_load_done(false);
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_false();
+
+		// And it takes the next file.
+		r.enter();
+		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
 	it("parks the chosen MIDI device definition for the drain, and waits for its load", _ {
@@ -2477,7 +2504,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
-	it("closes a folder menu with the browser when Enter on the keyboard beneath loads the file", _ {
+	it("closes a folder menu with the browser once Enter on the keyboard beneath has loaded the file", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -2491,6 +2518,13 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
 		r.enter();
 		expect(browser_scene().take_choice().has_value()).to_be_true();
+		// Both stay while the claim runs, as `claimCurrentFile` runs with them up ...
+		expect(r.browser_on_stack()).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		// ... and the closing browser takes the menu above it, as `close()` does.
+		browser_scene().deferred_load_done(true);
+		r.step();
+		r.step();
 		expect(r.browser_on_stack()).to_be_false();
 		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
 	});

@@ -41,3 +41,7 @@ MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.
 `c33-kit-affect-entire` covers AFFECT ENTIRE in a kit row's menu: the clip's toggle on an item that does not use it (the
 root list, the kit's own root) and the fast-blinking hold on one that does (the row's LPF frequency), with a turn under
 it.
+
+`c35-sample-claim-wait` reads the sample browser while SELECT's load runs: c16's walk into `SAMPLES/AUDIO FILES`,
+SELECT on `REC00003`, and a 25 ms window 90 ms later, while the working animation turns over the browser's list. The
+load takes about 400 ms on the emulator, so the window sits well inside it on both firmwares.

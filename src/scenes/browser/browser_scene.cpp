@@ -228,11 +228,11 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 	(void)ctx;
 	(void)path;
 	(void)error;
-	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`,
-	// which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
-	// `instrumentClipView`. The scene parks the path instead, and the application's dispatcher runs
-	// the load against the legacy object -- the noun half of `scenes/menu/action.h`'s seam.
-	return AcceptOutcome::Defer;
+	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which names
+	// `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView` and loads with the browser up under
+	// the working animation. The scene parks the path and waits; the application's dispatcher runs the claim against
+	// the legacy object, and the claim's completion answers `deferred_load_done`.
+	return AcceptOutcome::DeferAndWait;
 }
 
 // --- MIDI device definition: `LoadMidiDeviceDefinitionUI`
@@ -1247,11 +1247,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 		r.handled = true;
 		return r;
 	}
-	case AcceptOutcome::Defer:
-		choice_ = BrowserChoice{id_, std::move(path)};
-		return close();
 	case AcceptOutcome::DeferAndWait: {
-		// One load at a time: `DxSyxBrowser::enterKeyPress` ignores an Enter while its read is in flight.
+		// One load at a time: each legacy browser's load refuses a second Enter until it ends.
 		if (!awaiting_deferred_) {
 			choice_ = BrowserChoice{id_, std::move(path)};
 			awaiting_deferred_ = true;
@@ -1594,12 +1591,15 @@ Result BrowserScene::after_render() {
 		return r;
 	}
 
-	// 1b'. A `DeferAndWait` accept's load ended: a success closes this browser, a failure leaves it up.
+	// 1b'. A `DeferAndWait` accept's load ended: a success closes this browser and a folder menu over it, as `close()`
+	//      does; a failure leaves both up.
 	if (deferred_done_.has_value()) {
 		const bool success = *deferred_done_;
 		deferred_done_.reset();
 		r.handled = true;
 		if (success) {
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Remove, .pop_to = context_menu::kContextMenuSceneKind});
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
 		}
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
