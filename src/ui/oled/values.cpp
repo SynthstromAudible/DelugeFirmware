@@ -113,6 +113,11 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		}
 	}
 
+	if (style.draw != nullptr) {
+		style.draw(f, rect, value, style.hook_ctx);
+		return resp;
+	}
+
 	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
 	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
 	// that matches the legacy panel-relative offset and centring.
@@ -163,7 +168,7 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 }
 
 Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uint8_t places, int8_t& edit_pos,
-                       Blink& blink, bool focused, const DecimalLayout* layout) {
+                       Blink& blink, bool focused) {
 	Response resp{};
 	resp.focused = focused;
 	const uint32_t now = f.now_ms();
@@ -214,14 +219,11 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	}
 	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 
-	// The x arithmetic is relative to `rect`, which at f.bounds() on the root frame spans the
-	// whole panel width. Without a `DecimalLayout` the two y constants stay canvas-absolute and are
-	// converted to frame-local by subtracting the frame's origin -- see the canvas-absolute note in
-	// values.h. WITH one they are `rect`-relative instead, because a page that supplies a layout is
-	// not the full-panel `Decimal` page these constants come from and has its own rows (see
-	// `DecimalLayout::text_dy`).
-	const int32_t local_y = layout != nullptr ? rect.y + layout->text_dy : 20 - f.origin.y;
-	const int32_t cursor_y = layout != nullptr ? rect.y + layout->cursor_dy : 41 - f.origin.y;
+	// The x arithmetic is relative to `rect`, which at f.bounds() on the root frame spans the whole panel width. The
+	// two y constants are canvas-absolute (`Decimal::drawPixelsForOled`'s rows 20 and 41) and converted to frame-local
+	// by subtracting the frame's origin -- see the canvas-absolute note in values.h.
+	const int32_t local_y = 20 - f.origin.y;
+	const int32_t cursor_y = 41 - f.origin.y;
 	const int32_t local_end_x = rect.right();
 
 	std::array<char, 13> buf{};
@@ -237,7 +239,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	// "which face are the big numbers", distinct from `value_font` which `int_value` uses. The
 	// static_asserts below enforce that both shipped profiles set the same metrics this layout
 	// assumes.
-	const gfx::oled::FontId big = layout != nullptr ? layout->font : f.style.big_font;
+	const gfx::oled::FontId big = f.style.big_font;
 	static_assert(kDelugeStyle48.big_font == gfx::oled::FontId::MetricBold20
 	              && kDelugeStyle64.big_font == gfx::oled::FontId::MetricBold20);
 	static_assert(text_height_of(gfx::oled::FontId::MetricBold20) == kTextHugeSizeY);
@@ -245,11 +247,8 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	const int32_t digit_width = spacing_x_for(big);
 	const int32_t period_width = digit_width / 2;
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
-	// Centred across `rect.w` by default; right-anchored when the caller shares the panel
-	// (`DecimalLayout`), which is `image.drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - 3)`
-	// (`PatchCableStrength::renderOLED`).
-	int32_t string_start_x =
-	    layout != nullptr ? rect.right() - layout->right_pad - string_width : rect.x + ((rect.w - string_width) >> 1);
+	// Centred across `rect.w`, `Decimal::drawPixelsForOled`'s `(OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1`.
+	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1);
 	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;
 
 	// The digits' band and the cursor's band are cleared before either is drawn: the cursor is an

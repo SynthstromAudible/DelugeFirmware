@@ -357,15 +357,16 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		expect(menu_scene().menu_context().root_is_keyboard).to_be_true();
 	});
 
-	it("leaves the keyboard's and the clip view's KEYBOARD arms to the menu", _ {
+	it("leaves KEYBOARD to the sound editor's own arm, over every root", _ {
+		// `SoundEditor::buttonAction`'s KEYBOARD arm covers the clip view, the keyboard screen and the automation view
+		// alike (`forwardMenuViewButton`); the automation item's forward takes only CLIP and X_ENC.
 		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
-		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
+		expect(deluge::gui::ui::forwardAutomationButton(deluge::hid::button::KEYBOARD, true).has_value()).to_be_false();
 		expect(getRootUI() == &instrumentClipView).to_be_true();
 	});
 

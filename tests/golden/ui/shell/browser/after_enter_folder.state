@@ -2,3 +2,4 @@ scene app19
 scene app16/145
 led Back blink 110
 led Synth on
+flash 0 5 0

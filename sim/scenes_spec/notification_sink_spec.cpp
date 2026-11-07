@@ -14,17 +14,22 @@
 /// this executable links the real `deluge_app`, as `count_in_spec.cpp` already relies on.
 
 #include "gui/ui/notify_drain.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_notification_sink.h"
+#include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include "scenes/menu/context.h"
 #include "scenes/registry.h"
 #include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
 #include "spec/shell/support/fake_surfaces.h"
+#include "support/global_guest_menu.h"
+#include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
@@ -189,6 +194,58 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		deluge::notify::notice_notification("Iterance", "OFF");
 		r.shell.tick(10); // quiet: no pad, button or encoder, only the drain
 		expect(r.fake.pbm(0) != first).to_be_true();
+	});
+
+	it("with the guest current, legacy's drain leaves a Text notice for the shell", _ {
+		// One consumer, as main has: while the guest is the current UI the shell shows notices, so legacy's drain must
+		// not pop them first.
+		LegacyDisplay legacy;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+
+		deluge::notify::notice_text("SAVED");
+		drain_notifications();
+		expect(deluge::notify::notices().size()).to_equal(size_t{1});
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
+
+		(void)shellHostUI.timerCallback(); // the guest owns the queue while current, and pops it
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+	});
+
+	it("a popup legacy drew before the guest opened goes when the guest's shell drains the CancelPopup", _ {
+		// A mod-knob hold: its popup is drawn while the clip view is current, the guest opens over it, and the
+		// release's cancel reaches the guest's shell. Main has one display, so that cancel takes the popup down.
+		LegacyDisplay legacy;
+		AppSink sink;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::notify::notice_text("PORTAMENTO");
+		drain_notifications();
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
+
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+
+		deluge::notify::notice_kind(Notice::Kind::CancelPopup);
+		(void)shellHostUI.timerCallback();
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
+	});
+
+	it("with the guest not current, legacy's drain shows a Text notice itself", _ {
+		LegacyDisplay legacy;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		expect(getCurrentUI() != &shellHostUI).to_be_true();
+		deluge::notify::notice_text("SAVED");
+		drain_notifications();
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
 	});
 });
 DELUGE_SPEC(notification_sink_spec, notification_sink_spec_body)

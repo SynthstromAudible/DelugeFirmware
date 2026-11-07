@@ -46,31 +46,6 @@
 /// navigation state shared by four pages, and because a `CustomItem` is a `const` singleton with
 /// nowhere to put them.
 ///
-/// ## What did NOT come across
-///
-///   * **The polarity gesture is SHIFT + turn, where legacy uses the select encoder *held* + turn**
-///     (`PatchCableStrength::selectEncoderAction`, `patch_cable_strength.cpp:325-336`, gated on
-///     `Buttons::isButtonPressed(hid::button::SELECT_ENC)`). A `FrameContext` carries no held-button
-///     *level* for an encoder -- only the press edge -- and `f.shift()` is the one modifier it does
-///     expose (`ui/core/frame_context.h`), so the gesture changed. Legacy's MIDI/CV *button*
-///     shortcut for the same thing (`buttonAction`, `:311-323`) has no port either: `IndicatorLED`
-///     and `hid::Button` are both `hid/`.
-///   * **The value's face and position.** Legacy draws it right-aligned at the top in
-///     `kTextBigSizeY` (13) with its own decimal-separator lines (`:172-188`); this port uses
-///     `decimal_value`, whose face is the 20px one and whose digits are centred across the rect it
-///     is given. That is the one reason the polarity switch does not sit on legacy's own canvas row
-///     34 -- see `kRoutingDiagramWidth` in the `.cpp`, which also explains why the switch's *row*
-///     is frame-local where `decimal_value`'s is canvas-absolute.
-///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
-///     `automationView` / `keyboardScreen` (`:338-365`) -- both are `gui/views/`.
-///   * `PatchCableStrength::buttonAction`'s MIDI/CV button polarity shortcut (`:311-323`) and
-///     `endSession`'s `setLedState` pair (`:69-72`): `IndicatorLED` is `hid/`.
-///   * `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME
-///     fallback walk (`patch_cable_strength/regular.cpp:51-62`) IS ported, in
-///     `PatchCableStrengthItem::on_focus`.
-///   * `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which
-///     arrive as grid input, which `source_press` below handles.
-///
 /// ## Source-pad blinking
 ///
 /// Legacy's `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
@@ -82,13 +57,22 @@
 ///
 /// ## What is ported
 ///
-/// The routing diagram and the BI/UNI box **are** ported: they are
-/// `ui::oled::routing_chain` and `ui::oled::segmented_switch` (`ui/oled/routing.h`), transcribed
-/// coordinate for coordinate from `renderOLED`'s two blocks and pinned byte-for-byte against them
-/// in `tests/spec/ui/routing_spec.cpp`. The scenes layer may not call an `OledFrame` primitive
-/// (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`), so the drawing lives in the
-/// toolkit and this page composes it -- which is also what makes it reusable by the next screen
-/// that has to show a signal path.
+/// The whole of `renderOLED`: the routing diagram and the BI/UNI box are `ui::oled::routing_chain` and
+/// `ui::oled::segmented_switch`, the number is `ui::oled::cable_strength_value` (`ui/oled/routing.h`), transcribed
+/// coordinate for coordinate and pinned byte-for-byte against legacy in `tests/unit/spec/ui/routing_spec.cpp`. The
+/// scenes layer may not call an `OledFrame` primitive (`scripts/check_layer_rules.py`'s
+/// `scenes-no-frame-primitives`), so the drawing lives in the toolkit and this page composes it. The number's digits
+/// are the exact value, where legacy's build truncates (DIFFERENCES.md D71, accepted).
+///
+/// The polarity gestures and LEDs: `buttonAction`'s MIDI/CV pair is `PatchCableStrengthItem::handle`,
+/// `updatePolarityUI`'s LEDs are `PatchCableStrengthItem::leds`, and `selectEncoderAction`'s held-Select turn is in
+/// `render`, which uses the press up through `MenuTick::use_up_select`. `horizontalEncoderAction`'s
+/// `delayHorizontalScrollUntil` escape and X_ENC guard are `MenuScene::route_horizontal_turn`.
+///
+/// `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME fallback walk
+/// (`patch_cable_strength/regular.cpp`) is in `PatchCableStrengthItem::on_focus`.
+/// `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which arrive as grid input -- are
+/// `source_press` below.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -209,12 +193,16 @@ public:
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void commit(const MenuContext& ctx, MenuState& state) const override;
+	void leds(deluge::ui::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
 
 	/// `PatchCableStrength::getLearningThing()` -- `MenuItemWithCCLearning`'s answer, which is a
 	/// function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+	/// @brief `Fixed::s` / `Fixed::p`: the cable a `Fixed` page edits. Meaningless for `Regular` and `Range`.
+	constexpr PatchSource fixed_source() const { return source_; }
+	constexpr uint8_t fixed_param() const { return param_; }
 
 	/// The three classes' `patchingSourceShortcutPress` (`patch_cable_strength/regular.cpp`, `range.cpp:58-60`,
 	/// `fixed.cpp:45-48`): another held source pad opens the range page for the pressed source (`Fixed` always opens
@@ -238,8 +226,9 @@ public:
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
 
-	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (a SHIFT+turn); a
-	/// cable the page makes later takes it.
+	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (MIDI, CV, or a turn
+	///        under a held Select); a cable the page makes later takes it. Restarts the cursor's blink dark, as
+	///        `updatePolarityUI`'s re-render does.
 	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
 
 	/// `PatchCableStrength : Automation` (`patch_cable_strength.h:29`): shift + select deletes the cable's automation.
@@ -264,9 +253,14 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 /// `vibratoMenu` (`menus.cpp:1727-1728`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
-/// @brief `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the banner of a cable strength
-///        column, its value over 100 to two places.
+/// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
+///        `patch_cable_strength.h`) and the column (`Decimal::renderInHorizontalMenu`, `decimal.cpp`,
+///        rendering style NUMBER), both the value over 100 to two places; the column keeps three characters of a value
+///        at or below -10.00.
 ValueText cable_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @brief `sidechain::VolumeShortcut`'s: the notification only. Its column is the ducking meter
+///        (`getRenderingStyle() == SIDECHAIN_DUCKING`, `sidechain/volume.h`), which the node's `Hint::Ducking` draws.
+ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
 /// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
@@ -274,6 +268,27 @@ inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem:
                                                          deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
                                                          PatchSource::SIDECHAIN};
 /// @}
+
+/// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
+///        `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`), 0 where there is no cable.
+int32_t vibrato_strength(const MenuContext& ctx);
+/// @brief The same for `kSidechainVolumeItem`'s cable (SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND).
+int32_t ducking_strength(const MenuContext& ctx);
+
+/// @brief @p n as a fixed cable's column on a horizontal page: it reads @p get, ranges over +/-50.00
+///        (`getMinValue`/`getMaxValue`, `patch_cable_strength.h`), steps 1.00 a detent and 0.01 with SELECT or
+///        SHIFT held (`Decimal::getNumberEditSize`, `decimal.cpp`), and a select press on it opens its own
+///        strength page (`allowToBeginSessionFromHorizontalMenu`, `patch_cable_strength.h`). The column's edit is
+///        written by the item's `commit`, as on the page.
+/// @param n   The cable's custom node.
+/// @param get Its strength getter.
+/// @return @p n as a column.
+constexpr Node fixed_cable_column(Node n, GetFn get) {
+	n.bind.get = get;
+	n.bind.fixed_range = IntRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	n.bind.horizontal_step = HorizontalStep{.coarse = 100, .fine = 1};
+	return with_allow_session_from_horizontal(n);
+}
 
 // ---------------------------------------------------------------------------------------------
 // The nodes.

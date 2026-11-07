@@ -191,11 +191,10 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
                                            const UiContext& ui) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
-	// 4), so it always arrives here. Legacy gates the non-auditioning case on
-	// `Buttons::isShiftButtonPressed()` (`SoundEditor::potentialShortcutPadAction`); the auditioning half is a UI
-	// mode this layer may not read, so shift is the whole gate.
-	if (event.kind == UiEvent::Kind::Pad && event.on && ui.shift) {
+	// The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule 4), so it always arrives
+	// here. Legacy's gate (`SoundEditor::potentialShortcutPadAction`) is SHIFT, or an audition held over the
+	// instrument clip view, a UI fact the host puts on the press itself (`UiEvent::shortcut_without_shift`).
+	if (event.kind == UiEvent::Kind::Pad && event.on && (ui.shift || event.shortcut_without_shift)) {
 		// Legacy's second-layer toggle (`sound_editor.cpp:1364-1379`), which is a *double press of
 		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
 		// any other pad clears it, and a patch-cable item never arms it.
@@ -284,6 +283,11 @@ uint16_t MenuPads::arm_landing(const MenuContext& ctx, const Node& target) {
 		return node_id(*page);
 	}
 	return node_id(target);
+}
+
+uint16_t MenuPads::arm_landing_on(const Node& page, const Node& column) {
+	landing_column_ = &column;
+	return node_id(page);
 }
 
 deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st) {

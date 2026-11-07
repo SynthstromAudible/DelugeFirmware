@@ -35,6 +35,7 @@
 #include "scenes/registry.h"        // menu_scene() -- the singleton `request_action` is filed on
 
 #include "definitions_cxx.hpp"
+#include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -55,6 +56,7 @@
 #include "ui/core/metrics.h"              // kReadoutValueY
 #include "ui/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
 #include "ui/oled/frame.h"
+#include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
 #include <version.h> // kFirmwareVersionString
@@ -162,7 +164,13 @@ int32_t follow_channel_get(int32_t which) {
 	return midiEngine.midiFollowChannelType[which].channelOrZone; // `midi/follow/follow_channel.h:29`
 }
 void follow_channel_set(int32_t which, int32_t value) {
-	midiEngine.midiFollowChannelType[which].channelOrZone = value; // `follow_channel.h:36 writeCurrentValue`
+	// `FollowChannel::selectEncoderAction`'s unassigned arm forgets the learned input, device and all; any other value
+	// is `writeCurrentValue`.
+	if (value == MIDI_CHANNEL_NONE) {
+		midiEngine.midiFollowChannelType[which].clear();
+		return;
+	}
+	midiEngine.midiFollowChannelType[which].channelOrZone = value;
 }
 
 bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event) {
@@ -179,6 +187,66 @@ bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event
 bool follow_channel_unlearn(int32_t which) {
 	midiEngine.midiFollowChannelType[which].clear();
 	return true;
+}
+
+std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, int32_t offset) {
+	if (value == MIDI_CHANNEL_NONE) {
+		if (offset > 0) {
+			return 0;
+		}
+		if (offset < 0) {
+			return MIDI_CHANNEL_MPE_UPPER_ZONE;
+		}
+		return value;
+	}
+	const int32_t next = value + offset;
+	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
+}
+
+void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll) {
+	using deluge::l10n::String;
+	// Legacy's canvas rows 20 / 29 / 38 at the Apple face's height 7, laid out as `MidiCommandItem` lays the same rows
+	// (`ui/core/metrics.h`).
+	const bool tall = f.style.menu_base_y == deluge::ui::kMenuBaseY64;
+	const int32_t row0_y =
+	    (tall ? deluge::ui::kMidiCommandRowY64 : deluge::ui::kMidiCommandRowY48) + deluge::ui::kApple7Height7YAdjust;
+	const int32_t row_h = f.style.row_height;
+	const auto row = [&](int32_t i, int32_t x) {
+		return deluge::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
+	};
+	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
+
+	deluge::ui::oled::text(f, row(0, 0),
+	                       deluge::scenes::text_lookup(sid(MIDIDeviceManager::differentiatingInputsByDevice
+	                                                           ? String::STRING_FOR_INPUT_DIFFERENTIATION_ON
+	                                                           : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
+	                       ts);
+
+	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
+	const std::string_view device = input.cable != nullptr
+	                                    ? std::string_view{input.cable->getDisplayName()}
+	                                    : deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
+	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
+
+	std::string_view channel_text;
+	if (value == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_LOWER_ZONE));
+	}
+	else if (value == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_UPPER_ZONE));
+	}
+	else if (value == MIDI_CHANNEL_NONE) {
+		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED));
+	}
+	else {
+		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_CHANNEL));
+		char buf[12];
+		const int32_t shown = value + 1 - (value >= IS_A_CC ? IS_A_CC : 0);
+		const std::to_chars_result r = std::to_chars(buf, buf + sizeof(buf), shown);
+		deluge::ui::oled::text(f, row(2, deluge::ui::oled::spacing_x_for(f.style.row_font) * 8),
+		                       std::string_view{buf, static_cast<size_t>(r.ptr - buf)}, ts);
+	}
+	deluge::ui::oled::text(f, row(2, 0), channel_text, ts);
 }
 
 bool learn_follow_kit_root_note(const MenuContext&, const deluge::ui::shell::UiEvent& event) {

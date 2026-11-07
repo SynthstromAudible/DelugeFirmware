@@ -124,7 +124,10 @@ public:
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
 	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return visit_.learn.mode(); }
+	bool select_release_blocked() const override { return learn_mode(); }
+	/// @brief Whether LEARN holds the menu in learn mode, legacy's `UI_MODE_MIDI_LEARN`, which the menu keeps itself
+	///        rather than in `currentUIMode`; the guest refuses select turns in it.
+	bool learn_mode() const { return visit_.learn.mode(); }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
@@ -192,6 +195,19 @@ public:
 	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
 	///        greyout (`sound_editor.cpp:497-500`).
 	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
+	/// @brief Re-root the open menu at @p root on @p ctx, landed on @p column, which @p root lists: `setup()` and
+	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
+	///        at the next tick, as a shortcut's jump is.
+	void reroot(const Node& root, const MenuContext& ctx, const Node& column);
+	/// @brief Whether AFFECT ENTIRE is this menu's hold rather than the clip's toggle: a kit row's menu
+	///        (`editingKitRow()`) on an item that uses it (`menu::uses_affect_entire`).
+	bool takes_affect_entire() const;
+	/// @brief Enter or leave `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host decides: while held a
+	///        param write reaches every drum (`MenuContext::affect_entire_held`) and AFFECT ENTIRE blinks fast.
+	void set_affect_entire_hold(bool on);
+	/// @brief The clip's affect-entire changed under the open menu (the clip minder's toggle):
+	/// `MenuContext::affect_entire`.
+	void set_clip_affect_entire(bool on) { ctx_.affect_entire = on; }
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
@@ -480,7 +496,8 @@ public:
 	///
 	/// @return True if the menu moved. False when there is nothing to move: the `HorizontalMenus` feature off
 	///         (`MenuContext::horizontal_menus`), no scene opener recorded, no path (`on_model_changed`'s song swap), a
-	///         root out of range, or an item no horizontal page in this root lists.
+	///         root out of range, or an item no horizontal page in this root lists. On success it raises
+	///         `Dirty::Oled`, since its caller runs between the shell's ticks.
 	bool reroot_to_scene_opener_page();
 
 	/// @brief Where a Shift + main pad from a scene the menu opened (the sample marker editor) jumps:
@@ -549,6 +566,14 @@ private:
 	///        page's session afresh.
 	void retarget(const Node& node);
 
+	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
+	void flip_in_place(const Node& node);
+
+	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
+	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
+	///        and `FollowKitRootNote::learnNoteOn` call `setValue` as well as storing the input, and redraw.
+	void read_learned_value_again();
+
 	MenuState st_{};
 #ifdef DELUGE_HOST
 	/// What the last `after_render` drained, in order (`drain_trace`).
@@ -588,6 +613,10 @@ private:
 	bool land_dx_cartridge_ = false;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
+	/// The host's hold mode (`set_affect_entire_hold`): survives a shortcut's `Replace`, as legacy's UI mode does.
+	bool holding_affect_entire_ = false;
+	/// Restart the fast blink at the next `leds`: the press, and a select or BACK press or a select turn while held.
+	bool affect_entire_blink_restart_ = false;
 	/// The clock of the last grid render, which `next_timer` measures the DX column's next flip from.
 	uint32_t render_ms_ = 0;
 	/// Whether the keyboard DX column flashes: the parameter page over the keyboard, drawn at least once.
@@ -618,6 +647,9 @@ private:
 		/// A scene the entry opened at once covers the menu: legacy's `SoundEditor::opened` opened it from
 		/// `beginScreen`, before `focusRegained` set the editor's LEDs, so the menu declares none until it resumes.
 		bool leds_held_back = false;
+		/// A MIDI device-definition browser opened over this visit: LOAD blinks on under the menu, since the sound
+		/// editor's `setLedStates` never stops the blink its `LoadUI` started; leaving the menu does (`View`).
+		bool load_blink = false;
 	};
 	Visit visit_{};
 	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).

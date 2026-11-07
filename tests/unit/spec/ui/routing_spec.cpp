@@ -3,6 +3,7 @@
 #include "gfx/oled/font.h"
 #include "gfx/oled/icons.h"
 #include "support/frames.h"
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/core/style.h"
 #include "ui/oled/routing.h"
@@ -10,7 +11,10 @@
 #include "cppspec.hpp"
 
 #include "../support/spec_main.h"
+#include <algorithm>
 #include <array>
+#include <cstdio>
+#include <cstdlib>
 #include <span>
 #include <string>
 #include <string_view>
@@ -21,9 +25,9 @@ using deluge::gfx::oled::Canvas;
 using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
-// `routing_chain` / `segmented_switch` -- the two halves of legacy
-// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp:79-157`) that draw a
-// *routing* rather than a value. Pinned the three ways this directory pins a widget:
+// `routing_chain` / `segmented_switch` / `cable_strength_value` -- the three blocks of legacy
+// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp`): the first two draw a
+// *routing*, the third its strength. Pinned the three ways this directory pins a widget:
 //
 // First, byte for byte against the legacy routine: `legacy_diagram` / `legacy_switch` below are
 // those two blocks transcribed against the raw gfx `Canvas` in canvas-absolute coordinates, with
@@ -158,6 +162,49 @@ std::span<const int32_t> bi_uni_widths() {
 /// rows on both panels.
 Rect diagram_rect() {
 	return Rect{0, 0, 128, 48};
+}
+
+/// @brief `PatchCableStrength::renderOLED`'s number block (`patch_cable_strength.cpp`), transcribed with the
+///        division exact (legacy's GCC build truncates it under fast-math: DIFFERENCES.md D71) and the blink drawn lit.
+///
+/// @param c        Canvas to draw into, in canvas-absolute coordinates.
+/// @param topmost  `OLED_MAIN_TOPMOST_PIXEL`.
+/// @param value    The strength, in hundredths.
+/// @param edit_pos `soundEditor.numberEditPos`.
+/// @param lit      Whether the cursor's blink is in its lit phase.
+void legacy_number(Canvas& c, int32_t topmost, int32_t value, int32_t edit_pos, bool lit) {
+	const int32_t fraction = std::abs(value % 100);
+	const int32_t non_zero = fraction == 0 ? 0 : (fraction % 10 == 0 ? 1 : 2);
+	const int32_t hidden = std::clamp<int32_t>(2 - non_zero, 0, edit_pos);
+	const int32_t shown_pos = edit_pos - hidden;
+	const int32_t divisor = hidden == 0 ? 1 : (hidden == 1 ? 10 : 100);
+	char buf[12];
+	const int32_t shown = value / divisor;
+	std::snprintf(buf, sizeof(buf), shown < 0 ? "-%0*d" : "%0*d", static_cast<int>(3 - hidden), std::abs(shown));
+	const int32_t textY = 1 + topmost + 4;
+	c.draw_string_align_right(buf, textY, 11, 13, 128 - 3); // kTextBigSpacingX, kTextBigSizeY
+	if (const int32_t places = 2 - hidden; places > 0) {
+		const int32_t separatorX = 128 - places * 11 - 3;
+		c.draw_vertical_line(separatorX, textY + 13 + 1, textY + 13 + 3);
+		c.draw_vertical_line(separatorX - 1, textY + 13 + 1, textY + 13 + 3);
+	}
+	if (lit) {
+		c.invert_area(128 - (shown_pos + 1) * 11 - 3, 11, textY + 13 + 1, textY + 13 + 1);
+	}
+}
+
+/// @brief The number's band on the strength page: right of the diagram, from `textY` (frame row 5), 17 rows.
+Rect number_rect() {
+	return Rect{58, 5, 70, 17};
+}
+
+/// @brief Draw @p value at @p edit_pos through the widget, its blink lit, on @p r.
+template <class R>
+void draw_number(R& r, int32_t value, int8_t edit_pos) {
+	Blink blink{};
+	blink.period_ms = deluge::ui::kFlashTime;
+	blink.restart_lit(0);
+	cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, edit_pos, blink);
 }
 
 } // namespace
@@ -340,11 +387,109 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 		}
 	});
 });
+
+describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
+
+	it("hides a zero fraction while the cursor is left of it, byte for byte", _ {
+		uitest::Rig48 r;
+		draw_number(r, 2100, 2); // 21.00 on the units: `21`, no tick
+		legacy_number(r.reference, 5, 2100, 2, true);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("marks the fraction with legacy's tick under the digits when the cursor is on it", _ {
+		uitest::Rig48 r;
+		draw_number(r, 2100, 0); // `2100`, the tick before the last two
+		legacy_number(r.reference, 5, 2100, 0, true);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		// The tick: columns 102-103 (`OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - rightPadding` and the one left of it), the
+		// three rows under the digits' clear row.
+		expect(r.lit(102, 26) && r.lit(103, 26) && !r.lit(101, 26) && !r.lit(104, 26)).to_be_true();
+		// The cursor under the hundredths, columns 114-124 of row 24.
+		expect(r.lit(114, 24) && r.lit(124, 24) && !r.lit(113, 24) && !r.lit(114, 25)).to_be_true();
+	});
+
+	it("keeps a non-zero fraction place shown, and a hidden one only right of the cursor", _ {
+		uitest::Rig48 a;
+		draw_number(a, 2150, 2); // `215`, one place, the tick before the last digit
+		legacy_number(a.reference, 5, 2150, 2, true);
+		expect(a.pbm()).to_equal(a.reference_pbm());
+		uitest::Rig48 b;
+		draw_number(b, 0, 1); // `00`: one of the two zero places hidden
+		legacy_number(b.reference, 5, 0, 1, true);
+		expect(b.pbm()).to_equal(b.reference_pbm());
+	});
+
+	it("draws a negative value and a cursor left of every digit as legacy does", _ {
+		uitest::Rig48 a;
+		draw_number(a, -5000, 2); // `-50`
+		legacy_number(a.reference, 5, -5000, 2, true);
+		expect(a.pbm()).to_equal(a.reference_pbm());
+		uitest::Rig48 b;
+		draw_number(b, 0, 3); // `0`, the cursor one place left of it
+		legacy_number(b.reference, 5, 0, 3, true);
+		expect(b.pbm()).to_equal(b.reference_pbm());
+	});
+
+	it("draws its cursor one row tall, on the row under the digits", _ {
+		uitest::Rig48 r;
+		draw_number(r, 0, 2);
+		for (int x = 114; x <= 124; x++) {
+			expect(r.lit(x, 24)).to_be_true();
+			expect(r.lit(x, 25)).to_be_false();
+		}
+	});
+
+	it("moves by 10^place a detent, five times that with SHIFT, and not at all when the turn is withheld", _ {
+		uitest::Rig48 r;
+		int32_t value = 2200;
+		int8_t pos = 2;
+		Blink blink{};
+		r.input.turn = 1;
+		r.begin_tick(10);
+		Response got = cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
+		expect(got.changed).to_be_true();
+		expect(value).to_equal(2300);
+		r.input.shift = true;
+		r.begin_tick(20);
+		(void)cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
+		expect(value).to_equal(2800);
+		r.input.shift = false;
+		r.begin_tick(30);
+		got = cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink,
+		                           /*take_turn=*/false);
+		expect(got.changed).to_be_false();
+		expect(value).to_equal(2800);
+	});
+
+	it("moves its cursor a place a horizontal tick, up to the highest place under the maximum", _ {
+		uitest::Rig48 r;
+		int32_t value = 0;
+		int8_t pos = 2;
+		Blink blink{};
+		r.input.horizontal = -1;
+		for (uint32_t t = 10; t <= 40; t += 10) {
+			r.begin_tick(t);
+			(void)cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
+		}
+		expect(static_cast<int>(pos)).to_equal(3); // 1000 * 10 > 5000
+		r.input.horizontal = 1;
+		for (uint32_t t = 50; t <= 100; t += 10) {
+			r.begin_tick(t);
+			(void)cable_strength_value(r.frame, number_rect(), value, Range{.min = -5000, .max = 5000}, pos, blink);
+		}
+		expect(static_cast<int>(pos)).to_equal(0);
+	});
+});
 // clang-format on
-/// Two `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
+/// Three `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
 /// with `add_specs` instead -- the shape `sim/scenes_spec/tables_1_spec.cpp` uses for the same
 /// reason.
 int ui_routing_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_specs(routing_chain_w, segmented_switch_w).exec().is_success() ? EXIT_SUCCESS
-	                                                                                                     : EXIT_FAILURE;
+	return CppSpec::parse(argc, argv)
+	               .add_specs(routing_chain_w, segmented_switch_w, cable_strength_value_w)
+	               .exec()
+	               .is_success()
+	           ? EXIT_SUCCESS
+	           : EXIT_FAILURE;
 }

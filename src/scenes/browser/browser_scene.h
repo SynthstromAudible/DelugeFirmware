@@ -385,6 +385,13 @@ inline constexpr int32_t kFavouriteRow = 7;
 /// @brief How often the current favourite (and bank) flash: `QwertyUI::timerCallback`'s period.
 inline constexpr uint32_t kFavouriteFlashMs = 500;
 
+/// @brief The sample browser's BROWSE pad blink: `SoundEditor`'s `SHORTCUT_BLINK` timer as the browser leaves it.
+enum class BrowseBlink : uint8_t {
+	Off,     ///< Unset: a preview landed, a move left a shown preview, or a pad or turn revealed the keyboard.
+	Menu,    ///< The file selector's own, every 200 ms cycle (`updatePadLightsFor`'s `setupShortcutBlink(x, 5, 0)`).
+	Browser, ///< The browser's own, every other cycle (`possiblySetUpBlinking`'s `setupExclusiveShortcutBlink`).
+};
+
 /// @brief The file browser. One instance for the whole application (`registry.h`).
 class BrowserScene final : public deluge::ui::shell::Scene {
 public:
@@ -450,8 +457,16 @@ public:
 	/// @{
 	/// @brief What the main pads show.
 	BrowserPads pads() const { return pads_; }
+	/// @brief Which BROWSE blink runs.
+	BrowseBlink browse_blink() const { return browse_blink_; }
+	/// @brief Whether the next `on_enter` is the drum creator's: `InstrumentClipView::enterDrumCreator` opens the
+	///        browser with no `SoundEditor::beginScreen` after it, so only the browser's own blink runs.
+	void set_drum_creator_next(bool from_creator) { drum_creator_next_ = from_creator; }
 	/// @brief Which descriptor the last `on_enter` selected.
 	BrowserId browser_id() const { return id_; }
+	/// @brief Whether a MIDI device-definition browser opened since the last call, and clear it. That browser is a
+	///        legacy `LoadUI`, whose `focusRegained` blinks LOAD, and the blink outlives it under the menu.
+	bool take_load_blink() { return std::exchange(load_blink_pending_, false); }
 	/// @brief `QwertyUI::enteredText` -- the name shown on the selected row.
 	std::string_view entered_text() const { return std::string_view{entered_, entered_len_}; }
 	/// @brief `Browser::fileIndexSelected`; -1 while there is no real selection.
@@ -477,6 +492,13 @@ public:
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
+	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
+	///        `SampleBrowser::showPreview` sets up.
+	/// @param sample The sample the slicer opens on.
+	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
+		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
+	}
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
@@ -620,8 +642,8 @@ private:
 	void favourites_changed();
 	/// @brief The favourites and bank rows, and the current ones' flash, over the keyboard.
 	void render_favourites(deluge::ui::grid::GridFrame& f);
-	/// @brief The root state's BROWSE blink.
-	void render_root_blink(deluge::ui::grid::GridFrame& f);
+	/// @brief The BROWSE pad's flash, over whatever the main pads show, while `browse_blink_` runs.
+	void render_browse_blink(deluge::ui::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
 	void render_waveform(deluge::ui::grid::GridFrame& f);
 	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible` asks for one: the file's
@@ -760,6 +782,8 @@ private:
 	int8_t preview_direction_ = 0;
 	/// The next `leds()` restarts BACK's blink: the browser has just opened.
 	bool back_blink_restart_ = true;
+	/// The browser that opened blinks LOAD (`take_load_blink`): set by a successful `on_enter`.
+	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
 	services::Favourites* favourites_override_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.
@@ -782,11 +806,17 @@ private:
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;
 	uint32_t redraw_progress_ms_ = 0;
-	/// The BROWSE pad's blink in the root state (`possiblySetUpBlinking`): its plan, the cycle's start, re-armed on
-	/// each entry to the root state, and the last step flashed.
-	deluge::scenes::menu::BlinkPlan blink_{};
+	/// The BROWSE pad's blink: which one runs, the cycle's start (reset whenever one is armed), and the last step
+	/// flashed.
+	BrowseBlink browse_blink_ = BrowseBlink::Off;
 	std::optional<uint32_t> blink_anchor_ms_{};
 	uint32_t blink_fired_step_ = UINT32_MAX;
+	/// No preview has been asked for since the browser opened.
+	bool first_preview_ = false;
+	/// The preview in hand is the open's first, which on `main` landed before the file selector's blink was armed.
+	bool spare_blink_from_preview_ = false;
+	/// The next `on_enter` is the drum creator's (`set_drum_creator_next`).
+	bool drum_creator_next_ = false;
 
 	deluge::ui::oled::TextEditState edit_{};
 	deluge::ui::grid::TextKeyboardState kb_{};

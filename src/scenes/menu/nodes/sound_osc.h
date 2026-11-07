@@ -231,7 +231,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	            retrigger_phase_text),                                                                                 \
 	        sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT)),                                              \
 	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true});                                       \
-	inline constexpr Node sample##i##_reverse = with_reverse_in_horizontal(                                            \
+	inline constexpr Node sample##i##_reverse = with_affect_entire(with_reverse_in_horizontal(                         \
 	    with_column_name(                                                                                              \
 	        with_value_text(                                                                                           \
 	            with_column_art(                                                                                       \
@@ -244,37 +244,37 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	                direction_art),                                                                                    \
 	            on_off_text),                                                                                          \
 	        sid(deluge::l10n::String::STRING_FOR_PLAY)),                                                               \
-	    reverse_always);                                                                                               \
-	inline constexpr Node sample##i##_repeat = with_value_text(                                                        \
+	    reverse_always));                                                                                              \
+	inline constexpr Node sample##i##_repeat = with_affect_entire(with_value_text(                                     \
 	    with_column_art(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,         \
 	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
 	                                             .path = osc_path "/loopMode"}),                                       \
 	                               sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE)),                      \
 	                    repeat_art),                                                                                   \
-	    repeat_text);                                                                                                  \
-	inline constexpr Node sample##i##_time_stretch = with_column_name(                                                 \
+	    repeat_text));                                                                                                 \
+	inline constexpr Node sample##i##_time_stretch = with_affect_entire(with_column_name(                              \
 	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                 \
 	                                           {.kind = deluge::scenes::bind::Target::Kind::SOUND,                     \
 	                                            .path = osc_path "/timeStretchAmount"}),                               \
 	                              sid(deluge::l10n::String::STRING_FOR_SAMP_SPEED_MENU_TITLE)),                        \
 	                   (i) + 1),                                                                                       \
-	    sid(deluge::l10n::String::STRING_FOR_SPEED_SHORT));                                                            \
-	inline constexpr Node sample##i##_pitch_speed = with_value_text(                                                   \
+	    sid(deluge::l10n::String::STRING_FOR_SPEED_SHORT)));                                                           \
+	inline constexpr Node sample##i##_pitch_speed = with_affect_entire(with_value_text(                                \
 	    with_column_art(                                                                                               \
 	        with_selection_is_toggle(setting_item(sid(deluge::l10n::String::STRING_FOR_PITCH_SPEED), Kind::Enum,       \
 	                                              {.kind = deluge::scenes::bind::Target::Kind::SOUND,                  \
 	                                               .path = osc_path "/timeStretchEnable",                              \
 	                                               .audio_clip_path = "pitchSpeedIndependent"})),                      \
 	        keyboard_art),                                                                                             \
-	    pitch_speed_text);                                                                                             \
-	inline constexpr Node sample##i##_interpolation = with_column_name(                                                \
+	    pitch_speed_text));                                                                                            \
+	inline constexpr Node sample##i##_interpolation = with_affect_entire(with_column_name(                             \
 	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), Kind::Enum,        \
 	                                           {.kind = deluge::scenes::bind::Target::Kind::SOUND,                     \
 	                                            .path = osc_path "/linearInterpolation",                               \
 	                                            .audio_clip_path = "linearInterpolation"}),                            \
 	                              sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE)),                       \
 	                   (i) + 1),                                                                                       \
-	    sid(deluge::l10n::String::STRING_FOR_INTERPOLATION_SHORT));                                                    \
+	    sid(deluge::l10n::String::STRING_FOR_INTERPOLATION_SHORT)));                                                   \
 	inline constexpr Node sample##i##_start =                                                                          \
 	    with_column_name(with_column_draw(with_allow_session_from_horizontal(with_range_dependent(                     \
 	                                          custom(sid(deluge::l10n::String::STRING_FOR_START_POINT),                \
@@ -340,12 +340,12 @@ DELUGE_OSC_MODULATOR(1, "modulator2");
 #undef DELUGE_OSC_SOURCE
 #undef DELUGE_OSC_MODULATOR
 
-inline constexpr Node modulator_dest =
+inline constexpr Node modulator_dest = with_affect_entire(
     with_short_options(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_DESTINATION), Kind::Enum,
                                                {.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                 .path = "modulator2/toModulator1",
                                                 .fan_out_when = fan_out::kFm}),
-                                  sid(deluge::l10n::String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE)));
+                                  sid(deluge::l10n::String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE))));
 
 inline constexpr const Node* kModulator0Children[] = {&modulator0_transpose, &modulator0_feedback,
                                                       &modulator0_phase_node};
@@ -411,12 +411,12 @@ inline constexpr Node noise =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_NOISE_LEVEL),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_NOISE_VOLUME},
                            Hint::Bar, param_shows::kOffFm));
-inline constexpr Node osc_sync =
+inline constexpr Node osc_sync = with_affect_entire(
     with_column_name(setting_item(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_SYNC), Kind::Toggle,
                                   {.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                    .path = "osc2/oscillatorSync",
                                    .fan_out_when = fan_out::kOscSync}),
-                     sid(deluge::l10n::String::STRING_FOR_SYNC));
+                     sid(deluge::l10n::String::STRING_FOR_SYNC)));
 inline constexpr const Node* kMixerChildren[] = {&source0_volume,    &source1_volume, &modulator0_volume,
                                                  &modulator1_volume, &noise,          &osc_sync};
 inline constexpr Node osc_mixer =

@@ -781,6 +781,29 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 		}
 	});
 
+	it("says a node uses AFFECT ENTIRE exactly where the legacy item does", _ {
+		// `MenuItem::usesAffectEntire`: what makes AFFECT ENTIRE a hold in a kit row's menu rather than the clip's
+		// toggle. Leaves only: a legacy `Submenu`'s answer depends on its cursor (`menu::uses_affect_entire` ports that).
+		std::string wrong;
+		const auto compare = [&wrong](const Node& node, ::MenuItem& item) {
+			if (menu::node_uses_affect_entire(node) != item.usesAffectEntire()) {
+				wrong += text_of(node.name) + (item.usesAffectEntire() ? " legacy-true; " : " legacy-false; ");
+			}
+		};
+		for (const Pair& p : tree().pairs) {
+			if (p.node->kind == menu::Kind::Submenu) {
+				continue;
+			}
+			compare(*p.node, *p.item);
+		}
+		compare(nodes::arp_octave_mode_to_note_mode, legacy::arpeggiator::arpOctaveModeToNoteModeMenu);
+		compare(nodes::arp_octave_mode_to_note_mode_drums, legacy::arpeggiator::arpOctaveModeToNoteModeMenuForDrums);
+		compare(nodes::arp_note_mode_from_octave_mode, legacy::arpeggiator::arpNoteModeFromOctaveModeMenu);
+		compare(nodes::arp_note_mode_from_octave_mode_drums,
+		        legacy::arpeggiator::arpNoteModeFromOctaveModeMenuForDrums);
+		expect(wrong).to_equal(std::string{});
+	});
+
 	it("binds MIDI/CC learn to exactly the param legacy would have learned", _ {
 		Rigged& f = fixture();
 		size_t learnable = 0;

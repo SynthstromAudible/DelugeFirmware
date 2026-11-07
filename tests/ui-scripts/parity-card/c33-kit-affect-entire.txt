@@ -1,0 +1,47 @@
+# ShellMenu: AFFECT ENTIRE in a kit row's sound menu. The content card's synth clip is made a kit and drum row 0's
+# menu opened over the clip view. On the root list (a row that enters a submenu, which does not use affect-entire)
+# AFFECT ENTIRE toggles the clip's affect-entire, as the clip view's own button does: its LED lights and stays. SHIFT
+# + (8,7) opens the row's FILTER page on LPF frequency, which does use it: holding AFFECT ENTIRE blinks its LED fast
+# (the hold mode), a turn under it edits every drum, and the release ends the blink (the LED shows the clip's setting
+# again). BACK leaves the menu (a shortcut opened the page); SELECT then opens the kit's own root (affect-entire is
+# on), where AFFECT ENTIRE toggles the clip's setting off again. Every snapshot has a 1 s window. Run on the content
+# card with ShellMenu on (sweep-shellmenu.img).
+1300  button Clip down
+1320  button Clip up
+2300  button Kit down
+2320  button Kit up
+5300  snapshot kit
+5600  button Clip down
+5620  button Clip up
+6000  pad 17 0 down
+6050  pad 17 0 up
+7000  snapshot drum_selected
+7300  button SelectEnc down
+7320  button SelectEnc up
+8300  snapshot drum_menu
+8600  button AffectEntire down
+9600  snapshot root_ae_held
+9900  button AffectEntire up
+10900 snapshot root_ae_released
+11200 button Shift down
+11300 pad 8 7 down
+11340 pad 8 7 up
+11400 button Shift up
+12400 snapshot lpf
+12700 button AffectEntire down
+13700 snapshot ae_held
+14000 encoder Select +1
+15000 snapshot ae_turned
+15300 button AffectEntire up
+16300 snapshot ae_released
+16600 encoder Select +1
+17600 snapshot turned_after
+17900 button Back down
+17920 button Back up
+18900 snapshot menu_closed
+19200 button SelectEnc down
+19220 button SelectEnc up
+20200 snapshot kit_menu
+20500 button AffectEntire down
+20520 button AffectEntire up
+21500 snapshot root_ae_off

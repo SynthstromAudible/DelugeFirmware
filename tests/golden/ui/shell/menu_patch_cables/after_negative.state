@@ -1,5 +1,6 @@
 scene app16/237
 led Back blink 110
+led Midi on
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0
 flash 15 3 0

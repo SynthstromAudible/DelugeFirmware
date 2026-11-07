@@ -170,6 +170,10 @@ const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx
 	}
 }
 
+std::string_view row_note(const Node& node, const MenuContext& ctx, std::span<char> out) {
+	return node.kind == Kind::Custom ? node.custom->row_note(ctx, out) : std::string_view{};
+}
+
 std::string_view display_text(const Node& node, ValueTextUse use, const MenuContext& ctx, NodeText& scratch) {
 	if (node.bind.name_text != nullptr) {
 		const ValueText vt = node.bind.name_text(ctx, 0, use, std::span<char>{scratch.chars, sizeof(scratch.chars)});

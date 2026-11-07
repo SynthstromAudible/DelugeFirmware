@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::ui::shell {
 
@@ -230,8 +231,8 @@ private:
 	Blink blink_{};
 };
 
-/// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display:
-///        two plain function pointers, installed once at boot.
+/// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display, and how
+///        the cancels reach that display: plain function pointers, installed once at boot.
 ///
 /// Legacy draws the horizontal-menu notification in its display's single popup slot, typed
 /// `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`), and other legacy code keys on that slot
@@ -251,6 +252,11 @@ struct NotificationSink {
 	void (*show)(const char* title, const char* value) = nullptr;
 	/// @brief Take the banner down, if one is up.
 	void (*cancel)() = nullptr;
+	/// @brief Clear legacy's popup slot, whatever it holds (`Notice::Kind::CancelPopup`). A popup legacy drew before
+	///        the guest became current is still in that slot, and its cancel may be popped here.
+	void (*cancel_popup)() = nullptr;
+	/// @brief Take down legacy's working animation (`Notice::Kind::ClearWorking`), for the same reason.
+	void (*remove_working)() = nullptr;
 };
 
 /// @brief Install the notification sink, or `nullptr` to remove it (a spec must be able to take
@@ -414,6 +420,10 @@ public:
 	/// @param now_ms     The tick's wall clock.
 	void show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms);
 
+	/// @brief Whether a popup was re-targeted in place since the last call, and clear it. A re-target changes no stack,
+	///        so the shell repaints on this instead: legacy's `popupText` redraws on every call.
+	bool take_popup_retargeted() { return std::exchange(popup_retargeted_, false); }
+
 	/// @brief Remove the popup once it has expired, the working scene once it has been cleared, and
 	///        the console strip once every line it ever showed has expired (`ConsoleScene::any_active`).
 	///
@@ -482,6 +492,7 @@ private:
 	NotificationScene& notification_;
 	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
 	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
+	bool popup_retargeted_ = false;
 };
 
 } // namespace deluge::ui::shell

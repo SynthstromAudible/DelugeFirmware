@@ -283,9 +283,8 @@ void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 }
 
 void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// No `getTitle()` override in legacy and no name either (`zone_selector.cpp:23` default-
-	// constructs it), so this draws the node's own title -- see `midi_device.h` on the invention.
-	draw_node_title(f, state);
+	// `ZoneSelector` has no name and no `getTitle()`, so legacy's title is empty: the separator alone.
+	draw_title(f, {});
 
 	// `ZoneSelector::getOptions` (`zone_selector.h:32-38`).
 	const std::string_view names[] = {

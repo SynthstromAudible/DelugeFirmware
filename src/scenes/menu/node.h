@@ -41,6 +41,10 @@
 /// definition.
 class MIDICable;
 
+namespace deluge::ui {
+class LedFrame;
+} // namespace deluge::ui
+
 namespace deluge::ui::oled {
 struct OledFrame;
 } // namespace deluge::ui::oled
@@ -276,6 +280,11 @@ using NotificationSuffixFn = size_t (*)(const MenuContext& ctx, std::span<char> 
 /// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
 using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
+/// @brief `Binding::leaf_draw`'s hook: legacy's `drawInteger` override that draws an `Int` item's whole screen below
+///        its title, given the value after this tick's edit and the screen's side-scroll state.
+using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
+                            deluge::ui::ScrollText& scroll);
+
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
 	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
@@ -453,6 +462,9 @@ struct Binding {
 	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar.
 	///        Null for every ordinary node.
 	ValueTextFn leaf_text = nullptr;
+	/// @brief Legacy's `drawInteger` override that draws the item's own screen (`LeafDrawFn`). Null for every ordinary
+	///        node.
+	LeafDrawFn leaf_draw = nullptr;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
@@ -513,6 +525,12 @@ struct CustomItem {
 	///        with before the render runs. Must match the claims `render` makes; the shell audits the two.
 	/// @return None by default: `handle` sees every input.
 	virtual deluge::ui::InputClaims owned_input(const MenuContext&, const MenuState&) const { return {}; }
+
+	/// @brief Declare the button LEDs this item lights while it is the focused screen, over the page buttons' own
+	///        (`MenuScene::leds`): the legacy items that light LEDs in `beginSession` and put them out in `endSession`.
+	///        Not asked for a horizontal page's column, where legacy's `beginSession` lights nothing. Every tick
+	///        redeclares the frame, so leaving the screen puts them out with no hook.
+	virtual void leds(deluge::ui::LedFrame& /*f*/, const MenuContext& /*ctx*/, const MenuState& /*state*/) const {}
 
 	/// @par The focus hooks: three names, two questions
 	///
@@ -630,6 +648,13 @@ struct CustomItem {
 		return &deluge::gfx::oled::icons::submenuArrow;
 	}
 
+	/// @brief The text legacy's `renderSubmenuItemTypeForOled` draws two rows under this item's row, or empty for none:
+	///        `midi::device_definition::Linked` writes the linked file's name there (`ui::oled::ListRow::below`).
+	/// @param ctx The menu context.
+	/// @param out Where the text is written.
+	/// @return The text, in @p out; empty for none.
+	virtual std::string_view row_note(const MenuContext& /*ctx*/, std::span<char> /*out*/) const { return {}; }
+
 	/// @brief Is this a stand-in for an item that is not implemented yet, rather than the real thing?
 	///
 	/// The tables name every legacy bespoke item so the tree's *shape* is complete, even where the
@@ -679,19 +704,18 @@ struct CustomItem {
 	///        horizontal page, open it directly -- no permission check, no range check, no
 	///        notification?
 	///
-	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp:49-52`):
+	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp`):
 	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
-	/// horizontal forward (`submenu.cpp:187-194`) with **no call to `checkPermissionToBeginSession`
+	/// horizontal forward (`submenu.cpp`) with **no call to `checkPermissionToBeginSession`
 	/// at all** -- unlike every other way into this item (a button focus, an already-focused button
 	/// press) which does check it (`horizontal_menu.cpp:427-428`, `:663-668`). `Node::
-	/// allow_session_from_horizontal`'s own doc explains why a select press never reads that bit;
-	/// this is the one place its answer differs by item, so it is a hook rather than a second
-	/// `Node` flag.
+	/// allow_session_from_horizontal`'s own doc says how a select press reads that bit; whether the
+	/// column opens without entering is the one place its answer differs by item, so it is a hook
+	/// rather than a second `Node` flag.
 	///
-	/// Only `FileBrowserItem` overrides this to true. The other eight `allow_session_from_horizontal`
-	/// nodes (`MarkerItem`, `AudioRecorderItem`) inherit the base `MenuItem::selectButtonPress()`
-	/// (returns null), so a select press on them ascends -- identical to any ordinary value column
-	/// with no `select_chain` -- and needs no override here at all.
+	/// Only `FileBrowserItem` overrides this to true. A select press enters every other
+	/// `allow_session_from_horizontal` column (`Submenu::selectButtonPress` returns the column itself,
+	/// `submenu.cpp`), through `enter_child` with its permission and range checks.
 	virtual bool opens_directly_on_horizontal_select() const { return false; }
 
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
@@ -881,12 +905,13 @@ struct Node {
 	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()`
 	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
 	///
-	/// Five legacy classes override it to true, every one a scene opener:
-	/// `FileSelector` (`gui/menu_item/file_selector.h:35`), `osc::AudioRecorder`
-	/// (`osc/audio_recorder.h:76`), `sample::Start` / `sample::End` (`sample/start.h:25`,
-	/// `sample/end.h:25`) and `audio_clip::SampleMarkerEditor`
-	/// (`audio_clip/sample_marker_editor.h:34`) -- the nine nodes `nodes/sample.h` builds from
-	/// `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` all set this.
+	/// Six legacy classes override it to true: five scene openers -- `FileSelector`
+	/// (`gui/menu_item/file_selector.h`), `osc::AudioRecorder` (`osc/audio_recorder.h`), `sample::Start` /
+	/// `sample::End` (`sample/start.h`, `sample/end.h`) and `audio_clip::SampleMarkerEditor`
+	/// (`audio_clip/sample_marker_editor.h`), the nodes `nodes/sample.h` builds from
+	/// `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` -- and `PatchCableStrength`
+	/// (`patch_cable_strength.h`), whose two fixed columns are `nodes::vibrato` and `nodes::sidechain_volume`
+	/// (`nodes::fixed_cable_column`).
 	///
 	/// Two legacy call sites read it, both on a `Layout::Horizontal` page's *button* paths, and
 	/// answer two different questions with it:
@@ -902,11 +927,10 @@ struct Node {
 	///     `MUST_SELECT_RANGE` (unconditionally here; the bit does not suppress *this* range check,
 	///     only the new-focus one above), then `enterSubmenu`.
 	///
-	/// A select press (the encoder, not a button) never consults this at all -- `Submenu::
-	/// selectButtonPress`'s horizontal forward (`submenu.cpp:187-194`) calls the focused column's
-	/// own `selectButtonPress()` directly, and for these nine that override is `FileSelector`'s own
-	/// (opens the browser outright); the other four inherit the base `MenuItem::selectButtonPress()`
-	/// (returns null, i.e. ascends, same as any other value column with no `select_chain`).
+	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp`, #4854)
+	/// returns the focused column itself when this is true, and the select arm enters it the general way, which is
+	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`. `FileSelector` alone opens
+	/// without entering (`CustomItem::opens_directly_on_horizontal_select`).
 	bool allow_session_from_horizontal = false;
 
 	/// @brief Does a select press or an already-focused button press flip this column's value in
@@ -935,6 +959,30 @@ struct Node {
 	/// (a select press) and `handle()`'s already-focused button press, both alongside `column->kind
 	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
 	bool selection_is_toggle = false;
+
+	/// @brief Does a press on this item's row in a list flip it in place and stay on the list? The port of
+	///        `shouldEnterSubmenu() == false` on a toggle `Selection`: `arpeggiator::Mode`,
+	///        `arpeggiator::IncludeInKitArp` and `randomizer::RandomizerLock`.
+	///
+	/// `SoundEditor::buttonAction`'s SELECT arm never enters such an item: it calls its `selectButtonPress`, which
+	/// flips it (`Selection::toggleValue`) and answers `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this
+	/// flag
+	/// (`Toggle::shouldEnterSubmenu`); `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default,
+	/// so their rows open their page. Set beside `selection_is_toggle`, never instead of it.
+	bool flips_in_list = false;
+
+	/// @brief Does a select press on this horizontal column stay on the page when its `select_chain` answers null?
+	///
+	/// `Selection::selectButtonPress` from a page answers `NO_NAVIGATION` whatever the selection is, so a choice
+	/// column with no chain stays (`stays_on_page`). A chained one follows its own override: `osc::Type` and
+	/// `arpeggiator::PresetMode` return null when they have nowhere to go (the page goes up), while
+	/// `voice::PolyphonyType` falls back to `Selection::selectButtonPress()` (the page stays), which this flag says.
+	bool chain_falls_back_to_selection = false;
+
+	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
+	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
+	///        UNPATCHED_SOUND param answers true without it (`node_uses_affect_entire`).
+	bool uses_affect_entire = false;
 
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
 	///        legacy's four-slot `Selection`s whose `renderInHorizontalMenu` is `drawPixelsForOled`.
@@ -1005,8 +1053,8 @@ constexpr Node with_range_dependent(Node n) {
 
 /// @brief `n` with `allow_session_from_horizontal` set -- the port of
 ///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`, a post-hoc
-///        modifier for the same reason `with_range_dependent` is one: nine nodes in the whole tree
-///        set it, so the other builders keep their signatures.
+///        modifier for the same reason `with_range_dependent` is one: a handful of nodes in the whole
+///        tree set it, so the other builders keep their signatures.
 constexpr Node with_allow_session_from_horizontal(Node n) {
 	n.allow_session_from_horizontal = true;
 	return n;
@@ -1018,6 +1066,44 @@ constexpr Node with_allow_session_from_horizontal(Node n) {
 constexpr Node with_selection_is_toggle(Node n) {
 	n.selection_is_toggle = true;
 	return n;
+}
+
+/// @brief `n` with `flips_in_list` set (`Node::flips_in_list`).
+constexpr Node with_flips_in_list(Node n) {
+	n.flips_in_list = true;
+	return n;
+}
+
+/// @brief `n` with `chain_falls_back_to_selection` set (`Node::chain_falls_back_to_selection`).
+constexpr Node with_chain_falls_back_to_selection(Node n) {
+	n.chain_falls_back_to_selection = true;
+	return n;
+}
+
+/// @brief Whether a press on @p n's row in a list flips it in place rather than entering it: a `Toggle`, or a toggle
+///        `Selection` that never enters (`Node::flips_in_list`).
+constexpr bool flips_in_place(const Node& n) {
+	return n.kind == Kind::Toggle || n.flips_in_list;
+}
+
+/// @brief Whether a select press on @p n's horizontal column, its chain (if any) answering null, stays on the page:
+///        every `Kind::Enum` is a `Selection`, whose `selectButtonPress` from a page answers `NO_NAVIGATION`.
+constexpr bool stays_on_page(const Node& n) {
+	return n.kind == Kind::Enum && (n.select_chain == nullptr || n.chain_falls_back_to_selection);
+}
+
+/// @brief `n` with `uses_affect_entire` set.
+constexpr Node with_affect_entire(Node n) {
+	n.uses_affect_entire = true;
+	return n;
+}
+
+/// @brief Legacy's `usesAffectEntire()` for one item: every `patched_param::Integer` and `UnpatchedParam` (the
+///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included), and the items marked
+///        with `with_affect_entire`.
+constexpr bool node_uses_affect_entire(const Node& n) {
+	return n.uses_affect_entire || n.bind.param.kind == deluge::modulation::params::Kind::PATCHED
+	       || n.bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND;
 }
 
 /// @brief `n` with `option_list_column` set.
@@ -1138,6 +1224,12 @@ constexpr Node with_turn(Node n, TurnFn turn) {
 /// @brief `n` naming its full-screen value with @p text while it answers (`Binding::leaf_text`).
 constexpr Node with_leaf_text(Node n, ValueTextFn text) {
 	n.bind.leaf_text = text;
+	return n;
+}
+
+/// @brief `n` drawing its full-screen value with @p draw (`Binding::leaf_draw`).
+constexpr Node with_leaf_draw(Node n, LeafDrawFn draw) {
+	n.bind.leaf_draw = draw;
 	return n;
 }
 

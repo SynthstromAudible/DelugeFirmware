@@ -238,14 +238,14 @@ public:
 	///
 	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason
 	/// `MarkerScene::open` is. Legacy has no equivalent line inside `Slicer` at all: it reads the
-	/// **`waveformBasicNavigator` global**, which the sample browser's preview path filled in with
-	/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();`
-	/// (`SampleBrowser::showPreview`, `gui/ui/browser/sample_browser.cpp:692-693`)
-	/// before the legacy object is opened. Those two lines are
-	/// this call, onto a navigator this scene owns rather than a shared global. Called again on the sample and file it
-	/// already shows, it keeps the navigator, as nothing resets legacy's global between two slicer opens.
+	/// **`waveformBasicNavigator` global**, which the sample browser's preview path set up and scanned
+	/// (`SampleBrowser::showPreview`, `gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view,
+	/// scroll, zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens
+	/// zoomed out on a fresh navigator; called again on the sample and file it already shows, it keeps the navigator,
+	/// as nothing resets legacy's global between two slicer opens.
 	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
-	void open(Sample* sample);
+	/// @param shown  The navigator the browser's preview drew @p sample through, or null.
+	void open(Sample* sample, const deluge::sample::WaveformNav* shown = nullptr);
 
 	/// @brief Switch between REGION and MANUAL.
 	///

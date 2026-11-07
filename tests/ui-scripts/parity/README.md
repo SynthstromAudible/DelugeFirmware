@@ -31,6 +31,16 @@ scrolling preset name. Their walks rest on how `main`'s menus move: a single lar
 moves are several turns; the sound menu reopens on the row it last showed; BACK from a page a shortcut opened leaves
 the menu.
 
+`sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. Run it on the ShellMenu card and on
+`.superpowers/emu-card/shellmenu-fill` (the ShellMenu card with `syncScalingAction` 1, Fill), where SYNC-SCALING
+holds fill and lights its LED.
+
+`sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
+row (the edit stays on the row the menu opened for, and so does the kit's selection), and the sequence-direction pad's
+note-row editor. It runs on the content card with ShellMenu on (`sweep-shellmenu.img`), in the sweep's `browser`
+group. It stops on the note-row editor: BACK there sticks on `main` (D92).
+
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
 `sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
 root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
@@ -40,6 +50,23 @@ the content card with ShellMenu on (`.superpowers/emu-card/content-shellmenu`: t
 card's `SETTINGS/CommunityFeatures.XML`), ShellMenu off on `content`, and `sm19` with `--audio-wav`. Windows over a
 blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
 100 ms after the press, before it times out.
+
+`sm23-select-in-place` covers SELECT on an item main does not enter: the arpeggiator's ENABLED row and USB AUDIO's
+INPUT toggle flip on their list, and a choice column (POLYPHONY on the VOICE page, set to MONO) stays on its page. Its
+turns count the dropped first detent after boot (`+3` to ARPEGGIATOR) and none after (`+5` to USB AUDIO).
+
+`sm26-follow-channel` covers a MIDI follow channel's own screen: the differentiation line, the device and the channel,
+turned through CHANNEL 1, UNASSIGNED and both MPE zones, and the device a learned note names.
+
+`sm27-learn-select-turn` checks that the select encoder edits nothing while LEARN is held on a param's page, and edits
+again once it is released; its windows run a second or more over the patching sources' 800 ms blink.
+
+`sm24-sidechain-columns` and `sm25-cable-polarity` cover the patch-cable strength items. `sm24` opens the two fixed
+cables' columns from their shortcut pads (the SIDECHAIN page's DUCK meter, the MASTER page's VIBRATO text), SELECT on
+each into its strength page and on to MODULATE DEPTH, and BACK out again. `sm25` drives a strength page: the cursor
+across the places, MIDI and CV and a turn under a held Select switching the polarity with their LEDs, a plain and a
+SHIFT turn. Both read values `main` draws exactly: `main`'s build truncates a non-zero strength whose zero places are
+hidden (D71), so a strength is read with the cursor on its hundredths, or at 0.
 
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped

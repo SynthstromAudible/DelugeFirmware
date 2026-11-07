@@ -23,16 +23,20 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h" // menuShowsAutomationViewParam
 #include "gui/ui/ui.h" // getRootUI, rootUIIsClipMinderScreen, swapOutRootUILowLevel, uiNeedsRendering, currentUIMode
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "synth/modulation/cable.h"
@@ -213,17 +217,6 @@ void dispatchMenuTransitions() {
 
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-	if (b == KEYBOARD) {
-		// Only the automation view's arm; the keyboard's and the clip view's stay with the menu.
-		Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
-		if (on && currentUIMode == UI_MODE_NONE && clip != nullptr && clip->type == ClipType::INSTRUMENT
-		    && getRootUI() == &automationView) {
-			keyboardFromAutomationView(*clip);
-			shellHostUI.refreshRootFacts();
-			return ActionResult::DEALT_WITH;
-		}
-		return std::nullopt;
-	}
 	if (b != CLIP_VIEW && b != X_ENC) {
 		return std::nullopt;
 	}
@@ -245,6 +238,67 @@ std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool 
 		return std::nullopt;
 	}
 	(void)automationView.buttonAction(b, on);
+	return ActionResult::DEALT_WITH;
+}
+
+std::optional<ActionResult> forwardMenuViewButton(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+	if (b != KEYBOARD && b != SESSION_VIEW && b != SYNC_SCALING) {
+		return std::nullopt;
+	}
+	if (!menuTakesInput()) {
+		return std::nullopt;
+	}
+	if (b == KEYBOARD) {
+		Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
+		if (on && currentUIMode == UI_MODE_NONE && clip != nullptr && clip->type == ClipType::INSTRUMENT) {
+			RootUI* root = getRootUI();
+			if (root == &automationView) {
+				keyboardFromAutomationView(*clip); // its own greyout and LED
+			}
+			else {
+				if (root == &keyboardScreen) {
+					if (clip->onAutomationClipView) {
+						swapOutRootUILowLevel(&automationView);
+						automationView.openedInBackground();
+					}
+					else {
+						swapOutRootUILowLevel(&instrumentClipView);
+						instrumentClipView.openedInBackground();
+					}
+				}
+				else if (root == &instrumentClipView) {
+					swapOutRootUILowLevel(&keyboardScreen);
+					keyboardScreen.openedInBackground();
+				}
+				PadLEDs::reassessGreyout();
+				indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
+			}
+			shellHostUI.refreshRootFacts();
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	if (b == SESSION_VIEW) {
+		// The note-row editor holds its row auditioning while open; closing the editor ends that audition.
+		const bool rowEditorAuditioning =
+		    activeNoteMode() == NoteModeKind::NoteRowEditor && isUIModeActiveExclusively(UI_MODE_AUDITIONING);
+		if (on && (currentUIMode == UI_MODE_NONE || rowEditorAuditioning)) {
+			// Closed before the root changes: `changeRootUI` drops every UI above the root without its close.
+			shellHostUI.closeNow();
+			if (currentSong->persistentView.lastClipInstanceEnteredStartPos != -1) {
+				changeRootUI(&arrangerView);
+			}
+			else {
+				changeRootUI(&sessionView);
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+	    != RuntimeFeatureStateSyncScalingAction::Fill) {
+		return std::nullopt;
+	}
+	currentSong->changeFillMode(on);
 	return ActionResult::DEALT_WITH;
 }
 

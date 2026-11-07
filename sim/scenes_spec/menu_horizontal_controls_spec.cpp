@@ -21,6 +21,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/detail.h" // with_slots
 #include "scenes/menu/nodes/nodes.h"  // the real `nodes::randomizer`/`randomizer_lock`
+#include "scenes/menu/present.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -198,6 +199,24 @@ constexpr Node toggle_col = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC)
 constexpr const Node* kHorizChildren[] = {&enum_col,  &toggle_col, &submenu_col, &chain_col,
                                           &range_col, &filler_col, &session_col};
 constexpr Node horiz_page = menu::submenu(sid(String::STRING_FOR_LPF), kHorizChildren, menu::Layout::Horizontal);
+// A page opened from a list, so it sits at depth 1 and a press that goes up shows. Its four columns, buttons
+// SYNTH/KIT/MIDI/CV: a plain choice, an Int, a choice whose chain falls back to `Selection` (`voice::PolyphonyType`'s
+// shape) and a choice whose chain answers null itself (`osc::Type`'s).
+bool g_fallback_chain_open = false;
+const Node* fallback_chain(const MenuContext&, const menu::MenuState&) {
+	return g_fallback_chain_open ? &chain_target : nullptr;
+}
+constexpr const Node* kFallbackChainTargets[] = {&chain_target};
+constexpr Node fallback_col = menu::with_chain_falls_back_to_selection(menu::with_select_chain(
+    menu::enumeration(sid(String::STRING_FOR_POLYPHONY), kEnumColNames, get_enum_col, set_enum_col), fallback_chain,
+    kFallbackChainTargets));
+constexpr Node null_chain_col =
+    menu::with_select_chain(menu::enumeration(sid(String::STRING_FOR_TYPE), kEnumColNames, get_enum_col, set_enum_col),
+                            fallback_chain, kFallbackChainTargets);
+constexpr const Node* kStayPageChildren[] = {&enum_col, &filler_col, &fallback_col, &null_chain_col};
+constexpr Node stay_page = menu::submenu(sid(String::STRING_FOR_VOICE), kStayPageChildren, menu::Layout::Horizontal);
+constexpr const Node* kStayParentChildren[] = {&stay_page};
+constexpr Node stay_parent = menu::submenu(sid(String::STRING_FOR_SETTINGS), kStayParentChildren);
 
 /// A FIXED page (`HorizontalMenu::Layout::FIXED`): two columns are never relevant, one on each page.
 bool never_relevant(const MenuContext&) {
@@ -250,9 +269,15 @@ constexpr Node wide_page = menu::submenu(sid(String::STRING_FOR_MASTER_LEVEL), k
 constexpr const Node* kVerticalChildren[] = {&chain_target};
 constexpr Node vertical_page = menu::submenu(sid(String::STRING_FOR_SETTINGS), kVerticalChildren);
 
-constexpr const Node* kRoots[] = {
-    &horiz_page,  &wide_page, &vertical_page, &fixed_page, &dynamic_page, &synthetic_group, &menu::nodes::filters_group,
-    &session_page};
+constexpr const Node* kRoots[] = {&horiz_page,
+                                  &wide_page,
+                                  &vertical_page,
+                                  &fixed_page,
+                                  &dynamic_page,
+                                  &synthetic_group,
+                                  &menu::nodes::filters_group,
+                                  &session_page,
+                                  &stay_parent};
 
 // ---------------------------------------------------------------------------------------------
 // Board fixture -- copied from `menu_scene_spec.cpp`'s `Rig`.
@@ -872,7 +897,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a patch cable strength's banner is its value over 100, two places", _ {
-		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`).
+		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h`).
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
@@ -1237,6 +1262,91 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(1);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
+	});
+
+	it("the VIBRATO column spells its strength in the column face; DUCK draws the ducking meter over +/-50.00", _ {
+		// `Decimal::renderInHorizontalMenu` (`decimal.cpp`, rendering style NUMBER): the value over 100, three
+		// characters at or below -10.00. `sidechain::VolumeShortcut` renders SIDECHAIN_DUCKING (`sidechain/volume.h`),
+		// normalised by 5000 because its maximum is over 50 (`number.cpp`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
+		menu::ColumnSlot slot{};
+		deluge::ui::oled::Column col{};
+		menu::present_column(menu::nodes::vibrato, ctx, 0, slot, col);
+		expect(col.render == deluge::ui::oled::text_column).to_be_true();
+		expect(std::string(slot.text.value)).to_equal(std::string("0.00"));
+		menu::present_column(menu::nodes::vibrato, ctx, -50, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("-0.50"));
+		menu::present_column(menu::nodes::vibrato, ctx, -1050, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("-10"));
+		menu::ColumnSlot duck{};
+		menu::present_column(menu::nodes::sidechain_volume, ctx, 2500, duck, col);
+		expect(col.render == deluge::ui::oled::meter_column).to_be_true();
+		expect(duck.meter.hint == deluge::ui::oled::Hint::Ducking).to_be_true();
+		expect(duck.meter.raw).to_equal(2500);
+		expect(duck.meter.raw_max).to_equal(5000);
+	});
+
+	it("a select on the MASTER page's VIBRATO column opens its strength page, whose select opens MODULATE DEPTH", _ {
+		// `Submenu::selectButtonPress` returns a column that `allowToBeginSessionFromHorizontalMenu()`
+		// (`submenu.cpp`), which `PatchCableStrength` answers true (`patch_cable_strength.h`); only the
+		// page's own select goes on to the range picker (`patch_cable_strength.cpp`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::sound_master);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 4; // SYNTH MODE, VOLUME, PAN, TRANSPOSE (column 3), VIBRATO
+		r.shell.tick(100);
+		r.enter(500);
+		r.shell.tick(600);
+		expect(menu_scene().focused() == &menu::nodes::vibrato).to_be_true();
+		expect(depth_of()).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.patch_source))
+		    .to_equal(static_cast<int>(PatchSource::LFO_GLOBAL_1));
+		r.enter(700);
+		r.shell.tick(800);
+		expect(menu_scene().focused() == &menu::nodes::source_selection_range).to_be_true();
+	});
+
+	it("a select on the SIDECHAIN page's DUCK column opens its strength page", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::sidechain);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 0; // DUCK
+		r.shell.tick(100);
+		r.enter(500);
+		r.shell.tick(600);
+		expect(menu_scene().focused() == &menu::nodes::sidechain_volume).to_be_true();
+		expect(depth_of()).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.patch_source))
+		    .to_equal(static_cast<int>(PatchSource::SIDECHAIN));
+	});
+
+	it("a select turn on the VIBRATO column moves its cable 1.00 a detent, and 0.01 with SHIFT held", _ {
+		// `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`) is what the column shows, and
+		// `Decimal::getNumberEditSize` on a horizontal page (`decimal.cpp`) the step.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 4; // VIBRATO
+		r.shell.tick(100);
+		const int32_t before = menu::bindings::read(menu::nodes::vibrato, ctx);
+		r.turn(1, 1000);
+		r.shell.tick(1010);
+		r.shell.tick(1020);
+		expect(menu::bindings::read(menu::nodes::vibrato, ctx)).to_equal(before + 100);
+		r.button(kShiftX, kShiftY, true, 3000);
+		r.turn(1, 3100);
+		r.shell.tick(3110);
+		r.shell.tick(3120);
+		r.button(kShiftX, kShiftY, false, 3200);
+		expect(menu::bindings::read(menu::nodes::vibrato, ctx)).to_equal(before + 101);
 	});
 
 	it("a select detent on a horizontal Decimal column moves 1.00, and 0.01 with Shift held", _ {
@@ -1987,7 +2097,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu_scene().focused() == &menu::nodes::sound_filters).to_be_true();
 	});
 
-	it("a select press on a value column follows its select_chain; with none, it ascends -- no notification either way",
+	it("a select press on a value column follows its select_chain -- no notification either way",
 	   _ {
 		// `Submenu::selectButtonPress` (`submenu.cpp:187-194`) forwarded through
 		// `SoundEditor::buttonAction`'s SELECT arm (`sound_editor.cpp:394-424`); no
@@ -2023,11 +2133,93 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)last_notice();
 		r.enter(1000);
 		r.shell.tick(1010);
-		// `ascend()` at depth 0 is the port's own carried no-op (`menu_scene.cpp`'s note on
-		// `ascend`), so this stays open -- the claim is only that nothing entered and nothing
-		// notified.
+		// ENUM_COL has no chain: `Selection::selectButtonPress` from the page stays (`stays_on_page`); the claim here
+		// is only that nothing entered and nothing notified.
 		expect(depth_of()).to_equal(0);
 		expect(last_notice().empty()).to_be_true();
+	});
+
+	it("a select press on a plain choice column stays on the page, as Selection::selectButtonPress from the page does",
+	   _ {
+		// `Submenu::selectButtonPress` forwards to the focused column; `Selection`'s answers NO_NAVIGATION from the
+		// page whatever the selection is, after a `toggleValue()` that changes nothing on a non-toggle.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(stay_parent);
+		r.shell.tick(0);
+		r.enter(100);
+		r.shell.tick(110);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &stay_page).to_be_true();
+		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
+
+		g_enum_col = 1;
+		(void)last_notice();
+		r.enter(300);
+		r.shell.tick(310);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &stay_page).to_be_true();
+		expect(g_enum_col).to_equal(1);
+		expect(last_notice().empty()).to_be_true();
+	});
+
+	it("a select press on an Int column with no chain goes up, as MenuItem::selectButtonPress's null does", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(stay_parent);
+		r.shell.tick(0);
+		r.enter(100);
+		r.shell.tick(110);
+		r.press(kKitX, kKitY, 200); // FILLER_COL
+		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(1);
+		r.enter(400);
+		r.shell.tick(410);
+		expect(depth_of()).to_equal(0);
+	});
+
+	it("a choice column whose chain answers nothing stays when it falls back to Selection, and goes up when it does not",
+	   _ {
+		// `voice::PolyphonyType` returns `Selection::selectButtonPress()` outside POLY (stays); `osc::Type` returns
+		// null outside DX7 (goes up). With a target, both enter it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(stay_parent);
+		r.shell.tick(0);
+		r.enter(100);
+		r.shell.tick(110);
+
+		r.press(kMidiX, kMidiY, 200); // the fallback column
+		g_fallback_chain_open = false;
+		r.enter(400);
+		r.shell.tick(410);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &stay_page).to_be_true();
+
+		g_fallback_chain_open = true;
+		r.enter(500);
+		r.shell.tick(510);
+		expect(depth_of()).to_equal(2);
+		expect(menu_scene().focused() == &chain_target).to_be_true();
+		r.button(kBackX, kBackY, true, 600);
+		r.button(kBackX, kBackY, false, 620);
+		r.shell.tick(630);
+		expect(depth_of()).to_equal(1);
+
+		r.press(kCvX, kCvY, 800); // the null-chain column
+		g_fallback_chain_open = false;
+		r.enter(1000);
+		r.shell.tick(1010);
+		expect(depth_of()).to_equal(0);
+	});
+
+	it("marks the polyphony column's chain as falling back to Selection, and not the oscillator type's or arp preset's",
+	   _ {
+		expect(menu::nodes::polyphony.chain_falls_back_to_selection).to_be_true();
+		expect(menu::nodes::osc0_type.chain_falls_back_to_selection).to_be_false();
+		expect(menu::nodes::arp_preset.chain_falls_back_to_selection).to_be_false();
 	});
 
 	it("button focus onto a range_dependent column runs the MustSelectRange check", _ {

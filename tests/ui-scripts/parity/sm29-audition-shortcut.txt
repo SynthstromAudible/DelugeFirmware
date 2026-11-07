@@ -1,0 +1,60 @@
+# ShellMenu: shortcut pads with an audition pad held inside the sound menu. From the content card's synth clip, SELECT
+# opens the sound menu, and with audition pad (17,3) held the LPF frequency shortcut (8,7) jumps to the FILTER page;
+# BACK leaves the menu. Then the clip is made a kit: with drum row 0 selected and its menu open, row 2 auditioned +
+# (8,7) opens row 0's FILTER page (the selection stays on row 0), a turn edits row 0's LPF, BACK leaves, and SHIFT +
+# (8,7) reads row 0's LPF back. Last, with row 0's menu open again, row 0 auditioned + the sequence-direction shortcut
+# (4,7) opens the note-row editor on PLAY DIRECTION, the row held after the release. The script stops there: BACK
+# from that editor sticks on main (its second sound editor), which is accepted as main's bug. Every snapshot has a
+# 1 s window. Run on the content card with ShellMenu on (sweep-shellmenu.img).
+1600  button SelectEnc down
+1620  button SelectEnc up
+2600  snapshot menu
+2900  pad 17 3 down
+3200  pad 8 7 down
+3240  pad 8 7 up
+4200  snapshot aud_shortcut
+4500  pad 17 3 up
+5500  snapshot aud_released
+5800  button Back down
+5820  button Back up
+6800  snapshot closed
+7100  button Clip down
+7120  button Clip up
+8100  button Kit down
+8120  button Kit up
+11100 snapshot kit
+11400 button Clip down
+11420 button Clip up
+11800 pad 17 0 down
+11850 pad 17 0 up
+12800 snapshot drum0_selected
+13100 button SelectEnc down
+13120 button SelectEnc up
+14100 snapshot row0_menu
+14400 pad 17 2 down
+14700 pad 8 7 down
+14740 pad 8 7 up
+15700 snapshot aud2_shortcut
+16000 pad 17 2 up
+17000 snapshot aud2_released
+17300 encoder Select +3
+18300 snapshot turned
+18600 button Back down
+18620 button Back up
+19600 snapshot kit_closed
+19900 button Shift down
+20000 pad 8 7 down
+20040 pad 8 7 up
+20100 button Shift up
+21100 snapshot row0_lpf
+21400 button Back down
+21420 button Back up
+21700 button SelectEnc down
+21720 button SelectEnc up
+22700 snapshot row0_menu_again
+23000 pad 17 0 down
+23300 pad 4 7 down
+23340 pad 4 7 up
+24300 snapshot aud_seqdir
+24600 pad 17 0 up
+25600 snapshot seqdir_released

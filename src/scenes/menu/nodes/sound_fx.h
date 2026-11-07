@@ -156,24 +156,24 @@ inline constexpr Node delay_amount = with_column_draw(
                          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT))),
                      sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT)),
     delay_amount_draw);
-inline constexpr Node delay_ping_pong =
+inline constexpr Node delay_ping_pong = with_affect_entire(
     with_column_art(with_selection_is_toggle(with_title(
                         setting_item(sid(deluge::l10n::String::STRING_FOR_PINGPONG), Kind::Enum,
                                      {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/pingPong"}),
                         sid(deluge::l10n::String::STRING_FOR_DELAY_PINGPONG))),
-                    switch_art);
-inline constexpr Node delay_sync =
+                    switch_art));
+inline constexpr Node delay_sync = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/syncLevel"}),
-               sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC));
+               sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC)));
 inline constexpr Node delay_rate =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_RATE},
                            Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_RATE)));
-inline constexpr Node delay_type =
+inline constexpr Node delay_type = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "delay/type"}),
-               sid(deluge::l10n::String::STRING_FOR_DELAY_TYPE));
+               sid(deluge::l10n::String::STRING_FOR_DELAY_TYPE)));
 
 inline constexpr const Node* kDelayChildren[] = {&delay_amount, &delay_ping_pong, &delay_sync, &delay_rate,
                                                  &delay_type};
@@ -250,24 +250,24 @@ inline constexpr Node reverb_sidechain_shape =
                                 sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
                      sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
 inline constexpr Node reverb_sidechain_attack =
-    with_column_name(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
-                                             {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                              .path = "reverb/compressor/attack",
-                                              .group = deluge::project::SettingGroupId::SONG},
-                                             Hint::Attack),
-                                sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE)),
-                     sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT));
-inline constexpr Node reverb_sidechain_release =
+    with_affect_entire(with_column_name(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
+                                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                                 .path = "reverb/compressor/attack",
+                                                                 .group = deluge::project::SettingGroupId::SONG},
+                                                                Hint::Attack),
+                                                   sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE)),
+                                        sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT)));
+inline constexpr Node reverb_sidechain_release = with_affect_entire(
     with_column_name(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Int,
                                              {.kind = deluge::scenes::bind::Target::Kind::MODEL,
                                               .path = "reverb/compressor/release",
                                               .group = deluge::project::SettingGroupId::SONG},
                                              Hint::Release),
                                 sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE)),
-                     sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT));
-inline constexpr Node reverb_sidechain_sync = sync_level_item(
+                     sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT)));
+inline constexpr Node reverb_sidechain_sync = with_affect_entire(sync_level_item(
     sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC),
-    get_reverb_sidechain_sync, set_reverb_sidechain_sync, kSidechainSyncRange, relevance::reverb_sidechain_on);
+    get_reverb_sidechain_sync, set_reverb_sidechain_sync, kSidechainSyncRange, relevance::reverb_sidechain_on));
 
 inline constexpr const Node* kReverbSidechainChildren[] = {&reverb_sidechain_volume, &reverb_sidechain_shape,
                                                            &reverb_sidechain_attack, &reverb_sidechain_release,
@@ -292,14 +292,14 @@ inline constexpr Node stutter_rate = with_turn(
                                    stutter_rate_text),
                    stutter_rate_text),
     stutter_rate_turn);
-inline constexpr Node stutter_direction = with_value_text(
+inline constexpr Node stutter_direction = with_affect_entire(with_value_text(
     with_column_art(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_DIRECTION), stutter_direction_names,
                                         get_stutter_direction, set_stutter_direction),
                     stutter_direction_art),
-    stutter_direction_text);
+    stutter_direction_text));
 inline constexpr Node stutter_quantize =
-    toggle_item(sid(deluge::l10n::String::STRING_FOR_QUANTIZE), get_stutter_quantize, set_stutter_quantize,
-                relevance::stutter_quantize_allowed);
+    with_affect_entire(toggle_item(sid(deluge::l10n::String::STRING_FOR_QUANTIZE), get_stutter_quantize,
+                                   set_stutter_quantize, relevance::stutter_quantize_allowed));
 
 inline constexpr const Node* kStutterChildren[] = {&stutter_rate, &stutter_direction, &stutter_quantize};
 inline constexpr Node stutter =
@@ -307,11 +307,12 @@ inline constexpr Node stutter =
 
 // --- Mod FX ------------------------------------------------------------------------------------
 
-inline constexpr Node mod_fx_type = with_option_list_column(without_notification(without_column_label(
-    with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
-                                       {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
-                          sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
-               4)))); // `mod_fx/type.h:69-72`
+inline constexpr Node mod_fx_type =
+    with_affect_entire(with_option_list_column(without_notification(without_column_label(
+        with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
+                                           {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
+                              sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
+                   4))))); // `mod_fx/type.h`
 inline constexpr Node mod_fx_depth = with_name_text(
     with_value_text(with_patch_chain(param(
                         sid(deluge::l10n::String::STRING_FOR_DEPTH),
@@ -346,10 +347,10 @@ inline constexpr Node mod_fx = with_page_title(
 
 // --- Distortion --------------------------------------------------------------------------------
 
-inline constexpr Node saturation = with_value_style(
+inline constexpr Node saturation = with_affect_entire(with_value_style(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SATURATION), Kind::Int,
                  {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "clippingAmount"}, Hint::Bar),
-    deluge::ui::oled::ValueStyle{.off_at_zero = true});
+    deluge::ui::oled::ValueStyle{.off_at_zero = true}));
 inline constexpr Node bitcrush = param(
     sid(deluge::l10n::String::STRING_FOR_BITCRUSH),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_BITCRUSHING}, Hint::Bar);

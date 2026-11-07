@@ -82,6 +82,9 @@ struct MenuTick {
 	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
 	/// param's automation instead of navigating (`MenuScene::after_render`).
 	bool select_shift = false;
+	/// An item used the current Select press up, as legacy's `Buttons::selectButtonPressUsedUp = true`: the
+	/// cable-strength page's polarity turn under a held Select (`PatchCableStrength::selectEncoderAction`).
+	bool use_up_select = false;
 };
 
 /// @brief What belongs to one walk through the tree from a root: the range picker, the selectors' choices, the
@@ -97,7 +100,9 @@ struct MenuWalkState {
 	bool range_picker_pending = false;
 	/// The node that will be entered once a range is chosen -- legacy's
 	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:334-336`).
+	/// `selectButtonPress` returns (`multi_range.cpp`). Kept after that node opens, until the next
+	/// substitution or a re-root replaces it: legacy only ever writes the member, so the picker reached again by BACK
+	/// still heads there.
 	const Node* pending_after_range = nullptr;
 	/// @brief A range index the focused picker chose this tick, or -1 for none.
 	///

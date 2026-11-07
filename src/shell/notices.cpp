@@ -316,6 +316,10 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// `OLED::removeWorkingAnimation` also takes down a `NOTIFICATION` popup
 			// (`oled.cpp:733-737`), so the banner goes with it -- a no-op when none is stacked.
 			stack_.remove(SceneKind::Notification);
+			if (const NotificationSink* sink = g_notification_sink;
+			    sink != nullptr && sink->remove_working != nullptr) {
+				sink->remove_working();
+			}
 			break;
 		case notify::Notice::Kind::CancelPopup:
 			// `remove`, not `pop`: a popup is `input_transparent()`, so a scene pushed above a
@@ -327,6 +331,9 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// Legacy's `cancelPopup()` is `removePopup()` (`oled.h:164`), which clears the one popup
 			// slot whatever its type (`oled.cpp:253-258`) -- so it takes the banner down too.
 			stack_.remove(SceneKind::Notification);
+			if (const NotificationSink* sink = g_notification_sink; sink != nullptr && sink->cancel_popup != nullptr) {
+				sink->cancel_popup();
+			}
 			break;
 		case notify::Notice::Kind::Notification: {
 			// Legacy's `display->displayNotification(title, value)` (`horizontal_menu.cpp:342`). With a
@@ -395,9 +402,8 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 	// scene may have been legitimately `Push`ed above a live popup (it is `input_transparent()`, so
 	// that scene still has input), and testing `top()` alone would read that scene's kind, not the
 	// popup's, and push a second `SceneKind::Popup` entry pointing at this same instance.
-	// Re-targeting in place changes no stack, so on a tick with no input the panel can keep the old
-	// text until something else asks for a frame; `drain()`'s `Notification` case avoids that for the
-	// banner by removing and pushing again.
+	// Re-targeting in place changes no stack, so it raises `popup_retargeted_` for `Shell::tick` to
+	// repaint on.
 	bool popup_stacked = false;
 	for (Scene* scene : stack_.scenes()) {
 		if (scene->kind() == SceneKind::Popup) {
@@ -405,7 +411,10 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 			break;
 		}
 	}
-	if (!popup_stacked) {
+	if (popup_stacked) {
+		popup_retargeted_ = true;
+	}
+	else {
 		stack_.push(SceneId{SceneKind::Popup});
 	}
 }

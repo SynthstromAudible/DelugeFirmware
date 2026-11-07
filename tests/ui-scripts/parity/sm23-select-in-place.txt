@@ -1,0 +1,69 @@
+# SELECT on an item main's menu flips or keeps in place. From the synth clip, the sound menu's ARPEGGIATOR list: SELECT
+# on its ENABLED row (arpeggiator::Mode, a toggle Selection that never enters) flips it on the list, and SELECT again
+# flips it back. From the song view, SETTINGS > USB AUDIO: SELECT on INPUT (a Toggle) flips its box on the list, twice,
+# and BACK twice leaves the menu. Then SHIFT + the polyphony shortcut opens the VOICE page on POLYPHONY: turned to MONO,
+# SELECT stays on the page (Selection's NO_NAVIGATION once the mode is not POLY), and BACK leaves the menu.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1000  snapshot menu
+1300  encoder Select +3
+1800  snapshot arp-row
+2100  button SelectEnc down
+2120  button SelectEnc up
+2800  snapshot arp
+3100  button SelectEnc down
+3120  button SelectEnc up
+3800  snapshot arp-mode-flipped
+4100  button SelectEnc down
+4120  button SelectEnc up
+4800  snapshot arp-mode-back
+5100  button Back down
+5120  button Back up
+5800  snapshot arp-left
+6100  button Back down
+6120  button Back up
+6800  snapshot closed
+7100  button Session down
+7120  button Session up
+7800  button Shift down
+7900  button SelectEnc down
+7920  button SelectEnc up
+8000  button Shift up
+8700  snapshot settings
+9000  encoder Select +5
+9700  snapshot usb-row
+10000 button SelectEnc down
+10020 button SelectEnc up
+10700 snapshot usb
+11000 encoder Select +1
+11700 snapshot input-row
+12000 button SelectEnc down
+12020 button SelectEnc up
+12700 snapshot input-flipped
+13000 button SelectEnc down
+13020 button SelectEnc up
+13700 snapshot input-back
+14000 button Back down
+14020 button Back up
+14700 snapshot usb-left
+15000 button Back down
+15020 button Back up
+15700 snapshot settings-left
+16000 button Clip down
+16020 button Clip up
+16700 snapshot clip
+17000 button Shift down
+17100 pad 7 1 down
+17140 pad 7 1 up
+17200 button Shift up
+17900 snapshot voice
+18200 encoder Select +1
+18900 snapshot voice-mono
+19200 button SelectEnc down
+19220 button SelectEnc up
+19900 snapshot voice-select
+20200 button Back down
+20220 button Back up
+20900 snapshot voice-left
+21200 quit

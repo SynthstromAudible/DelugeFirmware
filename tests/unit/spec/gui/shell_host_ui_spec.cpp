@@ -1539,6 +1539,38 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
+	it("under ShortcutsOnly feeds an audition-held press marked as one, and swallows a refused one", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+
+		fakelegacyui::shortcut_gate = deluge::gui::ui::ShortcutPadGate::Audition;
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen.back().ev.shortcut_without_shift).to_be_true();
+
+		fakelegacyui::shortcut_gate = deluge::gui::ui::ShortcutPadGate::Shift;
+		(void)r.guest.padAction(6, 4, 64);
+		r.guest.shell().tick(2);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(r.base.seen.back().ev.shortcut_without_shift).to_be_false();
+
+		fakelegacyui::shortcut_gate = deluge::gui::ui::ShortcutPadGate::Swallow;
+		(void)r.guest.padAction(5, 4, 64);
+		r.guest.shell().tick(3);
+		expect(r.base.seen.size()).to_equal(size_t(2)); // not fed
+		expect(fakelegacyui::pad_forwards).to_equal(0); // and not forwarded
+
+		fakelegacyui::shortcut_gate = deluge::gui::ui::ShortcutPadGate::Shift;
+		fakelegacyui::sequence_direction_answer = true;
+		(void)r.guest.padAction(4, 7, 64);
+		r.guest.shell().tick(4);
+		expect(r.base.seen.size()).to_equal(size_t(2)); // the note-row editor took it
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+	});
+
 	it("hands the audition column to the clip audition forward under AllButClipAudition, press and release", _ {
 		// `SampleMarkerEditor::padAction`'s audition arm: whatever the root, the host decides on the clip's type.
 		Rig r;
@@ -1783,6 +1815,18 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		fakelegacyui::menu_save_answer = std::nullopt;
 		(void)r.guest.buttonAction(deluge::hid::button::SAVE, false);
 		expect(fakelegacyui::menu_save_forwards).to_equal(2);
+	});
+
+	it("asks the menu-view forward after SAVE's and returns its answer without feeding", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+		fakelegacyui::menu_view_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.buttonAction(deluge::hid::button::SESSION_VIEW, true) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(fakelegacyui::menu_view_forwards).to_equal(1);
+		expect(r.base.seen.empty()).to_be_true();
 	});
 
 	it("does not consult the note mode for the two gold-knob pushes, whose early return comes first", _ {

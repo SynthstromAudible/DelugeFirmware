@@ -32,6 +32,7 @@
 #include "scenes/profile.h"
 
 #include "notify/notice_queue.h"
+#include "ui/core/led_frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/routing.h"
 #include "ui/oled/text.h"
@@ -261,17 +262,50 @@ size_t depth_of(const MenuState& state) {
 
 } // namespace
 
-ValueText cable_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the value over 100, two places.
-	if (use != ValueTextUse::Notification) {
-		return kValueTextFallback;
-	}
+namespace {
+
+/// @brief A cable strength's value text for @p use: the value over 100 to two places, cut to three characters on a
+///        column at or below -10.00 (`decimal.cpp`, "-10.50" keeps "-10").
+ValueText spell_cable_value(int32_t value, ValueTextUse use, std::span<char> out) {
 	char buf[16];
 	size_t len = 0;
 	append_cable_value(buf, len, sizeof(buf), value);
+	if (use == ValueTextUse::Column && value <= -1000) {
+		len = std::min<size_t>(len, 3);
+	}
 	const size_t n = std::min(len, out.size());
 	std::memcpy(out.data(), buf, n);
 	return ValueText{.length = n};
+}
+
+/// @brief `PatchCableStrength::readCurrentValue` for a `Fixed` item's own cable.
+int32_t fixed_strength(const MenuContext& ctx, const PatchCableStrengthItem& item) {
+	return cable_value_to_menu(
+	    cable_value(ctx, item.fixed_source(), deluge::synth::CableTarget::param(item.fixed_param())).value_or(0));
+}
+
+} // namespace
+
+ValueText cable_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Notification && use != ValueTextUse::Column) {
+		return kValueTextFallback;
+	}
+	return spell_cable_value(value, use, out);
+}
+
+ValueText ducking_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Notification) {
+		return kValueTextFallback;
+	}
+	return spell_cable_value(value, use, out);
+}
+
+int32_t vibrato_strength(const MenuContext& ctx) {
+	return fixed_strength(ctx, kVibratoItem);
+}
+
+int32_t ducking_strength(const MenuContext& ctx) {
+	return fixed_strength(ctx, kSidechainVolumeItem);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -470,7 +504,7 @@ deluge::synth::CableTarget strength_destination(const MenuState& state, PatchCab
 	return destination_for(state, which == PatchCableStrengthItem::Which::Range);
 }
 
-/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:192-206`).
+/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`).
 int32_t strength_read(const MenuContext& ctx, const MenuState& state, PatchCableStrengthItem::Which which) {
 	// `:195-198` -- no cable yet reads as zero depth.
 	return cable_value_to_menu(
@@ -561,53 +595,38 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	state.cursor_blink = deluge::ui::Blink{};
 }
 
-/// @name This page's layout, which is legacy's own -- all of it, in one place.
+/// @name This page's layout, which is legacy's own.
 ///
-/// **The whole page is frame-local**, i.e. every row below is measured from the top of the visible
-/// panel, which is what `f.origin.y` carries. On the reference geometry (`OLED_MAIN_TOPMOST_PIXEL`
-/// is 5) each of them lands on exactly the canvas row `PatchCableStrength::renderOLED` names, and
-/// on the taller panel the page hugs the visible top as one piece instead of splitting in half.
+/// **The whole page is frame-local**: every row below is measured from the top of the visible panel, which is what
+/// `f.origin.y` carries. On the reference geometry (`OLED_MAIN_TOPMOST_PIXEL` is 5) each lands on the canvas row
+/// `PatchCableStrength::renderOLED` names, and on the taller panel the page hugs the visible top as one piece:
 ///
-/// Every part of the page is laid out one way. `decimal_value`'s own rows 20/41 are
-/// **canvas-absolute**: `Decimal::drawPixelsForOled`'s constants for the *full-panel* number page,
-/// not this page's. They sit 10 rows below legacy's number, which would leave no room under it for
-/// the switch, where legacy puts it. So `DecimalLayout` carries the rows as well as the face
-/// (`ui/oled/values.h`), the number goes where `patch_cable_strength.cpp` puts it, and the switch
-/// follows it down to legacy's `startY`.
-///
-/// Legacy's four constants, and what each becomes here:
-///
-///   * the diagram's first row, `extraY + OLED_MAIN_TOPMOST_PIXEL` (`:87`) -- canvas 6; here the
-///     rect's own y of 0, plus `routing_chain`'s internal `+1`;
-///   * the number's top, `textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4` (`:175`) -- canvas 10;
-///     here `kValueTextY` = 5;
-///   * the cursor, `textY + digitHeight + 1` (`:180`) -- canvas 24; here `kValueCursorY` = 19;
-///   * the switch's slot band, `startY = 34` (`:131`) -- canvas 34; here `kPolaritySwitchY` = 29.
+///   * the diagram's first row, `extraY + OLED_MAIN_TOPMOST_PIXEL` -- canvas 6; here the rect's own y of 0,
+///     plus `routing_chain`'s internal `+1`;
+///   * the number's top, `textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4` -- canvas 10; here `kValueTextY` = 5,
+///     its cursor and tick on frame rows 19-21;
+///   * the switch's slot band, `startY = 34` -- canvas 34; here `kPolaritySwitchY` = 29.
 ///
 /// @{
 
-/// @brief How many columns of the page the routing diagram owns.
-///
-/// Everything left of this is the diagram's; everything right of it is the value's. Legacy needs no
-/// such split because its own number is right-aligned at the panel's edge, well clear of a diagram
-/// that runs down the left; `decimal_value` anchors horizontally within the rect it is handed, so
-/// handing it the right-hand rect is how the two stay apart.
-constexpr int32_t kRoutingDiagramWidth = 58;
+/// @brief The number band's first column. Legacy's number is right-aligned at the panel's edge, and its widest string,
+///        `-5000` with the cursor on the hundredths, starts at column 70. Clearing the band from there leaves every
+///        column a diagram label can reach on the band's rows, and the diagram itself draws across the whole panel,
+///        unclipped as legacy's is (`SIDE LEVEL` runs to column 60).
+constexpr int32_t kValueBandX = 70;
 
-/// @brief The number's top row and its cursor's, frame-local -- `textY` and
-///        `textY + digitHeight + 1` (`patch_cable_strength.cpp:175`, `:180 renderOLED`), with
-///        `digitHeight = kTextBigSizeY` (13).
+/// @brief The number's top row, frame-local (`textY`, `patch_cable_strength.cpp renderOLED`), and its band's
+///        height: the 13-row digits, a clear row, and the cursor's and tick's three.
 /// @{
 constexpr int32_t kValueTextY = 5;
-constexpr int32_t kValueCursorY = kValueTextY + deluge::gfx::oled::kTextBigSizeY + 1;
+constexpr int32_t kValueBandHeight = deluge::gfx::oled::kTextBigSizeY + 4;
 /// @}
 
 /// @brief The polarity switch's slot band, frame-local -- legacy's `startY = 34`
-///        (`patch_cable_strength.cpp:131 renderOLED`).
+///        (`patch_cable_strength.cpp renderOLED`).
 ///
-/// `segmented_switch` inks two rows *above* this one for its bracket (`ui/oled/routing.h`), so the
-/// page's real ink starts at 27; the number's cursor ends at `kValueCursorY + 1` = 20. Six clear
-/// rows between them, which is legacy's own gap.
+/// `segmented_switch` inks two rows *above* this one for its bracket (`ui/oled/routing.h`), so the page's real ink
+/// starts at 27; the number's band ends at 21. Five clear rows between them, which is legacy's own gap.
 constexpr int32_t kPolaritySwitchY = 29;
 /// @}
 
@@ -637,13 +656,13 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		stages[n++] = source_short_name(destination.top_source());
 	}
 	stages[n++] = destination_short_name(ctx, destination.param_index());
-	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, kRoutingDiagramWidth, bounds.h},
+	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
 	                                std::span<const std::string_view>{stages.data(), n});
 
 	// `renderOLED`'s polarity switcher (`:125-157`), through `segmented_switch`. The band's left
 	// edge is `bounds.w - 55`, which is legacy's own `startX` of 73 on a 128-column panel, and its
-	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see
-	// `kRoutingDiagramWidth`). Below the number, which is where legacy puts it.
+	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see the layout
+	// block above). Below the number, which is where legacy puts it.
 	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53, deluge::gfx::oled::kTextSpacingY};
 	if (PatchCable::hasPolarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}}; // `:143-145`
@@ -657,40 +676,28 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 		                                   kNoPolarityWidth, -1);
 	}
 
-	// `getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`patch_cable_strength.h:36-38`).
+	// `getMinValue`/`getMaxValue` (`patch_cable_strength.h`).
 	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
-	const deluge::gfx::oled::Rect value_rect{kRoutingDiagramWidth, 0, bounds.w - kRoutingDiagramWidth, bounds.h};
-	// **The 13px face, right-aligned** -- `PatchCableStrength::renderOLED`'s own
-	// `digitWidth = kTextBigSpacingX`, `digitHeight = kTextBigSizeY`, `rightPadding = 3`,
-	// `drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - rightPadding)`
-	// (`patch_cable_strength.cpp:172-177`).
-	//
-	// The toolkit's default huge face is wrong here, and the difference is not cosmetic. At 18px per
-	// glyph the string runs off the panel for **every** value of magnitude 10 or more, and further
-	// for every negative one -- most of the +/-50.00 range (`kMinMenuPatchCableValue`/`kMaxMenuPatchCableValue`), on
-	// the single number this page exists to edit, while the mod-matrix list one level up renders the same value
-	// correctly. At 11px the widest string this range reaches (`-50.00`, five glyphs and a half-width period = 60px)
-	// sits comfortably inside the 70px column left of the diagram.
-	static constexpr deluge::ui::oled::DecimalLayout kValueLayout{.font = deluge::gfx::oled::FontId::MetricBold13,
-	                                                              .right_pad = 3,
-	                                                              .text_dy = kValueTextY,
-	                                                              .cursor_dy = kValueCursorY};
-	const deluge::ui::Response r =
-	    deluge::ui::oled::decimal_value(f, value_rect, state.edit_int, kRange, /*places=*/2, state.decimal_pos,
-	                                    state.cursor_blink, /*focused=*/true, &kValueLayout);
+
+	// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp`): a turn while Select is held
+	// switches a polarised source's polarity -- up unipolar, down bipolar --, edits nothing, and uses the press up so
+	// its release opens nothing. This page is never a horizontal column here (a column draws through
+	// `present_column`), which is legacy's `!isInHorizontalMenu()`.
+	const int8_t turn = f.turn();
+	const bool polarity_turn = turn != 0 && f.select_held() && PatchCable::hasPolarity(source);
+	if (polarity_turn) {
+		set_polarity(ctx, state, turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
+		state.tick.use_up_select = true;
+	}
+
+	// `renderOLED`'s number, right of the diagram.
+	const deluge::gfx::oled::Rect value_rect{kValueBandX, kValueTextY, bounds.w - kValueBandX, kValueBandHeight};
+	const deluge::ui::Response r = deluge::ui::oled::cable_strength_value(
+	    f, value_rect, state.edit_int, kRange, state.decimal_pos, state.cursor_blink, /*take_turn=*/!polarity_turn);
 	state.tick.render_resp = r;
 	if (r.changed) {
 		state.tick.value_changed = true;
 		state.tick.value_node = focused_of(state);
-	}
-
-	// `PatchCableStrength::selectEncoderAction`'s polarity arm (`:325-336`). Legacy gates it on the
-	// select encoder being *held*; a frame carries no held-button level for that encoder, so this
-	// port uses SHIFT + turn -- the one modifier `FrameContext` does expose (`f.shift()`), and the
-	// same modifier legacy's own `MultiRange` uses for its second gesture.
-	const int8_t turn = f.turn();
-	if (turn != 0 && PatchCable::hasPolarity(source) && f.shift()) {
-		set_polarity(ctx, state, turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
 	}
 
 	if (f.select_pressed()) {
@@ -702,6 +709,8 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	// `polarity_in_the_ui_` first, then `setPatchCablePolarity` (`:328`), which is a no-op while no cable exists --
 	// `commit` makes a new cable with it.
 	state.walk.patch_polarity = polarity;
+	// `updatePolarityUI`'s `renderUIsForOled` restarts the cursor's blink dark (`OLED::setupBlink`).
+	state.cursor_blink = deluge::ui::Blink{};
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
 	if (ctx.sink != nullptr && find_cable(ctx, source, destination).has_value()) {
@@ -739,10 +748,31 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	}
 }
 
-deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
+deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell::UiEvent& event,
                                                          const deluge::ui::shell::UiContext& /*ui_ctx*/,
-                                                         const MenuContext& /*ctx*/, MenuState& /*state*/) const {
-	return {};
+                                                         const MenuContext& ctx, MenuState& state) const {
+	// `PatchCableStrength::buttonAction` (`patch_cable_strength.cpp`): on the press, MIDI makes a polarised
+	// source's cable bipolar and CV unipolar. Everything else is the scene's.
+	using deluge::ui::shell::ButtonId;
+	if (event.kind != deluge::ui::shell::UiEvent::Kind::Button || !event.on
+	    || (event.button != ButtonId::Midi && event.button != ButtonId::Cv)
+	    || !PatchCable::hasPolarity(strength_source(state, which_))) {
+		return {};
+	}
+	set_polarity(ctx, state, event.button == ButtonId::Midi ? Polarity::BIPOLAR : Polarity::UNIPOLAR);
+	return deluge::ui::shell::Result{.handled = true};
+}
+
+void PatchCableStrengthItem::leds(deluge::ui::LedFrame& f, const MenuContext& /*ctx*/, const MenuState& state) const {
+	// `updatePolarityUI` (`patch_cable_strength.cpp`): MIDI for a bipolar cable, CV for a unipolar one, neither
+	// for a source with no polarity.
+	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	const bool polarised = PatchCable::hasPolarity(strength_source(state, which_));
+	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Midi),
+	            polarised && state.walk.patch_polarity == Polarity::BIPOLAR ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Cv),
+	            polarised && state.walk.patch_polarity == Polarity::UNIPOLAR ? kOn : kOff);
 }
 
 // ---------------------------------------------------------------------------------------------

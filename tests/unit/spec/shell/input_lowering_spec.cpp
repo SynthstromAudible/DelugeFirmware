@@ -262,6 +262,32 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.queue_dropped()).to_equal(uint32_t(0));
 	});
 
+	it("carries the host's shortcut reason on a pad press, never on its release, and through a deferral", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_host_pad(3, 4, 64, /*shortcut_without_shift=*/true, 1);
+		UiEvent e = only_queued(in);
+		expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(e.shortcut_without_shift).to_be_true();
+		in.on_host_pad(3, 4, 0, true, 2);
+		expect(only_queued(in).shortcut_without_shift).to_be_false();
+		in.on_board_event(pad_ev(5, 4, 64), 3);
+		expect(only_queued(in).shortcut_without_shift).to_be_false();
+
+		in.set_sd_busy(true);
+		in.on_host_pad(6, 4, 64, true, 4);
+		expect(in.next(e)).to_be_false();
+		in.set_sd_busy(false);
+		expect(in.next(e)).to_be_true();
+		expect(e.x).to_equal(uint8_t(6));
+		expect(e.shortcut_without_shift).to_be_true();
+
+		in.set_input_lock(true);
+		in.on_host_pad(7, 4, 64, true, 5);
+		expect(in.next(e)).to_be_false(); // the lock drops it, as it drops a board pad
+		in.set_input_lock(false);
+	});
+
 	it("AllReleased releases everything held and reaches the queue even when locked", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1);

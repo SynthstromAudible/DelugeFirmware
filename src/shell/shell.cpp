@@ -280,6 +280,12 @@ void Shell::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {
 	lowering_.on_board_event(ev, now_ms);
 }
 
+void Shell::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms) {
+	ensure_tick_window(now_ms);
+	screensaver_.note_activity(now_ms); // as `on_board_event`
+	lowering_.on_host_pad(x, y, velocity, shortcut_without_shift, now_ms);
+}
+
 void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
 	ensure_tick_window(now_ms);
 	screensaver_.note_activity(now_ms);
@@ -341,8 +347,10 @@ void Shell::tick(uint32_t now_ms) {
 	const uint32_t dt = now_ms - last_ms_;
 	// 1. Model facts -> the gates and every stacked scene.
 	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell));
-	// 2. Presentation requests -> the overlay scenes.
-	notices_.drain(notify::notices(), now_ms);
+	// 2. Presentation requests -> the overlay scenes, while this shell owns the queue.
+	if (owns_notices_) {
+		notices_.drain(notify::notices(), now_ms);
+	}
 	// 3. Lower, route and apply, in arrival order. A widget-owned shape the input-frontmost scene's
 	// widgets own stays in the snapshot for step 5's render instead.
 	pump_input(now_ms);
@@ -357,6 +365,12 @@ void Shell::tick(uint32_t now_ms) {
 		const std::string_view text = profile_.text_or_digits(router_.pending_popup_string(), scratch);
 		notices_.show_popup(text, router_.pending_popup_type(), now_ms);
 		router_.clear_pending_popup();
+	}
+	// A popup re-targeted in place changed its text and no stack: repaint the panels it draws on.
+	if (notices_.take_popup_retargeted()) {
+		for (OledSurface& s : surfaces_.oled()) {
+			s.gate.request_repaint();
+		}
 	}
 	// 4. Time.
 	tick_stack(now_ms, dt);

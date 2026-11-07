@@ -95,16 +95,6 @@
 /// three items are `CustomItem`s. A future port of a menu-item member that a **data** node has to
 /// read fails (1) and belongs in `MenuContext` with a mailbox, exactly as `midi_cable` does.
 ///
-/// ## What did not survive
-///
-///   * **`zoneSelectorMenu`'s empty name.** `ZoneSelector` is default-constructed
-///     (`zone_selector.cpp:23`), so both its name and title are `EMPTY_STRING` and legacy draws a
-///     blank title bar over it. `MissingTitle` again, so the port names it `STRING_FOR_MPE` --
-///     the name its own parent selector carries (`menus.cpp:1475`), which is what the page is
-///     about. `mpe_zone_num_member_channels` needs no such invention: it is default-constructed
-///     too, but overrides `getTitle()` to `STRING_FOR_NUM_MEMBER_CH_MENU_TITLE`
-///     (`zone_num_member_channels.h:34-36`).
-///
 /// @note `mpe_direction` and `mpe_zone` share the name `STRING_FOR_MPE` and are **not** siblings
 ///       (`mpe_zone` is reached only through `mpe_direction`'s `chain_targets`), so
 ///       `validate_tree`'s sibling-scoped `NameCollision` rule does not fire on the pair.
@@ -189,6 +179,9 @@ public:
 
 /// @brief `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`). Same shape as
 ///        `MpeDirectionItem`, over `MenuWalkState::mpe_zone`, minus the runtime title.
+///
+/// The node is named `STRING_FOR_MPE`, its parent selector's name, for `validate_tree`'s `MissingTitle` rule and the
+/// dump; the page itself draws the empty title legacy's nameless item does.
 class MpeZoneItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).

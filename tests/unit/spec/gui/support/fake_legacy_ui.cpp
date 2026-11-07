@@ -59,6 +59,12 @@ NoteVerticalCall last_note_vertical{};
 std::optional<ActionResult> note_vertical_answer{};
 int menu_save_forwards = 0;
 std::optional<ActionResult> menu_save_answer{};
+int menu_view_forwards = 0;
+std::optional<ActionResult> menu_view_answer{};
+std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate{};
+bool sequence_direction_answer = false;
+int menu_affect_entire_forwards = 0;
+std::optional<ActionResult> menu_affect_entire_answer{};
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -128,6 +134,12 @@ void reset() {
 	note_vertical_answer = std::nullopt;
 	menu_save_forwards = 0;
 	menu_save_answer = std::nullopt;
+	menu_view_forwards = 0;
+	menu_view_answer = std::nullopt;
+	shortcut_gate = std::nullopt;
+	sequence_direction_answer = false;
+	menu_affect_entire_forwards = 0;
+	menu_affect_entire_answer = std::nullopt;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -301,6 +313,13 @@ void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
 
+// `gui/ui/sound_editor.cpp`'s list and `ui.cpp`'s check, which `ShellHostUI::selectEncoderAction` gates the menu's
+// turns on. This suite never sets a UI mode, and with none on every list admits it.
+const uint32_t selectEncoderUIModes[] = {0};
+bool isUIModeWithinRange(const uint32_t* /*modes*/) {
+	return true;
+}
+
 void renderUIsForOled() {
 	fakelegacyui::oled_redraws++;
 }
@@ -413,6 +432,16 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button, bool) {
 	return fakelegacyui::menu_save_answer;
 }
 
+std::optional<ActionResult> forwardMenuViewButton(deluge::hid::Button, bool) {
+	fakelegacyui::menu_view_forwards++;
+	return fakelegacyui::menu_view_answer;
+}
+
+std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button, bool) {
+	fakelegacyui::menu_affect_entire_forwards++;
+	return fakelegacyui::menu_affect_entire_answer;
+}
+
 bool automationEditorTakesKnobs() {
 	return false;
 }
@@ -512,6 +541,17 @@ void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity) {
 
 // The same file's root-UI question for the shortcut gate: no root view keeps a pad here, as none is the automation
 // view.
+ShortcutPadGate shortcutPadGate(bool shift) {
+	if (fakelegacyui::shortcut_gate) {
+		return *fakelegacyui::shortcut_gate;
+	}
+	return shift ? ShortcutPadGate::Shift : ShortcutPadGate::Forward;
+}
+
+bool takeSequenceDirectionShortcut(int32_t, int32_t) {
+	return fakelegacyui::sequence_direction_answer;
+}
+
 bool rootKeepsShortcutPad(int32_t, int32_t) {
 	return false;
 }

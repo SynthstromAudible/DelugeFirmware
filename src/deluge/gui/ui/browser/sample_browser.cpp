@@ -114,6 +114,7 @@ bool SampleBrowser::opened() {
 	// Nor a folder import: one still out would build into whatever this visit is choosing for.
 	folderImport.cancel();
 
+	soundEditorBlinks_ = openingFromSoundEditor;
 	bool success = Browser::opened();
 	if (!success) {
 		return false;
@@ -213,7 +214,13 @@ void SampleBrowser::onBrowserOpened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	possiblySetUpBlinking();
+	if (soundEditorBlinks_) {
+		// The file selector's blink runs from `beginScreen`; the open's preview, if one is loading, stops nothing.
+		spareBlinkFromPreview_ = previewer_.pending();
+	}
+	else {
+		possiblySetUpBlinking();
+	}
 }
 
 void SampleBrowser::possiblySetUpBlinking() {
@@ -611,6 +618,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 }
 
 void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
+	spareBlinkFromPreview_ = false;
 	// A cursor move supersedes an auto-load claim of the file it has left.
 	sampleClaim.cancelAutoLoad();
 
@@ -618,6 +626,7 @@ void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
 }
 
 void SampleBrowser::cancelPreview() {
+	spareBlinkFromPreview_ = false;
 	// Nothing previewed, nothing to auto-load: an auto-load claim of the file being left goes too.
 	sampleClaim.cancelAutoLoad();
 	// A redraw pending for the preview being left finds its generation passed, and does nothing.
@@ -684,7 +693,9 @@ void SampleBrowser::showPreview(const PreviewShow& show) {
 		    ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))->sampleHolder.audioFile;
 
 		if (sample) {
-			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+			if (!std::exchange(spareBlinkFromPreview_, false)) {
+				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+			}
 
 			currentlyShowingSamplePreview = true;
 			PadLEDs::reassessGreyout(true);

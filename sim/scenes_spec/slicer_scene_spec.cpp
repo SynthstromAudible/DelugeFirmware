@@ -63,6 +63,7 @@
 /// @note The spec may include `gui/` (for the legacy slicer); the library may not. Same rule
 ///       `marker_scene_spec.cpp` runs under.
 
+#include "model/sample/waveform_scan.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -966,6 +967,46 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			}
 		}
 		expect(differ).to_equal(0);
+	});
+
+	it("opens on the navigator the browser's preview drew, as legacy's slicer reads the preview's global", _ {
+		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::showPreview` opened and
+		// scanned for this sample: the columns are already investigated, so the slicer draws the preview's peaks. A
+		// fresh navigator scans again, and on the device that scan reads the overview cache's coarse peaks.
+		Rig r;
+		deluge::sample::WaveformNav shown{};
+		shown.length_samples = r.sample->lengthInSamples;
+		shown.opened(0, 0);
+		(void)deluge::sample::find_peaks_per_col(r.sample, shown.xScroll, static_cast<uint64_t>(shown.xZoom),
+		                                         &shown.renderData);
+		for (int32_t i = 0; i < kNumClusters; i++) {
+			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			e.min = 0;
+			e.max = 0;
+		}
+		// Legacy, with the preview's navigator as its global.
+		static_cast<deluge::sample::WaveformNav&>(waveformBasicNavigator) = shown;
+		waveformBasicNavigator.sample = r.sample;
+		legacy_slicer.focusRegained();
+		currentUIMode = UI_MODE_NONE;
+		const LegacyPads legacy = legacy_pads();
+
+		slicer_scene().open(nullptr); // nothing kept from an earlier example
+		slicer_scene().open(r.sample, &shown);
+		r.shell.init(SceneId{kSlicerSceneKind, 0});
+		r.tick(0);
+		expect_pads_match(self, r, legacy);
+		expect(static_cast<int32_t>(slicer_scene().x_zoom())).to_equal(static_cast<int32_t>(shown.xZoom));
+	});
+
+	it("opens zoomed out on a fresh navigator when the browser shows no preview of the sample", _ {
+		Rig r;
+		slicer_scene().open(nullptr);
+		slicer_scene().open(r.sample, nullptr);
+		r.shell.init(SceneId{kSlicerSceneKind, 0});
+		r.tick(0);
+		open_legacy(r);
+		expect_pads_match(self, r, legacy_pads());
 	});
 
 	it("draws the MANUAL squashed waveform, slice marks and slot grid legacy draws", _ {

@@ -37,6 +37,8 @@ public:
 	void getColumnLabel(etl::istring& label) override;
 
 private:
+	/// @brief Open the sample browser on this item's source, from `beginScreen` (@p fromBeginScreen) or a select press.
+	void openBrowser(bool fromBeginScreen);
 	uint8_t sourceId_;
 	static std::string getLastFolderFromPath(std::string& path);
 };

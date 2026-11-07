@@ -74,4 +74,23 @@ const CustomItem* focused_custom(const MenuState& st) {
 	return node != nullptr && node->kind == Kind::Custom ? node->custom : nullptr;
 }
 
+bool uses_affect_entire(const MenuContext& ctx, const MenuState& st) {
+	const Node* node = focused(st);
+	if (node == nullptr) {
+		return false;
+	}
+	if (node->kind != Kind::Submenu) {
+		return node_uses_affect_entire(*node);
+	}
+	const Node* child = selected_child(ctx, st, *node);
+	if (child == nullptr) {
+		return false;
+	}
+	if (renders_horizontal(*node, ctx)) {
+		return node_uses_affect_entire(*child);
+	}
+	// `!shouldEnterSubmenu()`: a Toggle, or a toggle choice that flips on its row (`flips_in_place`).
+	return flips_in_place(*child) && node_uses_affect_entire(*child);
+}
+
 } // namespace deluge::scenes::menu

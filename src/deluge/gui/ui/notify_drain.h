@@ -32,3 +32,11 @@ void showNoticeNotification(const char* title, const char* value);
 ///        `HorizontalMenu::switchVisiblePage`/`endSession` make (`horizontal_menu.cpp:363-365`,
 ///        `:587-589`). Reached from both consumers, as `showNoticeNotification` is. [task]
 void cancelNoticeNotification();
+
+/// @brief `Notice::Kind::CancelPopup`'s legacy mapping: `display->cancelPopup()`. Reached from both consumers: a popup
+///        legacy drew before the guest became current is cancelled by whichever of them pops the cancel.
+void cancelNoticePopup();
+
+/// @brief `Notice::Kind::ClearWorking`'s legacy mapping: `display->removeWorkingAnimation()`. Reached from both
+///        consumers, as `cancelNoticePopup` is.
+void removeNoticeWorking();

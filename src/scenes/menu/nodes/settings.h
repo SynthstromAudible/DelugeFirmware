@@ -155,6 +155,27 @@ bool unlearn_follow_channel(const MenuContext&) {
 	return follow_channel_unlearn(Which);
 }
 
+/// @brief `midi::FollowChannel::selectEncoderAction`: past either end the channel becomes unassigned
+///        (`MIDI_CHANNEL_NONE`, whose write forgets the learned device), and from unassigned a turn up lands on
+///        channel 1 and a turn down on the MPE upper zone.
+/// @param value  The channel or zone before the turn.
+/// @param offset The turn's detents.
+/// @return The channel or zone after it.
+std::optional<int32_t> turn_follow_channel(const MenuContext& ctx, int32_t value, int32_t offset);
+
+/// @brief `midi::FollowChannel::drawInteger`: the input-differentiation line, the device and the channel or zone, in
+///        the MIDI command screen's three rows.
+/// @param which  The `MIDIFollowChannelType` the node edits.
+/// @param f      The frame the item draws in.
+/// @param value  The channel or zone after this tick's edit.
+/// @param scroll The side-scroll state of the device's name.
+void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll);
+template <int Which>
+void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext&, int32_t value,
+                         deluge::ui::ScrollText& scroll) {
+	follow_channel_draw(Which, f, value, scroll);
+}
+
 /// @brief `midi::FollowKitRootNote::learnNoteOn`: a note-on sets the kit root note. @return Whether it learned.
 bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event);
 
@@ -521,18 +542,20 @@ inline constexpr const Node* kMidiClockChildren[] = {&midi_clock_out, &midi_cloc
 inline constexpr Node midi_clock = submenu(sid(String::STRING_FOR_CLOCK), kMidiClockChildren, Layout::Vertical, nullptr,
                                            sid(String::STRING_FOR_MIDI_CLOCK));
 
-// `FollowChannel::getMaxValue` is `NUM_CHANNELS` (`follow_channel.h:37`) -- one past the last real
-// channel, which the item draws as "unassigned".
-inline constexpr IntRange kFollowChannelRange{0, NUM_CHANNELS, 1};
+// A follow channel holds a channel 0-15, the MPE lower and upper zones (16, 17) or `MIDI_CHANNEL_NONE` (255) for
+// unassigned; `turn_follow_channel` moves between them, so the range only has to admit them all.
+inline constexpr IntRange kFollowChannelRange{0, MIDI_CHANNEL_NONE, 1};
 
 /// One follow-channel node. `n` is the `MIDIFollowChannelType` enumerator's value
 /// (`definitions_cxx.hpp:609-631`: A = 0, B = 1, C = 2, Track1 = 3 .. Track16 = 18).
 #define DELUGE_FOLLOW_CHANNEL(node_name, n, name_id)                                                                   \
 	inline constexpr Node node_name =                                                                                  \
-	    with_learn(with_title_arg(int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>,     \
-	                                       kFollowChannelRange),                                                       \
-	                              (n) >= 3 ? (n) - 2 : 0),                                                             \
-	               learn_follow_channel<(n)>, unlearn_follow_channel<(n)>)
+	    with_leaf_draw(with_turn(with_learn(with_title_arg(int_item(sid(String::name_id), get_follow_channel<(n)>,     \
+	                                                                set_follow_channel<(n)>, kFollowChannelRange),     \
+	                                                       (n) >= 3 ? (n) - 2 : 0),                                    \
+	                                        learn_follow_channel<(n)>, unlearn_follow_channel<(n)>),                   \
+	                             turn_follow_channel),                                                                 \
+	                   draw_follow_channel<(n)>)
 
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_a, 0, STRING_FOR_FOLLOW_CHANNEL_A);
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_b, 1, STRING_FOR_FOLLOW_CHANNEL_B);

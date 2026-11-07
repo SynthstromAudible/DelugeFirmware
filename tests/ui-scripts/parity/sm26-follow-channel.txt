@@ -1,0 +1,46 @@
+# A MIDI follow channel's own screen. From the song view, SETTINGS > MIDI > MIDI-FOLLOW > CHANNEL > CHANNEL A: the
+# input-differentiation line, the device and the channel. Up a channel and back to CHANNEL 1, down past it to
+# UNASSIGNED, on to MPE UPPER ZONE and MPE LOWER ZONE, up past the upper zone to UNASSIGNED again and on to CHANNEL 1;
+# then LEARN and a note on channel 1 name DIN PORTS as the device. A turn that reverses counts one extra detent.
+100   snapshot boot
+300   button Session down
+320   button Session up
+1000  button Shift down
+1100  button SelectEnc down
+1120  button SelectEnc up
+1200  button Shift up
+1900  snapshot settings
+2200  encoder Select +5
+2500  button SelectEnc down
+2520  button SelectEnc up
+2800  encoder Select +1
+3100  button SelectEnc down
+3120  button SelectEnc up
+3400  button SelectEnc down
+3420  button SelectEnc up
+4100  snapshot channels
+4400  button SelectEnc down
+4420  button SelectEnc up
+5100  snapshot a-screen
+5400  encoder Select +1
+6100  snapshot a-up
+6400  encoder Select -2
+7100  snapshot a-down
+7400  encoder Select -1
+8100  snapshot a-none
+8400  encoder Select -1
+9100  snapshot a-upper
+9400  encoder Select -1
+10100 snapshot a-lower
+10400 encoder Select +2
+11100 snapshot a-upper-again
+11400 encoder Select +1
+12100 snapshot a-none-again
+12400 encoder Select +1
+13100 snapshot a-first
+13400 button Learn down
+13600 note 1 60 100
+13700 noteoff 1 60
+13900 snapshot a-learned
+14600 button Learn up
+14900 quit

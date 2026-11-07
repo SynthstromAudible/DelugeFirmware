@@ -28,9 +28,9 @@
 
 namespace deluge::gui::ui {
 
-/// @brief Install the notification sink, once, at boot: `showNoticeNotification` and
-///        `cancelNoticeNotification` (`gui/ui/notify_drain.h`), via
-///        `deluge::ui::shell::set_notification_sink`.
+/// @brief Install the notification sink, once, at boot: `showNoticeNotification`,
+///        `cancelNoticeNotification`, `cancelNoticePopup` and `removeNoticeWorking`
+///        (`gui/ui/notify_drain.h`), via `deluge::ui::shell::set_notification_sink`.
 ///
 /// Like `wireShellNoteBridge()` it holds function pointers and no `Song`, so it has no ordering
 /// constraint of its own; nothing calls through it until a notice is drained.

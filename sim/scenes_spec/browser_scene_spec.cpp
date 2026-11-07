@@ -1433,8 +1433,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
 			expect(fl.x == 0 && fl.y == 5).to_be_true();
 		}
-		// every other 200 ms cycle: two or three flashes in a second, never one per cycle
-		expect(seen.size() >= 2 && seen.size() <= 3).to_be_true();
+		// `updatePadLightsFor`'s `setupShortcutBlink(x, 5, 0)`, armed by `beginScreen` after the browser opened: every
+		// 200 ms cycle, so four or five flashes in a second.
+		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
 	});
 
 	it("greys only the mute column over the keyboard screen", _ {
@@ -1483,6 +1485,25 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(differ).to_equal(0);
 	});
 
+	it("offers the slicer the navigator its preview drew, for that sample only", _ {
+		// `main`'s slicer reads `waveformBasicNavigator`, which only `showPreview` sets: the previewed sample's view.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample();
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(browser_scene().shown_waveform(sample) == nullptr).to_be_true(); // nothing drawn yet
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().shown_waveform(sample) == &browser_scene().waveform_nav()).to_be_true();
+		expect(browser_scene().waveform_nav().renderData.colStatus[0] == COL_STATUS_INVESTIGATED).to_be_true();
+		Sample* other = make_overview_sample();
+		expect(browser_scene().shown_waveform(other) == nullptr).to_be_true();
+		expect(browser_scene().shown_waveform(nullptr) == nullptr).to_be_true();
+	});
+
 	it("redraws a preview the card has not caught up with, and gives up 300 ms after its last progress", _ {
 		// `tickPreviewRedraw`. No cluster the overview lacks ever arrives here (the spec process runs no loader), so
 		// the render never completes: the browser asks for redraws, then stops.
@@ -1506,6 +1527,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		spec::SongFixture f = spec::make_synth_song();
 		PreviewHeld held(make_overview_sample());
 		Rig r;
+		// The drum creator's door: no `beginScreen`, so the open's preview stops the browser's own blink.
+		browser_scene().set_drum_creator_next(true);
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 500);
@@ -1516,6 +1539,121 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_false();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+	});
+
+	it("keeps the sound editor's 200 ms BROWSE blink over the open's own preview", _ {
+		// `main` previews inside `openUI`, before `beginScreen` arms the file selector's blink: that preview stops nothing.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
+		for (const deluge::ui::grid::PadFlash& fl : seen) {
+			expect(fl.x == 0 && fl.y == 5).to_be_true();
+		}
+	});
+
+	it("stops the BROWSE blink on a move off a shown preview, and a preview with no sample brings back the 400 ms one", _ {
+		// `currentFileChanged`'s `unsetTimer` on a move while a preview shows; `clearPreviewDisplay`'s
+		// `possiblySetUpBlinking` when the next item previews nothing.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		r.turn(1, r.clock + 10);
+		r.settle();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		expect(flashes_since(r, from).empty()).to_be_true();
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(false);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const size_t n = flashes_since(r, from).size();
+		expect(n >= 2 && n <= 3).to_be_true();
+	});
+
+	it("stops the BROWSE blink when a later preview lands", _ {
+		// `showPreview`'s `unsetTimer`: only the open's own first preview is spared.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, true); // a move onto a folder: no preview showed, so the blink runs on
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+		select_folder(r, false);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+	});
+
+	it("stops the BROWSE blink when a pad reveals the keyboard, and KEYBOARD leaves it running", _ {
+		// `padAction`'s and `horizontalEncoderAction`'s reveals unset the timer; `buttonAction`'s KEYBOARD arm does not.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			r.click(kKeyboardX, kKeyboardY);
+			r.settle();
+			expect(browser_scene().keyboard_always_visible()).to_be_true();
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+			const size_t from = r.fake.flashes_sent.size();
+			run_until(r, r.clock + 1000);
+			expect(flashes_since(r, from).empty()).to_be_false();
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			tap(r, 3, 3);
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+			const size_t from = r.fake.flashes_sent.size();
+			run_until(r, r.clock + 1000);
+			expect(flashes_since(r, from).empty()).to_be_true();
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			r.horizontal(1);
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		}
+	});
+
+	it("opens the drum creator's browser on the browser's own 400 ms blink", _ {
+		// `enterDrumCreator` opens the browser with no `beginScreen` after it: `possiblySetUpBlinking` only.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		browser_scene().set_drum_creator_next(true);
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const size_t n = flashes_since(r, from).size();
+		expect(n >= 2 && n <= 3).to_be_true();
 	});
 
 	it("declares SYNTH and KIT from the context and turns CROSS_SCREEN, SESSION and SCALE off", _ {
@@ -1900,7 +2038,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_false();
 	});
 
-	it("parks the chosen MIDI device definition for the drain, and closes", _ {
+	it("parks the chosen MIDI device definition for the drain, and waits for its load", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1911,16 +2049,17 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 
-		// Like the sample descriptor, this one defers: the load is an instrument-load request on the
-		// interaction tier (`shell_choice_dispatch.cpp`'s `requestMidiDefinitionLoad`), which the
-		// drain makes. So the press parks the path and loads nothing itself.
+		// The load is an instrument-load request on the interaction tier (`shell_choice_dispatch.cpp`'s
+		// `requestMidiDefinitionLoad`), which the drain makes, and `LoadMidiDeviceDefinitionUI` stays open until
+		// `definitionLoaded` closes it. So the press parks the path, loads nothing itself and waits.
 		Error unused = Error::NONE;
 		expect(static_cast<int>(browser::descriptor(BrowserId::MidiDeviceDefinition)
 		                            .accept(context_of(f), "MIDI_DEVICES/DEFINITION/DEVICE1.XML", unused)))
-		    .to_equal(static_cast<int>(AcceptOutcome::Defer));
+		    .to_equal(static_cast<int>(AcceptOutcome::DeferAndWait));
 
 		r.enter();
-		expect(r.browser_on_stack()).to_be_false();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
 		expect(choice.has_value() && choice->id == BrowserId::MidiDeviceDefinition).to_be_true();
@@ -1928,6 +2067,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		    .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
 		// What the drain then does with the choice is `browser_choice_spec.cpp`'s.
 		expect(instrument->deviceDefinitionFileName).to_equal(std::string{});
+		browser_scene().deferred_load_done(true); // the load's completion
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_false();
 	});
 
 	it("searches for the remembered file with .XML appended again, as legacy does", _ {

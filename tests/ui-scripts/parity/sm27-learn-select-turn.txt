@@ -1,0 +1,21 @@
+# The select encoder under MIDI learn. From the synth clip, SHIFT + the LPF frequency shortcut opens the LPF page; with
+# LEARN held two select turns edit nothing (SoundEditor::selectEncoderAction acts only in selectEncoderUIModes), and
+# after LEARN's release the same turns edit the frequency. The page blinks the patching sources' pads every 800 ms, so
+# every snapshot's window runs at least a second.
+100   snapshot boot
+5100  button Shift down
+5200  pad 8 7 down
+5240  pad 8 7 up
+5300  button Shift up
+6000  snapshot lpf
+7200  button Learn down
+7900  snapshot learn-held
+9100  encoder Select +2
+9300  encoder Select +2
+10000 snapshot learn-turned
+11200 button Learn up
+11900 snapshot learn-released
+13100 encoder Select +2
+13300 encoder Select +2
+14000 snapshot turned
+15200 quit

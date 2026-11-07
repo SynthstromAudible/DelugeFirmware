@@ -248,14 +248,16 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	importDispatch(std::move(request));
 }
 
-/// @brief Announce how a MIDI device definition's load ended, as
-///        `LoadMidiDeviceDefinitionUI::definitionLoaded` does, minus closing a browser that is gone.
+/// @brief Announce how a MIDI device definition's load ended and answer the waiting browser, as
+///        `LoadMidiDeviceDefinitionUI::definitionLoaded` does: an error leaves it open, a load closes it.
 void midiDefinitionLoaded(Error error) {
 	if (error != Error::NONE) {
 		deluge::notify::notice(error);
+		browser_scene().deferred_load_done(false);
 		return;
 	}
 	deluge::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED, deluge::notify::Notice::Kind::Console);
+	browser_scene().deferred_load_done(true);
 }
 
 /// @brief Load the chosen MIDI device definition into the current MIDI output, as
@@ -264,13 +266,17 @@ void midiDefinitionLoaded(Error error) {
 void requestMidiDefinitionLoad(std::string_view path) {
 	Output* output = getCurrentOutput();
 	if (output == nullptr || output->type != OutputType::MIDI_OUT) {
+		browser_scene().deferred_load_done(false); // nothing started: the browser must not wait for it
 		return;
 	}
-	(void)deluge::gui::instrumentLoad.request(
+	const deluge::gui::LoadTicket ticket = deluge::gui::instrumentLoad.request(
 	    {.commit = true,
 	     .completion = midiDefinitionLoaded,
 	     .kind = deluge::gui::InstrumentLoadRequest::Kind::MidiDefinition,
 	     .definition = {.path = std::string{path}, .instrument = static_cast<MIDIInstrument*>(output)}});
+	if (ticket.generation == 0) {
+		browser_scene().deferred_load_done(false); // refused: no completion will answer
+	}
 }
 
 /// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
@@ -436,6 +442,10 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 		return std::nullopt;
 	}
 	return SampleClaimTarget{.dir = path.substr(0, slash), .name = name};
+}
+
+void setShellBrowserFromDrumCreator(bool fromCreator) {
+	browser_scene().set_drum_creator_next(fromCreator);
 }
 
 void adoptShellMenuContext() {

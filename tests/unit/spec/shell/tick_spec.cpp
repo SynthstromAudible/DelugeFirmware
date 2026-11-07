@@ -1,5 +1,6 @@
 // The shell's headers reach libdeluge/types.h, whose DelugeFileLocation::context the cppspec `context` macro would
 // rewrite, so they come before anything that includes cppspec.
+#include "notify/notice_queue.h"
 #include "shell/shell.h"
 #include "support/fake_surfaces.h"
 
@@ -1208,6 +1209,41 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		r.shell.lowering().set_input_lock(true);
 		expect(r.shell.state_lines()).to_equal(std::string("scene app17/3\nscene app16/7\nlock input\n"));
+	});
+
+	it("a second popup over a live one reaches the panel on a tick with no input", _ {
+		deluge::notify::dirty().drain();
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_text("FIRST");
+		r.shell.tick(10);
+		const std::string first = r.fake.pbm(0);
+		r.consume_pending();
+		deluge::notify::notice_text("SECOND");
+		r.shell.tick(20); // quiet: no pad, button or encoder, only the drain
+		expect(r.fake.pbm(0) != first).to_be_true();
+	});
+
+	it("drains the notice queue only while it owns it", _ {
+		deluge::notify::dirty().drain();
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		expect(r.shell.owns_notices()).to_be_true();
+		r.shell.set_owns_notices(false);
+		deluge::notify::notice_text("SAVED");
+		r.shell.tick(10);
+		expect(deluge::notify::notices().size()).to_equal(size_t{1});
+		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_false();
+		r.shell.set_owns_notices(true);
+		r.shell.tick(20);
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
 	});
 });
 // clang-format on

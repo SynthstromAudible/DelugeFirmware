@@ -39,6 +39,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -246,17 +247,34 @@ void write_recording_from(const MenuContext& ctx, const bind::TrackFact* from) {
 // ---------------------------------------------------------------------------------------------
 // `MidiDeviceLinkedItem` -- `midi::device_definition::Linked`
 
-bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
-	// `readCurrentValue` (`linked.h:33-36`).
+std::optional<serialization::Value> MidiDeviceLinkedItem::definition_file(const MenuContext& ctx) {
 	const std::optional<bind::TrackFact> track = midi_track_of(ctx);
-	const std::optional<serialization::Value> file =
-	    track && ctx.model != nullptr
-	        ? project::read_setting(*ctx.model,
-	                                project::SettingAddress{.group = project::SettingGroupId::INSTRUMENT_DEVICE,
-	                                                        .owner = project::TrackAddress{track->output_id}},
-	                                "deviceDefinitionFileName")
-	        : std::nullopt;
+	if (!track || ctx.model == nullptr) {
+		return std::nullopt;
+	}
+	return project::read_setting(*ctx.model,
+	                             project::SettingAddress{.group = project::SettingGroupId::INSTRUMENT_DEVICE,
+	                                                     .owner = project::TrackAddress{track->output_id}},
+	                             "deviceDefinitionFileName");
+}
+
+bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
+	// `readCurrentValue` (`linked.h`): linked when the track names a file.
+	const std::optional<serialization::Value> file = definition_file(ctx);
 	return file && !file->str().empty();
+}
+
+std::string_view MidiDeviceLinkedItem::row_note(const MenuContext& ctx, std::span<char> out) const {
+	const std::optional<serialization::Value> file = definition_file(ctx);
+	if (!file || file->str().empty()) {
+		return {};
+	}
+	const std::string_view path{file->str()};
+	const size_t slash = path.rfind('/');
+	const std::string_view name = slash == std::string_view::npos ? path : path.substr(slash + 1);
+	const size_t len = std::min(name.size(), out.size());
+	std::copy_n(name.data(), len, out.data());
+	return {out.data(), len};
 }
 
 const deluge::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {

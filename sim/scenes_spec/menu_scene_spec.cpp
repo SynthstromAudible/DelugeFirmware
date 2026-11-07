@@ -194,6 +194,29 @@ constexpr Node decimal_leaf =
     menu::decimal_item(sid(String::STRING_FOR_TEMPO), get_decimal, set_decimal, deluge::ui::oled::Range{0, 9999, 1}, 2);
 constexpr Node enum_leaf = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumNames, get_enum, set_enum);
 constexpr Node toggle_leaf = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle, set_toggle);
+/// Two toggle `Selection`s: one that flips on its list row (`arpeggiator::Mode`'s shape) and one that opens its page
+/// (`delay::PingPong`'s), each over its own value.
+int32_t g_flip_enum = 0;
+int32_t g_page_enum = 0;
+int32_t get_flip_enum(const MenuContext&) {
+	return g_flip_enum;
+}
+void set_flip_enum(const MenuContext&, int32_t v) {
+	g_flip_enum = v;
+}
+int32_t get_page_enum(const MenuContext&) {
+	return g_page_enum;
+}
+void set_page_enum(const MenuContext&, int32_t v) {
+	g_page_enum = v;
+}
+constexpr uint16_t kOffOnNames[] = {sid(String::STRING_FOR_DISABLED), sid(String::STRING_FOR_ENABLED)};
+constexpr Node flip_enum = menu::with_flips_in_list(menu::with_selection_is_toggle(
+    menu::enumeration(sid(String::STRING_FOR_ENABLED), kOffOnNames, get_flip_enum, set_flip_enum)));
+constexpr Node page_enum = menu::with_selection_is_toggle(
+    menu::enumeration(sid(String::STRING_FOR_PINGPONG), kOffOnNames, get_page_enum, set_page_enum));
+constexpr const Node* kFlipListChildren[] = {&flip_enum, &page_enum};
+constexpr Node flip_list = menu::submenu(sid(String::STRING_FOR_ARPEGGIATOR), kFlipListChildren);
 /// A `Kind::SyncLevel` leaf, so the interpreter's one arm for it is exercised
 /// through a real tree rather than only through `validate.cpp`'s tables. Reuses
 /// `nodes::kSyncLevelRange` rather than spelling `NUM_SYNC_VALUES` again.
@@ -290,9 +313,9 @@ constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), s
 /// The synthetic tree above **and** the real sound root: the shortcut examples below press real
 /// pads on the real `Root::Sound` table, and a jump
 /// target has to have been given a node id or `handle()` refuses to offer the jump at all.
-constexpr const Node* kRoots[] = {&settings_root,       &nodes::sound_root,   &nodes::filters_group,
-                                  &nodes::source_group, &nodes::voice_group,  &nodes::env_group,
-                                  &nodes::lfo_group,    &nodes::reverb_group, &nodes::arp_group};
+constexpr const Node* kRoots[] = {&settings_root,      &nodes::sound_root, &nodes::filters_group, &nodes::source_group,
+                                  &nodes::voice_group, &nodes::env_group,  &nodes::lfo_group,     &nodes::reverb_group,
+                                  &nodes::arp_group,   &flip_list};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
 ///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
@@ -1388,6 +1411,67 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 	});
 
+	it("takes a shortcut pad without shift when the press says an audition holds it, and not otherwise", _ {
+		// `SoundEditor::potentialShortcutPadAction`'s other half: an audition held over the instrument clip view. The
+		// host reads the UI mode and the root and puts the reason on the press it feeds (`Shell::on_host_pad`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::sound_root);
+		r.shell.tick(0);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/false, 10);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 12);
+		r.shell.tick(20);
+		expect(menu_scene().focused() == &nodes::sound_root).to_be_true();
+
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/true, 30);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 32);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("handles each of two shortcut presses in one tick by its own reason, SHIFT's and an audition's", _ {
+		// Legacy decides per press. Three presses reach the menu before one tick: HPF frequency with SHIFT held, LPF
+		// frequency an audition's (SHIFT up by then), and HPF frequency again with neither, which is no shortcut.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::sound_root);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 64, false, 11);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 0, false, 12);
+		r.button(kShiftX, kShiftY, false, 13);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/true, 14);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 15);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 64, false, 16);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 0, false, 17);
+		r.shell.tick(20);
+		r.shell.tick(30);
+		// The audition's jump is the last one taken; the unflagged third press moved nothing.
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("re-roots the open menu at another root, landed on a column, through one Replace", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(nodes::sound_root);
+		r.shell.tick(0);
+		MenuContext row = ctx;
+		row.root = MenuContext::Root::NoteRowEditor;
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
+		// ITERANCE, the page's third column, so the landing is the re-root's and not the page's default focus.
+		menu_scene().reroot(nodes::note_row_editor_root, row, nodes::note_row_iterance);
+		r.shell.tick(10);
+		r.shell.tick(20);
+		expect(menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::note_row_iterance).to_be_true();
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+	});
+
 	it("a shortcut jump off a horizontal page cancels its notification", _ {
 		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
 		// cancels a notification popup (`horizontal_menu.cpp:576-591`).
@@ -1635,6 +1719,48 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
+	});
+
+	it("the range picker still heads to its item after the item opened, so BACK lands on a picker that re-enters it", _ {
+		// `multiRangeMenu.menuItemHeadingTo` is only ever written (`SoundEditor::setup`, `HorizontalMenu`): entering
+		// the item leaves it set. After BACK, `goUpOneLevel` maps the picker to it and `updatePadLightsFor` blinks its
+		// shortcut, and `MultiRange::selectButtonPress` returns it again.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.shell.tick(140);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+
+		r.button(kBackX, kBackY, true, 150);
+		r.shell.tick(160);
+		r.button(kBackX, kBackY, false, 170);
+		r.shell.tick(180);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 190);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 190);
+		r.shell.tick(200);
+		expect(depth_of()).to_equal(2);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
 	});
 
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
@@ -2153,7 +2279,9 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(5);
 	});
 
-	it("a Toggle leaf's select press goes up without flipping the value", _ {
+	it("a select press on a Toggle row flips it in place and stays on the list, as Toggle::shouldEnterSubmenu says", _ {
+		// `SoundEditor::buttonAction`'s SELECT arm does not enter an item whose `shouldEnterSubmenu()` is false: it
+		// calls the item's `selectButtonPress`, and `Toggle`'s flips the value from the list and answers NO_NAVIGATION.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2166,17 +2294,67 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
 		}
 		expect(cursor_of(0)).to_equal(4);
-		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
+		r.enter(100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
+		expect(depth_of()).to_equal(0);
+		expect(cursor_of(0)).to_equal(4);
+		expect(menu::bindings::read(toggle_leaf, ctx)).to_equal(1);
 
-		// `oled::toggle`: a select press reports `entered` and leaves `changed` false.
-		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
-		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.enter(130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(0);
 		expect(menu::bindings::read(toggle_leaf, ctx)).to_equal(0);
+	});
+
+	it("a Toggle opened as the current item goes up on a select press without flipping", _ {
+		// `Toggle::selectButtonPress`'s guard: when the toggle is the current item (a shortcut opened it), the press
+		// goes up a level and leaves the value alone.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(toggle_leaf);
+		g_toggle = false;
+		r.shell.tick(0);
+		r.enter(100);
+		r.shell.tick(110);
+		r.shell.tick(120);
+		expect(menu::bindings::read(toggle_leaf, ctx)).to_equal(0);
+	});
+
+	it("a toggle Selection marked flips_in_list flips on its row; one without it opens its page", _ {
+		// `arpeggiator::Mode::shouldEnterSubmenu` is false, so its row flips as a Toggle's does; `delay::PingPong`
+		// keeps the default, and its row opens the page.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(flip_list);
+		g_flip_enum = 0;
+		g_page_enum = 0;
+		r.shell.tick(0);
+		r.enter(100);
+		r.shell.tick(110);
+		expect(depth_of()).to_equal(0);
+		expect(menu::bindings::read(flip_enum, ctx)).to_equal(1);
+
+		r.turn(1, 130);
+		r.shell.tick(135);
+		expect(cursor_of(0)).to_equal(1);
+		r.enter(150);
+		r.shell.tick(160);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &page_enum).to_be_true();
+		expect(menu::bindings::read(page_enum, ctx)).to_equal(0);
+	});
+
+	it("marks the arpeggiator's mode and kit-arp rows and the randomizer lock flips_in_list, and not ping-pong or "
+	   "pitch/speed", _ {
+		// The three toggle `Selection`s whose `shouldEnterSubmenu()` is false on main; the two that keep the default
+		// open their page.
+		expect(nodes::arp_mode.flips_in_list).to_be_true();
+		expect(nodes::arp_include_in_kit_arp.flips_in_list).to_be_true();
+		expect(nodes::randomizer_lock.flips_in_list).to_be_true();
+		expect(nodes::delay_ping_pong.flips_in_list).to_be_false();
+		expect(nodes::sample0_pitch_speed.flips_in_list).to_be_false();
 	});
 
 	it("a turn on an Enum leaf moves the option and commits it", _ {

@@ -1,9 +1,9 @@
 #pragma once
 
-/// @brief Two widgets for showing a *routing*: what modulates what, and which of a small set of
-///        modes that routing is in.
+/// @brief Three widgets for showing a *routing*: what modulates what, which of a small set of
+///        modes that routing is in, and how much.
 ///
-/// Both are ports of `deluge::gui::menu_item::PatchCableStrength::renderOLED`
+/// All three are ports of `deluge::gui::menu_item::PatchCableStrength::renderOLED`
 /// (`gui/menu_item/patch_cable_strength.cpp:74-190`), which is the only screen in the firmware that
 /// draws a signal path rather than a value. It is worth a widget rather than a one-off because the
 /// thing it does -- carrying "A modulates B" pre-verbally, so the eye reads the routing before the
@@ -19,7 +19,10 @@
 ///       row passes a rect derived from `ui/core/metrics.h`, as `midi_command.cpp` does.
 
 #include "gfx/oled/geometry.h"
+#include "ui/core/response.h"
+#include "ui/core/state.h"
 #include "ui/oled/frame.h"
+#include "ui/oled/values.h"
 
 #include <cstdint>
 #include <span>
@@ -100,5 +103,39 @@ void routing_chain(OledFrame& f, gfx::oled::Rect rect, std::span<const std::stri
 /// @param selected Which slot is inverted, or **negative for none** -- the no-polarity arm.
 void segmented_switch(OledFrame& f, gfx::oled::Rect area, std::span<const std::string_view> labels,
                       std::span<const int32_t> widths, int32_t selected);
+
+/// @brief The cable-strength number: `PatchCableStrength::renderOLED`'s third block
+///        (`patch_cable_strength.cpp`) and `Decimal`'s cursor and step.
+///
+/// The value is in hundredths (+/-5000 is +/-50.00), drawn in the 13 px face right-aligned three columns in from
+/// @p rect's right edge (`drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - 3)`), with legacy's three departures from
+/// a plain decimal:
+///
+///   * a zero fraction place is hidden while the cursor is left of it (`hiddenZeroesCount`): 22.00 with the
+///     cursor on the units reads `22`, and with it on the hundredths `2200`;
+///   * the fraction is marked by a two-column, three-row tick under the digits at its left edge, not a period, and
+///     only while a fraction place shows;
+///   * the cursor is one row and one digit (`kTextBigSpacingX`) wide, on the row under the digits; its
+///     lit phase inverts over the tick.
+///
+/// The digits are the exact value. Legacy's GCC build divides by `std::pow(10, hidden)` under fast-math and truncates,
+/// drawing one less for a non-zero value with hidden places (DIFFERENCES.md D71, accepted).
+///
+/// Input, as `decimal_value`'s: a horizontal tick moves the cursor a place (`Decimal::horizontalEncoderAction`), up to
+/// the highest place whose step fits under `range.max`; a select turn moves the value by 10^place a detent, five times
+/// that with SHIFT held (`SoundEditor::selectEncoderAction`), clamped to @p range -- unless @p take_turn is false, for
+/// a turn the caller has spent on something else. A value change restarts the blink dark, a cursor move lit.
+///
+/// @param f         Frame to draw into.
+/// @param rect      The number's band: `rect.y` is the digits' top row, the cursor and tick take the band's last three
+///                  rows under a clear one (17 rows in all); the band is cleared first and nothing is drawn outside it.
+/// @param value     The value in hundredths; moved by a turn.
+/// @param range     The value's bounds.
+/// @param edit_pos  The cursor's place, 0 for the hundredths; moved by a horizontal tick.
+/// @param blink     The cursor's blink, armed by the first call.
+/// @param take_turn Whether this tick's select turn edits the value.
+/// @return `changed` when the value moved.
+Response cable_strength_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range range, int8_t& edit_pos,
+                              Blink& blink, bool take_turn = true);
 
 } // namespace deluge::ui::oled

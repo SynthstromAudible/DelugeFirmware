@@ -17,6 +17,7 @@
 
 #include "io/usb/usb_audio.h"
 #include "definitions.h"
+#include "io/midi/midi_engine.h"
 #include "libdeluge/usb_audio.h"
 #include "storage/flash_storage.h"
 #include <algorithm>
@@ -43,6 +44,8 @@ size_t inputRingSilentFrames = 0;
 
 void startDevice() {
 	deluge_usb_device_start(FlashStorage::usbAudioEnabled);
+	// `openUSBPeripheral`'s last step: the stack is open, so the MIDI routine may read it.
+	usbCurrentlyInitialized = true;
 }
 
 bool present() {

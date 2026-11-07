@@ -44,6 +44,9 @@ public:
 	                                                      uint8_t x, uint8_t y, const deluge::ui::shell::UiContext& ui);
 	/// @brief Arm the landing for a jump to @p target: its page's id when a chained page lists it, else its own.
 	uint16_t arm_landing(const MenuContext& ctx, const Node& target);
+	/// @brief Arm the next `on_enter` to focus @p column on @p page, which lists it.
+	/// @return @p page's id (0 when it has none).
+	uint16_t arm_landing_on(const Node& page, const Node& column);
 	/// @brief The armed landing column, disarming it.
 	const Node* take_landing() { return std::exchange(landing_column_, nullptr); }
 	/// @brief Disarm the landing.

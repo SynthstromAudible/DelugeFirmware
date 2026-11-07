@@ -30,10 +30,13 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "model/clip/clip.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // currentSong, getCurrentClip()
 
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h" // nodes::firmware_version
+#include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 
 namespace deluge::gui::ui {
@@ -203,6 +206,36 @@ void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity) {
 
 bool rootTakesAuditionPad() {
 	return getRootUI() == &instrumentClipView;
+}
+
+ShortcutPadGate shortcutPadGate(bool shift) {
+	// `potentialShortcutPadAction`'s `ignoreAction`: with SHIFT up, only an audition over the instrument clip view.
+	if (!shift && !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView)) {
+		return ShortcutPadGate::Forward;
+	}
+	static constexpr uint32_t kShortcutPadUIModes[] = {UI_MODE_AUDITIONING,
+	                                                   UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
+	if (!isUIModeWithinRange(kShortcutPadUIModes)) {
+		return ShortcutPadGate::Swallow;
+	}
+	return shift ? ShortcutPadGate::Shift : ShortcutPadGate::Audition;
+}
+
+bool takeSequenceDirectionShortcut(int32_t x, int32_t y) {
+	const auto& scene = deluge::scenes::menu_scene();
+	const Clip* clip = getCurrentClip();
+	if (clip == nullptr || clip->type != ClipType::INSTRUMENT || getRootUI() == &automationView
+	    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus) != RuntimeFeatureStateToggle::On
+	    || instrumentClipView.getNumNoteRowsAuditioning() != 1) {
+		return false;
+	}
+	const deluge::scenes::menu::Node* item = deluge::scenes::menu::shortcut_node(
+	    scene.menu_context().root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	if (item != &deluge::scenes::menu::nodes::sequence_direction) {
+		return false;
+	}
+	(void)instrumentClipView.enterNoteRowEditor();
+	return true;
 }
 
 void setPadForwardPerform(PadForwardPerform p) {

@@ -94,6 +94,13 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void recountSmallestMPEZones();
+
+/// @brief Follow the USB peripheral's configured state: a host configuring the Deluge connects the upstream cables
+///        (`configuredAsPeripheral`), and its going away disconnects them (`detachedAsPeripheral`). Only a change acts.
+///        The BSP owns the USB stack and reports the state; the MIDI routine passes it on.
+/// @param ip        The USB controller.
+/// @param connected Whether a host has the Deluge configured now.
+void notePeripheralConnected(int32_t ip, bool connected);
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 

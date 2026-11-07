@@ -535,6 +535,29 @@ describe list_w("ui::oled::list", $ {
 		expect(r.lit(118, 29)).to_be_true();
 	});
 
+	it("draws a row's note two rows under it, where a third row's label would be", _ {
+		// `Linked::renderSubmenuItemTypeForOled`: the file's name at x kTextSpacingX, two rows down, in the rows' own
+		// face. Here it lands in an empty slot, so it must match a third row's unselected label pixel for pixel.
+		const ListRow noted[] = {{.label = "LINKED", .below = "X.XML"}, {"HIDE"}};
+		uitest::Rig48 a; ListState sa; ScrollText ca;
+		list(a.frame, menu_rect(a.frame), sa, noted, ca);
+		const ListRow three[] = {{"LINKED"}, {"HIDE"}, {.label = "X.XML", .selectable = false}};
+		uitest::Rig48 b; ListState sb; ScrollText cb;
+		list(b.frame, menu_rect(b.frame), sb, three, cb);
+		expect(a.pbm()).to_equal(b.pbm());
+	});
+
+	it("draws no note for a row without one", _ {
+		const ListRow rows[] = {{"LINKED"}, {"HIDE"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		list(r.frame, menu_rect(r.frame), st, rows, sc);
+		for (int y = 37; y <= 45; y++) {      // the third slot: canvas rows 37..45 on the 48-row panel
+			for (int x = 0; x < 128; x++) {
+				expect(r.lit(x, y)).to_be_false();
+			}
+		}
+	});
+
 	it("keeps an over-wide value from crossing the label origin", _ {
 		// New column, no legacy counterpart: a value longer than the row must not push the
 		// label box negative. Clamped at rect.x + kTextSpacingX.

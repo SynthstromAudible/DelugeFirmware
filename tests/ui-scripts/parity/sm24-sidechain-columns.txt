@@ -1,0 +1,48 @@
+# ShellMenu: the two patch-cable columns of the sound menu's horizontal pages, as `main` draws and opens them: the
+# SIDECHAIN page's DUCK column draws the ducking meter (`drawSidechainDucking`, over +/-50.00), the MASTER page's
+# VIBRATO column draws its strength as `0.00` in the column face (`Decimal::renderInHorizontalMenu`), and SELECT on
+# either column opens that cable's own strength page (`allowToBeginSessionFromHorizontalMenu`, #4854), whose SELECT
+# goes on to the MODULATE DEPTH picker; BACK walks back through the strength page to the column. The strength pages
+# hold 0, which `main` draws exactly (a non-zero value with hidden zero places truncates there, D71). Run on the
+# ShellMenu card, and once with ShellMenu off as the control.
+100   snapshot boot
+300   button Shift down
+400   pad 10 2 down
+440   pad 10 2 up
+500   button Shift up
+1500  snapshot duck-column
+2500  button SelectEnc down
+2520  button SelectEnc up
+3500  snapshot duck-strength
+4500  button SelectEnc down
+4520  button SelectEnc up
+5500  snapshot duck-range
+6500  button Back down
+6520  button Back up
+7500  snapshot duck-back-strength
+8500  button Back down
+8520  button Back up
+9500  snapshot duck-back-column
+10500 button Back down
+10520 button Back up
+12300 snapshot closed
+12500 button Shift down
+12600 pad 6 2 down
+12640 pad 6 2 up
+12700 button Shift up
+13700 snapshot vibrato-column
+14700 button SelectEnc down
+14720 button SelectEnc up
+15700 snapshot vibrato-strength
+16700 button SelectEnc down
+16720 button SelectEnc up
+17700 snapshot vibrato-range
+18700 button Back down
+18720 button Back up
+19700 snapshot vibrato-back-strength
+20700 button Back down
+20720 button Back up
+21700 snapshot vibrato-back-column
+22700 button Back down
+22720 button Back up
+23700 snapshot closed-2

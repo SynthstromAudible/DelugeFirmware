@@ -248,6 +248,11 @@ public:
 	///        `hid/display/screensaver.cpp:113`). The working animation is the shell's own and needs no fact.
 	/// @param inhibit Whether either holds now.
 	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
+	/// @brief Whether `tick` drains the notice queue: the host gives it to whichever consumer shows notices now, so
+	///        one consumer pops each notice, as `main`'s one `display` does. True unless the host says otherwise.
+	void set_owns_notices(bool owns) { owns_notices_ = owns; }
+	/// @brief `set_owns_notices`'s value.
+	bool owns_notices() const { return owns_notices_; }
 
 	/// @brief The clock encoder acceleration is timed on for the next tick (`UiContext::acceleration_clock_ms`).
 	/// @param ms The host's reading of that clock, in milliseconds.
@@ -318,6 +323,8 @@ public:
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
 	void on_board_event(const DelugeInputEvent& ev, uint32_t now_ms);
+	/// @brief Lower one pad the host feeds with the reason it claimed it (`InputLowering::on_host_pad`).
+	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated.
 	/// @param index  The board's encoder index.
 	/// @param edges  Signed A-pin edge count since the last call.
@@ -674,6 +681,8 @@ private:
 	bool tick_open_ = false;
 	/// Whether `tick()` has ever run, so the first tick's `dt` is 0 rather than the boot clock.
 	bool ticked_ = false;
+	/// `set_owns_notices`.
+	bool owns_notices_ = true;
 	/// How many LED declarations named a board LED at or past `LedFrame::kMaxEntries` and could
 	/// therefore neither be diffed nor sent. Should stay at zero; non-zero means the board profile
 	/// has outgrown the shadow arrays.

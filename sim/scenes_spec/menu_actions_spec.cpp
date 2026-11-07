@@ -1370,7 +1370,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	});
 
 	it("files the file selector's opening, which leaves the keyboard's audition mode", _ {
-		// `FileSelector::beginSession` (`menu_item/file_selector.cpp:40-42`): with the keyboard at the root and a note
+		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`): with the keyboard at the root and a note
 		// auditioning, opening the file selector stops it; anywhere else it does nothing.
 		select_language();
 		menu::MenuState state{};

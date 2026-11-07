@@ -138,10 +138,14 @@ struct UiEvent {
 	};
 
 	Kind kind;
-	uint8_t x = 0;                    ///< `Pad`: column, absolute.
-	uint8_t y = 0;                    ///< `Pad`: row, absolute.
-	uint8_t velocity = 0;             ///< `Pad`: strike velocity; 0 means release.
-	bool on = false;                  ///< `Pad`/`Button`/`EncoderButton`: true on press, false on release.
+	uint8_t x = 0;        ///< `Pad`: column, absolute.
+	uint8_t y = 0;        ///< `Pad`: row, absolute.
+	uint8_t velocity = 0; ///< `Pad`: strike velocity; 0 means release.
+	bool on = false;      ///< `Pad`/`Button`/`EncoderButton`: true on press, false on release.
+	/// `Pad`: the host claimed this press as a shortcut although SHIFT is up (the Deluge's guest: an audition held
+	/// over the instrument clip view, the other half of `SoundEditor::potentialShortcutPadAction`'s gate). Never set
+	/// on a release, nor on a pad from the board.
+	bool shortcut_without_shift = false;
 	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
 	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
 	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.

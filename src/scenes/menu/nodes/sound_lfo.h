@@ -58,18 +58,18 @@ inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
 ///        `get`/`set` hooks are plain function pointers, so each LFO needs its own pair. The bodies
 ///        are in the `.cpp` (`DELUGE_LFO_HOOKS`); this declares them and builds the nodes.
 #define DELUGE_LFO(n, rate_param, rate_title)                                                                          \
-	inline constexpr Node lfo##n##_type = with_column_art(                                                             \
+	inline constexpr Node lfo##n##_type = with_affect_entire(with_column_art(                                          \
 	    without_column_label(with_title_arg(                                                                           \
 	        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SHAPE), Kind::Enum,                           \
 	                                {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "lfo" #n "/type"}),    \
 	                   sid(deluge::l10n::String::STRING_FOR_LFO_TYPE)),                                                \
 	        (n))),                                                                                                     \
-	    lfo_type_art);                                                                                                 \
-	inline constexpr Node lfo##n##_sync = with_title_arg(                                                              \
+	    lfo_type_art));                                                                                                \
+	inline constexpr Node lfo##n##_sync = with_affect_entire(with_title_arg(                                           \
 	    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,                           \
 	                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "lfo" #n "/syncLevel"}),   \
 	               sid(deluge::l10n::String::STRING_FOR_LFO_SYNC)),                                                    \
-	    (n));                                                                                                          \
+	    (n)));                                                                                                         \
 	inline constexpr Node lfo##n##_rate =                                                                              \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),                                             \
 	                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::rate_param},    \

@@ -90,6 +90,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
+	holding_affect_entire_ = false;
 	pads_.forget_landing();
 	retarget(root);
 }
@@ -131,6 +132,8 @@ void MenuScene::reset_process_state() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
+	// A definition browser that opened over an earlier visit is no blink of this one.
+	(void)browser::browser_scene().take_load_blink();
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (see `SceneId`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
@@ -256,6 +259,7 @@ void MenuScene::on_resume() {
 	}
 	visit_.use_up_select = true;
 	visit_.leds_held_back = false; // `focusRegained`'s `setLedStates`
+	visit_.load_blink = browser::browser_scene().take_load_blink() || visit_.load_blink;
 	if (std::exchange(land_dx_cartridge_, false) && focused() == &nodes::dx_browse) {
 		// `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)`, with `shouldGoUpOneLevelOnBegin` cleared: no going up.
 		st_.walk.go_up_on_resume = false;
@@ -307,6 +311,28 @@ void MenuScene::dx_column_press(int32_t op) {
 		st_.dx.blink_on_focus = true;
 		pending_retarget_ = node_id(nodes::dx_param);
 	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+bool MenuScene::takes_affect_entire() const {
+	if (!ctx_.is_kit || ctx_.is_kit_global_fx || ctx_.root == MenuContext::Root::NoteEditor
+	    || ctx_.root == MenuContext::Root::NoteRowEditor) {
+		return false;
+	}
+	return menu::uses_affect_entire(ctx_, st_);
+}
+
+void MenuScene::set_affect_entire_hold(bool on) {
+	holding_affect_entire_ = on;
+	affect_entire_blink_restart_ = on;
+	ctx_.affect_entire_held = on;
+	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
+}
+
+void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
+	open(root, ctx);
+	pending_retarget_ = pads_.arm_landing_on(root, column);
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
@@ -392,6 +418,8 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	// `SoundEditor::setup`), so an item its page no longer shows simply leaves the page
 	// focused on its first column, which is what falling out of this loop does.
 	walk_.focus_column(core(), *item);
+	// The claim that calls this ends on its own job, between the guest's ticks: ask for the frame that shows the page.
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 	return true;
 }
 
@@ -420,19 +448,40 @@ std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const
 }
 
 bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	return visit_.learn.note_on(ctx_, st_, cable, channel, note);
+	const bool learned = visit_.learn.note_on(ctx_, st_, cable, channel, note);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	return visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
+	const bool learned = visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	return visit_.learn.program_change(ctx_, st_, cable, channel, program);
+	const bool learned = visit_.learn.program_change(ctx_, st_, cable, channel, program);
+	if (learned) {
+		read_learned_value_again();
+	}
+	return learned;
 }
 
 void MenuScene::unlearn() {
 	visit_.learn.unlearn(ctx_, st_);
+	read_learned_value_again();
+}
+
+void MenuScene::read_learned_value_again() {
+	const Node* at = focused();
+	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom && at->bind.get != nullptr
+	    && (at->learn != nullptr || at->unlearn != nullptr)) {
+		read_value_again();
+	}
 }
 
 bool MenuScene::wants_learn_blink() const {
@@ -596,6 +645,11 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 
 	page_button_leds(ctx_, st_, f);
 
+	// A focused bespoke item's own LEDs over the page buttons' (the cable-strength page's MIDI/CV polarity pair).
+	if (const Node* screen = focused(); screen->kind == Kind::Custom && screen->custom != nullptr) {
+		screen->custom->leds(f, ctx_, st_);
+	}
+
 	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp:78-95`).
 	if (visit_.blink_restart) {
 		visit_.blink_restart = false;
@@ -603,7 +657,20 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	}
 	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
+	if (visit_.load_blink) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), shared_blink);
+	}
 	visit_.learn.leds(st_, f, shared_blink);
+
+	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` while the hold is on an item that uses it; off it, legacy's
+	// `view.setModLedStates()` shows the clip's own state, which an undeclared LED hands back.
+	if (holding_affect_entire_ && takes_affect_entire()) {
+		if (std::exchange(affect_entire_blink_restart_, false)) {
+			f.restart(deluge::ui::BlinkRate::Fast);
+		}
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::AffectEntire),
+		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -641,6 +708,10 @@ Result MenuScene::after_render() {
 	return r;
 }
 
+void MenuScene::flip_in_place(const Node& node) {
+	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
+}
+
 Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
@@ -650,7 +721,7 @@ Result MenuScene::after_render_navigation() {
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
 	                          && shown->custom->is_value() && st_.tick.render_resp.changed;
-	if (std::exchange(visit_.use_up_select, false)
+	if (std::exchange(visit_.use_up_select, false) || st_.tick.use_up_select
 	    || ((st_.tick.value_changed || value_turned) && visit_.select_held)) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
 	}
@@ -765,7 +836,15 @@ Result MenuScene::after_render_navigation() {
 		trace_drain(DrainBand::Navigation);
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
-				walk_.enter_child(core(), visit_.session, *child);
+				if (flips_in_place(*child)) {
+					// `shouldEnterSubmenu()` is false: `SoundEditor` calls the item's `selectButtonPress`, which flips
+					// it from the list and answers NO_NAVIGATION; no permission check runs on this arm.
+					flip_in_place(*child);
+					repaint = true;
+				}
+				else {
+					walk_.enter_child(core(), visit_.session, *child);
+				}
 			}
 		}
 		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
@@ -780,10 +859,10 @@ Result MenuScene::after_render_navigation() {
 			walk_.enter_child(core(), visit_.session, *chained);
 		}
 		else {
-			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
-			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the
-			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
-			// false, so this must not flip the value (`oled::toggle` in `ui/oled/values.h`).
+			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress` returns nullptr and
+			// `SoundEditor` reads that as "up". A Toggle is a leaf only when it is the current item (a shortcut opened
+			// it), where `Toggle::selectButtonPress` goes up without flipping; from a list its row flips instead
+			// (`flips_in_place`, above).
 			walk_.ascend(core(), visit_.session);
 		}
 	}
@@ -796,14 +875,10 @@ Result MenuScene::after_render_navigation() {
 		// column_press`'s doc).
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			if (column->kind == Kind::Toggle || column->selection_is_toggle) {
-				// `Toggle::selectButtonPress` (`toggle.h:38-42`) and `Selection::selectButtonPress`
-				// (`gui/menu_item/selection.h:54-63`, when `isToggle()`) have the identical shape: flip and
-				// return `NO_NAVIGATION`, so `SoundEditor::buttonAction`'s SELECT arm does nothing
-				// further (`sound_editor.cpp:394-419`) -- no chain, no ascend, the same "stays put"
-				// shape the already-focused button press's own flip has. `Node::
-				// selection_is_toggle`'s own doc names the three live examples -- this is not
-				// `Toggle`-only.
-				bindings::write(*column, ctx_, bindings::read(*column, ctx_) == 0 ? 1 : 0);
+				// `Toggle::selectButtonPress` and `Selection::selectButtonPress` when `isToggle()`: flip and answer
+				// NO_NAVIGATION, so nothing chains or goes up. `Node::selection_is_toggle`'s doc names the three
+				// columns that reach here.
+				flip_in_place(*column);
 				repaint = true;
 			}
 			else if (column->custom != nullptr && column->custom->opens_directly_on_horizontal_select()) {
@@ -827,7 +902,12 @@ Result MenuScene::after_render_navigation() {
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
 			}
+			else if (stays_on_page(*column)) {
+				// `Selection::selectButtonPress` from the page: `toggleValue()` changes nothing on a selection that is
+				// not a toggle, and the answer is NO_NAVIGATION, so the page stays.
+			}
 			else {
+				// `MenuItem::selectButtonPress`'s null: up a level.
 				walk_.ascend(core(), visit_.session);
 			}
 		}
@@ -983,20 +1063,32 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 }
 
 Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
-	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
-	// (`UnpatchedParam::writeCurrentValue`). The AFFECT-ENTIRE button is an ordinary button, so
-	// its own press and release both reach here and keep this in step before any write path runs;
-	// `bindings::write` is the only reader.
-	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
+	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host enters and leaves
+	// (`set_affect_entire_hold`); `bindings::write` reads it. Re-asserted here because `on_enter` re-installs the
+	// context.
+	ctx_.affect_entire_held = holding_affect_entire_;
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	// A select or BACK press, and a select turn, restart the hold's blink (`sound_editor.cpp`'s three
+	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
+	if (holding_affect_entire_
+	    && (((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) && event.on
+	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
+	        || (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select))) {
+		affect_entire_blink_restart_ = true;
+	}
 
 	// A MIDI message is an offer for MIDI learn, and nothing else here reads it.
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::MidiProgramChange:
-	case UiEvent::Kind::MidiPitchBend:
-		return Result{.handled = visit_.learn.offer(ctx_, st_, event, ctx)};
+	case UiEvent::Kind::MidiPitchBend: {
+		const bool used = visit_.learn.offer(ctx_, st_, event, ctx);
+		if (used) {
+			read_learned_value_again();
+		}
+		return Result{.handled = used};
+	}
 	default:
 		break;
 	}
@@ -1015,6 +1107,9 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
 	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
 		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+	}
+	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn && event.on) {
+		read_learned_value_again(); // SHIFT + LEARN's unlearn
 	}
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it

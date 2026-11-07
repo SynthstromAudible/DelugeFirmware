@@ -118,10 +118,17 @@ void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, co
 
 	deluge::ui::oled::ListRow rows[kMaxMenuChildren];
 	NodeText label_scratch[kMaxMenuChildren];
+	// One row's note per list: only `Linked` writes one, and its list holds it once.
+	char note_scratch[sizeof(NodeText::chars)];
+	bool noted = false;
 	for (size_t i = 0; i < n; i++) {
 		rows[i].label = display_text(*kids[i], ValueTextUse::Name, ctx, label_scratch[i]);
 		rows[i].icon = row_icon(*kids[i], ctx);
 		rows[i].selectable = true;
+		if (!noted) {
+			rows[i].below = row_note(*kids[i], ctx, note_scratch);
+			noted = !rows[i].below.empty();
+		}
 	}
 
 	// `menu_rect(f)` is the legacy-reproducing rect (`menu_rect` in `ui/oled/list.h`) -- never a hand-computed
@@ -309,8 +316,9 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	struct LabelCall {
 		const Node* node;
 		const MenuContext* ctx;
+		deluge::ui::ScrollText* scroll;
 	};
-	const LabelCall call{&node, &ctx};
+	const LabelCall call{&node, &ctx, &st.scroll[st.depth < kMenuDepth ? st.depth : 0]};
 	style.hook_ctx = &call;
 	if (node.bind.turn != nullptr) {
 		style.turn = [](int32_t value, int32_t offset, const void* c) -> std::optional<int32_t> {
@@ -323,6 +331,12 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 			const auto& lc = *static_cast<const LabelCall*>(c);
 			const ValueText vt = lc.node->bind.leaf_text(*lc.ctx, value, ValueTextUse::Column, out);
 			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
+		};
+	}
+	if (node.bind.leaf_draw != nullptr) {
+		style.draw = [](deluge::ui::oled::OledFrame& frame, deluge::gfx::oled::Rect, int32_t value, const void* c) {
+			const auto& lc = *static_cast<const LabelCall*>(c);
+			lc.node->bind.leaf_draw(frame, *lc.ctx, value, *lc.scroll);
 		};
 	}
 	const deluge::ui::Response r =

@@ -17,6 +17,7 @@
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/ui.h"
 
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"
@@ -33,6 +34,7 @@
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
+#include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
@@ -486,6 +488,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// shell's own scene.
 	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
+	shell_.set_owns_notices(getCurrentUI() == this);
 	shell_.tick(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
@@ -684,7 +687,10 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 }
 
 void ShellHostUI::wakeForPendingFacts() {
-	if (getCurrentUI() == this && deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)) {
+	// A notice left for this guest's shell (`drain_notifications` skips the queue while it is current) wakes it too.
+	if (getCurrentUI() == this
+	    && (deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)
+	        || deluge::notify::notices().size() != 0)) {
 		armTickSoon();
 	}
 }
@@ -719,7 +725,7 @@ uint32_t ShellHostUI::accelerationClockMs() {
 	return static_cast<uint32_t>(static_cast<uint64_t>(seconds * 1000.0));
 }
 
-void ShellHostUI::feed(const DelugeInputEvent& ev) {
+void ShellHostUI::syncHoldTime() {
 	// **Re-read the tap threshold on every event, which is what legacy does.**
 	// `LoweringConfig::hold_time_ms` is `FlashStorage::holdTime` -- a setting, in **audio samples**
 	// (`defaultHoldTime * kSampleRate / 20`, `storage/flash_storage.cpp`), which legacy reads
@@ -743,8 +749,16 @@ void ShellHostUI::feed(const DelugeInputEvent& ev) {
 	// through here and do not need to -- `hold_time_ms` gates the sticky-shift tap and nothing else.
 	shell_.lowering().set_hold_time_ms(
 	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
+}
 
+void ShellHostUI::feed(const DelugeInputEvent& ev) {
+	syncHoldTime();
 	shell_.on_board_event(ev, nowMs());
+}
+
+void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift) {
+	syncHoldTime();
+	shell_.on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
 }
 
 void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
@@ -786,16 +800,15 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 	case deluge::ui::shell::GridPadClaim::AllButClipAudition:
 		return x != kDisplayWidth + 1;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
-		// `SoundEditor::potentialShortcutPadAction`'s gate, minus the `isUIModeActive(UI_MODE_AUDITIONING)` half, which
-		// stays on legacy's side and which `MenuScene` already drops with the reason recorded (`MenuPads::handle_pad`,
-		// `scenes/menu/pads.cpp`). A pad the root view keeps (`rootKeepsShortcutPad`: the automation view's
-		// interpolation pads) is no shortcut. Past the gate legacy claims unconditionally, even where no shortcut table
-		// has an entry -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad die
-		// (`MenuScene::handle_event`'s fall-through). The two agree.
+		// `SoundEditor::potentialShortcutPadAction`'s gate (`shortcutPadGate`): SHIFT, or an audition held over the
+		// instrument clip view. A pad the root view keeps (`rootKeepsShortcutPad`: the automation view's interpolation
+		// pads) is no shortcut. Past the gate legacy claims unconditionally, even where no shortcut table has an entry,
+		// and swallows the press outside its two UI modes; `padAction` does the swallowing.
 		if (rootKeepsShortcutPad(x, y)) {
 			return false;
 		}
-		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
+		return velocity != 0 && x < kDisplayWidth
+		       && shortcutPadGate(Buttons::isShiftButtonPressed()) != ShortcutPadGate::Forward;
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.
 }
@@ -820,9 +833,26 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 		const auto py = static_cast<uint8_t>(y);
 		const bool release_of_fed = velocity == 0 && fedPads_.test(px, py);
 		if (release_of_fed || claimsGridPad(x, y, velocity)) {
+			// Why the menu may take a press without SHIFT, decided now and carried on the press itself: the audition
+			// can end before the tick that drains it, and two presses drained by one tick each keep their own reason.
+			bool shortcutWithoutShift = false;
+			if (velocity != 0
+			    && shell_.stack().input_top().grid_pad_claim() == deluge::ui::shell::GridPadClaim::ShortcutsOnly) {
+				const ShortcutPadGate gate = shortcutPadGate(Buttons::isShiftButtonPressed());
+				if (gate == ShortcutPadGate::Swallow) {
+					shell_.note_activity(nowMs());
+					return ActionResult::DEALT_WITH;
+				}
+				if (takeSequenceDirectionShortcut(x, y)) {
+					shell_.note_activity(nowMs());
+					refreshRootFacts();
+					armTickSoon();
+					return ActionResult::DEALT_WITH;
+				}
+				shortcutWithoutShift = gate == ShortcutPadGate::Audition;
+			}
 			fedPads_.set(px, py, velocity != 0);
-			feed(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
-			                      static_cast<int16_t>(velocity)});
+			feedPad(px, py, velocity, shortcutWithoutShift);
 		}
 		else {
 			// The pad is the legacy root view's, as it is in `SoundEditor::padAction`.
@@ -902,8 +932,8 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		return *result;
 	}
 
-	// CLIP, X_ENC and KEYBOARD where the automation view takes them from under the menu (`forwardAutomationButton`):
-	// the param item's own CLIP and X_ENC, and the sound editor's KEYBOARD arm over the view. Below the note forward,
+	// CLIP and X_ENC where the automation view takes them from under the menu (`forwardAutomationButton`): the param
+	// item's own. Below the note forward,
 	// whose roots these never share; the handler may swap the root, so the same guard applies.
 	if (const std::optional<ActionResult> result = forwardAutomationButton(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
@@ -916,6 +946,25 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// SAVE under the menu is the sound editor's own arm (`forwardMenuSaveButton`): Shift deletes the picker's range, a
 	// plain press opens the save-preset screen, which may leave this guest behind it.
 	if (const std::optional<ActionResult> result = forwardMenuSaveButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// KEYBOARD, SESSION and Fill under the menu are the sound editor's own arms (`forwardMenuViewButton`); KEYBOARD and
+	// SESSION change the root, and SESSION closes this guest, so the same guard applies.
+	if (const std::optional<ActionResult> result = forwardMenuViewButton(b, on)) {
+		shell_.note_activity(nowMs()); // `deluge.cpp`
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
+	// AFFECT ENTIRE under the menu: the hold on a kit row's item that uses it, else the clip's own toggle.
+	if (const std::optional<ActionResult> result = forwardMenuAffectEntire(b, on)) {
 		shell_.note_activity(nowMs()); // `deluge.cpp`
 		if (getCurrentUI() == this) {
 			armTickSoon();
@@ -1080,6 +1129,15 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 void ShellHostUI::selectEncoderAction(int8_t offset) {
 	if (forwardAutomationSelectTurn(offset)) {
 		armTickSoon();
+		return;
+	}
+	// `SoundEditor::selectEncoderAction`'s gate, after its automation-view forward: the menu edits only in the UI modes
+	// `selectEncoderUIModes` lists, and not in learn mode, which the menu holds itself rather than in `currentUIMode`
+	// and reports as `select_release_blocked` (`MenuScene::learn_mode`). Only the menu is a sound editor screen; a
+	// scene it opened takes its turns as before.
+	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
+	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
+	    && (!isUIModeWithinRange(selectEncoderUIModes) || top.select_release_blocked())) {
 		return;
 	}
 	// `void`: legacy discards nothing because there is nothing to discard

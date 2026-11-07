@@ -95,9 +95,8 @@ constexpr int32_t kMidiCommandRowY64 = 20; // 20 - 0
 /// **Caller-side on purpose.** It must not move into `text()`/`scroll_text()`: those draw what the
 /// `FontId` says and cannot know which of the two legacy heights the caller is reproducing. Named
 /// here rather than left as a `-1` at one call site because `kTextSizeYUpdated` appears at 29
-/// legacy call sites across five files, and two of those (`gui/menu_item/midi/follow/follow_channel.h`,
-/// `gui/menu_item/patch_cable_strength.cpp`) are still unported -- each would otherwise rediscover
-/// this through a one-row-wrong golden.
+/// legacy call sites across five files, each of which would otherwise rediscover it through a
+/// one-row-wrong golden.
 constexpr int32_t kApple7Height7YAdjust = -1;
 constexpr int32_t kHorizontalBoxHeight = 25;
 

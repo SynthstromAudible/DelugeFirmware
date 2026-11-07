@@ -185,10 +185,22 @@ void InputLowering::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) 
 	dispatch(ev, now_ms);
 }
 
-void InputLowering::dispatch(const DelugeInputEvent& ev, uint32_t now_ms) {
+void InputLowering::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms) {
+	const DelugeInputEvent ev{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)};
+	if (sd_busy_) {
+		defer(ev, now_ms, shortcut_without_shift);
+		return;
+	}
+	if (input_locked_) {
+		return;
+	}
+	dispatch(ev, now_ms, shortcut_without_shift);
+}
+
+void InputLowering::dispatch(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift) {
 	switch (ev.kind) {
 	case DELUGE_EVENT_PAD:
-		on_pad(ev.x, ev.y, static_cast<uint8_t>(ev.value));
+		on_pad(ev.x, ev.y, static_cast<uint8_t>(ev.value), shortcut_without_shift);
 		break;
 	case DELUGE_EVENT_BUTTON:
 		on_matrix(ev.x, ev.y, ev.value != 0, now_ms);
@@ -202,13 +214,14 @@ void InputLowering::dispatch(const DelugeInputEvent& ev, uint32_t now_ms) {
 	}
 }
 
-void InputLowering::defer(const DelugeInputEvent& ev, uint32_t now_ms) {
+void InputLowering::defer(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift) {
 	if (deferred_count_ == kDeferredCapacity) {
 		deferred_head_ = static_cast<uint8_t>((deferred_head_ + 1) % kDeferredCapacity);
 		deferred_count_--;
 		deferred_dropped_++;
 	}
-	deferred_[(deferred_head_ + deferred_count_) % kDeferredCapacity] = DeferredEvent{ev, now_ms};
+	deferred_[(deferred_head_ + deferred_count_) % kDeferredCapacity] =
+	    DeferredEvent{ev, now_ms, shortcut_without_shift};
 	deferred_count_++;
 }
 
@@ -232,7 +245,7 @@ void InputLowering::set_sd_busy(bool busy) {
 		if (input_locked_ && d.ev.kind != DELUGE_EVENT_NO_PRESSES) {
 			continue;
 		}
-		dispatch(d.ev, d.now_ms);
+		dispatch(d.ev, d.now_ms, d.shortcut_without_shift);
 	}
 }
 
@@ -310,7 +323,7 @@ bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t n
 	return true;
 }
 
-void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity) {
+void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift) {
 	if (x >= PadMask::kCols || y >= PadMask::kRows) {
 		return;
 	}
@@ -329,6 +342,7 @@ void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity) {
 	e.y = y;
 	e.velocity = velocity;
 	e.on = down;
+	e.shortcut_without_shift = shortcut_without_shift && down;
 	emit(e);
 }
 

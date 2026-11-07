@@ -1,0 +1,62 @@
+# A MIDI track's device definition, and the MPE zone page. Runs on tests/fixtures/card-midi-definition (--card): the
+# ShellMenu card plus MIDI_DEVICES/DEFINITION/BLOFELD.XML. From the boot clip, MIDI makes the track a MIDI track; its
+# menu's DEVICE DEFINITION > LINKED opens the definition browser, and loading BLOFELD.XML leaves LINKED checked with the
+# file's name two rows under it. Then from the song view, SETTINGS > MIDI > DEVICES > DIN PORTS > MPE: the direction
+# page, OUT, and the zone page, which main draws with no title.
+100   snapshot boot
+300   button Midi down
+320   button Midi up
+1000  snapshot midi-clip
+1300  button SelectEnc down
+1320  button SelectEnc up
+2000  snapshot menu
+2300  encoder Select +2
+3000  snapshot definition-row
+3300  button SelectEnc down
+3320  button SelectEnc up
+4000  snapshot definition
+4300  button SelectEnc down
+4320  button SelectEnc up
+5500  snapshot browser
+5800  button SelectEnc down
+5820  button SelectEnc up
+7000  snapshot linked
+7300  encoder Select +1
+8000  snapshot linked-hide-row
+8300  button Back down
+8320  button Back up
+9000  snapshot root
+9300  button Back down
+9320  button Back up
+10000 snapshot closed
+10300 button Session down
+10320 button Session up
+11000 button Shift down
+11100 button SelectEnc down
+11120 button SelectEnc up
+11200 button Shift up
+11900 snapshot settings
+12200 encoder Select +4
+12900 snapshot midi-row
+13200 button SelectEnc down
+13220 button SelectEnc up
+13900 snapshot midi
+14200 encoder Select +8
+14900 snapshot devices-row
+15200 button SelectEnc down
+15220 button SelectEnc up
+15900 snapshot devices
+16200 button SelectEnc down
+16220 button SelectEnc up
+16900 snapshot device
+17200 button SelectEnc down
+17220 button SelectEnc up
+17900 snapshot direction
+18200 encoder Select +1
+18900 snapshot direction-out
+19200 button SelectEnc down
+19220 button SelectEnc up
+19900 snapshot zone
+20200 encoder Select +1
+20900 snapshot zone-upper
+21200 quit
