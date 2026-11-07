@@ -66,7 +66,8 @@ cables' columns from their shortcut pads (the SIDECHAIN page's DUCK meter, the M
 each into its strength page and on to MODULATE DEPTH, and BACK out again. `sm25` drives a strength page: the cursor
 across the places, MIDI and CV and a turn under a held Select switching the polarity with their LEDs, a plain and a
 SHIFT turn. Both read values `main` draws exactly: `main`'s build truncates a non-zero strength whose zero places are
-hidden (D71), so a strength is read with the cursor on its hundredths, or at 0.
+hidden (D71), so a strength is read with the cursor on its hundredths, or at 0. `sm30-cable-column-midi-cv` presses
+MIDI and CV with each column focused, before its strength page is open: neither switches the cable's polarity.
 
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
