@@ -196,7 +196,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
 /// The claim reads the editor's resolved context (`soundEditor.currentSound`, `currentSource`,
-/// `currentMultiRange` and their indices) throughout, and under the toggle `SoundEditor::setup`
+/// `currentMultiRange` and their indices) throughout, and with ShellMenu on `SoundEditor::setup`
 /// never ran -- `openShellMenu` opens the guest instead, so on a fresh boot `currentSound` is still
 /// `nullptr`. The context is mirrored first from `MenuScene`'s own `MenuContext`, the one
 /// `openShellMenu` resolved for this visit, so it is a mirror of a resolution rather than a second

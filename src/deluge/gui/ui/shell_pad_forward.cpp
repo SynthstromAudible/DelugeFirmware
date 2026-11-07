@@ -51,7 +51,7 @@ namespace {
 /// (`gui/ui/sound_editor.h:111`) written only by `SoundEditor::setup`/`navigate`, neither of which
 /// runs under the guest. `adoptResolvedContext` deliberately does not write it and says so
 /// (`sound_editor.h:223`). So legacy's copy dereferences null here on any boot that never opened a
-/// legacy menu, and the state cannot be supplied here, because under the toggle the open menu
+/// legacy menu, and the state cannot be supplied here, because with ShellMenu on the open menu
 /// genuinely is `MenuScene`.
 ///
 /// The param compared is the one `focused_value()` edits: on a horizontal page the focused column, as legacy's

@@ -553,12 +553,12 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
-/// @brief The ShellMenu toggle on for the scope, and put back.
+/// @brief ShellMenu on for the scope (the Legacy Menu setting Off), and put back.
 struct ShellMenuOn {
 	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
-	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, RuntimeFeatureStateToggle::On); }
-	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
+	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::Off); }
+	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
 	ShellMenuOn(const ShellMenuOn&) = delete;
 	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
 };

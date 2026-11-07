@@ -2806,10 +2806,10 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 	});
 
 	// The fifth writer, and the only one outside `PerformanceView`: LEGACY's own Editing Mode item.
-	// It is not "the menu, not behind the menu's back" except while the toggle is ON. With `RuntimeFeatureSettingType::ShellMenu` off, this item is how a
+	// It is not "the menu, not behind the menu's back" except with ShellMenu on. With ShellMenu off, this item is how a
 	// user reaches an editing mode from a menu at all (`PerformanceView::buttonAction`'s
-	// SELECT_ENC arm), it writes both bools, and the mirror would sit where it was until the toggle is
-	// flipped on and `PerformEditorItem::on_focus` reads it. Driven here on the REAL
+	// SELECT_ENC arm), it writes both bools, and the mirror would sit where it was until ShellMenu is
+	// turned on and `PerformEditorItem::on_focus` reads it. Driven here on the REAL
 	// `performEditorMenu` singleton, the same object the `menu_action_perform` group runs
 	// `readCurrentValue` on.
 
@@ -2824,7 +2824,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		const PerformanceEditingMode saved_item_mode = performEditorMenu.currentMode;
 
 		for (const auto mode : {PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {
-			// The view where legacy leaves it with the toggle off, and the mirror where the port
+			// The view where legacy leaves it with ShellMenu off, and the mirror where the port
 			// left it: not agreeing, and not agreeing with the answer either.
 			performanceView.defaultEditingMode = false;
 			performanceView.editingParam = false;

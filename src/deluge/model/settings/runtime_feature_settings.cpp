@@ -186,10 +186,10 @@ void RuntimeFeatureSettings::init() {
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
 	};
 
-	// Shell Menu: gates whether `ShellHostUI` (the ported menu tree's guest) is reachable at all.
-	// Default Off, so the guest changes nothing a user sees until they opt in.
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShellMenu], STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU,
-	                  "shellMenu", RuntimeFeatureStateToggle::Off);
+	// Legacy Menu: the escape hatch back to legacy's `SoundEditor` at every gated entry point
+	// (`deluge::gui::ui::shellMenuEnabled`).
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LegacyMenu], STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU,
+	                  "legacyMenu", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

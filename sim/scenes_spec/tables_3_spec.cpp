@@ -109,6 +109,8 @@ using deluge::hid::display::OLED;
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/shell_menu_entry.h"
 
 #include "support/fake_note_bridge.h"
 #include "support/host_flash.h"
@@ -1671,16 +1673,30 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 });
 
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
-	it("defaults the shell-menu toggle to Off, straight from the settings loader", _ {
-		// Not asserted on the enum literal: call the real loader (`RuntimeFeatureSettings::init()`,
-		// `runtime_feature_settings.cpp`'s `SetupOnOffSetting` table) and read the result back
-		// through `RuntimeFeatureSettings::get`. A check against the enum's own declaration would
-		// pass just as easily if the default were flipped to On by mistake in the loader alone --
-		// and that is exactly the mistake that would open the ported UI to every user on first
-		// boot, which it must never do.
+	it("defaults the Legacy Menu to On, straight from the settings loader", _ {
+		// The real loader (`RuntimeFeatureSettings::init()`'s `SetupOnOffSetting` table), read back through `get`:
+		// a check against the enum alone would pass with the loader's default changed by mistake.
 		runtimeFeatureSettings.init();
-		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu))
-		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
+		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu))
+		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::On));
+		expect(deluge::gui::ui::shellMenuEnabled()).to_be_false();
+	});
+
+	it("reads a stored legacyMenu from the settings file, under that name", _ {
+		// `parseSettings` matches each stored entry against the loader's xml names; a misspelt name would leave the
+		// entry unknown and the default in force.
+		const auto parse = [](std::string xml) {
+			RuntimeFeatureSettings::parseSettingsBytes(&runtimeFeatureSettings, xml.data(),
+			                                           static_cast<uint32_t>(xml.size()));
+		};
+		runtimeFeatureSettings.init();
+		parse(std::string{StorageManager::kXmlDocumentHead}
+		      + "<runtimeFeatureSettings>\n<setting name=\"legacyMenu\" value=\"0\" />\n</runtimeFeatureSettings>\n");
+		expect(deluge::gui::ui::shellMenuEnabled()).to_be_true();
+		parse(std::string{StorageManager::kXmlDocumentHead}
+		      + "<runtimeFeatureSettings>\n<setting name=\"legacyMenu\" value=\"1\" />\n</runtimeFeatureSettings>\n");
+		expect(deluge::gui::ui::shellMenuEnabled()).to_be_false();
+		runtimeFeatureSettings.init();
 	});
 
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {

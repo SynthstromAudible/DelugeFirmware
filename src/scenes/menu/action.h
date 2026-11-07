@@ -271,14 +271,13 @@ struct MenuActionRequest {
 /// `:60-61`, the call at `:84`) -- **the legacy menu item this node ports**, and the only writer outside the view.
 ///
 /// **Why the fifth is a sync site like the four.** "Behind the menu's
-/// back" reads like it excludes the menu's own item, but it does not. An exclusion holds only while
-/// `RuntimeFeatureSettingType::ShellMenu` is
-/// **On**. With the toggle off, this item is the way into an editing mode from a menu
+/// back" reads like it excludes the menu's own item, but it does not. An exclusion holds only with
+/// **ShellMenu on**. With ShellMenu off, this item is the way into an editing mode from a menu
 /// (the `else` branch of `PerformanceView::buttonAction`'s SELECT_ENC arm), it writes both bools, and a mirror it
-/// does not maintain sits stale until the toggle is flipped -- at which point `PerformEditorItem`
+/// does not maintain sits stale until ShellMenu is turned on -- at which point `PerformEditorItem`
 /// seeds its cursor from the rot (`PerformEditorItem::on_focus`). That is the same flip-on staleness
 /// that makes gating the other four calls a bug, so the same answer applies: the mirror is
-/// maintained by **every** writer, in both toggle states, or it is not maintained at all. The call
+/// maintained by **every** writer, ShellMenu on and off alike, or it is not maintained at all. The call
 /// passes `currentMode` rather than re-deriving, because the branch above it set the bools *from*
 /// that value; and it sits after the `if`/`else` chain so the `DISABLED` arm -- which returns at
 /// `:52` without writing either bool -- does not reach it, matching what `PerformEditorItem` does.
@@ -299,13 +298,13 @@ struct MenuActionRequest {
 /// `PerformanceView::focusRegained` writes neither bool, so it is not a sync site; the one write
 /// near it is the constructor's.
 ///
-/// With all five the mirror and the view agree at every point the menu can observe, **in both
-/// toggle states**. This is the single node excluded from the generic port-vs-legacy value
+/// With all five the mirror and the view agree at every point the menu can observe, **ShellMenu on
+/// and off alike**. This is the single node excluded from the generic port-vs-legacy value
 /// comparison, for the same reason and with the same name as `shortcuts_version`.
 ///
-/// All five calls are **ungated**, in legacy files, while `ShellMenu` is Off by default.
+/// All five calls are **ungated**, in legacy files, whichever menu the Legacy Menu setting selects.
 /// `syncEditingModeMirror`'s own comment carries the argument at length; the short form is that they
-/// write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail, so with the toggle
+/// write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail, so with ShellMenu
 /// off each is a store to a byte no one loads. Both files are in `LEGACY_PORT_SEAMS`
 /// (`scripts/check_layer_rules.py`), which is where that kind of decision is recorded.
 ///

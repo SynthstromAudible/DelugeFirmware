@@ -529,7 +529,7 @@ struct DeviceNode {
 };
 
 constexpr DeviceNode kDeviceSettings[] = {
-    {"Settings > Community Features > Shell Menu", 1},
+    {"Settings > Community Features > Legacy Menu", 1},
     {"Settings > Community Features > Shortcut Overlay", 1},
     {"Settings > Community Features > Show Battery Level", 1},
     {"Settings > Community Features > Trim From Start Of Audio Clips", 1},

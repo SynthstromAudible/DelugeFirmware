@@ -65,11 +65,11 @@ public:
 		// The fifth site that keeps the ported menu's mirror of those two bools in step
 		// (`scenes/menu/action.h`; the other four are `syncEditingModeMirror`'s callers in
 		// `gui/views/performance_view.cpp`). THIS item is the writer that F2 task 5's first pass
-		// excluded as "the menu, not behind the menu's back" -- an exclusion that only holds while
-		// `RuntimeFeatureSettingType::ShellMenu` is On. With the toggle off this item is the ONLY
+		// excluded as "the menu, not behind the menu's back" -- an exclusion that only holds with
+		// ShellMenu on. With ShellMenu off (the Legacy Menu setting on) this item is the ONLY
 		// way into an editing mode from a menu, and without this line the mirror stays where it was
-		// while the view moves; flip the toggle on afterwards and `PerformEditorItem::on_focus`
-		// seeds its cursor from that stale value (`scenes/menu/nodes/actions.cpp:121`). The toggle
+		// while the view moves; turn ShellMenu on afterwards and `PerformEditorItem::on_focus`
+		// seeds its cursor from that stale value (`scenes/menu/nodes/actions.cpp:121`). The setting
 		// is a runtime setting, so "the port is off" is not a state the mirror may rot in.
 		//
 		// `currentMode` rather than a re-derivation from the two bools: the branch that just ran set
@@ -79,7 +79,7 @@ public:
 		//
 		// Ungated, for the reason `syncEditingModeMirror` gives at length
 		// (`gui/views/performance_view.cpp`): it writes one `static` inside `libdeluge_scenes` that
-		// nothing reads with the toggle off, reads nothing, and cannot fail. Not reached at all on
+		// nothing reads with ShellMenu off, reads nothing, and cannot fail. Not reached at all on
 		// the DISABLED arm, which returns at `:52` without writing either bool -- and the port's own
 		// item leaves the mirror alone on DISABLED too, which is asserted.
 		deluge::scenes::menu::set_performance_editing_mode(currentMode);

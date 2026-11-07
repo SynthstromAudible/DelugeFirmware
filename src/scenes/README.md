@@ -325,7 +325,7 @@ same file, as are the sound editor's KEYBOARD, SESSION and Fill arms (`forwardMe
 
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
-mirror holds in either toggle state. `menu/action.h` has the writer list.
+mirror holds with ShellMenu on and off. `menu/action.h` has the writer list.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)
 
@@ -745,7 +745,7 @@ it leaves both lists.
 
 | legacy | gap | what porting it takes |
 |---|---|---|
-| one `openUI(&soundEditor)` site | site 10 of `gui/ui/shell_menu_entry.cpp`'s table, the legacy browser's claim, still opens the legacy `SoundEditor` with the toggle on, for the reason that table gives | a decision, then its gate |
+| one `openUI(&soundEditor)` site | site 10 of `gui/ui/shell_menu_entry.cpp`'s table, the legacy browser's claim, still opens the legacy `SoundEditor` with ShellMenu on, for the reason that table gives | a decision, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
 | the catalogue claim over a browsing session | the leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim | claim-on-open/release-on-close, with the load/save browsers |

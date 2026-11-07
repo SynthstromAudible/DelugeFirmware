@@ -18,12 +18,12 @@
 #pragma once
 
 /// @file
-/// @brief The toggle, and the one call that opens the ported menu in `shellHostUI`'s place.
+/// @brief `shellMenuEnabled`, and the one call that opens the ported menu in `shellHostUI`'s place.
 ///
-/// The *first tenant* of the shell guest: every place legacy enters `soundEditor` becomes
-/// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
-/// `RuntimeFeatureSettingType::ShellMenu`**. There are fifteen such places; fourteen of them route here and one, site
-/// 10, stays on the legacy path for the reason its row gives. The table is in `gui/ui/shell_menu_entry.cpp`.
+/// The *first tenant* of the shell guest: every place legacy enters `soundEditor` becomes `openUI(&shellHostUI)` plus
+/// a `Menu{node}` push, **while `RuntimeFeatureSettingType::LegacyMenu` is Off**. There are fifteen such places;
+/// fourteen of them route here and one, site 10, stays on the legacy path for the reason its row gives. The table is in
+/// `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
@@ -56,20 +56,20 @@
 /// @note `check_citations.py`'s `SCAN_ROOTS` includes `src/deluge/util`, so this file's citations
 ///       are gate-read.
 ///
-/// @par What works under the toggle, and what does not -- read this before turning it on
+/// @par What works with ShellMenu on, and what does not -- read this before turning it on
 ///
-/// The toggle is Off by default, so none of the following is a regression. Turned on, it is what a
-/// user gets, and none of it is discoverable from a green test suite:
+/// ShellMenu is off by default (the Legacy Menu setting is On), so none of the following is a regression. Turned on,
+/// it is what a user gets, and none of it is discoverable from a green test suite:
 ///
 ///  1. **Every `MenuAction` the ported items file has a body.** `gui::ui::dispatchShellActions`
 ///     drains the outbox once per guest tick, so `perform_editor`, `start_stem_export`,
 ///     `set_clip_length`, `song_midi_learn`, `configure_song_macros` and the two settings verbs of
-///     item 4 do under the toggle what their legacy items do. What each arm still owes is recorded
+///     item 4 do with ShellMenu on what their legacy items do. What each arm still owes is recorded
 ///     per arm at `gui/ui/shell_action_dispatch.h`.
 ///  2. **A file chosen in the ported browser is claimed.** `deluge::gui::ui::dispatchShellChoices`
 ///     (`gui/ui/shell_choice_dispatch.cpp`) drains `take_choice()` from `ShellHostUI::timerCallback`
 ///     after every `Shell::tick` and performs the sample claim (`SampleClaim`) against the parked
-///     path, so the sample really loads under the toggle; and `shellSampleClaimDone`'s success arm
+///     path, so the sample really loads with ShellMenu on; and `shellSampleClaimDone`'s success arm
 ///     then calls `MenuScene::reroot_to_scene_opener_page()` (`scenes/menu/menu_scene.h`), which is
 ///     legacy's `maybeGetParentMenu` re-rooting in `MenuState`'s own terms rather than the heading
 ///     pair's -- so a claimed file lands on the source page with the file selector focused, not one
@@ -80,9 +80,9 @@
 ///     sites where `PerformanceView` moves the two mirrored bools call
 ///     `syncEditingModeMirror(*this)`, and a fifth writer is covered too: legacy's own
 ///     `EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:84`),
-///     which runs with the toggle OFF and would otherwise leave the mirror stale for the first
+///     which runs with ShellMenu off and would otherwise leave the mirror stale for the first
 ///     ported menu opened after a flip-on. With the writer set closed, the ported editing item and
-///     the view cannot disagree in either toggle state.
+///     the view cannot disagree with ShellMenu on or off.
 ///  4. **The ported settings items that write flash notify the legacy owner.** The shortcut-layout
 ///     setter reaches `SoundEditor::setShortcutsVersion` (and so flash byte 60):
 ///     `nodes::set_shortcuts_version` files `MenuAction::SetShortcutsVersion` beside its own
@@ -93,11 +93,11 @@
 ///     one enumerator serves both because legacy's notify takes no argument.
 ///
 ///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
-///     item, so it is not a thing a user can do wrong from behind this toggle. It is noted in
+///     item, so it is not a thing a user can do wrong with ShellMenu on. It is noted in
 ///     `src/scenes/README.md`'s boot-wiring section.
 ///  5. **One of the fifteen entry points still opens the legacy `SoundEditor`**: site 10, the legacy browser's own
-///     claim, which the toggle reaches only through site 9's legacy fallback -- see `shell_menu_entry.cpp`'s table.
-///     A wrong node is worse than a legacy menu, so with the toggle on the firmware has *both* menus, reachable by
+///     claim, which ShellMenu on reaches only through site 9's legacy fallback -- see `shell_menu_entry.cpp`'s table.
+///     A wrong node is worse than a legacy menu, so with ShellMenu on the firmware has *both* menus, reachable by
 ///     different gestures.
 
 #include <cstdint>
@@ -153,12 +153,11 @@ enum class NoteMode : uint8_t {
 	NoteEditorFromUiMode,
 };
 
-/// @brief Is the ported menu the one the fifteen entry points should open?
+/// @brief Is the ported menu the one the gated entry points should open?
 ///
-/// `RuntimeFeatureSettingType::ShellMenu`, default Off
-/// (`model/settings/runtime_feature_settings.cpp:175-178`). **With it off every gated site runs the
-/// exact legacy statements it ran before**, which is what the `else` branch at each site is shaped to
-/// make reviewable.
+/// True while `RuntimeFeatureSettingType::LegacyMenu` is Off. "ShellMenu on" and "ShellMenu off" in this tree's
+/// comments and parity docs name this answer. **With it false every gated site runs the exact legacy statements it
+/// ran before**, which is what the `else` branch at each site is shaped to make reviewable.
 bool shellMenuEnabled();
 
 /// @brief Resolve what the menu edits, point `MenuScene` at it, and open the guest.
@@ -219,7 +218,7 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 /// @return Whether the ported menu took the press: false where `openShellMenu` refused.
 bool openShellDxColumn(int32_t op);
 
-/// @brief `InstrumentClipView::enterNoteRowEditor`'s open under the toggle: with the guest closed `openShellMenu` at
+/// @brief `InstrumentClipView::enterNoteRowEditor`'s open with ShellMenu on: with the guest closed `openShellMenu` at
 ///        `NoteMode::NoteRowEditor`; with it open (audition + the sequence-direction shortcut inside the menu) the open
 ///        menu re-roots at the note-row editor on PLAY DIRECTION, as legacy's `setup()` re-roots the open editor.
 /// @return Whether the note-row editor is now the menu's root.

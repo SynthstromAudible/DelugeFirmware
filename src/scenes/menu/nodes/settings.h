@@ -1158,7 +1158,7 @@ DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 18, STRING_FOR_COMMUNITY_FEATURE
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
 DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 21, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS);
-DELUGE_RUNTIME_TOGGLE(feature_shell_menu, 23, STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU);
+DELUGE_RUNTIME_TOGGLE(feature_legacy_menu, 23, STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
 
@@ -1204,7 +1204,7 @@ inline constexpr const Node* kRuntimeFeatureChildren[] = {&feature_drum_randomiz
                                                           &feature_trim_from_start,
                                                           &feature_show_battery_level,
                                                           &feature_shortcut_overlay,
-                                                          &feature_shell_menu};
+                                                          &feature_legacy_menu};
 inline constexpr Node runtime_features =
     submenu(sid(String::STRING_FOR_COMMUNITY_FTS), kRuntimeFeatureChildren, Layout::Vertical, nullptr,
             sid(String::STRING_FOR_COMMUNITY_FTS_MENU_TITLE));

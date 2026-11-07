@@ -66,8 +66,8 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShowBatteryLevel,
 	RoundedCorners,
 	ShortcutOverlay,
-	ShellMenu, ///< Whether the entry points open the ported menu
-	MaxElement // Keep as boundary
+	LegacyMenu, ///< Whether the entry points open the legacy menu instead of the ported one
+	MaxElement  // Keep as boundary
 };
 
 /// Setting read from the settings file that no current setting matches, kept for writing back

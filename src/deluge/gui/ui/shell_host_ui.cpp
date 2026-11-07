@@ -561,11 +561,11 @@ ActionResult ShellHostUI::timerCallback() {
 	// legacy closes this UI when it happens**: `close()` lived only on `exitUI`'s path.
 	//
 	// What that left is precisely the state `opened()` refuses to create -- "An empty guest is worse
-	// than no guest: it would swallow every pad while drawing nothing" (`ShellHostUI::opened`). With the toggle on,
+	// than no guest: it would swallow every pad while drawing nothing" (`ShellHostUI::opened`). With ShellMenu on,
 	// Back from the ported menu's root left `shellHostUI` current with an empty stack, `renderOLED` painting nothing
-	// over legacy's cleared frame, and every later button (Session, Select) swallowed. The toggle-off leg of the same
-	// script exited to the clip view. So the close belongs on both paths, and this is the one that carries the short
-	// press.
+	// over legacy's cleared frame, and every later button (Session, Select) swallowed. The ShellMenu-off leg of the
+	// same script exited to the clip view. So the close belongs on both paths, and this is the one that carries the
+	// short press.
 	//
 	// **After the tick, not before**: the tick is what routes the Back and applies the `Remove`
 	// (`Shell::tick`), so the stack cannot be seen empty until it has run. And **before
@@ -622,7 +622,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `return DEALT_WITH` (`gui/ui/ui.h`) and no `gui/context_menu/` class overrides it, so for
 	// those two it is inert. `PerformanceView::timerCallback` is not inert: it forwards into
 	// `sessionView.timerCallback()` or `arrangerView.timerCallback()`
-	// (`PerformanceView::timerCallback`). Toggle-ON only, and not a wedge -- but a
+	// (`PerformanceView::timerCallback`). ShellMenu-on only, and not a wedge -- but a
 	// `timerCallback` legacy never delivers.
 	//
 	// **Returning early cannot strand the guest, and that is by construction rather than by luck.**
@@ -1197,7 +1197,7 @@ ActionResult ShellHostUI::exitUI() {
 	//     question asked, however honest it is about the press.
 	//   * Every legacy implementation that closes itself answers `ACTIONED_AND_CAUSED_CHANGE`,
 	//     including the tenant this guest stands in for: `SoundEditor::exitUI` is `exitCompletely()`
-	//     (`gui/ui/sound_editor.h`), whose last line is that value. With the toggle on, the guest
+	//     (`gui/ui/sound_editor.h`), whose last line is that value. With ShellMenu on, the guest
 	//     does what `SoundEditor` does.
 	//   * It is provably safe: the two readers above are the only ones, one tests a different
 	//     value and the other cannot run.

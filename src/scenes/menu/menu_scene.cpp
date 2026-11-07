@@ -165,8 +165,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s auditioning LOAD/KIT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
-		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the
-		// sample browser and the toggle-ON leg did not, because `browser::sample_can` refuses a
+		// ranges yet. **Measured** at level 3 on a fresh synth clip: the ShellMenu-off leg opened the
+		// sample browser and the ShellMenu-on leg did not, because `browser::sample_can` refuses a
 		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
