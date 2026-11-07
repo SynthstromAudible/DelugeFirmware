@@ -373,6 +373,18 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 			uint8_t velocity = calculateSpreadVelocity(originalVelocity, spreadVelocityForCurrentStep);
 			arp_note->velocity = velocity; // calculated modified velocity
 
+			// If this note is already sounding (e.g. auditioned while the sequencer plays it), switch it off before
+			// sounding it again. Both note-ons share this one ArpNote, so only one note-off will ever come out for
+			// them, and a receiver that counts note-ons (like a mono synth's note stack) would hold the note forever.
+			// Callers that manage their own voices (Sound) ignore this note-off
+			if (note_exists && arp_note->noteStatus[0] == ArpNoteStatus::PLAYING
+			    && arp_note->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+				instruction->noteCodeOffPostArp[0] = arp_note->noteCodeOnPostArp[0];
+				instruction->outputMIDIChannelOff[0] = arp_note->outputMemberChannel[0];
+				// So MPE output doesn't count the old note when choosing a member channel for the new one
+				arp_note->outputMemberChannel[0] = MIDI_CHANNEL_NONE;
+			}
+
 			// Set the note to be played
 			arp_note->noteCodeOnPostArp[0] = noteCode;
 			arp_note->noteStatus[0] = ArpNoteStatus::PENDING;
