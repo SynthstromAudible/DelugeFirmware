@@ -17,10 +17,12 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_notification_sink.h"
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
 #include "scenes/registry.h"
 #include "shell/notices.h"
@@ -246,6 +248,51 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 		drain_notifications();
 		expect(deluge::notify::notices().size()).to_equal(size_t{0});
 		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
+	});
+
+	it("a popup the guest's shell shows goes to legacy's display when the guest closes, with the time it had left", _ {
+		// A browser that cannot list closes, and the menu under it goes up and out; `main`'s refused browser leaves its
+		// editor the same way, and its error popup outlives both, because legacy has one display. So the guest's
+		// popup goes to legacy's display as the guest closes, as its knob popup does.
+		LegacyDisplay legacy;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		const uint32_t saved_timer = AudioEngine::audioSampleTimer;
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
+
+		deluge::notify::notice_text("SD CARD ERROR");
+		(void)shellHostUI.timerCallback(); // the guest's shell pops it into its own popup
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_false();
+
+		// 300 ms on, the menu leaves and nothing that takes input is left, so the guest's next tick closes it.
+		AudioEngine::audioSampleTimer += 300 * 44;
+		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(display->hasPopupOfType(PopupType::GENERAL)).to_be_true();
+		expect(uiTimerManager.isTimerSet(TimerName::DISPLAY)).to_be_true();
+		// 800 ms (`Notices::timeout_for`) less the 300 it already showed.
+		expect(uiTimerManager.getTimer(TimerName::DISPLAY).triggerTime - AudioEngine::audioSampleTimer)
+		    .to_equal(uint32_t(500 * 44));
+
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
+		AudioEngine::audioSampleTimer = saved_timer;
+	});
+
+	it("a guest that closes with no popup up leaves legacy's display clear", _ {
+		LegacyDisplay legacy;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		expect(shellHostUI.shell().stack().remove(deluge::scenes::menu_scene().kind())).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(display->hasPopup()).to_be_false();
 	});
 });
 DELUGE_SPEC(notification_sink_spec, notification_sink_spec_body)

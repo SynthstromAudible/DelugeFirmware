@@ -45,3 +45,7 @@ it.
 `c35-sample-claim-wait` reads the sample browser while SELECT's load runs: c16's walk into `SAMPLES/AUDIO FILES`,
 SELECT on `REC00003`, and a 25 ms window 90 ms later, while the working animation turns over the browser's list. The
 load takes about 400 ms on the emulator, so the window sits well inside it on both firmwares.
+
+`c36-drum-creator-refused` runs on its own card, `tests/fixtures/card-samples-file` (`--card`): the ShellMenu card
+with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's drum creator then falls back the way `main` does:
+the browser's error popup over the new kit's clip view.

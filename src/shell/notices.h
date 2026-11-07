@@ -8,6 +8,8 @@
 #include "ui/oled/popup.h"
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -69,6 +71,12 @@ public:
 	/// @return False for a persistent popup (`timeout_ms == 0` at the last `show()`); otherwise
 	///         true once \p now_ms reaches the deadline `show()` computed.
 	bool expired(uint32_t now_ms) const;
+
+	/// @brief How long the popup has left at @p now_ms, for a host handing it to another display.
+	/// @param now_ms The tick's wall clock.
+	/// @return `std::nullopt` for a persistent popup (`timeout_ms == 0` at the last `show()`); otherwise the
+	///         milliseconds to its deadline, 0 once it has passed.
+	std::optional<uint32_t> remaining_ms(uint32_t now_ms) const;
 
 	/// @brief The text last shown, for `.state` "notice" lines and specs.
 	/// @return A NUL-terminated pointer into this scene's own 48-byte buffer.
@@ -469,6 +477,19 @@ public:
 	/// touches it, since none of them is what a shown popup came from.
 	/// @return The kind of the most recent popup; `Kind::Text` if no popup has been shown yet.
 	notify::Notice::Kind last_notice_kind() const { return last_notice_kind_; }
+
+	/// @brief The popup this class has stacked, as a host closing over it hands it on: legacy's one display keeps a
+	///        popup up whatever UI closes under it.
+	struct ShownPopup {
+		std::string text;
+		/// The legacy `PopupType`, as `PopupScene::popup_type` holds it.
+		uint8_t popup_type;
+		/// What `PopupScene::remaining_ms` answered: `std::nullopt` for a persistent popup.
+		std::optional<uint32_t> remaining_ms;
+	};
+	/// @param now_ms The tick's wall clock.
+	/// @return The stacked popup, or `std::nullopt` when none is stacked or its time is up.
+	std::optional<ShownPopup> shown_popup(uint32_t now_ms) const;
 
 private:
 	/// @brief The body both `show_popup()` and `drain()`'s `Kind::Text` case share: show \p text

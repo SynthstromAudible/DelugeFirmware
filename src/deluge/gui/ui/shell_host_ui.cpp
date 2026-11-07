@@ -1289,6 +1289,17 @@ void ShellHostUI::closeGuest() {
 	discardShellDrumCreatorBeforeClose();
 	releaseShellSlicerBeforeClose();
 
+	// A popup the guest's notices still show goes to legacy's display with the time it had left: legacy has one
+	// display, and its popup outlives whichever UI raised it (`main`'s refused browser leaves its editor with the error
+	// up). Before the knob popup's hand-off, which takes legacy's one popup slot after it, as the later of two legacy
+	// draws.
+	if (const std::optional<deluge::ui::shell::Notices::ShownPopup> shown = shell_.notices().shown_popup(nowMs())) {
+		display->displayPopup(shown->text.c_str(), shown->remaining_ms.has_value() ? 3 : 0, false, 255, 1,
+		                      static_cast<PopupType>(shown->popup_type));
+		if (shown->remaining_ms.has_value()) {
+			uiTimerManager.setTimer(TimerName::DISPLAY, static_cast<int32_t>(*shown->remaining_ms));
+		}
+	}
 	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {
 		closeHook_(nowMs());

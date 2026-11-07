@@ -11,6 +11,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -819,6 +820,21 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 untouched;
 		popup48.render_oled(SurfaceRole::Aux, untouched.frame);
 		expect(untouched.pbm()).to_equal(deluge::ui::test::Rig48{}.pbm());
+	});
+
+	it("reports the stacked popup with the time it has left, and nothing once it has expired", _ {
+		Rig r;
+		r.notices.show_popup("SAVED", kPopupTypeGeneral, 1000);
+		const std::optional<Notices::ShownPopup> shown = r.notices.shown_popup(1300);
+		expect(shown.has_value()).to_be_true();
+		expect(shown.has_value() ? shown->text : std::string{}).to_equal(std::string{"SAVED"});
+		expect(shown.has_value() && shown->remaining_ms.has_value() ? *shown->remaining_ms : 0U).to_equal(500U);
+		expect(r.notices.shown_popup(1800).has_value()).to_be_false();
+	});
+
+	it("reports nothing when no popup is stacked", _ {
+		Rig r;
+		expect(r.notices.shown_popup(0).has_value()).to_be_false();
 	});
 });
 // clang-format on
