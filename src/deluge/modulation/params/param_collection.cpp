@@ -22,6 +22,7 @@
 #include "model/mod_controllable/delay_type.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/lane_snapshot.h"
 #include "modulation/params/param_manager.h"
@@ -62,6 +63,7 @@ deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
 }
 
 ParamCollection::~ParamCollection() {
+	deluge::modulation::dropWorkingCopies(*this);
 	deluge::modulation::LanePublication::gone(*this);
 }
 

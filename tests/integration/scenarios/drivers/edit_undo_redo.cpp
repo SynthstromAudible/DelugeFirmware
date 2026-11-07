@@ -70,6 +70,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
@@ -1865,6 +1866,87 @@ void exactAddressTarget(Song* song) {
 
 // The MPE value a played note sends, written through its Edit with the clock stopped: the lane takes it, and one undo
 // gives back what it was (the engine's own unautomated-change record).
+// The table of the render's working copies, on a synth clip's patched lanes: a copy found by its collection and
+// paramId, made once, committed into the model only once the render has written it, dropped with its collection,
+// released, and refused past the table's size.
+void workingCopiesTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (Clip* candidate : song->live.clips.session_clips) {
+		if (candidate->type == ClipType::INSTRUMENT && candidate->output != nullptr
+		    && candidate->output->type == OutputType::SYNTH) {
+			clip = static_cast<InstrumentClip*>(candidate);
+			break;
+		}
+	}
+	if (clip == nullptr) {
+		std::fprintf(io.out, "# no-synth-clip-for-working-copies\n");
+		return;
+	}
+	std::fprintf(io.out, "# target working-copies\n");
+	namespace modulation = deluge::modulation;
+	auto ownerIn = [&](char* memory) {
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(
+		    memory, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+	};
+	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane = ownerIn(m)->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+	ParamCollection& collection = *lane->paramCollection;
+	const size_t heldBefore = modulation::workingCopiesHeld();
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	deluge::project::DocAutoParam* copy = modulation::makeWorkingCopy(*lane, 8);
+	check(copy != nullptr && collection.hasWorkingCopies(), "working-copies: a copy is made");
+	check(modulation::workingCopy(collection, lane->paramId) == copy, "working-copies: it is found");
+	check(modulation::makeWorkingCopy(*lane, 8) == copy, "working-copies: a second make finds it");
+	check(modulation::workingCopy(collection, params::LOCAL_LPF_RESONANCE) == nullptr,
+	      "working-copies: another lane has none");
+
+	const int32_t baseBefore = lane->doc()->current_value;
+	{
+		// The model changed since the copy was made: committing the unwritten copy would undo it
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		deluge::project::set_base(*lane->doc(), baseBefore + 1111);
+	}
+	modulation::commitWorkingCopies();
+	check(lane->doc()->current_value == baseBefore + 1111, "working-copies: an unwritten copy is not committed");
+	{
+		deluge::memory::RenderBlock block;
+		deluge::project::set_base(*copy, baseBefore + 4321);
+		modulation::noteWorkingCopyWritten(*copy);
+	}
+	modulation::commitWorkingCopies();
+	check(lane->doc()->current_value == baseBefore + 4321, "working-copies: a written copy is committed");
+
+	modulation::dropWorkingCopies(collection);
+	check(!collection.hasWorkingCopies() && modulation::workingCopy(collection, lane->paramId) == nullptr
+	          && modulation::workingCopiesHeld() == heldBefore,
+	      "working-copies: a collection's copies drop with it");
+
+	// Past the table's size: one copy per patched lane until it refuses
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t overflowsBefore = modulation::workingCopyOverflows;
+#endif
+	bool refused = false;
+	alignas(ModelStackWithAutoParam) char each[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* others = ownerIn(each);
+	for (int32_t p = 0; p < static_cast<int32_t>(modulation::kWorkingCopies) + 1 && !refused; p++) {
+		ModelStackWithAutoParam* other = others->getPatchedAutoParamFromId(p);
+		refused = other != nullptr && other->autoParam != nullptr && modulation::makeWorkingCopy(*other, 0) == nullptr;
+	}
+	check(refused && modulation::workingCopiesHeld() == modulation::kWorkingCopies,
+	      "working-copies: the table refuses past its size");
+#if ALPHA_OR_BETA_VERSION
+	check(modulation::workingCopyOverflows == overflowsBefore + 1, "working-copies: the refusal is counted");
+	modulation::workingCopyOverflows = overflowsBefore;
+#endif
+	modulation::releaseWorkingCopies();
+	check(modulation::workingCopiesHeld() == 0 && !collection.hasWorkingCopies(), "working-copies: all released");
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+	check(lane->doc()->current_value == baseBefore, "working-copies: the take's undo gives the lane back");
+}
+
 void recordExpressionTarget(Song* song) {
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
 		Clip* clip = song->live.clips.session_clips[c];
@@ -2202,6 +2284,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	cableTarget(song);
 	undoAcrossClipDeleteTarget(song);
 	recordExpressionTarget(song);
+	workingCopiesTarget(song);
 	newShapesTarget(song);
 
 #if ALPHA_OR_BETA_VERSION

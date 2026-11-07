@@ -48,6 +48,7 @@ struct DocAutoParam;
 namespace deluge::modulation {
 struct LaneSnapshot;
 class LanePublication;
+class WorkingCopies;
 } // namespace deluge::modulation
 
 class ParamCollection {
@@ -165,14 +166,21 @@ public:
 	///        address, so a collection made later at the same address is not taken for it.
 	[[nodiscard]] uint32_t serial() const { return serial_; }
 
+	/// @brief [render] or [interaction] Whether any of this collection's lanes is being recorded into a working copy
+	///        (modulation/automation/working_copies.h).
+	[[nodiscard]] bool hasWorkingCopies() const { return workingCopies_ != 0; }
+
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent{};
 
 private:
 	friend class deluge::modulation::LanePublication;
+	friend class deluge::modulation::WorkingCopies;
 	/// [interaction] -> [render] Swapped only with the render held off; read by the render once per collection event.
 	std::atomic<const deluge::modulation::LaneSnapshot*> published_{nullptr};
 	/// [interaction] Marked changed since the job last settled: the next walk of the song republishes it.
 	bool lanesDirty_ = false;
 	uint32_t serial_; ///< see serial()
+	/// [interaction] -> [render] The working copies of this collection's lanes, changed with the render held off.
+	uint8_t workingCopies_ = 0;
 };
