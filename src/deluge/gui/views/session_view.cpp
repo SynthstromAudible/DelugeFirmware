@@ -5348,7 +5348,8 @@ void SessionView::gridPulseSelectedClip() {
 
 bool SessionView::gridTrackRowEnabled() const {
 	return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
-	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
+	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)
+	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditGridRow);
 }
 
 void SessionView::gridEndTrackPadGesture() {
@@ -5435,9 +5436,9 @@ bool SessionView::gridIsTrackPadHeld(Output const* output) const {
 
 Output* SessionView::heldPulseCandidate() {
 	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn()) {
-		return deluge::gui::track_link::selectedOutput();
+		return deluge::gui::track_edit_pulse::pulsesHeldTrack() ? deluge::gui::track_link::selectedOutput() : nullptr;
 	}
-	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) || !deluge::gui::track_edit_pulse::pulsesHeldClip()) {
 		return nullptr;
 	}
 	Clip* clip = getClipForLayout();

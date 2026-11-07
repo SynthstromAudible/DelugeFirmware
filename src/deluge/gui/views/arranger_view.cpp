@@ -3504,10 +3504,11 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 Output* ArrangerView::heldPulseCandidate() const {
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 		bool on_screen = yPressedEffective >= 0 && yPressedEffective < kDisplayHeight;
-		return on_screen ? outputsOnScreen[yPressedEffective] : nullptr;
+		return (on_screen && deluge::gui::track_edit_pulse::pulsesHeldTrack()) ? outputsOnScreen[yPressedEffective]
+		                                                                       : nullptr;
 	}
-	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && (pressedClipInstanceOutput != nullptr)
-	    && pressedClipInstanceOutput->isTrackLocked()) {
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && deluge::gui::track_edit_pulse::pulsesHeldClip()
+	    && (pressedClipInstanceOutput != nullptr) && pressedClipInstanceOutput->isTrackLocked()) {
 		return pressedClipInstanceOutput;
 	}
 	return nullptr;
