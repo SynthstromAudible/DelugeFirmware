@@ -136,21 +136,55 @@ outside an Edit, a note's MPE values written or cleared, MPE moved with a note, 
 What is queued is written and the copies committed and released first; the next commit before a job makes copies
 again for lanes a knob still overrides.
 
-An arrangement recording's clip edits its lanes on the render when it reaches its end. There `endTake` copies each
-working copy the render wrote into the model itself (counted, `renderModelWrites`) and ends it, and the next commit
-frees it.
+### Arrangement takes
+
+While the arrangement records a clip, the clip a knob turns is cloned into a take (on the interaction tier), and the
+take repeats its source at every loop end; a row with its own length repeats at its own end
+(`modulation/params/staged_repeat.h`). The render never writes a model lane or makes a clip or a collection for it:
+
+- At the loop end the render appends the repeat's notes and the length, swaps in the repeat's lanes staged ahead, and
+  counts the repeat (`TakeRepeats`, on the take clip and on each such row). Each collection the repeat appends to holds a
+  staged snapshot (`ParamCollection` `staged_`), its lanes with the next repeat appended, built from copies at the end
+  of each job (`restageArrangementTakes`) and again when the source's collection republishes. The render swaps in all
+  of a take's staged snapshots or none (a miss, `stagedRepeatMisses`: the repeat plays its old lanes until the next job
+  publishes it); the snapshot it replaces is superseded, for the interaction tier to retire. A publish of a collection
+  first drops its staged snapshot and retires its superseded one, which share its lanes.
+- A working copy of the take's lanes stays live across the loop end: the render appends the repeat into it from the
+  source's published lanes, within room the restage reserved, and records on through the seam. Each copy records how
+  many of its take's repeats it holds. A copy the render cannot append into (behind its take, without room, its source
+  lane not published) has its take ended instead (counted, `copiesEndedAtLoopEnd`); the next commit carries it.
+- The interaction tier appends each counted repeat into the model first thing in every commit
+  (`catchUpArrangementTakes`, with the render held off until the copies are committed): into a lane's working copy if it
+  has one not holding the repeat yet, else into the model's lane. A copy is made from a caught-up take, so it holds every
+  repeat counted.
+- An audio take's loop end takes a spare instead of cloning: a clone of the source made in the restage pass, its lanes
+  published, with room reserved in the containers the loop end inserts it into (`AudioClip::spare`; a miss is counted,
+  `audioSpareMisses`, and the take does not go on). A spare is in no container, so no save or undo sees it, and is
+  remade when the source's lanes republish (not when its sample or settings change); it is deleted with its take or when
+  recording ends. Its clip id is taken when it is made, so the last, unused one of a recording keeps its id: clips made
+  after the recording have ids one higher than if the render had made the take.
+
+None of the render's own edits ends a take now; `endTake` on the render (counted, `renderTakeEnds`) only ends the copies,
+and the next commit carries them.
 
 Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
 room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written by the interaction tier),
 `workingCopyOverflows` (a lane not recorded into: the table of 32 was full or out of memory) and
-`latchWritesWithoutCopy`. param-record-diff checks across its recorded cases, the latch included, that the render logs
-no undo, reads and writes no model lane but at an arrangement clip's end, allocates nothing and grows no lane; that 70
+`latchWritesWithoutCopy`, and for arrangement takes `stagedRepeatMisses`, `stagedRepeatSwaps`, `copiesEndedAtLoopEnd`,
+`renderTakeEnds`, `audioSpareMisses` and `renderMadeCollections` (a collection made on the render). param-record-diff
+checks across its recorded cases, the latch included, that the render logs no undo, reads and writes no model lane,
+allocates nothing and grows no lane; that 70
 writes with no render block between them leave the lane, its base and its played value as the same writes a block
 apart; that a write undone before the next block stays undone; that a lane overridden before recording starts, or
 when its take is undone, is copied, latched and given back by undo; and that a region, a delete, a paste, a shift, a
-length change, a region written outside an Edit with a value still queued, a knob's base on an unarmed clip and the
-render's own edit at a clip's end all keep what was recorded around them. edit-undo-redo checks the table: found,
-committed only once written, held for the take or while written, dropped, released and refused past its size.
+length change, a region written outside an Edit with a value still queued and a knob's base on an unarmed clip all keep
+what was recorded around them, and that a take the render ends writes no model lane and is committed by the next commit. edit-undo-redo checks the table: found,
+committed only once written, held for the take or while written, dropped, released and refused past its size, and a
+snapshot built apart from being published. arrangement-take records the generated song RS_ARRANGE_TAKE (a synth, a kit
+with a half-bar row and an audio clip) into the arrangement with knobs turned, a late one across a loop end, and its
+source edited mid-take: the takes' lanes and output against its baseline, what the render plays across each repeat
+checked on the render at each loop end, every repeat staged and swapped, every audio take a spare, nothing left after
+recording, every collection's published lanes its model's, and no model read, write or collection made on the render.
 
 ## How the render reaches a lane
 
@@ -179,7 +213,7 @@ swap, the boot song). The replaced snapshot and lanes are retired (`AudioEngine:
 a destroyed collection's are freed at once, being out of the render's reach with it. Out of memory, the old snapshot
 stays published and the collection stays marked.
 
-Outside an arrangement recording's clip end ("Recording while playing" above) the render writes no model lane. A node
+The render writes no model lane. A node
 at or past a published lane's length is played without it, and a value set on
 the render (a stopped synth clip's mono expression cleared) is played at once; each is posted to the interaction tier
 (`requestStrayNodeErased`, `requestLaneBase`), which does it before its next job, if the song still plays that
