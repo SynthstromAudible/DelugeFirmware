@@ -203,6 +203,7 @@ describe param_by_address("a param set by its address", ${
 		f.song->setCurrentClip(f.clip);
 		const Error error = set(*f.song, lpf, 0x18000000);
 		deluge::modulation::applyRecordEvents(*f.song); // the render's next block writes the recorded value
+		deluge::modulation::commitBeforeJob(*f.song);   // and the next job's commit carries it into the model
 		playbackHandler.recording = recording;
 		playbackHandler.playbackState = state;
 		f.clip->armedForRecording = armed;

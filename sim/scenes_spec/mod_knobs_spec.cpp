@@ -999,6 +999,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		DirectCtx c{1000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), c.ctx);
 		deluge::modulation::applyRecordEvents(*f.song); // the render's next block writes the recorded value
+		deluge::modulation::commitBeforeJob(*f.song);   // and the next job's commit carries it into the model
 		playbackHandler.recording = recording;
 		playbackHandler.playbackState = state;
 		f.clip->armedForRecording = armed;

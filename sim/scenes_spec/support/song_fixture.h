@@ -67,7 +67,7 @@ inline T* place(Args&&... args) {
 	return memory != nullptr ? new (memory) T(static_cast<Args&&>(args)...) : nullptr;
 }
 
-/// @brief `setupBlankSong()`'s song half (`deluge.cpp:376-387`) minus its two UI calls
+/// @brief `setupBlankSong()`'s song half minus its two UI calls
 ///        (`setRootUILowLevel`, `setUIForLoadedSong`) and minus `AudioEngine`'s reverb pull.
 inline Song* make_bare_song() {
 	Song* song = place<Song>();
@@ -75,8 +75,8 @@ inline Song* make_bare_song() {
 	GlobalEffectable::initParams(&song->paramManager);
 	song->setupDefault();
 
-	// `deluge.cpp:393`. The scenes layer itself never reads this global (`context.cpp` takes a
-	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
+	// `setupBlankSong()`'s `currentSong = preLoadedSong`. The scenes layer itself never reads this global
+	// (`context.cpp` takes a `Song&`), but the model does, unguarded, in places a spec's writes can reach --
 	// `isParamQuantizedStutter` (`modulation/params/param.cpp`), the `getCurrent*()`
 	// helpers at `model/song/song.cpp:91-137`. Leaving it null would make those a latent crash for
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec

@@ -196,7 +196,7 @@ public:
 	/// @brief Prepare the surfaces for the first frame, with nothing on the stack.
 	///
 	/// Ports legacy's boot sequence, which is only `renderUIsForOled` marking the OLED dirty
-	/// (`deluge.cpp:121,134,372`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
+	/// (in `deluge.cpp`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
 	/// so the first `tick()` after this call draws regardless of any gate's prior state.
 	///
 	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
