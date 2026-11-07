@@ -82,6 +82,9 @@ struct MenuTick {
 	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
 	/// param's automation instead of navigating (`MenuScene::after_render`).
 	bool select_shift = false;
+	/// An item used the current Select press up, as legacy's `Buttons::selectButtonPressUsedUp = true`: the
+	/// cable-strength page's polarity turn under a held Select (`PatchCableStrength::selectEncoderAction`).
+	bool use_up_select = false;
 };
 
 /// @brief What belongs to one walk through the tree from a root: the range picker, the selectors' choices, the

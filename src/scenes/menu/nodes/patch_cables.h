@@ -46,31 +46,6 @@
 /// navigation state shared by four pages, and because a `CustomItem` is a `const` singleton with
 /// nowhere to put them.
 ///
-/// ## What did NOT come across
-///
-///   * **The polarity gesture is SHIFT + turn, where legacy uses the select encoder *held* + turn**
-///     (`PatchCableStrength::selectEncoderAction`, `patch_cable_strength.cpp:325-336`, gated on
-///     `Buttons::isButtonPressed(hid::button::SELECT_ENC)`). A `FrameContext` carries no held-button
-///     *level* for an encoder -- only the press edge -- and `f.shift()` is the one modifier it does
-///     expose (`ui/core/frame_context.h`), so the gesture changed. Legacy's MIDI/CV *button*
-///     shortcut for the same thing (`buttonAction`, `:311-323`) has no port either: `IndicatorLED`
-///     and `hid::Button` are both `hid/`.
-///   * **The value's face and position.** Legacy draws it right-aligned at the top in
-///     `kTextBigSizeY` (13) with its own decimal-separator lines (`:172-188`); this port uses
-///     `decimal_value`, whose face is the 20px one and whose digits are centred across the rect it
-///     is given. That is the one reason the polarity switch does not sit on legacy's own canvas row
-///     34 -- see `kRoutingDiagramWidth` in the `.cpp`, which also explains why the switch's *row*
-///     is frame-local where `decimal_value`'s is canvas-absolute.
-///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
-///     `automationView` / `keyboardScreen` (`:338-365`) -- both are `gui/views/`.
-///   * `PatchCableStrength::buttonAction`'s MIDI/CV button polarity shortcut (`:311-323`) and
-///     `endSession`'s `setLedState` pair (`:69-72`): `IndicatorLED` is `hid/`.
-///   * `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME
-///     fallback walk (`patch_cable_strength/regular.cpp:51-62`) IS ported, in
-///     `PatchCableStrengthItem::on_focus`.
-///   * `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which
-///     arrive as grid input, which `source_press` below handles.
-///
 /// ## Source-pad blinking
 ///
 /// Legacy's `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
@@ -82,13 +57,22 @@
 ///
 /// ## What is ported
 ///
-/// The routing diagram and the BI/UNI box **are** ported: they are
-/// `ui::oled::routing_chain` and `ui::oled::segmented_switch` (`ui/oled/routing.h`), transcribed
-/// coordinate for coordinate from `renderOLED`'s two blocks and pinned byte-for-byte against them
-/// in `tests/spec/ui/routing_spec.cpp`. The scenes layer may not call an `OledFrame` primitive
-/// (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`), so the drawing lives in the
-/// toolkit and this page composes it -- which is also what makes it reusable by the next screen
-/// that has to show a signal path.
+/// The whole of `renderOLED`: the routing diagram and the BI/UNI box are `ui::oled::routing_chain` and
+/// `ui::oled::segmented_switch`, the number is `ui::oled::cable_strength_value` (`ui/oled/routing.h`), transcribed
+/// coordinate for coordinate and pinned byte-for-byte against legacy in `tests/unit/spec/ui/routing_spec.cpp`. The
+/// scenes layer may not call an `OledFrame` primitive (`scripts/check_layer_rules.py`'s
+/// `scenes-no-frame-primitives`), so the drawing lives in the toolkit and this page composes it. The number's digits
+/// are the exact value, where legacy's build truncates (DIFFERENCES.md D71, accepted).
+///
+/// The polarity gestures and LEDs: `buttonAction`'s MIDI/CV pair is `PatchCableStrengthItem::handle`,
+/// `updatePolarityUI`'s LEDs are `PatchCableStrengthItem::leds`, and `selectEncoderAction`'s held-Select turn is in
+/// `render`, which uses the press up through `MenuTick::use_up_select`. `horizontalEncoderAction`'s
+/// `delayHorizontalScrollUntil` escape and X_ENC guard are `MenuScene::route_horizontal_turn`.
+///
+/// `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME fallback walk
+/// (`patch_cable_strength/regular.cpp:51-62`) is in `PatchCableStrengthItem::on_focus`.
+/// `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which arrive as grid input -- are
+/// `source_press` below.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -209,6 +193,7 @@ public:
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void commit(const MenuContext& ctx, MenuState& state) const override;
+	void leds(deluge::ui::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
 
 	/// `PatchCableStrength::getLearningThing()` -- `MenuItemWithCCLearning`'s answer, which is a
 	/// function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
@@ -241,8 +226,9 @@ public:
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
 
-	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (a SHIFT+turn); a
-	/// cable the page makes later takes it.
+	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (MIDI, CV, or a turn
+	///        under a held Select); a cable the page makes later takes it. Restarts the cursor's blink dark, as
+	///        `updatePolarityUI`'s re-render does.
 	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
 
 	/// `PatchCableStrength : Automation` (`patch_cable_strength.h:29`): shift + select deletes the cable's automation.

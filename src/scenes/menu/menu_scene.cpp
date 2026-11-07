@@ -596,6 +596,11 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 
 	page_button_leds(ctx_, st_, f);
 
+	// A focused bespoke item's own LEDs over the page buttons' (the cable-strength page's MIDI/CV polarity pair).
+	if (const Node* screen = focused(); screen->kind == Kind::Custom && screen->custom != nullptr) {
+		screen->custom->leds(f, ctx_, st_);
+	}
+
 	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp:78-95`).
 	if (visit_.blink_restart) {
 		visit_.blink_restart = false;
@@ -654,7 +659,7 @@ Result MenuScene::after_render_navigation() {
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
 	                          && shown->custom->is_value() && st_.tick.render_resp.changed;
-	if (std::exchange(visit_.use_up_select, false)
+	if (std::exchange(visit_.use_up_select, false) || st_.tick.use_up_select
 	    || ((st_.tick.value_changed || value_turned) && visit_.select_held)) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
 	}

@@ -41,6 +41,10 @@
 /// definition.
 class MIDICable;
 
+namespace deluge::ui {
+class LedFrame;
+} // namespace deluge::ui
+
 namespace deluge::ui::oled {
 struct OledFrame;
 } // namespace deluge::ui::oled
@@ -513,6 +517,12 @@ struct CustomItem {
 	///        with before the render runs. Must match the claims `render` makes; the shell audits the two.
 	/// @return None by default: `handle` sees every input.
 	virtual deluge::ui::InputClaims owned_input(const MenuContext&, const MenuState&) const { return {}; }
+
+	/// @brief Declare the button LEDs this item lights while it is the focused screen, over the page buttons' own
+	///        (`MenuScene::leds`): the legacy items that light LEDs in `beginSession` and put them out in `endSession`.
+	///        Not asked for a horizontal page's column, where legacy's `beginSession` lights nothing. Every tick
+	///        redeclares the frame, so leaving the screen puts them out with no hook.
+	virtual void leds(deluge::ui::LedFrame& /*f*/, const MenuContext& /*ctx*/, const MenuState& /*state*/) const {}
 
 	/// @par The focus hooks: three names, two questions
 	///

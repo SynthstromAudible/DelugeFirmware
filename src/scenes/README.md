@@ -247,8 +247,8 @@ so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 
 
 1. Implement `CustomItem` (`node.h`). `render` and `handle` are pure; everything else has a
    do-nothing default, so implement what the legacy item has: `on_focus` (`beginSession`),
-   `on_focus_backward`, `on_focus_is_press`, `commit` (`writeCurrentValue`), `owned_input`,
-   `row_icon` (`renderSubmenuItemTypeForOled`; the default is the submenu arrow), the learn hooks
+   `on_focus_backward`, `on_focus_is_press`, `commit` (`writeCurrentValue`), `owned_input`, `leds` (the LEDs
+   `beginSession` lights), `row_icon` (`renderSubmenuItemTypeForOled`; the default is the submenu arrow), the learn hooks
    (`learnNoteOn`/`learnCC`/`learnProgramChange`/`unlearnAction`/`shouldBlinkLearnLed`), the blink
    and patching-source hooks (`patched_param_to_blink`, `source_blink`, `source_press`,
    `blink_delay_ms`), and the automation hooks (`is_automation_item`, `automation_address`; a cable item's `learn_descriptor` is also its
@@ -707,7 +707,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 |---|---|
 | The first gold-knob turn after boot is swallowed by the lowering's debounce, as legacy's `timeModEncoderLastTurned` starts at 0 too; accepted, and whether the mechanism is a defect needs a device (see the ledger). | `src/shell/input_lowering.h` |
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
-| A patch cable's polarity is SHIFT + turn, where legacy uses Select held + turn. | `menu/nodes/patch_cables.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D91 |
 | Audition pad + a shortcut pad inside the ported menu (legacy: open the note-row editor) is swallowed: the guest drops the auditioning half of legacy's shortcut gate and `forwardGridPad`'s tail needs `UI_MODE_NONE`. | `ShellHostUI::claimsGridPad`, `MenuPads::handle_pad`; `tests/ui-scripts/parity/DIFFERENCES.md` D92 |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |

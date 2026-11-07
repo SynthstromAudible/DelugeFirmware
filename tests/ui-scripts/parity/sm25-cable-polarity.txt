@@ -1,0 +1,67 @@
+# ShellMenu: a patch cable's strength page as `main` draws and drives it (`PatchCableStrength::renderOLED`,
+# `buttonAction`, `selectEncoderAction`): the value right-aligned in the 13 px face with a zero fraction hidden while
+# the cursor is left of it, the fraction marked by a tick under the digits, a one-row cursor; MIDI lit for a bipolar
+# cable and CV for a unipolar one, outside a horizontal page only; MIDI and CV switch the polarity; a Select turn
+# while Select is held switches it too, leaves the value and uses the press up; SHIFT + turn edits the value five
+# places a detent and leaves the polarity. The ENV2 -> LPF cable (22.00) is read with the cursor on the hundredths,
+# where nothing is hidden: with zero places hidden `main` truncates a non-zero value (D71). The ENV1 page holds 0,
+# which it draws exactly at every cursor place. Run on the ShellMenu card, and once with ShellMenu off as the control.
+100   snapshot boot
+300   button Shift down
+400   pad 8 7 down
+440   pad 8 7 up
+500   button Shift up
+1200  button SelectEnc down
+1220  button SelectEnc up
+2000  button SelectEnc down
+2020  button SelectEnc up
+# The cursor to the hundredths: two places, plus the first detent the encoder drops.
+2500  encoder Horizontal +3
+3500  snapshot hundredths
+4500  button Cv down
+4520  button Cv up
+5500  snapshot cv
+6500  button Midi down
+6520  button Midi up
+7500  snapshot midi
+# Select held: up makes it unipolar (three detents, the first dropped), down bipolar (the reversal drops one).
+8500  button SelectEnc down
+8700  encoder Select +3
+9700  snapshot held-up
+10700 button SelectEnc up
+11700 snapshot held-up-released
+12700 button SelectEnc down
+12900 encoder Select -2
+13900 snapshot held-down
+14900 button SelectEnc up
+15900 snapshot held-down-released
+16900 encoder Select -2
+17900 snapshot turned
+18900 button Shift down
+19000 encoder Select +2
+19100 button Shift up
+20100 snapshot shift-turned
+21100 encoder Horizontal -2
+22100 snapshot tenths
+23100 button Back down
+23120 button Back up
+24100 snapshot sources
+# ENV1 on the cutoff: no cable, so 0, with the cursor on the units, the tenths, the hundredths and the tens.
+25100 button Shift down
+25200 pad 14 6 down
+25240 pad 14 6 up
+25300 button Shift up
+26300 snapshot zero
+27300 encoder Horizontal +2
+28300 snapshot zero-tenths
+29300 encoder Horizontal +1
+30300 snapshot zero-hundredths
+31300 encoder Horizontal -4
+32300 snapshot zero-tens
+33300 button Back down
+33320 button Back up
+33800 button Back down
+33820 button Back up
+34300 button Back down
+34320 button Back up
+35300 snapshot closed

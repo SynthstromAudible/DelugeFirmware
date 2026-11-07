@@ -20,6 +20,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "modulation/params/param.h"
+#include "modulation/patch/patch_cable.h"
 
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
@@ -29,6 +30,8 @@
 #include "cppspec.hpp"
 
 #include "spec/support/spec_main.h"
+#include <algorithm>
+#include <string>
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
@@ -46,6 +49,13 @@ namespace nodes = deluge::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
 
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
+constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+constexpr uint8_t kMidiX = 5, kMidiY = 2;
+constexpr uint8_t kCvX = 5, kCvY = 3;
+constexpr uint8_t kBackX = 7, kBackY = 1;
+/// The MIDI and CV buttons' board LEDs on the Deluge profile (`shell/profiles/deluge.cpp`).
+constexpr uint8_t kMidiLed = 23, kCvLed = 32;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -92,6 +102,32 @@ struct Rig {
 		pad(x, y, true);
 		pad(x, y, false);
 		shift(false);
+	}
+	void button(uint8_t x, uint8_t y, bool down) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(down ? 255 : 0)},
+		                     now += 10);
+		tick();
+	}
+	void press(uint8_t x, uint8_t y) {
+		button(x, y, true);
+		button(x, y, false);
+		tick();
+	}
+	/// @brief @p detents of the select encoder, two edges each.
+	void turn(int32_t detents) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, now += 10);
+		tick();
+		tick();
+	}
+	/// @brief Whether board LED @p led is lit, as the surfaces were last told.
+	bool led(uint8_t led) const {
+		return ("\n" + fake.state()).find("\nled " + std::to_string(led) + " on\n") != std::string::npos;
+	}
+	/// @brief Open the VELOCITY -> volume cable's strength page (the fixture's synth patches it).
+	void open_velocity_cable() {
+		open(nodes::master_volume);
+		shift_press(15, 1);
 	}
 	const menu::MenuState& st() const { return menu_scene().state(); }
 };
@@ -211,6 +247,85 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		expect(own.valid).to_be_true();
 		r.shift_press(own.x, own.y);
 		expect(r.st().second_layer).to_be_false();
+	});
+
+	it("lights MIDI on a bipolar cable's page and CV on a unipolar one, and the two buttons switch it", _ {
+		// `PatchCableStrength::buttonAction` and `updatePolarityUI` (`patch_cable_strength.cpp:318-330`, `:397-402`).
+		select_language();
+		Rig r;
+		r.open_velocity_cable();
+		r.press(kCvX, kCvY);
+		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(r.led(kCvLed)).to_be_true();
+		expect(r.led(kMidiLed)).to_be_false();
+		r.press(kMidiX, kMidiY);
+		expect(r.st().walk.patch_polarity == Polarity::BIPOLAR).to_be_true();
+		expect(r.led(kMidiLed)).to_be_true();
+		expect(r.led(kCvLed)).to_be_false();
+		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+	});
+
+	it("puts MIDI and CV out on BACK from the page", _ {
+		// `endSession` (`patch_cable_strength.cpp:75-78`); the MASTER page focused on VOLUME lights KIT only.
+		select_language();
+		Rig r;
+		r.open_velocity_cable();
+		r.press(kMidiX, kMidiY);
+		r.press(kBackX, kBackY);
+		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_false();
+		expect(r.led(kMidiLed)).to_be_false();
+		expect(r.led(kCvLed)).to_be_false();
+	});
+
+	it("leaves MIDI and CV to the page buttons on a horizontal page focused on a cable column", _ {
+		// Legacy's `beginSession` on a horizontal page's column lights nothing: only the strength page itself, the
+		// focused screen, declares the pair. DUCK is the SIDECHAIN page's first column, so the page lights SYNTH and
+		// neither MIDI nor CV; its source, SIDECHAIN, has a polarity the strength page would light.
+		select_language();
+		Rig r;
+		r.open(nodes::sidechain);
+		expect(menu_scene().focused() == &nodes::sidechain).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::sidechain_volume).to_be_true();
+		expect(r.led(kMidiLed)).to_be_false();
+		expect(r.led(kCvLed)).to_be_false();
+	});
+
+	it("a turn with Select held switches the polarity, leaves the strength, and its release opens nothing", _ {
+		// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp:332-343`): up unipolar, down bipolar,
+		// `selectButtonPressUsedUp`.
+		select_language();
+		Rig r;
+		r.open_velocity_cable();
+		const int32_t strength = r.st().edit_int;
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true);
+		r.turn(2);
+		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(r.st().edit_int).to_equal(strength);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false);
+		r.tick();
+		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true);
+		r.turn(-2);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false);
+		r.tick();
+		expect(r.st().walk.patch_polarity == Polarity::BIPOLAR).to_be_true();
+		expect(r.st().edit_int).to_equal(strength);
+		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+	});
+
+	it("SHIFT and a turn edits the strength five places a detent and leaves the polarity", _ {
+		// `SoundEditor::selectEncoderAction`'s 5x under SHIFT (`sound_editor.cpp:1317-1320`), then
+		// `Decimal::selectEncoderAction`; no polarity arm without Select held.
+		select_language();
+		Rig r;
+		r.open_velocity_cable();
+		r.press(kCvX, kCvY); // unipolar, so a down turn that flipped it would show
+		const int32_t strength = r.st().edit_int;
+		r.shift(true);
+		r.turn(-1);
+		r.shift(false);
+		expect(r.st().edit_int).to_equal(std::max(strength - 500, int32_t{kMinMenuPatchCableValue}));
+		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
 	});
 });
 // clang-format on

@@ -2,16 +2,39 @@
 
 #include "gfx/oled/font.h"
 #include "gfx/oled/icons.h"
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
+#include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/text.h"
 
 #include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <span>
 
 namespace deluge::ui::oled {
 
 using gfx::oled::Rect;
 
 namespace {
+
+/// @brief `Decimal::getNumNonZeroDecimals`, exactly: how many of @p value's two fraction places are not trailing zeros.
+int32_t non_zero_decimals(int32_t value) {
+	const int32_t fraction = std::abs(value % 100);
+	if (fraction == 0) {
+		return 0;
+	}
+	return fraction % 10 == 0 ? 1 : 2;
+}
+
+/// @brief `10^exponent` for the four places a strength has.
+int32_t place_value(int32_t exponent) {
+	int32_t v = 1;
+	for (int32_t i = 0; i < exponent; i++) {
+		v *= 10;
+	}
+	return v;
+}
 
 /// @brief The face legacy draws both widgets' text in.
 ///
@@ -127,6 +150,78 @@ void segmented_switch(OledFrame& f, Rect area, std::span<const std::string_view>
 		}
 		f.invert_rounded(Rect{slot_x, start_y, widths[static_cast<size_t>(selected)], end_y - start_y + 1});
 	}
+}
+
+Response cable_strength_value(OledFrame& f, Rect rect, int32_t& value, Range range, int8_t& edit_pos, Blink& blink,
+                              bool take_turn) {
+	Response resp{};
+	resp.focused = true;
+	const uint32_t now = f.now_ms();
+	edit_pos = static_cast<int8_t>(std::max<int32_t>(0, edit_pos));
+
+	// `Decimal::horizontalEncoderAction`: right to a lower place, left while the next place's step fits the maximum.
+	f.claim_horizontal();
+	f.claim_turn();
+	const int8_t horizontal = f.horizontal();
+	if (horizontal > 0 && edit_pos > 0) {
+		edit_pos--;
+	}
+	else if (horizontal < 0 && static_cast<int64_t>(place_value(edit_pos)) * 10 <= range.max) {
+		edit_pos++;
+	}
+	// `Decimal::selectEncoderAction`, with `SoundEditor::selectEncoderAction`'s 5x under SHIFT.
+	const int8_t turn = f.turn();
+	if (take_turn && turn != 0) {
+		const int64_t detents = f.shift() ? int64_t{turn} * 5 : int64_t{turn};
+		const int64_t next =
+		    std::clamp<int64_t>(int64_t{value} + detents * place_value(edit_pos), range.min, range.max);
+		if (next != value) {
+			value = static_cast<int32_t>(next);
+			resp.changed = true;
+			f.gate().request_repaint();
+		}
+	}
+
+	// `OLED::setupBlink` restarts on every render: lit at once for a cursor move (`movingCursor`), dark otherwise.
+	if (!blink.armed()) {
+		blink.period_ms = kFlashTime;
+		blink.restart_dark(now);
+	}
+	if (horizontal != 0) {
+		blink.restart_lit(now);
+	}
+	else if (resp.changed) {
+		blink.restart_dark(now);
+	}
+	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
+
+	// `:170-176` -- the dropped places are zeros, so the division is exact.
+	const int32_t hidden = std::clamp<int32_t>(2 - non_zero_decimals(value), 0, edit_pos);
+	const int32_t shown_pos = edit_pos - hidden;
+	std::array<char, 12> buf{};
+	const std::string_view digits = detail::int_to_string(value / place_value(hidden), 3 - hidden, std::span{buf});
+
+	constexpr int32_t kDigitWidth = kTextBigSpacingX;
+	constexpr int32_t kDigitHeight = gfx::oled::kTextBigSizeY;
+	constexpr int32_t kRightPadding = 3;
+	const int32_t right = rect.right() - kRightPadding;
+	const int32_t under = rect.y + kDigitHeight + 1;
+
+	f.clear(rect);
+	// `:181-183` -- `drawStringAlignRight(numberBuf, textY, digitWidth, digitHeight, OLED_MAIN_WIDTH_PIXELS - 3)`.
+	text(f, Rect{rect.x, rect.y, right - rect.x, kDigitHeight}, digits,
+	     TextStyle{.font = gfx::oled::FontId::MetricBold13, .align = Align::Right});
+	// `:189-194` -- the tick, two columns at the fraction's left edge, three rows under the digits.
+	if (const int32_t fraction_places = 2 - hidden; fraction_places > 0) {
+		const int32_t separator_x = right - fraction_places * kDigitWidth;
+		f.vline(separator_x, under, under + 2);
+		f.vline(separator_x - 1, under, under + 2);
+	}
+	// `:185-187` -- the cursor, one row under the edited place, inverted over whatever is drawn there.
+	if (blink_lit(blink, now)) {
+		f.invert(Rect{right - (shown_pos + 1) * kDigitWidth, under, kDigitWidth, 1});
+	}
+	return resp;
 }
 
 } // namespace deluge::ui::oled
