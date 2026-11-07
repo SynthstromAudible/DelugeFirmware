@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-10-29. Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-07 (the UI read interface added; other status rows as of 2026-10-29). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -19,7 +19,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 
 | Layer | Contents |
 | --- | --- |
-| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow |
+| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow. The UI's whole contract with the app is `UiEvent` in, reads by address through `scenes/bind`, and writes out as commands through `WriteSink` |
 | Project model, engines, effects | Model owns persistent structure, writes are commands, engines play snapshots. Engines are CLAP-shaped (Deluge instrument, clip player); the synth stays C++. Effects are host chains |
 | libdeluge | The stable C ABI every component crosses |
 | Rust platform | Embassy scheduler, audio/storage/interaction tiers, HAL + BSP in deluge-sdk, async SD stack |
@@ -57,7 +57,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done, 1c in progress |
 | P4 | Clip player (live input is one mode) | Not started |
 | P5 | Topology + reconciler: track = chain, kit = rack of lanes, clip-scoped values, one mapping table | Step 1 records done |
-| P6 | Interface | Not started |
+| P6 | Interface | Read half begun: `scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
 
 ### P3d-1c execution tree
 
@@ -71,6 +71,33 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
    - 3d, delete SoundEditor, menus and menu_item (~29k lines) after a device flash-test; freeze the 21
      legacy-oracle specs as golden data first.
 4. Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables.
+
+### UI read interface
+
+The scenes' read side of P6: everything a scene shows comes from a reader that takes an address, never from a
+legacy runtime object. Writes already leave as requests through `bind::WriteSink`, and input arrives as `UiEvent`,
+so once reads go the same way, the UI's contract with the app has three parts. That makes scenes testable against
+a fake reader with no `Song` and keeps the UI unaffected by changes to the model's storage (P5, ModelStack). It also
+keeps the option open to put the UI behind a C ABI.
+
+**Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`) and takes
+what the model does not hold from `RuntimeFacts`. Layer rules already keep the model stack, Edits, engine pointers
+and `currentSong` out of the layer.
+
+**Gap (measured 2026-11-07).** 54 scene files outside `bind/` include 157 legacy runtime headers: `model/` 73,
+`modulation/` 26, `io/` 20, `processing/` 17, `storage/` 14, `playback/` 7. The menu holds 28 of those files,
+`services/` 8, `browser/` and `overlay/` 4 each. The common reads are the legacy `Song`, flash settings, the audio
+engine, the playback handler and the MIDI device manager.
+
+| Stage | Wave | Delivers | Needs first |
+| --- | --- | --- | --- |
+| R1 | 1 | Inventory of the direct reads, shared with the Model lane's ModelStack reader inventory; a `scenes-reads-outside-bind` layer-rule ratchet held at today's count, so 3b and later work add no new reads | WS10b-2 merged (it edits the same files) |
+| R2 | 2 | Every read moved behind `bind`: model state by address, runtime state (transport, MIDI devices, card, settings) through fact sources the host fills. The ratchet goes to zero; the menu's reads go first because 3d deletes their legacy readers | 3d, so the legacy menu's readers are gone |
+| R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = rack of lanes). The scenes' calls do not change, because addresses are already the API | P5 topology |
+| R4 | 4 | P6 closes: `UiEvent`, the readers and `WriteSink` are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
+
+Stage placement is **(proposed)**. Exit for R2: the scene specs run against a fake reader, and no file in
+`src/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.
 
 ## DSP still in the app
 
@@ -91,8 +118,8 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 
 | Lane | 1 Ship the UI | 2 Retire legacy | 3 Topology, clips | 4 Long term |
 | --- | --- | --- | --- | --- |
-| UI shell | 3b blockers, flash-test 3a, 3c flip | 3d delete legacy menus, freeze oracle specs | Kit lanes and mapping-table UI | P6 interface |
-| Model | ModelStack plan, inventory of readers | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
+| UI shell | 3b blockers, flash-test 3a, 3c flip; R1 read ratchet | 3d delete legacy menus, freeze oracle specs; R2 reads behind `bind` | Kit lanes and mapping-table UI; R3 readers on P5 ids | P6 interface (R4) |
+| Model | ModelStack plan, inventory of readers (shared with R1) | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
 | Synth | FM/DX7 kernel, wavetable band port, reverb component (3 worktrees) | SampleSource port, pitch detection home, voice kernel c and d | Voice kernel e, f; P4 clip player; patcher replacement; audible re-baseline | L3 C ABI, CLAP and foreign engines, DX7 as engine |
 | Platform, storage | Device flash-tests, USB-MIDI fix push, live-bug triage | Tier B sync callers, tier D comments, FS-lock queue wait | Allocator redesign, libdeluge hard wall | Supervisor + MMU, warm restart |
 | Release, features | UI branch into `next`, nightly with both corpora | `next` to `main` PR, port #5049 follow-ups | Merge each phase, merge `main` into `next` often | Faster-than-real-time export |
@@ -106,6 +133,8 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
    replacement) land together, with one golden re-baseline and one hardware ear-check.
 4. **Lanes own disjoint directories** so worktrees merge cleanly. Golden baselines, the test registry and CMake
    lists are touched by one lane at a time.
+5. **Scenes read through `bind`.** New scene code reads by address through `scenes/bind`; code a plan already
+   touches moves its reads there as it goes. The R1 ratchet enforces this once it lands.
 
 ### When the big replacements land
 
@@ -115,6 +144,7 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 | `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Recorded dependency |
 | ModelStack stage 1: params and undo by address | 2 | MCA/GE gone; `Consequence::revert`, automation recording and AutoParam projection re-keyed | `bridge::paramStackAt` bridge exists; stage placement (proposed) |
 | ModelStack stage 2: clip, note-row, sequencer chain on ids | 3 | P5 topology and reconciler | (proposed) |
+| Scenes' direct runtime reads (54 files) | 2 | 3d; R1 ratchet in place | Readers exist for settings, slots and chains; (proposed) |
 | ModelStack deleted | 4 | P6; the wave-1 inventory shows no readers left | (proposed) |
 | Patch cable data | Done | n/a | In instrument state, per slot and clip (P2c) |
 | Patch cable runtime (Patcher to a replacement mod matrix) | 3 | Voice kernel lifted; the audible window | Decided 2026-10-25: after the voice kernel lift |
