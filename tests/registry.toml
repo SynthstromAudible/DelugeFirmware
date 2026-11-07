@@ -812,7 +812,7 @@ markers = ["UI-SCRIPT"]
 result = "UI-SCRIPT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
-tier = "nightly"
+tier = "pr"
 group = "app"
 runtime = "~60s"
 
@@ -848,7 +848,7 @@ markers = ["SCENES-SPEC"]
 result = "SCENES-SPEC-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
-tier = "nightly"
+tier = "pr"
 group = "app"
 runtime = "~10s"
 
