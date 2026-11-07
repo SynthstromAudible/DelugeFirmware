@@ -76,6 +76,10 @@ void refreshShellRootFacts();
 ///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
 bool shellSoundMenuOpen();
 
+/// @brief Whether the ported menu is the guest's frontmost scene and the guest is the current UI, whatever the menu's
+///        root: the guest's half of `getCurrentUI() == &soundEditor`.
+bool shellMenuFrontmost();
+
 /// @brief Whether the ported menu is frontmost on the note-range picker: the guest's half of `rangePickerOpen`.
 bool shellRangePickerOpen();
 

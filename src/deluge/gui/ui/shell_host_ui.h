@@ -458,6 +458,14 @@ private:
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.
 	void feed(const DelugeInputEvent& ev);
+	/// @brief Re-read legacy's hold time into the lowering's tap threshold (`FlashStorage::holdTime`, in samples): the
+	///        first thing every feed does.
+	void syncHoldTime();
+	/// @brief Feed a pad the guest claimed, with why the menu may take it as a shortcut without SHIFT
+	///        (`Shell::on_host_pad`).
+	/// @param shortcutWithoutShift An audition held over the instrument clip view made the press a shortcut
+	///        (`ShortcutPadGate::Audition`); false for every other press and every release.
+	void feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutWithoutShift);
 
 	/// @brief Re-arm `TimerName::UI_SPECIFIC` from the shell's own deadline.
 	///

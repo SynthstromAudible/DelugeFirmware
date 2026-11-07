@@ -323,6 +323,8 @@ public:
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
 	void on_board_event(const DelugeInputEvent& ev, uint32_t now_ms);
+	/// @brief Lower one pad the host feeds with the reason it claimed it (`InputLowering::on_host_pad`).
+	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated.
 	/// @param index  The board's encoder index.
 	/// @param edges  Signed A-pin edge count since the last call.

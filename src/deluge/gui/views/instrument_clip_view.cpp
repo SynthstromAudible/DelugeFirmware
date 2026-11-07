@@ -3782,14 +3782,11 @@ bool InstrumentClipView::enterNoteRowEditor() {
 			InstrumentClip* clip = getCurrentInstrumentClip();
 			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The ported leg names the
 			// note row editor as `NoteMode::NoteRowEditor` (the root `setup()` picks under `UI_MODE_AUDITIONING`).
-			// Not while the legacy `soundEditor` is the current UI: this is also called from inside it (audition plus
-			// the sequence-direction shortcut), where the guest would stack on `soundEditor` and part from legacy after
-			// the first BACK. Both legs then do what follows legacy's open.
+			// Not while the legacy `soundEditor` is the current UI, which this is also called from inside. With the
+			// guest open it re-roots the open menu (`openShellNoteRowEditor`). Both legs then do what follows legacy's
+			// open.
 			if (deluge::gui::ui::shellMenuEnabled() && getCurrentUI() != &soundEditor) {
-				if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-				                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-				                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
-				                                   deluge::gui::ui::NoteMode::NoteRowEditor)) {
+				if (deluge::gui::ui::openShellNoteRowEditor(clip)) {
 					if (!auditioningSilently) { // see the legacy leg below
 						auditionPadAction(0, lastAuditionedYDisplay, true);
 						auditionPadAction(1, lastAuditionedYDisplay, true);
@@ -5122,7 +5119,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
 	// if no, update selected drum
 	if (kit->selectedDrum != drum) {
-		if ((currentUI != &soundEditor || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
+		if ((!deluge::gui::ui::menuCurrent() || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
 		    && currentUI != &sampleMarkerEditor && currentUI != &renameDrumUI) {
 
 			kit->selectedDrum = drum;

@@ -1,5 +1,6 @@
 #pragma once
-#include "gui/ui/shell_note_mode.h" // NoteModeKind, ActionResult, hid::Button
+#include "gui/ui/shell_note_mode.h"   // NoteModeKind, ActionResult, hid::Button
+#include "gui/ui/shell_pad_forward.h" // ShortcutPadGate
 #include "gui/ui_timer_manager.h"
 
 #include <cstdint>
@@ -249,6 +250,8 @@ extern int menu_save_forwards;
 extern std::optional<ActionResult> menu_save_answer;
 extern int menu_view_forwards;
 extern std::optional<ActionResult> menu_view_answer;
+extern std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate; ///< nullopt: Shift with shift, else Forward
+extern bool sequence_direction_answer;
 
 /// How many times `exitNoteModeBeforeClose()` was called.
 extern int note_mode_exits;

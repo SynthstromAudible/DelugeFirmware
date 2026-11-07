@@ -38,6 +38,9 @@ bool soundMenuOpen();
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, or the ported menu frontmost on a root other than the settings.
 bool soundMenuCurrent();
 
+/// @brief Legacy's `getCurrentUI() == &soundEditor`, whatever its root, or the ported menu frontmost on any root.
+bool menuCurrent();
+
 /// @brief The open menu re-reads its value: legacy's `getCurrentMenuItem()->readValueAgain()` when `soundEditor` is
 ///        current, or the ported menu's.
 void readSoundMenuValueAgain();

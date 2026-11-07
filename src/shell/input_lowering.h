@@ -129,6 +129,11 @@ public:
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
 	void on_board_event(const DelugeInputEvent& ev, uint32_t now_ms);
+	/// @brief Lower a pad the host feeds with a reason the board event cannot carry
+	/// (`UiEvent::shortcut_without_shift`):
+	///        otherwise exactly `on_board_event` with a `DELUGE_EVENT_PAD`, deferred while `sd_busy` and dropped while
+	///        input is locked.
+	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated -- the device path
 	///        (`deluge_encoder_take_edges`, folded in by `hid/encoder_input.cpp:56-63`).
 	///
@@ -418,10 +423,11 @@ private:
 	struct DeferredEvent {
 		DelugeInputEvent ev{};
 		uint32_t now_ms = 0;
+		bool shortcut_without_shift = false;
 	};
 
-	void dispatch(const DelugeInputEvent& ev, uint32_t now_ms);
-	void defer(const DelugeInputEvent& ev, uint32_t now_ms);
+	void dispatch(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift = false);
+	void defer(const DelugeInputEvent& ev, uint32_t now_ms, bool shortcut_without_shift = false);
 	/// @brief Turn one board encoder event's edge count into detents and emit a `UiEvent`.
 	///
 	/// @warning **`edges` is an `int8_t` and `dispatch` narrows into it with no clamp** --
@@ -451,7 +457,7 @@ private:
 	/// @param edges  Signed quadrature edges since the last event; see the warning.
 	/// @param now_ms The tick's clock.
 	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
-	void on_pad(uint8_t x, uint8_t y, uint8_t velocity);
+	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift = false);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
 	bool action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms);

@@ -61,6 +61,8 @@ int menu_save_forwards = 0;
 std::optional<ActionResult> menu_save_answer{};
 int menu_view_forwards = 0;
 std::optional<ActionResult> menu_view_answer{};
+std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate{};
+bool sequence_direction_answer = false;
 int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
@@ -132,6 +134,8 @@ void reset() {
 	menu_save_answer = std::nullopt;
 	menu_view_forwards = 0;
 	menu_view_answer = std::nullopt;
+	shortcut_gate = std::nullopt;
+	sequence_direction_answer = false;
 	note_mode_exits = 0;
 	note_exit_saw_close = false;
 	settings_saves = 0;
@@ -528,6 +532,17 @@ void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity) {
 
 // The same file's root-UI question for the shortcut gate: no root view keeps a pad here, as none is the automation
 // view.
+ShortcutPadGate shortcutPadGate(bool shift) {
+	if (fakelegacyui::shortcut_gate) {
+		return *fakelegacyui::shortcut_gate;
+	}
+	return shift ? ShortcutPadGate::Shift : ShortcutPadGate::Forward;
+}
+
+bool takeSequenceDirectionShortcut(int32_t, int32_t) {
+	return fakelegacyui::sequence_direction_answer;
+}
+
 bool rootKeepsShortcutPad(int32_t, int32_t) {
 	return false;
 }

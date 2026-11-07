@@ -310,6 +310,12 @@ void MenuScene::dx_column_press(int32_t op) {
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
+void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
+	open(root, ctx);
+	pending_retarget_ = pads_.arm_landing_on(root, column);
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
 std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
 	if (!dx_column_flashing()) {
 		return std::nullopt;

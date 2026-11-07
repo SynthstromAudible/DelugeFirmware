@@ -61,7 +61,7 @@
 /// | 7 | `gui/views/automation_view.cpp:1463-1485` `AutomationView::handleSelectEncoderButtonAction` | the same, except the clip is `nullptr` on the arranger (so: the song root) **and** the arm also runs under `UI_MODE_NOTES_PRESSED` | the same six, or `Root::Song` when `onArrangerView`. **Only under `UI_MODE_NONE`**: see the note below |
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
 /// | 12 | `gui/views/instrument_clip_view.cpp:3572-3597` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`sound_editor.cpp:2018-2020`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it |
-/// | 13 | `gui/views/instrument_clip_view.cpp:3788-3802` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:2021-2023`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. **Only when `getCurrentUI() != &soundEditor`**: `sound_editor.cpp:1637-1645` also calls this from inside a legacy sound editor (audition + the sequence-direction shortcut, in an editor site 9's legacy fallback opened), and there the guest would stack on `soundEditor` and diverge after the first BACK, so that case keeps opening the legacy editor |
+/// | 13 | `gui/views/instrument_clip_view.cpp:3788-3802` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:2021-2023`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Not while the legacy `soundEditor` is current (audition + the sequence-direction shortcut inside an editor site 9's legacy fallback opened), which keeps opening the legacy editor. Inside the ported menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
 /// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view (the current UI is neither `soundEditor` nor `sampleMarkerEditor`) | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad | `openShellMenuAtShortcut`, the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`: the horizontal page listing it, focused on it). The DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). A press from the sample-marker editor stays legacy, as does any pad the port resolves no node for |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:304-305` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`gui/ui/menus.cpp:1735`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
 /// | 15 | `gui/ui/keyboard/column_controls/dx.cpp:101-108` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`gui/menu_item/dx/param.cpp:514-542`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
@@ -123,6 +123,29 @@ menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performan
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
 	ctx.root_is_automation = getRootUI() == &automationView;
 	return ctx;
+}
+
+/// @brief Both note entries' kit `affectEntire` clear, once the context resolved and before the menu opens: the clip
+///        and the context both say off afterwards.
+///
+/// The kit `affectEntire` clear both note entries do once `soundEditor.setup` has succeeded and
+/// before `openUI` -- `InstrumentClipView::enterNoteEditor` and `enterNoteRowEditor`, the same
+/// three statements in both. `ctx.affect_entire` is `ctx.is_kit && affectEntire` (`context_for`),
+/// so testing it alone is legacy's nested `if (KIT) { if (affectEntire) {` collapsed to one test.
+void clearKitAffectEntireForNoteMode(menu::MenuContext& ctx, Clip* clip) {
+	if (!ctx.affect_entire) {
+		return;
+	}
+	static_cast<InstrumentClip*>(clip)->affectEntire = false;
+	// `ctx.affect_entire` is a snapshot taken by `context_for` above,
+	// and nothing re-resolves it after this clear -- but `sequence::Direction::getIndividualNoteRow`
+	// reads `clip->affectEntire` LIVE (`gui/menu_item/sequence/direction.h:44`), after legacy's own
+	// identical clear. So the installed context must agree with the clip it just edited, or
+	// the play-direction binding's `!ctx.affect_entire && ctx.is_kit` test
+	// (`scenes/menu/bindings.cpp`) would still read `true` and the note-row editor would keep
+	// editing the kit's own `sequenceDirectionMode` instead of the selected drum's row.
+	ctx.affect_entire = false;
+	view.setActiveModControllableTimelineCounter(clip);
 }
 
 /// @brief The node `MenuScene::roots()` holds for @p ctx's root, or `nullptr` when there is none.
@@ -232,21 +255,8 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		actionLogger.deleteAllLogs();
 	}
 
-	// The kit `affectEntire` clear both note entries do once `soundEditor.setup` has succeeded and
-	// before `openUI` -- `InstrumentClipView::enterNoteEditor` and `enterNoteRowEditor`, the same
-	// three statements in both. `ctx.affect_entire` is `ctx.is_kit && affectEntire` (`context_for`),
-	// so testing it alone is legacy's nested `if (KIT) { if (affectEntire) {` collapsed to one test.
-	if (noteMode != NoteMode::None && ctx.affect_entire) {
-		static_cast<InstrumentClip*>(clip)->affectEntire = false;
-		// `ctx.affect_entire` is a snapshot taken by `context_for` above,
-		// and nothing re-resolves it after this clear -- but `sequence::Direction::getIndividualNoteRow`
-		// reads `clip->affectEntire` LIVE (`gui/menu_item/sequence/direction.h:44`), after legacy's own
-		// identical clear. So the installed context must agree with the clip it just edited, or
-		// the play-direction binding's `!ctx.affect_entire && ctx.is_kit` test
-		// (`scenes/menu/bindings.cpp`) would still read `true` and the note-row editor would keep
-		// editing the kit's own `sequenceDirectionMode` instead of the selected drum's row.
-		ctx.affect_entire = false;
-		view.setActiveModControllableTimelineCounter(clip);
+	if (noteMode != NoteMode::None) {
+		clearKitAffectEntireForNoteMode(ctx, clip);
 	}
 
 	return openGuest(*root, ctx, arg, nullptr);
@@ -291,6 +301,32 @@ bool openShellDxColumn(int32_t op) {
 	deluge::scenes::menu_scene().land_dx(dx);
 	return openShellMenu(getCurrentClip(), 0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
 	                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::DxParam);
+}
+
+bool openShellNoteRowEditor(Clip* clip) {
+	if (!isUIOpen(&shellHostUI)) {
+		return openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+		                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::ContextRoot,
+		                     NoteMode::NoteRowEditor);
+	}
+	if (currentSong == nullptr) {
+		return false;
+	}
+	menu::MenuContext ctx = resolveContext(clip, 0, false, false, false, false);
+	if (!ctx.resolved) {
+		return false;
+	}
+	ctx.root = menu::MenuContext::Root::NoteRowEditor;
+	const menu::Node* root = rootNodeFor(ctx);
+	if (root == nullptr) {
+		return false;
+	}
+	clearKitAffectEntireForNoteMode(ctx, clip);
+	// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `setup()` on the open editor.
+	deluge::scenes::menu_scene().reroot(*root, ctx, menu::nodes::sequence_direction);
+	adoptShellMenuContext();
+	shellHostUI.refreshRootFacts();
+	return true;
 }
 
 } // namespace deluge::gui::ui

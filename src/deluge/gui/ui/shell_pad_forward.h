@@ -113,6 +113,26 @@ bool rootKeepsShortcutPad(int32_t x, int32_t y);
 ///        `SampleBrowser::padAction` hands it to.
 bool rootTakesAuditionPad();
 
+/// @brief What `SoundEditor::potentialShortcutPadAction` does with a main-grid press under the ported menu.
+enum class ShortcutPadGate : uint8_t {
+	Forward,  ///< not a shortcut: the press goes on to the root's arms (`forwardGridPad`)
+	Swallow,  ///< a shortcut press with a UI mode outside the two shortcut modes up: taken, and nothing happens
+	Shift,    ///< a shortcut, by SHIFT
+	Audition, ///< a shortcut, by an audition held over the instrument clip view
+};
+
+/// @brief `potentialShortcutPadAction`'s gate for a press inside the main grid: SHIFT, or else an audition held over
+///        the instrument clip view; then the UI modes it allows, `UI_MODE_AUDITIONING` and
+///        `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, outside which the press is swallowed.
+/// @param shift Whether SHIFT is held (`Buttons::isShiftButtonPressed()`).
+ShortcutPadGate shortcutPadGate(bool shift);
+
+/// @brief `potentialShortcutPadAction`'s note-row editor shortcut under the ported menu: on the sequence-direction
+///        pad, over an instrument clip, with HorizontalMenus on and exactly one row auditioning, the note-row editor
+///        opens on PLAY DIRECTION (`InstrumentClipView::enterNoteRowEditor`, which re-roots the open menu).
+/// @return Whether the press was this shortcut's (taken, whatever the editor then did).
+bool takeSequenceDirectionShortcut(int32_t x, int32_t y);
+
 /// @brief `SampleMarkerEditor::padAction`'s audition arm: the audition column to the instrument clip view, press and
 ///        release, when the clip is an instrument clip, whatever the root view; swallowed on an audio clip.
 /// @param x,y The pad, in `MatrixDriver` coordinates.

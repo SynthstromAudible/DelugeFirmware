@@ -39,6 +39,10 @@ bool soundMenuCurrent() {
 	return getCurrentUI() == &soundEditor || shellSoundMenuOpen();
 }
 
+bool menuCurrent() {
+	return getCurrentUI() == &soundEditor || shellMenuFrontmost();
+}
+
 void readSoundMenuValueAgain() {
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->readValueAgain();

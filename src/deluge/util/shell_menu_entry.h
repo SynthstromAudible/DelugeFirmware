@@ -214,4 +214,10 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 /// @return Whether the ported menu took the press: false where `openShellMenu` refused.
 bool openShellDxColumn(int32_t op);
 
+/// @brief `InstrumentClipView::enterNoteRowEditor`'s open under the toggle: with the guest closed `openShellMenu` at
+///        `NoteMode::NoteRowEditor`; with it open (audition + the sequence-direction shortcut inside the menu) the open
+///        menu re-roots at the note-row editor on PLAY DIRECTION, as legacy's `setup()` re-roots the open editor.
+/// @return Whether the note-row editor is now the menu's root.
+bool openShellNoteRowEditor(Clip* clip);
+
 } // namespace deluge::gui::ui

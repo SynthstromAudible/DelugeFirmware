@@ -147,10 +147,13 @@ void refreshShellRootFacts() {
 	                                            getRootUI() == &automationView);
 }
 
+bool shellMenuFrontmost() {
+	return getCurrentUI() == &shellHostUI && &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
+}
+
 bool shellSoundMenuOpen() {
-	const auto& scene = deluge::scenes::menu_scene();
-	return getCurrentUI() == &shellHostUI && &shellHostUI.shell().stack().input_top() == &scene
-	       && scene.menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
+	return shellMenuFrontmost()
+	       && deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
 }
 
 namespace {

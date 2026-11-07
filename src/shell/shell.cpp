@@ -280,6 +280,12 @@ void Shell::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {
 	lowering_.on_board_event(ev, now_ms);
 }
 
+void Shell::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms) {
+	ensure_tick_window(now_ms);
+	screensaver_.note_activity(now_ms); // as `on_board_event`
+	lowering_.on_host_pad(x, y, velocity, shortcut_without_shift, now_ms);
+}
+
 void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
 	ensure_tick_window(now_ms);
 	screensaver_.note_activity(now_ms);

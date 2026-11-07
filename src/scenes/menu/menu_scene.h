@@ -195,6 +195,10 @@ public:
 	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
 	///        greyout (`sound_editor.cpp:497-500`).
 	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
+	/// @brief Re-root the open menu at @p root on @p ctx, landed on @p column, which @p root lists: `setup()` and
+	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
+	///        at the next tick, as a shortcut's jump is.
+	void reroot(const Node& root, const MenuContext& ctx, const Node& column);
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;

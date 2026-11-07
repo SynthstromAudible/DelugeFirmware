@@ -36,6 +36,11 @@ keyboard screen and the automation view, SESSION, and SYNC-SCALING. Run it on th
 `.superpowers/emu-card/shellmenu-fill` (the ShellMenu card with `syncScalingAction` 1, Fill), where SYNC-SCALING
 holds fill and lights its LED.
 
+`sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
+row (the edit stays on the row the menu opened for, and so does the kit's selection), and the sequence-direction pad's
+note-row editor. It runs on the content card with ShellMenu on (`sweep-shellmenu.img`), in the sweep's `browser`
+group. It stops on the note-row editor: BACK there sticks on `main` (D92).
+
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
 `sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
 root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the

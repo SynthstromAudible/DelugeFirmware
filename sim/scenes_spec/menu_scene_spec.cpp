@@ -1411,6 +1411,67 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 	});
 
+	it("takes a shortcut pad without shift when the press says an audition holds it, and not otherwise", _ {
+		// `SoundEditor::potentialShortcutPadAction`'s other half: an audition held over the instrument clip view. The
+		// host reads the UI mode and the root and puts the reason on the press it feeds (`Shell::on_host_pad`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::sound_root);
+		r.shell.tick(0);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/false, 10);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 12);
+		r.shell.tick(20);
+		expect(menu_scene().focused() == &nodes::sound_root).to_be_true();
+
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/true, 30);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 32);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("handles each of two shortcut presses in one tick by its own reason, SHIFT's and an audition's", _ {
+		// Legacy decides per press. Three presses reach the menu before one tick: HPF frequency with SHIFT held, LPF
+		// frequency an audition's (SHIFT up by then), and HPF frequency again with neither, which is no shortcut.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(nodes::sound_root);
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 10);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 64, false, 11);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 0, false, 12);
+		r.button(kShiftX, kShiftY, false, 13);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/true, 14);
+		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 15);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 64, false, 16);
+		r.shell.on_host_pad(kHpfFreqX, kHpfFreqY, 0, false, 17);
+		r.shell.tick(20);
+		r.shell.tick(30);
+		// The audition's jump is the last one taken; the unflagged third press moved nothing.
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+	});
+
+	it("re-roots the open menu at another root, landed on a column, through one Replace", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(nodes::sound_root);
+		r.shell.tick(0);
+		MenuContext row = ctx;
+		row.root = MenuContext::Root::NoteRowEditor;
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
+		// ITERANCE, the page's third column, so the landing is the re-root's and not the page's default focus.
+		menu_scene().reroot(nodes::note_row_editor_root, row, nodes::note_row_iterance);
+		r.shell.tick(10);
+		r.shell.tick(20);
+		expect(menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
+		expect(menu_scene().focused_value() == &nodes::note_row_iterance).to_be_true();
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+	});
+
 	it("a shortcut jump off a horizontal page cancels its notification", _ {
 		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
 		// cancels a notification popup (`horizontal_menu.cpp:576-591`).
