@@ -415,6 +415,8 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	// `SoundEditor::setup`), so an item its page no longer shows simply leaves the page
 	// focused on its first column, which is what falling out of this loop does.
 	walk_.focus_column(core(), *item);
+	// The claim that calls this ends on its own job, between the guest's ticks: ask for the frame that shows the page.
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 	return true;
 }
 

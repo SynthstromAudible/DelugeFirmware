@@ -496,7 +496,8 @@ public:
 	///
 	/// @return True if the menu moved. False when there is nothing to move: the `HorizontalMenus` feature off
 	///         (`MenuContext::horizontal_menus`), no scene opener recorded, no path (`on_model_changed`'s song swap), a
-	///         root out of range, or an item no horizontal page in this root lists.
+	///         root out of range, or an item no horizontal page in this root lists. On success it raises
+	///         `Dirty::Oled`, since its caller runs between the shell's ticks.
 	bool reroot_to_scene_opener_page();
 
 	/// @brief Where a Shift + main pad from a scene the menu opened (the sample marker editor) jumps:

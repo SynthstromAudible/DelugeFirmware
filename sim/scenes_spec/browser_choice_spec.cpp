@@ -38,6 +38,7 @@
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "notify/dirty_set.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bindings.h"
@@ -1136,6 +1137,35 @@ describe browser_choice_reroot(
 		        // And a refusal is a no-op, not a reset: the menu is exactly where the first call left it.
 		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
 		        expect(menu_scene().state().depth).to_equal(0);
+	        });
+
+	    it(
+	        "asks for a frame when it moves the menu, because the claim ends between the shell's ticks", _ {
+		        // `claimCurrentFile`'s tail ends in `soundEditor.enterOrUpdateSoundEditor(true)`, which draws the
+		        // source page. Ours lands from the claim's own job, outside a tick, so without a repaint fact the
+		        // item's page stays up until the next input.
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+		        r.step();
+		        (void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
+
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
+		        expect(deluge::notify::dirty()
+		                   .drain(deluge::notify::DirtyConsumer::Shell)
+		                   .has(deluge::notify::Dirty::Oled))
+		            .to_be_true();
+
+		        // A refusal moves nothing and asks for nothing.
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
+		        expect(deluge::notify::dirty()
+		                   .drain(deluge::notify::DirtyConsumer::Shell)
+		                   .has(deluge::notify::Dirty::Oled))
+		            .to_be_false();
 	        });
 
 	    it(
