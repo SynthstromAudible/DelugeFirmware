@@ -9,8 +9,10 @@ Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/s
 through SelectEnc, which opens the ported menu when ShellMenu is on. They remain valid with ShellMenu off, where the
 same presses walk the legacy menus.
 
-`sm00-select-turn` checks the emulator's encoder input before anything leans on it: five separate single Select
-detents each move the sound menu's list one row on both images, ShellMenu on and off. `sm10-patched-blink` covers the
+`sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
+detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images, ShellMenu
+on and off. A black encoder drops the first detent of its first turn after boot and of any turn that reverses its
+direction (each decoder starts at its detent's resting state): count one extra detent for those turns. `sm10-patched-blink` covers the
 patched-param and patching-source blinks; its snapshots have 1 s windows because a source patched to a param flashes
 once every 800 ms, and a shorter window decides by phase alone whether it sees the flash.
 
@@ -38,3 +40,7 @@ the content card with ShellMenu on (`.superpowers/emu-card/content-shellmenu`: t
 card's `SETTINGS/CommunityFeatures.XML`), ShellMenu off on `content`, and `sm19` with `--audio-wav`. Windows over a
 blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
 100 ms after the press, before it times out.
+
+The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
+preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
+preset shows the conversion in every comparison that touches it instead of the UI.

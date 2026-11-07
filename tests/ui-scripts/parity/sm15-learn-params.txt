@@ -46,7 +46,7 @@
 11920 button SelectEnc up
 12000 button Shift up
 12700 snapshot settings
-13000 encoder Select +4
+13000 encoder Select +5
 13300 button SelectEnc down
 13320 button SelectEnc up
 13600 encoder Select +1

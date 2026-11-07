@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/recorder_take_scenario.h"
+#include "scenarios/follow_channel.h"
 #include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
@@ -308,6 +309,7 @@ void stepMidiOpen() {
 		return;
 	}
 	g_scriptPath = writeScript();
+	scenarios::followChannelOne();
 	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
 	if (g_events <= 0) {
 		fail("RT-TAKE", "the DIN script could not be written or armed");

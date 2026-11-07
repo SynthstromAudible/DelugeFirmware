@@ -1,5 +1,6 @@
 # A single Select detent moves the sound menu's list one row, on both images: five separate turns, a snapshot after
-# each. Run on the ShellMenu card (on) and the plain card (off).
+# each. The first, the encoder's first since boot, moves nothing. Run on the ShellMenu card (on) and the plain card
+# (off).
 100   snapshot boot
 300   button SelectEnc down
 340   button SelectEnc up

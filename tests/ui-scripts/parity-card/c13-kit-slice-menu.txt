@@ -12,7 +12,7 @@
 11150 pad 0 5 up
 11200 button Shift up
 13000 snapshot browser
-13500 encoder Select +1
+13500 encoder Select +2
 14500 button SelectEnc down
 14520 button SelectEnc up
 16500 snapshot in-clips
@@ -24,7 +24,7 @@
 20000 button SelectEnc down
 20020 button SelectEnc up
 23000 snapshot slicer
-23500 encoder Select -12
+23500 encoder Select -13
 25000 snapshot four-regions
 25500 button XEnc down
 25520 button XEnc up

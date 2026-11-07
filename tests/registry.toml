@@ -2919,7 +2919,20 @@ runner = "script"
 kind = "unit"
 status = "gate"
 gates = "emu_parity's script runner drives whatever session it is given (delugemu or the rig) through the same steps and timings, and device_parity builds delugemu's starting flash from the rig's settings sector, refusing a short or all-zero read"
-run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity"]
+run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity", "test_stamp_preset_versions"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
+name = "run-parity-runner"
+path = "tests/ui-scripts/parity"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script"
+run = ["python3", "-m", "unittest", "test_run_parity"]
 tier = "pr"
 group = "tooling"
 runtime = "~1s"

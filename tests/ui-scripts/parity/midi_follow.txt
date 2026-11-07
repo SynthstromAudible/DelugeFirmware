@@ -6,16 +6,16 @@ wait 1
 down SHIFT
 press SELECT_ENC
 up SHIFT
-turn SELECT 4
+turn SELECT 5
 press SELECT_ENC
 turn SELECT 1
 press SELECT_ENC
 turn SELECT 3
 press SELECT_ENC
-turn SELECT -3
+turn SELECT -4
 press SELECT_ENC
 press SELECT_ENC
-turn SELECT 1
+turn SELECT 2
 snapshot channel_a
 press BACK
 press BACK

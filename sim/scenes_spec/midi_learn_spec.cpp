@@ -89,6 +89,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -2033,6 +2034,25 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		currentSong = saved;
 	});
 });
+
+describe midi_follow_defaults("MIDI follow's defaults", $ {
+	it("start with no follow channel learned, as main's engine does", _ {
+		MidiEngine fresh;
+		for (const LearnedMIDI& channel : fresh.midiFollowChannelType) {
+			expect(channel.containsSomething()).to_be_false();
+		}
+	});
+
+	it("reset to no follow channel, so incoming MIDI follows only a channel the user sets", _ {
+		LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
+		const LearnedMIDI saved = a;
+		a.clear();
+		midiFollow.resetToDefaults();
+		const bool learned = a.containsSomething();
+		a = saved;
+		expect(learned).to_be_false();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body, midi_learn_reference, midi_learn_table)
+DELUGE_SPEC(midi_learn_spec, midi_learn_spec_body, midi_learn_reference, midi_learn_table, midi_follow_defaults)

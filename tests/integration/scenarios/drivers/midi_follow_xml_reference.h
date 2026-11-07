@@ -111,7 +111,7 @@ inline constexpr std::string_view kDefaults = R"xml(<?xml version="1.0" encoding
 	<settings>
 		<channels>
 			<a>
-				<channel>1</channel>
+				<channel>256</channel>
 			</a>
 			<b>
 				<channel>256</channel>
