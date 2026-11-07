@@ -144,6 +144,11 @@ SECTIONS {
 
     __sram_heap_base = ALIGN(__sdram_init_pack_start, 16);
 
+    /* The heap runs from the tail to __sram_heap_end, so every zero-init section must lie below the
+     * tail: one above it would be inside the heap. */
+    ASSERT(__bss_end__ <= __sram_heap_base && __frunk_slack_end <= __sram_heap_base && ttb_mmu1_end <= __sram_heap_base,
+           "sdram_sections.x: zero-init data lies above the boot-only tail, inside the SRAM heap")
+
     /* The setting tables are about 16 KB: far less here means the pattern above no longer
      * matches them and they sit in SRAM's .rodata. */
     ASSERT(__menu_tables_end - __menu_tables_start > 8192,
