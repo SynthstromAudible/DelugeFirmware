@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "gui/views/hold_pulse.h"
 #include "gui/views/timeline_view.h"
 
 class ClipInstance;
@@ -39,7 +40,8 @@ public:
 	ArrangerView();
 	bool opened() override;
 	void focusRegained() override;
-	bool isTrackPadHeld(Output const* output) const;
+	// Starts or stops the held-pad pulse; returns true while a press is being tracked.
+	bool updateHeldPulse();
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
@@ -150,6 +152,9 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
+	// The output a held audition pad would pulse.
+	Output* heldPulseCandidate() const;
+	HoldPulse heldPulse;
 	void goToSongView();
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,

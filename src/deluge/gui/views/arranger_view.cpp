@@ -77,6 +77,7 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "util/finally.h"
 #include "util/functions.h"
 #include "util/try.h"
 #include <algorithm>
@@ -893,6 +894,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 }
 
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
+	auto refreshPulse = util::finally([this] { updateHeldPulse(); });
 
 	int32_t note = (currentSong->key.rootNote + 120) % 12;
 	note += 60;
@@ -996,6 +998,7 @@ void ArrangerView::auditionEnded() {
 
 	view.setActiveModControllableTimelineCounter(currentSong);
 	setHeldTrackEditScope(nullptr);
+	updateHeldPulse();
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -1821,6 +1824,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 	if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
 		view.endMIDILearn();
 	}
+
+	updateHeldPulse();
 }
 
 /// redraw OLED and 7SEG displays
@@ -2350,7 +2355,7 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 		}
 	}
 
-	if (deluge::gui::track_link::enabled() && isTrackPadHeld(output)) {
+	if (deluge::gui::track_link::enabled() && output == heldPulse.pulsingFor(heldPulseCandidate())) {
 		for (int32_t x = 0; x < renderWidth; ++x) {
 			if (imageThisRow[x] != colours::black) {
 				imageThisRow[x] = deluge::gui::track_edit_pulse::renderPulse(imageThisRow[x], *output, imageThisRow, x,
@@ -3477,7 +3482,24 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 	}
 }
 
-bool ArrangerView::isTrackPadHeld(Output const* output) const {
-	return currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
-	       && yPressedEffective < kDisplayHeight && outputsOnScreen[yPressedEffective] == output;
+Output* ArrangerView::heldPulseCandidate() const {
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
+	    && yPressedEffective < kDisplayHeight) {
+		return outputsOnScreen[yPressedEffective];
+	}
+	return nullptr;
+}
+
+bool ArrangerView::updateHeldPulse() {
+	if (heldPulse.update(heldPulseCandidate(), AudioEngine::audioSampleTimer, kShortPressTime)) {
+		deluge::gui::track_edit_pulse::resetHeldPulse();
+		bool settled = currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
+		if (getRootUI() == this && getCurrentUI() == this && settled) {
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+	}
+	if (heldPulse.waiting()) {
+		deluge::gui::track_edit_pulse::keepTicking();
+	}
+	return heldPulse.tracking();
 }
