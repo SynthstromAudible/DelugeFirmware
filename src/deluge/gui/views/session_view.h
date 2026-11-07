@@ -217,13 +217,10 @@ private:
 	ActionResult gridTrackPadAction(int32_t x, int32_t on);
 	void gridEndTrackPadGesture();
 	bool gridIsTrackPadHeld(Output const* output) const;
-	// The output a held track pad would pulse.
+	// The output a held track pad, or a held clip pad on a locked track, would pulse.
 	Output* heldPulseCandidate();
 	// The output whose clips pulse: the candidate, once its press has outlasted a short press.
 	Output* heldPulseOutput() { return heldPulse.pulsingFor(heldPulseCandidate()); }
-	// The locked output whose clip pad is held, if any; all of its clips pulse like a held track pad.
-	Output* heldLockedClipOutput();
-	void refreshLockedClipPulse(Output const* lockedBefore);
 	void gridRenderTrackRow(RGB* image, uint8_t* occupancy);
 	int32_t sessionClipRows() const;
 	int32_t sessionClipRowOffset() const { return gridTrackRowEnabled() ? 1 : 0; }
