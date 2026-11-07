@@ -1864,11 +1864,9 @@ void exactAddressTarget(Song* song) {
 	}
 }
 
-// The MPE value a played note sends, written through its Edit with the clock stopped: the lane takes it, and one undo
-// gives back what it was (the engine's own unautomated-change record).
 // The table of the render's working copies, on a synth clip's patched lanes: a copy found by its collection and
-// paramId, made once, committed into the model only once the render has written it, dropped with its collection,
-// released, and refused past the table's size.
+// paramId, made once, committed into the model only once the render has written it, dropped with its collection, held
+// for the take or while written, released, and refused past the table's size.
 void workingCopiesTarget(Song* song) {
 	InstrumentClip* clip = nullptr;
 	for (Clip* candidate : song->live.clips.session_clips) {
@@ -1923,6 +1921,28 @@ void workingCopiesTarget(Song* song) {
 	          && modulation::workingCopiesHeld() == heldBefore,
 	      "working-copies: a collection's copies drop with it");
 
+	// A copy held while written (an MPE lane's) is kept by a commit after the render wrote it and released by the next
+	// that finds it unwritten; one held for the take stays
+	deluge::project::DocAutoParam* mpe = modulation::makeWorkingCopy(*lane, 8, modulation::Hold::WRITES);
+	{
+		deluge::memory::RenderBlock block;
+		modulation::noteWorkingCopyWritten(*mpe);
+	}
+	modulation::commitWorkingCopies();
+	check(mpe != nullptr && modulation::workingCopy(collection, lane->paramId) == mpe,
+	      "working-copies: a copy held while written stays while the render writes it");
+	modulation::commitWorkingCopies();
+	check(modulation::workingCopy(collection, lane->paramId) == nullptr
+	          && modulation::workingCopiesHeld() == heldBefore,
+	      "working-copies: a copy held while written is released once the render stops writing it");
+	deluge::project::DocAutoParam* take = modulation::makeWorkingCopy(*lane, 8, modulation::Hold::WRITES);
+	(void)modulation::makeWorkingCopy(*lane, 8); // a knob overrides it too: held for the take
+	modulation::commitWorkingCopies();
+	modulation::commitWorkingCopies();
+	check(take != nullptr && modulation::workingCopy(collection, lane->paramId) == take,
+	      "working-copies: a copy held for the take stays unwritten");
+	modulation::dropWorkingCopies(collection);
+
 	// Past the table's size: one copy per patched lane until it refuses
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t overflowsBefore = modulation::workingCopyOverflows;
@@ -1947,6 +1967,8 @@ void workingCopiesTarget(Song* song) {
 	check(lane->doc()->current_value == baseBefore, "working-copies: the take's undo gives the lane back");
 }
 
+// The MPE value a played note sends, written through its Edit with the clock stopped: the lane takes it, and one undo
+// gives back what it was (the engine's own unautomated-change record).
 void recordExpressionTarget(Song* song) {
 	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
 		Clip* clip = song->live.clips.session_clips[c];

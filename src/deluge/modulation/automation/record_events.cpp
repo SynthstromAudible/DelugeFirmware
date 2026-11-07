@@ -25,7 +25,6 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/working_copies.h"
-#include "modulation/params/lane_publication.h"
 #include "playback/playback_handler.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
@@ -148,14 +147,15 @@ void applyRecordEvents(::Song& song) {
 	}
 }
 
-void commitRecording(::Song& song) {
-	const bool recording = playbackHandler.recording != RecordingMode::OFF;
-	static bool takeOpen = false;
-	// The latch may drift back on a lane a knob was turning when recording began, or when its take ended
-	if (recording && (!takeOpen || takeEndedSinceLastAsked())) {
-		copyOverriddenLanes(song);
+void applyRecordQueue() {
+	if (currentSong != nullptr) {
+		AudioExcludedSection section;
+		applyRecordEvents(*currentSong);
 	}
-	takeOpen = recording;
+	g_commands.clear(); // every queued Edit's change has been made
+}
+
+void commitRecording(::Song& song) {
 	if (g_recordEvents.empty() && workingCopiesHeld() == 0) {
 		return;
 	}
@@ -164,12 +164,25 @@ void commitRecording(::Song& song) {
 		applyRecordEvents(song);
 	}
 	g_commands.clear(); // every queued Edit's change has been made
-	if (recording) {
+	if (playbackHandler.recording != RecordingMode::OFF) {
 		commitWorkingCopies();
 	}
 	else {
 		releaseWorkingCopies(); // the take is over: its lanes play from the model's published snapshots
 	}
+}
+
+void commitBeforeJob(::Song& song) {
+	const bool recording = playbackHandler.recording != RecordingMode::OFF;
+	static bool takeOpen = false;
+	// The latch may drift back on a lane a knob was turning when recording began, or when its take ended. Only here:
+	// an edit that ends a take and commits along the way makes no copy before it is whole.
+	const bool takeEnded = takeEndedSinceLastAsked();
+	if (recording && (!takeOpen || takeEnded)) {
+		copyOverriddenLanes(song);
+	}
+	takeOpen = recording;
+	commitRecording(song);
 }
 
 void forgetRecordEvents(const ::Song& song) {

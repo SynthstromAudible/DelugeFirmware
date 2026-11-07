@@ -37,7 +37,8 @@ struct DocAutoParam;
 /// writes them. A copy is keyed by its collection's address and serial and the lane's paramId.
 namespace deluge::modulation {
 
-/// The lanes that can record at once.
+/// The working copies held at once: lanes a take records or latches, and MPE lanes the render wrote since the last
+/// commit.
 inline constexpr size_t kWorkingCopies = 32;
 
 #if ALPHA_OR_BETA_VERSION
@@ -50,13 +51,20 @@ extern uint32_t latchWritesWithoutCopy;
 /// @brief [render] The latch reached a lane with no working copy: it plays on and writes nothing.
 void noteLatchWithoutCopy();
 
+/// How long a working copy is held.
+enum class Hold : uint8_t {
+	TAKE,   ///< until the take ends: the latch may write it as it drifts back
+	WRITES, ///< until a commit finds the render has not written it since the last (an MPE lane, which never latches)
+};
+
 /// @brief [interaction] Make (or find) the working copy of @p lane: its model lane copied with room for @p room more
 ///        nodes, installed with the render held off. Making it first takes the lane's undo snapshot into the current
 ///        RECORD action, so whatever the render writes into the copy is undone with the take.
 /// @param lane The lane, on the interaction tier.
 /// @param room Nodes the copy has room to grow by without allocating.
+/// @param hold How long the copy is held; a copy found is held for the take if either asks for it.
 /// @return The copy, or nullptr when the table is full or out of memory (counted).
-project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size_t room);
+project::DocAutoParam* makeWorkingCopy(ModelStackWithAutoParam const& lane, size_t room, Hold hold = Hold::TAKE);
 
 /// @brief [render] or [interaction] The working copy of lane @p paramId of @p collection.
 /// @return It, or nullptr if the lane has none.
@@ -66,20 +74,24 @@ project::DocAutoParam* workingCopy(const ParamCollection& collection, int32_t pa
 void noteWorkingCopyWritten(const project::DocAutoParam& copy);
 
 /// @brief [interaction] With the render held off, copy every working copy the render changed into its model lane,
-///        and mark its collection for the next publish.
+///        and mark its collection for the next publish. Then release the copies whose take ended, and those held while
+///        written that the render did not write since the last commit.
 void commitWorkingCopies();
 
-/// @brief [interaction] Commit, then release every working copy: freed once the render cannot be reading them.
+/// @brief [interaction] Commit, then release every working copy: freed once the render cannot be reading them. The
+///        next commit while recording makes copies again for the lanes still overriding.
 void releaseWorkingCopies();
 
-/// @brief [interaction] An edit of every lane of @p collection (shifting, trimming, repeating, deleting time…): the
-/// take
-///        ends for its lanes, so the copies are committed and released before the edit, and the next commit makes
-///        copies again for those still overriding. On the render, which edits lanes this way only while arrangement
-///        recording, nothing.
+/// @brief [render] or [interaction] An edit of @p collection's lanes outside the record queue (shifting, trimming,
+///        repeating, deleting time, moving a note's MPE…): the take ends for its lanes.
+///
+/// On the interaction tier, what is queued is written and the copies committed and released before the edit; the next
+/// commit makes copies again for the lanes still overriding. On the render, which edits lanes this way when an
+/// arrangement recording's clip reaches its end, each copy the render wrote is copied into the model first, then the
+/// render neither plays nor writes it, and the next commit frees it.
 void endTake(ParamCollection& collection);
 
-/// @brief [interaction] Whether a take ended for some lanes since the last call (endTake()).
+/// @brief [interaction] Whether a take ended for some lanes since the last call (endTake(), releaseWorkingCopies()).
 bool takeEndedSinceLastAsked();
 
 /// @brief [render] or [interaction] @p collection is going: its working copies are dropped and freed, uncommitted.

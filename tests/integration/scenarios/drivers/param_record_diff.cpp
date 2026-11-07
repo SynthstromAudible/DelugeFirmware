@@ -191,7 +191,7 @@ void renderBlockStart() {
 		deluge::modulation::applyRecordEvents(*currentSong);
 	}
 	// As the app does before its next job: what the render recorded reaches the model this driver reads
-	deluge::modulation::commitRecording(*currentSong);
+	deluge::modulation::commitBeforeJob(*currentSong);
 	if (deluge::memory::audioTierAllocations() != allocations) {
 		std::fprintf(io.err, "the render allocated writing recorded values\n");
 		probeFailed = true;
@@ -274,7 +274,7 @@ void tickLatch(ModelStackWithAutoParam* msap, std::span<const int32_t> positions
 		deluge::memory::noteRenderBlock(true);
 		msap->autoParam->processCurrentPos(msap, reversed, false, true, false);
 		deluge::memory::noteRenderBlock(false);
-		deluge::modulation::commitRecording(*currentSong);
+		deluge::modulation::commitBeforeJob(*currentSong);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);
@@ -567,7 +567,7 @@ void lengthWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lan
 // the latch to write as it drifts back, and undoing the take gives the lane back as it was. Checked on stderr.
 void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	playbackHandler.recording = RecordingMode::OFF;
-	deluge::modulation::commitRecording(*currentSong); // the take ends: its copies are released
+	deluge::modulation::commitBeforeJob(*currentSong); // the take ends: its copies are released
 	const int32_t len = clip->loopLength();
 	{
 		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
@@ -581,7 +581,7 @@ void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* 
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 	playbackHandler.recording = RecordingMode::NORMAL;
-	deluge::modulation::commitRecording(*currentSong);
+	deluge::modulation::commitBeforeJob(*currentSong);
 	const bool copied = deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) != nullptr;
 	// The latch reaches the node while the knob still overrides, and records over it
 	clip->lastProcessedPos = len / 2;
@@ -589,7 +589,7 @@ void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* 
 	deluge::memory::noteRenderBlock(true);
 	lane->autoParam->processCurrentPos(lane, false, false, true, false);
 	deluge::memory::noteRenderBlock(false);
-	deluge::modulation::commitRecording(*currentSong);
+	deluge::modulation::commitBeforeJob(*currentSong);
 	const bool latched = !(takeOf(lane) == beforeTake);
 	actionLogger.closeAction(ActionType::RECORD);
 	actionLogger.revert(BEFORE, false, false);
@@ -602,6 +602,108 @@ void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* 
 	             !overriding ? "NOT OVERRIDING" : (copied ? "copied" : "NOT COPIED"),
 	             latched ? "wrote" : "DID NOT WRITE", undone ? "restored" : "NOT RESTORED");
 	probeFailed |= !overriding || !copied || !latched || !undone;
+}
+
+// A region written into a lane while it records by the engine's own setter, outside any Edit, a value still queued: the
+// lane keeps the queued value, the region and a value recorded after. Checked on stderr.
+void regionOutsideEditCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, lane, true, len / 8, true, false);
+	lane->autoParam->setValueForRegion(len / 2, len / 8, -400000000, lane);
+	renderBlockStart();
+	recordAt(lane, 600000000, len * 7 / 8);
+	const bool kept = valueAt(lane, len / 8, len) == 300000000 && valueAt(lane, len / 2 + len / 16, len) == -400000000
+	                  && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "region-outside-edit: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
+// A knob turned on an unarmed clip's lane with nodes while recording: the knob's value is the lane's base, and the
+// latch writing the lane's working copy as it reaches a node keeps it. Checked on stderr.
+void baseWhileOverridingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*lane->doc(), len / 2, 300000000, true);
+	}
+	clip->armedForRecording = false;
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+	renderBlockStart();
+	clip->lastProcessedPos = len / 2;
+	AudioEngine::audioSampleTimer += 2000;
+	deluge::memory::noteRenderBlock(true);
+	lane->autoParam->processCurrentPos(lane, false, false, true, false);
+	deluge::memory::noteRenderBlock(false);
+	deluge::modulation::commitBeforeJob(*currentSong);
+	clip->armedForRecording = true;
+	const bool latched = valueAt(lane, len / 2, len) == 500000000;
+	const bool kept = lane->doc()->current_value == 500000000;
+	std::fprintf(io.err, "base-while-overriding: latch %s, base %s\n", latched ? "wrote" : "DID NOT WRITE",
+	             kept ? "kept" : "LOST");
+	probeFailed |= !latched || !kept;
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+}
+
+#if ALPHA_OR_BETA_VERSION
+/// Model lanes the render read and wrote where a case makes it do so: an arrangement recording's clip reaching its end.
+uint32_t renderModelReadsExpected = 0;
+uint32_t renderModelWritesExpected = 0;
+#endif
+
+// A value recorded into a lane, then the render shifting the clip's lanes itself in the same block, as an arrangement
+// recording's clip does at its end: the value is in the model, shifted, and a value recorded after is there. Checked on
+// stderr.
+void renderTakeEndCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(300000000, lane, true, len / 8, true, false);
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t readsBefore = deluge::modulation::renderModelReads;
+	const uint32_t writesBefore = deluge::modulation::renderModelWrites;
+#endif
+	{
+		deluge::memory::RenderBlock block;
+		deluge::modulation::applyRecordEvents(*currentSong);
+		lane->paramCollection->shiftHorizontally(lane, len / 4, len);
+	}
+	bool committedOnRender = true;
+#if ALPHA_OR_BETA_VERSION
+	renderModelReadsExpected += deluge::modulation::renderModelReads - readsBefore;
+	renderModelWritesExpected += deluge::modulation::renderModelWrites - writesBefore;
+	committedOnRender = deluge::modulation::renderModelWrites - writesBefore == 1;
+#endif
+	deluge::modulation::commitBeforeJob(*currentSong);
+	recordAt(lane, 600000000, len * 7 / 8);
+	const bool kept = committedOnRender && valueAt(lane, len / 8 + len / 4, len) == 300000000
+	                  && valueAt(lane, len * 7 / 8, len) == 600000000;
+	std::fprintf(io.err, "render-take-end: %s\n", kept ? "kept" : "LOST");
+	probeFailed |= !kept;
+}
+
+// A take undone while its lane's knob still overrides, the lane's own node left: before the next job the lane has a
+// working copy again, for the latch to write as it drifts back. Checked on stderr.
+void undoWhileOverridingCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const int32_t len = clip->loopLength();
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*lane->doc(), len / 2, 300000000, true);
+	}
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	recordAt(lane, 300000000, len / 8);
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+	const bool overriding = lane->autoParam->renewedOverridingAtTime != 0
+	                        && deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) == nullptr;
+	deluge::modulation::commitBeforeJob(*currentSong);
+	const bool copied = deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) != nullptr;
+	std::fprintf(io.err, "undo-while-overriding: %s\n",
+	             !overriding ? "NOT OVERRIDING" : (copied ? "copied again" : "NOT COPIED AGAIN"));
+	probeFailed |= !overriding || !copied;
+	lane->autoParam->cancelOverriding();
 }
 
 // Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
@@ -710,6 +812,10 @@ void clipCases(Song* song) {
 		pasteWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_B_PHASE_WIDTH));
 		shiftWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_LPF_MORPH));
 		halveWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_MORPH));
+		regionOutsideEditCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_NOISE_VOLUME));
+		baseWhileOverridingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_FOLD));
+		renderTakeEndCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PAN));
+		undoWhileOverridingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_A_PITCH_ADJUST));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }
@@ -813,6 +919,8 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	// round-trip. Re-fetch the param from the fresh Song and dump it.
 	dumpAfterSaveReload(song);
 	currentSong = song; // the reload made the copy current; the cases below record into, and undo against, this one
+	// The undo and redo ended the lane's take: as before the app's next job, the lane still overriding is copied again
+	deluge::modulation::commitBeforeJob(*currentSong);
 
 	// The song param, still latched from the script, drifts back across its nodes as the arrangement plays on.
 	std::fprintf(io.out, "case arranger-latch\n");
@@ -829,7 +937,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 		deluge::memory::noteRenderBlock(true);
 		ap.processCurrentPos(msap, false, false, true, false);
 		deluge::memory::noteRenderBlock(false);
-		deluge::modulation::commitRecording(*currentSong);
+		deluge::modulation::commitBeforeJob(*currentSong);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);
@@ -838,12 +946,13 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	clipCases(song);
 #if ALPHA_OR_BETA_VERSION
 	// Recording included: the render writes only its own copies of the lanes it records, and logs no undo.
+	// But for the lanes an arrangement recording's clip edits at its end (renderTakeEndCase).
 	const struct {
 		uint32_t count;
 		const char* what;
 	} renderTouches[] = {
-	    {deluge::modulation::renderModelReads, "read a model lane"},
-	    {deluge::modulation::renderModelWrites, "wrote a model lane"},
+	    {deluge::modulation::renderModelReads - renderModelReadsExpected, "read a model lane"},
+	    {deluge::modulation::renderModelWrites - renderModelWritesExpected, "wrote a model lane"},
 	    {deluge::modulation::renderUndoCalls, "logged undo"},
 	    {deluge::modulation::latchWritesWithoutCopy, "latched a lane that had no working copy"},
 	};

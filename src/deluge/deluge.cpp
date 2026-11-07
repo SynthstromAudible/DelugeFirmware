@@ -752,7 +752,7 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 		deluge::playback::applyRenderRequests();
 		// What the render recorded since the last job, into the model the jobs read
 		if (currentSong != nullptr) {
-			deluge::modulation::commitRecording(*currentSong);
+			deluge::modulation::commitBeforeJob(*currentSong);
 		}
 		const uint64_t next = appLoop.service(now_us, reasons);
 		// The lanes the jobs changed, published for the render now the jobs are done with them

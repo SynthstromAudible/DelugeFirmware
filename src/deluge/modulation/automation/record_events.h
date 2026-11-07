@@ -18,20 +18,20 @@
 #pragma once
 
 /// @file
-/// @brief Values recorded while playing, handed from the interaction tier to the render, which writes them into the
-/// lane: while a clip records, the render is the only writer of its lanes' nodes.
+/// @brief Values recorded while playing, and Edits' changes to lanes being recorded, handed from the interaction tier
+/// to the render, which writes them into the lanes' working copies (working_copies.h).
 ///
 /// A knob, MIDI or MPE write while recording takes the undo snapshot on the interaction tier and posts an event with
 /// what it read there (the play position, the clip's length and direction, how much ahead to clear); the render
 /// applies the events at the start of its next block, before it ticks, so they land in the order they were made.
 /// Before the interaction tier itself reads or edits lanes (a write, an Edit, undo, an automation delete, a recorded
-/// note's MPE values) it writes what is still queued, with the render excluded, so it sees what it recorded.
+/// note's MPE values) and before every job it commits: what is still queued is written with the render excluded, and
+/// what the render wrote is copied into the model.
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
-#include "deluge-project/param_edit.h"
 #include "deluge-project/param_node.h"
-#include "model/snapshot/param_snapshot.h"
+#include "modulation/automation/lane_command.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -39,27 +39,6 @@ class ModelStackWithAutoParam;
 class Song;
 
 namespace deluge::modulation {
-
-/// @brief An Edit made to a lane being recorded, which the render makes to its working copy in order with the values
-/// recorded. Held by the interaction tier until the commit after the render has made it.
-struct LaneCommand {
-	enum class Kind : uint8_t {
-		BASE,   ///< `value` becomes the base
-		REGION, ///< `value` over [pos, pos + length), as project::setValueForRegion with `region`
-		CLEAR,  ///< every node deleted
-		PASTE,  ///< `pasted` over [pos, endPos), scaled by `scale`, as project::pasteRegion over `loopLength`
-	};
-	Kind kind{Kind::BASE};
-	int32_t value{0};
-	int32_t pos{0};
-	int32_t length{0};
-	int32_t endPos{0};
-	int32_t loopLength{0};
-	float scale{1.0F};
-	bool isPatchCable{false};
-	snapshot::RegionContext region{};
-	project::CopiedAutomation pasted;
-};
 
 /// @brief A value recorded into a lane while playing, with every input the live-record kernel reads that is not the
 /// lane's own nodes; or, with @ref command, an Edit's change to a lane being recorded.
@@ -107,10 +86,18 @@ void postLaneCommand(ModelStackWithAutoParam const& lane, LaneCommand command, s
 /// capacity per call. [task] only with the render excluded, which makes it the queue's one consumer while it runs.
 void applyRecordEvents(::Song& song);
 
+/// @brief [task] Write what is still queued into the working copies of the current song's lanes, with the render
+/// excluded: the Edits' changes held for the queue are then freed.
+void applyRecordQueue();
+
 /// @brief [task] Write what is still queued into the working copies, with the render excluded, then copy every working
 /// copy the render changed into the model (modulation/automation/working_copies.h); once recording has stopped, release
 /// them. Before every job, and before the interaction tier reads or edits lanes, so it sees every value it recorded.
 void commitRecording(::Song& song);
+
+/// @brief [task] Before every job: once recording has begun or a take has ended, make working copies for the lanes a
+/// knob is overriding (copyOverriddenLanes()), then commit (commitRecording()).
+void commitBeforeJob(::Song& song);
 
 /// @brief [task] @p song is going: write the queue into the current song if that is another, else drop it, so no event
 /// outlives the song its lane is addressed in.

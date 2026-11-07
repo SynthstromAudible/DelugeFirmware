@@ -245,8 +245,9 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 		                                                          automatedNow);
 		return;
 	}
-	deluge::modulation::noteRenderLaneWrite();
 	setBase(*modelStack->doc(), value);
+	deluge::modulation::postLaneCommand(*modelStack,
+	                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -374,8 +375,9 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
 			// The render records into a copy of the lane it owns; the model hears at the next commit. Without a copy
 			// the value is set, not recorded.
-			deluge::project::DocAutoParam* copy =
-			    deluge::modulation::makeWorkingCopy(*modelStack, deluge::modulation::kNodesPerRecordedWrite);
+			deluge::project::DocAutoParam* copy = deluge::modulation::makeWorkingCopy(
+			    *modelStack, deluge::modulation::kNodesPerRecordedWrite,
+			    doMPEMode ? deluge::modulation::Hold::WRITES : deluge::modulation::Hold::TAKE);
 			if (copy != nullptr) {
 				AudioExcludedSection section;
 				deluge::modulation::reserveForRecordedWrite(copy->nodes);
@@ -429,6 +431,8 @@ getOut:
 	// fallback otherwise), and what it plays now; a recorded value is played already.
 	if (!recorded) {
 		setBase(*modelStack->doc(), value);
+		deluge::modulation::postLaneCommand(*modelStack,
+		                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	}
 	bool automatedNow = recorded || isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
@@ -640,6 +644,9 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	else {
 		nodesRef.clear();
 	}
+	if (!deluge::memory::onRenderTier()) {
+		deluge::modulation::postLaneCommand(*modelStack, {.kind = deluge::modulation::LaneCommand::Kind::CLEAR}, 0);
+	}
 
 	stopInterpolating();
 	cancelOverriding();
@@ -836,8 +843,7 @@ recordOverNodeJustReached:
 				// Recording: the render writes the lane's working copy, which the interaction tier made (taking the
 				// take's undo snapshot) when the lane was recorded into or overridden. A lane without one is played,
 				// not written.
-				deluge::project::DocAutoParam* copy =
-				    deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId);
+				deluge::project::DocAutoParam* copy = recordingCopy;
 				if (copy == nullptr) {
 					deluge::modulation::noteLatchWithoutCopy();
 					goto getOut;
@@ -1335,6 +1341,7 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into
 // this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// The wiring (Action, whole-loop deleteAutomation, notify) stays here; only the partial region erase is
 	// forwarded to the DOM kernel (with a value sync, since it may zero current_value when nothing remains).
 	if (!isAutomated(*modelStack->doc())) {
@@ -1368,6 +1375,7 @@ int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos,
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
                                   ModelStackWithAutoParam const* modelStack, ActionType actionType) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
@@ -1855,6 +1863,7 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	bool automatedBefore = isAutomated(*modelStack->doc());
@@ -2113,6 +2122,7 @@ void AutoParam::insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int3
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// The Action-snapshot wiring stays here; the node mutation is forwarded to the DOM kernel. The empty-gate stays
 	// here so we don't snapshot an Action when there's nothing to move.
 	if (modelStack->doc()->nodes.empty()) {
@@ -2143,6 +2153,7 @@ void AutoParam::notifyPingpongOccurred() {
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
@@ -2223,6 +2234,7 @@ goAgain:
 
 void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
