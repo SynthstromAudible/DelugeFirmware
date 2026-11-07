@@ -30,7 +30,6 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAudio\(u
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::terminateOneVoice\(unsigned long\)$	audio×interaction	state: global '__frunk_bss_end' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::updateReverbParams\(\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
 open	src/deluge/processing/engines/audio_engine.cpp	^deluge_app_render$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
-open	src/deluge/model/sample/waveform_scan.cpp	^deluge::sample::advance_overview_scan\(Sample\*, int\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlayback\(int, int, bool, bool, int\)$	audio×interaction	state: global 'playbackHandler'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNewRecorder\(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, Output\*, RecorderConfig\)$	audio×interaction	state: global 'AudioEngine::firstRecorder'
 open	src/deluge/gui/ui/ui.cpp	^openUI\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
@@ -93,8 +92,6 @@ open	src/deluge/dsp-next/fixed/filter/low_pass_ladder.h	^deluge::dsp::Lanes<delu
 open	src/deluge/dsp-next/fixed/filter/high_pass_ladder.h	^deluge::dsp::Lanes<deluge::dsp::fixed::HighPassLadder, 2ul, deluge::dsp::StereoSample>::Lanes\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27, as the legacy one-pole's constructor; the sections are now OnePole::State member initialisers, zeroed in the inlined Lanes<K, 2>::Lanes() under Stereo<K>::Stereo(), from std::construct_at in FilterSet::reset, holdLowPass and holdHighPass; the compressor's detectors moved into RmsFeedbackCompressor's constructor, whose rows are above)
 open	src/deluge/model/song/song.h	^Song::Song\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
-open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (the render's re-entrancy latch, read by deluge::sample::advance_overview_scan on the interaction tier)
-open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen after the host render block became one excluded section, 2026-09-27)
 open	src/deluge/model/fx/track_channel.cpp	^deluge::model::TrackChannel::render\(ModelStackWithTimelineCounter\*, ParamManager&, std::span<(deluge::dsp::)?StereoSample, [0-9]+ul>, deluge::model::ChannelBlock const&, deluge::function_ref<bool \(deluge::model::ContentBlock const&\)>\)$	audio×interaction	state: global 'playbackHandler' (ticksLeftInCountIn; first seen after the rendering-drums list, 2026-09-27)
 open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::resetInterpolationIncrement\(\)$	audio×interaction	state: an automated param's play position, set by the interaction tier's setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
@@ -108,10 +105,9 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
 #   Render-routine globals (audioSampleTimer, renderingBufferOutputPos, renderInStereo,
-#     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::renderAppBlock, AudioEngine::routine, routine_task,
+#     bypassCulling): deluge_app_render, AudioEngine::renderAppBlock,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
-#     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
-#     deluge::sample::advance_overview_scan
+#     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
 #     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and

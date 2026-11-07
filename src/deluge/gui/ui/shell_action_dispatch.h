@@ -121,7 +121,7 @@ namespace deluge::gui::ui {
 ///          `gridModeActive` to `SessionGridModeLaunch`
 ///          (`gui/views/session_view.cpp:3070-3075`) regardless, and the exit restores those
 ///          (`:3079-3083`) while `View::endMIDILearn` leaves the latched mode alone, because it only
-///          clears `currentUIMode` when it *is* `UI_MODE_MIDI_LEARN` (`gui/views/view.cpp:512-514`).
+///          clears `currentUIMode` when it *is* `UI_MODE_MIDI_LEARN` (`gui/views/view.cpp`).
 ///          So it is a cosmetic-but-real defect -- a menu that cannot do its job -- and it is
 ///          legacy's, unchanged here.
 ///

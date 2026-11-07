@@ -313,7 +313,6 @@ int32_t* inputRingStart();
 int32_t* inputRingEnd();
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
-extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;
 /// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
 /// reverb. Its sync type is set only from the menu.

@@ -1106,7 +1106,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f3);
 		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::LedState::Kind::On)).to_be_true();
 
-		// `view.cpp:522-524`: blinking once the clip minder showing it IS that clip.
+		// `view.cpp`: blinking once the clip minder showing it IS that clip.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);

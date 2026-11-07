@@ -34,7 +34,7 @@
 # `sound_editor.cpp:1891`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
-# (`gui/views/view.cpp:478`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
+# (`gui/views/view.cpp`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
 # the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
 # tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --

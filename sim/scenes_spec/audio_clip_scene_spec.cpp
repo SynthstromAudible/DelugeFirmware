@@ -504,7 +504,7 @@ LegacyPads legacy_pads() {
 ///        shown, as a PBM.
 ///
 /// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp:2106-2116`), so that is what is read back.
+/// into `hid::display::OLED::main` (`gui/views/view.cpp`), so that is what is read back.
 std::string legacy_oled() {
 	deluge::hid::display::OLED::clearMainImage();
 	legacy_view.renderOLED(deluge::hid::display::OLED::main);

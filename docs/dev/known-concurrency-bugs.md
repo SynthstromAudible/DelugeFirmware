@@ -33,7 +33,7 @@ racing tiers; its trailing index groups the sites by shared state. Every open si
 - **`Sound::voices_`** — walked by the render while the interaction tier mutates it (`terminateOneVoice`, the
   `getNumVoices` lambda). The one group that has crashed a run (SEGV in 2 of 10 triage runs).
 - **Render-routine globals** — `audioSampleTimer`, `renderingBufferOutputPos`, `renderInStereo`,
-  `bypassCulling`, `audioRoutineLocked`, read or written from both tiers.
+  `bypassCulling`, read or written from both tiers.
 - **Reverb** — `AudioEngine::reverb` and its parameters, updated by the interaction tier while the render runs it.
 - **The current song and playback handler** — `currentSong`, `loadSongUI`, `playbackHandler`, `arrangement`, and
   the sequencer tick's play positions (`processCurrentPos` on clips, note rows, params), set by `setupPlayback`

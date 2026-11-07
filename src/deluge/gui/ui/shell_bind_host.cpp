@@ -672,7 +672,7 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:236-287`): `deleteMultiRange` unassigns the voices.
+	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns the voices.
 	sound->deleteMultiRange(source, index);
 	if (lower_top && index > 0) {
 		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;

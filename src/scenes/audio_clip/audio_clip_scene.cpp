@@ -664,7 +664,7 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 	if (shift) {
 		// `:732`'s `view.navigateThroughAudioOutputsForAudioClip` is **not ported**. Two of its
 		// three halves are outside this layer: it builds a `ModelStack` for `Clip::changeOutput`
-		// and `Output::pickAnActiveClipIfPossible` (`gui/views/view.cpp:2223-2229`), and it ends in
+		// and `Output::pickAnActiveClipIfPossible` (`gui/views/view.cpp`), and it ends in
 		// `setActiveModControllableTimelineCounter` (`:2215`), which is `services::ModKnobs`' --
 		// the same handle `renderSidebar`'s macro arm lacks. It is a `View` method shared with the
 		// session view, so it belongs with `services::ModKnobs`/E5 rather than being rebuilt here.
@@ -1257,7 +1257,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	(void)role;
 	// `AudioClipView::renderOLED` is one call:
 	// `view.displayOutputName(getCurrentOutput(), false, getCurrentClip())`
-	// (`gui/views/view.cpp:2010-2039`), which flattens the output into five values and hands them
+	// (`gui/views/view.cpp`), which flattens the output into five values and hands them
 	// to `View::drawOutputNameFromDetails` (`:2025-2170`). `doBlink` is **false** here, so that
 	// function's whole first half -- the `IndicatorLED` block at `:2027-2074` -- is skipped.
 	const deluge::project::DocClip* record = doc();
@@ -1265,7 +1265,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 		return;
 	}
 
-	// `displayOutputName`'s AUDIO arm (`view.cpp:2032-2034`): `channel` is the output's mode, and
+	// `displayOutputName`'s AUDIO arm (`view.cpp`): `channel` is the output's mode, and
 	// `editedByUser` stays at its initialiser because the `!= OutputType::AUDIO` branch is not
 	// taken. An `AudioClip`'s output is always an `AudioOutput` (`AudioClip::setOutput` is only
 	// ever handed one), so the type is `OutputType::AUDIO`.
@@ -1275,7 +1275,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	// **`name_empty` is deliberately false even when the name IS empty**, and this is a real
 	// difference between the widget and this call site. `ui::oled::output_name`'s `name_empty`
 	// branch draws a SLOT (`ui::oled::output_name`), which is legacy's substitution for an unnamed
-	// **MIDI or CV** output (`view.cpp:2163-2188`). `drawOutputNameFromDetails`' name block is one
+	// **MIDI or CV** output (`view.cpp`). `drawOutputNameFromDetails`' name block is one
 	// `if (!isNameEmpty) ... else if (outputType == MIDI_OUT) ... else if (outputType == CV)`
 	// chain (`:2101-2168`), and an `OutputType::AUDIO` output with no name matches **none** of the
 	// three -- so legacy draws the type text and nothing else. Passing the empty name with

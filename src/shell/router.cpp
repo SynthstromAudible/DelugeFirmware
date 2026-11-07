@@ -25,7 +25,7 @@ namespace {
 ///
 /// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that
 ///       would mean "never a `mod_knobs` event", leaving `View::modEncoderButtonAction`
-///       (`gui/views/view.cpp:1350-1368`) unreachable; the scene-first chain is what lets them be
+///       (`gui/views/view.cpp`) unreachable; the scene-first chain is what lets them be
 ///       `mod_knobs` events.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {

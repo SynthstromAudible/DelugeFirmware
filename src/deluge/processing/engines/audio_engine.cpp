@@ -442,7 +442,6 @@ int32_t numSamplesLastTime = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
-bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 
 // See audio_engine.h: the app-owned mirror of the received input, and the read

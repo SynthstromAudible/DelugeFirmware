@@ -135,7 +135,7 @@
 ///          `view.clipArmFlashOn` (`View::clipArmFlashOn` -- ported, but on
 ///          `services::GlobalControls::clip_arm_flash_on()`, which this scene holds no handle to),
 ///          `matrixDriver.isPadPressed` (`hid/matrix/`, no seam) and `view.flashPlayEnable()`
-///          (`view.cpp:3002-3007`, likewise on `GlobalControls`). Its gate,
+///          (`view.cpp`, likewise on `GlobalControls`). Its gate,
 ///          `UI_MODE_HOLDING_SONG_BUTTON`, is set by `AudioClipView::buttonAction`'s
 ///          `SESSION_VIEW` arm (`audio_clip_view.cpp:331-358`), so
 ///          nothing in this scene reaches it. `View::renderMacros` is shared with `SessionView`,

@@ -1,13 +1,14 @@
-Self-test fixture (audio_engine_direct_site_known): a REAL finding captured verbatim from
-logs/run_1.log (2026-08-06 fresh run) whose SUMMARY site is genuinely inside
-audio_engine.cpp (frame #0 of the write side IS AudioEngine::routine() at 1056:21, not
-merely an ancestor of some other leaf). Baseline sanity check: the reverted-to-SITE-only
-audio_engine\.cpp pattern must still classify this ordinary, legitimately-covered case as
-known -- proves the fix round did not overcorrect into rejecting genuine site matches.
+Self-test fixture (audio_engine_direct_site_known): a REAL finding from logs/run_1.log (2026-08-06 fresh run),
+with its write side's frame #0 and SUMMARY function renamed to deluge_app_render, a function races.txt still
+catalogues (the captured one, AudioEngine::routine(), raced on a flag that no longer exists). Its SUMMARY site is
+genuinely inside audio_engine.cpp (frame #0 of the write side, not merely an ancestor of some other leaf). Baseline
+sanity check: the reverted-to-SITE-only audio_engine\.cpp pattern must still classify this ordinary,
+legitimately-covered case as known -- proves the fix round did not overcorrect into rejecting genuine site matches.
 Expected verdict: known.
+
 WARNING: ThreadSanitizer: data race (pid=1606707)
   Write of size 1 at 0x55f2ddf19555 by thread T1:
-    #0 AudioEngine::routine() src/deluge/processing/engines/audio_engine.cpp:1056:21 (deluge-rust+0xa13966) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
+    #0 deluge_app_render src/deluge/processing/engines/audio_engine.cpp:1056:21 (deluge-rust+0xa13966) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #1 AudioEngine::routine_task() src/deluge/processing/engines/audio_engine.cpp:1043:2 (deluge-rust+0xa180ee) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #2 deluge_rust::scheduler::__task_runner_task::__task_runner_task_inner_function::{closure#0} src/bsp/rust/src/scheduler.rs:482:13 (deluge-rust+0x3ec15b) (BuildId: 172f07a127dddbc9b3a8c20aab7e851f8b2de140)
     #3 <embassy_executor::raw::TaskStorage<deluge_rust::scheduler::__task_runner_task::__task_runner_task_inner_function::{closure#0}>>::poll /home/user/.cargo/git/checkouts/embassy-d49c3db4b36330db/8df3f4e/embassy-executor/src/raw/mod.rs:252:22 (deluge-rust+0x3ec15b)
@@ -274,6 +275,6 @@ WARNING: ThreadSanitizer: data race (pid=1606707)
     #27 __libc_start_call_main /usr/src/debug/glibc/glibc/csu/../sysdeps/nptl/libc_start_call_main.h:59:16 (libc.so.6+0x27c8d) (BuildId: 89772b97de3bd8858cc69274d6db0d1277f4a9e9)
     #28 __libc_start_call_main /usr/src/debug/glibc/glibc/csu/../sysdeps/nptl/libc_start_call_main.h:59:16 (libc.so.6+0x27c8d) (BuildId: 89772b97de3bd8858cc69274d6db0d1277f4a9e9)
 
-SUMMARY: ThreadSanitizer: data race src/deluge/processing/engines/audio_engine.cpp:1056:21 in AudioEngine::routine()
+SUMMARY: ThreadSanitizer: data race src/deluge/processing/engines/audio_engine.cpp:1056:21 in deluge_app_render
 
 ==================

@@ -104,7 +104,7 @@ void setViewStates(GuestServices& services) {
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
-	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:522`: it is
+	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp`: it is
 	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
 	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:165-170`), which is the
 	// state during a song swap and the state a spec that opens no UI is in.

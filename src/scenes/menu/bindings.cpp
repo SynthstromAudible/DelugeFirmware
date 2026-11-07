@@ -264,7 +264,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 				//    `unpatched_param.cpp:77-81`), and the knob-indicator refresh
 				//    `setCurrentValueInResponseToUserInput` triggers through
 				//    `ParamManager::notifyParamModifiedInSomeWay` -> `view.notifyParamAutomationOccurred`
-				//    (`auto_param.cpp:1164`, `view.cpp:1709-1729`), whose deferred `displayAutomation()` calls
+				//    (`auto_param.cpp:1164`, `view.cpp`), whose deferred `displayAutomation()` calls
 				//    `setKnobIndicatorLevels()` (`View::displayAutomation`). `legacy_redraw_for` lists both
 				//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
 				//

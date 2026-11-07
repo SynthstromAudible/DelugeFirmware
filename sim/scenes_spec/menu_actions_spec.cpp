@@ -2339,7 +2339,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      below -- so nothing here observes a half-open stack either way.
 	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
 	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
-	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:816`). Neither clears the other.
+	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp`). Neither clears the other.
 	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
 	//      order observable, which is why it belongs in the argument rather than being left out of
 	//      it.** It recomputes from `getUIGreyoutColsAndRows`, which walks the
@@ -2357,7 +2357,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
-	//      blinks (`gui/views/view.cpp:496`).
+	//      blinks (`gui/views/view.cpp`).
 	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
 	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.
