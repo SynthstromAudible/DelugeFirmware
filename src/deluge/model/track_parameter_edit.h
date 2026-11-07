@@ -22,6 +22,7 @@
 #include <optional>
 
 enum class ActionType;
+class Action;
 
 namespace deluge::model {
 
@@ -50,6 +51,12 @@ struct ParameterEdit {
 	// For a region edit: rewrite each target's own value over the region instead of `value`, keeping the interpolation
 	// of its own nodes around this position (see AutoParam::preserveRegion()).
 	std::optional<uint32_t> preserveAround;
+	// Delete each target's automation for this parameter, recording it into `action` so one undo restores every clip.
+	bool deleteAutomation = false;
+	Action* action = nullptr;
+	// Whether the edited parameter was automated just after the edit. Taken before the edited clip is notified, which
+	// can delete a patch cable and leave a different cable in its slot.
+	bool sourceAutomated = false;
 };
 
 } // namespace deluge::model

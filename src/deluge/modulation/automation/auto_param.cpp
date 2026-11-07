@@ -124,7 +124,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-					deleteAutomation(action, modelStack);
+					deleteAutomationInResponseToUserInput(action, modelStack);
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
@@ -308,7 +308,8 @@ getOut:
 	Output::propagateParameterEdit(*modelStack, {.value = value,
 	                                             .shouldLogAction = shouldLogAction,
 	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
-	                                             .isMPE = doMPEMode});
+	                                             .isMPE = doMPEMode,
+	                                             .sourceAutomated = automatedNow});
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1186,11 +1187,18 @@ yesChangeCurrentValue:
 		}
 	}
 
+	bool automatedNow = isAutomated();
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          isAutomated());
+	                                                          automatedNow);
 	Output::propagateParameterEdit(*modelStack, {.value = value,
 	                                             .region = deluge::model::AutomationRegion{pos, length, actionType},
-	                                             .preserveAround = preserveAround});
+	                                             .preserveAround = preserveAround,
+	                                             .sourceAutomated = automatedNow});
+}
+
+void AutoParam::deleteAutomationInResponseToUserInput(Action* action, ModelStackWithAutoParam const* modelStack) {
+	deleteAutomation(action, modelStack);
+	Output::propagateParameterEdit(*modelStack, {.deleteAutomation = true, .action = action});
 }
 
 // previously AutomationEditorLayoutModControllable::getAutomationNodeInterpolation

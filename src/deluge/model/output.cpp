@@ -689,8 +689,8 @@ ModelStackWithAutoParam* findTargetParameter(Song& song, Clip& clip, LinkedParam
 
 	// The target lacks this parameter. Only create it if the edit will write something: creating a patch cable takes
 	// one of the sound's limited cable slots.
-	if (edit.preserveAround) {
-		return nullptr; // A missing parameter has nothing to preserve.
+	if (edit.preserveAround || edit.deleteAutomation) {
+		return nullptr; // A missing parameter has nothing to preserve or delete.
 	}
 	if (parameter.kind == params::Kind::PATCH_CABLE && edit.value == 0) {
 		return nullptr; // A missing cable already has zero depth everywhere, live or in any region.
@@ -701,7 +701,13 @@ ModelStackWithAutoParam* findTargetParameter(Song& song, Clip& clip, LinkedParam
 	return manager->getMainAutoParamFromId(target, parameter.kind, parameter.id, true);
 }
 
-void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit) {
+void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit, bool linkAutomation) {
+	if (edit.deleteAutomation) {
+		if (target.autoParam->isAutomated()) {
+			target.autoParam->deleteAutomation(edit.action, &target);
+		}
+		return;
+	}
 	if (edit.region) {
 		uint32_t length = edit.region->lengthWithin(target.getLoopLength());
 		if (length != 0) {
@@ -717,20 +723,36 @@ void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit) {
 		return;
 	}
 
+	if (!linkAutomation) {
+		// Automation stays in the clip it was made in, so this must not record into the target, e.g. a playing clip
+		// armed for recording. Targets here are never automated (writeToClip() skips those), so only the value changes;
+		// it is still recorded for undo, as the setter would.
+		if (target.autoParam->getCurrentValue() != edit.value) {
+			actionLogger.recordUnautomatedParamChange(&target);
+			target.autoParam->setCurrentValueWithNoReversionOrRecording(&target, edit.value);
+		}
+		return;
+	}
+
 	// Always use the setter, even for an unchanged value: it records into a playing clip armed for recording and
 	// overrides existing automation, exactly as an edit made in that clip would.
 	target.autoParam->setCurrentValueInResponseToUserInput(edit.value, &target, edit.shouldLogAction, -1,
 	                                                       edit.mayDeleteNodesInLinearRun, false);
 }
 
-void writeToClip(Song& song, Clip& clip, LinkedParameter const& parameter, ParameterEdit const& edit) {
+void writeToClip(Song& song, Clip& clip, LinkedParameter const& parameter, ParameterEdit const& edit,
+                 bool linkAutomation) {
 	// The model stack and pointers built into it live until applyEdit returns.
 	alignas(ModelStackWithAutoParam) char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* target = findTargetParameter(song, clip, parameter, edit, model_stack_memory);
 	if ((target == nullptr) || (target->autoParam == nullptr)) {
 		return;
 	}
-	applyEdit(*target, edit);
+	// Without Link Automation, a clip whose parameter is automated has diverged from the track for it.
+	if (!linkAutomation && target->autoParam->isAutomated()) {
+		return;
+	}
+	applyEdit(*target, edit, linkAutomation);
 
 	// The active clip's cable set removes a cable left at zero itself (PatchCableSet::notifyParamModifiedInSomeWay()).
 	// Do the same for this track's other clips, so linked edits don't fill their limited cable slots.
@@ -779,6 +801,12 @@ bool Output::applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const
 	if ((row != nullptr) && (row->drum == nullptr)) {
 		return false; // Melodic note rows have no corresponding drum in other clips.
 	}
+	// Without Link Automation, automation stays in the clip it was made in: automation edits (regions) and deletions
+	// don't propagate, and neither do edits to a parameter the edited clip automates (e.g. while recording it live).
+	bool link_automation = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditLinkAutomation);
+	if (!link_automation && (edit.region || edit.deleteAutomation || edit.sourceAutomated)) {
+		return false;
+	}
 	LinkedParameter parameter{.kind = source.paramCollection->getParamKind(),
 	                          .id = source.paramId,
 	                          .drum = (row != nullptr) ? row->drum : nullptr,
@@ -788,7 +816,7 @@ bool Output::applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const
 	auto finish_propagation = util::finally([] { propagatingParameterEdit = false; });
 	for (Clip* target : AllClips::everywhere(source.song)) {
 		if (target != &origin && target->output == this) {
-			writeToClip(*source.song, *target, parameter, edit);
+			writeToClip(*source.song, *target, parameter, edit, link_automation);
 		}
 	}
 	return true;

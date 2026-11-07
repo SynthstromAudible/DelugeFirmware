@@ -1378,7 +1378,7 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->deleteAutomationInResponseToUserInput(action, modelStackWithParam);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}
 }
