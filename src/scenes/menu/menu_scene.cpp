@@ -641,6 +641,10 @@ Result MenuScene::after_render() {
 	return r;
 }
 
+void MenuScene::flip_in_place(const Node& node) {
+	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
+}
+
 Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
@@ -765,7 +769,15 @@ Result MenuScene::after_render_navigation() {
 		trace_drain(DrainBand::Navigation);
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
-				walk_.enter_child(core(), visit_.session, *child);
+				if (flips_in_place(*child)) {
+					// `shouldEnterSubmenu()` is false: `SoundEditor` calls the item's `selectButtonPress`, which flips
+					// it from the list and answers NO_NAVIGATION; no permission check runs on this arm.
+					flip_in_place(*child);
+					repaint = true;
+				}
+				else {
+					walk_.enter_child(core(), visit_.session, *child);
+				}
 			}
 		}
 		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
@@ -780,10 +792,10 @@ Result MenuScene::after_render_navigation() {
 			walk_.enter_child(core(), visit_.session, *chained);
 		}
 		else {
-			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
-			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the
-			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
-			// false, so this must not flip the value (`oled::toggle` in `ui/oled/values.h`).
+			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress` returns nullptr and
+			// `SoundEditor` reads that as "up". A Toggle is a leaf only when it is the current item (a shortcut opened
+			// it), where `Toggle::selectButtonPress` goes up without flipping; from a list its row flips instead
+			// (`flips_in_place`, above).
 			walk_.ascend(core(), visit_.session);
 		}
 	}
@@ -796,14 +808,10 @@ Result MenuScene::after_render_navigation() {
 		// column_press`'s doc).
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			if (column->kind == Kind::Toggle || column->selection_is_toggle) {
-				// `Toggle::selectButtonPress` (`toggle.h:38-42`) and `Selection::selectButtonPress`
-				// (`gui/menu_item/selection.h:54-63`, when `isToggle()`) have the identical shape: flip and
-				// return `NO_NAVIGATION`, so `SoundEditor::buttonAction`'s SELECT arm does nothing
-				// further (`sound_editor.cpp:394-419`) -- no chain, no ascend, the same "stays put"
-				// shape the already-focused button press's own flip has. `Node::
-				// selection_is_toggle`'s own doc names the three live examples -- this is not
-				// `Toggle`-only.
-				bindings::write(*column, ctx_, bindings::read(*column, ctx_) == 0 ? 1 : 0);
+				// `Toggle::selectButtonPress` and `Selection::selectButtonPress` when `isToggle()`: flip and answer
+				// NO_NAVIGATION, so nothing chains or goes up. `Node::selection_is_toggle`'s doc names the three
+				// columns that reach here.
+				flip_in_place(*column);
 				repaint = true;
 			}
 			else if (column->custom != nullptr && column->custom->opens_directly_on_horizontal_select()) {
@@ -827,7 +835,12 @@ Result MenuScene::after_render_navigation() {
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
 			}
+			else if (stays_on_page(*column)) {
+				// `Selection::selectButtonPress` from the page: `toggleValue()` changes nothing on a selection that is
+				// not a toggle, and the answer is NO_NAVIGATION, so the page stays.
+			}
 			else {
+				// `MenuItem::selectButtonPress`'s null: up a level.
 				walk_.ascend(core(), visit_.session);
 			}
 		}

@@ -86,10 +86,9 @@ inline constexpr Node voice_count = with_column_name(
         off_at_zero_text),
     sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 
-/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h`): a select press opens
-///        the voice count when the mode is POLY, and otherwise falls through to
-///        `Selection::selectButtonPress()`, which for an already-open menu is the base class's
-///        "ascend" (`selection.h:54-64`).
+/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h`): a select press opens the voice count when the
+///        mode is POLY, and otherwise falls back to `Selection::selectButtonPress()`: from the VOICE page that stays
+///        on the page (`Node::chain_falls_back_to_selection`), and on the item's own screen it goes up.
 inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
 inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                           .path = "polyphonic"};
@@ -97,10 +96,11 @@ inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
 	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
 }
 
-inline constexpr Node polyphony = with_column_name(
-    with_select_chain(setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
-                      polyphony_chain, kPolyphonyChain),
-    sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT));
+inline constexpr Node polyphony =
+    with_column_name(with_chain_falls_back_to_selection(with_select_chain(
+                         setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
+                         polyphony_chain, kPolyphonyChain)),
+                     sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT));
 inline constexpr Node portamento =
     with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
                                             {deluge::modulation::params::Kind::UNPATCHED_SOUND,

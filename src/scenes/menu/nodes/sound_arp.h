@@ -112,9 +112,9 @@ using ShownOn = Target::ShownOn;
 
 // --- the mode toggle -------------------------------------------------------------------------
 
-inline constexpr Node arp_mode = with_selection_is_toggle(
+inline constexpr Node arp_mode = with_flips_in_list(with_selection_is_toggle(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ENABLED), Kind::Enum, arp_row("arpeggiator/arpMode")),
-               sid(deluge::l10n::String::STRING_FOR_ARP_MODE_MENU_TITLE)));
+               sid(deluge::l10n::String::STRING_FOR_ARP_MODE_MENU_TITLE))));
 
 // --- the four chain-only pages ---------------------------------------------------------------
 //
@@ -300,9 +300,9 @@ inline constexpr Node arp_mpe = submenu(sid(deluge::l10n::String::STRING_FOR_MPE
 
 /// A kit row whose sound cannot hold note tails shows it off, and a kit-wide write skips such a row
 /// (`include_in_kit_arp.h:31-60`).
-inline constexpr Node arp_include_in_kit_arp = with_short_column_label(
+inline constexpr Node arp_include_in_kit_arp = with_short_column_label(with_flips_in_list(
     with_selection_is_toggle(setting_item(sid(deluge::l10n::String::STRING_FOR_INCLUDE_IN_KIT_ARP), Kind::Enum,
-                                          arp_row("arpeggiator/kitArp", true, Target::FanOutFact::NOTE_TAILS))));
+                                          arp_row("arpeggiator/kitArp", true, Target::FanOutFact::NOTE_TAILS)))));
 
 inline constexpr const Node* kArpChildren[] = {&arp_mode, &arp_basic, &arp_pattern, &arp_mpe, &arp_include_in_kit_arp};
 inline constexpr Node arp = submenu(sid(deluge::l10n::String::STRING_FOR_ARPEGGIATOR), kArpChildren);

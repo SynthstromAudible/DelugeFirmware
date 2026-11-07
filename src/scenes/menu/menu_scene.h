@@ -549,6 +549,9 @@ private:
 	///        page's session afresh.
 	void retarget(const Node& node);
 
+	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
+	void flip_in_place(const Node& node);
+
 	MenuState st_{};
 #ifdef DELUGE_HOST
 	/// What the last `after_render` drained, in order (`drain_trace`).

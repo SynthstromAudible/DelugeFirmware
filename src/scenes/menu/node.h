@@ -936,6 +936,25 @@ struct Node {
 	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
 	bool selection_is_toggle = false;
 
+	/// @brief Does a press on this item's row in a list flip it in place and stay on the list? The port of
+	///        `shouldEnterSubmenu() == false` on a toggle `Selection`: `arpeggiator::Mode`,
+	///        `arpeggiator::IncludeInKitArp` and `randomizer::RandomizerLock`.
+	///
+	/// `SoundEditor::buttonAction`'s SELECT arm never enters such an item: it calls its `selectButtonPress`, which
+	/// flips it (`Selection::toggleValue`) and answers `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this
+	/// flag
+	/// (`Toggle::shouldEnterSubmenu`); `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default,
+	/// so their rows open their page. Set beside `selection_is_toggle`, never instead of it.
+	bool flips_in_list = false;
+
+	/// @brief Does a select press on this horizontal column stay on the page when its `select_chain` answers null?
+	///
+	/// `Selection::selectButtonPress` from a page answers `NO_NAVIGATION` whatever the selection is, so a choice
+	/// column with no chain stays (`stays_on_page`). A chained one follows its own override: `osc::Type` and
+	/// `arpeggiator::PresetMode` return null when they have nowhere to go (the page goes up), while
+	/// `voice::PolyphonyType` falls back to `Selection::selectButtonPress()` (the page stays), which this flag says.
+	bool chain_falls_back_to_selection = false;
+
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
 	///        legacy's four-slot `Selection`s whose `renderInHorizontalMenu` is `drawPixelsForOled`.
 	bool option_list_column = false;
@@ -1018,6 +1037,30 @@ constexpr Node with_allow_session_from_horizontal(Node n) {
 constexpr Node with_selection_is_toggle(Node n) {
 	n.selection_is_toggle = true;
 	return n;
+}
+
+/// @brief `n` with `flips_in_list` set (`Node::flips_in_list`).
+constexpr Node with_flips_in_list(Node n) {
+	n.flips_in_list = true;
+	return n;
+}
+
+/// @brief `n` with `chain_falls_back_to_selection` set (`Node::chain_falls_back_to_selection`).
+constexpr Node with_chain_falls_back_to_selection(Node n) {
+	n.chain_falls_back_to_selection = true;
+	return n;
+}
+
+/// @brief Whether a press on @p n's row in a list flips it in place rather than entering it: a `Toggle`, or a toggle
+///        `Selection` that never enters (`Node::flips_in_list`).
+constexpr bool flips_in_place(const Node& n) {
+	return n.kind == Kind::Toggle || n.flips_in_list;
+}
+
+/// @brief Whether a select press on @p n's horizontal column, its chain (if any) answering null, stays on the page:
+///        every `Kind::Enum` is a `Selection`, whose `selectButtonPress` from a page answers `NO_NAVIGATION`.
+constexpr bool stays_on_page(const Node& n) {
+	return n.kind == Kind::Enum && (n.select_chain == nullptr || n.chain_falls_back_to_selection);
 }
 
 /// @brief `n` with `option_list_column` set.
