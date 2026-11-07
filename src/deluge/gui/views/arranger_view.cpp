@@ -963,8 +963,7 @@ doNewPress:
 
 			view.displayOutputName(output);
 
-			auditionGesture.press(AudioEngine::audioSampleTimer,
-			                      deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed());
+			auditionGesture.press(deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed());
 			if (auditionGesture.silent()) {
 				deluge::gui::track_link::toggleLock(output);
 			}

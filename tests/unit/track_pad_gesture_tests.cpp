@@ -3,28 +3,21 @@
 
 TEST_GROUP(TrackPadGestureTest){};
 
-TEST(TrackPadGestureTest, TapDoesNotAudition) {
+TEST(TrackPadGestureTest, PlainPressIsNotSilent) {
 	TrackPadGesture gesture;
-	gesture.press(100, false);
-	CHECK_FALSE(gesture.shouldAudition(199, 100));
+	gesture.press(false);
+	CHECK_FALSE(gesture.silent());
 }
 
-TEST(TrackPadGestureTest, HoldAuditionsAtThreshold) {
+TEST(TrackPadGestureTest, ShiftPressStaysSilent) {
 	TrackPadGesture gesture;
-	gesture.press(100, false);
-	CHECK(gesture.shouldAudition(200, 100));
+	gesture.press(true);
+	CHECK(gesture.silent());
 }
 
-TEST(TrackPadGestureTest, ShiftLockNeverAuditions) {
+TEST(TrackPadGestureTest, NextPressReplacesShiftState) {
 	TrackPadGesture gesture;
-	gesture.press(100, true);
-	CHECK_FALSE(gesture.shouldAudition(101, 100));
-	CHECK_FALSE(gesture.shouldAudition(10000, 100));
-}
-
-TEST(TrackPadGestureTest, AudioTimerWrapDoesNotTurnTapIntoHold) {
-	TrackPadGesture gesture;
-	gesture.press(UINT32_MAX - 49, false);
-	CHECK_FALSE(gesture.shouldAudition(0, 100));
-	CHECK(gesture.shouldAudition(50, 100));
+	gesture.press(true);
+	gesture.press(false);
+	CHECK_FALSE(gesture.silent());
 }
