@@ -78,6 +78,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	TrackEditGridRow,
 	TrackEditPulseClip,
 	TrackEditAudition,
+	TrackEditLinkAutomation,
 	MaxElement // Keep as boundary
 };
 

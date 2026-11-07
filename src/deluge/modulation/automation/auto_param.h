@@ -58,6 +58,9 @@ public:
 	// Rewrite a region with this param's own value there, keeping the interpolation of its nodes around anchorPos, so
 	// that a following edit at anchorPos doesn't change it. Linked clips do the same with their own values.
 	void preserveRegion(int32_t pos, int32_t length, int32_t anchorPos, ModelStackWithAutoParam* modelStack);
+	// Delete this automation at the user's request. On a linked track with Link Automation on, the track's other clips
+	// lose it too, recorded into the same action.
+	void deleteAutomationInResponseToUserInput(Action* action, ModelStackWithAutoParam const* modelStack);
 	// Whether the node after (or, reversed, before) pos is interpolated.
 	bool isInterpolatedAround(int32_t pos, bool reversed);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,

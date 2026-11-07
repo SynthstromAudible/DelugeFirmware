@@ -42,7 +42,7 @@ MenuItem* Automation::selectButtonPress() {
 		if (modelStack && modelStack->autoParam) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
-			modelStack->autoParam->deleteAutomation(action, modelStack);
+			modelStack->autoParam->deleteAutomationInResponseToUserInput(action, modelStack);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
