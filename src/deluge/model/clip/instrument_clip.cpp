@@ -48,6 +48,7 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -4498,7 +4499,7 @@ extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
                                   int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
-	deluge::modulation::drainRecordEvents(*modelStack->song); // the note's MPE values land after what was recorded
+	deluge::modulation::commitRecording(*modelStack->song); // the note's MPE values land after what was recorded
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
@@ -4683,6 +4684,8 @@ doNormal: // Wrap it back to the start.
 
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
+	// The note's values are written into the model's lanes, not the render's working copies: their take ends first
+	deluge::modulation::endTake(*mpeParams);
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		AutoParam* param = &mpeParams->params[m];

@@ -31,37 +31,28 @@ namespace deluge::modulation {
 struct LaneSnapshot;
 
 #if ALPHA_OR_BETA_VERSION
-/// Lanes the render resolved through the model outside record mode: must stay 0.
+/// Lanes the render resolved through the model: must stay 0.
 extern uint32_t renderModelReads;
 /// Collections whose published snapshot differed from the model after a publish (its lanes, a base or nodes): must
 /// stay 0.
 extern uint32_t staleLanes;
 /// Snapshots that could not be built (out of memory): the previous one stayed published.
 extern uint32_t publishFailures;
-/// Writes the render made to a lane outside record mode: must stay 0.
-extern uint32_t renderPublishedWrites;
+/// Writes the render made to a model lane: must stay 0.
+extern uint32_t renderModelWrites;
 /// The render's lane requests that found the queue full and were dropped: must stay 0.
 extern uint32_t laneRequestOverflows;
 #endif
 
-/// @brief [render] or [interaction] Whether the render reads lanes from the model as they are written: in record mode,
-///        when the latch and recorded values may write any lane.
-bool lanesLive();
-
-/// @brief [render] or [interaction] Count a lane the render resolved through the model, if it should have read a
-///        snapshot.
+/// @brief [render] or [interaction] Count a lane the render resolved through the model, if on the render.
 void noteRenderModelRead();
 
-/// @brief [render] or [interaction] Whether a lane read now plays published lanes: on the render, outside record mode.
-///        The interaction tier reads the model, a playhead move's section included: the render is held off for it, and
-///        the model is what the operation's end publishes.
-bool playsPublished();
-
 /// @brief [render] or [interaction] The snapshot a lane read of @p collection plays now, or nullptr to read the model.
-///        The render plays the published lanes outside record mode (playsPublished()), once the collection has any; a
-///        collection not yet published is read in the model, and counted.
+///        The render plays the published lanes (a lane being recorded plays its working copy instead); the interaction
+///        tier reads the model, a playhead move's section included: the render is held off for it, and the model is
+///        what the operation's end publishes.
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
-/// @brief [render] or [interaction] Count a write to a lane made on the render outside record mode.
+/// @brief [render] or [interaction] Count a write to a model lane, if made on the render.
 void noteRenderLaneWrite();
 
 /// @brief [interaction] Compare every published collection's snapshot with its model: the same lanes, each with the
@@ -86,8 +77,8 @@ void applyLaneRequests();
 ///        the render reached a lane in the model, which is counted (noteRenderModelRead()).
 void markLanesChanged(ParamCollection& collection);
 /// @brief [interaction] Republish every collection marked changed whose lanes differ from its snapshot. A publish
-///        point: nothing happens on the render, while a section holds the render off (the build allocates), inside
-///        an operation, or while recording (the render reads the model then).
+///        point: nothing happens on the render, while a section holds the render off (the build allocates), or inside
+///        an operation.
 /// @param settle Whether the job is done with its lanes (the app loop, after each job): the marks are cleared. At an
 ///        operation's end they stay, so a write through a lane still held is published at the next point.
 void publishDirtyLanes(bool settle = false);

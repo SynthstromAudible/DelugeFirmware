@@ -5,8 +5,8 @@
 namespace deluge::edits {
 
 Error apply(Context& ctx, Edit& edit) {
-	deluge::modulation::LaneOperation operation;     // its lanes published for the render once it is whole
-	deluge::modulation::drainRecordEvents(ctx.song); // an Edit sees, and lands after, every value recorded
+	deluge::modulation::LaneOperation operation;   // its lanes published for the render once it is whole
+	deluge::modulation::commitRecording(ctx.song); // an Edit sees, and lands after, every value recorded
 	Error error = edit.apply(ctx);
 	if (error == Error::NONE) {
 		// Snapshot boundary: emit the model-changed event. Per-Edit override (default no-op); apply() still pokes

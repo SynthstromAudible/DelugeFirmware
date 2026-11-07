@@ -1,11 +1,14 @@
 #include "model/edits/paste_param_automation.h"
 
+#include "deluge-project/param_edit.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/copied_param_automation.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 
 namespace deluge::edits {
@@ -23,6 +26,19 @@ Error PasteParamAutomation::apply(Context& ctx) {
 		action->recordParamChangeIfNotAlreadySnapshotted(stack, /*stealData=*/false);
 	}
 	stack->autoParam->paste(startPos_, endPos_, scaleFactor_, stack, copied_, isPatchCable);
+	if (copied_->nodes != nullptr && copied_->numNodes != 0) {
+		deluge::modulation::postLaneCommand(
+		    *stack,
+		    {.kind = deluge::modulation::LaneCommand::Kind::PASTE,
+		     .pos = startPos_,
+		     .endPos = endPos_,
+		     .loopLength = stack->getLoopLength(),
+		     .scale = scaleFactor_,
+		     .isPatchCable = isPatchCable,
+		     .pasted = {.width = copied_->width,
+		                .nodes = std::vector<ParamNode>(copied_->nodes, copied_->nodes + copied_->numNodes)}},
+		    static_cast<size_t>(copied_->numNodes) + 2);
+	}
 	settleCableDepth(stack);
 	return Error::NONE;
 }
