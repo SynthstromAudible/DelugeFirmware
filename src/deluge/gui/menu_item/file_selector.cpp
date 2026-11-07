@@ -34,6 +34,15 @@
 namespace deluge::gui::menu_item {
 
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
+	openBrowser(/*fromBeginScreen=*/true);
+}
+
+MenuItem* FileSelector::selectButtonPress() {
+	openBrowser(/*fromBeginScreen=*/false);
+	return NO_NAVIGATION;
+}
+
+void FileSelector::openBrowser(bool fromBeginScreen) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	soundEditor.setCurrentSource(sourceId_);
 
@@ -41,14 +50,14 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		keyboardScreen.exitAuditionMode();
 	}
 
-	if (!openUI(&sampleBrowser)) {
+	// From `beginScreen`, whose `updatePadLights` arms this item's BROWSE blink once `openUI` returns, the browser
+	// leaves that blink to run (`SampleBrowser::onBrowserOpened`).
+	sampleBrowser.openingFromSoundEditor = fromBeginScreen;
+	const bool opened = openUI(&sampleBrowser);
+	sampleBrowser.openingFromSoundEditor = false;
+	if (!opened) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
-}
-
-MenuItem* FileSelector::selectButtonPress() {
-	beginSession(nullptr);
-	return NO_NAVIGATION;
 }
 
 bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {

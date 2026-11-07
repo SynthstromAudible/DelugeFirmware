@@ -704,7 +704,7 @@ struct CustomItem {
 	///        horizontal page, open it directly -- no permission check, no range check, no
 	///        notification?
 	///
-	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp:49-52`):
+	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp:40-43`):
 	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
 	/// horizontal forward (`submenu.cpp:187-198`) with **no call to `checkPermissionToBeginSession`
 	/// at all** -- unlike every other way into this item (a button focus, an already-focused button

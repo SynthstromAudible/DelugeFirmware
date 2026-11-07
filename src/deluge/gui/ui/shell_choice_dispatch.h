@@ -183,6 +183,11 @@ void setFolderImportDispatch(FolderImportDispatch dispatch);
 ///        that reads them on the menu's behalf.
 void adoptShellMenuContext();
 
+/// @brief Tell the ported browser whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
+///        opens the browser with no `SoundEditor::beginScreen` after it, so only the browser's own BROWSE blink runs.
+/// @param fromCreator True for the drum creator's open; false to forget it.
+void setShellBrowserFromDrumCreator(bool fromCreator);
+
 /// @brief Take whatever the ported browser chose, if anything, and perform it.
 ///
 /// @par Call this after every `Shell::tick`, and do not gate it

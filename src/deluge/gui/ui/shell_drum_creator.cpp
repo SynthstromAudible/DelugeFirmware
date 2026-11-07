@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_drum_creator.h"
+#include "gui/ui/shell_choice_dispatch.h"
 
 #include "gui/ui/ui.h" // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
@@ -66,11 +67,15 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 		return false;
 	}
 	creatorDrum = drum;
+	// The browser is pushed from the menu's next render, after this returns; `enterDrumCreator` opens it with no
+	// `beginScreen`, so the file selector's own blink is never armed.
+	setShellBrowserFromDrumCreator(true);
 	return true;
 }
 
 void forgetShellDrumCreator() {
 	creatorDrum = nullptr;
+	setShellBrowserFromDrumCreator(false);
 }
 
 void discardShellDrumCreatorBeforeClose() {

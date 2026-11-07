@@ -445,13 +445,16 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   browser's own load and sound), answering through `preview_settled`; `next_timer` polls while the
   answer is owed. Each load's path becomes `SampleBrowser::lastFilePathLoaded`, which the browser
   opens beside when its holder names no file in SAMPLES/ (`menu::host_last_sample_path`).
-* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed, the BROWSE pad
-  blinking), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
+* **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
   legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
   legacy's image does not always follow them. The keyboard appears on the first main-pad press (typing only below
   the favourites row) or a horizontal turn, and hides on every move and every folder listing unless KEYBOARD keeps
   it. The audition column stays the instrument clip view's (`GridPadClaim::AllButAudition`), and the mute column
   closes the browser.
+  The BROWSE pad's blink is `BrowseBlink`, `SoundEditor`'s shortcut timer: the file selector's 200 ms blink from the
+  open (the drum creator's door has none), surviving the open's own preview; stopped by a later preview, a move off a
+  shown preview and a pad's or turn's keyboard reveal; re-armed at 400 ms when a preview clears. It flashes over
+  whatever the pads show.
 * **The scroll-in.** Where `SampleBrowser` calls `PadLEDs::horizontal::setupScroll`, the scene files a
   `ScrollRequest` in `take_scroll()`; the host runs legacy's own animation from the image store (the root view, or
   the guest grid's main columns once the waveform is drawn there), leaving the guest's main columns to it until

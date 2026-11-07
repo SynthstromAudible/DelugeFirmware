@@ -444,6 +444,10 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 	return SampleClaimTarget{.dir = path.substr(0, slash), .name = name};
 }
 
+void setShellBrowserFromDrumCreator(bool fromCreator) {
+	browser_scene().set_drum_creator_next(fromCreator);
+}
+
 void adoptShellMenuContext() {
 	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
 }

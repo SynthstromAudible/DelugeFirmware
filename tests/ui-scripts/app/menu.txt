@@ -206,7 +206,7 @@
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
-# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_browser.cpp:729`) which
+# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp:89`) which
 # no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
 6500   button Back down
 6520   button Back up

@@ -1433,8 +1433,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
 			expect(fl.x == 0 && fl.y == 5).to_be_true();
 		}
-		// every other 200 ms cycle: two or three flashes in a second, never one per cycle
-		expect(seen.size() >= 2 && seen.size() <= 3).to_be_true();
+		// `updatePadLightsFor`'s `setupShortcutBlink(x, 5, 0)`, armed by `beginScreen` after the browser opened: every
+		// 200 ms cycle, so four or five flashes in a second.
+		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
 	});
 
 	it("greys only the mute column over the keyboard screen", _ {
@@ -1506,6 +1508,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		spec::SongFixture f = spec::make_synth_song();
 		PreviewHeld held(make_overview_sample());
 		Rig r;
+		// The drum creator's door: no `beginScreen`, so the open's preview stops the browser's own blink.
+		browser_scene().set_drum_creator_next(true);
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 500);
@@ -1516,6 +1520,121 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_false();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+	});
+
+	it("keeps the sound editor's 200 ms BROWSE blink over the open's own preview", _ {
+		// `main` previews inside `openUI`, before `beginScreen` arms the file selector's blink: that preview stops nothing.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
+		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
+		for (const deluge::ui::grid::PadFlash& fl : seen) {
+			expect(fl.x == 0 && fl.y == 5).to_be_true();
+		}
+	});
+
+	it("stops the BROWSE blink on a move off a shown preview, and a preview with no sample brings back the 400 ms one", _ {
+		// `currentFileChanged`'s `unsetTimer` on a move while a preview shows; `clearPreviewDisplay`'s
+		// `possiblySetUpBlinking` when the next item previews nothing.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		r.turn(1, r.clock + 10);
+		r.settle();
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		expect(flashes_since(r, from).empty()).to_be_true();
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(false);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const size_t n = flashes_since(r, from).size();
+		expect(n >= 2 && n <= 3).to_be_true();
+	});
+
+	it("stops the BROWSE blink when a later preview lands", _ {
+		// `showPreview`'s `unsetTimer`: only the open's own first preview is spared.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, true); // a move onto a folder: no preview showed, so the blink runs on
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+		select_folder(r, false);
+		(void)browser_scene().take_preview();
+		browser_scene().preview_settled(true);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+	});
+
+	it("stops the BROWSE blink when a pad reveals the keyboard, and KEYBOARD leaves it running", _ {
+		// `padAction`'s and `horizontalEncoderAction`'s reveals unset the timer; `buttonAction`'s KEYBOARD arm does not.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			r.click(kKeyboardX, kKeyboardY);
+			r.settle();
+			expect(browser_scene().keyboard_always_visible()).to_be_true();
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+			const size_t from = r.fake.flashes_sent.size();
+			run_until(r, r.clock + 1000);
+			expect(flashes_since(r, from).empty()).to_be_false();
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			tap(r, 3, 3);
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+			const size_t from = r.fake.flashes_sent.size();
+			run_until(r, r.clock + 1000);
+			expect(flashes_since(r, from).empty()).to_be_true();
+		}
+		CleanBrowser::reset();
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			r.horizontal(1);
+			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		}
+	});
+
+	it("opens the drum creator's browser on the browser's own 400 ms blink", _ {
+		// `enterDrumCreator` opens the browser with no `beginScreen` after it: `possiblySetUpBlinking` only.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		browser_scene().set_drum_creator_next(true);
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		const size_t from = r.fake.flashes_sent.size();
+		run_until(r, r.clock + 1000);
+		const size_t n = flashes_since(r, from).size();
+		expect(n >= 2 && n <= 3).to_be_true();
 	});
 
 	it("declares SYNTH and KIT from the context and turns CROSS_SCREEN, SESSION and SCALE off", _ {

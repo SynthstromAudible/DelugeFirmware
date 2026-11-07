@@ -401,6 +401,7 @@ void BrowserScene::open(const menu::MenuContext& ctx) {
 }
 
 bool BrowserScene::on_enter(const SceneId& id) {
+	const bool from_creator = std::exchange(drum_creator_next_, false);
 	if (id.arg >= static_cast<uint16_t>(BrowserId::Count)) {
 		return false;
 	}
@@ -445,9 +446,14 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	waveform_scroll_ = 0;
 	nav_identity_ = 0;
 	pads_changed_ = false;
-	blink_ = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index), 5);
+	// The file selector opens the browser inside `beginScreen`, whose `updatePadLights` arms the item's own blink after
+	// `openUI` returns: over the browser's, and after the open's first preview. The drum creator has no `beginScreen`.
+	browse_blink_ =
+	    id_ != BrowserId::Sample ? BrowseBlink::Off : (from_creator ? BrowseBlink::Browser : BrowseBlink::Menu);
 	blink_anchor_ms_.reset();
 	blink_fired_step_ = UINT32_MAX;
+	first_preview_ = true;
+	spare_blink_from_preview_ = false;
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
@@ -505,6 +511,7 @@ void BrowserScene::on_exit() {
 	grid_pass_ = false;
 	searching_ = false;
 	select_after_listing_.clear();
+	browse_blink_ = BrowseBlink::Off;
 }
 
 std::string_view BrowserScene::current_dir() const {
@@ -535,6 +542,7 @@ void BrowserScene::preview_settled(bool has_sample) {
 		return;
 	}
 	const int8_t direction = preview_direction_;
+	const bool spare_blink = std::exchange(spare_blink_from_preview_, false);
 	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the
 	// browser open. A choice already waiting (a press this tick) is not overwritten.
 	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty() && !choice_.has_value()) {
@@ -542,6 +550,10 @@ void BrowserScene::preview_settled(bool has_sample) {
 	}
 	const BrowserPads before = pads_;
 	if (has_sample) {
+		// `showPreview`'s `unsetTimer(SHORTCUT_BLINK)`, except for the open's own first preview.
+		if (!spare_blink) {
+			browse_blink_ = BrowseBlink::Off;
+		}
 		// `showPreview`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are drawn
 		// if they should be and are not, or the waveform if the keyboard is hidden.
 		showing_preview_ = true;
@@ -573,7 +585,11 @@ void BrowserScene::preview_settled(bool has_sample) {
 			waveform_scroll_ = 0;
 			pad_scroll_ = ScrollRequest{.direction = direction, .to_root = true};
 		}
-		blink_anchor_ms_.reset();
+		// `possiblySetUpBlinking`: the browser's own blink, unless the keyboard is up.
+		if (!keyboard_visible_) {
+			browse_blink_ = BrowseBlink::Browser;
+			blink_anchor_ms_.reset();
+		}
 	}
 	if (pads_ != before) {
 		pads_changed_ = true;
@@ -584,6 +600,7 @@ void BrowserScene::file_preview(int8_t direction) {
 	if (id_ != BrowserId::Sample) {
 		return;
 	}
+	spare_blink_from_preview_ = std::exchange(first_preview_, false) && browse_blink_ == BrowseBlink::Menu;
 	// `SampleBrowser::previewIfPossible`: a folder or no selection previews nothing, and stops what was previewing.
 	PreviewRequest request{.id = id_, .direction = direction};
 	const FileItem* item = item_at(file_index_);
@@ -1076,6 +1093,7 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 		keyboard_visible_ = false;
 	}
 	if (direction != 0 && showing_preview_ && !keyboard_always_visible_) {
+		browse_blink_ = BrowseBlink::Off; // `currentFileChanged`'s `unsetTimer`
 		waveform_scroll_ = 0;
 		pad_scroll_ = ScrollRequest{.direction = direction, .into_nothing = true};
 	}
@@ -1386,14 +1404,10 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	switch (pads_) {
 	case BrowserPads::Root:
-		// `possiblySetUpBlinking`: not while the keyboard still claims the pads.
-		if (!keyboard_visible_) {
-			render_root_blink(f);
-		}
-		return;
+		break;
 	case BrowserPads::Waveform:
 		render_waveform(f);
-		return;
+		break;
 	case BrowserPads::Keyboard:
 		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
 		// *main* pads only.
@@ -1412,22 +1426,28 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		if (id_ == BrowserId::Sample && FlashStorage::defaultFavouritesLayout != FavouritesDefaultLayoutOff) {
 			render_favourites(f);
 		}
-		return;
+		break;
+	}
+	// `blinkShortcut` flashes the pad over whatever the main pads show: the timer is the sound editor's, not the pads'.
+	if (browse_blink_ != BrowseBlink::Off) {
+		render_browse_blink(f);
 	}
 }
 
-void BrowserScene::render_root_blink(deluge::ui::grid::GridFrame& f) {
-	// `SoundEditor::setupExclusiveShortcutBlink(x, 5)` from `possiblySetUpBlinking`: the BROWSE pad of the source being
-	// edited (column 0 for an audio clip) flashes on every other cycle of legacy's blink counter, which starts when the
-	// root view comes back.
+void BrowserScene::render_browse_blink(deluge::ui::grid::GridFrame& f) {
+	// `SoundEditor::blinkShortcut` on the BROWSE pad of the source being edited (column 0 for an audio clip): every
+	// cycle of legacy's blink counter for the file selector's blink, every other for the browser's, counted from when
+	// the blink was armed.
 	const uint32_t now = f.now_ms();
 	if (!blink_anchor_ms_.has_value()) {
 		blink_anchor_ms_ = now;
 		blink_fired_step_ = UINT32_MAX;
 	}
+	const menu::BlinkPlan plan = menu::exclusive_blink(ctx_.is_audio_clip ? 0 : static_cast<uint8_t>(ctx_.source_index),
+	                                                   5, browse_blink_ == BrowseBlink::Menu ? uint8_t{0} : uint8_t{1});
 	const uint32_t step = menu::blink_step(*blink_anchor_ms_, now);
 	if (step != blink_fired_step_) {
-		menu::fire_blink_step(f, blink_, step);
+		menu::fire_blink_step(f, plan, step);
 		blink_fired_step_ = step;
 	}
 	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
@@ -1672,6 +1692,7 @@ Result BrowserScene::after_render() {
 	if (grid_pass && reveal.has_value()) {
 		if (!keyboard_visible_) {
 			reveal_keyboard();
+			browse_blink_ = BrowseBlink::Off; // `padAction`'s reveal unsets the timer
 			edit_.cursor = 0;
 		}
 		const char c = reveal->y < favourite_row()
@@ -1894,6 +1915,7 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 	if (id_ == BrowserId::Sample) {
 		// Otherwise the keys are drawn, and the turn walks the cursor.
 		reveal_keyboard();
+		browse_blink_ = BrowseBlink::Off; // `horizontalEncoderAction`'s reveal unsets the timer
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
 	// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at either end do nothing. Legacy's two
@@ -2085,7 +2107,7 @@ Result BrowserScene::long_press() {
 		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
 	}
 	if (ctx_.is_kit) {
-		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:551-555`).
+		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:561-565`).
 		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
 		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}

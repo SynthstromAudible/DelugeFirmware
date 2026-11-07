@@ -140,6 +140,9 @@ public:
 	/// @}
 
 	std::string lastFilePathLoaded{};
+	/// Set by the file selector around its `openUI` when `SoundEditor::beginScreen` opens the browser: that arms the
+	/// item's BROWSE blink after `openUI` returns, and the browser leaves it to run.
+	bool openingFromSoundEditor{false};
 
 	// menus to open when a sample file is selected
 	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
@@ -208,6 +211,10 @@ private:
 	int32_t previewResolvedCols_{0};
 	/// How long redraws have gone without progress. Elapsed time, never ticks.
 	deluge::storage::UnproductiveSpan previewRedrawSpan_{};
+	/// This visit was opened by `beginScreen`, which arms the file selector's BROWSE blink.
+	bool soundEditorBlinks_{false};
+	/// The preview in hand is the open's own first: `main` showed it before that blink was armed, so it stops nothing.
+	bool spareBlinkFromPreview_{false};
 
 	bool canImportWholeKit();
 

@@ -416,7 +416,7 @@ std::vector<Wiring> observed_wiring() {
 /// items cannot drift apart silently.
 std::vector<Wiring> expected_wiring() {
 	return {
-	    // `FileSelector` (`gui/menu_item/file_selector.cpp:38,44`): `setCurrentSource(sourceId_)`,
+	    // `FileSelector` (`gui/menu_item/file_selector.cpp:47,56`): `setCurrentSource(sourceId_)`,
 	    // then `openUI(&sampleBrowser)`.
 	    {"file0_selector", 0, 0, -1},
 	    {"file1_selector", 0, 1, -1},

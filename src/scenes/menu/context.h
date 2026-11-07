@@ -302,8 +302,8 @@ void select_range(MenuContext& ctx, int32_t index);
 ///        performs alongside it (`:1786-1788`).
 ///
 /// Legacy's per-source bespoke items each hold their own `source_id_` and open with
-/// `soundEditor.setCurrentSource(sourceId_)` -- `FileSelector::beginSession`
-/// (`gui/menu_item/file_selector.cpp:38`), `sample::LoopPoint::beginSession`
+/// `soundEditor.setCurrentSource(sourceId_)` -- `FileSelector::openBrowser`
+/// (`gui/menu_item/file_selector.cpp:47`), `sample::LoopPoint::beginSession`
 /// (`gui/menu_item/sample/loop_point.cpp:68`), `osc::AudioRecorder::beginSession`
 /// (`gui/menu_item/osc/audio_recorder.h:38`). Nothing in the port re-resolves the context on the
 /// way into `source1`'s page (see `relevance.h`'s note on why the per-source predicates are named
