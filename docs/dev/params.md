@@ -101,37 +101,56 @@ writes the queued events into the working copies at the start of its next block,
 decides from the nodes (whether the region's start interpolates, which node of a straight run to drop) it decides then,
 so a second write before that block sees the first. A lane being recorded plays its working copy.
 
-The commit (`commitRecording`) runs before every job and before the interaction tier itself reads or edits lanes (each
-recorded write, every Edit, undo and redo, an automation delete, a recorded note's MPE values): with the render
-excluded it writes what is still queued, then copies every working copy the render changed into the model and marks it
-for publishing, so the interaction tier sees every value recorded and nothing lands after its edit. When recording
-stops the copies are released (retired: the render may be in a block that reads one); undo and redo end the take
-too, since they rewrite lanes a copy would overwrite at the next commit. An event made in another song, or whose lane
-has no copy any more, is dropped; a song being freed hands its queue over or drops it, and its collections' copies go
-with them. With the queue full, or a lane with no address, the interaction tier writes the copy itself, with the render
-excluded, after what is queued. The kernel writes the base after reading the old one, where the cleared stretch returns
-to; the interaction tier sets only the played value.
+The commit (`commitRecording`) runs before the interaction tier itself reads or edits lanes (each recorded write,
+every Edit, undo and redo, an automation delete, a recorded note's MPE values), and before every job
+(`commitBeforeJob`): with the render excluded it writes what is still queued, then copies every working copy the render
+changed into the model and marks it for publishing, so the interaction tier sees every value recorded and nothing lands
+after its edit. When recording stops the copies are released (retired: the render may be in a block that reads one);
+undo and redo end the take too, since they rewrite lanes a copy would overwrite at the next commit. An event made in
+another song, or whose lane has no copy any more, is dropped; a song being freed hands its queue over or drops it, and
+its collections' copies go with them. With the queue full, or a lane with no address, the interaction tier writes the
+copy itself, with the render excluded, after what is queued. The kernel writes the base after reading the old one,
+where the cleared stretch returns to; the interaction tier sets only the played value.
+
+A copy is held for the take (a knob's lane, which the latch may write), or while written: an MPE lane's copy is
+released by a commit that finds the render did not write it since the last, so a take across many notes does not fill
+the table of 32. Out of memory to release copies, they are ended instead: neither tier plays or writes them, and a
+later commit frees them.
 
 The latch's drift-back writes the working copy and logs no undo: whoever made the copy took the take's snapshot. A
 lane a knob overrides while recording gets its copy when the knob turns (the latch may drift back on it, armed clip or
-not); when recording starts, the lanes a knob is already overriding get theirs, their cursors read with the render held
-off. A latch on a lane without a copy plays on and writes nothing.
+not); when recording starts, and before the job after a take ended, the lanes a knob is overriding get theirs, their
+cursors read with the render held off one param manager at a time. Only the commit before a job makes these copies: an
+edit that ends a take and commits along the way gets none before it is whole. A latch on a lane without a copy plays on
+and writes nothing.
 
 An Edit on a lane being recorded (a value or region from the automation view, a paste, a delete, a cable's base)
-changes the model at once and posts the same change to the render as a `LaneCommand`, held by the interaction tier
-until the commit after the render has made it to the working copy, in order with the values recorded; the next commit
-carries both. An edit of every lane of a collection at once (shifting, trimming, repeating, deleting or inserting
-time, nudging, reversing, stripping) ends the take for that collection instead: its copies are committed and released
-first, and the next commit makes copies again for lanes a knob still overrides.
+changes the model at once and posts the same change to the render as a `LaneCommand`
+(`modulation/automation/lane_command.h`), held by the interaction tier until the commit after the render has made it to
+the working copy, in order with the values recorded; the next commit carries both. A delete posts its command from
+`AutoParam::deleteAutomation`, so a shift-turn's delete while recording carries it too, and a base set outside an Edit
+(a knob on an unarmed clip, a value set with no recording) posts one. Any other change to a recording lane ends the
+take for its collection instead (`endTake`): an edit of every lane at once (shifting, trimming, repeating, deleting or
+inserting time, nudging, reversing, stripping), and the engine's own setters that rewrite a lane (a region written
+outside an Edit, a note's MPE values written or cleared, MPE moved with a note, a CC's automation moved to another CC).
+What is queued is written and the copies committed and released first; the next commit before a job makes copies
+again for lanes a knob still overrides.
+
+An arrangement recording's clip edits its lanes on the render when it reaches its end. There `endTake` copies each
+working copy the render wrote into the model itself (counted, `renderModelWrites`) and ends it, and the next commit
+frees it.
 
 Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
 room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written by the interaction tier),
 `workingCopyOverflows` (a lane not recorded into: the table of 32 was full or out of memory) and
 `latchWritesWithoutCopy`. param-record-diff checks across its recorded cases, the latch included, that the render logs
-no undo, reads and writes no model lane, allocates nothing and grows no lane; that 70 writes with no render block
-between them leave the lane, its base and its played value as the same writes a block apart; that a write undone
-before the next block stays undone; and that a lane overridden before recording starts is copied, latched and given
-back by undo.
+no undo, reads and writes no model lane but at an arrangement clip's end, allocates nothing and grows no lane; that 70
+writes with no render block between them leave the lane, its base and its played value as the same writes a block
+apart; that a write undone before the next block stays undone; that a lane overridden before recording starts, or
+when its take is undone, is copied, latched and given back by undo; and that a region, a delete, a paste, a shift, a
+length change, a region written outside an Edit with a value still queued, a knob's base on an unarmed clip and the
+render's own edit at a clip's end all keep what was recorded around them. edit-undo-redo checks the table: found,
+committed only once written, held for the take or while written, dropped, released and refused past its size.
 
 ## How the render reaches a lane
 
@@ -160,7 +179,8 @@ swap, the boot song). The replaced snapshot and lanes are retired (`AudioEngine:
 a destroyed collection's are freed at once, being out of the render's reach with it. Out of memory, the old snapshot
 stays published and the collection stays marked.
 
-The render writes no model lane. A node at or past a published lane's length is played without it, and a value set on
+Outside an arrangement recording's clip end ("Recording while playing" above) the render writes no model lane. A node
+at or past a published lane's length is played without it, and a value set on
 the render (a stopped synth clip's mono expression cleared) is played at once; each is posted to the interaction tier
 (`requestStrayNodeErased`, `requestLaneBase`), which does it before its next job, if the song still plays that
 collection (its address and serial) and the lane is as the render saw it: still ending in that node, or still holding
