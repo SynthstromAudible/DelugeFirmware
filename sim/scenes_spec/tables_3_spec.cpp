@@ -388,7 +388,7 @@ bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair
           int32_t depth = 0, const Node* parent = nullptr) {
 	out.push_back(Pair{&node, &item, &root, depth, parent});
 	if (node.kind != menu::Kind::Submenu) {
-		// Fix round 1, minor 4: returning here without looking at the legacy side would let a
+		// Returning here without looking at the legacy side would let a
 		// `Kind::Custom` placeholder stand in for a legacy `Submenu` and silently drop that whole
 		// legacy subtree from every comparison below. No node in these tables does that, and this is
 		// what keeps it that way.
