@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "gui/views/hold_pulse.h"
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
@@ -120,6 +121,8 @@ public:
 
 	Clip* getClipForLayout();
 	int32_t getClipIndexForLayout();
+	// Starts or stops the held-pad pulse; returns true while a press is being tracked.
+	bool updateHeldPulse();
 
 	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
@@ -214,12 +217,16 @@ private:
 	ActionResult gridTrackPadAction(int32_t x, int32_t on);
 	void gridEndTrackPadGesture();
 	bool gridIsTrackPadHeld(Output const* output) const;
+	// The output a held track pad would pulse.
+	Output* heldPulseCandidate();
+	// The output whose clips pulse: the candidate, once its press has outlasted a short press.
+	Output* heldPulseOutput() { return heldPulse.pulsingFor(heldPulseCandidate()); }
 	void gridRenderTrackRow(RGB* image, uint8_t* occupancy);
 	int32_t sessionClipRows() const;
 	int32_t sessionClipRowOffset() const { return gridTrackRowEnabled() ? 1 : 0; }
 
 	int32_t gridHeldTrackPad = -1;
-	bool gridTrackClipsPulsing = false;
+	HoldPulse heldPulse;
 
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);

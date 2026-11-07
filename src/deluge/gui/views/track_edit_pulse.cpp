@@ -62,6 +62,12 @@ void resetHeldPulse() {
 	}
 }
 
+void keepTicking() {
+	if (!uiTimerManager.isTimerSet(TimerName::TRACK_LOCK_PULSE)) {
+		uiTimerManager.setTimer(TimerName::TRACK_LOCK_PULSE, kPulseInterval);
+	}
+}
+
 void clearPulseRow(RGB* row, int32_t y, bool sidebar) {
 	if (row != PadLEDs::image[y]) {
 		return; // Transition / offscreen rendering must not replace the live cache.
@@ -110,7 +116,17 @@ RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y
 
 void pulseTimer() {
 	auto* root = getRootUI();
-	if (!track_link::enabled() || root != pulse_ui || (root != &sessionView && root != &arrangerView)
+	if (!track_link::enabled()) {
+		return;
+	}
+	// A held pad starts pulsing once it reaches the hold time; keep ticking until then.
+	bool tracking_hold = (root == &sessionView)    ? sessionView.updateHeldPulse()
+	                     : (root == &arrangerView) ? arrangerView.updateHeldPulse()
+	                                               : false;
+	if (tracking_hold) {
+		uiTimerManager.setTimer(TimerName::TRACK_LOCK_PULSE, kPulseInterval);
+	}
+	if (root != pulse_ui || (root != &sessionView && root != &arrangerView)
 	    || (root == &sessionView && !sessionView.gridTrackRowEnabled())) {
 		return;
 	}

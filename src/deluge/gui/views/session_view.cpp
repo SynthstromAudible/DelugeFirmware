@@ -736,6 +736,7 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	auto refreshPulse = util::finally([this] { updateHeldPulse(); });
 	if (gridTrackRowEnabled() && yDisplay == 0 && xDisplay < kDisplayWidth) {
 		return gridTrackPadAction(xDisplay, on);
 	}
@@ -3457,6 +3458,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
+	Output* heldOutput = heldPulseOutput();
 
 	PadLEDs::renderingLock = true;
 
@@ -3478,7 +3480,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
 			image[y][x] = gridRenderClipColor(clip, x, y);
-			if (gridTrackClipsPulsing && gridIsTrackPadHeld(clip->output)) {
+			if ((heldOutput != nullptr) && clip->output == heldOutput) {
 				image[y][x] =
 				    deluge::gui::track_edit_pulse::renderPulse(image[y][x], *clip->output, image[y], x, y, true);
 			}
@@ -5032,11 +5034,6 @@ static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MO
 
 bool SessionView::gridUpdateTrackPadGesture() {
 	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
-		if (!gridTrackClipsPulsing) {
-			gridTrackClipsPulsing = true;
-			deluge::gui::track_edit_pulse::resetHeldPulse();
-			requestRendering(this);
-		}
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 		return true;
 	}
@@ -5151,7 +5148,6 @@ int32_t SessionView::sessionClipRows() const {
 }
 
 void SessionView::gridEndTrackPadGesture() {
-	gridTrackClipsPulsing = false;
 	deluge::gui::track_edit_pulse::resetHeldPulse();
 	gridHeldTrackPad = -1;
 }
@@ -5215,4 +5211,26 @@ void SessionView::gridRenderTrackRow(RGB* image, uint8_t* occupancy) {
 
 bool SessionView::gridIsTrackPadHeld(Output const* output) const {
 	return gridHeldTrackPad >= 0 && deluge::gui::track_link::isSelected(output);
+}
+
+Output* SessionView::heldPulseCandidate() {
+	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn()) {
+		return deluge::gui::track_link::selectedOutput();
+	}
+	return nullptr;
+}
+
+bool SessionView::updateHeldPulse() {
+	if (heldPulse.update(heldPulseCandidate(), AudioEngine::audioSampleTimer, kShortPressTime)) {
+		deluge::gui::track_edit_pulse::resetHeldPulse();
+		// Releasing a pad may start a transition into the clip (explode, expand, etc.); don't repaint over it.
+		if (getCurrentUI() == this
+		    && (currentUIMode == UI_MODE_NONE || isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW))) {
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+	}
+	if (heldPulse.waiting()) {
+		deluge::gui::track_edit_pulse::keepTicking();
+	}
+	return heldPulse.tracking();
 }
