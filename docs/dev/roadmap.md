@@ -65,10 +65,11 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 2. Scenes bind to schema rows: done.
 3. Scenes ship on device:
    - 3a, SDRAM placement and device link with ShellMenu off: done; device flash-test pending.
-   - **3b, close ~16 release blockers: next.** Shift+pad entry, DX7 menu, menu MIDI learn (CC and bend),
-     multi-range editing, patch-source pads, browser audition and waveform, slicer commit, grid greyout.
-   - 3c, ShellMenu on by default.
-   - 3d, delete SoundEditor, menus and menu_item (~29k lines) after a device flash-test; freeze the 21
+   - 3b, close the release blockers: done. Every difference from `main` the emulator shows is fixed or accepted
+     (`tests/ui-scripts/parity/DIFFERENCES.md`).
+   - 3c, ShellMenu on by default: done. The Legacy Menu community feature (default Off) brings back legacy's
+     menus until 3d.
+   - **3d, next:** delete SoundEditor, menus and menu_item (~29k lines) after a device flash-test; freeze the 21
      legacy-oracle specs as golden data first.
 4. Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables.
 

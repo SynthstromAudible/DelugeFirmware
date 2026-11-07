@@ -8,11 +8,10 @@ Everything on screen comes from the `src/ui` toolkit; the shell (`src/shell`) ow
 tick, input lowering and the flush. This layer is what knows about songs, sounds and clips, and it
 reaches them through `scenes/bind` and a `MenuContext` rather than through legacy's globals.
 
-The library is linked into the firmware and the host app, and runs behind the **`ShellMenu`
-community feature, which is Off by default**. With it off the device runs legacy's `SoundEditor` and
-its `MenuItem` classes (`src/deluge/gui/menu_item/`); with it on, thirteen of the fifteen
-`openUI(&soundEditor)` sites open this tree instead, inside `ShellHostUI` (see "Coexistence with
-legacy" below).
+The library is linked into the firmware and the host app and is the default menu. The **Legacy Menu** community
+feature (default Off) brings back legacy's `SoundEditor` and its `MenuItem` classes (`src/deluge/gui/menu_item/`) at
+every gated entry point until 3d; with it off, fourteen of the fifteen `openUI(&soundEditor)` sites open this tree,
+inside `ShellHostUI` (see "Coexistence with legacy" below).
 
 > **Read this before adding a menu item.** A menu item users must be able to open goes into
 > `gui/menu_item/` + `gui/ui/menus.cpp`, the legacy tree, *and* a node goes here. A node is a port
@@ -656,8 +655,8 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: thirteen of the fifteen
-`openUI(&soundEditor)` sites call it when `shellMenuEnabled()`, and run their exact legacy statements
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: fourteen of the fifteen
+`openUI(&soundEditor)` sites route through it when `shellMenuEnabled()`, and run their exact legacy statements
 otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell

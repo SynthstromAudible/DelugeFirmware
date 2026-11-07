@@ -10,18 +10,18 @@ nothing about the two legs' *relationship*. This says the thing the branch actua
      `MenuScene` draws `SoundEditor`'s pixels -- and it is the assertion that goes red if a port
      change moves a pixel.
   3. **At least one `.state` file differs.** Without this the suite would pass forever on an A/B
-     whose two legs were the same code path: a toggle that never took, a fixture whose
-     `CommunityFeatures.XML` stopped parsing, or a golden re-recorded twice from one leg. F1 task
-     9's reviewer measured exactly that failure mode -- forcing `shellMenuEnabled()` to `true` left
-     `ctest -R ui_app_scripts` green, because the only app script at the time pressed nothing.
-  4. **Optionally, that the two SD fixtures differ by exactly one named file.** The legs are only
-     an A/B on the toggle if their inputs are otherwise identical, and the two fixture trees are
-     committed copies that can drift apart silently.
+     whose two legs were the same code path: a setting that never took, a fixture whose
+     `CommunityFeatures.XML` stopped parsing, or a golden re-recorded twice from one leg. A script
+     that presses nothing passes points 1 and 2 with `shellMenuEnabled()` forced either way.
+  4. **Optionally, that the two SD fixtures differ by exactly one named file.** The ShellMenu-on leg
+     is the default card, with no settings file; the ShellMenu-off leg is the same card plus the
+     file that turns the Legacy Menu on. The legs are only an A/B on that setting if their inputs
+     are otherwise identical, and the two fixture trees are committed copies that can drift apart
+     silently.
 
-The expected `.state` differences are NOT enumerated here. They are recorded in the two golden
-trees, which `ui_app_scripts_menu_diff` and `ui_app_scripts_menu_shell_diff` pin byte-for-byte, and
-explained in `.superpowers/sdd/2026-09-07-ui-wiring-1/task-11-report.md`. Restating them would be a
-third copy that goes stale.
+The expected `.state` differences are NOT enumerated here. They are recorded in the `menu` and
+`menu_legacy` goldens (`tests/golden/ui/app`), which pin each leg byte-for-byte. Restating them would
+be a third copy that goes stale.
 
 Usage:
     ui_app_ab_check.py <off-tree> <on-tree>
@@ -48,13 +48,15 @@ def _check_fixtures(off: Path, on: Path, toggle: str, fail) -> None:
     off_files = _tree(off)
     on_files = _tree(on)
 
-    if toggle in off_files:
+    if toggle in on_files:
         fail(
-            f"the toggle-OFF fixture {off} contains {toggle}; it is what makes the leg ON"
+            f"the ShellMenu-on fixture {on} contains {toggle}; the default card has none"
         )
-    if toggle not in on_files:
-        fail(f"the toggle-ON fixture {on} is missing {toggle}")
-    on_files.pop(toggle, None)
+    if toggle not in off_files:
+        fail(
+            f"the ShellMenu-off fixture {off} is missing {toggle}; it is what selects the Legacy Menu"
+        )
+    off_files.pop(toggle, None)
 
     only_off = sorted(set(off_files) - set(on_files))
     only_on = sorted(set(on_files) - set(off_files))
@@ -133,7 +135,7 @@ def main() -> int:
 
     if not state_differs:
         fail(
-            "the two legs are identical in every .state file -- the toggle did nothing, so this "
+            "the two legs are identical in every .state file -- the setting did nothing, so this "
             "A/B proves nothing (see this file's docstring, point 3)"
         )
 

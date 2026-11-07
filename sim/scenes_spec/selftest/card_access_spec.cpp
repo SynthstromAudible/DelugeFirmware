@@ -35,7 +35,7 @@ describe selftest_card_access(
 	    it(
 	        "refuses a card the scenario did not install", _ {
 		        expect(sd_root_matches("/nonexistent-card")).to_be_false();
-		        expect(sd_root_matches(std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card-shell-menu"))
+		        expect(sd_root_matches(std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card-legacy-menu"))
 		            .to_be_false();
 	        });
 	    it("does not take the installed card for no card", _ { expect(no_sd_root_matches()).to_be_false(); });

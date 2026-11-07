@@ -1,0 +1,23 @@
+led Clip on
+led Kit on
+led Mod1 on
+pad 14 0 64 64 64
+pad 14 1 64 64 64
+pad 14 2 64 64 64
+pad 14 3 64 64 64
+pad 14 4 64 64 64
+pad 14 5 64 64 64
+pad 14 6 64 64 64
+pad 14 7 63 63 63
+pad 15 0 64 64 64
+pad 15 1 64 64 64
+pad 15 2 64 64 64
+pad 15 3 64 64 64
+pad 15 4 64 64 64
+pad 15 5 64 64 64
+pad 15 6 64 64 64
+pad 15 7 63 63 63
+pad 16 0 6 65 8
+pad 17 0 50 6 20
+indicator lower 0 0 0 0
+indicator upper 255 255 255 255

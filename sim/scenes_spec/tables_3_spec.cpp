@@ -1673,13 +1673,13 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 });
 
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
-	it("defaults the Legacy Menu to On, straight from the settings loader", _ {
+	it("defaults the Legacy Menu to Off, straight from the settings loader: the ported menu is the default", _ {
 		// The real loader (`RuntimeFeatureSettings::init()`'s `SetupOnOffSetting` table), read back through `get`:
 		// a check against the enum alone would pass with the loader's default changed by mistake.
 		runtimeFeatureSettings.init();
 		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu))
-		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::On));
-		expect(deluge::gui::ui::shellMenuEnabled()).to_be_false();
+		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
+		expect(deluge::gui::ui::shellMenuEnabled()).to_be_true();
 	});
 
 	it("reads a stored legacyMenu from the settings file, under that name", _ {

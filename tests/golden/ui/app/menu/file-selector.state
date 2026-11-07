@@ -1,6 +1,5 @@
 led AffectEntire on
 led Clip on
-led Load on
 led Mod1 on
 led Synth on
 pad 0 0 64 64 64

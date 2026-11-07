@@ -56,10 +56,9 @@
 /// @note `check_citations.py`'s `SCAN_ROOTS` includes `src/deluge/util`, so this file's citations
 ///       are gate-read.
 ///
-/// @par What works with ShellMenu on, and what does not -- read this before turning it on
+/// @par What works with ShellMenu on, and what does not
 ///
-/// ShellMenu is off by default (the Legacy Menu setting is On), so none of the following is a regression. Turned on,
-/// it is what a user gets, and none of it is discoverable from a green test suite:
+/// This is what a user gets by default, and none of it is discoverable from a green test suite:
 ///
 ///  1. **Every `MenuAction` the ported items file has a body.** `gui::ui::dispatchShellActions`
 ///     drains the outbox once per guest tick, so `perform_editor`, `start_stem_export`,

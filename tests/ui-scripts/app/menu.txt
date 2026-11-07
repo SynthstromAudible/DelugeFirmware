@@ -1,25 +1,28 @@
-# Level 3: **the acceptance test for the ported menu.** One script, run twice against two SD-card
-# fixtures that differ by exactly one file, and the two trees compared against each other:
+# Level 3: **the acceptance test for the ported menu.** One script, run on three SD-card fixtures
+# (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`):
 #
-#   ui_app_scripts_menu        SD root tests/fixtures/card             -> ShellMenu OFF: legacy SoundEditor
-#   ui_app_scripts_menu_shell  SD root tests/fixtures/card-shell-menu  -> ShellMenu ON:  ported MenuScene
-#   ui_app_scripts_menu_ab     scripts/ui_app_ab_check.py over the two got trees
+#   menu         SD root tests/fixtures/card                -> ShellMenu on (the default): ported MenuScene
+#   menu_legacy  SD root tests/fixtures/card-legacy-menu    -> ShellMenu off (Legacy Menu on): legacy SoundEditor
+#   (no golden)  SD root tests/fixtures/card-old-shell-menu -> the replaced `shellMenu` key, ignored: equals `menu`
+#
+# `scripts/ui_app_ab_check.py` compares the first two runs: every panel identical, at least one .state different,
+# and the two cards differing by exactly SETTINGS/CommunityFeatures.XML.
 #
 # There is no env var and no new script verb for the setting, and that is deliberate.
 # `shellMenuEnabled()` is true while `runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)`
 # is Off (`gui/ui/shell_menu_entry.cpp`); the setting is registered with xmlName "legacyMenu" and
-# default On (`RuntimeFeatureSettings::init`) and read from
-# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`,
-# `:194-222`). So the ShellMenu-on leg is a genuine boot-from-settings on the mechanism the device
-# itself uses, not a test-only door.
+# default Off (`RuntimeFeatureSettings::init`) and read from
+# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`).
+# So the Legacy Menu leg is a genuine boot-from-settings on the mechanism the device itself uses,
+# not a test-only door.
 #
-# **Neither leg mutates its own input**, which matters because a test that edits its input is not
+# **No leg mutates its own input**, which matters because a test that edits its input is not
 # reproducible. With the file present `bootstrap_action` returns `Bootstrap::Load`
-# (`storage/existence_policy.cpp:12-24`) and the `WriteDefaults` arm that would `mkdir`/`rename`
-# (`runtime_feature_settings.cpp:200-217`) is never entered; the OFF leg does enter it, but its
+# (`storage/existence_policy.cpp`) and the `WriteDefaults` arm that would `mkdir`/`rename`
+# (`RuntimeFeatureSettings::readSettingsInline`) is never entered; the default leg does enter it, but its
 # `mkdir` finds `SETTINGS/` already there and its `rename` of a root-level "CommunityFeatures.XML"
-# that does not exist fails, so it returns having created nothing (`:204-216`). Checked rather than
-# reasoned: `git status --short tests/fixtures/` is empty after both legs have run.
+# that does not exist fails, so it returns having created nothing. Checked rather than
+# reasoned: `git status --short tests/fixtures/` is empty after every leg has run.
 #
 # **What this script presses, and why it presses exactly this.**
 #
@@ -272,7 +275,7 @@
 # (open the selector, list the card, claim a file, re-root, close) leaves the clip view exactly
 # where it was, on both legs. It is deliberately not a *load* golden: the same script with the
 # claim press removed produces the same bytes here, checked. Its two teeth are that a claim which
-# SIGSEGVs writes no snapshot at all and fails `ui_app_scripts_menu_shell` outright (which is what
+# SIGSEGVs writes no snapshot at all and fails the ShellMenu-on run outright (which is what
 # the ON leg did before `SoundEditor::adoptResolvedContext`), and that a menu left wedged with a
 # non-empty shell stack swallows these two Backs -- the failure mode of the short-Back exit
 # above.

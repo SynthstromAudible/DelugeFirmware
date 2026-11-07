@@ -9,6 +9,10 @@ Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/s
 through SelectEnc, which opens the ported menu when ShellMenu is on. They remain valid with ShellMenu off, where the
 same presses walk the legacy menus.
 
+ShellMenu is on by default. The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware now
+ignores, so they run the default; its legacy cards (`card.img`, `sweep-off.img`, `dx-off.img`) carry `legacyMenu=1`,
+the Legacy Menu community feature, which `main` ignores.
+
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
 detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images, ShellMenu
 on and off. A black encoder drops the first detent of its first turn after boot and of any turn that reverses its

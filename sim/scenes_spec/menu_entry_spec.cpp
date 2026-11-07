@@ -246,20 +246,20 @@ void press_learn(bool on) {
 
 // clang-format off
 describe menu_entry_toggle("the Legacy Menu setting", $ {
-	it("opens legacy by default (Legacy Menu On), and shellMenuEnabled() follows the setting both ways", _ {
+	it("opens the ported menu by default (Legacy Menu Off), and shellMenuEnabled() follows the setting both ways", _ {
 		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
-		       == RuntimeFeatureStateToggle::On)
+		       == RuntimeFeatureStateToggle::Off)
 		    .to_be_true();
-		expect(entry::shellMenuEnabled()).to_be_false();
+		expect(entry::shellMenuEnabled()).to_be_true();
 		{
-			ToggleGuard on{RuntimeFeatureStateToggle::On};
-			expect(entry::shellMenuEnabled()).to_be_true();
+			ToggleGuard off{RuntimeFeatureStateToggle::Off};
+			expect(entry::shellMenuEnabled()).to_be_false();
 			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
-			       == RuntimeFeatureStateToggle::Off)
+			       == RuntimeFeatureStateToggle::On)
 			    .to_be_true();
 		}
 		// And the guard put it back, which is what the other examples depend on.
-		expect(entry::shellMenuEnabled()).to_be_false();
+		expect(entry::shellMenuEnabled()).to_be_true();
 	});
 });
 

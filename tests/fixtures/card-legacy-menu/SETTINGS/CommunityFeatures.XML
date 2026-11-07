@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <runtimeFeatureSettings>
-	<setting name="legacyMenu" value="0"></setting>
+	<setting name="legacyMenu" value="1"></setting>
 </runtimeFeatureSettings>
