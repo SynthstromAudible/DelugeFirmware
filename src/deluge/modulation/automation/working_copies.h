@@ -23,6 +23,7 @@
 
 class ModelStackWithAutoParam;
 class ParamCollection;
+class Song;
 
 namespace deluge::project {
 struct DocAutoParam;
@@ -42,7 +43,12 @@ inline constexpr size_t kWorkingCopies = 32;
 #if ALPHA_OR_BETA_VERSION
 /// Lanes not recorded into because the table was full or a copy could not be made.
 extern uint32_t workingCopyOverflows;
+/// Latch writes the render skipped on a lane with no working copy.
+extern uint32_t latchWritesWithoutCopy;
 #endif
+
+/// @brief [render] The latch reached a lane with no working copy: it plays on and writes nothing.
+void noteLatchWithoutCopy();
 
 /// @brief [interaction] Make (or find) the working copy of @p lane: its model lane copied with room for @p room more
 ///        nodes, installed with the render held off. Making it first takes the lane's undo snapshot into the current
@@ -69,6 +75,11 @@ void releaseWorkingCopies();
 /// @brief [render] or [interaction] @p collection is going: its working copies are dropped and freed, uncommitted.
 ///        The render cannot reach a collection being destroyed, nor its copies.
 void dropWorkingCopies(ParamCollection& collection);
+
+/// @brief [interaction] Recording has started: make working copies for the lanes with nodes a knob is overriding,
+///        which the latch writes as it drifts back.
+/// @param song The song recording.
+void copyOverriddenLanes(Song& song);
 
 /// @brief [render] or [interaction] How many working copies are held.
 size_t workingCopiesHeld();

@@ -19,13 +19,24 @@
 
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "foundation/function_ref.h"
 #include "libdeluge/system.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/output.h"
+#include "model/song/clip_iterators.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_collection_summary.h"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 
 #include <array>
@@ -36,7 +47,14 @@ namespace deluge::modulation {
 
 #if ALPHA_OR_BETA_VERSION
 uint32_t workingCopyOverflows = 0;
+uint32_t latchWritesWithoutCopy = 0;
 #endif
+
+void noteLatchWithoutCopy() {
+#if ALPHA_OR_BETA_VERSION
+	latchWritesWithoutCopy++;
+#endif
+}
 
 namespace {
 /// One lane's working copy. An empty entry has no copy.
@@ -79,6 +97,45 @@ project::DocAutoParam* copyOf(const project::DocAutoParam& model, size_t room) {
 	}
 	memory::dealloc(memory);
 	return nullptr;
+}
+
+/// Call @p visit with the stack of each param manager @p song plays: its own, each clip's and each note row's.
+void forEachOwner(Song& song, deluge::function_ref<void(ModelStackWithThreeMainThings&)> visit) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	visit(*song.setupModelStackWithSongAsTimelineCounter(memory));
+	for (Clip* clip : AllClips::everywhere(&song)) {
+		ModControllable* output = (clip->output != nullptr) ? clip->output->toModControllable() : nullptr;
+		visit(*setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, output, clip, &clip->paramManager));
+		if (clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		auto* instrumentClip = static_cast<InstrumentClip*>(clip);
+		for (int32_t i = 0; i < std::ssize(instrumentClip->noteRows); i++) {
+			NoteRow& row = instrumentClip->noteRows[i];
+			ModControllable* owner = (row.drum != nullptr) ? row.drum->toModControllable() : output;
+			visit(*setupModelStackWithThreeMainThingsIncludingNoteRow(
+			    memory, &song, clip, instrumentClip->getNoteRowId(&row, i), &row, owner, &row.paramManager));
+		}
+	}
+}
+
+/// Call @p visit with each lane with nodes of each collection @p song plays, as a stack.
+void forEachLaneStack(Song& song, deluge::function_ref<void(ModelStackWithAutoParam&)> visit) {
+	forEachOwner(song, [&](ModelStackWithThreeMainThings& owner) {
+		for (ParamCollectionSummary& summary : owner.paramManager->summaries) {
+			if (summary.paramCollection == nullptr) {
+				break;
+			}
+			ParamCollection& collection = *summary.paramCollection;
+			collection.forEachLane([&](int32_t paramId, const project::DocAutoParam&) {
+				ModelStackWithAutoParam* lane =
+				    collection.getAutoParamFromId(owner.addParamCollectionAndId(&collection, &summary, paramId));
+				if (lane != nullptr && lane->autoParam != nullptr) {
+					visit(*lane);
+				}
+			});
+		}
+	});
 }
 
 /// Empty @p entry, with the render held off.
@@ -193,6 +250,34 @@ void dropWorkingCopies(ParamCollection& collection) {
 			destroyCopy(copy);
 		}
 	}
+}
+
+void copyOverriddenLanes(Song& song) {
+	// Which lanes are overriding is the render's cursor state: read with it held off, the copies made after
+	struct Overridden {
+		const ParamCollection* collection;
+		int32_t paramId;
+	};
+	std::array<Overridden, kWorkingCopies> overridden{};
+	size_t count = 0;
+	{
+		AudioExcludedSection section;
+		forEachLaneStack(song, [&](ModelStackWithAutoParam& lane) {
+			if (lane.autoParam->renewedOverridingAtTime != 0 && count < overridden.size()) {
+				overridden[count++] = {lane.paramCollection, lane.paramId};
+			}
+		});
+	}
+	if (count == 0) {
+		return;
+	}
+	forEachLaneStack(song, [&](ModelStackWithAutoParam& lane) {
+		for (size_t i = 0; i < count; i++) {
+			if (overridden[i].collection == lane.paramCollection && overridden[i].paramId == lane.paramId) {
+				(void)makeWorkingCopy(lane, kNodesPerRecordedWrite);
+			}
+		}
+	});
 }
 
 size_t workingCopiesHeld() {

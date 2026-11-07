@@ -89,6 +89,11 @@ void applyRecordEvents(::Song& song) {
 
 void commitRecording(::Song& song) {
 	const bool recording = playbackHandler.recording != RecordingMode::OFF;
+	static bool takeOpen = false;
+	if (recording && !takeOpen) {
+		copyOverriddenLanes(song); // the latch may drift back on a lane a knob was turning when recording began
+	}
+	takeOpen = recording;
 	if (g_recordEvents.empty() && workingCopiesHeld() == 0) {
 		return;
 	}

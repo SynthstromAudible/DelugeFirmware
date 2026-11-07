@@ -398,7 +398,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 		// Or if not recording...
 		else {
 			if (!nodesRef.empty()) {
-				overrideFromNow();
+				overrideFromNow(*modelStack);
 			}
 		}
 	}
@@ -520,7 +520,7 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 	stopInterpolating();
 	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
 	if (isPlaying && !nodesRef.empty()) {
-		overrideFromNow();
+		overrideFromNow(*modelStack);
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
@@ -821,26 +821,20 @@ yesCancelOverriding:
 			// happening live, now
 			if (playbackHandler.isCurrentlyRecording()) {
 recordOverNodeJustReached:
-				// Recording: the render writes the lane it plays, its working copy when it has one.
+				// Recording: the render writes the lane's working copy, which the interaction tier made (taking the
+				// take's undo snapshot) when the lane was recorded into or overridden. A lane without one is played,
+				// not written.
 				deluge::project::DocAutoParam* copy =
 				    deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId);
-				deluge::project::DocAutoParam& written = (copy != nullptr) ? *copy : *modelStack->doc();
-				if (copy != nullptr) {
-					deluge::modulation::noteWorkingCopyWritten(*copy);
+				if (copy == nullptr) {
+					deluge::modulation::noteLatchWithoutCopy();
+					goto getOut;
 				}
-				else {
-					deluge::modulation::noteRenderLaneWrite();
-				}
+				deluge::modulation::noteWorkingCopyWritten(*copy);
+				deluge::project::DocAutoParam& written = *copy;
 				auto& nodesRef = written.nodes;
 				ParamNode& reached = nodesRef[iJustReached];
 				nodeJustReached = &reached;
-
-				// Back up state if necessary. It normally would have already been, but not if the user only just
-				// activated recording while already overriding!
-				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-				if (action) {
-					action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
-				}
 
 				int32_t ticksTilNextNode = nextNodeInOurDirection->pos - nodeJustReached->pos;
 				if (reversed) {
@@ -1082,7 +1076,11 @@ void AutoParam::cancelOverriding() {
 	writeCursor([&] { renewedOverridingAtTime = 0; });
 }
 
-void AutoParam::overrideFromNow() {
+void AutoParam::overrideFromNow(ModelStackWithAutoParam const& lane) {
+	// While recording, the latch drifts back on an overridden lane: it writes the lane's working copy
+	if (playbackHandler.recording != RecordingMode::OFF && !deluge::memory::onRenderTier()) {
+		(void)deluge::modulation::makeWorkingCopy(lane, deluge::modulation::kNodesPerRecordedWrite);
+	}
 	writeCursor([&] {
 		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
 		if (renewedOverridingAtTime <= 1) {

@@ -198,8 +198,10 @@ public:
 	/// @brief Stop overriding the lane, and latching. The render's cursor state: see stopInterpolating().
 	void cancelOverriding();
 	/// @brief Override the lane from now, after a value set by hand while it plays: the render holds the value for a
-	///        moment before following the lane again. The render's cursor state: see stopInterpolating().
-	void overrideFromNow();
+	///        moment before following the lane again. The render's cursor state: see stopInterpolating(). While
+	///        recording, the latch may write the lane as it drifts back, so its working copy is made.
+	/// @param lane This param's lane.
+	void overrideFromNow(ModelStackWithAutoParam const& lane);
 	/// @brief Stop interpolating. The render's cursor state, which it writes as it plays: the interaction tier writes
 	///        it with the render held off, so no block sees it half made.
 	void stopInterpolating();

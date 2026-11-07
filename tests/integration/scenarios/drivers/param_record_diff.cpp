@@ -27,6 +27,7 @@
 // The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline captured from
 // engine-native recording.
 
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
@@ -44,6 +45,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
@@ -463,6 +465,47 @@ void lengthWhileRecordingCase(InstrumentClip* clip, ModelStackWithAutoParam* lan
 	renderBlockStart();
 }
 
+// A knob overriding a lane with nodes before recording starts: once recording starts, the lane has a working copy for
+// the latch to write as it drifts back, and undoing the take gives the lane back as it was. Checked on stderr.
+void overriddenAtRecordStartCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	playbackHandler.recording = RecordingMode::OFF;
+	deluge::modulation::commitRecording(*currentSong); // the take ends: its copies are released
+	const int32_t len = clip->loopLength();
+	{
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		(void)deluge::project::setNodeAtPos(*lane->doc(), len / 2, 300000000, true);
+	}
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+	const bool overriding = lane->autoParam->renewedOverridingAtTime != 0
+	                        && deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) == nullptr;
+	const Take beforeTake = takeOf(lane);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	playbackHandler.recording = RecordingMode::NORMAL;
+	deluge::modulation::commitRecording(*currentSong);
+	const bool copied = deluge::modulation::workingCopy(*lane->paramCollection, lane->paramId) != nullptr;
+	// The latch reaches the node while the knob still overrides, and records over it
+	clip->lastProcessedPos = len / 2;
+	AudioEngine::audioSampleTimer += 2000;
+	deluge::memory::noteRenderBlock(true);
+	lane->autoParam->processCurrentPos(lane, false, false, true, false);
+	deluge::memory::noteRenderBlock(false);
+	deluge::modulation::commitRecording(*currentSong);
+	const bool latched = !(takeOf(lane) == beforeTake);
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+	const bool undone =
+	    takeOf(lane).nodes.size() == beforeTake.nodes.size()
+	    && std::ranges::equal(takeOf(lane).nodes, beforeTake.nodes, [](const ParamNode& a, const ParamNode& b) {
+		       return a.pos == b.pos && a.value == b.value;
+	       });
+	std::fprintf(io.err, "overridden-at-record-start: %s, latch %s, undo %s\n",
+	             !overriding ? "NOT OVERRIDING" : (copied ? "copied" : "NOT COPIED"),
+	             latched ? "wrote" : "DID NOT WRITE", undone ? "restored" : "NOT RESTORED");
+	probeFailed |= !overriding || !copied || !latched || !undone;
+}
+
 // Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
 // reversed clip's, each with its take undone and redone; then the latch drifting back across a clip lane's nodes.
 void clipCases(Song* song) {
@@ -563,6 +606,7 @@ void clipCases(Song* song) {
 		queuedUndoCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
 		regionWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_FREQ));
 		lengthWhileRecordingCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_HPF_RESONANCE));
+		overriddenAtRecordStartCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_B_VOLUME));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }
@@ -699,6 +743,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	    {deluge::modulation::renderModelReadsRecording, "read a model lane while recording"},
 	    {deluge::modulation::renderModelWrites, "wrote a model lane"},
 	    {deluge::modulation::renderUndoCalls, "logged undo"},
+	    {deluge::modulation::latchWritesWithoutCopy, "latched a lane that had no working copy"},
 	};
 	for (const auto& touch : renderTouches) {
 		if (touch.count != 0) {
