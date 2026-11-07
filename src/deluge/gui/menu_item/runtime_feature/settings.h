@@ -22,8 +22,8 @@
 namespace deluge::gui::menu_item::runtime_feature {
 
 /// Some runtime feature settings are squirrled away in submenus.
-/// Track Edit's three settings share one top-level submenu entry.
-constexpr size_t kNonTopLevelSettings = 2;
+/// Track Edit's four settings share one top-level submenu entry.
+constexpr size_t kNonTopLevelSettings = 3;
 // RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings
 class Settings final : public Submenu {
 public:
