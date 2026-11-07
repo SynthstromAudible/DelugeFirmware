@@ -59,7 +59,7 @@
 ///
 /// `RecorderScene::after_render` asks `AudioEngine::sdRoutineBusy()` before it finishes a recording, because freeing a
 /// `SampleRecorder` suspended part-way through its own `cardRoutine()` leaves that routine running on freed memory
-/// (`gui/ui/audio_recorder.cpp:168-176`). The slicer's commit is not that shape:
+/// (`gui/ui/audio_recorder.cpp:289-297`). The slicer's commit is not that shape:
 ///
 ///   1. `cardRoutine()` exists only on `SampleRecorder`, and `Slicer::doSlice` frees no recorder: its one
 ///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.

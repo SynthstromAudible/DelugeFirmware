@@ -171,7 +171,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:114-115`) on success.
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`) on success.
 	blink_restart_ = setup_recording();
 	return blink_restart_;
 }

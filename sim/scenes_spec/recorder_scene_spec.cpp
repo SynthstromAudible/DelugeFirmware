@@ -975,7 +975,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("restarts both shared blinks as the recording begins", _ {
-		// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:114-115`).
+		// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`).
 		Guards g;
 		Rig r;
 		r.open_over_menu();
@@ -989,7 +989,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
-		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:100-106`). SYNTH/KIT are the
+		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:101-107`). SYNTH/KIT are the
 		// interesting pair: `SoundEditor::setLedStates` turns BOTH off
 		// and this UI lights exactly one, so a scene that left them to `MenuScene` beneath would
 		// show neither.
@@ -1024,7 +1024,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("publishes the recording where the nine subsystems that gate on it can see it", _ {
 		// **Fix round 1's critical finding.** `opened()` sets `AudioRecorder::recordingSource` and
-		// `::recorder` (`audio_recorder.cpp:135-138`), and those are not private bookkeeping: nine
+		// `::recorder` (`audio_recorder.cpp:137-140`), and those are not private bookkeeping: nine
 		// subsystems read them. The port publishes them through
 		// `AudioEngine::setForegroundRecording`, which writes the same storage -- so this example
 		// reads the LEGACY members, which is the path all nine readers take.
@@ -1036,7 +1036,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		SampleRecorder* rec = recorder_scene().recorder();
 
 		// Nothing plugged in, so `opened()`'s stereo test is false and the channel is LEFT
-		// (`audio_recorder.cpp:92-95`).
+		// (`audio_recorder.cpp:93-96`).
 		expect(static_cast<int32_t>(audioRecorder.recordingSource))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::LEFT));
 		expect(audioRecorder.recorder == rec).to_be_true();
