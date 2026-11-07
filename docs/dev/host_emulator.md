@@ -24,7 +24,7 @@ is on the device), and the BSP's host arms talk to deluge-sdk's desktop simulato
 | DIN MIDI | The simulator's virtual ports, "Deluge Sim In" and "Deluge Sim Out" |
 | The SD card | A memory disk (`deluge_bsp::sd`), formatted FAT32, or an image file |
 
-The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-simulator`, `deluge-sim-link`, and
+The window, the panel contract and the audio bridge live in deluge-sdk (`deluge-simulator`, its `link` module, and
 the `deluge_bsp::host_panel` hook the BSP's peripherals call on the host), so any program on the Deluge's hardware
 can use them. This repository keeps its glue: the `sim` feature of `src/bsp/rust` (`sim_panel.rs`, the panel behind
 `deluge_bsp::host_panel`, adapted from deluge-sdk's own; `main.rs`'s `insert_sim_card` and `start_threaded_host`, `audio_host.rs`'s

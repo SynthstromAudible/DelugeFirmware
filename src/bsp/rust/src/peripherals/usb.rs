@@ -120,7 +120,8 @@ pub async fn usb_task(driver: Rusb1Driver<'static>) {
     // The app speaks whole USB-MIDI event packets (SysEx included), so the class passes them
     // through instead of decoding them; selected before the endpoint pumps run.
     midi::use_packets();
-    let (handler, eps) = midi::build(&mut builder);
+    // RUSB1 runs the bus at high speed, so the MIDI 2.0 alternate takes 512-byte bulk packets.
+    let (handler, eps) = midi::build(&mut builder, midi::BusSpeed::High);
     // SAFETY: as above.
     let handler_ref = unsafe { (*addr_of_mut!(MIDI_HANDLER)).write(handler) };
     builder.handler(handler_ref);

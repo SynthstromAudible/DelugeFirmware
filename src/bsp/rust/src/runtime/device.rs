@@ -3,8 +3,8 @@
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
 
+use deluge_bsp::heap as allocator;
 use embassy_executor::{Executor, InterruptExecutor, Spawner};
-use rza1_alloc as allocator;
 use rza1_hal::interrupt::{Interrupt, Priority, typelevel};
 
 use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
@@ -180,7 +180,7 @@ pub fn start() -> ! {
     }
 
     // No Rust SRAM heap: any static pool would come out of the C++ app's fast on-chip heap, which
-    // starts at the image end. `rza1_alloc::SRAM` stays uninitialised, so an allocation from it
+    // starts at the image end. `deluge_bsp::heap::SRAM` stays uninitialised, so an allocation from it
     // fails; give it an arena before anything needs one.
 
     // The chip (CPG/PLL, module clocks, GIC, the embassy-time OSTM driver), then the board (MMU,
