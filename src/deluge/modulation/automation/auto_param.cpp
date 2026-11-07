@@ -198,7 +198,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 }
 
 deluge::project::LaneView ModelStackWithAutoParam::laneView() const {
-	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
+	if (deluge::memory::onRenderTier()) {
 		return paramCollection->playedLane(paramId);
 	}
 	return deluge::project::LaneView::of(*doc());
@@ -226,10 +226,12 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 	int32_t oldValue = played_;
 	if (deluge::memory::onRenderTier() && !deluge::modulation::lanesLive()) {
 		// The render may not write the lane outside record mode: it plays the value now, and the interaction tier
-		// makes it the base.
+		// makes it the base. The base it sees is the published one, or, for a lane with no nodes, what it plays.
+		const deluge::project::LaneView lane = modelStack->laneView();
 		setPlayed(value);
-		deluge::modulation::requestLaneBase(*modelStack->paramCollection, modelStack->paramId, value);
-		const bool automatedNow = isAutomated(modelStack->laneView());
+		deluge::modulation::requestLaneBase(*modelStack->paramCollection, modelStack->paramId,
+		                                    lane.empty() ? oldValue : lane.base, value);
+		const bool automatedNow = isAutomated(lane);
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow,
 		                                                          automatedNow);
 		return;
@@ -660,10 +662,8 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// cannot change, the render plays it without that node and asks the interaction tier to erase it.
 	const bool playsPublished = deluge::modulation::playsPublished();
 	if (playsPublished && lane[lane.size() - 1].pos >= effectiveLength) {
-		if (deluge::memory::onRenderTier()) {
-			deluge::modulation::requestStrayNodeErased(*modelStack->paramCollection, modelStack->paramId,
-			                                           effectiveLength);
-		}
+		deluge::modulation::requestStrayNodeErased(*modelStack->paramCollection, modelStack->paramId,
+		                                           lane[lane.size() - 1].pos);
 		lane.nodes = lane.nodes.first(lane.nodes.size() - 1);
 		if (lane.empty()) {
 			return 2147483647;

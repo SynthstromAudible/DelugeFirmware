@@ -47,7 +47,6 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	// TODO: at least make this go to 0 when no MIDIParams present.
 	summary->whichParamsAreAutomated[0] = 1;
 	summary->whichParamsAreInterpolating[0] = 0;
-	deluge::modulation::LanePublication::made(*this);
 }
 
 // domStore_ / domMidiRef_ are intentionally left null: a cloned collection starts unbound (owns its nodes) until
@@ -64,11 +63,9 @@ MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
 			}
 		}
 	}
-	deluge::modulation::LanePublication::made(*this);
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
-	deluge::modulation::LanePublication::gone(*this);
 	deleteAllParams(NULL, false);
 }
 

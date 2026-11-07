@@ -42,11 +42,13 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreInterpolating[i] = 0;
 	}
+	deluge::modulation::LanePublication::made(*this);
 }
 
 ParamCollection::ParamCollection(const ParamCollection& other)
     : objectSize(other.objectSize), ticksTilNextEvent(other.ticksTilNextEvent),
       serial_(g_nextSerial.fetch_add(1, std::memory_order_relaxed)) {
+	deluge::modulation::LanePublication::made(*this);
 }
 
 deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {

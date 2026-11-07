@@ -438,10 +438,12 @@ void retire(Clip* clip);
 ///        directly, since nothing can reach them any more.
 void retire(Song* song);
 /// @brief [interaction] Free @p object with @p destroy once two render blocks have begun since: memory the render may
-/// be
-///        reading in the block it is in, and holds no pointer into across blocks (a replaced published lane or lane
+///        be reading in the block it is in, and holds no pointer into across blocks (a replaced published lane or lane
 ///        snapshot). At once if the render has never run.
 void retireMemory(void* object, void (*destroy)(void*));
+/// @brief [interaction] Make room for @p count retireMemory() calls, so they cannot fail for want of memory.
+/// @throws The allocator's exception when there is no room.
+void reserveRetirements(size_t count);
 /// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
 ///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E455 otherwise).
 ///        Bounded: freezes with E459 after 250 ms or 1000 waits for a block, whichever comes first. For a

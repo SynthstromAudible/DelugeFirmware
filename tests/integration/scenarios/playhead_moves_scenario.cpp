@@ -129,6 +129,8 @@ int32_t g_arrangementClipsBefore = 0;
 uint32_t g_laneWritesBefore = 0;
 /// Collections found publishing lanes that differ from the model, after every leg.
 int32_t g_lanesStale = 0;
+/// CLIPSHIFT: whether, right after the shift, the volume cursor played the shifted lane's value at the playhead.
+bool g_cursorOnShiftedLane = false;
 /// Blocks a leg plays long enough to reach a node event or a launch: some 2.3 s.
 constexpr int32_t kBlocksToEvent = 800;
 /// A mono-expression base set before a clip is stopped.
@@ -336,10 +338,13 @@ bool selfTestRetire() {
 	return keptOneBlock && g_markerFreed;
 }
 
-/// Out of memory building a snapshot: the old one stays published, the failure is counted, and the next publish point
-/// publishes the lane.
+/// Out of memory building a snapshot: the old one stays published, the failure is counted, the next publish point
+/// publishes the lane, and once what was replaced is reclaimed the published lanes hold what they held before.
 bool selfTestPublishOutOfMemory() {
 	ParamSet& set = *currentSong->paramManager.getUnpatchedParamSet();
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t bytesBefore = deluge::modulation::publishedBytes.load(std::memory_order_relaxed);
+#endif
 	constexpr int32_t p = deluge::modulation::params::UNPATCHED_STUTTER_RATE;
 	// A length no other lane of the boot song has, so the failure made is this lane's copy
 	constexpr int32_t kNodes = 37;
@@ -381,7 +386,19 @@ bool selfTestPublishOutOfMemory() {
 		*set.docForParam(p) = before;
 	}
 	deluge::modulation::publishDirtyLanes(true);
-	return first != nullptr && counted && kept && republished && !deluge::memory::allocationFailurePending();
+	// What the publishes replaced is freed two render blocks on
+	static DelugeStereoSample silence[kRenderBlockFrames]{};
+	static DelugeStereoSample output[kRenderBlockFrames]{};
+	for (int32_t block = 0; block < 3; block++) {
+		deluge_app_render(silence, output, kRenderBlockFrames);
+	}
+	AudioEngine::reclaimRetired();
+	bool released = true;
+#if ALPHA_OR_BETA_VERSION
+	released = deluge::modulation::publishedBytes.load(std::memory_order_relaxed) == bytesBefore;
+#endif
+	return first != nullptr && counted && kept && republished && released
+	       && !deluge::memory::allocationFailurePending();
 }
 
 /// As logRunner, and the notify 10 makes a move of its own that defers 20 and 21.
@@ -650,11 +667,18 @@ void move() {
 		currentSong->setClipLength(g_clip, g_clip->loopLength() * 2, nullptr);
 		break;
 	case Leg::ClipShift: {
+		// A quarter of the loop moves the volume lane's step under the playhead
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		deluge::edits::Context context{*currentSong, currentSong->project};
-		deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*g_clip), 3, true, true,
+		deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*g_clip), g_clip->loopLength() / 4, true, true,
 		                              setupModelStackWithTimelineCounter(memory, currentSong, g_clip)};
 		(void)deluge::edits::apply(context, edit);
+		// The move positioned the cursor on the shifted lane, not the one published before the shift
+		alignas(ModelStackWithAutoParam) char laneMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* volume = volumeLane(laneMemory);
+		g_cursorOnShiftedLane = volume->autoParam->played()
+		                        == deluge::project::getValueAtPos(
+		                            *volume->doc(), static_cast<uint32_t>(g_clip->getLivePos()), g_clip->loopLength());
 		break;
 	}
 	case Leg::RowMute: {
@@ -786,6 +810,9 @@ void printLine() {
 			                 currentSong->isClipActive(g_clip) ? 0 : 1, expression->autoParam->played() == 0 ? 0 : 1,
 			                 expression->doc()->current_value == 0 ? 0 : 1);
 		}
+	}
+	if (g_leg == Leg::ClipShift) {
+		used += snprintf(line + used, sizeof(line) - used, " cursor=%d", g_cursorOnShiftedLane ? 1 : 0);
 	}
 	if (g_leg == Leg::ArrangerRecord) {
 		const auto clips = static_cast<int32_t>(currentSong->live.clips.arrangement_only_clips.size());

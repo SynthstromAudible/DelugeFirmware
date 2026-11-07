@@ -359,6 +359,10 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 } // namespace
 
 namespace AudioEngine {
+void reserveRetirements(size_t count) {
+	retireList.reserve(count);
+}
+
 void retireMemory(void* object, void (*destroy)(void*)) {
 	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
 		FREEZE_WITH_ERROR("E455");

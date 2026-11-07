@@ -23,7 +23,8 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
     PM-SPP                               a MIDI song position pointer on the external clock
     PM-TOARRANGER / PM-TOSESSION         a switch from session to arrangement and back while playing
     PM-UNDO                              a note delete undone while playing (the reversion re-reads automation)
-    PM-CLIPLENGTH / PM-CLIPSHIFT         a playing clip's length doubled, its contents shifted
+    PM-CLIPLENGTH / PM-CLIPSHIFT         a playing clip's length doubled, its contents shifted by a quarter of its
+                                         loop (cursor=1: the move put the volume cursor on the shifted lane)
     PM-ROWMUTE / PM-ROWLENGTH / PM-ROWDIRECTION  a playing row muted and unmuted, its length halved, reversed
     PM-LATESTART                         a stopped clip launched late at the playing clip's position (phase=0 required)
     PM-UNSOLO                            a soloed clip unsoloed: the others restart in phase with it
@@ -136,6 +137,10 @@ def _check(gate, result) -> None:
             reasons.append("the switch began no arrangement recording")
         if leg == "INJECTLAUNCH" and " injected=1" not in rest:
             reasons.append("the render block was never injected")
+        if leg == "CLIPSHIFT" and " cursor=1" not in rest:
+            reasons.append(
+                "the shift positioned the cursor on the lane as published before it"
+            )
         if leg == "SELFREPAIR" and " render_writes=0 erased=1" not in rest:
             reasons.append(
                 f"the render wrote the lane, or the node was never erased ({rest.strip()})"

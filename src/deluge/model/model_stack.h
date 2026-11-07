@@ -285,7 +285,7 @@ public:
 	/// @return The param's DocAutoParam.
 	deluge::project::DocAutoParam* doc() const;
 	/// @brief [render] or [interaction] The lane as the render plays it (ParamCollection::playedLane()); on the
-	///        interaction tier, the model's own (doc()).
+	///        interaction tier, a playhead move included, the model's own (doc()).
 	deluge::project::LaneView laneView() const;
 };
 

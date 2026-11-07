@@ -96,11 +96,9 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 }
 
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
-	deluge::modulation::LanePublication::made(*this);
 }
 
 PatchCableSet::~PatchCableSet() {
-	deluge::modulation::LanePublication::gone(*this);
 	freeDestinationMemory(true);
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		patchCables[c].~PatchCable();
@@ -892,7 +890,6 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		deluge::memory::dealloc(patchCables);
 		throw;
 	}
-	deluge::modulation::LanePublication::made(*this);
 }
 
 Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength) const {

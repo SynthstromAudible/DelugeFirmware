@@ -123,7 +123,8 @@ Outside record mode the render plays lanes it cannot change: each collection's p
 one per snapshot, keyed by paramId (which no re-patch or MIDI learn changes). Every lane read on the render -- the
 cursor's next node, the value at a position, whether a param is automated -- goes through `ParamCollection::playedLane()`
 (or `ModelStackWithAutoParam::laneView()`), a read-only `project::LaneView`. A lane with no nodes is an empty view,
-base 0; every reader stops there. A playhead move's section (`MoveEffects::collecting()`) reads the same way.
+base 0; every reader stops there. The interaction tier reads the model, a playhead move's section included: the
+render is held off for it, and the model is what the operation's end publishes.
 
 In record mode, and from then until the first walk after it has published what was recorded
 (`modulation::lanesLive()`), the render reads and writes the model's lanes as before: where the collection keeps them
@@ -138,14 +139,16 @@ walks the song's param managers (the song's, each clip's, each note row's), so a
 never read; for each marked collection whose lanes differ from its snapshot it builds a new one, sharing the lanes that
 did not change, swaps it in with the render held off, and brings the collection's next event forward so the render
 re-reads at its next block. A song is published before it is handed to the render (the load's arm, a cleared song's
-swap, the boot song). The replaced snapshot and lanes are retired (`AudioEngine::retireMemory`, freed two blocks on);
+swap, the boot song). Nothing is published while recording: the render reads and writes the model then, and the walk
+after recording publishes every collection. The replaced snapshot and lanes are retired (`AudioEngine::retireMemory`, freed two blocks on);
 a destroyed collection's are freed at once, being out of the render's reach with it. Out of memory, the old snapshot
 stays published and the collection stays marked.
 
 The render does not write a published lane. A node at or past a lane's length is played without it, and a value set on
 the render (a stopped synth clip's mono expression cleared) is played at once; each is posted to the interaction tier
 (`requestStrayNodeErased`, `requestLaneBase`), which does it before its next job, if the song still plays that
-collection (its address and serial).
+collection (its address and serial) and the lane is as the render saw it: still ending in that node, or still holding
+the base the render replaced. A base the render does not change is not posted.
 
 Only the interaction tier changes a collection's lane storage: a cable's or a CC's lane added or erased, a store
 created, bound to the tree's or copied out of it. Each change runs inside `EditGuard{ModelEdit::PARAM_STORE}`, which

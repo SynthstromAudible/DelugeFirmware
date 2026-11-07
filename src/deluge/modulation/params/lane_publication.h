@@ -33,8 +33,8 @@ struct LaneSnapshot;
 #if ALPHA_OR_BETA_VERSION
 /// Lanes the render resolved through the model outside record mode: must stay 0.
 extern uint32_t renderModelReads;
-/// Collections whose published snapshot differed from the model after a publish (bits, order, base or nodes): must stay
-/// 0.
+/// Collections whose published snapshot differed from the model after a publish (its lanes, a base or nodes): must
+/// stay 0.
 extern uint32_t staleLanes;
 /// Snapshots that could not be built (out of memory): the previous one stayed published.
 extern uint32_t publishFailures;
@@ -52,29 +52,31 @@ bool lanesLive();
 ///        snapshot.
 void noteRenderModelRead();
 
-/// @brief [render] or [interaction] Whether a lane read now plays published lanes: on the render (and a playhead move's
-///        collecting pass) outside record mode.
+/// @brief [render] or [interaction] Whether a lane read now plays published lanes: on the render, outside record mode.
+///        The interaction tier reads the model, a playhead move's section included: the render is held off for it, and
+///        the model is what the operation's end publishes.
 bool playsPublished();
 
 /// @brief [render] or [interaction] The snapshot a lane read of @p collection plays now, or nullptr to read the model.
-///        The render (and a playhead move's collecting pass) plays the published lanes outside record mode, once the
-///        collection has any; a collection not yet published is read in the model, and counted.
+///        The render plays the published lanes outside record mode (playsPublished()), once the collection has any; a
+///        collection not yet published is read in the model, and counted.
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection);
 /// @brief [render] or [interaction] Count a write to a lane made on the render outside record mode.
 void noteRenderLaneWrite();
 
 /// @brief [interaction] Compare every published collection's snapshot with its model: the same lanes, each with the
-/// same
-///        base and nodes.
+///        same base and nodes.
 /// @return The collections that differ.
 int32_t checkPublished(Song& song);
 
 /// @brief [render] Outside record mode the render may not write a lane's base: it plays @p value now, and asks the
-///        interaction tier to make @p value the base of lane @p paramId before its next job.
-void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t value);
-/// @brief [render] Lane @p paramId has a last node at or past @p length, the length it plays to: the render plays the
-///        lane without it, and asks the interaction tier to erase it before its next job.
-void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t length);
+///        interaction tier to make @p value the base of lane @p paramId before its next job -- if the base is still
+///        @p seen, so a base written since is kept.
+void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t seen, int32_t value);
+/// @brief [render] Lane @p paramId's last node, at @p pos, is at or past the length the lane plays to: the render plays
+///        the lane without it, and asks the interaction tier to erase it before its next job, if the lane still ends
+///        with a node at @p pos.
+void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t pos);
 /// @brief [interaction] Do the render's lane requests, each only if the current song still plays its collection.
 ///        Called by deluge::playback::applyRenderRequests().
 void applyLaneRequests();
@@ -84,11 +86,10 @@ void applyLaneRequests();
 ///        the render reached a lane in the model, which is counted (noteRenderModelRead()).
 void markLanesChanged(ParamCollection& collection);
 /// @brief [interaction] Republish every collection marked changed whose lanes differ from its snapshot. A publish
-/// point:
-///        nothing happens on the render, or while a section holds the render off (the build allocates).
-/// @param settle Whether the job is done with its lanes (the app loop, after each job): the marks are cleared. Within a
-///        job (an edit's guard closing, a move's end) they stay, so a write through a lane still held is published at
-///        the next point.
+///        point: nothing happens on the render, while a section holds the render off (the build allocates), inside
+///        an operation, or while recording (the render reads the model then).
+/// @param settle Whether the job is done with its lanes (the app loop, after each job): the marks are cleared. At an
+///        operation's end they stay, so a write through a lane still held is published at the next point.
 void publishDirtyLanes(bool settle = false);
 
 /// @brief [interaction] Publish every collection of @p song before it is handed to the render: a song not yet current

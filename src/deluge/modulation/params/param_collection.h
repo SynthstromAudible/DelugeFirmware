@@ -19,11 +19,10 @@
 
 #include "deluge-project/lane_view.h"
 #include "foundation/function_ref.h"
+#include "modulation/params/param.h"
 
 #include <atomic>
 #include <cstdint>
-
-#include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
 class Sound;
@@ -54,9 +53,9 @@ class LanePublication;
 class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
-	/// @brief A copy of @p other's lanes' owner, with no snapshot of its own yet. A subclass's constructor ends with
-	///        LanePublication::made() and its destructor begins with LanePublication::gone(), so the publication never
-	///        walks a collection whose members are not all alive.
+	/// @brief A copy of @p other's lanes' owner, with no snapshot of its own yet: the next walk of the song that plays
+	/// it
+	///        publishes one.
 	ParamCollection(const ParamCollection& other);
 	ParamCollection& operator=(const ParamCollection&) = delete;
 	virtual ~ParamCollection();

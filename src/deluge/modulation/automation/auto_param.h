@@ -201,8 +201,7 @@ public:
 	///        moment before following the lane again. The render's cursor state: see stopInterpolating().
 	void overrideFromNow();
 	/// @brief Stop interpolating. The render's cursor state, which it writes as it plays: the interaction tier writes
-	/// it
-	///        with the render held off, so no block sees it half made.
+	///        it with the render held off, so no block sees it half made.
 	void stopInterpolating();
 
 	// The AutoParam is a pure interpolation cursor: it holds no node storage. Every node operation receives a

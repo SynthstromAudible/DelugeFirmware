@@ -74,7 +74,6 @@ void setParamsToDefaults(ParamSet& set, params::Kind kind, std::initializer_list
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
-	deluge::modulation::LanePublication::made(*this);
 }
 
 // A cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
@@ -89,13 +88,10 @@ ParamSet::ParamSet(ParamSet const& other)
 		domStore_ = std::make_unique<deluge::project::DocParamSet>(*other.domStoreRef_);
 		domStoreRef_ = domStore_.get();
 	}
-	deluge::modulation::LanePublication::made(*this);
 }
 
 // Out-of-line so the unique_ptr<DocParamSet> member is destroyed where DocParamSet is complete.
-ParamSet::~ParamSet() {
-	deluge::modulation::LanePublication::gone(*this);
-}
+ParamSet::~ParamSet() = default;
 
 void ParamSet::bindDomStore() {
 	// Binding is just "ensure a store exists": docForParam lazily creates + binds the set's own store

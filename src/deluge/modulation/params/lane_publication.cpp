@@ -36,7 +36,9 @@
 #include "util/spsc_ring.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <span>
 
 namespace deluge::modulation {
 
@@ -56,12 +58,24 @@ std::atomic<bool> g_anyPending{false};
 std::atomic<bool> g_liveUntilSettled{false};
 /// [interaction] Operations in progress: none may publish until the outermost ends.
 int32_t g_operations = 0;
+/// [interaction] Whether a walk is publishing: a publish point it reaches (an operation ending inside it) waits.
+bool g_publishing = false;
 
 /// Whether the interaction tier may publish now: not on the render, with no section holding the render off and no
 /// operation half done.
 bool mayPublish() {
 	return !deluge::memory::onRenderTier() && deluge_tier_current() == DELUGE_TIER_INTERACTION
 	       && deluge_audio_excluded_depth() == 0 && g_operations == 0;
+}
+
+/// Free a snapshot never published, @p next, and the lanes it was built with (@p built) that @p old does not share.
+void discard(std::span<const LaneSnapshot::Entry> built, LaneSnapshot* next, const LaneSnapshot* old) {
+	for (const LaneSnapshot::Entry& entry : built) {
+		if (old == nullptr || old->find(entry.key) != entry.lane) {
+			PublishedLane::destroy(const_cast<PublishedLane*>(entry.lane));
+		}
+	}
+	LaneSnapshot::destroy(next);
 }
 
 /// Call @p visit with every collection of every param manager @p song plays -- its own, each clip's and each note
@@ -86,9 +100,6 @@ void forEachPlayedCollection(Song& song, deluge::function_ref<void(ParamCollecti
 		}
 	}
 }
-} // namespace
-
-namespace {
 /// What the render asks the interaction tier to do to a lane.
 struct LaneRequest {
 	enum class Kind : uint8_t { BASE, STRAY_NODE } kind = Kind::BASE;
@@ -96,12 +107,15 @@ struct LaneRequest {
 	ParamCollection* collection = nullptr;
 	uint32_t serial = 0;
 	int32_t paramId = 0;
-	int32_t value = 0; ///< BASE: the base; STRAY_NODE: the length a last node at or past is erased
+	int32_t value = 0; ///< BASE: the new base; STRAY_NODE: the position of the node to erase
+	int32_t seen = 0;  ///< BASE: the base the render saw, which the new one replaces only if still there
 };
 
 /// [render] -> [interaction] The render's lane requests. A dropped one is counted: a dropped stray node is asked for
-/// again the next time the render reaches it; a dropped base is left as it was.
-deluge::util::SpscRing<LaneRequest, 64> g_laneRequests;
+/// again the next time the render reaches it; a dropped base is left as it was. The render posts a base only when it
+/// changes, so a run of stops posts only the expression it must clear.
+constexpr size_t kLaneRequests = 64;
+deluge::util::SpscRing<LaneRequest, kLaneRequests> g_laneRequests;
 
 void postLaneRequest(const LaneRequest& request) {
 	if (!g_laneRequests.try_push(request)) {
@@ -111,51 +125,67 @@ void postLaneRequest(const LaneRequest& request) {
 	}
 }
 
-/// The collection @p request names, if @p song still plays it.
-ParamCollection* stillPlayed(Song& song, const LaneRequest& request) {
-	ParamCollection* found = nullptr;
+/// For each of @p requests, the collection it names if @p song still plays it, else nullptr: one walk of the song.
+void resolve(Song& song, std::span<const LaneRequest> requests, std::span<ParamCollection*> collections) {
+	std::ranges::fill(collections, nullptr);
 	forEachPlayedCollection(song, [&](ParamCollection& collection, ParamManagerForTimeline&) {
-		if (&collection == request.collection && collection.serial() == request.serial) {
-			found = &collection;
+		for (size_t i = 0; i < requests.size(); i++) {
+			if (&collection == requests[i].collection && collection.serial() == requests[i].serial) {
+				collections[i] = &collection;
+			}
 		}
 	});
-	return found;
 }
 } // namespace
 
-void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t value) {
+void requestLaneBase(ParamCollection& collection, int32_t paramId, int32_t seen, int32_t value) {
+	if (seen == value) {
+		return;
+	}
 	postLaneRequest({.kind = LaneRequest::Kind::BASE,
 	                 .collection = &collection,
 	                 .serial = collection.serial(),
 	                 .paramId = paramId,
-	                 .value = value});
+	                 .value = value,
+	                 .seen = seen});
 }
 
-void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t length) {
+void requestStrayNodeErased(ParamCollection& collection, int32_t paramId, int32_t pos) {
 	postLaneRequest({.kind = LaneRequest::Kind::STRAY_NODE,
 	                 .collection = &collection,
 	                 .serial = collection.serial(),
 	                 .paramId = paramId,
-	                 .value = length});
+	                 .value = pos});
 }
 
 void applyLaneRequests() {
-	LaneRequest request;
-	while (g_laneRequests.try_pop(request)) {
-		ParamCollection* collection = (currentSong != nullptr) ? stillPlayed(*currentSong, request) : nullptr;
+	std::array<LaneRequest, kLaneRequests> requests;
+	size_t count = 0;
+	while (count < requests.size() && g_laneRequests.try_pop(requests[count])) {
+		count++;
+	}
+	if (count == 0 || currentSong == nullptr) {
+		return;
+	}
+	std::array<ParamCollection*, kLaneRequests> collections;
+	resolve(*currentSong, std::span(requests).first(count), std::span(collections).first(count));
+	for (size_t i = 0; i < count; i++) {
+		const LaneRequest& request = requests[i];
+		ParamCollection* collection = collections[i];
 		if (collection == nullptr) {
 			continue;
 		}
 		project::EditGuard guard{project::ModelEdit::NODE_KERNEL};
 		if (request.kind == LaneRequest::Kind::BASE) {
-			if (project::DocAutoParam* lane = collection->docParamForId(request.paramId)) {
+			if (project::DocAutoParam* lane = collection->docParamForId(request.paramId);
+			    lane != nullptr && lane->current_value == request.seen) {
 				project::set_base(*lane, request.value);
 			}
 		}
 		else if (project::DocAutoParam* lane = collection->findDocParamForId(request.paramId);
 		         lane != nullptr && !lane->nodes.empty()) {
 			const int32_t last = std::ssize(lane->nodes) - 1;
-			if (lane->nodes[last].pos >= request.value) {
+			if (lane->nodes[last].pos == request.value) {
 				lane->nodes.erase(lane->nodes.begin() + last);
 			}
 		}
@@ -173,14 +203,14 @@ bool lanesLive() {
 
 void noteRenderModelRead() {
 #if ALPHA_OR_BETA_VERSION
-	if (!lanesLive()) {
+	if (deluge::memory::onRenderTier() && !lanesLive()) {
 		renderModelReads++;
 	}
 #endif
 }
 
 bool playsPublished() {
-	return (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) && !lanesLive();
+	return deluge::memory::onRenderTier() && !lanesLive();
 }
 
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection) {
@@ -264,15 +294,24 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 		entries[filled++] = {.key = key, .lane = published};
 	});
 	if (outOfMemory) {
-		for (uint32_t i = 0; i < filled; i++) {
-			if (old == nullptr || old->find(entries[i].key) != entries[i].lane) {
-				PublishedLane::destroy(const_cast<PublishedLane*>(entries[i].lane));
-			}
-		}
-		LaneSnapshot::destroy(next);
+		discard(entries.first(filled), next, old);
 		return false;
 	}
 	std::ranges::sort(entries, {}, &LaneSnapshot::Entry::key);
+
+	// Room to retire what the new snapshot replaces, made before the swap so retiring it cannot fail
+	size_t retirements = 0;
+	if (old != nullptr) {
+		retirements = 1 + std::ranges::count_if(old->entries(), [&](const LaneSnapshot::Entry& entry) {
+			              return next->find(entry.key) != entry.lane;
+		              });
+	}
+	try {
+		AudioEngine::reserveRetirements(retirements);
+	} catch (...) {
+		discard(entries, next, old);
+		return false;
+	}
 
 	{
 		// The tick re-reads the collection's lanes at its next block, from the new snapshot. Not a MoveSection: its end
@@ -299,14 +338,23 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 }
 
 void LanePublication::publishDirty(bool settle) {
-	static bool publishing = false;
-	const bool settleAll =
-	    settle && g_liveUntilSettled.load(std::memory_order_relaxed) && playbackHandler.recording == RecordingMode::OFF;
-	if (currentSong == nullptr || publishing || !mayPublish()
+	// While recording the render writes the lanes it reads, and plays none published: the walk after recording ends
+	// publishes them all.
+	const bool recording = playbackHandler.recording != RecordingMode::OFF;
+	const bool settleAll = settle && g_liveUntilSettled.load(std::memory_order_relaxed) && !recording;
+	if (currentSong == nullptr || g_publishing || recording || !mayPublish()
 	    || (!g_anyPending.load(std::memory_order_relaxed) && !settleAll)) {
 		return;
 	}
-	publishing = true;
+	struct Walk {
+		Walk() { g_publishing = true; }
+		~Walk() {
+			g_publishing = false;
+			if (std::uncaught_exceptions() > 0) {
+				g_anyPending.store(true, std::memory_order_relaxed); // the next publish point looks again
+			}
+		}
+	} walk;
 	g_anyPending.store(false, std::memory_order_relaxed);
 	bool failed = false;
 	// A collection stays marked until the job settles: a caller may still write a lane it holds after this publish,
@@ -337,7 +385,6 @@ void LanePublication::publishDirty(bool settle) {
 	if (settleAll && !failed) {
 		g_liveUntilSettled.store(false, std::memory_order_relaxed);
 	}
-	publishing = false;
 }
 
 bool LanePublication::publishSong(Song& song) {
