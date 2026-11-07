@@ -53,6 +53,11 @@ ParamCollection::ParamCollection(const ParamCollection& other)
 }
 
 deluge::project::LaneView ParamCollection::playedLane(int32_t paramId) {
+	if (deluge::memory::onRenderTier() && hasWorkingCopies()) {
+		if (const deluge::project::DocAutoParam* copy = deluge::modulation::workingCopy(*this, paramId)) {
+			return deluge::project::LaneView::of(*copy); // a lane being recorded plays what the render writes
+		}
+	}
 	if (const deluge::modulation::LaneSnapshot* snapshot = deluge::modulation::snapshotToPlay(*this)) {
 		const deluge::modulation::PublishedLane* lane = snapshot->find(paramId);
 		return (lane != nullptr) ? lane->view() : deluge::project::LaneView{};

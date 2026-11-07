@@ -22,7 +22,9 @@
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
+#include "playback/playback_handler.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
 #include <cstddef>
@@ -66,31 +68,40 @@ void applyRecordEvents(::Song& song) {
 			continue;
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		if (ModelStackWithAutoParam* stack = bridge::paramStackOnRender(song, event.lane, memory)) {
-			project::DocAutoParam& lane = *stack->doc();
-			if (isUnheldLane(lane)) {
-				continue;
-			}
-#if ALPHA_OR_BETA_VERSION
-			const size_t capacity = lane.nodes.capacity();
-#endif
-			noteRenderLaneWrite();
-			stack->autoParam->writeRecordedValue(lane, event);
-#if ALPHA_OR_BETA_VERSION
-			if (lane.nodes.capacity() != capacity) {
-				++renderNodeGrowths;
-			}
-#endif
+		ModelStackWithAutoParam* stack = bridge::paramStackOnRender(song, event.lane, memory);
+		project::DocAutoParam* lane =
+		    (stack != nullptr) ? workingCopy(*stack->paramCollection, stack->paramId) : nullptr;
+		if (lane == nullptr) {
+			continue; // the take was released before the render reached the value
 		}
+#if ALPHA_OR_BETA_VERSION
+		const size_t capacity = lane->nodes.capacity();
+#endif
+		stack->autoParam->writeRecordedValue(*lane, event);
+		noteWorkingCopyWritten(*lane);
+#if ALPHA_OR_BETA_VERSION
+		if (lane->nodes.capacity() != capacity) {
+			++renderNodeGrowths;
+		}
+#endif
 	}
 }
 
-void drainRecordEvents(::Song& song) {
-	if (g_recordEvents.empty()) {
+void commitRecording(::Song& song) {
+	const bool recording = playbackHandler.recording != RecordingMode::OFF;
+	if (g_recordEvents.empty() && workingCopiesHeld() == 0) {
 		return;
 	}
-	AudioExcludedSection section;
-	applyRecordEvents(song);
+	{
+		AudioExcludedSection section;
+		applyRecordEvents(song);
+	}
+	if (recording) {
+		commitWorkingCopies();
+	}
+	else {
+		releaseWorkingCopies(); // the take is over: its lanes play from the model's published snapshots
+	}
 }
 
 void forgetRecordEvents(const ::Song& song) {

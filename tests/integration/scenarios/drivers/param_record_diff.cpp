@@ -184,6 +184,8 @@ void renderBlockStart() {
 		deluge::memory::RenderBlock block;
 		deluge::modulation::applyRecordEvents(*currentSong);
 	}
+	// As the app does before its next job: what the render recorded reaches the model this driver reads
+	deluge::modulation::commitRecording(*currentSong);
 	if (deluge::memory::audioTierAllocations() != allocations) {
 		std::fprintf(io.err, "the render allocated writing recorded values\n");
 		probeFailed = true;
@@ -266,6 +268,7 @@ void tickLatch(ModelStackWithAutoParam* msap, std::span<const int32_t> positions
 		deluge::memory::noteRenderBlock(true);
 		msap->autoParam->processCurrentPos(msap, reversed, false, true, false);
 		deluge::memory::noteRenderBlock(false);
+		deluge::modulation::commitRecording(*currentSong);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);
@@ -679,6 +682,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 		deluge::memory::noteRenderBlock(true);
 		ap.processCurrentPos(msap, false, false, true, false);
 		deluge::memory::noteRenderBlock(false);
+		deluge::modulation::commitRecording(*currentSong);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);

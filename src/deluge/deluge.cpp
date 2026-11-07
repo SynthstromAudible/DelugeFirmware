@@ -76,6 +76,7 @@
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -749,6 +750,10 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 		// Before any job reads interaction-owned state the render's work changes: do what it asked for since the last
 		// job.
 		deluge::playback::applyRenderRequests();
+		// What the render recorded since the last job, into the model the jobs read
+		if (currentSong != nullptr) {
+			deluge::modulation::commitRecording(*currentSong);
+		}
 		const uint64_t next = appLoop.service(now_us, reasons);
 		// The lanes the jobs changed, published for the render now the jobs are done with them
 		deluge::modulation::publishDirtyLanes(true);

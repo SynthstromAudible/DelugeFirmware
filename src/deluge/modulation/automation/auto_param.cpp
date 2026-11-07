@@ -42,6 +42,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -282,7 +283,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
 	if (modelStack->song != nullptr) {
-		deluge::modulation::drainRecordEvents(*modelStack->song); // what this reads includes what was recorded
+		deluge::modulation::commitRecording(*modelStack->song); // what this reads includes what was recorded
 	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
@@ -363,17 +364,21 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// Wait, I can no longer see why this matters...
 			event.backtrackingCouldLoopBack = modelStack->getTimelineCounter()->backtrackingCouldLoopBackToEnd();
 			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
-
-			{
+			// The render records into a copy of the lane it owns; the model hears at the next commit. Without a copy
+			// the value is set, not recorded.
+			deluge::project::DocAutoParam* copy =
+			    deluge::modulation::makeWorkingCopy(*modelStack, deluge::modulation::kNodesPerRecordedWrite);
+			if (copy != nullptr) {
 				AudioExcludedSection section;
-				deluge::modulation::reserveForRecordedWrite(modelStack->doc()->nodes);
+				deluge::modulation::reserveForRecordedWrite(copy->nodes);
 				if (address) {
 					event.lane = *address;
 				}
 				if (!address || !deluge::modulation::postRecordEvent(event)) {
 					// The render is excluded: write what it has queued, then this, so the writes land in order.
 					deluge::modulation::applyRecordEvents(*modelStack->song);
-					writeRecordedValue(*modelStack->doc(), event);
+					writeRecordedValue(*copy, event);
+					deluge::modulation::noteWorkingCopyWritten(*copy);
 #if ALPHA_OR_BETA_VERSION
 					++(address ? deluge::modulation::recordRingFullFallbacks
 					           : deluge::modulation::recordWritesWithoutAddress);
@@ -385,9 +390,9 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				// Played now, before the render can move it on. Its base is the kernel's to write, after it has read
 				// the old one for where the cleared stretch returns to.
 				setPlayed(value);
+				automationChanged = true;
+				recorded = true;
 			}
-			automationChanged = true;
-			recorded = true;
 		}
 
 		// Or if not recording...
@@ -613,7 +618,7 @@ removeMiddleNodeInRun:
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
 	if (modelStack->song != nullptr) {
-		deluge::modulation::drainRecordEvents(*modelStack->song); // nothing recorded lands after the delete
+		deluge::modulation::commitRecording(*modelStack->song); // nothing recorded lands after the delete
 	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
@@ -816,9 +821,17 @@ yesCancelOverriding:
 			// happening live, now
 			if (playbackHandler.isCurrentlyRecording()) {
 recordOverNodeJustReached:
-				// Recording: the render reads the model's lane (deluge::modulation::lanesLive()), and writes it here.
-				auto& nodesRef = modelStack->doc()->nodes;
-				deluge::modulation::noteRenderLaneWrite();
+				// Recording: the render writes the lane it plays, its working copy when it has one.
+				deluge::project::DocAutoParam* copy =
+				    deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId);
+				deluge::project::DocAutoParam& written = (copy != nullptr) ? *copy : *modelStack->doc();
+				if (copy != nullptr) {
+					deluge::modulation::noteWorkingCopyWritten(*copy);
+				}
+				else {
+					deluge::modulation::noteRenderLaneWrite();
+				}
+				auto& nodesRef = written.nodes;
 				ParamNode& reached = nodesRef[iJustReached];
 				nodeJustReached = &reached;
 
@@ -950,7 +963,7 @@ adjustNodeJustReached:
 				// Having changed that node's value, there's a chance it may have made the node before it redundant
 				if (!reversed) {
 					needToReGetNextNode = deleteRedundantNodeInLinearRun(
-					    *modelStack->doc(), iJustReached,
+					    written, iJustReached,
 					    effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
 				}
 
@@ -969,7 +982,7 @@ adjustNodeJustReached:
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
-							    *modelStack->doc(), iRight,
+							    written, iRight,
 							    effectiveLength); // If returns false, storage wasn't changed, and we've got the next
 							                      // node right here! Shouldn't I make it so this doesn't get called for
 							                      // MPE?

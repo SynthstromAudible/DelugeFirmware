@@ -72,9 +72,10 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes);
 /// capacity per call. [task] only with the render excluded, which makes it the queue's one consumer while it runs.
 void applyRecordEvents(::Song& song);
 
-/// @brief [task] Write what is still queued into @p song's lanes, with the render excluded: before the interaction tier
-/// reads or edits lanes, so it sees every value it recorded. [audio] as applyRecordEvents.
-void drainRecordEvents(::Song& song);
+/// @brief [task] Write what is still queued into the working copies, with the render excluded, then copy every working
+/// copy the render changed into the model (modulation/automation/working_copies.h); once recording has stopped, release
+/// them. Before every job, and before the interaction tier reads or edits lanes, so it sees every value it recorded.
+void commitRecording(::Song& song);
 
 /// @brief [task] @p song is going: write the queue into the current song if that is another, else drop it, so no event
 /// outlives the song its lane is addressed in.

@@ -4498,7 +4498,7 @@ extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
                                   int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
-	deluge::modulation::drainRecordEvents(*modelStack->song); // the note's MPE values land after what was recorded
+	deluge::modulation::commitRecording(*modelStack->song); // the note's MPE values land after what was recorded
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
