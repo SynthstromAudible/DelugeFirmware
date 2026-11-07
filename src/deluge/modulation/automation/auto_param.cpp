@@ -225,13 +225,21 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 // automation, or when playback is stopped.
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
 	int32_t oldValue = played_;
-	if (deluge::memory::onRenderTier() && !deluge::modulation::lanesLive()) {
-		// The render may not write the lane outside record mode: it plays the value now, and the interaction tier
-		// makes it the base. The base it sees is the published one, or, for a lane with no nodes, what it plays.
+	if (deluge::memory::onRenderTier()) {
+		// The render writes no model lane: it plays the value now. A lane being recorded takes it as the base of the
+		// render's working copy; any other asks the interaction tier to make it the base. The base the render sees is
+		// the published one, or, for a lane with no nodes, what it plays.
 		const deluge::project::LaneView lane = modelStack->laneView();
 		setPlayed(value);
-		deluge::modulation::requestLaneBase(*modelStack->paramCollection, modelStack->paramId,
-		                                    lane.empty() ? oldValue : lane.base, value);
+		if (deluge::project::DocAutoParam* copy =
+		        deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId)) {
+			deluge::project::set_base(*copy, value);
+			deluge::modulation::noteWorkingCopyWritten(*copy);
+		}
+		else {
+			deluge::modulation::requestLaneBase(*modelStack->paramCollection, modelStack->paramId,
+			                                    lane.empty() ? oldValue : lane.base, value);
+		}
 		const bool automatedNow = isAutomated(lane);
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow,
 		                                                          automatedNow);
@@ -665,7 +673,11 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// No node should be at or past the length (see the self-repair at the end). Playing a published lane, which it
 	// cannot change, the render plays it without that node and asks the interaction tier to erase it.
-	const bool playsPublished = deluge::modulation::playsPublished();
+	deluge::project::DocAutoParam* recordingCopy =
+	    deluge::memory::onRenderTier()
+	        ? deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId)
+	        : nullptr;
+	const bool playsPublished = deluge::memory::onRenderTier() && recordingCopy == nullptr;
 	if (playsPublished && lane[lane.size() - 1].pos >= effectiveLength) {
 		deluge::modulation::requestStrayNodeErased(*modelStack->paramCollection, modelStack->paramId,
 		                                           lane[lane.size() - 1].pos);
@@ -1036,15 +1048,19 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see
 	// https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj I'm so
 	// sorry, but I'm going to just make it manually fix itself, here.
-	// Playing a published lane, the render left such a node out above.
+	// Playing a published lane, the render left such a node out above; it erases it from its own working copy, and the
+	// interaction tier from the model.
 	if (!playsPublished) {
-		auto& nodesRef = modelStack->doc()->nodes;
+		deluge::project::DocAutoParam& repaired = (recordingCopy != nullptr) ? *recordingCopy : *modelStack->doc();
+		auto& nodesRef = repaired.nodes;
 		if (!nodesRef.empty()) {
 			int32_t i = std::ssize(nodesRef) - 1;
 			ParamNode* rightmostNode = &nodesRef[i];
 			if (rightmostNode->pos >= effectiveLength) {
-				deluge::modulation::noteRenderLaneWrite();
 				nodesRef.erase(nodesRef.begin() + i);
+				if (recordingCopy != nullptr) {
+					deluge::modulation::noteWorkingCopyWritten(*recordingCopy);
+				}
 				// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 			}
 		}

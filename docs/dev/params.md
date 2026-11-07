@@ -91,45 +91,55 @@ and `cancelOverriding()` (each with the render held off), and by four named oper
 
 ## Recording while playing
 
-While a clip records, the render is the only writer of its lanes' nodes (`modulation/automation/record_events.h`). A
-knob, MIDI or MPE write takes the undo snapshot on the interaction tier, reserves room in the lane for what the write
-can add (and for every write still queued), and posts a `RecordEvent` with what the live-record kernel reads beyond the
-lane's nodes: the play position, the clip's length, direction and cut position, how far ahead to clear, the tick
-length. The render writes the queued events at the start of its next block, before it ticks, through
-`bridge::paramStackOnRender` (resolve-only: the interaction tier made the lane); what the kernel decides from the
-nodes (whether the region's start interpolates, which node of a straight run to drop) it decides then, so a second
-write before that block sees the first. Before the interaction tier itself reads or edits lanes (each recorded write, every
-Edit, undo and redo, an automation delete, a recorded note's MPE values) it writes what is still queued, with the
-render excluded, so it sees every value it recorded and nothing lands after its edit; a song being freed hands its
-queue over or drops it. An event made in another song, or whose clip has since gone, is dropped. With the queue full,
-or a lane with no address, the interaction tier writes in place, with the render excluded, after what is queued. The kernel
-writes the base after reading the old one, where the cleared stretch returns to; the interaction tier sets only the
-played value.
+While a clip records, the render owns a working copy of each lane it records into
+(`modulation/automation/working_copies.h`) and is its only writer; the model's lanes are written by the interaction
+tier alone. A knob, MIDI or MPE write takes the undo snapshot on the interaction tier, makes the lane's working copy if
+it has none (the lane copied, with room for what the write can add and for every write still queued), and posts a
+`RecordEvent` (`modulation/automation/record_events.h`) with what the live-record kernel reads beyond the lane's nodes:
+the play position, the clip's length, direction and cut position, how far ahead to clear, the tick length. The render
+writes the queued events into the working copies at the start of its next block, before it ticks; what the kernel
+decides from the nodes (whether the region's start interpolates, which node of a straight run to drop) it decides then,
+so a second write before that block sees the first. A lane being recorded plays its working copy.
 
-The latch's drift-back stays on the render and keeps its own undo snapshot: it also records over lanes the interaction
-tier never snapshotted (a knob turned just before record, an override on an unarmed clip). Editor writes to a recording
-lane (automation-view pads, paste, delete) stay interaction-tier Edits under the render's exclusion, after the queue.
+The commit (`commitRecording`) runs before every job and before the interaction tier itself reads or edits lanes (each
+recorded write, every Edit, undo and redo, an automation delete, a recorded note's MPE values): with the render
+excluded it writes what is still queued, then copies every working copy the render changed into the model and marks it
+for publishing, so the interaction tier sees every value recorded and nothing lands after its edit. When recording
+stops the copies are released (retired: the render may be in a block that reads one); undo and redo end the take
+too, since they rewrite lanes a copy would overwrite at the next commit. An event made in another song, or whose lane
+has no copy any more, is dropped; a song being freed hands its queue over or drops it, and its collections' copies go
+with them. With the queue full, or a lane with no address, the interaction tier writes the copy itself, with the render
+excluded, after what is queued. The kernel writes the base after reading the old one, where the cleared stretch returns
+to; the interaction tier sets only the played value.
+
+The latch's drift-back writes the working copy and logs no undo: whoever made the copy took the take's snapshot. A
+lane a knob overrides while recording gets its copy when the knob turns (the latch may drift back on it, armed clip or
+not); when recording starts, the lanes a knob is already overriding get theirs, their cursors read with the render held
+off. A latch on a lane without a copy plays on and writes nothing.
 
 Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
-room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written in place). param-record-diff
-checks across its recorded cases (not the latch) that the render logs no undo, allocates nothing and grows no lane,
-that 70 writes with no render block between them leave the lane, its base and its played value as the same writes a
-block apart, and that a write undone before the next block stays undone.
+room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written by the interaction tier),
+`workingCopyOverflows` (a lane not recorded into: the table of 32 was full or out of memory) and
+`latchWritesWithoutCopy`. param-record-diff checks across its recorded cases, the latch included, that the render logs
+no undo, reads and writes no model lane, allocates nothing and grows no lane; that 70 writes with no render block
+between them leave the lane, its base and its played value as the same writes a block apart; that a write undone
+before the next block stays undone; and that a lane overridden before recording starts is copied, latched and given
+back by undo.
 
 ## How the render reaches a lane
 
-Outside record mode the render plays lanes it cannot change: each collection's published snapshot
+The render plays lanes it cannot change: each collection's published snapshot
 (`modulation/params/lane_snapshot.h`), an immutable copy of its lanes with nodes, one SDRAM allocation per lane and
 one per snapshot, keyed by paramId (which no re-patch or MIDI learn changes). Every lane read on the render -- the
 cursor's next node, the value at a position, whether a param is automated -- goes through `ParamCollection::playedLane()`
 (or `ModelStackWithAutoParam::laneView()`), a read-only `project::LaneView`. A lane with no nodes is an empty view,
-base 0; every reader stops there. The interaction tier reads the model, a playhead move's section included: the
-render is held off for it, and the model is what the operation's end publishes.
+base 0; every reader stops there. A lane being recorded plays its working copy instead ("Recording while playing"
+above). The interaction tier reads the model, a playhead move's section included: the render is held off for it, and
+the model is what the operation's end publishes.
 
-In record mode, and from then until the first walk after it has published what was recorded
-(`modulation::lanesLive()`), the render reads and writes the model's lanes as before: where the collection keeps them
-(`findDocParamForId`), never building an address or creating a store; a lane nothing holds is the unheld lane (no
-nodes, base 0, never written). A collection not yet published is read in the model too, and counted.
+A collection not yet published is read in the model, where the collection keeps its lanes (`findDocParamForId`): no
+address is built and no store created, and a lane nothing holds is the unheld lane (no nodes, base 0, never written).
+That read is counted.
 
 The interaction tier publishes (`modulation/params/lane_publication.h`). Every path that hands out a collection's lane
 to write, or rebinds its store, marks the collection. The outermost `LaneOperation` -- an Edit applied, an undo or
@@ -139,16 +149,16 @@ walks the song's param managers (the song's, each clip's, each note row's), so a
 never read; for each marked collection whose lanes differ from its snapshot it builds a new one, sharing the lanes that
 did not change, swaps it in with the render held off, and brings the collection's next event forward so the render
 re-reads at its next block. A song is published before it is handed to the render (the load's arm, a cleared song's
-swap, the boot song). Nothing is published while recording: the render reads and writes the model then, and the walk
-after recording publishes every collection. The replaced snapshot and lanes are retired (`AudioEngine::retireMemory`, freed two blocks on);
+swap, the boot song). The replaced snapshot and lanes are retired (`AudioEngine::retireMemory`, freed two blocks on);
 a destroyed collection's are freed at once, being out of the render's reach with it. Out of memory, the old snapshot
 stays published and the collection stays marked.
 
-The render does not write a published lane. A node at or past a lane's length is played without it, and a value set on
+The render writes no model lane. A node at or past a published lane's length is played without it, and a value set on
 the render (a stopped synth clip's mono expression cleared) is played at once; each is posted to the interaction tier
 (`requestStrayNodeErased`, `requestLaneBase`), which does it before its next job, if the song still plays that
 collection (its address and serial) and the lane is as the render saw it: still ending in that node, or still holding
-the base the render replaced. A base the render does not change is not posted.
+the base the render replaced. A base the render does not change is not posted. On a working copy the render erases the stray node or sets the base
+itself, since it owns the copy.
 
 Only the interaction tier changes a collection's lane storage: a cable's or a CC's lane added or erased, a store
 created, bound to the tree's or copied out of it. Each change runs inside `EditGuard{ModelEdit::PARAM_STORE}`, which
@@ -160,8 +170,8 @@ The render tier is what `deluge::memory::onRenderTier()` says: the audio tier, o
 the offline export loop (its recorded values, ticks and render, as `deluge_app_render`'s block holds them). A storage
 task that preempts an export block is not the render.
 
-Alpha counters: `renderModelReads` (a lane the render read in the model outside record mode), `renderPublishedWrites`
-(a lane it wrote outside record mode), `staleLanes` and `publishFailures` (a snapshot that differed from its model after
+Alpha counters: `renderModelReads` (a lane the render read in the model), `renderModelWrites` (a lane it wrote in the
+model), `staleLanes` and `publishFailures` (a snapshot that differed from its model after
 a publish, or could not be built), `laneRequestOverflows` (a request the full queue dropped), `publishedBytes` (the bytes
 published lanes hold, reported as `LANES-MEM` at each stop), `unheldLaneWrites` (a write found in the unheld lane at the
 render's next miss, undone) and `laneSplits` (a lane the interaction tier resolved that is not the one the render's

@@ -739,8 +739,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 		uint32_t count;
 		const char* what;
 	} renderTouches[] = {
-	    {deluge::modulation::renderModelReads, "read a model lane outside record mode"},
-	    {deluge::modulation::renderModelReadsRecording, "read a model lane while recording"},
+	    {deluge::modulation::renderModelReads, "read a model lane"},
 	    {deluge::modulation::renderModelWrites, "wrote a model lane"},
 	    {deluge::modulation::renderUndoCalls, "logged undo"},
 	    {deluge::modulation::latchWritesWithoutCopy, "latched a lane that had no working copy"},

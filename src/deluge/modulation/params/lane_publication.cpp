@@ -46,8 +46,6 @@ namespace deluge::modulation {
 uint32_t renderModelReads = 0;
 uint32_t staleLanes = 0;
 uint32_t publishFailures = 0;
-uint32_t renderPublishedWrites = 0;
-uint32_t renderModelReadsRecording = 0;
 uint32_t renderModelWrites = 0;
 uint32_t laneRequestOverflows = 0;
 #endif
@@ -55,9 +53,6 @@ uint32_t laneRequestOverflows = 0;
 namespace {
 /// Whether a collection was marked or made since the last walk of the song (written by either tier).
 std::atomic<bool> g_anyPending{false};
-/// Whether the render has read lanes live since the last walk that published every collection the song plays: after
-/// record mode the render keeps reading them live until that walk has published what it wrote.
-std::atomic<bool> g_liveUntilSettled{false};
 /// [interaction] Operations in progress: none may publish until the outermost ends.
 int32_t g_operations = 0;
 /// [interaction] Whether a walk is publishing: a publish point it reaches (an operation ending inside it) waits.
@@ -195,40 +190,22 @@ void applyLaneRequests() {
 	}
 }
 
-bool lanesLive() {
-	if (playbackHandler.recording != RecordingMode::OFF) {
-		g_liveUntilSettled.store(true, std::memory_order_relaxed);
-		return true;
-	}
-	return g_liveUntilSettled.load(std::memory_order_relaxed);
-}
-
 void noteRenderModelRead() {
 #if ALPHA_OR_BETA_VERSION
 	if (deluge::memory::onRenderTier()) {
-		(lanesLive() ? renderModelReadsRecording : renderModelReads)++;
+		renderModelReads++;
 	}
 #endif
 }
 
-bool playsPublished() {
-	return deluge::memory::onRenderTier() && !lanesLive();
-}
-
 const LaneSnapshot* snapshotToPlay(const ParamCollection& collection) {
-	if (!playsPublished()) {
-		return nullptr;
-	}
-	return collection.published();
+	return deluge::memory::onRenderTier() ? collection.published() : nullptr;
 }
 
 void noteRenderLaneWrite() {
 #if ALPHA_OR_BETA_VERSION
 	if (deluge::memory::onRenderTier()) {
 		renderModelWrites++;
-		if (!lanesLive()) {
-			renderPublishedWrites++;
-		}
 	}
 #endif
 }
@@ -339,12 +316,7 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 }
 
 void LanePublication::publishDirty(bool settle) {
-	// While recording the render writes the lanes it reads, and plays none published: the walk after recording ends
-	// publishes them all.
-	const bool recording = playbackHandler.recording != RecordingMode::OFF;
-	const bool settleAll = settle && g_liveUntilSettled.load(std::memory_order_relaxed) && !recording;
-	if (currentSong == nullptr || g_publishing || recording || !mayPublish()
-	    || (!g_anyPending.load(std::memory_order_relaxed) && !settleAll)) {
+	if (currentSong == nullptr || g_publishing || !mayPublish() || !g_anyPending.load(std::memory_order_relaxed)) {
 		return;
 	}
 	struct Walk {
@@ -361,7 +333,7 @@ void LanePublication::publishDirty(bool settle) {
 	// A collection stays marked until the job settles: a caller may still write a lane it holds after this publish,
 	// and the next publish point takes that write.
 	forEachPlayedCollection(*currentSong, [&](ParamCollection& collection, ParamManagerForTimeline& manager) {
-		if (!collection.lanesDirty_ && collection.published() != nullptr && !settleAll) {
+		if (!collection.lanesDirty_ && collection.published() != nullptr) {
 			return;
 		}
 		if (!publish(collection, manager)) {
@@ -382,9 +354,6 @@ void LanePublication::publishDirty(bool settle) {
 	});
 	if (failed || !settle) {
 		g_anyPending.store(true, std::memory_order_relaxed); // the next publish point looks again
-	}
-	if (settleAll && !failed) {
-		g_liveUntilSettled.store(false, std::memory_order_relaxed);
 	}
 }
 

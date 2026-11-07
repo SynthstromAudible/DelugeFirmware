@@ -36,9 +36,9 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          required (arrangement recording made its clip)
     PM-CLONE / PM-RESUME                 recording session to arranger, a playing clip cloned for a recorded change
                                          (cloned=1) and the original resumed when recording stops (resumed=1)
-    PM-SELFREPAIR                        a lane with a node past its length played outside record mode: the render
-                                         writes no lane (render_writes=0) and the interaction tier erases the node at
-                                         its request (erased=1)
+    PM-SELFREPAIR                        a lane with a node past its length played from its published snapshot: the
+                                         render writes no lane (render_writes=0) and the interaction tier erases the
+                                         node at its request (erased=1)
     PM-CLIPSTOP                          a playing synth clip with expression stopped: the render writes no lane
                                          (render_writes=0), plays 0 (played=0) and the interaction tier makes 0 the
                                          base at its request (base=0)

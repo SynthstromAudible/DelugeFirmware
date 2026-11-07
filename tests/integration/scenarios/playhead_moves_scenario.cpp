@@ -125,7 +125,7 @@ uint32_t g_actionsBefore = 0;
 uint64_t g_hash = 0;
 /// Arrangement-only clips before the move: arrangement recording makes one per armed output.
 int32_t g_arrangementClipsBefore = 0;
-/// Render writes to lanes outside record mode before the move.
+/// Render writes to model lanes before the move.
 uint32_t g_laneWritesBefore = 0;
 /// Collections found publishing lanes that differ from the model, after every leg.
 int32_t g_lanesStale = 0;
@@ -794,7 +794,7 @@ void printLine() {
 	}
 	if (g_leg == Leg::SelfRepair || g_leg == Leg::ClipStop) {
 #if ALPHA_OR_BETA_VERSION
-		const auto writes = static_cast<unsigned>(deluge::modulation::renderPublishedWrites - g_laneWritesBefore);
+		const auto writes = static_cast<unsigned>(deluge::modulation::renderModelWrites - g_laneWritesBefore);
 #else
 		const unsigned writes = 0;
 #endif
@@ -892,7 +892,7 @@ void runTick() {
 #endif
 		g_allocBefore = deluge::memory::maskedAllocations();
 #if ALPHA_OR_BETA_VERSION
-		g_laneWritesBefore = deluge::modulation::renderPublishedWrites;
+		g_laneWritesBefore = deluge::modulation::renderModelWrites;
 #endif
 		g_hash = 0xcbf29ce484222325ULL;
 		g_injectedTicks = -1;
@@ -919,8 +919,8 @@ void runTick() {
 		});
 #if ALPHA_OR_BETA_VERSION
 		{
-			// Lanes the render resolved through the model, over every leg played outside record mode; the bytes the
-			// published lanes hold at the end
+			// Lanes the render resolved through the model, over every leg; the bytes the published lanes hold at the
+			// end
 			char snapshotLine[96];
 			snprintf(snapshotLine, sizeof(snapshotLine), "PM-SNAPSHOT model_reads=%u stale=%d lanes_bytes=%u\n",
 			         static_cast<unsigned>(deluge::modulation::renderModelReads), static_cast<int>(g_lanesStale),
