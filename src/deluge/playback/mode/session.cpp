@@ -434,8 +434,13 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			if (loopSongSelfWrap && clip->section == lastSectionArmed && clip->launchStyle != LaunchStyle::FILL) {
 				clip->armState = ArmState::OFF;
+				if (clip->type != ClipType::AUDIO) {
+					((InstrumentClip*)clip)->stopAllNotesPlaying(modelStackWithTimelineCounter);
+				}
 				clip->setPos(modelStackWithTimelineCounter, 0, false);
-				clip->resumePlayback(modelStackWithTimelineCounter);
+				if (clip->type != ClipType::AUDIO) {
+					clip->resumePlayback(modelStackWithTimelineCounter);
+				}
 				if (clip->launchStyle == LaunchStyle::ONCE) {
 					clip->armState = ArmState::ON_NORMAL;
 					distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
@@ -843,7 +848,7 @@ void Session::cancelAllLaunchScheduling() {
 }
 
 void Session::launchSchedulingMightNeedCancelling() {
-	if (!preLoadedSong && !areAnyClipsArmed()) {
+	if (!preLoadedSong && !areAnyClipsArmed() && !loopSongSelfWrapArmed) {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
