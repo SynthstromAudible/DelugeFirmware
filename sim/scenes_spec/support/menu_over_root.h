@@ -29,12 +29,12 @@ extern bool shiftCurrentlyStuck;
 
 namespace deluge::scenes::spec {
 
-/// @brief Turn the `ShellMenu` toggle on for an example, and put it back however it ends.
+/// @brief ShellMenu on for an example (the Legacy Menu setting Off), and put back however it ends.
 struct ShellMenuOn {
 	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
-	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, RuntimeFeatureStateToggle::On); }
-	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
+	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::Off); }
+	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
 	ShellMenuOn(const ShellMenuOn&) = delete;
 	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
 };

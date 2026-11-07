@@ -87,13 +87,13 @@ namespace {
 /// the spec that runs both on the real `performanceView`
 /// (`sim/scenes_spec/menu_actions_spec.cpp`, `menu_action_perform`) reddens.
 ///
-/// **Why this is unconditional, when `RuntimeFeatureSettingType::ShellMenu` is Off by default.**
-/// Nothing may change with the toggle off, and this call is not gated. It is safe because of what it writes: a single
+/// **Why this is unconditional, whichever menu the Legacy Menu setting selects.**
+/// Nothing may change with ShellMenu off, and this call is not gated. It is safe because of what it writes: a single
 /// `static` inside `libdeluge_scenes` (`g_perform_mode`, `scenes/menu/nodes/actions.cpp:45`) whose
 /// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
-/// the ported menu, which nothing opens while the toggle is off (`openShellMenu`,
+/// the ported menu, which nothing opens with ShellMenu off (`openShellMenu`,
 /// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
-/// cannot fail. With the toggle off it is a store to a byte no one loads.
+/// cannot fail. With ShellMenu off it is a store to a byte no one loads.
 void syncEditingModeMirror(const PerformanceView& v) {
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {

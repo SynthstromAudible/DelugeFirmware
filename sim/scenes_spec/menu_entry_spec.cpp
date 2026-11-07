@@ -3,7 +3,7 @@
 ///        against the real application globals.
 ///
 /// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the gated
-/// ones, one example per *argument shape*, plus the toggle itself. It is at this level and not
+/// ones, one example per *argument shape*, plus the setting itself. It is at this level and not
 /// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
@@ -92,15 +92,19 @@ namespace spec = deluge::scenes::spec;
 
 namespace {
 
-/// @brief Save and restore the `ShellMenu` toggle around an example.
+/// @brief ShellMenu on (`On`) or off for the scope, through the Legacy Menu setting it is the inverse of; put back.
 struct ToggleGuard {
 	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
 
 	explicit ToggleGuard(RuntimeFeatureStateToggle on) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, on);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, on == RuntimeFeatureStateToggle::On
+		                                                                      ? RuntimeFeatureStateToggle::Off
+		                                                                      : RuntimeFeatureStateToggle::On);
 	}
-	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
+	ToggleGuard(const ToggleGuard&) = delete;
+	ToggleGuard& operator=(const ToggleGuard&) = delete;
 };
 
 /// @brief Put the UI hierarchy back to "nothing open" after an example opened the guest.
@@ -241,21 +245,21 @@ void press_learn(bool on) {
 } // namespace
 
 // clang-format off
-describe menu_entry_toggle("the ShellMenu toggle", $ {
-	it("is Off by default, and shellMenuEnabled() follows it in both directions", _ {
-		// Read from the settings object rather than asserted on the enum, because
-		// a default-On toggle would ship the guest to every user.
-		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)
+describe menu_entry_toggle("the Legacy Menu setting", $ {
+	it("opens the ported menu by default (Legacy Menu Off), and shellMenuEnabled() follows the setting both ways", _ {
+		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
 		       == RuntimeFeatureStateToggle::Off)
 		    .to_be_true();
-		expect(entry::shellMenuEnabled()).to_be_false();
-
+		expect(entry::shellMenuEnabled()).to_be_true();
 		{
-			ToggleGuard on{RuntimeFeatureStateToggle::On};
-			expect(entry::shellMenuEnabled()).to_be_true();
+			ToggleGuard off{RuntimeFeatureStateToggle::Off};
+			expect(entry::shellMenuEnabled()).to_be_false();
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
+			       == RuntimeFeatureStateToggle::On)
+			    .to_be_true();
 		}
 		// And the guard put it back, which is what the other examples depend on.
-		expect(entry::shellMenuEnabled()).to_be_false();
+		expect(entry::shellMenuEnabled()).to_be_true();
 	});
 });
 
@@ -394,7 +398,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 	});
 
 	it("site 14's legacy fallback opens the guest on the file selector, never the legacy editor", _ {
-		// Reached under the toggle only when the guest's own open refused and legacy's `setup()` did not. A boot
+		// Reached with ShellMenu on only when the guest's own open refused and legacy's `setup()` did not. A boot
 		// numbers every node, so the only way there is an id missing: numbered over the file selector alone, the
 		// recorder item has none and `openShellDrumRecorder` refuses; legacy's `openUI(&audioRecorder)` then refuses a
 		// take already running.
@@ -652,7 +656,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
-	it("with the toggle off, the pad opens the legacy SoundEditor", _ {
+	it("with ShellMenu off, the pad opens the legacy SoundEditor", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 		deluge::hid::display::OLED oled_display;
@@ -704,7 +708,7 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 
 		// And the same clip with the one argument flipped DOES open, so the refusal is about the
 		// context this kit resolves to and not about kit clips, or about the fixture, or about the
-		// toggle being read twice.
+		// setting being read twice.
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/true)).to_be_true();
 		expect(isUIOpen(&shellHostUI)).to_be_true();
 		closeGuest();
@@ -968,7 +972,7 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 	});
 });
 namespace {
-/// @brief The automation view as the root, a pad held with pad selection on, and the toggle on; all put back.
+/// @brief The automation view as the root, a pad held with pad selection on, and ShellMenu on; all put back.
 struct HeldPadInAutomation {
 	deluge::hid::display::OLED oled_display;
 	deluge::hid::Display* saved_display = display;

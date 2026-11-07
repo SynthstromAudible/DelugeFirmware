@@ -57,14 +57,20 @@ bool all_null(std::span<const menu::Node* const> layer) {
 	return true;
 }
 
-/// @brief Save and restore the `ShellMenu` toggle -- `menu_entry_spec.cpp`'s `ToggleGuard`.
+/// @brief ShellMenu on (`On`) or off for the scope, through the Legacy Menu setting it is the inverse of; put back --
+///        `menu_entry_spec.cpp`'s `ToggleGuard`.
 struct ToggleGuard {
 	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu));
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
+
 	explicit ToggleGuard(RuntimeFeatureStateToggle on) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, on);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, on == RuntimeFeatureStateToggle::On
+		                                                                      ? RuntimeFeatureStateToggle::Off
+		                                                                      : RuntimeFeatureStateToggle::On);
 	}
-	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShellMenu, saved); }
+	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
+	ToggleGuard(const ToggleGuard&) = delete;
+	ToggleGuard& operator=(const ToggleGuard&) = delete;
 };
 
 /// @brief `menu_entry_spec.cpp`'s `closeGuest`: put the UI hierarchy back to "nothing open".

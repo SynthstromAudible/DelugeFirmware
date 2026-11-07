@@ -572,5 +572,5 @@ private:
 /// @brief The one guest, named the way legacy names its UIs (`extern SoundEditor soundEditor;`).
 ///
 /// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
-/// `openUI(&shellHostUI)` when `RuntimeFeatureSettingType::ShellMenu` is on.
+/// `openUI(&shellHostUI)` while `RuntimeFeatureSettingType::LegacyMenu` is Off (`shellMenuEnabled`).
 extern deluge::gui::ui::ShellHostUI shellHostUI;

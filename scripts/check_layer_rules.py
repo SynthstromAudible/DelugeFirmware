@@ -190,18 +190,18 @@ UI_STACK_CALLS = (
 )
 
 # The two legacy methods that exist FOR the guest and for nothing else -- the claim seam's
-# legacy-side half -- and the invariant that keeps them dead with the toggle off.
+# legacy-side half -- and the invariant that keeps them dead with ShellMenu off.
 #
 # `SampleBrowser::selectFileForClaim` (`gui/ui/browser/sample_browser.h:99`, defined
 # `sample_browser.cpp:401`) points the legacy browser at a directory and a filename, because
 # `claimCurrentFile` reads `currentDir` and the selected `FileItem` rather than taking a path.
 # `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:220`, defined
 # `sound_editor.cpp:2152`) writes the editor context legacy's own `setup()` would have resolved --
-# which under the toggle nothing calls; without it the claim dereferences a null context. Eleven assignments;
+# which with ShellMenu on nothing calls; without it the claim dereferences a null context. Eleven assignments;
 # ten cite a `setup()` line and the eleventh is argued at the write.
 #
-# Why this needs a row rather than review. Both are additive and BOTH ARE DEAD WITH THE TOGGLE
-# OFF -- the property the whole guest rests on (with the toggle off the firmware runs the exact
+# Why this needs a row rather than review. Both are additive and BOTH ARE DEAD WITH SHELLMENU
+# OFF -- the property the whole guest rests on (with ShellMenu off the firmware runs the exact
 # legacy statements it ran before), and it holds for exactly one
 # reason: their only caller is `shell_choice_dispatch.cpp`, which only `ShellHostUI::timerCallback`
 # reaches. A second caller anywhere under `src/deluge/**` -- inside `SampleBrowser` itself, in a
@@ -268,9 +268,9 @@ CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 #   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
 # * `gui/menu_item/performance_session_view/editing_mode.h` -- the FIFTH call into
 #   `menu::set_performance_editing_mode`, and the only one outside
-#   `PerformanceView`. It is here because the mirror has to survive the toggle being flipped ON:
-#   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with the
-#   toggle OFF, and it writes both bools. Without this call the mirror rots while the port is off
+#   `PerformanceView`. It is here because the mirror has to survive ShellMenu being turned on:
+#   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with
+#   ShellMenu off, and it writes both bools. Without this call the mirror rots while the port is off
 #   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on.
 #
 #   A HEADER rather than a `.cpp`, like `shell_host_ui.h` and `shell_guest_surfaces.h`. Exactly

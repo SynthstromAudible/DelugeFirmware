@@ -1,10 +1,12 @@
 """The level-3 UI scripts on golden_vt_render.
 
 Every app script in tests/ui-scripts/app runs and each of its snapshots must match the golden in tests/golden/ui/app.
-The menu script runs a second time with ShellMenu on (tests/fixtures/card-shell-menu): its panels must match the
-ShellMenu-off leg's and at least one .state must differ. The runner's own self-tests (tests/ui-scripts/selftest) pin
-what it does with a press due in a snapshot's millisecond, a snapshot before the first frame and a script that never
-quits. A script with a `board` step needs more panels than the Deluge has and is skipped, named.
+The menu script runs a second time on the Legacy Menu (tests/fixtures/card-legacy-menu): its panels must match the
+default leg's and at least one .state must differ; and a third time on a card that still says shellMenu=0
+(tests/fixtures/card-old-shell-menu), the setting the Legacy Menu replaced, which must change nothing: every snapshot
+equals the default leg's. The runner's own self-tests (tests/ui-scripts/selftest) pin what it does with a press due
+in a snapshot's millisecond, a snapshot before the first frame and a script that never quits. A script with a `board`
+step needs more panels than the Deluge has and is skipped, named.
 """
 
 import re
@@ -25,7 +27,7 @@ def _run(gate, script: Path, got: Path, card: Path):
     )
 
 
-def _diff(gate, got: Path, golden: Path) -> None:
+def _diff(gate, got: Path, golden: Path, what: str = "") -> None:
     r = subprocess.run(
         [
             sys.executable,
@@ -38,9 +40,8 @@ def _diff(gate, got: Path, golden: Path) -> None:
         check=False,
     )
     if r.returncode != 0:
-        gate.fail(
-            f"{golden.name}: snapshots differ from the golden\n{r.stdout}{r.stderr}"
-        )
+        what = what or f"{golden.name}: snapshots differ from the golden"
+        gate.fail(f"{what}\n{r.stdout}{r.stderr}")
 
 
 def _app_scripts(gate, card: Path) -> None:
@@ -58,23 +59,24 @@ def _app_scripts(gate, card: Path) -> None:
 
 
 def _menu_ab(gate, card: Path) -> None:
-    on_card = gate.root / "tests/fixtures/card-shell-menu"
-    got_on = gate.tmp / "got" / "menu_shell"
-    run = _run(gate, gate.root / "tests/ui-scripts/app/menu.txt", got_on, on_card)
+    menu = gate.root / "tests/ui-scripts/app/menu.txt"
+    legacy_card = gate.root / "tests/fixtures/card-legacy-menu"
+    got_legacy = gate.tmp / "got" / "menu_legacy"
+    run = _run(gate, menu, got_legacy, legacy_card)
     if not gate.require_standard(run):
         gate.show(run)
         return
-    _diff(gate, got_on, gate.root / "tests/golden/ui/app/menu_shell")
+    _diff(gate, got_legacy, gate.root / "tests/golden/ui/app/menu_legacy")
     r = subprocess.run(
         [
             sys.executable,
             str(gate.root / "scripts/ui_app_ab_check.py"),
+            str(got_legacy),
             str(gate.tmp / "got" / "menu"),
-            str(got_on),
             "--fixture-off",
-            str(card),
+            str(legacy_card),
             "--fixture-on",
-            str(on_card),
+            str(card),
         ],
         capture_output=True,
         text=True,
@@ -82,6 +84,20 @@ def _menu_ab(gate, card: Path) -> None:
     )
     if r.returncode != 0:
         gate.fail(f"menu A/B: {r.stdout}{r.stderr}")
+
+    # The setting the Legacy Menu replaced, still on a card: unknown, so the default leg exactly.
+    old_card = gate.root / "tests/fixtures/card-old-shell-menu"
+    got_old = gate.tmp / "got" / "menu_old_shell_menu"
+    run = _run(gate, menu, got_old, old_card)
+    if gate.require_standard(run):
+        _diff(
+            gate,
+            got_old,
+            gate.tmp / "got" / "menu",
+            "menu_old_shell_menu: a card with the replaced shellMenu key ran differently from the default card",
+        )
+    else:
+        gate.show(run)
 
 
 def _self_tests(gate, card: Path) -> None:

@@ -1,25 +1,28 @@
-# Level 3: **the acceptance test for the ported menu.** One script, run twice against two SD-card
-# fixtures that differ by exactly one file, and the two trees compared against each other:
+# Level 3: **the acceptance test for the ported menu.** One script, run on three SD-card fixtures
+# (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`):
 #
-#   ui_app_scripts_menu        SD root tests/fixtures/card             -> ShellMenu OFF: legacy SoundEditor
-#   ui_app_scripts_menu_shell  SD root tests/fixtures/card-shell-menu  -> ShellMenu ON:  ported MenuScene
-#   ui_app_scripts_menu_ab     scripts/ui_app_ab_check.py over the two got trees
+#   menu         SD root tests/fixtures/card                -> ShellMenu on (the default): ported MenuScene
+#   menu_legacy  SD root tests/fixtures/card-legacy-menu    -> ShellMenu off (Legacy Menu on): legacy SoundEditor
+#   (no golden)  SD root tests/fixtures/card-old-shell-menu -> the replaced `shellMenu` key, ignored: equals `menu`
 #
-# There is no env var and no new script verb for the toggle, and that is deliberate.
-# `shellMenuEnabled()` reads `runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)`
-# (`gui/ui/shell_menu_entry.cpp`); the setting is registered with xmlName "shellMenu" and
-# default Off (`model/settings/runtime_feature_settings.cpp:175-178`) and read from
-# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`,
-# `:194-222`). So the toggle-on leg is a genuine boot-from-settings on the mechanism the device
-# itself uses, not a test-only door.
+# `scripts/ui_app_ab_check.py` compares the first two runs: every panel identical, at least one .state different,
+# and the two cards differing by exactly SETTINGS/CommunityFeatures.XML.
 #
-# **Neither leg mutates its own input**, which matters because a test that edits its input is not
+# There is no env var and no new script verb for the setting, and that is deliberate.
+# `shellMenuEnabled()` is true while `runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)`
+# is Off (`gui/ui/shell_menu_entry.cpp`); the setting is registered with xmlName "legacyMenu" and
+# default Off (`RuntimeFeatureSettings::init`) and read from
+# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`).
+# So the Legacy Menu leg is a genuine boot-from-settings on the mechanism the device itself uses,
+# not a test-only door.
+#
+# **No leg mutates its own input**, which matters because a test that edits its input is not
 # reproducible. With the file present `bootstrap_action` returns `Bootstrap::Load`
-# (`storage/existence_policy.cpp:12-24`) and the `WriteDefaults` arm that would `mkdir`/`rename`
-# (`runtime_feature_settings.cpp:200-217`) is never entered; the OFF leg does enter it, but its
+# (`storage/existence_policy.cpp`) and the `WriteDefaults` arm that would `mkdir`/`rename`
+# (`RuntimeFeatureSettings::readSettingsInline`) is never entered; the default leg does enter it, but its
 # `mkdir` finds `SETTINGS/` already there and its `rename` of a root-level "CommunityFeatures.XML"
-# that does not exist fails, so it returns having created nothing (`:204-216`). Checked rather than
-# reasoned: `git status --short tests/fixtures/` is empty after both legs have run.
+# that does not exist fails, so it returns having created nothing. Checked rather than
+# reasoned: `git status --short tests/fixtures/` is empty after every leg has run.
 #
 # **What this script presses, and why it presses exactly this.**
 #
@@ -35,7 +38,7 @@
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
 # (`gui/views/view.cpp:478`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
-# the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
+# the session view): both SIGSEGV at that line under gdb, in the ShellMenu-off leg, on an unmodified
 # tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
 # that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
@@ -58,16 +61,16 @@
 900    snapshot menu-scrolled
 
 # One edit gesture, and the popup it raises. `GoldUpper` is encoder index 4 = mod1 = the UPPER gold
-# knob (`tests/harness/level3/host_script_tables.c`'s `k_encoder_roles`). With the toggle off it reaches
+# knob (`tests/harness/level3/host_script_tables.c`'s `k_encoder_roles`). With ShellMenu off it reaches
 # legacy's `View::modEncoderAction` through `SoundEditor::modEncoderAction`'s innermost `else`
-# (`gui/ui/sound_editor.cpp`); under the toggle `ShellHostUI::modEncoderAction` routes legacy's lowered
+# (`gui/ui/sound_editor.cpp`); with ShellMenu on `ShellHostUI::modEncoderAction` routes legacy's lowered
 # turn to `services::ModKnobs` (`Shell::route_lowered_turn`), on the focus both share. The panels match.
 1000   encoder GoldUpper +2
 1200   snapshot gold-turn
 
 # Back out. A SHORT Back, which is the exit a user actually performs: the long press goes through
 # `TimerName::BACK_MENU_EXIT` -> `exitUI()` (`hid/buttons.cpp:114-121`,
-# `gui/ui_timer_manager.cpp:150-156`), and the short one does not. A toggle-on leg that mishandles it is
+# `gui/ui_timer_manager.cpp:150-156`), and the short one does not. A ShellMenu-on leg that mishandles it is
 # left wedged here with an empty shell stack and every later press swallowed.
 1300   button Back down
 1320   button Back up
@@ -78,7 +81,7 @@
 #
 # Everything above is the *shape* of a menu visit. Everything below drives
 # `MenuAction::SetClipLengthToSampleLength` through `gui::ui::dispatchShellActions`'s arm
-# (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises -- and the toggle-OFF
+# (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises -- and the ShellMenu-off
 # leg performs the same verb through `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`
 # (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`). The two popups are
 # byte-identical, which is the claim.
@@ -90,7 +93,7 @@
 # SIGSEGVs the OFF leg on the host sim. That is sites 1 (SHIFT+SELECT -> Settings), 2 and 3
 # (SELECT from the session view / arranger -> Song) and 4 (performance view), i.e. every root that
 # holds `SetShortcutsVersion`, `ScreensaverSettingsChanged`, `OpenSongMidiLearn`, `OpenSongMacros`
-# and `OpenPerformanceView`. Measured under gdb, in the toggle-OFF leg, on an unmodified tree --
+# and `OpenPerformanceView`. Measured under gdb, in the ShellMenu-off leg, on an unmodified tree --
 # the same pre-existing legacy bug noted above, which is why
 # the script had stayed on `InstrumentClipMinder`'s clip-carrying site 6. `StartStemExport` is
 # reachable only from the song root (the same crash) or the kit-global-FX root, which needs a kit
@@ -131,7 +134,7 @@
 
 # Hold the clip's pad and press the select encoder: `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW`
 # (`session_view.cpp`) plus SELECT is legacy's convert-to-audio-clip gesture.
-# Both legs run the same legacy code here -- the toggle only reaches menus.
+# Both legs run the same legacy code here -- ShellMenu only reaches menus.
 3100   pad 0 7 down
 3300   button SelectEnc down
 3320   button SelectEnc up
@@ -157,7 +160,7 @@
 5800   snapshot audio-actions
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
-# performs the verb. Under the toggle that press is `MenuScene`'s `ActionItem` filing
+# performs the verb. With ShellMenu on that press is `MenuScene`'s `ActionItem` filing
 # `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h`) and
 # `dispatchShellActions` calling `audioClipView.setClipLengthEqualToSampleLength()`; with it off it
 # is legacy's `selectButtonPress` calling the same method.
@@ -207,7 +210,7 @@
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
 # `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp`) which
-# no `setup()` had ever written under the toggle, so the claim SIGSEGVed the ON leg.
+# no `setup()` had ever written with ShellMenu on, so the claim SIGSEGVed the ON leg.
 6500   button Back down
 6520   button Back up
 6700   button Back down
@@ -250,7 +253,7 @@
 11300  pad 17 4 up
 
 # **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
-# (`sample_browser.cpp:393`) with the toggle off, and with it on it is `BrowserScene`'s deferred
+# (`sample_browser.cpp:393`) with ShellMenu off, and with it on it is `BrowserScene`'s deferred
 # choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
@@ -272,7 +275,7 @@
 # (open the selector, list the card, claim a file, re-root, close) leaves the clip view exactly
 # where it was, on both legs. It is deliberately not a *load* golden: the same script with the
 # claim press removed produces the same bytes here, checked. Its two teeth are that a claim which
-# SIGSEGVs writes no snapshot at all and fails `ui_app_scripts_menu_shell` outright (which is what
+# SIGSEGVs writes no snapshot at all and fails the ShellMenu-on run outright (which is what
 # the ON leg did before `SoundEditor::adoptResolvedContext`), and that a menu left wedged with a
 # non-empty shell stack swallows these two Backs -- the failure mode of the short-Back exit
 # above.
@@ -348,8 +351,8 @@
 21200  encoder Select -1
 21500  snapshot note-editor-probability
 
-# 4. One upper gold detent, still holding the note. Not a menu input: with the toggle off it reaches
-# legacy's `View::modEncoderAction`, and under the toggle `services::ModKnobs`, whose popup takes the
+# 4. One upper gold detent, still holding the note. Not a menu input: with ShellMenu off it reaches
+# legacy's `View::modEncoderAction`, and with ShellMenu on `services::ModKnobs`, whose popup takes the
 # notification slot from the probability notification above, as legacy's does.
 22000  encoder GoldUpper +1
 22300  snapshot note-editor-gold
@@ -380,7 +383,7 @@
 
 # 8. Shift + pad (6, 5) from the clip view: `SoundEditor::potentialShortcutPadAction` resolves
 # `srrMenu` from `paramShortcutsForSounds` and `setup()` opens it on the DISTORTION page, focused on
-# it (`maybeGetParentMenu`, `parent->focusChild`). Under the toggle the ported menu opens on the
+# it (`maybeGetParentMenu`, `parent->focusChild`). With ShellMenu on the ported menu opens on the
 # same page. A short BACK closes it.
 25800  button Shift down
 25850  pad 6 5 down
@@ -394,7 +397,7 @@
 # 9. The drum creator. A tap on pad (2, 4) deletes the note step 1 made, so the clip is empty and Shift + KIT gives it a
 # new, empty kit (with a note in it, KIT refuses: "CLIP NOT EMPTY"). A new kit runs
 # `InstrumentClipView::enterDrumCreator` on its row 0 (`completeNewInstrument`): a new drum and the sample browser open
-# on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". Under the toggle
+# on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". With ShellMenu on
 # the ported browser opens on the new drum's file selector. The legs' pads differ: legacy's root view shows its sidebar
 # columns only, the ported leg's greyed main pads too (open; the emulator's `c12` runs against `main`), and the new
 # drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s

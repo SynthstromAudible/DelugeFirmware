@@ -3,6 +3,9 @@
 Level-3 UI scripts for `tools/emu_parity.py` that need a card with content: presets, kits, samples and songs. Run them
 with `--sd` on an image of such a card (the songs these load are on Kate's backup card). Each starts from a fresh boot.
 
+ShellMenu is on by default: the ShellMenu content images still say `shellMenu=1`, which the firmware ignores, and the
+legacy ones (`sweep-off.img`, `dx-off.img`) say `legacyMenu=1`, the Legacy Menu community feature.
+
 A script meant for the ported UI (the ShellMenu card) must start from the clip view the boot leaves: a CLIP press there
 switches to the automation view, where Shift+pad opens legacy's sample browser even with ShellMenu on. Check which UI a
 script reaches before trusting a MATCH from it.
@@ -18,8 +21,8 @@ range and the root's range highlight; `c21` the edge, insert and delete edits an
 entered before any menu. `c23` walks the sample source items on one sample loaded as c10 loads it, and Shift + (0,4), which lands on the
 SAMPLE RECORDER page. Popups and console text last about a second, so their snapshots sit inside that window on both firmwares.
 
-`c24` to `c27` run on the content card with `EnableDX7Engine` set in `SETTINGS/CommunityFeatures.XML` (with and
-without `shellMenu`). The firmware's MOD7 is the emulator's `Mod6`: held with SYNTH it creates an FM synth, which opens
+`c24` to `c27` run on the content card with `EnableDX7Engine` set in `SETTINGS/CommunityFeatures.XML` (ShellMenu on and
+off). The firmware's MOD7 is the emulator's `Mod6`: held with SYNTH it creates an FM synth, which opens
 "DX7 source". `c24` sets oscillator 1's type to DX7 from its shortcut and from the vertical walk and enters "DX7
 source"; one detent at a time, since main's horizontal page takes a multi-detent turn differently. `c25` is the new FM
 synth and its browse row, `c26` the DX shortcut pad (4,0), whose modulator item does not apply to a DX7 sound, and
