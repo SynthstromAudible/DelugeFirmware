@@ -1518,13 +1518,10 @@ describe audio_clip_scene_spec_body(
 		        // and is emphatically not what an undo would have done.
 		        //
 		        // **Every example in this group holds `QuietAudio`, and none of the render examples
-		        // above does.** Driving legacy's own gestures reaches cluster loading and
-		        // `AudioEngine::routineWithClusterLoading`, and a spec process never booted the engine
-		        // -- so without the latch these segfault rather than fail (`support/card_access.h`'s
-		        // `@warning`; found here by exactly that segfault, in `AudioClip::unassignVoiceSample`
-		        // at `:1311` and again in legacy's `setupScroll` pre-render). It must NOT spread to a
-		        // pad comparison: there the same pump is what makes the waveform scan succeed, and a
-		        // failed scan is the vacuity the `Sentinel` docstring is about.
+		        // above does.** The latch keeps the audio routine still while legacy's own gestures run
+		        // (`support/card_access.h`). It must NOT spread to a pad comparison: the overview scan
+		        // waits while the latch is held, and a failed scan is the vacuity the `Sentinel`
+		        // docstring is about.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        Input in;

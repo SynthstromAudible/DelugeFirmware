@@ -80,7 +80,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "sync/sd_access.h"
 #include "synth/modulation/envelope.h"
 #include "util/boot.h"
 #include "util/functions.h"
@@ -2352,18 +2351,8 @@ errorAfterAllocation:
 	return newRecorder;
 }
 
-bool sdRoutineBusy() {
-	return deluge::sync::sd_busy();
-}
-
-// Don't call this while sdRoutineBusy(): a take that ended on a card error may still have its last cluster write
-// out, and the driver writes from the buffer this frees until that write answers. Diagnostic only: sd_busy() answers
-// "is ANY filesystem operation in flight", not "is THIS recorder's write in flight", so a busy signal here is logged
-// rather than frozen on.
+// Free only a settled recorder (SampleRecorder::settled): a cluster write still out borrows its buffer.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && sdRoutineBusy()) {
-		D_PRINTLN("discardRecorder: sd_busy() was true on entry");
-	}
 
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;

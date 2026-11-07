@@ -1,14 +1,11 @@
 #pragma once
 
 /// @file
-/// @brief The two guards any spec that drives a real file listing needs: where the card is
-///        (`SdRoot`) and why the audio engine must be held still while the catalogue works
-///        (`QuietAudio`).
+/// @brief Two guards for specs that drive the real app: where the card is (`SdRoot`), and holding
+///        the audio routine still while an example runs (`QuietAudio`).
 ///
-/// They live here because `QuietAudio` is not a convenience -- **it is the disarm for a landmine
-/// that segfaults a spec process rather than failing it**, and every spec that drives a listing has
-/// to step over it. A guard that has to be re-derived in each spec will eventually be re-derived
-/// wrong; one `#include` is not.
+/// They live here so each is derived once: a guard that has to be re-derived in each spec will
+/// eventually be re-derived wrong; one `#include` is not.
 ///
 /// @warning **Include this BEFORE `<cppspec.hpp>`.** CppSpec `#define`s `it` (its own DSL keyword),
 ///          and this header pulls in `processing/engines/audio_engine.h`, whose include closure
@@ -130,24 +127,17 @@ struct NoSdRoot {
 	NoSdRoot& operator=(const NoSdRoot&) = delete;
 };
 
-/// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the catalogue's yield points
-///        are no-ops.
+/// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the audio routine does
+///        nothing while an example runs.
 ///
-/// `emptyFileItems()` and `deleteSomeFileItems()` pump `AudioEngine::routineWithClusterLoading()`
-/// between chunks -- they can be erasing thousands of entries, and the audio must keep running. A
-/// spec asserts on the catalogue a listing leaves, so a render run from inside one of those pumps
-/// would interleave with the example it is part of. `audioRoutineLocked` is the engine's own answer
-/// to "do not run the routine right now": `routine()` returns at once while it is set. It changes
-/// nothing about the catalogue: the pump is a yield point, not part of the listing, sort, search or
-/// cull contract.
+/// `audioRoutineLocked` is the engine's answer to "do not run the routine right now": the audio
+/// tier's `routine_task()` and `routine()` return at once while it is set, so no render interleaves
+/// with what an example asserts. Code that defers while the routine runs takes its deferring branch
+/// too: `View::endMIDILearn` and the port skip the settings write, and the background waveform
+/// overview scan waits (`deluge::sample::advance_overview_scan`). Restores whatever it found.
 ///
-/// The scenes-spec runner already holds the latch for a whole file; this guard keeps a spec correct
-/// on its own, and restores whatever it found.
-///
-/// @note This is a **spec-side** guard, and it stays spec-side on purpose. The shipped seam
-///       (`src/scenes/browser/listing.cpp`) must never hold this latch: on the device the pump is
-///       exactly what keeps audio alive across a multi-second directory read, and a listing that
-///       silenced it would be a regression, not a safety measure.
+/// @note This is a **spec-side** guard. Shipped code must never hold this latch around ordinary
+///       work: on the device it would silence the audio for as long as it is held.
 struct QuietAudio {
 	bool saved = AudioEngine::audioRoutineLocked;
 	QuietAudio() { AudioEngine::audioRoutineLocked = true; }

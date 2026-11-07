@@ -52,10 +52,8 @@ extern int32_t catalogSearchDirection;
 
 namespace {
 
-/// `SdRoot` and `QuietAudio` live in `support/card_access.h`: `QuietAudio` in particular is the
-/// disarm for a landmine that *segfaults* an un-booted spec process rather than failing it, and
-/// every spec that drives a listing needs it. Their documentation there says why the shipped seam
-/// must NOT hold that latch.
+/// `SdRoot` and `QuietAudio` live in `support/card_access.h`, whose documentation says what each
+/// holds and why shipped code must NOT hold that latch.
 using namespace deluge::scenes::spec::catalogue;
 using deluge::scenes::spec::SdRoot;
 using deluge::storage::FileCatalogue;

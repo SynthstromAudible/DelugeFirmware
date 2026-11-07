@@ -39,7 +39,7 @@
 ///     `MidiLearn::unported_calls(UnportedCall::ClearMonoExpression)`.
 ///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`View::endMidiLearnPressSession`). Same shape:
 ///     counted, not called, and nothing in this layer's model reach could observe it anyway.
-///   * **`FlashStorage::writeSettings()`** (`view.cpp:503`). Both sides guard it on
+///   * **`FlashStorage::writeSettings()`** (`view.cpp:479`). Both sides guard it on
 ///     `!AudioEngine::audioRoutineLocked`, and `spec::QuietAudio` holds that latch for the whole
 ///     process -- so on both sides the call is skipped and the `shouldSaveSettingsAfterMidiLearn`
 ///     decision is what the button examples assert, not the write. (Driving it would put a spec
@@ -301,12 +301,10 @@ StubDisplay& stub_display() {
 
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
-/// Two reasons here, not one. `PlaybackHandler::playButtonPressed` reaches
-/// `AudioEngine::routineWithClusterLoading` (`playback/playback_handler.cpp:572`), which segfaults
-/// a spec process on the host input ring (in `processing/engines/audio_engine.cpp`) -- the reason
-/// `global_controls_spec.cpp` holds it. And `View::endMIDILearn` writes the settings to flash
-/// unless `AudioEngine::audioRoutineLocked` (`view.cpp:501-505`), which is a real card write; the
-/// port guards on the same latch, so holding it keeps both sides on the same branch.
+/// `View::endMIDILearn` writes the settings to flash unless `AudioEngine::audioRoutineLocked`
+/// (`view.cpp:476-480`), which is a real card write; the port guards on the same latch, so holding
+/// it keeps both sides on the same branch. It also keeps the audio routine still while the
+/// transport runs, as in `global_controls_spec.cpp`.
 spec::QuietAudio& quiet_audio() {
 	static spec::QuietAudio instance;
 	return instance;

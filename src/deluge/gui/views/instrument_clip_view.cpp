@@ -167,7 +167,7 @@ void InstrumentClipView::openedInBackground() {
 
 	recalculateColours();
 
-	AudioEngine::runRoutine();
+	AudioEngine::runRoutine(); // Renders only during boot, before the audio tier takes the render over.
 
 	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 

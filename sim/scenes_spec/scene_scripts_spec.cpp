@@ -533,8 +533,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// **The transport really ran**, which is what makes `after_record`/`after_play`'s LED lines
 		// evidence rather than decoration: `services::GlobalControls` called
 		// `playbackHandler.recordButtonPressed()` and `playButtonPressed()` for real (the fixture
-		// holds `spec::QuietAudio`, which disarms the audio routine those reach, and stubs nothing
-		// else). Read back from `playbackHandler`, not from the service.
+		// holds `spec::QuietAudio`, which keeps the audio routine still, and stubs nothing else). Read back from `playbackHandler`, not from the service.
 		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
 		expect(playbackHandler.playbackState != 0).to_be_true();
 	});

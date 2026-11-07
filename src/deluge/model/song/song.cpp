@@ -3684,8 +3684,7 @@ traverseClips:
 			Error error = instrumentClip->changeInstrument(
 			    modelStackWithTimelineCounter, newOutput, nullptr, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
-			    true); // Will call audio routine
-			           // TODO: deal with errors!
+			    true); // TODO: deal with errors!
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one
@@ -4758,9 +4757,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + j);
 
-			deletingClipInstanceForClip(thisOutput, clip, action,
-			                            true); // Could be bad that this calls the audio routine before we've
-			                                   // actually deleted the ClipInstances...
+			deletingClipInstanceForClip(thisOutput, clip, action, true);
 		}
 
 		// Shorten the previous one if need be
@@ -4775,7 +4772,6 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	}
 }
 
-// Will call audio routine!!
 // Note: in most cases (when action supplied), will try to pick a new activeClip even if told not to. But this
 // should be ok
 void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip) {
@@ -4796,8 +4792,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		if (!deletionDone) { // If not enough memory to create undo-history...
 			actionLogger.deleteAllLogs();
 			// Delete the actual Clip.
-			// Will not remove Instrument from Song. Will call audio routine! That's why we deleted the ClipInstance
-			// first
+			// Will not remove Instrument from Song.
 			int32_t index = live.clips.arrangement_only_clips.getIndexForClip(clip);
 			if (index != -1) {
 				live.clips.arrangement_only_clips.erase(live.clips.arrangement_only_clips.begin()

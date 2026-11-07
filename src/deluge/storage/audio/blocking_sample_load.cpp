@@ -28,7 +28,7 @@ BlockingSampleLoad::BlockingSampleLoad(bool mayReadCard, AudioLoadContext* conte
     : mayReadCard_{mayReadCard}, context_{context} {
 }
 
-Walk BlockingSampleLoad::rangeCheckpoint(int32_t rangeIndex) {
+Walk BlockingSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
 	AudioEngine::logAction("Source::loadAllSamples");
 	return Walk::Continue;
 }

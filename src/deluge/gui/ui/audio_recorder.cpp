@@ -51,7 +51,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "sync/sd_access.h"
 #include "util/c_string.h"
 #include <iterator>
 #include <string.h>
@@ -196,12 +195,6 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids while the card is busy: a take that
-	// ended on a card error may still have its last cluster write out, from the buffer the free releases.
-	if (deluge::sync::sd_busy()) {
-		return;
-	}
-
 	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		// setupRecordingToFile() always assigns recorder before recordingSource, so this can't happen - but don't let
 		// it become a silent hang: StemExport's yield loop waits on recordingSource, which only finishRecording()

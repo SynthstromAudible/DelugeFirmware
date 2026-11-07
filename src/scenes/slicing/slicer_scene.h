@@ -55,11 +55,11 @@
 ///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
 ///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
-/// @par The commit does not need `RecorderScene`'s card-busy guard
+/// @par The commit does not need `RecorderScene`'s settled-recorder wait
 ///
-/// `RecorderScene::after_render` asks `AudioEngine::sdRoutineBusy()` before it finishes a recording, because freeing a
-/// `SampleRecorder` whose last cluster write is still out frees the buffer the driver writes from. The slicer's commit
-/// is not that shape:
+/// `RecorderScene::after_render` waits for `SampleRecorder::settled()` before it finishes a recording, because freeing
+/// a `SampleRecorder` whose last cluster write is still out frees the buffer the driver writes from. The slicer's
+/// commit is not that shape:
 ///
 ///   1. Only a `SampleRecorder` lends the driver a buffer like that, and `Slicer::doSlice` frees no recorder: its one
 ///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.

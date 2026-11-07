@@ -237,8 +237,8 @@ void RecorderScene::finish_recording() {
 	// `AudioRecorder::finishRecording` (`:245-253`). `recordingSource = NONE` is `recorder_ =
 	// nullptr` here; `display->removeLoadingAnimation()` is the `ClearWorking` notice.
 	//
-	// **The caller must have checked `AudioEngine::sdRoutineBusy()` first** -- this frees, and
-	// `after_render()` is the one call site. See the guard there for why.
+	// **The caller must have checked `SampleRecorder::settled()` first** -- this frees, and
+	// `after_render()` is the one call site. See the arm there for why.
 	recorder_->pointerHeldElsewhere = false;
 	// DIVERGENCE, deliberate and narrow: legacy clears the published pair *after*
 	// `discardRecorder` (`:248-251`), so for the length of that call `audioRecorder.recorder` names
@@ -259,23 +259,18 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// `process()`'s completion arm (`:207-223`).
-	if (recorder_->status >= RecorderStatus::COMPLETE || recorder_->hadCardError) {
-		// **Not while the card is busy.** `finish_recording()` below frees the recorder through
-		// `AudioEngine::discardRecorder`, and a take that ended on a card error may still have its
-		// last cluster write out: the driver writes from the recorder's buffer until that write
-		// answers (`SampleRecorder::settled`, `WriteStep::StalledWait`). `sdRoutineBusy()` is true
-		// while any filesystem operation is in flight, which covers that write; it is broader than
-		// this recorder's own pending write, and stands in for it until the free waits on the
-		// recorder itself. Legacy's `AudioRecorder::slowRoutine` carries the same test.
-		//
-		// Deferring costs nothing: `next_timer()` re-polls at `kRecorderPollMs`, so the completion
-		// arm runs on the next tick instead. The whole arm is deferred, not just the free, because
-		// `attach_sample()` publishes a sample the recorder still owns -- legacy does both in one
-		// step and so does this.
-		if (AudioEngine::sdRoutineBusy()) {
-			return r;
-		}
+	// A card error ends the take (`AudioRecorder::slowRoutine`'s card-error arm): stop capturing, and
+	// let the completion arm below wait for the recorder to settle.
+	if (recorder_->hadCardError) {
+		end_recording_soon();
+	}
+
+	// `process()`'s completion arm (`:207-223`), on a settled recorder: closed, with no cluster
+	// write still out. `finish_recording()` frees the recorder, and a write still out borrows its
+	// buffer -- a take that ended on a card error can have one. Until then `next_timer()` re-polls at
+	// `kRecorderPollMs`. The whole arm waits, not just the free, because `attach_sample()` publishes
+	// a sample the recorder still owns -- legacy does both in one step and so does this.
+	if (recorder_->settled()) {
 		// The `if (status == ABORTED || hadCardError) {}` empty arm at `:209` is legacy's way of
 		// saying "attach nothing"; spelled as the condition on the attach instead.
 		if (recorder_->status != RecorderStatus::ABORTED && !recorder_->hadCardError) {

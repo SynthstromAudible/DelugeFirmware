@@ -46,10 +46,6 @@ racing tiers; its trailing index groups the sites by shared state. Every open si
   are object-lifetime races (freed with no handover from the render), not field races.
 - **The debug log buffer** — `printf`'s `_out_buffer`.
 
-A recorder's free is gated on `sd_busy()` (`AudioEngine::sdRoutineBusy`), which is any filesystem operation in
-flight, not that recorder's own pending cluster write: a stand-in until the snapshot boundary lets the free wait on
-the recorder itself.
-
 One unguarded path that no run has reported: `Manager::release_asset` (`crates/deluge_resource/src/manager.rs`)
 skips the masked access B1's fix applies everywhere else in `Manager`, so it is sound only while no other tier
 touches that asset's chunks during teardown.
