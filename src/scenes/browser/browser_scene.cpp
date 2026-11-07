@@ -285,14 +285,15 @@ void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::s
 AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view path, Error& error) {
 	(void)path;
 	// `LoadMidiDeviceDefinitionUI::enterKeyPress`'s file arm requests the definition's load from the
-	// instrument load (`gui/ui/load/instrument_load.h`), which this layer may not name. The scene
-	// parks the path, as the `Sample` descriptor does, and `gui::ui::dispatchShellChoices` requests
-	// the load.
+	// instrument load (`gui/ui/load/instrument_load.h`), which this layer may not name, and the browser
+	// stays open, refusing input, until `definitionLoaded` closes it: the menu it returns to then draws
+	// the definition linked. The scene parks the path, `gui::ui::dispatchShellChoices` requests the
+	// load, and the load's completion answers `deferred_load_done`.
 	if (!midi_device_file(ctx)) {
 		error = Error::FILE_NOT_FOUND;
 		return AcceptOutcome::Stay;
 	}
-	return AcceptOutcome::Defer;
+	return AcceptOutcome::DeferAndWait;
 }
 
 // --- DX7 `.syx` banks: `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`) ---

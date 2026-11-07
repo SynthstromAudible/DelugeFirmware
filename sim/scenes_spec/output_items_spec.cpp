@@ -69,11 +69,13 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/card_access.h"
 
+#include "spec/gfx/support/golden.h"
 #include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -602,6 +604,27 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
 
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
+	});
+
+	it("notes the linked file's name, without its folders, as Linked::renderSubmenuItemTypeForOled does", _ {
+		// `strrchr(fullPath, '/') + 1`; a name with no folder is noted whole.
+		MidiRig rig;
+		std::array<char, 40> buf{};
+		rig.instrument()->deviceDefinitionFileName.clear();
+		expect(nodes::kMidiDeviceLinked.row_note(rig.ctx(), buf).empty()).to_be_true();
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/BLOFELD.XML");
+		expect(std::string{nodes::kMidiDeviceLinked.row_note(rig.ctx(), buf)}).to_equal(std::string{"BLOFELD.XML"});
+		rig.instrument()->setDeviceDefinitionFileName("NOFOLDER.XML");
+		expect(std::string{nodes::kMidiDeviceLinked.row_note(rig.ctx(), buf)}).to_equal(std::string{"NOFOLDER.XML"});
+	});
+
+	it("draws the DEVICE DEFINITION list with the linked file's name two rows under LINKED", _ {
+		MidiRig rig;
+		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/BLOFELD.XML");
+		Rig r;
+		r.open(nodes::midi_device_definition, rig.ctx());
+		r.tick(5);
+		expect_golden(self, "../ui/menu/menu_midi_device_definition_linked_48.pbm", r.fake.pbm(0));
 	});
 
 	it("says nothing is linked when the output is not a MIDI instrument", _ {

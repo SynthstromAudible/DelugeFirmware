@@ -497,7 +497,7 @@ struct GuestRig {
 
 /// @brief A `Shell` over a MIDI song, on the MIDI device definition browser.
 ///
-/// `BrowserId::MidiDeviceDefinition` defers like the sample browser, and the drain hands its choice
+/// `BrowserId::MidiDeviceDefinition` defers and waits for its load, and the drain hands its choice
 /// to the instrument load rather than the sample claim. This rig exists to pin that the claim
 /// wiring leaves it there.
 ///
@@ -969,9 +969,10 @@ describe browser_choice_claim(
 
 	    it(
 	        "drains a MIDI device definition into its own load, and claims nothing", _ {
-		        // `BrowserId::MidiDeviceDefinition` defers like the sample descriptor, and the drain
-		        // hands its path to the instrument load (`requestMidiDefinitionLoad`), not to the sample
-		        // claim -- so the `Sample` arm's body must not be reachable from it.
+		        // `BrowserId::MidiDeviceDefinition` defers and waits, as `LoadMidiDeviceDefinitionUI` stays open until
+		        // `definitionLoaded` closes it, and the drain hands its path to the instrument load
+		        // (`requestMidiDefinitionLoad`), not to the sample claim -- so the `Sample` arm's body must not be
+		        // reachable from it.
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -980,7 +981,8 @@ describe browser_choice_claim(
 		        expect(r.browser_on_stack()).to_be_true();
 
 		        r.enter();
-		        expect(r.browser_on_stack()).to_be_false();
+		        expect(r.browser_on_stack()).to_be_true();
+		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
 		        expect(r.instrument()->deviceDefinitionFileName).to_equal(std::string{});
 
 		        // Polled the same way a quiet guest tick polls, which is unconditionally; then the
@@ -997,6 +999,11 @@ describe browser_choice_claim(
 		        // definition load writes.
 		        expect(r.instrument()->deviceDefinitionFileName)
 		            .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
+		        // The load's completion answered the browser, which closes on the next tick.
+		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_false();
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
 	        });
 
 	    it(

@@ -186,6 +186,15 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 			f.vline(rect.x, y, y + 8);
 		}
 	}
+	// A row's note, after the rows so a later row's band clear cannot take it: legacy draws it from inside its row's
+	// own callback onto a canvas no later row clears.
+	for (int32_t o = 0; o < visible && start + o < n; o++) {
+		const ListRow& row = rows[start + o];
+		if (!row.below.empty()) {
+			f.glyphs(row.below, label_x, rect.y + (o + 2) * row_h, spacing_x_for(font), text_height_for(font), 0,
+			         rect.right());
+		}
+	}
 	return resp;
 }
 

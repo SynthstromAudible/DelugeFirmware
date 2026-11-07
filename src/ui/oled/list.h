@@ -28,6 +28,10 @@ struct ListRow {
 	/// when `invert_to <= invert_from`. The note-range picker's edited edge (`MultiRange::drawPixelsForOled`).
 	int16_t invert_from = 0;
 	int16_t invert_to = 0;
+	/// Text drawn two rows under this row, at the label's x in the rows' face, after every row: legacy's
+	/// `Linked::renderSubmenuItemTypeForOled`, which writes the linked file's name over the list's next-but-one slot.
+	/// Empty for none.
+	std::string_view below = {};
 };
 
 /// @brief The rect a vertical menu occupies in @p f: the whole frame below the menu base-y.

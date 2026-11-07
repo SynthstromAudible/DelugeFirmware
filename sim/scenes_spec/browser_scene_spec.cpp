@@ -1900,7 +1900,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_false();
 	});
 
-	it("parks the chosen MIDI device definition for the drain, and closes", _ {
+	it("parks the chosen MIDI device definition for the drain, and waits for its load", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1911,16 +1911,17 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 
-		// Like the sample descriptor, this one defers: the load is an instrument-load request on the
-		// interaction tier (`shell_choice_dispatch.cpp`'s `requestMidiDefinitionLoad`), which the
-		// drain makes. So the press parks the path and loads nothing itself.
+		// The load is an instrument-load request on the interaction tier (`shell_choice_dispatch.cpp`'s
+		// `requestMidiDefinitionLoad`), which the drain makes, and `LoadMidiDeviceDefinitionUI` stays open until
+		// `definitionLoaded` closes it. So the press parks the path, loads nothing itself and waits.
 		Error unused = Error::NONE;
 		expect(static_cast<int>(browser::descriptor(BrowserId::MidiDeviceDefinition)
 		                            .accept(context_of(f), "MIDI_DEVICES/DEFINITION/DEVICE1.XML", unused)))
-		    .to_equal(static_cast<int>(AcceptOutcome::Defer));
+		    .to_equal(static_cast<int>(AcceptOutcome::DeferAndWait));
 
 		r.enter();
-		expect(r.browser_on_stack()).to_be_false();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
 		expect(choice.has_value() && choice->id == BrowserId::MidiDeviceDefinition).to_be_true();
@@ -1928,6 +1929,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		    .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
 		// What the drain then does with the choice is `browser_choice_spec.cpp`'s.
 		expect(instrument->deviceDefinitionFileName).to_equal(std::string{});
+		browser_scene().deferred_load_done(true); // the load's completion
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_false();
 	});
 
 	it("searches for the remembered file with .XML appended again, as legacy does", _ {

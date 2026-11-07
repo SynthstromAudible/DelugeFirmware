@@ -83,7 +83,12 @@
 
 #include "scenes/menu/node.h"
 
+#include "serialization/value.h"
+
 #include <cstdint>
+#include <optional>
+#include <span>
+#include <string_view>
 
 namespace deluge::scenes::menu {
 struct MenuContext;
@@ -111,6 +116,8 @@ public:
 	/// False for a context whose output is not a `MIDIInstrument` -- legacy's unguarded cast is
 	/// safe only because `isRelevant` (`:51-54`) has already refused, which is
 	/// `relevance::is_midi_out` on the node.
+	/// @brief The MIDI track's stored definition path, as `readCurrentValue` reads it; nullopt off a MIDI track.
+	static std::optional<serialization::Value> definition_file(const MenuContext& ctx);
 	static bool linked(const MenuContext& ctx);
 
 	/// @brief Yes -- `on_focus` here is `Toggle::selectButtonPress` -> `toggleValue()`
@@ -130,12 +137,12 @@ public:
 	///        when a definition file is linked, an unchecked one when not.
 	///
 	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
-	/// is one of the three that override the base blit. The **second text row** that override also
-	/// draws when checked -- the linked file's base name, at `yPixel + kTextSpacingY * 2`
-	/// (`linked.h`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
-	/// row (`ui/oled/list.h`), and a second row of text under a row is a `list` change rather than
-	/// an item's. That remains this item's divergence; the checkbox no longer does.
+	/// is one of the three that override the base blit. The text half is `row_note`.
 	const deluge::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;
+
+	/// @brief `Linked::renderSubmenuItemTypeForOled`'s text half: under a checked box, the linked file's name, the path
+	///        after its last `/`.
+	std::string_view row_note(const MenuContext& ctx, std::span<char> out) const override;
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

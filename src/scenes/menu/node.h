@@ -648,6 +648,13 @@ struct CustomItem {
 		return &deluge::gfx::oled::icons::submenuArrow;
 	}
 
+	/// @brief The text legacy's `renderSubmenuItemTypeForOled` draws two rows under this item's row, or empty for none:
+	///        `midi::device_definition::Linked` writes the linked file's name there (`ui::oled::ListRow::below`).
+	/// @param ctx The menu context.
+	/// @param out Where the text is written.
+	/// @return The text, in @p out; empty for none.
+	virtual std::string_view row_note(const MenuContext& /*ctx*/, std::span<char> /*out*/) const { return {}; }
+
 	/// @brief Is this a stand-in for an item that is not implemented yet, rather than the real thing?
 	///
 	/// The tables name every legacy bespoke item so the tree's *shape* is complete, even where the

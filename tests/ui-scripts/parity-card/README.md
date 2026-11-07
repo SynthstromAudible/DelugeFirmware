@@ -32,3 +32,8 @@ blinks. `c29` presses Shift + a DX column pad with the menu already open over th
 browser and the cartridge page: BACK from the cartridge page reopens the browser, and a second BACK returns to "DX7
 source". `c31` is the parameter page's own pad layout: Shift shows the DX colour map and Shift + a pad picks its
 parameter, since a bare pad leaves the menu for the clip.
+
+`c32-midi-linked` runs on its own card, `tests/fixtures/card-midi-definition` (`--card`): the ShellMenu card plus one
+MIDI device definition, `MIDI_DEVICES/DEFINITION/BLOFELD.XML`. It turns the boot clip's track into a MIDI track, links
+that definition from DEVICE DEFINITION > LINKED (the file's name then shows two rows under LINKED), and walks SETTINGS >
+MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.

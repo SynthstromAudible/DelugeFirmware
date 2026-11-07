@@ -85,6 +85,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -340,6 +341,30 @@ struct Rig {
 std::string text_of(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
+}
+
+/// @brief Whether @p pbm has a full-width rule with nothing lit above it: a title band holding only the separator.
+bool title_band_blank(const std::string& pbm) {
+	std::istringstream in(pbm);
+	std::string magic;
+	int w = 0;
+	int h = 0;
+	in >> magic >> w >> h;
+	for (int y = 0; y < h; y++) {
+		int lit = 0;
+		for (int x = 0; x < w; x++) {
+			int bit = 0;
+			in >> bit;
+			lit += bit;
+		}
+		if (lit == w) {
+			return true;
+		}
+		if (lit != 0) {
+			return false;
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -811,6 +836,28 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		    .to_be_true();
 		// The static fallback the dump and the parent row carry is `Node::title`.
 		expect(text_of(nodes::mpe_direction.name)).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_MPE)));
+	});
+
+	it("draws the zone page's title band empty but for its rule, as main's nameless ZoneSelector does", _ {
+		// `zoneSelectorMenu` is default-constructed: no name, no `getTitle()`, so `MenuItem::renderOLED` draws an empty
+		// title. The direction page, titled MPE INPUT, is the control: the helper sees its text.
+		select_language();
+		Fixture& f = fixture();
+		baseline(*f.a, *f.b);
+		MenuContext ctx = f.ctx;
+		ctx.midi_cable = f.a.get();
+		{
+			Rig r;
+			r.open(nodes::mpe_zone, ctx);
+			r.shell.tick(0);
+			expect(title_band_blank(r.fake.pbm(0))).to_be_true();
+		}
+		{
+			Rig r;
+			r.open(nodes::mpe_direction, ctx);
+			r.shell.tick(0);
+			expect(title_band_blank(r.fake.pbm(0))).to_be_false();
+		}
 	});
 
 	it("offers the same options the two legacy Selections do", _ {

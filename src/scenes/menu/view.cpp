@@ -118,10 +118,17 @@ void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, co
 
 	deluge::ui::oled::ListRow rows[kMaxMenuChildren];
 	NodeText label_scratch[kMaxMenuChildren];
+	// One row's note per list: only `Linked` writes one, and its list holds it once.
+	char note_scratch[sizeof(NodeText::chars)];
+	bool noted = false;
 	for (size_t i = 0; i < n; i++) {
 		rows[i].label = display_text(*kids[i], ValueTextUse::Name, ctx, label_scratch[i]);
 		rows[i].icon = row_icon(*kids[i], ctx);
 		rows[i].selectable = true;
+		if (!noted) {
+			rows[i].below = row_note(*kids[i], ctx, note_scratch);
+			noted = !rows[i].below.empty();
+		}
 	}
 
 	// `menu_rect(f)` is the legacy-reproducing rect (`menu_rect` in `ui/oled/list.h`) -- never a hand-computed
