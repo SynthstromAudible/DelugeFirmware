@@ -659,6 +659,11 @@ const std::vector<Subtree>& subtrees() {
 	    {&nodes::song_threshold_recording, "the song's recording threshold mode: a runtime field seeded from "
 	                                       "FlashStorage when the song is made, and not saved: no row"},
 	    {&nodes::voice_usage, "a readout of the voices sounding, which the scene samples: no row"},
+	    {&nodes::vibrato,
+	     "the strength of one patch cable (LFO 1 to pitch), which the sound's cable list holds: no row"},
+	    {&nodes::sidechain_volume,
+	     "the strength of one patch cable (sidechain to volume), which the sound's cable list "
+	     "holds: no row"},
 	};
 	return list;
 }

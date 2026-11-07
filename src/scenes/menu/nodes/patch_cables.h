@@ -215,6 +215,9 @@ public:
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+	/// @brief `Fixed::s` / `Fixed::p`: the cable a `Fixed` page edits. Meaningless for `Regular` and `Range`.
+	constexpr PatchSource fixed_source() const { return source_; }
+	constexpr uint8_t fixed_param() const { return param_; }
 
 	/// The three classes' `patchingSourceShortcutPress` (`patch_cable_strength/regular.cpp`, `range.cpp:58-60`,
 	/// `fixed.cpp:45-48`): another held source pad opens the range page for the pressed source (`Fixed` always opens
@@ -264,9 +267,14 @@ inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStren
 /// `vibratoMenu` (`menus.cpp:1727-1728`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
-/// @brief `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the banner of a cable strength
-///        column, its value over 100 to two places.
+/// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
+///        `patch_cable_strength.h:73-75`) and the column (`Decimal::renderInHorizontalMenu`, `decimal.cpp:176-192`,
+///        rendering style NUMBER), both the value over 100 to two places; the column keeps three characters of a value
+///        at or below -10.00.
 ValueText cable_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @brief `sidechain::VolumeShortcut`'s: the notification only. Its column is the ducking meter
+///        (`getRenderingStyle() == SIDECHAIN_DUCKING`, `sidechain/volume.h`), which the node's `Hint::Ducking` draws.
+ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
 /// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
@@ -274,6 +282,27 @@ inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem:
                                                          deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
                                                          PatchSource::SIDECHAIN};
 /// @}
+
+/// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
+///        `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`), 0 where there is no cable.
+int32_t vibrato_strength(const MenuContext& ctx);
+/// @brief The same for `kSidechainVolumeItem`'s cable (SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND).
+int32_t ducking_strength(const MenuContext& ctx);
+
+/// @brief @p n as a fixed cable's column on a horizontal page: it reads @p get, ranges over +/-50.00
+///        (`getMinValue`/`getMaxValue`, `patch_cable_strength.h:36-37`), steps 1.00 a detent and 0.01 with SELECT or
+///        SHIFT held (`Decimal::getNumberEditSize`, `decimal.cpp:49-54`), and a select press on it opens its own
+///        strength page (`allowToBeginSessionFromHorizontalMenu`, `patch_cable_strength.h:50`). The column's edit is
+///        written by the item's `commit`, as on the page.
+/// @param n   The cable's custom node.
+/// @param get Its strength getter.
+/// @return @p n as a column.
+constexpr Node fixed_cable_column(Node n, GetFn get) {
+	n.bind.get = get;
+	n.bind.fixed_range = IntRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	n.bind.horizontal_step = HorizontalStep{.coarse = 100, .fine = 1};
+	return with_allow_session_from_horizontal(n);
+}
 
 // ---------------------------------------------------------------------------------------------
 // The nodes.

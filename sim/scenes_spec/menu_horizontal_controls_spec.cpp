@@ -21,6 +21,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/detail.h" // with_slots
 #include "scenes/menu/nodes/nodes.h"  // the real `nodes::randomizer`/`randomizer_lock`
+#include "scenes/menu/present.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -896,7 +897,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a patch cable strength's banner is its value over 100, two places", _ {
-		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`).
+		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:73-75`).
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
@@ -1261,6 +1262,91 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(1);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
+	});
+
+	it("the VIBRATO column spells its strength in the column face; DUCK draws the ducking meter over +/-50.00", _ {
+		// `Decimal::renderInHorizontalMenu` (`decimal.cpp:176-192`, rendering style NUMBER): the value over 100, three
+		// characters at or below -10.00. `sidechain::VolumeShortcut` renders SIDECHAIN_DUCKING (`sidechain/volume.h`),
+		// normalised by 5000 because its maximum is over 50 (`number.cpp:402`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
+		menu::ColumnSlot slot{};
+		deluge::ui::oled::Column col{};
+		menu::present_column(menu::nodes::vibrato, ctx, 0, slot, col);
+		expect(col.render == deluge::ui::oled::text_column).to_be_true();
+		expect(std::string(slot.text.value)).to_equal(std::string("0.00"));
+		menu::present_column(menu::nodes::vibrato, ctx, -50, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("-0.50"));
+		menu::present_column(menu::nodes::vibrato, ctx, -1050, slot, col);
+		expect(std::string(slot.text.value)).to_equal(std::string("-10"));
+		menu::ColumnSlot duck{};
+		menu::present_column(menu::nodes::sidechain_volume, ctx, 2500, duck, col);
+		expect(col.render == deluge::ui::oled::meter_column).to_be_true();
+		expect(duck.meter.hint == deluge::ui::oled::Hint::Ducking).to_be_true();
+		expect(duck.meter.raw).to_equal(2500);
+		expect(duck.meter.raw_max).to_equal(5000);
+	});
+
+	it("a select on the MASTER page's VIBRATO column opens its strength page, whose select opens MODULATE DEPTH", _ {
+		// `Submenu::selectButtonPress` returns a column that `allowToBeginSessionFromHorizontalMenu()`
+		// (`submenu.cpp:187-198`), which `PatchCableStrength` answers true (`patch_cable_strength.h:50`); only the
+		// page's own select goes on to the range picker (`patch_cable_strength.cpp:302-306`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::sound_master);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 4; // SYNTH MODE, VOLUME, PAN, TRANSPOSE (column 3), VIBRATO
+		r.shell.tick(100);
+		r.enter(500);
+		r.shell.tick(600);
+		expect(menu_scene().focused() == &menu::nodes::vibrato).to_be_true();
+		expect(depth_of()).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.patch_source))
+		    .to_equal(static_cast<int>(PatchSource::LFO_GLOBAL_1));
+		r.enter(700);
+		r.shell.tick(800);
+		expect(menu_scene().focused() == &menu::nodes::source_selection_range).to_be_true();
+	});
+
+	it("a select on the SIDECHAIN page's DUCK column opens its strength page", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::sidechain);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 0; // DUCK
+		r.shell.tick(100);
+		r.enter(500);
+		r.shell.tick(600);
+		expect(menu_scene().focused() == &menu::nodes::sidechain_volume).to_be_true();
+		expect(depth_of()).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.patch_source))
+		    .to_equal(static_cast<int>(PatchSource::SIDECHAIN));
+	});
+
+	it("a select turn on the VIBRATO column moves its cable 1.00 a detent, and 0.01 with SHIFT held", _ {
+		// `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`) is what the column shows, and
+		// `Decimal::getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`) the step.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::sound_master);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().columns[0].focused = 4; // VIBRATO
+		r.shell.tick(100);
+		const int32_t before = menu::bindings::read(menu::nodes::vibrato, ctx);
+		r.turn(1, 1000);
+		r.shell.tick(1010);
+		r.shell.tick(1020);
+		expect(menu::bindings::read(menu::nodes::vibrato, ctx)).to_equal(before + 100);
+		r.button(kShiftX, kShiftY, true, 3000);
+		r.turn(1, 3100);
+		r.shell.tick(3110);
+		r.shell.tick(3120);
+		r.button(kShiftX, kShiftY, false, 3200);
+		expect(menu::bindings::read(menu::nodes::vibrato, ctx)).to_equal(before + 101);
 	});
 
 	it("a select detent on a horizontal Decimal column moves 1.00, and 0.01 with Shift held", _ {

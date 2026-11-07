@@ -261,17 +261,50 @@ size_t depth_of(const MenuState& state) {
 
 } // namespace
 
-ValueText cable_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the value over 100, two places.
-	if (use != ValueTextUse::Notification) {
-		return kValueTextFallback;
-	}
+namespace {
+
+/// @brief A cable strength's value text for @p use: the value over 100 to two places, cut to three characters on a
+///        column at or below -10.00 (`decimal.cpp:184-186`, "-10.50" keeps "-10").
+ValueText spell_cable_value(int32_t value, ValueTextUse use, std::span<char> out) {
 	char buf[16];
 	size_t len = 0;
 	append_cable_value(buf, len, sizeof(buf), value);
+	if (use == ValueTextUse::Column && value <= -1000) {
+		len = std::min<size_t>(len, 3);
+	}
 	const size_t n = std::min(len, out.size());
 	std::memcpy(out.data(), buf, n);
 	return ValueText{.length = n};
+}
+
+/// @brief `PatchCableStrength::readCurrentValue` for a `Fixed` item's own cable.
+int32_t fixed_strength(const MenuContext& ctx, const PatchCableStrengthItem& item) {
+	return cable_value_to_menu(
+	    cable_value(ctx, item.fixed_source(), deluge::synth::CableTarget::param(item.fixed_param())).value_or(0));
+}
+
+} // namespace
+
+ValueText cable_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Notification && use != ValueTextUse::Column) {
+		return kValueTextFallback;
+	}
+	return spell_cable_value(value, use, out);
+}
+
+ValueText ducking_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Notification) {
+		return kValueTextFallback;
+	}
+	return spell_cable_value(value, use, out);
+}
+
+int32_t vibrato_strength(const MenuContext& ctx) {
+	return fixed_strength(ctx, kVibratoItem);
+}
+
+int32_t ducking_strength(const MenuContext& ctx) {
+	return fixed_strength(ctx, kSidechainVolumeItem);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -470,7 +503,7 @@ deluge::synth::CableTarget strength_destination(const MenuState& state, PatchCab
 	return destination_for(state, which == PatchCableStrengthItem::Which::Range);
 }
 
-/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:192-206`).
+/// @brief `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp:198-212`).
 int32_t strength_read(const MenuContext& ctx, const MenuState& state, PatchCableStrengthItem::Which which) {
 	// `:195-198` -- no cable yet reads as zero depth.
 	return cable_value_to_menu(

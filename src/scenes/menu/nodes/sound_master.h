@@ -80,14 +80,15 @@ inline constexpr Node master_transpose = with_column_name(
         {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST})),
     sid(deluge::l10n::String::STRING_FOR_TRANSPOSE));
 
-// `vibratoMenu` (`gui/ui/menus.cpp:1727-1728`): a `patch_cable_strength::Fixed` on
-// LOCAL_PITCH_ADJUST from LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the
-// pitch. Its select press chains to the range source picker like every other cable-strength page
-// (`patch_cable_strength.cpp:302-306`).
-inline constexpr Node vibrato =
+// `vibratoMenu` (`gui/ui/menus.cpp:1727-1728`): a `patch_cable_strength::Fixed` on LOCAL_PITCH_ADJUST from
+// LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the pitch. On the MASTER page its column
+// spells the strength and a select press opens the strength page; that page's select chains to the range source
+// picker like every other cable-strength page (`patch_cable_strength.cpp:302-306`).
+inline constexpr Node vibrato = fixed_cable_column(
     with_value_text(with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VIBRATO), &kVibratoItem),
                                       &patch_cable_strength_chain, kPatchCableStrengthChain),
-                    cable_strength_text);
+                    cable_strength_text),
+    vibrato_strength);
 
 inline constexpr const Node* kMasterChildren[] = {&synth_mode, &master_volume, &master_pan, &master_transpose,
                                                   &vibrato};
