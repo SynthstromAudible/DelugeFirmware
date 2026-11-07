@@ -81,13 +81,18 @@ std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
 
-void SlicerScene::open(Sample* sample) {
-	// `SampleBrowser::showPreview` (`gui/ui/browser/sample_browser.cpp:692-693`), onto this
-	// scene's own navigator rather than the shared `waveformBasicNavigator` global. `opened()` with
-	// no holder is legacy's own call there: no remembered view, so the slicer opens zoomed all the
-	// way out. Reopened on the sample it already shows, the navigator is kept, render cache and all: legacy's global is
-	// not reset between two slicer opens on the same file, and a fresh scan would read the overview cache's coarse
-	// peaks where the first open read the audio.
+void SlicerScene::open(Sample* sample, const deluge::sample::WaveformNav* shown) {
+	// `waveformBasicNavigator` as `SampleBrowser::showPreview` left it: the preview's view, and the columns it already
+	// read from the audio. A fresh scan would read the overview cache's coarse peaks instead.
+	if (sample != nullptr && shown != nullptr) {
+		nav_ = *shown;
+		nav_.sample = sample;
+		nav_path_ = sample->filePath;
+		return;
+	}
+	// `SampleBrowser::showPreview`'s `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` onto
+	// this scene's own navigator. Reopened on the sample it already shows, the navigator is kept, render cache and
+	// all: legacy's global is not reset between two slicer opens on the same file.
 	if (sample != nullptr && sample == nav_.sample && sample->filePath == nav_path_) {
 		return;
 	}

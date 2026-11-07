@@ -1485,6 +1485,25 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(differ).to_equal(0);
 	});
 
+	it("offers the slicer the navigator its preview drew, for that sample only", _ {
+		// `main`'s slicer reads `waveformBasicNavigator`, which only `showPreview` sets: the previewed sample's view.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample();
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(browser_scene().shown_waveform(sample) == nullptr).to_be_true(); // nothing drawn yet
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().shown_waveform(sample) == &browser_scene().waveform_nav()).to_be_true();
+		expect(browser_scene().waveform_nav().renderData.colStatus[0] == COL_STATUS_INVESTIGATED).to_be_true();
+		Sample* other = make_overview_sample();
+		expect(browser_scene().shown_waveform(other) == nullptr).to_be_true();
+		expect(browser_scene().shown_waveform(nullptr) == nullptr).to_be_true();
+	});
+
 	it("redraws a preview the card has not caught up with, and gives up 300 ms after its last progress", _ {
 		// `tickPreviewRedraw`. No cluster the overview lacks ever arrives here (the spec process runs no loader), so
 		// the render never completes: the browser asks for redraws, then stops.

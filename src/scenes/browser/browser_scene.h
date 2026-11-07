@@ -489,6 +489,13 @@ public:
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
+	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
+	///        `SampleBrowser::showPreview` sets up.
+	/// @param sample The sample the slicer opens on.
+	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
+		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
+	}
 	/// @brief The favourites row's row: `kFavouriteRow`, or the one below it while banks show.
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.

@@ -556,8 +556,10 @@ directory is `slicing/` because `scenes-no-root-ui` forbids the whole word `slic
 * **Two doors open it:** SLICE in the kit's SAMPLES menu, and Shift+Select on a file in a brand-new
   kit. Either parks `BrowserChoice::Op::Slice`; the host loads the file into the preview drum
   without sounding it, and `BrowserScene::slice_ready` pushes the slicer.
-* **Reopened on the same sample and file, it keeps its navigator**, as legacy's global navigator
-  draws the first open's peaks.
+* **It opens on the browser's preview navigator when that shows the same sample**
+  (`BrowserScene::shown_waveform`), as legacy's slicer draws through `waveformBasicNavigator`, which the preview
+  scanned from the audio. **Reopened on the same sample and file, it keeps its navigator**, as legacy's global
+  navigator draws the first open's peaks.
 * **`on_resume()` is `focusRegained`**, and resets the scene. It fires only when `input_top()`
   changes hands, so a popup the slicer raised expiring above it resets nothing, and a real scene
   closing above it does; `slicer_scene_spec.cpp` asserts both.

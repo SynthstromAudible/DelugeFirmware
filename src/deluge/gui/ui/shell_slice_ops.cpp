@@ -152,7 +152,7 @@ private:
 		Sample* sample = range != nullptr ? static_cast<Sample*>(range->sampleHolder.audioFile) : nullptr;
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
-			slicer_scene().open(sample);
+			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
 			deluge::scenes::browser::browser_scene().slice_ready(true);
 			return;
 		}
