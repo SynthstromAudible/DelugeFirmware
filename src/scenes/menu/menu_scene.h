@@ -124,7 +124,10 @@ public:
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
 	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return visit_.learn.mode(); }
+	bool select_release_blocked() const override { return learn_mode(); }
+	/// @brief Whether LEARN holds the menu in learn mode, legacy's `UI_MODE_MIDI_LEARN`, which the menu keeps itself
+	///        rather than in `currentUIMode`; the guest refuses select turns in it.
+	bool learn_mode() const { return visit_.learn.mode(); }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.

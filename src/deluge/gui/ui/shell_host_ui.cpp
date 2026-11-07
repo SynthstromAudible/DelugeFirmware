@@ -17,6 +17,7 @@
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "gui/ui/ui.h"
 
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"
@@ -1080,6 +1081,15 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset) {
 void ShellHostUI::selectEncoderAction(int8_t offset) {
 	if (forwardAutomationSelectTurn(offset)) {
 		armTickSoon();
+		return;
+	}
+	// `SoundEditor::selectEncoderAction`'s gate, after its automation-view forward: the menu edits only in the UI modes
+	// `selectEncoderUIModes` lists, and not in learn mode, which the menu holds itself rather than in `currentUIMode`
+	// and reports as `select_release_blocked` (`MenuScene::learn_mode`). Only the menu is a sound editor screen; a
+	// scene it opened takes its turns as before.
+	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
+	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
+	    && (!isUIModeWithinRange(selectEncoderUIModes) || top.select_release_blocked())) {
 		return;
 	}
 	// `void`: legacy discards nothing because there is nothing to discard
