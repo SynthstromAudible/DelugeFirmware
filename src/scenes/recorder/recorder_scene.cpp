@@ -10,6 +10,8 @@
 
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/menu/shortcut_blink.h"
+#include "ui/grid/frame.h"
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
@@ -19,6 +21,7 @@
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -162,6 +165,8 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	}
 
 	stopping_ = false;
+	blink_anchor_ms_.reset();
+	blink_fired_step_ = UINT32_MAX;
 
 	// `opened()`'s first two statements (`:64-66`). `updatedRecordingStatus` has no member here
 	// (see the class docstring); the log wipe does, because the recording is about to make every
@@ -376,6 +381,26 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	if (recorder_ != nullptr) {
 		f.gate().request_repaint_after(kRecorderPollMs, now);
 	}
+}
+
+void RecorderScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	// The pads are the view's beneath. `opened()` arms the blink only on success, and leaves the source blinks as the
+	// sound editor had them; the items the recorder opens from blink no patching source, so the plan is the one pad.
+	if (recorder_ == nullptr) {
+		return;
+	}
+	const uint32_t now = f.now_ms();
+	if (!blink_anchor_ms_.has_value()) {
+		blink_anchor_ms_ = now;
+	}
+	const menu::BlinkPlan plan =
+	    menu::exclusive_blink(static_cast<uint8_t>(std::max<int32_t>(ctx_.source_index, 0)), kRecordShortcutY, 0);
+	const uint32_t step = menu::blink_step(*blink_anchor_ms_, now);
+	if (step != blink_fired_step_) {
+		menu::fire_blink_step(f, plan, step);
+		blink_fired_step_ = step;
+	}
+	f.grid_gate().request_repaint_after(menu::ms_to_next_step(*blink_anchor_ms_, now), now);
 }
 
 void RecorderScene::leds(deluge::ui::LedFrame& f) {

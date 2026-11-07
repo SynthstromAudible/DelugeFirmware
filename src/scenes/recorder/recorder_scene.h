@@ -101,10 +101,6 @@
 ///
 /// @par What is deliberately not ported
 ///
-///   * **The shortcut blink** (`opened()`, `:97-98`). `setupShortcutBlink` / `blinkShortcut` belong
-///     to `MenuScene`, which owns the shortcut tables and the pad flash that draws them. (The seven
-///     `indicator_leds::` calls at `:100-106` **are** ported: they are `hid/`, so they are declared
-///     through `leds()` instead of called.)
 ///   * **`PadLEDs::clearTickSquares(true)`** (`:90`). Tick squares are a `PadLEDs` facility with no
 ///     shell equivalent yet -- the same gap `MarkerScene` records for the playhead.
 ///   * **`instrumentClipView.cancelAllAuditioning()`** (`:109-111`), a root-UI call this layer may
@@ -127,16 +123,15 @@
 /// clipping popup was on screen would otherwise go unnoticed until the popup expired
 /// (`kPopupTimeoutMs`, 800 ms).
 ///
-/// Step 8b of `Shell::tick` closes that gap, through the *grid* rather than the panel.
-/// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true), so this scene remains the grid
-/// **base** underneath it; `Shell::render_grid` draws and `append_rendered`s the base on every tick the grid gate
-/// fires. Step 8b arms each surface this scene claims and is not covered on -- the grid, here, and
-/// *not* the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
-/// scene enters `rendered_this_tick_`, and `after_render()` runs on schedule with the popup still
-/// up. Arming the OLED half would be pure cost: `flush` blits an OLED surface unconditionally once
-/// rendered, so it would be a 100 Hz two-panel blit of a frame this scene is not even in. Nothing about the OLED walk
-/// has to change, and neither alternative (making the scene `oled_transparent`, or moving the poll out of
-/// `after_render` where it could no longer file the `Remove`) is needed.
+/// Step 8b of `Shell::tick` closes that gap, through the *grid* rather than the panel. This scene and the
+/// `PopupScene` above it are both grid overlays, and `Shell::render_grid` draws and `append_rendered`s every scene
+/// from the grid base up on every tick the grid gate fires. Step 8b arms each surface this scene claims and is not
+/// covered on -- the grid, here, and *not* the OLED panels the opaque popup covers -- so the grid gate fires at
+/// `kRecorderPollMs`, this scene enters `rendered_this_tick_`, and `after_render()` runs on schedule with the popup
+/// still up. Arming the OLED half would be pure cost: `flush` blits an OLED surface unconditionally once rendered, so
+/// it would be a 100 Hz two-panel blit of a frame this scene is not even in. Nothing about the OLED walk has to change,
+/// and neither alternative (making the scene `oled_transparent`, or moving the poll out of `after_render` where it
+/// could no longer file the `Remove`) is needed.
 ///
 /// `recorder_scene_spec` pins this -- "notices
 /// completion while its own clipping popup is up, through the grid pass".
@@ -192,6 +187,11 @@ inline constexpr uint32_t kRecorderPollMs = 10;
 ///       than at absolute row 19; legacy's bare literal has no opinion about such a panel at all.
 inline constexpr int32_t kStatusY = 14;
 
+/// @brief The row of the recorder's shortcut pad, on its source's column: `AudioRecorder::opened`'s
+///        `setupShortcutBlink(currentSourceIndex, 4, 0)`, the cell `kSoundCells` (`menu/shortcuts.cpp`) gives
+///        `sample0_recorder` and `sample1_recorder`.
+inline constexpr uint8_t kRecordShortcutY = 4;
+
 /// @brief The audio recorder. One instance for the whole application (`registry.h`).
 class RecorderScene final : public deluge::ui::shell::Scene {
 public:
@@ -224,14 +224,15 @@ public:
 	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
 
-	/// @brief `AudioRecorder::getGreyoutColsAndRows` (`:58-61`): `*cols = 0xFFFFFFFF`, rows
-	///        untouched, returns true -- every column of the grid, sidebar included, greyed.
-	///
-	/// The scene itself paints no pads at all (legacy overrides neither `renderMainPads` nor
-	/// `renderSidebar`), so it is not a grid overlay and occludes nothing: what is beneath keeps
-	/// drawing, greyed. `Shell::tick` ORs this mask over every scene on the stack
-	/// (`Shell::tick`), which is where the greying happens.
+	/// @brief `AudioRecorder::getGreyoutColsAndRows`: every column of the grid, sidebar included, greyed.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	/// @brief True: `AudioRecorder` overrides neither `renderMainPads` nor `renderSidebar`, so the view beneath keeps
+	///        every pad and `Shell::tick` greys it with `greyout_mask`. The scene's only grid output is its blink.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief `AudioRecorder::opened`'s `setupShortcutBlink(currentSourceIndex, 4, 0)` and `blinkShortcut()`: the
+	///        source's recorder shortcut pad flashes on every cycle of the sound editor's blink counter while a take
+	///        is armed.
+	void render_grid(deluge::ui::grid::GridFrame& frame) override;
 
 	/// @name Observable state
 	/// For specs, and for whoever wires the menu items up.
@@ -276,6 +277,10 @@ private:
 	/// Whether the next `leds()` restarts both shared blinks: the recording began (`blinkLed(BACK)`,
 	/// `blinkLed(RECORD, 255, 1)`).
 	bool blink_restart_ = false;
+	/// When the shortcut blink's counter started: the take's first grid pass.
+	std::optional<uint32_t> blink_anchor_ms_{};
+	/// The counter step last fired, so two repaints inside one step flash once.
+	uint32_t blink_fired_step_ = UINT32_MAX;
 };
 
 /// @brief The application's one audio recorder.

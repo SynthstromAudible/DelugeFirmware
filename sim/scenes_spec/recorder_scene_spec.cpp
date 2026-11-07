@@ -88,6 +88,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -972,6 +973,34 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `AudioRecorder::getGreyoutColsAndRows` (`:58-61`): `*cols = 0xFFFFFFFF`, rows untouched.
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().cols)).to_equal(static_cast<int64_t>(0xFFFFFFFF));
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().rows)).to_equal(static_cast<int64_t>(0));
+	});
+
+	it("leaves every pad to the view beneath: a grid overlay that draws no region", _ {
+		// `AudioRecorder` overrides neither `renderMainPads` nor `renderSidebar`: `main` shows the view's mute and
+		// audition columns under the recorder, greyed by `getGreyoutColsAndRows`.
+		expect(recorder_scene().is_grid_overlay()).to_be_true();
+		expect(recorder_scene().pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+		expect(recorder_scene().draws_pads()).to_be_false();
+	});
+
+	it("flashes its source's recorder shortcut pad once every blink cycle while armed", _ {
+		// `opened()`'s `setupShortcutBlink(currentSourceIndex, 4, 0)` and `blinkShortcut()`: frequency 0 flashes the
+		// param pad on every cycle's param step, 20 ms into each 200 ms cycle.
+		Guards g;
+		Rig r;
+		r.open();
+		const size_t from = r.fake.flashes_sent.size();
+		for (uint32_t at = 0; at <= 400; at += 10) {
+			r.tick(at);
+		}
+		const std::vector<deluge::ui::grid::PadFlash> flashes{
+		    r.fake.flashes_sent.begin() + static_cast<std::ptrdiff_t>(from), r.fake.flashes_sent.end()};
+		expect(flashes.size()).to_equal(size_t{2}); // at 20 ms and 220 ms
+		for (const deluge::ui::grid::PadFlash& flash : flashes) {
+			expect(static_cast<int32_t>(flash.x)).to_equal(0);
+			expect(static_cast<int32_t>(flash.y)).to_equal(4);
+			expect(flash.colour == deluge::ui::grid::FlashColour::Default).to_be_true();
+		}
 	});
 
 	it("restarts both shared blinks as the recording begins", _ {

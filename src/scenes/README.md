@@ -522,6 +522,9 @@ recorder UI is live", `setMonitoringMode` among them, so the scene writes that s
 `AudioEngine::setForegroundRecording`, in the order that keeps the pointer's visible window around
 the channel's (see the use-after-free in the ledger below).
 
+The scene is a grid overlay that draws no pad region: the view beneath keeps its pads, greyed by the recorder's
+all-columns mask, and the scene adds only `opened()`'s shortcut blink on its source's (x, 4) pad.
+
 ### The overlays (`overlay/`)
 
 `ParamPopupScene` (the mod-encoder value popup) and `CountInScene` are input-transparent grid
