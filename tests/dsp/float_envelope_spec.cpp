@@ -21,6 +21,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/poly.h"
 #include "dsp-next/float/envelope/envelope.h"
+#include "dsp-next/float/vca/vca.h"
 
 #include "float_kernel_records.h"
 
@@ -30,6 +31,7 @@
 #include <cmath>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <random>
 #include <set>
 #include <span>
 #include <vector>
@@ -84,8 +86,8 @@ using Env = Mono<fp::Envelope>;
 	if (index < 0) {
 		return -1;
 	}
-	if (lane == 3) { // four_segment: three rises, a hold, the release, a hold at L4
-		return index <= 2 ? 0 : (index == 3 ? 2 : 3);
+	if (lane == 3) { // four_segment: three rises (0-2), a hold at L3 (3), the release (4) and the hold at L4 (5)
+		return index <= 2 ? 0 : (index == 3 ? 2 : 3); // the hold at L4 is where the release ends, so it is role 3
 	}
 	return index;
 }
@@ -226,6 +228,87 @@ void expect_divergent_lanes_equal_mono(auto& self) {
 		expect(stages_visited[3].contains(2)).to_be_true();
 		expect(stages_visited[3].contains(3)).to_be_true();
 	}
+}
+
+using VcaEnv = fp::Vca<fp::Envelope>;
+
+[[nodiscard]] std::vector<f32> noise(std::size_t n, uint32_t seed) {
+	std::mt19937 rng{seed};
+	std::uniform_real_distribution<f32> d{-1.f, 1.f};
+	std::vector<f32> v(n);
+	for (f32& x : v) {
+		x = d(rng);
+	}
+	return v;
+}
+
+/// Each lane's own gain in the Vca scenario.
+[[nodiscard]] f32 vca_gain(std::size_t lane) {
+	return 0.25f + (0.5f * static_cast<f32>(lane));
+}
+
+/// N lanes of Vca<Envelope>, each its own program and gain and gated at its own blocks, against N Monos and against
+/// x · envelope · gain from a bare envelope: every output sample and final state equal bit for bit.
+template <std::size_t N>
+void expect_vca_lanes_equal_mono(auto& self) {
+	fp::FlushToZero ftz;
+	Poly<VcaEnv, N> poly;
+	std::array<Mono<VcaEnv>, N> mono{};
+	std::array<Env, N> bare{};
+	for (std::size_t l = 0; l < N; ++l) {
+		const VcaEnv::Settings settings{.envelope = {.program = divergence_program(l)}, .gain = vca_gain(l)};
+		poly.configure(l, settings);
+		mono[l].configure(settings);
+		bare[l].configure({.program = divergence_program(l)});
+	}
+	std::array<std::vector<f32>, N> in{};
+	for (std::size_t l = 0; l < N; ++l) {
+		in[l] = noise(kBlock * kBlocks, 100 + static_cast<uint32_t>(l));
+	}
+	bool audible = false;
+	for (std::size_t b = 0; b < kBlocks; ++b) {
+		for (std::size_t l = 0; l < N; ++l) {
+			const int e = divergence_event(l, b);
+			if (e > 0) {
+				poly.template on<&VcaEnv::gate_on>(l);
+				mono[l].template on<&VcaEnv::gate_on>();
+				bare[l].template on<&fp::Envelope::gate_on>();
+			}
+			else if (e < 0) {
+				poly.template on<&VcaEnv::gate_off>(l);
+				mono[l].template on<&VcaEnv::gate_off>();
+				bare[l].template on<&fp::Envelope::gate_off>();
+			}
+		}
+		std::array<std::vector<f32>, N> out{}, ref{};
+		std::array<fp::Signal, N> signal{};
+		std::array<fp::Buffer, N> spans{};
+		for (std::size_t l = 0; l < N; ++l) {
+			signal[l] = fp::Signal{in[l]}.subspan(b * kBlock, kBlock);
+			out[l].resize(kBlock);
+			ref[l].resize(kBlock);
+			spans[l] = fp::Buffer{out[l]};
+			mono[l].render_block(signal[l], fp::Buffer{ref[l]});
+		}
+		poly.render_block(signal, spans);
+		for (std::size_t l = 0; l < N; ++l) {
+			for (std::size_t i = 0; i < kBlock; ++i) {
+				const f32 e = bare[l].render();
+				const f32 expected = (signal[l][i] * e) * vca_gain(l);
+				expect(bits(out[l][i])).to_equal(bits(ref[l][i]));
+				expect(bits(ref[l][i])).to_equal(bits(expected));
+				audible = audible || expected != 0.f;
+			}
+		}
+	}
+	for (std::size_t l = 0; l < N; ++l) {
+		const auto ps = poly.state(l);
+		const auto ms = mono[l].state();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
+		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
+		    .to_be_true();
+	}
+	expect(audible).to_be_true();
 }
 
 } // namespace
@@ -373,6 +456,35 @@ describe float_envelope_spec("float envelope", ${
 	context("lanes", _ {
 		it("diverge across two lanes, each bit for bit its Mono", _ { expect_divergent_lanes_equal_mono<2>(self); });
 		it("diverge across four lanes, each bit for bit its Mono", _ { expect_divergent_lanes_equal_mono<4>(self); });
+	});
+	context("Vca", _ {
+		it("is the signal times the envelope times the gain, bit for bit, and forwards the gate events", _ {
+			Mono<VcaEnv> vca;
+			vca.configure({.envelope = {.program = fp::adsr(30.f, 60.f, 0.5f, 80.f)}, .gain = 0.7f});
+			Env bare = make(fp::adsr(30.f, 60.f, 0.5f, 80.f));
+			const auto in = noise(900, 5);
+			std::vector<f32> out(in.size());
+			vca.render_block(fp::Signal{in}, fp::Buffer{out});
+			expect(std::ranges::all_of(out, [](f32 y) { return y == 0.f; })).to_be_true(); // at rest until gated
+			vca.on<&VcaEnv::gate_on>();
+			bare.on<&fp::Envelope::gate_on>();
+			bool audible = false;
+			for (const bool released : {false, true}) {
+				vca.render_block(fp::Signal{in}, fp::Buffer{out});
+				for (std::size_t i = 0; i < in.size(); ++i) {
+					const f32 expected = (in[i] * bare.render()) * 0.7f;
+					expect(bits(out[i])).to_equal(bits(expected));
+					audible = audible || expected != 0.f;
+				}
+				if (!released) {
+					vca.on<&VcaEnv::gate_off>();
+					bare.on<&fp::Envelope::gate_off>();
+				}
+			}
+			expect(audible).to_be_true();
+		});
+		it("runs two lanes, each with its own program and gain, bit for bit its Mono", _ { expect_vca_lanes_equal_mono<2>(self); });
+		it("runs four lanes, each with its own program and gain, bit for bit its Mono", _ { expect_vca_lanes_equal_mono<4>(self); });
 	});
 	context("records", _ {
 		it("matches its records", _ {

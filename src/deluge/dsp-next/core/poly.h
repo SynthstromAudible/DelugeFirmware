@@ -64,6 +64,7 @@ class Poly : public detail::Copies<K, N> {
 	static constexpr LaneMask kEveryLane = (LaneMask{1} << N) - 1;
 
 public:
+	using Base::on;
 	using Base::reset;
 	using Base::set_mode;
 	using Base::state;
@@ -100,35 +101,6 @@ public:
 		const std::size_t n = block_length(out);
 		const std::array<fp::Signal, N> no_input{};
 		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(no_input, out, n); });
-	}
-
-	/// @brief Runs the event @p Event on lane @p lane alone: that lane's scalar state (and coefficients, when the event
-	/// takes them) are read out, the event runs on them as it does on a Mono, and the state is written back.
-	/// @tparam Event A function as Mono::on accepts.
-	/// @param lane The lane the event addresses.
-	/// @param args The event's own arguments.
-	/// @return What @p Event returns, by value.
-	template <auto Event, typename... A>
-	decltype(auto) on(std::size_t lane, A&&... args) {
-		assert(lane < N);
-		typename K::State s = get_lane<typename K::State>(this->packed_state(), lane);
-		typename K::Coefficients c = get_lane<typename K::Coefficients>(this->coefficients(), lane);
-		if constexpr (detail::has_modes<K>) {
-			c.mode = this->coefficients().mode;
-		}
-		using Result = decltype(detail::run_event<K, Event>(c, s, std::forward<A>(args)...));
-		PackedState packed = this->packed_state();
-		if constexpr (std::is_void_v<Result>) {
-			detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
-			set_lane(packed, lane, s);
-			this->set_packed_state(packed);
-		}
-		else {
-			std::remove_cvref_t<Result> result = detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
-			set_lane(packed, lane, s);
-			this->set_packed_state(packed);
-			return result;
-		}
 	}
 
 private:

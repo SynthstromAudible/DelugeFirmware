@@ -99,9 +99,9 @@ namespace detail {
 /// @brief Attack, decay, sustain, release: an exponential attack aiming at 1.2 and ending at 1, an exponential decay to
 /// @p sustain, a hold there, an exponential release to 0.
 /// @param attack Attack time constant, in samples (below 1 counts as 1).
-/// @param decay Decay time constant, in samples (> 0).
+/// @param decay Decay time constant, in samples (below 1 counts as 1).
 /// @param sustain The held level.
-/// @param release Release time constant, in samples (> 0).
+/// @param release Release time constant, in samples (below 1 counts as 1).
 [[nodiscard]] inline Program adsr(f32 attack, f32 decay, f32 sustain, f32 release) {
 	Program p;
 	p.segments[0] = detail::exponential_segment(1.f, 1.2f, attack, 1.f);

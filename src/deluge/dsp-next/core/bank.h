@@ -60,6 +60,7 @@ class Bank : public detail::Copies<K, N> {
 
 public:
 	using Base::configure;
+	using Base::on;
 	using Base::reset;
 	using Base::set_mode;
 	using Base::state;

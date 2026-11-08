@@ -7,9 +7,11 @@
 #include "dsp-next/core/bank.h"
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/float/envelope/envelope.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
+#include "dsp-next/float/vca/vca.h"
 
 #include <algorithm>
 #include <array>
@@ -232,6 +234,53 @@ void bank_specs(auto& self) {
 			    impulse(kBlock * 8));
 			expect(svf < 1e-37f).to_be_true();
 		}
+	});
+	it("sums Vca lanes, each with its own program and gain gated on, as the summed Monos", _ {
+		fp::FlushToZero ftz;
+		using VcaEnv = fp::Vca<fp::Envelope>;
+		const auto in = input(kBlock * 4);
+		Bank<VcaEnv, N, mix::Sum> bank;
+		std::array<Mono<VcaEnv>, N> mono{};
+		for (std::size_t l = 0; l < N; ++l) {
+			const VcaEnv::Settings settings{
+			    .envelope = {.program = fp::adsr(20.f + (7.f * static_cast<f32>(l)), 30.f, 0.5f, 40.f)},
+			    .gain = 0.25f + (0.25f * static_cast<f32>(l))};
+			bank.configure(l, settings);
+			mono[l].configure(settings);
+		}
+		bool audible = false;
+		for (std::size_t b = 0; b < 4; ++b) {
+			const auto is = fp::Signal{in}.subspan(b * kBlock, kBlock);
+			for (std::size_t l = 0; l < N; ++l) {
+				if (b == 0 || b == 3) {
+					bank.template on<&VcaEnv::gate_on>(l);
+					mono[l].template on<&VcaEnv::gate_on>();
+				}
+				else if (b == 2 && l % 2 == 1) {
+					bank.template on<&VcaEnv::gate_off>(l);
+					mono[l].template on<&VcaEnv::gate_off>();
+				}
+			}
+			std::array<std::vector<f32>, N> ref{};
+			for (std::size_t l = 0; l < N; ++l) {
+				ref[l].resize(kBlock);
+				mono[l].render_block(is, fp::Buffer{ref[l]});
+			}
+			std::vector<f32> out(kBlock);
+			bank.render_block(is, fp::Buffer{out});
+			for (std::size_t i = 0; i < kBlock; ++i) {
+				f32 expected = ref[0][i];
+				for (std::size_t l = 1; l < N; ++l) {
+					expected = expected + ref[l][i];
+				}
+				expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+				audible = audible || expected != 0.f;
+			}
+			for (std::size_t l = 0; l < N; ++l) {
+				expect(same_bits(bank.state(l), mono[l].state())).to_be_true();
+			}
+		}
+		expect(audible).to_be_true();
 	});
 	it("reads back each lane's state, and resets one lane alone", _ {
 		fp::FlushToZero ftz;
