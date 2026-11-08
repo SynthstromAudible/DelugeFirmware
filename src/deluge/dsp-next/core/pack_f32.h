@@ -29,6 +29,10 @@
 #include <cstdint>
 #include <cstring>
 
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+#endif
+
 /// @file
 /// @brief Pack<f32, 2> and Pack<f32, 4> on a NEON d or q register, and mul_add, fused where the target can.
 ///
@@ -242,10 +246,30 @@ struct Pack<f32, N> {
 };
 
 /// @brief Whether any lane of @p m holds. No float arithmetic: an OR of the lanes' bits.
-/// @details Reduced in the vector domain (the high half onto the low, then the other lane of the pair) so that one
-/// lane crosses to the core; reading each lane costs a transfer apiece on the A9.
+/// @details On NEON the lanes reduce in the vector domain (a pairwise maximum of the unsigned lanes) so that one lane
+/// crosses to the core; compilers otherwise turn the OR into a per-lane bit gather, and reading a lane costs a transfer
+/// on the A9.
 template <std::size_t N>
 [[nodiscard]] [[gnu::always_inline]] inline bool any(Mask<N> m) {
+#ifdef __ARM_NEON
+	if constexpr (N == 4) {
+		const uint32x4_t u = vreinterpretq_u32_s32(m.bits);
+#ifdef __aarch64__
+		return vmaxvq_u32(u) != 0;
+#else
+		const uint32x2_t halves = vorr_u32(vget_low_u32(u), vget_high_u32(u));
+		return vget_lane_u32(vpmax_u32(halves, halves), 0) != 0;
+#endif
+	}
+	else {
+		const uint32x2_t u = vreinterpret_u32_s32(m.bits);
+#ifdef __aarch64__
+		return vmaxv_u32(u) != 0;
+#else
+		return vget_lane_u32(vpmax_u32(u, u), 0) != 0;
+#endif
+	}
+#else
 	if constexpr (N == 4) {
 		const auto halves =
 		    __builtin_shufflevector(m.bits, m.bits, 0, 1) | __builtin_shufflevector(m.bits, m.bits, 2, 3);
@@ -254,6 +278,7 @@ template <std::size_t N>
 	else {
 		return (m.bits | __builtin_shufflevector(m.bits, m.bits, 1, 0))[0] != 0;
 	}
+#endif
 }
 
 /// @brief Transposes @p m in place: lane c of row r becomes lane r of row c.
