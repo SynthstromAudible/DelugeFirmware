@@ -54,6 +54,10 @@ set(float_ladder_spec_DEPS)
 set(float_ladder_fused_spec_DEPS)
 set(float_ladder_fused_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_ladder_fused_spec)
+set(float_drift_spec_DEPS)
+set(float_drift_fused_spec_DEPS)
+set(float_drift_fused_spec_OPTIONS -mfma)
+list(APPEND _fused_specs float_drift_fused_spec)
 set(float_kernels_fused_spec_DEPS)
 set(float_kernels_fused_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_kernels_fused_spec)
@@ -67,7 +71,7 @@ set(_saw_bands_specs poly_unsafe_math_spec float_oscillators_unsafe_math_spec fl
 foreach(_unsafe_spec pack_f32_unsafe_math_spec float_kernels_unsafe_math_spec poly_unsafe_math_spec
                      bank_unsafe_math_spec float_oscillators_unsafe_math_spec float_envelope_unsafe_math_spec
                      float_math_unsafe_math_spec float_voice_unsafe_math_spec
-                     float_ladder_unsafe_math_spec)
+                     float_ladder_unsafe_math_spec float_drift_unsafe_math_spec)
   set(${_unsafe_spec}_DEPS)
   if(_unsafe_spec IN_LIST _saw_bands_specs)
     set(${_unsafe_spec}_DEPS ${_saw_bands_DEPS})

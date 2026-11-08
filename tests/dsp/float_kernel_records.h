@@ -40,6 +40,7 @@ inline constexpr uint32_t kTableVoice = 3142855665U;
 inline constexpr uint32_t kLadderLp24Clean = 1272964085U;
 inline constexpr uint32_t kLadderLp24Drive = 3868079174U;
 inline constexpr uint32_t kLadderMorphHpBp = 3217917105U;
+inline constexpr uint32_t kDrift = 1483320438U;
 inline constexpr uint32_t kLadderVoice = 4122284882U;
 #else
 inline constexpr uint32_t kBlepSaw = 262873454U;
@@ -52,6 +53,7 @@ inline constexpr uint32_t kTableVoice = 274084809U;
 inline constexpr uint32_t kLadderLp24Clean = 1959320587U;
 inline constexpr uint32_t kLadderLp24Drive = 616290635U;
 inline constexpr uint32_t kLadderMorphHpBp = 1346162305U;
+inline constexpr uint32_t kDrift = 3068312955U;
 inline constexpr uint32_t kLadderVoice = 1116247649U;
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
