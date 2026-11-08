@@ -775,30 +775,36 @@ into four band-pass copies, summed). Every case runs under flush-to-zero, as the
 device's `-funsafe-math-optimizations` build, over 128-sample blocks of seeded noise scaled to ±1. The smoother is
 configured again every block (the target alternates ±0.5), inside the timed region. Medians of three runs of one image
 on the rig (2026-11-08), n = 128, cycles per channel-sample; the bank is per input sample, and does four filters' work
-on each. At n = 128 the three runs agree within 0.01 cps on every case but the digital feedback-chain control (0.05).
+on each. At n = 128 the three runs agree exactly on every case.
 
 | case | cycles per channel-sample | Poly over Mono |
 |---|---:|---:|
 | fp_one_pole_mono | 19.03 | |
-| fp_one_pole_poly2 | 18.09 | 1.05x |
-| fp_one_pole_poly4 | 14.09 | 1.35x |
-| fp_one_pole_linked2 | 11.05 | 1.72x (Linked) |
-| fp_smoother_mono | 15.23 | |
-| fp_smoother_poly4 | 14.43 | 1.06x |
-| fp_svf_mono | 26.15 | |
-| fp_svf_poly2 | 23.40 | 1.12x |
-| fp_svf_poly4 | 19.77 | 1.32x |
-| fp_svf_linked2 | 15.64 | 1.67x (Linked) |
-| fp_svf_bank4_sum (per input sample) | 116.39 | |
+| fp_one_pole_poly2 | 12.47 | 1.53x |
+| fp_one_pole_poly4 | 8.38 | 2.27x |
+| fp_one_pole_linked2 | 11.06 | 1.72x (Linked) |
+| fp_smoother_mono | 15.18 | |
+| fp_smoother_poly4 | 9.01 | 1.68x |
+| fp_svf_mono | 26.17 | |
+| fp_svf_poly2 | 16.50 | 1.59x |
+| fp_svf_poly4 | 12.49 | 2.10x |
+| fp_svf_linked2 | 15.65 | 1.67x (Linked) |
+| fp_svf_bank4_sum (per input sample) | 34.02 | 3.08x (four Monos) |
 
 Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.41.
 
-Poly at four lanes runs the one-pole and the SVF 1.32x to 1.35x faster than Mono (about 25% fewer cycles per
-sample), and at two lanes 1.05x to 1.12x faster, short of the 2x the 64-bit datapath and interleaving were expected
-to give. The smoother, mostly one fused step, gains 1.06x at four lanes, where Poly also pays four configures per
-block inside the timed region. Linked at two lanes, whose frames are interleaved in memory and need no transpose,
-is the cheapest per sample (about 1.7x faster than Mono), and the four-band bank costs about 4.5 Mono SVFs' worth
-per input sample.
+Poly at four lanes runs the one-pole 2.27x and the SVF 2.10x faster than Mono per channel-sample, and at two lanes
+1.53x and 1.59x. The smoother gains 1.68x at four lanes, where Poly also pays four configures per block inside the
+timed region. Linked at two lanes, whose frames are interleaved in memory and need no transpose, is a little cheaper
+than Poly at two lanes on the one-pole (11.06 against 12.47) and the SVF (15.65 against 16.50). The four-band bank
+costs 1.3 Mono SVFs per input sample, 3.08x less than four Monos.
+
+What Poly and Bank pay for, read from the image's disassembly: Poly's loop tests each lane's parked bit before its
+load and its store (a mask held in a register or a stack slot, a branch per lane per N frames), and the transpose's
+half-swaps are two `vext.64` each; the SVF at four lanes spills a few q registers to the stack. Bank steps four samples,
+transposes their four packs and adds them as packs, one `vst1.32` per four samples; its tail mixes a sample at a time.
+The arithmetic is the source's, in the source's order: the Bank and Poly SVF loops compute
+`v1 = a1·ic1 + a2·v3`, `v2 = ic2 + a2·ic1 + a3·v3` and `(v1 + v1) − ic1` as written.
 
 At n = 128 the controls sit above the earlier tables in this file (analog chain 162.86 to 165.89, +1.9%; digital
 11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound

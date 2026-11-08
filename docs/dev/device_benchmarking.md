@@ -6,9 +6,10 @@ How to answer "is this faster, and where does the time go" on the J-Trace rig, w
 ## The rig
 
 A Raspberry Pi holds the J-Trace PRO and runs `JLinkRemoteServerCLExe`; the tools reach the probe
-through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE_HOST`). `tools/rig.py restart` recovers a wedged probe and starts
-the server; `tools/rig.py park` leaves the panel dark when you are done; `tools/rig.py stop` frees the
-probe. A dropped connection is usually the network to the Pi, not the rig: retry.
+through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE_HOST`).
+`tools/rig.py restart` recovers a wedged probe and starts the server; `tools/rig.py park` leaves the
+panel dark when you are done; `tools/rig.py stop` frees the probe. A dropped connection is usually the
+network to the Pi, not the rig: retry.
 
 ## Does it boot? `tools/device_check.py`
 

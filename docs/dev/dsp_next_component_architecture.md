@@ -1359,10 +1359,15 @@ Two rules on the arithmetic itself, because a float kernel's result depends on h
 - **Fusion is explicit.** A multiply-add is written `mul_add(a, b, c)` (`core/pack_f32.h`), which is fused where the
   target has a fused float multiply-add (`kFusedMulAdd`: AArch64, ARMv7 with VFPv4, an x86 host built with `-mfma`) and
   unfused on the Cortex-A9. The `f32` overload follows the same constant, so `Mono` and every lane fuse together. A
-  step and a `coefficients` function open with `#pragma clang fp contract(off) reassociate(off)`, so the compiler
-  neither fuses nor reorders on its own, whatever flags the including translation unit has. Output is bit-identical
-  across machines per fusion policy (the unfused host build equals the A9); fused against unfused is held to a
-  tolerance spec.
+  step, a `prepare` and a `coefficients` function open with `#pragma clang fp contract(off) reassociate(off)
+  reciprocal(off)`, and so does each of `Pack<f32, N>`'s operations, which `core/pack_f32.h` writes on a GNU vector
+  in its own bodies rather than through Argon or `arm_neon.h`, whose bodies would compile under the including
+  translation unit's flags. Clang fixes an operation's float semantics where its body is compiled, so the compiler
+  neither fuses, reorders nor takes a reciprocal on its own, whatever flags the including translation unit has (the
+  device's `-funsafe-math-optimizations` among them). Their `_unsafe_math` spec twins hold every lane to `Mono`
+  under those flags. No-signed-zeros stays set under them (`#pragma float_control(precise, on)` is ignored on 32-bit
+  ARM); it can change at most the sign of a zero. Output is bit-identical across machines per fusion policy (the
+  unfused host build equals the A9); fused against unfused is held to a tolerance spec.
 - **Flush-to-zero everywhere.** ARMv7 NEON always flushes denormals; scalar VFP, AArch64 NEON and x86 SSE do only when
   told. `fp::FlushToZero` (`core/flush_to_zero.h`) sets it for a scope and restores the previous control word, and the
   scalar reference and the float instrument hold it, so every lane agrees with the reference.
@@ -1372,13 +1377,15 @@ The float kernels are `fp::OnePole`, `fp::Smoother` and `fp::Svf` (`float/filter
 | Kernel | Modes | Settings per lane |
 |---|---|---|
 | `OnePole` (TPT one-pole) | `LOW_PASS`, `HIGH_PASS` | `cutoff`, as a fraction of the sample rate |
-| `Smoother` | `EXPONENTIAL`, `LINEAR` | `target`, `time`, `block` |
+| `Smoother` | `EXPONENTIAL`, `LINEAR` | `target`, `time` |
 | `Svf` (Simper/Cytomic TPT) | `LOW_PASS`, `BAND_PASS`, `HIGH_PASS`, `NOTCH` | `cutoff`, `q` |
 
-`coefficients` clamps the cutoff to [1/48000, 0.49] and Q to [0.5, 40], so no setting makes a NaN or
-an infinity. `Svf`'s `BAND_PASS` returns `v1`, which has gain Q at fc (`k·v1` is the unity-gain band-pass).
-`Smoother`'s `prepare` starts each block's ramp at the current value, and `LINEAR` lands exactly on the target at the
-block's last sample, whatever the block length (`length` is a coefficient field).
+`OnePole`'s and `Svf`'s `coefficients` clamp the cutoff to [1/48000, 0.49] and `Svf`'s Q to [0.5, 40], so no setting
+makes a NaN or an infinity. `Smoother` clamps nothing: its target is taken as given, a `time` of 0 or less jumps to
+the target, and `LINEAR`'s length is the block's n, at least 1. `Svf`'s `BAND_PASS` returns `v1`, which has gain Q at
+fc (`k·v1` is the unity-gain band-pass). `Smoother`'s `prepare` starts each block's ramp at the current value and
+takes the ramp's length from the block's n, so `LINEAR` lands exactly on the target at the last sample of whatever
+block is rendered.
 
 ### `Poly<K, N>` (`core/poly.h`)
 
@@ -1393,17 +1400,20 @@ l carries copy l's sample, and one step over `Pack<f32, N>` steps all of them.
 - **Per block.** A K that declares `prepare` has it called once per block on the packed coefficients and state
   (K's `prepare` is a template over V), as `Mono` does for one copy. A block of length 0, or with every lane parked,
   steps nothing but still runs `prepare` with n = 0.
-- **Parking.** `park(lane)` leaves a lane at rest and fed zero, its output unwritten, until it is `configure`d again.
-  Lanes share nothing, so a parked lane perturbs no other, and its state is held at rest after every block so it never
-  decays into denormals.
+- **Parking.** A fresh `Poly` has every lane parked; `configure` un-parks a lane. `park(lane)` resets the lane's state
+  and holds it at `State{}` after every block, feeds it zero and leaves its output unwritten, until it is `configure`d
+  again. Lanes share nothing, so a parked lane perturbs no other, and a held state never decays into denormals. The
+  parked lanes are a bit mask, read once per block.
 - **The transpose.** `render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out)` takes one span per
   lane. Frames go in and out N at a time: N packs load one lane's N samples each, an N×N transpose turns them into
   one pack per frame, the kernel steps each, and a transpose back stores each lane's samples. The last n mod N frames
   go lane by lane. Every unparked lane's spans have the block's length; a parked lane's may be empty.
 
-On the A9 the lanes buy interleaving, not width: Poly at four lanes runs `OnePole` and `Svf` 1.32x to 1.35x faster than
-`Mono` per channel-sample, and at two lanes 1.05x to 1.12x, short of the 2x the 64-bit datapath suggests. The figures
-and the bench are in [a9_dsp_performance.md](a9_dsp_performance.md#float-kernels-across-lanes).
+On the A9 four lanes buy the 2x the 64-bit NEON datapath suggests: Poly at four lanes runs `OnePole` 2.27x and `Svf`
+2.10x faster than `Mono` per channel-sample, and at two lanes 1.53x and 1.59x; `Smoother`, configured every block,
+gains 1.68x at four. What the loop pays beyond the kernel's arithmetic is a parked-bit test per lane per N frames and
+the transposes. The figures and the bench are in
+[a9_dsp_performance.md](a9_dsp_performance.md#float-kernels-across-lanes).
 
 ## Banks and taps
 
@@ -1433,8 +1443,10 @@ and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mo
 | `mix::Weighted` | each lane times its gain (`set_gain(lane, gain)`, 1 until set), summed in lane order | `(in, out)` |
 | `mix::StereoPair` | even lanes to left, odd lanes to right: N = 4 left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2 left = lane 0, right = lane 1 | `(in, left, right)` |
 
-The mix adds unfused, in lane order, so the output is the sum of the `Mono` outputs in that order. The bench times
-`Bank<Svf, 4, Sum>` at about 4.5 `Mono` `Svf`s' work per input sample.
+The mix adds unfused, in lane order, so the output is the sum of the `Mono` outputs in that order. It takes N samples at
+a time: their N packs transpose into one pack per lane, which add as packs in lane order and store as one vector; the
+last n mod N samples mix one at a time. The bench times `Bank<Svf, 4, Sum>` at 34.02 cycles per input sample, 1.3
+`Mono` `Svf`s' work, 3.08x less than four `Mono`s.
 
 A bank is for copies that each carry their own state. Reads that share one line are `Taps`, below.
 
