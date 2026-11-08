@@ -359,12 +359,18 @@ ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return ActionResult::DEALT_WITH;
 	}
+	const menu::Node* const padNode = menu::shortcut_node(ctx.root, false, px, py);
+	// With the menu current over the automation view, only a parameter's shortcut is taken; any other pad is swallowed
+	// before the sequence-direction arm and before `setup()`.
+	if (padNode != nullptr && getCurrentUI() == &shellHostUI && getRootUI() == &automationView
+	    && !menu::is_automation_item(*padNode)) {
+		return ActionResult::DEALT_WITH;
+	}
 	// `[audition pad] + [sequence direction pad]`: the note-row editor on PLAY DIRECTION (site 13's ported leg).
-	if (clip->type == ClipType::INSTRUMENT
-	    && menu::shortcut_node(ctx.root, false, px, py) == &menu::nodes::sequence_direction
+	if (clip->type == ClipType::INSTRUMENT && padNode == &menu::nodes::sequence_direction
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus) == RuntimeFeatureStateToggle::On
 	    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
-		(void)instrumentClipView.enterNoteRowEditor();
+		(void)instrumentClipView.enterNoteRowEditor(/*onPlayDirection=*/true);
 		return ActionResult::DEALT_WITH;
 	}
 	// Opens, re-roots the open guest, or says its refusal; a kit row with no note row is refused silently, as
@@ -387,8 +393,9 @@ bool openShellDxColumn(int32_t op) {
 	                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::DxParam);
 }
 
-bool openShellNoteRowEditor(Clip* clip) {
-	if (!isUIOpen(&shellHostUI)) {
+bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection) {
+	const bool guestOpen = isUIOpen(&shellHostUI);
+	if (!guestOpen && !onPlayDirection) {
 		return openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
 		                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::ContextRoot,
 		                     NoteMode::NoteRowEditor);
@@ -406,7 +413,10 @@ bool openShellNoteRowEditor(Clip* clip) {
 		return false;
 	}
 	clearKitAffectEntireForNoteMode(ctx, clip);
-	// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `setup()` on the open editor.
+	// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `setup()`: on the open editor, or opening it.
+	if (!guestOpen) {
+		return openGuest(*root, ctx, 0, &menu::nodes::sequence_direction);
+	}
 	deluge::scenes::menu_scene().reroot(*root, ctx, menu::nodes::sequence_direction);
 	adoptShellMenuContext();
 	shellHostUI.refreshRootFacts();

@@ -242,8 +242,11 @@ bool openShellDxColumn(int32_t op);
 /// @brief `InstrumentClipView::enterNoteRowEditor`'s open with ShellMenu on: with the guest closed `openShellMenu` at
 ///        `NoteMode::NoteRowEditor`; with it open (audition + the sequence-direction shortcut inside the menu) the open
 ///        menu re-roots at the note-row editor on PLAY DIRECTION, as legacy's `setup()` re-roots the open editor.
+/// @param onPlayDirection The sequence-direction shortcut asked: the closed leg opens on PLAY DIRECTION too, as
+///        `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)` before the open does; otherwise it opens on the
+///        root's first row.
 /// @return Whether the note-row editor is now the menu's root.
-bool openShellNoteRowEditor(Clip* clip);
+bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection = false);
 
 /// @brief `InstrumentClipView::enterDrumCreator`'s fallback for the ported take: should the recorder the open guest is
 ///        about to push refuse, the menu lands on `nodes::file0_selector` instead of going up, as legacy opens the

@@ -234,7 +234,7 @@ bool takeSequenceDirectionShortcut(int32_t x, int32_t y) {
 	if (item != &deluge::scenes::menu::nodes::sequence_direction) {
 		return false;
 	}
-	(void)instrumentClipView.enterNoteRowEditor();
+	(void)instrumentClipView.enterNoteRowEditor(/*onPlayDirection=*/true);
 	return true;
 }
 

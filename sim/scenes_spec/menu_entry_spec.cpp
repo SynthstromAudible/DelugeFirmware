@@ -63,6 +63,7 @@
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -75,7 +76,9 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <string>
 
@@ -1295,6 +1298,46 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 	});
 });
 
+namespace {
+/// @brief `HorizontalMenus` set for an example and put back.
+struct HorizontalMenusGuard {
+	RuntimeFeatureStateToggle saved =
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus));
+	explicit HorizontalMenusGuard(RuntimeFeatureStateToggle v) {
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, v);
+	}
+	~HorizontalMenusGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, saved); }
+	HorizontalMenusGuard(const HorizontalMenusGuard&) = delete;
+	HorizontalMenusGuard& operator=(const HorizontalMenusGuard&) = delete;
+};
+
+/// @brief One audition pad held on the instrument clip view, silently, and the state put back.
+struct HeldAudition {
+	uint32_t saved_mode = currentUIMode;
+	uint8_t saved_pressed[kDisplayHeight];
+	uint8_t saved_y = instrumentClipView.lastAuditionedYDisplay;
+	bool saved_silent = instrumentClipView.auditioningSilently;
+	explicit HeldAudition(int32_t y) {
+		std::copy(std::begin(instrumentClipView.auditionPadIsPressed), std::end(instrumentClipView.auditionPadIsPressed),
+		          saved_pressed);
+		std::fill(std::begin(instrumentClipView.auditionPadIsPressed), std::end(instrumentClipView.auditionPadIsPressed),
+		          uint8_t{0});
+		instrumentClipView.auditionPadIsPressed[y] = 1;
+		instrumentClipView.lastAuditionedYDisplay = y;
+		instrumentClipView.auditioningSilently = true;
+		currentUIMode = UI_MODE_AUDITIONING;
+	}
+	~HeldAudition() {
+		std::copy(std::begin(saved_pressed), std::end(saved_pressed), instrumentClipView.auditionPadIsPressed);
+		instrumentClipView.lastAuditionedYDisplay = saved_y;
+		instrumentClipView.auditioningSilently = saved_silent;
+		currentUIMode = saved_mode;
+	}
+	HeldAudition(const HeldAudition&) = delete;
+	HeldAudition& operator=(const HeldAudition&) = delete;
+};
+} // namespace
+
 describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers the press whole, and legacy never opens", $ {
 	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and the DX7 test reads the pad's own source", _ {
 		// A DX7 source an earlier menu left in legacy's mirror: legacy's fallback tests it and opens its `dxParam`.
@@ -1391,6 +1434,100 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		}
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		closeGuest();
+	});
+
+	it("an audition pad and the sequence-direction pad open the note-row editor on PLAY DIRECTION from a closed menu", _ {
+		// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `enterNoteRowEditor`.
+		deluge::gui::ui::wireShellNoteBridge();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		HeldAudition audition{2};
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 7) == &nodes::sequence_direction)
+		    .to_be_true();
+
+		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteRowEditor)
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		closeGuest();
+	});
+
+	it("lands on PLAY DIRECTION even when the note-row editor last sat on another row", _ {
+		deluge::gui::ui::wireShellNoteBridge();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		HeldAudition audition{2};
+
+		expect(instrumentClipView.enterNoteRowEditor()).to_be_true();
+		const menu::MenuContext ctx = deluge::scenes::menu_scene().menu_context();
+		deluge::scenes::menu_scene().reroot(*menu::MenuScene::roots()[static_cast<size_t>(ctx.root)], ctx,
+		                                    nodes::note_row_probability);
+		for (int32_t i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::note_row_probability).to_be_true();
+		closeGuest();
+		// The close ended the mode the audition pad is still holding, and the hierarchy it was closed over.
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+
+		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		closeGuest();
+	});
+
+	it("a range-dependent pad on a multisampled source opens the range picker first, as setup() does", _ {
+		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 2, 1) == &nodes::source0_transpose)
+		    .to_be_true();
+
+		expect(entry::openShellMenuAtShortcut(f.clip, 2, 1, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(deluge::scenes::menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
+		closeGuest();
+	});
+
+	it("takes the sequence-direction pad whole over the automation view with the menu current, as main swallows it", _ {
+		// `getCurrentUI() == &soundEditor` with the automation view as root and a kind-NONE item: DEALT_WITH, before
+		// the sequence-direction arm.
+		deluge::gui::ui::wireShellNoteBridge();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&automationView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		const menu::MenuContext::Root before = deluge::scenes::menu_scene().menu_context().root;
+		HeldAudition audition{2};
+		HeldShift shift;
+
+		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == before).to_be_true();
 		closeGuest();
 	});
 

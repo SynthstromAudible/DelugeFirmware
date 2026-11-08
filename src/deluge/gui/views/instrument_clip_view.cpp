@@ -3759,7 +3759,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 }
 
 // if you've selected a single note row and pressed the select encoder, you can enter the note row editor menu
-bool InstrumentClipView::enterNoteRowEditor() {
+bool InstrumentClipView::enterNoteRowEditor(bool onPlayDirection) {
 	if (getNumNoteRowsAuditioning() == 1) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
@@ -3786,7 +3786,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 			// guest open it re-roots the open menu (`openShellNoteRowEditor`). Both legs then do what follows legacy's
 			// open.
 			if (deluge::gui::ui::shellMenuEnabled() && getCurrentUI() != &soundEditor) {
-				if (deluge::gui::ui::openShellNoteRowEditor(clip)) {
+				if (deluge::gui::ui::openShellNoteRowEditor(clip, onPlayDirection)) {
 					if (!auditioningSilently) { // see the legacy leg below
 						auditionPadAction(0, lastAuditionedYDisplay, true);
 						auditionPadAction(1, lastAuditionedYDisplay, true);
