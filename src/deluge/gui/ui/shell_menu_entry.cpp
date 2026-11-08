@@ -172,7 +172,7 @@ const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
 }
 
 /// @brief Install @p ctx on `MenuScene` and open the guest on @p arg, on where @p shortcut lands when it is given, or
-///        on @p root's page with @p pageColumn focused when that is.
+///        else on @p root's page with @p pageColumn focused when that is; the same with the guest already open.
 ///
 /// The root passed to `open` is not what decides where the menu lands -- `MenuScene::on_enter`
 /// re-roots from `SceneId::arg`, or from `ctx_.root` for `arg == 0` (the `@warning` on
@@ -189,7 +189,8 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		// `setup()` on the open editor, then `enterOrUpdateSoundEditor`'s already-open arm, `beginScreen`: the open
 		// menu re-roots in place. A Shift + pad the Settings root forwards to the keyboard screen or the performance
 		// view arrives here; `openUI` would push the guest over itself.
-		if (pageColumn != nullptr) {
+		// As the closed arm below: a shortcut's landing wins over a page column.
+		if (shortcut == nullptr && pageColumn != nullptr) {
 			deluge::scenes::menu_scene().reroot(root, ctx, *pageColumn);
 		}
 		else {
