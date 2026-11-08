@@ -45,6 +45,10 @@ printf '<?xml version="1.0" encoding="UTF-8"?>\n<runtimeFeatureSettings>\n\t<set
 For a ready-made image such as `card.img`, copy the same file in with mtools instead:
 `mcopy -i card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
 
+`sm33-full-screen-values` runs on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus off), where
+a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the coming-soon popup inside the menu,
+and retrigger phase's cursor. Its popup is read 100 ms after the press.
+
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
 that reach it, CLIP's "menu view" and KEYBOARD from it, a patch cable's page, and a kit's rows and affect-entire. Every

@@ -1,0 +1,31 @@
+# ShellMenu with HorizontalMenus off: an item a shortcut opens alone, as `main` draws and edits it. OSC1 TRANSPOSE's
+# cursor starts on the units (`getDefaultEditPos`), a Select detent moves 1.00, and Horizontal moves the cursor
+# (`Decimal::horizontalEncoderAction`); a coming-soon pad pops "Feature not (yet?) implemented"; RETRIGGER PHASE's
+# cursor starts on the tens. A black encoder drops the first detent of its first turn after boot and of a reversal.
+100   snapshot boot
+300   button Shift down
+400   pad 2 1 down
+440   pad 2 1 up
+500   button Shift up
+1500  snapshot transpose
+2000  encoder Select +2
+3000  snapshot transpose-turned
+3500  encoder Horizontal -2
+4500  snapshot transpose-cursor
+5000  encoder Select +1
+6000  snapshot transpose-tens
+6500  button Shift down
+6600  pad 4 2 down
+6640  pad 4 2 up
+6700  button Shift up
+6800  snapshot coming-soon
+8500  button Shift down
+8600  pad 2 4 down
+8640  pad 2 4 up
+8700  button Shift up
+9700  snapshot retrigger
+10200 encoder Select +1
+11200 snapshot retrigger-turned
+11700 button Back down
+11720 button Back up
+12700 snapshot closed
