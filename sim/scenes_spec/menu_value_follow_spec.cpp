@@ -95,8 +95,13 @@ describe menu_value_follow("View::displayAutomation under the ported menu", $ {
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_sound_menu_at(fx, nodes::lpf_freq)).to_be_true();
 		const int32_t before = menu_scene().state().edit_int;
+		// A value the screen is not already showing, whichever way the fixture's LPF default falls.
 		expect(knob_write(fx, 0)).to_be_true();
-		const int32_t now = menu::bindings::read(nodes::lpf_freq, menu_scene().menu_context());
+		int32_t now = menu::bindings::read(nodes::lpf_freq, menu_scene().menu_context());
+		if (now == before) {
+			expect(knob_write(fx, 1 << 30)).to_be_true();
+			now = menu::bindings::read(nodes::lpf_freq, menu_scene().menu_context());
+		}
 		expect(now != before).to_be_true(); // the write moved what the screen shows
 		display_automation_fires();
 		expect(menu_scene().state().edit_int).to_equal(now);

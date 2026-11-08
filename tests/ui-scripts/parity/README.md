@@ -33,6 +33,18 @@ learned CC moving the LPF frequency that a page or a full screen shows, which `m
 (`.superpowers/emu-card/shellmenu`: the page) and off (`.superpowers/emu-card/shellmenu-vertical`: the full screen, the
 ShellMenu card plus `enableHorizontalMenus` 0), and with ShellMenu off on `card.img` (`--sd`).
 
+The `shellmenu-vertical` card is the ShellMenu card with Horizontal Menus switched off. Build it from the
+`shellmenu` directory, `--card` takes a directory:
+
+```sh
+cp -r .superpowers/emu-card/shellmenu .superpowers/emu-card/shellmenu-vertical
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<runtimeFeatureSettings>\n\t<setting name="enableHorizontalMenus" value="0" />\n</runtimeFeatureSettings>\n' \
+  > .superpowers/emu-card/shellmenu-vertical/SETTINGS/CommunityFeatures.XML
+```
+
+For a ready-made image such as `card.img`, copy the same file in with mtools instead:
+`mcopy -i card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
+
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
 that reach it, CLIP's "menu view" and KEYBOARD from it, a patch cable's page, and a kit's rows and affect-entire. Every
