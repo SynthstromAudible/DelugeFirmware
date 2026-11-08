@@ -43,6 +43,9 @@ struct ValueStyle {
 	/// `decimal_value` only: `osc::RetriggerPhase::selectEncoderAction` -- a turn up from below zero starts at minus
 	/// the edit step, so its first detent lands on 0.
 	bool restart_from_negative = false;
+	/// With `label`: legacy's `drawInteger` override rather than `drawPixelsForOled` -- the text stands in for the
+	/// digits only, in their face and band, and a `continuous` value keeps its bar (`arpeggiator::Rhythm`).
+	bool label_in_digits = false;
 	/// An item whose `drawInteger` draws its own screen: called with the value after this tick's edit, in place of the
 	/// digits (`midi::FollowChannel`). The edit is `int_value`'s as for any integer.
 	void (*draw)(OledFrame& f, gfx::oled::Rect rect, int32_t value, const void* hook_ctx) = nullptr;

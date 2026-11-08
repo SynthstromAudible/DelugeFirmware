@@ -346,6 +346,19 @@ ValueText arp_rhythm_name_text(const MenuContext&, int32_t value, ValueTextUse u
 	return put(arpRhythmPatternNames[static_cast<size_t>(value)], out);
 }
 
+ValueText arp_rhythm_screen_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+		return kValueTextFallback;
+	}
+	char name[12];
+	const int written = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(value),
+	                                  arpRhythmPatternNames[static_cast<size_t>(value)]);
+	if (written <= 0) {
+		return ValueText{};
+	}
+	return put(std::string_view{name, std::min(static_cast<size_t>(written), sizeof(name) - 1)}, out);
+}
+
 ValueText on_off_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use != ValueTextUse::Notification) {
 		return kValueTextFallback;

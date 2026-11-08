@@ -255,13 +255,16 @@ inline constexpr Node arp_chord_simulator = with_affect_entire(with_short_column
 // `{0, kMaxPresetArpRhythm}` (`Rhythm::getMinValue`/`getMaxValue`), and
 // `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h:28`), which is the
 // param default -- so no `with_range` is needed on either.
-inline constexpr Node arp_rhythm = with_column_art(
-    with_slots(
-        param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
-              {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
-              Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-        2),
-    arp_rhythm_art);
+inline constexpr Node arp_rhythm = with_value_style(
+    with_leaf_text(with_column_art(with_slots(param(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+                                                    {deluge::modulation::params::Kind::UNPATCHED_SOUND,
+                                                     deluge::modulation::params::UNPATCHED_ARP_RHYTHM},
+                                                    Hint::None, ParamShows{},
+                                                    sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                                              2),
+                                   arp_rhythm_art),
+                   arp_rhythm_screen_text),
+    deluge::ui::oled::ValueStyle{.label_in_digits = true});
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
 inline constexpr Node arp_rhythm_midi =
     with_leaf_text(with_column_art(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM),

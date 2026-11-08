@@ -29,6 +29,8 @@ std::optional<deluge::ui::oled::ArtColumn> lock_art(const MenuContext& ctx, int3
 /// `sample::PitchSpeed::renderInHorizontalMenu` (`sample/pitch_speed.h:70-73`): the keyboard, crossed out when pitch
 /// and speed are independent.
 std::optional<deluge::ui::oled::ArtColumn> keyboard_art(const MenuContext& ctx, int32_t value);
+/// `arpeggiator::Rhythm::drawInteger`: "index: pattern", cut to its 12-byte buffer.
+ValueText arp_rhythm_screen_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `sample::Reverse` and `audio_clip::Reverse::renderInHorizontalMenu` (`sample/reverse.h:68-73`,
 /// `audio_clip/reverse.h`): the direction arrow, mirrored when reversed.
 std::optional<deluge::ui::oled::ArtColumn> direction_art(const MenuContext& ctx, int32_t value);

@@ -512,6 +512,25 @@ describe values_w("ui::oled::values", $ {
 		expect(unfocused).to_equal(1234);
 	});
 
+	it("draws a drawInteger label where the digits go, in their face, keeping the continuous bar", _ {
+		// `arpeggiator::Rhythm::drawInteger` inside `IntegerContinuous::drawPixelsForOled`: the label takes the digits'
+		// place and the bar is drawn as for any continuous value. So "7ms" as a label draws exactly as 7 with unit "ms".
+		const auto seven_ms = [](int32_t, const void*, std::span<char> out) -> std::string_view {
+			constexpr std::string_view kText = "7ms";
+			std::copy(kText.begin(), kText.end(), out.begin());
+			return {out.data(), kText.size()};
+		};
+		uitest::Rig48 labelled;
+		int32_t a = 7;
+		int_value(labelled.frame, labelled.frame.bounds(), a, Range{.min = 0, .max = 50},
+		          ValueStyle{.continuous = true, .label = seven_ms, .label_in_digits = true});
+		uitest::Rig48 digits;
+		int32_t b = 7;
+		int_value(digits.frame, digits.frame.bounds(), b, Range{.min = 0, .max = 50},
+		          ValueStyle{.unit = "ms", .continuous = true});
+		expect(labelled.pbm()).to_equal(digits.pbm());
+	});
+
 	it("draws a named decimal as its word with no cursor, and refuses the horizontal encoder there", _ {
 		// `cv::Volts::drawPixelsForOled`: drawStringCentred("Hz/V", 20, kTextHugeSpacingX, kTextHugeSizeY), no
 		// setupBlink; `horizontalEncoderAction` returns at 0.

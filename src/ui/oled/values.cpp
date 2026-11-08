@@ -133,12 +133,21 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		panel.clear(Rect{0, kBarTop, panel.canvas.geometry().width, kBarHeight + 1});
 	}
 	std::array<char, 24> label_buf{};
-	if (const std::string_view label =
-	        style.label != nullptr ? style.label(value, style.hook_ctx, label_buf) : std::string_view{};
-	    !label.empty()) {
+	const std::string_view label =
+	    style.label != nullptr ? style.label(value, style.hook_ctx, label_buf) : std::string_view{};
+	if (!label.empty() && !style.label_in_digits) {
+		// `drawPixelsForOled` overridden: the text alone, in the huge face.
 		const Rect huge{rect.x, rect.y + kValueY, rect.w, text_height_for(f.style.value_font)};
 		f.clear(huge);
 		text(f, huge, label, TextStyle{.font = f.style.value_font, .align = Align::Centre});
+		return resp;
+	}
+	if (!label.empty()) {
+		// `drawInteger` overridden: the text in the digits' place, and a continuous value's bar as ever.
+		text(f, band, label, TextStyle{.font = font, .align = Align::Centre});
+		if (style.continuous) {
+			continuous_bar(f, value, range);
+		}
 		return resp;
 	}
 

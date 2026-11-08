@@ -363,6 +363,14 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		}
 	});
 
+	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as Rhythm::drawInteger does", _ {
+		Rig r;
+		std::string want = std::to_string(3) + ": " + arpRhythmPatternNames[3];
+		want = want.substr(0, 11); // its 12-byte buffer
+		expect(screen_text(nodes::arp_rhythm, r.ctx, 3)).to_equal(want);
+		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
+	});
+
 	it("names a sound's MIDI output channel 0 Off, from l10n as OutputMidiChannel::drawInteger does", _ {
 		Rig r;
 		expect(screen_text(nodes::output_midi_channel, r.ctx, 0))
