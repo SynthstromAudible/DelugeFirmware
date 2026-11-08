@@ -2588,8 +2588,10 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		(void)r.open(nodes::vibrato);
 		r.shell.tick(0);
 		menu_scene().state_for_spec().decimal_pos = 0;
+		menu_scene().state_for_spec().edit_int = 12345;
 		menu_scene().read_value_again();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
+		expect(menu_scene().state().edit_int != 12345).to_be_true(); // the strength is read again
 	});
 
 	it("a re-read on a horizontal page writes no edit storage: Submenu::readValueAgain only redraws", _ {

@@ -70,7 +70,7 @@ public:
 	///
 	/// Only the value storage moves. A number's edit position, a list's scroll and a range's edge stay where the user
 	/// left them, and a page writes nothing, because its columns read live. A custom item re-reads through its
-	/// `on_focus`, with its cursor, list and walk state put back.
+	/// `on_reread`, which does nothing unless legacy's counterpart takes its value from the model.
 	void read_again(MenuCore core) const;
 
 private:

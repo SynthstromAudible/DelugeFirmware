@@ -1263,6 +1263,20 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		}
 	});
 
+	it("a re-read takes the performance view's mode again, as EditingMode::readCurrentValue does", _ {
+		select_language();
+		PerformViewGuard guard;
+		Rig r;
+		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		(void)r.open(nodes::perform_editor);
+		r.shell.tick(10);
+		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(0);
+		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM); // changed outside the menu
+		scene().read_value_again();
+		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
 	it("files OpenPerformanceView carrying the chosen mode, and stays on the page", _ {
 		select_language();
 		for (const auto mode : {PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {

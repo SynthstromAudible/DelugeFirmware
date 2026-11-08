@@ -333,6 +333,12 @@ void DxEngineSelectItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 	focus_list(state, static_cast<int16_t>(patch ? patch->engine_mode : 0));
 }
 
+void DxEngineSelectItem::on_reread(const MenuContext& ctx, MenuState& state) const {
+	// `DxEngineSelect::readValueAgain`: `currentValue` is the patch's engine mode.
+	const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
+	state.list[depth_of(state)].cursor = static_cast<int16_t>(patch ? patch->engine_mode : 0);
+}
+
 void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	deluge::ui::ListState& list = state.list[depth_of(state)];
@@ -513,6 +519,12 @@ deluge::ui::InputClaims DxParamItem::owned_input(const MenuContext& /*ctx*/, con
 void DxParamItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	state.dx.pad_blink = std::exchange(state.dx.blink_on_focus, false);
 	state.dx.flash_restart = true; // `beginSession`'s `readValueAgain`
+}
+
+void DxParamItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const {
+	// `DxParam::readValueAgain` sets the param's pad blink up and restarts the side column's flash.
+	state.dx.pad_blink = true;
+	state.dx.flash_restart = true;
 }
 
 std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const MenuState& state) const {

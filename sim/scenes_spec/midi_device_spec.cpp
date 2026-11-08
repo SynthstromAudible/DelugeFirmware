@@ -739,6 +739,27 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		expect(int(menu_scene().state().list[menu_scene().state().depth].cursor)).to_equal(1);
 	});
 
+	it("a re-read of the member-channel page takes the port's value again, as readCurrentValue does", _ {
+		select_language();
+		Fixture& f = fixture();
+		baseline(*f.a, *f.b);
+		MenuContext ctx = f.ctx;
+		ctx.midi_cable = f.a.get();
+
+		Rig r;
+		r.open(nodes::midi_device, ctx);
+		r.shell.tick(0);
+		uint32_t at = 10;
+		r.press(at); // into `mpe_direction`
+		r.press(at); // into `mpe_zone`
+		r.press(at); // into the member-channel page
+		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		menu_scene().state_for_spec().edit_int = 99;
+		menu_scene().read_value_again();
+		expect(menu_scene().state().edit_int)
+		    .to_equal(nodes::mpe_zone_channels_value(ctx, menu_scene().state()));
+	});
+
 	it("reads and bounds the member-channel page exactly as the legacy item does, over all four "
 	   "(direction, zone) pairs and both cables",
 	   _ {

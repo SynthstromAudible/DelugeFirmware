@@ -302,6 +302,28 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(nodes::osc1_type_chain(r.menu_context(), r.state()) == nullptr).to_be_true();
 	});
 
+	it("a re-read of the engine version takes the patch's mode again", _ {
+		// `DxEngineSelect::readValueAgain`: `currentValue` is the patch's `engineMode`, read afresh.
+		MenuRig r;
+		r.open(nodes::dx_engine_select);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
+		deluge::instrument::DxPatchState vintage = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		vintage.engine_mode = 2;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, vintage)).to_be_true();
+		menu_scene().read_value_again();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
+	});
+
+	it("a re-read of the parameter page sets its pad blink up and restarts the side column, as DxParam::readValueAgain", _ {
+		MenuRig r;
+		r.open(nodes::dx_param);
+		menu_scene().state_for_spec().dx.pad_blink = false;
+		menu_scene().state_for_spec().dx.flash_restart = false;
+		menu_scene().read_value_again();
+		expect(r.state().dx.pad_blink).to_be_true();
+		expect(r.state().dx.flash_restart).to_be_true();
+	});
+
 	it("lists DX7 source's three rows as legacy's dxMenu does", _ {
 		const ::MenuItem* const legacy_rows[] = {&legacy::dxBrowseMenu, &legacy::dxGlobalParams, &legacy::dxEngineSelect};
 		expect(std::size(nodes::kDxMenuChildren)).to_equal(std::size(legacy_rows));

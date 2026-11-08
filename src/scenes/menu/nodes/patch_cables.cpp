@@ -325,6 +325,15 @@ void PatchCablesItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
 }
 
+void PatchCablesItem::on_reread(const MenuContext& ctx, MenuState& state) const {
+	// `PatchCables::readValueAgain`: a cable deleted under the cursor leaves it on the last one.
+	deluge::ui::ListState& list = state.list[depth_of(state)];
+	const auto count = static_cast<int32_t>(cables_of(ctx).size());
+	if (list.cursor >= count) {
+		list.cursor = static_cast<int16_t>(std::max(0, count - 1));
+	}
+}
+
 void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
@@ -593,6 +602,11 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	state.edit_int = strength_read(ctx, state, which_);
 	state.decimal_pos = 2;
 	state.cursor_blink = deluge::ui::Blink{};
+}
+
+void PatchCableStrengthItem::on_reread(const MenuContext& ctx, MenuState& state) const {
+	// `PatchCableStrength::readCurrentValue`: the strength alone; the cursor and polarity stay.
+	state.edit_int = strength_read(ctx, state, which_);
 }
 
 /// @name This page's layout, which is legacy's own.

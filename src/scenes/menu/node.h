@@ -603,6 +603,16 @@ struct CustomItem {
 	/// `nodes::GateSelectionItem::on_focus_backward`.
 	virtual void on_focus_backward(const MenuContext&, MenuState&) const {}
 
+	/// @brief The focused item's value read again from the model -- legacy's `MenuItem::readValueAgain` /
+	///        `readCurrentValue`, which no `beginSession` is part of.
+	///
+	/// `ValueSession::read_again` raises the redraw itself. Do-nothing default, which is what legacy does for an item
+	/// with no override or one that only redraws: the cursor, the list, the edit edge and the walk state stay where the
+	/// user left them, and nothing is loaded, written or opened. Override it only where legacy's
+	/// `readCurrentValue` takes the value from the model, and then write the value alone, never what `on_focus`
+	/// initialises.
+	virtual void on_reread(const MenuContext&, MenuState&) const {}
+
 	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
 	///        bespoke item whose value does not live in a `Binding`.
 	///

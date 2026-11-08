@@ -177,25 +177,13 @@ void ValueSession::read_again(MenuCore core) const {
 			st.edit_upper = spec->get_upper(ctx);
 		}
 		break;
-	case Kind::Custom: {
-		// The item's read is its `on_focus`, which is also its `beginSession`: it rewinds the item's cursor, its
-		// list, and the walk state the page publishes (the MPE zone and direction, the patch cable's source, the
-		// scene or verb it asks for). `readValueAgain` rewinds none of that -- the MPE pages keep the zone the user is
-		// on, the strength page keeps its cursor -- so the value storage is taken afresh and the rest is put back.
-		const size_t d = st.depth;
-		const MenuWalkState walk = st.walk;
-		const deluge::ui::ListState list = st.list[d];
-		const deluge::ui::ScrollText scroll = st.scroll[d];
-		const int8_t pos = st.decimal_pos;
-		const deluge::ui::Blink blink = st.cursor_blink;
-		enter_leaf(core, *node, FocusCause::NoRowPress);
-		st.walk = walk;
-		st.list[d] = list;
-		st.scroll[d] = scroll;
-		st.decimal_pos = pos;
-		st.cursor_blink = blink;
+	case Kind::Custom:
+		// The item's own re-read (`CustomItem::on_reread`), not its `on_focus`: `beginSession` loads programs, opens
+		// scenes and rewinds cursors, none of which `readValueAgain` does.
+		if (node->custom != nullptr) {
+			node->custom->on_reread(ctx, st);
+		}
 		break;
-	}
 	default:
 		st.edit_int = bindings::read(*node, ctx);
 		break;

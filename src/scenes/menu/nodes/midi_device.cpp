@@ -312,6 +312,11 @@ void MpeZoneChannelsItem::on_focus(const MenuContext& ctx, MenuState& state) con
 	state.edit_int = mpe_zone_channels_value(ctx, state);
 }
 
+void MpeZoneChannelsItem::on_reread(const MenuContext& ctx, MenuState& state) const {
+	// `ZoneNumMemberChannels::readCurrentValue`.
+	state.edit_int = mpe_zone_channels_value(ctx, state);
+}
+
 void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_node_title(f, state);
 
