@@ -403,7 +403,7 @@ private:
 /// @brief A kernel made of kernels: each sample (or vector) goes through part 0's `step`, then part 1's, … in one
 /// pass per block, every step inline.
 /// @tparam Ks The parts, in signal order; @ref chainable says which. A chain is itself a kernel of its first part's
-/// form, so every wrapper takes it unchanged (`Mono<Chain<…>>`, `Stereo<Chain<…>>`, `Lanes<Chain<…>, N>`), and a
+/// form, so every wrapper takes it unchanged (`Mono<Chain<…>>`, `Stereo<Chain<…>>`, `Linked<Chain<…>, N>`), and a
 /// chain may be a part of another chain.
 /// @details
 /// **Types.** `value_type` and `step_type` are the parts'. `Settings`, `State` and `Block` are @ref Parts of the
@@ -437,7 +437,7 @@ private:
 /// product is every combination, each a loop of its own: keep it small, and leave a part with many modes its own
 /// component. A chain with no moded part declares no `Mode` or `Modes`, and its step is unmoded.
 ///
-/// **Op-major.** A chain declares no `kLanePackable`: `Lanes` steps it lane by lane.
+/// **Op-major.** A chain declares no `kLanePackable`: `Linked` steps it lane by lane.
 ///
 /// **Loop state.** A part declaring `kLoopState` steps on that member of its State; the chain declares none, so a
 /// wrapper copies the chain's whole State around its loop.
@@ -665,7 +665,7 @@ struct PinnedReset<true, K> {
 /// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, `reset` and
 /// `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
 /// `coefficients` sets to @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no
-/// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by
+/// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Linked` steps it lane by
 /// lane. Its step forwards whatever K's takes, the counted partial step included, and it declares K's
 /// kPartialStepAdvancesByCount and kStateInPlace.
 template <kernel K, auto M>

@@ -119,16 +119,16 @@ model, and a scalar ×2 unroll that is 22–30% faster on the A9.
 
 ## Lane packs
 
-`src/deluge/dsp-next/core/fixed_point_lanes.h` gives the 32-bit arithmetic above on `LanePack<Q<F>, N>` (and `UQ`): the
+`src/deluge/dsp-next/core/fixed_point_lanes.h` gives the 32-bit arithmetic above on `Pack<Q<F>, N>` (and `UQ`): the
 sums, clamps, multiplies, reformats and scales. The header lists what isn't lifted yet: the 64-bit narrows, the Q16
-forms and the float conversions. `LanePack` itself gives the comparisons. Each operation applies its scalar operation
+forms and the float conversions. `Pack` itself gives the comparisons. Each operation applies its scalar operation
 lane by lane, so a kernel's step written once over its value type reads the same for one stream as for N:
 - A scalar operand broadcasts, as a coefficient every lane shares does: `mul(pack, gain)`.
 - The result's format is the scalar operation's: two `Q<31>` lanes multiplied give two `Q<30>` lanes. An operation
   exists for a pack only where its scalar operation exists for the lane types.
 - Every pack must be the same width, and a pack of `Fixed` has no arithmetic operators, as a `Fixed` has none.
-- A comparison gives a `LanePack<bool, N>`, which `select` reads.
-- `from_raw<T>(v)` and `to_raw(v)` convert a raw scalar or `LanePack` of raw lanes and its typed counterpart, so a step
+- A comparison gives a `Pack<bool, N>`, which `select` reads.
+- `from_raw<T>(v)` and `to_raw(v)` convert a raw scalar or `Pack` of raw lanes and its typed counterpart, so a step
   whose interface is raw types its body once for both: `OnePole` and `ShiftTracker` do.
 
 The lanes are scalar, not NEON: a two-lane `mul` is two `smmul`, independent chains the A9 overlaps. The codegen gate

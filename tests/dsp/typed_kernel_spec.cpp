@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The component framework steps kernels written over Q<31>: each typed kernel here renders, through Mono, Lanes and
+// The component framework steps kernels written over Q<31>: each typed kernel here renders, through Mono, Linked and
 // Stereo, what its arithmetic run by hand on the raw words renders, bit for bit, for every block length a loop splits
 // differently (whole vectors, chained groups, a partial last vector).
 #include "dsp-next/core/concepts.h"
@@ -22,7 +22,7 @@
 #include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
@@ -124,7 +124,7 @@ struct TypedVecOffset24 {
 
 static_assert(processor<Mono<TypedAccumulate>> && processor<Mono<TypedVecOffset>> && processor<Mono<TypedVecOffset24>>);
 static_assert(lane_packable<TypedAccumulate> && !lane_packable<TypedAccumulateByLane>);
-static_assert(processor<Lanes<TypedAccumulate, 2>> && processor<Stereo<TypedAccumulate>>);
+static_assert(processor<Linked<TypedAccumulate, 2>> && processor<Stereo<TypedAccumulate>>);
 static_assert(std::same_as<Mono<TypedVecOffset>::value_type, Q<31>>);
 static_assert(std::same_as<vector_t<Q<31>>, QVec<31>>);
 static_assert(lanes_v<Q<31>> == 4);
@@ -321,11 +321,11 @@ describe typed_kernel("kernels written over Q<31>", ${
 		typed_wrapper.render_block(typed(raw_input(33, 1)), typed_out);
 		expect(typed_wrapper.state().groups).to_equal(4);
 	});
-	it("render through Lanes as their arithmetic on the raw words, op-major and lane by lane", _ {
+	it("render through Linked as their arithmetic on the raw words, op-major and lane by lane", _ {
 		for (std::size_t n : kLengths) {
-			expect(lanes_mismatches(Lanes<TypedAccumulate, 2>{{.gain = kGain}}, AccumulateByHand{.gain = kGain}, n))
+			expect(lanes_mismatches(Linked<TypedAccumulate, 2>{{.gain = kGain}}, AccumulateByHand{.gain = kGain}, n))
 			    .to_equal(std::size_t{0});
-			expect(lanes_mismatches(Lanes<TypedAccumulateByLane, 2>{{.gain = kGain}}, AccumulateByHand{.gain = kGain}, n))
+			expect(lanes_mismatches(Linked<TypedAccumulateByLane, 2>{{.gain = kGain}}, AccumulateByHand{.gain = kGain}, n))
 			    .to_equal(std::size_t{0});
 		}
 	});
@@ -338,7 +338,7 @@ describe typed_kernel("kernels written over Q<31>", ${
 		}
 	});
 	it("read one lane's state out of a typed packed state", _ {
-		Lanes<TypedAccumulate, 2> lanes{{.gain = kGain}};
+		Linked<TypedAccumulate, 2> lanes{{.gain = kGain}};
 		expect(lanes_mismatches(lanes, AccumulateByHand{.gain = kGain}, 7)).to_equal(std::size_t{0});
 		std::vector<Frame<Q<31>, 2>> in(5, Frame<Q<31>, 2>{{kBy, kGain}}), out(5);
 		lanes.render_block(in, out);

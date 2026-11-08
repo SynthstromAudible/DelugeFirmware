@@ -57,7 +57,7 @@ These numbers explain the cost of a streaming q31 loop:
    sample ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
-3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
+3. **Interleaving independent streams (`Linked<K, N>`) is for recursive kernels.** A filter or envelope whose next
    sample depends on its last is latency-bound. N independent streams interleaved hide the latency when N is at least
    the recurrence latency divided by the whole per-lane issue cost: N ≥ latency ÷ (the lane's instructions ÷ about
    1.5, counting 2 cycles per multiply). The divisor is everything a lane issues, not the critical operation's issue
@@ -114,7 +114,7 @@ shared blocks padded off 1 KB multiples:
 
 ## Lanes
 
-Cycles per channel-sample on the device for `Lanes<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
+Cycles per channel-sample on the device for `Linked<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
 from the same image. The bench ran on 5c4df244f (2026-10-09), `DELUGE_DSP_BENCH_CASES=lanes`; the `kernels` list from
 the same tree gives the same `Mono` figures to within 0.01.
 
@@ -135,9 +135,9 @@ the same tree gives the same `Mono` figures to within 0.01.
   `lanes=` field gives `stereo_gain` per frame, twice the figure here.
 - **"Op-major" names the form the source asks for, not a different loop.** Over interleaved frames clang compiles the
   op-major and lane-by-lane forms to the same instructions at the shipping flags (`OnePole` at N = 2 and 4,
-  `ShiftTracker` at N = 4), so these are the figures of `Lanes` at each N, whichever form a kernel takes. Opting in is
+  `ShiftTracker` at N = 4), so these are the figures of `Linked` at each N, whichever form a kernel takes. Opting in is
   a shape and test guarantee, not a speed-up; another kernel opts in only when a probe shows its op-major loop beating
-  lane by lane, or a `LanePack` specialisation lane by lane cannot reach.
+  lane by lane, or a `Pack` specialisation lane by lane cannot reach.
 - **`OnePole` at N = 2 is issue-bound.** The loop is 12 instructions per frame (two `smmulr`, `ldrd`/`strd`, no calls,
   no `muls`), and the PTM trace gives 12 cycles per iteration in 95% of them: one instruction per cycle, with the two
   multiplies' latency hidden. What remains is issue: a loop of the same 12 instructions per frame has measured 11.1
@@ -241,7 +241,7 @@ the in-place digital chain.
   two `ldr`s rather than one `ldrd`, 9 instructions per tap-frame against 8. A chain cannot express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
   parts. It is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
 - **The in-place loop's remedy class.** Where a bench shows the in-place stall matters, the remedy is a one-frame
-  software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
+  software pipeline in the `Linked`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
   never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
   in-place cost is register allocation around its tap loops (above), which the pipeline would not remove.
 - **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags

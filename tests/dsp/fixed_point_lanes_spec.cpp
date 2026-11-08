@@ -24,19 +24,19 @@ using namespace deluge::dsp;
 
 namespace {
 template <int F, std::size_t N>
-using P = LanePack<Q<F>, N>;
+using P = Pack<Q<F>, N>;
 
 // Derived formats carry through, a scalar broadcasts, and a pack has no arithmetic operators.
 static_assert(std::is_same_v<decltype(mul(P<31, 2>{}, P<31, 2>{})), P<30, 2>>);
 static_assert(std::is_same_v<decltype(mul(P<31, 4>{}, Q<31>{})), P<30, 4>>);
-static_assert(std::is_same_v<decltype(mul_wide(P<31, 2>{}, P<31, 2>{})), LanePack<Q64<62>, 2>>);
+static_assert(std::is_same_v<decltype(mul_wide(P<31, 2>{}, P<31, 2>{})), Pack<Q64<62>, 2>>);
 static_assert(std::is_same_v<decltype(as_wrap<Q<31>>(P<30, 2>{})), P<31, 2>>);
-static_assert(std::is_same_v<decltype(P<31, 2>{} < P<31, 2>{}), LanePack<bool, 2>>);
-static_assert(std::is_same_v<decltype(P<31, 2>{} == P<31, 2>{}), LanePack<bool, 2>>);
-static_assert(std::is_same_v<decltype(P<31, 2>{} != Q<31>{}), LanePack<bool, 2>>);
-static_assert(std::is_same_v<decltype(Q<31>{} >= P<31, 2>{}), LanePack<bool, 2>>);
+static_assert(std::is_same_v<decltype(P<31, 2>{} < P<31, 2>{}), Pack<bool, 2>>);
+static_assert(std::is_same_v<decltype(P<31, 2>{} == P<31, 2>{}), Pack<bool, 2>>);
+static_assert(std::is_same_v<decltype(P<31, 2>{} != Q<31>{}), Pack<bool, 2>>);
+static_assert(std::is_same_v<decltype(Q<31>{} >= P<31, 2>{}), Pack<bool, 2>>);
 static_assert(std::is_same_v<decltype(mul(P<31, 2>{}, Q16<15>{})), P<30, 2>>);
-static_assert(std::is_same_v<decltype(mul(LanePack<UQ<32>, 2>{}, Q<31>{})), P<31, 2>>);
+static_assert(std::is_same_v<decltype(mul(Pack<UQ<32>, 2>{}, Q<31>{})), P<31, 2>>);
 template <class A, class B>
 concept addable = requires(A a, B b) { a + b; };
 template <class A, class B>
@@ -50,14 +50,14 @@ static_assert(!lane_multipliable<P<31, 2>, UQ<32>>);       // no scalar mul(Q, U
 
 // from_raw and to_raw convert a raw scalar or pack and a typed one, of the same width.
 static_assert(std::is_same_v<decltype(from_raw<Q<31>>(std::int32_t{})), Q<31>>);
-static_assert(std::is_same_v<decltype(from_raw<Q<30>>(LanePack<std::int32_t, 4>{})), P<30, 4>>);
-static_assert(std::is_same_v<decltype(from_raw<UQ<32>>(LanePack<std::uint32_t, 2>{})), LanePack<UQ<32>, 2>>);
+static_assert(std::is_same_v<decltype(from_raw<Q<30>>(Pack<std::int32_t, 4>{})), P<30, 4>>);
+static_assert(std::is_same_v<decltype(from_raw<UQ<32>>(Pack<std::uint32_t, 2>{})), Pack<UQ<32>, 2>>);
 static_assert(std::is_same_v<decltype(to_raw(Q<31>{})), std::int32_t>);
-static_assert(std::is_same_v<decltype(to_raw(P<29, 2>{})), LanePack<std::int32_t, 2>>);
+static_assert(std::is_same_v<decltype(to_raw(P<29, 2>{})), Pack<std::int32_t, 2>>);
 template <class T, class V>
 concept raw_convertible = requires(V v) { from_raw<T>(v); };
 static_assert(!raw_convertible<Q<31>, std::uint32_t>); // a raw value converts only from its format's storage
-static_assert(!raw_convertible<Q<31>, LanePack<std::uint32_t, 2>>);
+static_assert(!raw_convertible<Q<31>, Pack<std::uint32_t, 2>>);
 
 std::uint32_t xorshift(std::uint32_t& s) {
 	s ^= s << 13;
@@ -82,7 +82,7 @@ std::size_t round_trip_mismatches() {
 	std::uint32_t s = 0x2468'ace1u;
 	for (int k = 0; k < 4096; ++k) {
 		const auto typed = random_pack<N>(s);
-		const LanePack<std::int32_t, N> raw = to_raw(typed);
+		const Pack<std::int32_t, N> raw = to_raw(typed);
 		const P<31, N> back = from_raw<Q<31>>(raw);
 		for (std::size_t i = 0; i < N; ++i) {
 			bad += raw.lane[i] != typed.lane[i].raw() || back.lane[i] != typed.lane[i] ? 1 : 0;
@@ -186,8 +186,8 @@ std::size_t phase_mismatches() {
 	std::size_t bad = 0;
 	std::uint32_t s = 0x0bad'cafeu;
 	for (int k = 0; k < 20000; ++k) {
-		LanePack<UQ<32>, N> a;
-		LanePack<UQ<32>, N> b;
+		Pack<UQ<32>, N> a;
+		Pack<UQ<32>, N> b;
 		for (std::size_t i = 0; i < N; ++i) {
 			a.lane[i] = UQ<32>::from_raw(xorshift(s));
 			b.lane[i] = UQ<32>::from_raw(xorshift(s));

@@ -65,7 +65,7 @@ struct ShiftTracker {
 		Mode mode = Mode::TRACK; ///< What a step returns.
 	};
 
-	/// @brief The memory, over the value type V: Q<31> for one stream, a LanePack of Q<31> for one per lane. StateT{}
+	/// @brief The memory, over the value type V: Q<31> for one stream, a Pack of Q<31> for one per lane. StateT{}
 	/// is silence: y at 0 in every lane.
 	template <class V>
 	struct StateT {
@@ -73,7 +73,7 @@ struct ShiftTracker {
 	};
 	using State = StateT<Q<31>>; ///< One stream's memory.
 
-	/// @brief The step is written once over its value type, so `Lanes` steps a whole frame as one LanePack.
+	/// @brief The step is written once over its value type, so `Linked` steps a whole frame as one Pack.
 	static constexpr bool kLanePackable = true;
 
 	/// @brief The coefficients for @p s: the mode, unchanged.
@@ -82,11 +82,11 @@ struct ShiftTracker {
 	}
 
 	/// @brief One sample: y += (x − y) >> N, wrapping, then the new y (TRACK) or x less the new y (REMOVE).
-	/// @details Written over V: on Q<31> it steps one stream; on a LanePack every operation runs across the lanes, each
+	/// @details Written over V: on Q<31> it steps one stream; on a Pack every operation runs across the lanes, each
 	/// lane exactly the scalar step. The operations are called unqualified, so a pack's are found by argument-dependent
 	/// lookup.
 	/// @tparam M The block's mode.
-	/// @tparam V The value type: Q<31>, or a LanePack of Q<31>. Deduced from @p s.
+	/// @tparam V The value type: Q<31>, or a Pack of Q<31>. Deduced from @p s.
 	/// @param s The memory, updated before the return value is taken from it.
 	/// @param x The input, Q31.
 	/// @return The new y, or x less the new y, Q31.

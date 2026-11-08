@@ -12,7 +12,7 @@
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
 /// **Seven lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in seven lists,
-/// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
+/// each run at every block size: the kernels (one case per component), the lanes (each `Linked` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
 /// (the whole delay block over real tapes), the filters (each filter and the filter set, as a voice runs them) and the
 /// compressor (fully wet and blended, as its owners call it) and the mod FX (each type as its owners render it through
@@ -33,7 +33,7 @@
 #include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/ramp.h"
@@ -747,7 +747,7 @@ private:
 	BlockSpans spans_{};
 };
 
-/// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
+/// @brief `Linked<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
 /// pole, from the lanes input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, following its
 /// own stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a
@@ -759,7 +759,7 @@ public:
 	static constexpr std::size_t kLanes = N; ///< The lanes per frame.
 	/// @brief The moveability, Q31: the mono case's.
 	static constexpr dsp::Q<31> kMoveability = OnePoleLowPassCase::kMoveability;
-	using Component = dsp::Lanes<dsp::fixed::OnePole, N>; ///< The component timed.
+	using Component = dsp::Linked<dsp::fixed::OnePole, N>; ///< The component timed.
 
 	/// @brief Configures the pole from silence, fills the lanes input and takes the blocks' spans for @p n frames.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -780,7 +780,7 @@ using OnePoleX2Case = LanesOnePoleCase<2>;
 /// @brief `one_pole_x4`.
 using OnePoleX4Case = LanesOnePoleCase<4>;
 
-/// @brief `Lanes<ShiftTracker<11>, N>` in REMOVE, op-major: N streams through the delay's DC blocker, from the lanes
+/// @brief `Linked<ShiftTracker<11>, N>` in REMOVE, op-major: N streams through the delay's DC blocker, from the lanes
 /// input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, tracking its own
 /// stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a shifted
@@ -789,8 +789,8 @@ using OnePoleX4Case = LanesOnePoleCase<4>;
 template <std::size_t N>
 class LanesShiftTrackerCase {
 public:
-	static constexpr std::size_t kLanes = N;                    ///< The lanes per frame.
-	using Component = dsp::Lanes<ShiftTrackerCase::Tracker, N>; ///< The component timed.
+	static constexpr std::size_t kLanes = N;                     ///< The lanes per frame.
+	using Component = dsp::Linked<ShiftTrackerCase::Tracker, N>; ///< The component timed.
 
 	/// @brief Configures the tracker in REMOVE from silence, fills the lanes input and takes the blocks' spans for @p n
 	/// frames.
@@ -2094,7 +2094,7 @@ struct CaseSet {
 /// @brief Which case list a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
-	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
+	LANES,   ///< The calibration loop, then each `Linked` case beside the mono case of its kernel.
 	CHAIN,   ///< The calibration loop, then stages run as separate passes beside the same stages as one `Chain`.
 	/// The calibration loop, the whole delay block in every tape form, mix and shaper, then the feedback chain's
 	/// two cases from the chain list, unchanged code that bounds how much an image's code placement moves the rest.

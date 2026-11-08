@@ -22,18 +22,18 @@ set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
 # the raw word helpers' inline arithmetic (dsp-next/core/detail/raw_ops.h).
 set(kernel_spec_DEPS)
-# The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
+# The frame and lane-pack specs need no sources: Frame and Pack are header-only, and the kernels the lane-pack spec
 # writes generically are header-only too.
 set(frame_spec_DEPS)
-set(lane_pack_spec_DEPS)
-# The Lanes spec needs no sources: Lanes, its reference kernels and the kernels it runs against Mono are header-only.
-set(lanes_spec_DEPS)
+set(pack_spec_DEPS)
+# The Linked spec needs no sources: Linked, its reference kernels and the kernels it runs against Mono are header-only.
+set(linked_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
 # The fixed-point spec needs no sources: fixed_point.h is header-only.
 set(fixed_point_spec_DEPS)
 # The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
-set(fixed_point_lanes_spec_DEPS)
+set(fixed_point_linked_spec_DEPS)
 # The run-time shift spec needs no sources: fixed_point.h and the raw helpers it is checked against are header-only.
 set(fixed_point_runtime_shift_spec_DEPS)
 # The typed-kernel spec needs no sources: the framework and its test kernels are header-only.
