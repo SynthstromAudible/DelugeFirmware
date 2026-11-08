@@ -439,14 +439,15 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // here, ahead of the two selectors, because a chain hook needs their addresses;
 // `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
 
-/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:32-34`). Legacy draws
+/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces`/`getDefaultEditPos` (`cv/volts.h`). Legacy draws
 /// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
 /// bespoke render this generation's `Decimal` interpreter has no field for.
 inline constexpr Node cv_volts =
-    with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts,
-                                           IntRange{0, 200, 1}, 2),
-                              sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
-                   kTitleArgSourceIndex);
+    with_default_edit_pos(with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts,
+                                                                 set_cv_volts, IntRange{0, 200, 1}, 2),
+                                                    sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
+                                         kTitleArgSourceIndex),
+                          1);
 /// `cv::Transpose` (`cv/transpose.h:31-33`) -- the same `{-9600, 9600}` two-place packing the
 /// oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
 inline constexpr Node cv_transpose =
@@ -479,9 +480,12 @@ inline constexpr Node gate_mode =
 /// `gate::OffTime` (`gate/off_time.h:22-30`), over `cvEngine.minGateOffTime` -- the one page here
 /// with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
 /// `STRING_FOR_MINIMUM_OFF_TIME` (`menus.cpp:1224`); a `Node` with `name == 0` would trip
-/// `validate_tree`'s `MissingTitle`, so the port uses the title for both.
-inline constexpr Node gate_off_time = decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time,
-                                                   set_gate_off_time, IntRange{1, 100, 1}, 1);
+/// `validate_tree`'s `MissingTitle`, so the port uses the title for both. `getDefaultEditPos` is 1: the cursor
+/// starts on the units.
+inline constexpr Node gate_off_time =
+    with_default_edit_pos(decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time, set_gate_off_time,
+                                       IntRange{1, 100, 1}, 1),
+                          1);
 
 /// @brief `cv::Selection::selectButtonPress` (`cv/selection.h:41-46`) and
 ///        `gate::Selection::selectButtonPress` (`gate/selection.h:43-54`).

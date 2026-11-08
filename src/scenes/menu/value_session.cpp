@@ -50,7 +50,8 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		break;
 	case Kind::Decimal:
 		st.edit_int = bindings::read(node, ctx);
-		st.decimal_pos = 0;
+		// `Decimal::beginSession`: the cursor starts on `getDefaultEditPos()`.
+		st.decimal_pos = node.bind.default_edit_pos;
 		st.cursor_blink = deluge::ui::Blink{};
 		break;
 	case Kind::Range: {

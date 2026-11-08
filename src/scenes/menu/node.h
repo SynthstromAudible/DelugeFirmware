@@ -468,6 +468,9 @@ struct Binding {
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
+	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`:
+	///        2 (the units of a two-place value) unless the item overrides it. A detent moves the value `10^place`.
+	int8_t default_edit_pos = 2;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
 	///        (`MenuItem::wrapAround` answering true on a horizontal page).
@@ -1204,6 +1207,12 @@ inline bool reverse_always(const MenuContext&) {
 /// @brief `n` with its horizontal select step @p step (`Binding::horizontal_step`).
 constexpr Node with_horizontal_step(Node n, HorizontalStep step) {
 	n.bind.horizontal_step = step;
+	return n;
+}
+
+/// @brief `n` whose full-screen cursor starts on place @p pos (`Binding::default_edit_pos`).
+constexpr Node with_default_edit_pos(Node n, int8_t pos) {
+	n.bind.default_edit_pos = pos;
 	return n;
 }
 

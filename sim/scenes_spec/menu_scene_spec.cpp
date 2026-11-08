@@ -2396,11 +2396,12 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
 
-		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts at 0; it
-		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
+		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on
+		// `Binding::default_edit_pos` (2, `Decimal::getDefaultEditPos`): one detent is 1.00.
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		r.turn(1, 120);
 		r.shell.tick(130);
-		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1235);
+		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1334);
 	});
 
 	it("a SyncLevel leaf reads OFF at zero and edits through the select encoder, not the gold knobs", _ {

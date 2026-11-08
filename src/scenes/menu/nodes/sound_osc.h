@@ -163,6 +163,11 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 size_t transpose0_range_suffix(const MenuContext& ctx, std::span<char> out);
 size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 
+/// @brief `osc::RetriggerPhase`'s full screen on @p n: `getDefaultEditPos` is 1, so the cursor starts on the tens.
+constexpr Node retrigger_phase_screen(Node n) {
+	return with_default_edit_pos(n, 1);
+}
+
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
@@ -216,7 +221,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	                           Hint::Bar, param_shows::kOscCarrierFeedback[i],                                         \
 	                           sid(deluge::l10n::String::STRING_FOR_CARRIER_FEED_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
-	inline constexpr Node osc##i##_phase = with_horizontal_step(                                                       \
+	inline constexpr Node osc##i##_phase = retrigger_phase_screen(with_horizontal_step(                                \
 	    with_column_name(                                                                                              \
 	        with_value_text(                                                                                           \
 	            with_title_arg(                                                                                        \
@@ -230,7 +235,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	                (i) + 1),                                                                                          \
 	            retrigger_phase_text),                                                                                 \
 	        sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT)),                                              \
-	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true});                                       \
+	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true}));                                      \
 	inline constexpr Node sample##i##_reverse = with_affect_entire(with_reverse_in_horizontal(                         \
 	    with_column_name(                                                                                              \
 	        with_value_text(                                                                                           \
@@ -316,7 +321,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	                           Hint::Bar, param_shows::kOnFm,                                                          \
 	                           sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
-	inline constexpr Node modulator##i##_phase_node = with_horizontal_step(                                            \
+	inline constexpr Node modulator##i##_phase_node = retrigger_phase_screen(with_horizontal_step(                     \
 	    with_column_name(                                                                                              \
 	        with_value_text(                                                                                           \
 	            with_title_arg(                                                                                        \
@@ -330,7 +335,7 @@ size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 	                (i) + 1),                                                                                          \
 	            retrigger_phase_text),                                                                                 \
 	        sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT)),                                              \
-	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true})
+	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true}))
 
 DELUGE_OSC_SOURCE(0, STRING_FOR_OSCILLATOR_1, "osc1");
 DELUGE_OSC_SOURCE(1, STRING_FOR_OSCILLATOR_2, "osc2");
