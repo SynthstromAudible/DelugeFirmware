@@ -146,6 +146,17 @@ void pack_specs(auto& self) {
 			expect(m.get(i)).to_equal(i == N - 1);
 		}
 	});
+	it("ands two masks lane by lane", _ {
+		Pack<f32, N> a{0.f}, b{0.f};
+		for (std::size_t i = 0; i < N; ++i) {
+			a.set(i, static_cast<f32>(i % 2));
+			b.set(i, static_cast<f32>((i / 2) % 2));
+		}
+		const Mask<N> both = (a > Pack<f32, N>{0.5f}) & (b > Pack<f32, N>{0.5f});
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(both.get(i)).to_equal((i % 2 == 1) && ((i / 2) % 2 == 1));
+		}
+	});
 	it("transposes and transposes back", _ {
 		std::array<Pack<f32, N>, N> m{};
 		for (std::size_t r = 0; r < N; ++r) {

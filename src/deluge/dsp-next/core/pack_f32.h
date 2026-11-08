@@ -132,6 +132,9 @@ struct Mask {
 
 	/// @brief Whether the comparison held in lane @p i. No float arithmetic: a read of the lane's bits.
 	[[nodiscard]] [[gnu::always_inline]] bool get(std::size_t i) const { return bits[i] != 0; }
+
+	/// @brief The lanes where both @p a and @p b hold. No float arithmetic: an AND of the lanes' bits.
+	[[nodiscard]] [[gnu::always_inline]] friend Mask operator&(Mask a, Mask b) { return {a.bits & b.bits}; }
 };
 
 /// @brief N f32 lanes on one NEON register.
