@@ -42,6 +42,13 @@ list(APPEND _fused_specs float_kernels_fused_spec)
 set(float_fusion_tolerance_spec_DEPS)
 set(float_fusion_tolerance_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_fusion_tolerance_spec)
+# The float pack, the kernels, Poly and Bank again under the firmware's float flags: the headers pin their own
+# arithmetic, so every lane must still equal its scalar reference bit for bit.
+foreach(_unsafe_spec pack_f32_unsafe_math_spec float_kernels_unsafe_math_spec poly_unsafe_math_spec
+                     bank_unsafe_math_spec)
+  set(${_unsafe_spec}_DEPS)
+  set(${_unsafe_spec}_OPTIONS -O2 -funsafe-math-optimizations)
+endforeach()
 if(NOT DSP_SPEC_ARM AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-6]86")
   set(_host_is_x86 TRUE)
 endif()

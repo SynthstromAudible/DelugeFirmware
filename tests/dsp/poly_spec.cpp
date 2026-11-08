@@ -1,6 +1,6 @@
 // Poly<K, N>: every lane, configured with its own settings, equals Mono<K> with those settings, bit for bit, at
-// N = 2 and 4, for OnePole and Smoother (both modes); a parked lane changes no other; configure mid-stream takes
-// effect at the next block.
+// N = 2 and 4, for OnePole, Svf and Smoother (both modes), on noise and on an impulse decaying through the
+// flush-to-zero range; a parked lane changes no other; configure mid-stream takes effect at the next block.
 
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
@@ -9,14 +9,20 @@
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
+#include <cmath>
 #include <cppspec.hpp>
 #include <cstring>
 #include <random>
 #include <vector>
 
 using namespace deluge::dsp;
+
+// The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
+// flags (poly_unsafe_math_spec) compares the kernels against IEEE order. The headers above pin themselves.
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 
 namespace {
 
@@ -142,6 +148,48 @@ void expect_scenario_equals_mono(auto& self, SettingsFor settings_for, std::size
 	}
 }
 
+/// An impulse into every lane (lane l's of height 1/(l + 1)), then silence, for @p blocks blocks of 128, each lane
+/// configured from @p settings_for(lane, block) before each block. Every lane's output and state must equal its Mono's
+/// bit for bit all the way down, through the smallest normals, where flush-to-zero flushes the products to zero.
+template <class K, std::size_t N, class SettingsFor>
+void expect_decay_equals_mono(auto& self, SettingsFor settings_for, std::size_t blocks) {
+	constexpr std::size_t kDecayBlock = 128;
+	fp::FlushToZero ftz;
+	Poly<K, N> poly;
+	std::array<Mono<K>, N> mono{};
+	std::array<std::vector<f32>, N> in{}, out{}, ref{};
+	for (std::size_t l = 0; l < N; ++l) {
+		in[l].assign(kDecayBlock * blocks, 0.f);
+		in[l][0] = 1.f / static_cast<f32>(l + 1);
+		out[l].resize(in[l].size());
+		ref[l].resize(in[l].size());
+	}
+	for (std::size_t b = 0; b < blocks; ++b) {
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			poly.configure(l, settings_for(l, b));
+			mono[l].configure(settings_for(l, b));
+			is[l] = fp::Signal{in[l]}.subspan(b * kDecayBlock, kDecayBlock);
+			os[l] = fp::Buffer{out[l]}.subspan(b * kDecayBlock, kDecayBlock);
+			mono[l].render_block(is[l], fp::Buffer{ref[l]}.subspan(b * kDecayBlock, kDecayBlock));
+		}
+		poly.render_block(is, os);
+	}
+	for (std::size_t l = 0; l < N; ++l) {
+		f32 smallest = 1.f;
+		for (std::size_t i = 0; i < out[l].size(); ++i) {
+			expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
+			if (ref[l][i] != 0.f) {
+				smallest = std::min(smallest, std::fabs(ref[l][i]));
+			}
+		}
+		// The decay reached the range where a product of the state and a gain below 1 is subnormal.
+		expect(smallest < 1e-37f).to_be_true();
+		expect(same_bits(poly.state(l), mono[l].state())).to_be_true();
+	}
+}
+
 template <std::size_t N>
 void poly_specs(auto& self) {
 	// clang-format off
@@ -165,6 +213,29 @@ void poly_specs(auto& self) {
 			    },
 			    seed);
 		}
+	});
+	it("decays each lane from an impulse through the flush-to-zero range exactly as Mono", _ {
+		expect_decay_equals_mono<fp::OnePole, N>(self,
+		    [](std::size_t l, std::size_t /*b*/) {
+			    return fp::OnePole::Settings{.cutoff = 0.05f + (0.03f * static_cast<f32>(l))};
+		    },
+		    4);
+		for (const auto mode : {fp::Svf::Mode::LOW_PASS, fp::Svf::Mode::BAND_PASS, fp::Svf::Mode::HIGH_PASS,
+		                        fp::Svf::Mode::NOTCH}) {
+			expect_decay_equals_mono<fp::Svf, N>(self,
+			    [mode](std::size_t l, std::size_t /*b*/) {
+				    return fp::Svf::Settings{.cutoff = 0.05f + (0.02f * static_cast<f32>(l)),
+				                             .q = 0.6f + (0.2f * static_cast<f32>(l)), .mode = mode};
+			    },
+			    8);
+		}
+		// The smoother jumps to the lane's height in the first block, then decays toward zero.
+		expect_decay_equals_mono<fp::Smoother, N>(self,
+		    [](std::size_t l, std::size_t b) {
+			    return b == 0 ? fp::Smoother::Settings{.target = 1.f / static_cast<f32>(l + 1), .time = 0.f}
+			                  : fp::Smoother::Settings{.target = 0.f, .time = 3.f + static_cast<f32>(l)};
+		    },
+		    8);
 	});
 	it("steps each OnePole lane exactly as Mono over a block that is not a multiple of N", _ {
 		expect_lanes_equal_mono<fp::OnePole, N>(self,

@@ -78,7 +78,7 @@ public:
 		assert(out.size() == in.size());
 		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
 			run<M>(in, [&](std::size_t i, V y) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 				if constexpr (std::same_as<Mix, mix::Weighted>) {
 					y = y * gains_;
 				}
@@ -94,7 +94,7 @@ public:
 		assert(left.size() == in.size() && right.size() == in.size());
 		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
 			run<M>(in, [&](std::size_t i, V y) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 				if constexpr (N == 4) {
 					left[i] = y.get(0) + y.get(2);
 					right[i] = y.get(1) + y.get(3);

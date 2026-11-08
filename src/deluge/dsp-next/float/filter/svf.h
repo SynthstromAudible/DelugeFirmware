@@ -84,7 +84,7 @@ struct Svf {
 
 	/// @brief The coefficients for @p settings.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const f32 fc = std::clamp(settings.cutoff, 1.f / 48000.f, 0.49f);
 		const f32 q = std::clamp(settings.q, 0.5f, 40.f);
 		const f32 g = std::tan(std::numbers::pi_v<f32> * fc);
@@ -98,7 +98,7 @@ struct Svf {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                                   std::type_identity_t<V> x) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const V v3 = x - s.ic2;
 		const V v1 = mul_add(c.a1 * s.ic1, c.a2, v3);
 		const V v2 = mul_add(mul_add(s.ic2, c.a2, s.ic1), c.a3, v3);

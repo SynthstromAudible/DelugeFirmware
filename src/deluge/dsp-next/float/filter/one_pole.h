@@ -74,7 +74,7 @@ struct OnePole {
 
 	/// @brief G for @p settings' cutoff.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const f32 fc = std::clamp(settings.cutoff, 1.f / 48000.f, 0.49f);
 		const f32 g = std::tan(std::numbers::pi_v<f32> * fc);
 		return {.G = g / (1.f + g), .mode = settings.mode};
@@ -84,7 +84,7 @@ struct OnePole {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
 	                                                   StateT<V>& st, std::type_identity_t<V> x) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const V v = (x - st.s) * c.G;
 		const V lp = v + st.s;
 		st.s = lp + v;

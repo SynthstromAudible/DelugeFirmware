@@ -43,6 +43,10 @@
 
 using namespace deluge::dsp;
 
+// The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
+// flags (float_kernels_unsafe_math_spec) holds the kernels to the same records. The headers above pin themselves.
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+
 namespace {
 
 constexpr std::size_t kBlock = 128;

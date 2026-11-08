@@ -39,7 +39,7 @@ namespace {
 
 /// fp::Svf's low-pass step with each mul_add unfused.
 [[nodiscard]] f32 svf_unfused(const fp::Svf::Coefficients& c, fp::Svf::State& s, f32 x) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 	const f32 v3 = x - s.ic2;
 	const f32 v1 = (c.a1 * s.ic1) + (c.a2 * v3);
 	const f32 v2 = (s.ic2 + (c.a2 * s.ic1)) + (c.a3 * v3);
@@ -50,7 +50,7 @@ namespace {
 
 /// fp::Smoother's EXPONENTIAL step with its mul_add unfused.
 [[nodiscard]] f32 smoother_unfused(const fp::Smoother::Coefficients& c, fp::Smoother::State& s) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 	s.y = c.rate >= 1.f ? c.target : s.y + (c.rate * (c.target - s.y));
 	return s.y;
 }

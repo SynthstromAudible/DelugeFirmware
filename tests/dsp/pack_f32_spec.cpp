@@ -30,6 +30,10 @@
 
 using namespace deluge::dsp;
 
+// The spec's own float arithmetic rounds as written, as the pack's does, so its twin built with the device's float
+// flags (pack_f32_unsafe_math_spec) compares each lane against IEEE order. The headers above pin themselves.
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+
 namespace {
 
 [[nodiscard]] uint32_t bits(f32 x) {

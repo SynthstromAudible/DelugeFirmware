@@ -82,7 +82,7 @@ struct Smoother {
 
 	/// @brief The coefficients for @p settings.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		f32 rate = 1.f;
 		f32 length = 1.f;
 		if (settings.mode == Mode::LINEAR) {
@@ -107,7 +107,7 @@ struct Smoother {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
 	                                                   StateT<V>& st, std::type_identity_t<V> /*x*/) {
-#pragma clang fp contract(off) reassociate(off)
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		if constexpr (M == Mode::EXPONENTIAL) {
 			st.y = select(c.rate >= V{1.f}, c.target, mul_add(st.y, c.rate, c.target - st.y));
 		}

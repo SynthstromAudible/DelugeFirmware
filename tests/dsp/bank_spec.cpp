@@ -1,22 +1,30 @@
 // Bank<K, N, Mix>: one input into N copies, each with its own settings, mixed: Sum equals the Mono outputs summed in
 // lane order, Weighted the same with each lane's gain, StereoPair the even lanes to left and the odd to right, bit for
-// bit, at N = 2 and 4; a Smoother bank (which prepares each block) equals the summed Monos; reset and state act on one
-// lane; configure between blocks takes effect at the next block.
+// bit, at N = 2 and 4; a Smoother bank (which prepares each block) equals the summed Monos, and so do OnePole and Svf
+// banks decaying from an impulse through the flush-to-zero range; reset and state act on one lane; configure between
+// blocks takes effect at the next block.
 
 #include "dsp-next/core/bank.h"
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
+#include <cmath>
 #include <cppspec.hpp>
 #include <cstring>
 #include <random>
 #include <vector>
 
 using namespace deluge::dsp;
+
+// The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
+// flags (bank_unsafe_math_spec) compares the kernels against IEEE order. The headers above pin themselves.
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 
 namespace {
 
@@ -54,16 +62,24 @@ template <std::size_t N>
 	return r;
 }
 
-/// Runs @p blocks blocks of kBlock samples through a Sum bank and N Monos, every lane reconfigured from
+/// An impulse of height 1, then silence: @p n samples.
+[[nodiscard]] std::vector<f32> impulse(std::size_t n) {
+	std::vector<f32> v(n, 0.f);
+	v[0] = 1.f;
+	return v;
+}
+
+/// Runs @p in, kBlock samples at a time, through a Sum bank and N Monos, every lane reconfigured from
 /// @p settings_for(lane, block) before each block, and expects the bank's output to be the Monos' outputs added in lane
 /// order, and each lane's state to equal its Mono's, bit for bit.
+/// @return The smallest nonzero magnitude any Mono output reached.
 template <class K, std::size_t N, class SettingsFor>
-void expect_sum_equals_monos(auto& self, SettingsFor settings_for, std::size_t blocks) {
+f32 expect_sum_equals_monos(auto& self, SettingsFor settings_for, const std::vector<f32>& in) {
 	fp::FlushToZero ftz;
 	Bank<K, N, mix::Sum> bank;
 	std::array<Mono<K>, N> mono{};
-	const auto in = input(kBlock * blocks);
-	for (std::size_t b = 0; b < blocks; ++b) {
+	f32 smallest = 1.f;
+	for (std::size_t b = 0; b < in.size() / kBlock; ++b) {
 		const auto is = fp::Signal{in}.subspan(b * kBlock, kBlock);
 		std::array<std::vector<f32>, N> ref{};
 		for (std::size_t l = 0; l < N; ++l) {
@@ -71,6 +87,11 @@ void expect_sum_equals_monos(auto& self, SettingsFor settings_for, std::size_t b
 			mono[l].configure(settings_for(l, b));
 			ref[l].resize(kBlock);
 			mono[l].render_block(is, fp::Buffer{ref[l]});
+			for (const f32 x : ref[l]) {
+				if (x != 0.f) {
+					smallest = std::min(smallest, std::fabs(x));
+				}
+			}
 		}
 		std::vector<f32> out(kBlock);
 		bank.render_block(is, fp::Buffer{out});
@@ -85,6 +106,7 @@ void expect_sum_equals_monos(auto& self, SettingsFor settings_for, std::size_t b
 			expect(same_bits(bank.state(l), mono[l].state())).to_be_true();
 		}
 	}
+	return smallest;
 }
 
 template <std::size_t N>
@@ -173,9 +195,9 @@ void bank_specs(auto& self) {
 			expect_sum_equals_monos<fp::Smoother, N>(self,
 			    [mode](std::size_t l, std::size_t) {
 				    return fp::Smoother::Settings{.target = 0.2f * static_cast<f32>(l + 1), .time = 10.f + static_cast<f32>(l),
-				                                  .block = static_cast<f32>(kBlock), .mode = mode};
+				                                  .mode = mode};
 			    },
-			    3);
+			    input(kBlock * 3));
 		}
 	});
 	it("applies a configure made between blocks at the next block", _ {
@@ -184,7 +206,26 @@ void bank_specs(auto& self) {
 			    return fp::Svf::Settings{.cutoff = 0.01f * static_cast<f32>(1U << ((l + b) % 4)), .q = 2.f + static_cast<f32>(b),
 			                             .mode = fp::Svf::Mode::BAND_PASS};
 		    },
-		    4);
+		    input(kBlock * 4));
+	});
+	it("decays from an impulse through the flush-to-zero range as the summed Monos", _ {
+		const f32 one_pole = expect_sum_equals_monos<fp::OnePole, N>(self,
+		    [](std::size_t l, std::size_t /*b*/) {
+			    return fp::OnePole::Settings{.cutoff = 0.05f + (0.03f * static_cast<f32>(l))};
+		    },
+		    impulse(kBlock * 4));
+		// The decay reached the range where a product of the state and a gain below 1 is subnormal.
+		expect(one_pole < 1e-37f).to_be_true();
+		for (const auto mode : {fp::Svf::Mode::LOW_PASS, fp::Svf::Mode::BAND_PASS, fp::Svf::Mode::HIGH_PASS,
+		                        fp::Svf::Mode::NOTCH}) {
+			const f32 svf = expect_sum_equals_monos<fp::Svf, N>(self,
+			    [mode](std::size_t l, std::size_t /*b*/) {
+				    return fp::Svf::Settings{.cutoff = 0.05f + (0.02f * static_cast<f32>(l)),
+				                             .q = 0.6f + (0.2f * static_cast<f32>(l)), .mode = mode};
+			    },
+			    impulse(kBlock * 8));
+			expect(svf < 1e-37f).to_be_true();
+		}
 	});
 	it("reads back each lane's state, and resets one lane alone", _ {
 		fp::FlushToZero ftz;
