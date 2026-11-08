@@ -39,4 +39,3 @@
   edit of the source clip's sample, its markers or its attack between the spare and the take's loop end leaves the next
   take as the source was. Remake it on any change to the source clip (or clone at the job after the loop end and give
   the take a gap-free handover).
-- [] Copies::reset(lane) assigns State{} and skips a kernel's reset quirk (Mono runs it); no float kernel declares one yet — run K::reset per lane when one does.

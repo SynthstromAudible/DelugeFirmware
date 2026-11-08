@@ -1,7 +1,8 @@
 // Poly<K, N>: every lane, configured with its own settings, equals Mono<K> with those settings, bit for bit, at
 // N = 2 and 4, for OnePole, Svf (every mode) and Smoother (both modes), on noise and on an impulse decaying through the
 // flush-to-zero range; a fresh Poly has every lane parked; a parked lane changes no other; configure mid-stream takes
-// effect at the next block.
+// effect at the next block; reset and parking run a kernel's reset quirk as Mono's reset does; a kernel declaring a
+// loop state is no poly kernel.
 
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
@@ -46,6 +47,62 @@ struct Outer {
 	static constexpr auto fields = std::tuple{&Outer::items, &Outer::one, &Outer::x};
 };
 } // namespace nested_test
+
+namespace quirk_test {
+/// A leaky integrator whose reset quirk starts it at 1, not at StateT{}: Poly must run the quirk on a lane as Mono runs
+/// it on its one copy.
+struct ResetToOne {
+	using value_type = f32;
+	using step_type = f32;
+
+	struct Settings {
+		f32 leak = 0.5f;
+	};
+	template <class V>
+	struct CoefficientsT {
+		V leak{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&CoefficientsT::leak};
+	};
+	using Coefficients = CoefficientsT<f32>;
+	template <class V>
+	struct StateT {
+		V level{};
+		V last{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&StateT::level, &StateT::last};
+	};
+	using State = StateT<f32>;
+
+	[[nodiscard]] static Coefficients coefficients(const Settings& settings) { return {.leak = settings.leak}; }
+	static void reset(State& s) {
+		s = State{};
+		s.level = 1.f;
+	}
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, StateT<V>& s,
+	                                                   std::type_identity_t<V> x) {
+		s.last = x;
+		s.level = (s.level * c.leak) + x;
+		return s.level;
+	}
+};
+static_assert(poly_kernel<ResetToOne>);
+
+/// ResetToOne stepping a loop state, the `level` member alone: a kernel Mono can run, but no poly kernel, since Poly,
+/// Bank and a chain on packed lanes step a lane's whole State.
+struct LevelLoopState : ResetToOne {
+	static constexpr auto kLoopState = &State::level;
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, V& level,
+	                                                   std::type_identity_t<V> x) {
+		level = (level * c.leak) + x;
+		return level;
+	}
+};
+static_assert(processor_kernel<LevelLoopState>);
+static_assert(!poly_kernel<LevelLoopState>);
+} // namespace quirk_test
 
 namespace {
 
@@ -438,6 +495,53 @@ void poly_specs(auto& self) {
 			expect(poly.parked(l)).to_be_true();
 			expect(same_bits(poly.state(l), fp::OnePole::State{})).to_be_true();
 		}
+	});
+	it("resets a lane through K's reset quirk, as Mono resets, and leaves the other lanes", _ {
+		using quirk_test::ResetToOne;
+		Poly<ResetToOne, N> poly;
+		std::array<Mono<ResetToOne>, N> mono{};
+		std::array<std::vector<f32>, N> in{}, out{};
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			const ResetToOne::Settings settings{.leak = 0.25f + (0.125f * static_cast<f32>(l))};
+			poly.configure(l, settings);
+			mono[l].configure(settings);
+			in[l].assign(13, 0.5f - (0.25f * static_cast<f32>(l)));
+			out[l].resize(13);
+			is[l] = fp::Signal{in[l]};
+			os[l] = fp::Buffer{out[l]};
+			std::vector<f32> sink(13);
+			mono[l].render_block(is[l], fp::Buffer{sink});
+		}
+		poly.render_block(is, os);
+		poly.reset(1);
+		mono[1].reset();
+		expect(poly.state(1).level).to_equal(1.f);
+		for (std::size_t l = 0; l < N; ++l) {
+			expect(same_bits(poly.state(l), mono[l].state())).to_be_true();
+		}
+	});
+	it("returns a parked lane to K's reset quirk after every block, as Mono resets", _ {
+		using quirk_test::ResetToOne;
+		Poly<ResetToOne, N> poly;
+		Mono<ResetToOne> rest;
+		rest.reset();
+		std::array<std::vector<f32>, N> in{}, out{};
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			poly.configure(l, {.leak = 0.5f});
+			in[l].assign(9, 0.75f);
+			out[l].resize(9);
+			is[l] = fp::Signal{in[l]};
+			os[l] = fp::Buffer{out[l]};
+		}
+		poly.park(0);
+		expect(same_bits(poly.state(0), rest.state())).to_be_true();
+		poly.render_block(is, os);
+		expect(same_bits(poly.state(0), rest.state())).to_be_true();
+		expect(same_bits(poly.state(1), rest.state())).to_be_false();
 	});
 	it("un-parks a lane when it is configured", _ {
 		Poly<fp::OnePole, N> poly;

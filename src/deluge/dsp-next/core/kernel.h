@@ -765,13 +765,14 @@ enum class NoMode : uint8_t { NONE };
 
 /// @brief K's per-block values for a block of @p n samples: its `prepare` when it declares one, else an
 /// EmptyBlock.
+/// @tparam C K's Coefficients, deduced; for a @ref poly_kernel, its `CoefficientsT` over a Pack under Poly and Bank.
+/// @tparam S K's State, deduced; for a @ref poly_kernel, its `StateT` over a Pack under Poly and Bank.
 /// @param c K's coefficients.
 /// @param s K's state, which `prepare` may update.
 /// @param n The block's length in samples (frames for a stereo kernel); may be 0.
 /// @return The block's values, which every step of the block receives.
-template <kernel K>
-[[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const typename K::Coefficients& c,
-                                                              [[maybe_unused]] typename K::State& s,
+template <kernel K, typename C = K::Coefficients, typename S = K::State>
+[[gnu::always_inline]] inline kernel_block_t<K> prepare_block([[maybe_unused]] const C& c, [[maybe_unused]] S& s,
                                                               [[maybe_unused]] std::size_t n) {
 	if constexpr (detail::declares_prepare<K>) {
 		return K::prepare(c, s, n);
@@ -784,16 +785,17 @@ template <kernel K>
 /// @brief Call @p body.template operator()<M>() once: at the mode of @p c for a moded kernel, through with_mode,
 /// else at NoMode::NONE.
 /// @tparam K The kernel whose mode is dispatched on.
+/// @tparam C K's Coefficients, deduced; for a @ref poly_kernel, its `CoefficientsT` over a Pack under Poly and Bank.
 /// @tparam Body The callable run at the mode.
 /// @param c K's coefficients, whose `mode` a moded kernel dispatches on.
 /// @param body A callable with a templated call operator taking the mode as its sole non-type argument.
-template <kernel K, typename Body>
-[[gnu::always_inline]] inline void dispatch_mode([[maybe_unused]] const typename K::Coefficients& c, Body&& body) {
+template <kernel K, typename C = K::Coefficients, typename Body>
+[[gnu::always_inline]] inline void dispatch_mode([[maybe_unused]] const C& c, Body&& body) {
 	if constexpr (moded_kernel<K>) {
-		with_mode<typename K::Modes>(c.mode, body);
+		with_mode<typename K::Modes>(c.mode, std::forward<Body>(body));
 	}
 	else {
-		body.template operator()<NoMode::NONE>();
+		std::forward<Body>(body).template operator()<NoMode::NONE>();
 	}
 }
 
@@ -810,14 +812,15 @@ template <kernel K>
 
 /// @brief One `step` of K at mode @p M: `K::step<M>` for a moded kernel; for a kernel without modes, its
 /// non-template `step`, with @p M ignored (pass NoMode::NONE).
+/// @tparam C K's Coefficients, deduced; for a @ref poly_kernel, its `CoefficientsT` over a Pack under Poly and Bank.
+/// @tparam S K's loop state, deduced; for a @ref poly_kernel, its whole `StateT` over a Pack under Poly and Bank.
 /// @param c K's coefficients.
 /// @param block K's per-block values, from @ref prepare_block.
 /// @param s K's loop state (@ref loop_state).
 /// @param x The step's inputs: none, one or two step values, then an ActiveLanes for the counted partial step.
-/// @return The step's output: one `K::step_type`.
-template <kernel K, auto M, typename... X>
-[[gnu::always_inline]] inline typename K::step_type
-step_at(const typename K::Coefficients& c, const kernel_block_t<K>& block, loop_state_t<K>& s, X&&... x) {
+/// @return The step's output: one `K::step_type`, or one Pack of them under Poly and Bank.
+template <kernel K, auto M, typename C = K::Coefficients, typename S = loop_state_t<K>, typename... X>
+[[gnu::always_inline]] inline auto step_at(const C& c, const kernel_block_t<K>& block, S& s, X&&... x) {
 	if constexpr (moded_kernel<K>) {
 		return K::template step<M>(c, block, s, std::forward<X>(x)...);
 	}

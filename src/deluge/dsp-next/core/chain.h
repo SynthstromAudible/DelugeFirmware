@@ -399,19 +399,6 @@ concept chainable =
 
 namespace detail {
 
-/// @brief K's Block for a block of @p n samples, over any value form of its Coefficients and State: its `prepare` when
-/// it declares one, else an EmptyBlock.
-template <typename K, typename C, typename S>
-[[nodiscard]] [[gnu::always_inline]] inline kernel_block_t<K>
-prepare_part([[maybe_unused]] const C& c, [[maybe_unused]] S& s, [[maybe_unused]] std::size_t n) {
-	if constexpr (declares_prepare<K>) {
-		return K::prepare(c, s, n);
-	}
-	else {
-		return kernel_block_t<K>{};
-	}
-}
-
 /// @brief A chain's `prepare` and `Block`, present only when some part declares a `prepare`: a base, so that a chain
 /// without one declares no member named `prepare` for @ref declares_prepare to find.
 /// @tparam Over The chain's @ref ChainOver.
@@ -451,7 +438,7 @@ private:
 	prepare_parts(const CoefficientsOf<V>& c, StateOf<V>& s, std::size_t n, std::index_sequence<I...> /*parts*/) {
 		Block block;
 		// A comma fold runs its operands left to right: part 0 prepares first.
-		((get<I>(block) = prepare_part<Ks>(get<I>(c), get<I>(s), n)), ...);
+		((get<I>(block) = kernel_ops::prepare_block<Ks>(get<I>(c), get<I>(s), n)), ...);
 		return block;
 	}
 };
@@ -707,28 +694,30 @@ private:
 		return y;
 	}
 
-	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, at its member of @p M when it is
-	/// moded, else unmoded. On the chain's own State the part steps its loop state (@ref loop_state_t), as a wrapper
-	/// steps it; on packed lanes it steps its whole State over V, as Poly and Bank step a poly kernel.
+	/// @brief Part @p P's mode within the chain's mode @p M: its member of @p M when it is moded, else NoMode::NONE.
+	template <std::size_t P, StepMode M>
+	static constexpr auto kPartMode = [] {
+		if constexpr (detail::has_modes<part_t<P>>) {
+			return get<kModedIndex[P]>(M);
+		}
+		else {
+			return kernel_ops::NoMode::NONE;
+		}
+	}();
+
+	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, at @ref kPartMode. On the chain's
+	/// own State the part steps its loop state (@ref loop_state_t), as a wrapper steps it; on packed lanes it steps its
+	/// whole State over V, as Poly and Bank step a poly kernel, which declares no loop state.
 	template <StepMode M, typename V, std::size_t P, typename... X>
 	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step_part(const CoefficientsOf<V>& c, const Blocks& b,
 	                                                                StateOf<V>& s, X... x) {
 		using K = part_t<P>;
 		if constexpr (std::same_as<StateOf<V>, State>) {
-			if constexpr (detail::has_modes<K>) {
-				return kernel_ops::step_at<K, get<kModedIndex[P]>(M)>(get<P>(c), get<P>(b),
-				                                                      kernel_ops::loop_state<K>(get<P>(s)), x...);
-			}
-			else {
-				return kernel_ops::step_at<K, kernel_ops::NoMode::NONE>(get<P>(c), get<P>(b),
-				                                                        kernel_ops::loop_state<K>(get<P>(s)), x...);
-			}
-		}
-		else if constexpr (detail::has_modes<K>) {
-			return K::template step<get<kModedIndex[P]>(M)>(get<P>(c), get<P>(b), get<P>(s), x...);
+			return kernel_ops::step_at<K, kPartMode<P, M>>(get<P>(c), get<P>(b), kernel_ops::loop_state<K>(get<P>(s)),
+			                                               x...);
 		}
 		else {
-			return K::step(get<P>(c), get<P>(b), get<P>(s), x...);
+			return kernel_ops::step_at<K, kPartMode<P, M>>(get<P>(c), get<P>(b), get<P>(s), x...);
 		}
 	}
 };

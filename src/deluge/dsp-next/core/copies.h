@@ -17,7 +17,6 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
 
@@ -29,29 +28,6 @@
 /// @file
 /// @brief detail::Copies<K, N>: the per-lane coefficients, state and mode that Poly and Bank share.
 namespace deluge::dsp::detail {
-
-/// @brief Calls @p body.template operator()<M>() once, at the mode of @p c for a moded K, else at NoMode::NONE.
-/// @param c K's packed coefficients, whose `mode` a moded kernel dispatches on.
-template <class K, class C, class Body>
-[[gnu::always_inline]] inline void dispatch_lane_mode([[maybe_unused]] const C& c, Body&& body) {
-	if constexpr (has_modes<K>) {
-		with_mode<typename K::Modes>(c.mode, std::forward<Body>(body));
-	}
-	else {
-		std::forward<Body>(body).template operator()<kernel_ops::NoMode::NONE>();
-	}
-}
-
-/// @brief One `step` of K over packed coefficients and state: `K::step<M>` for a moded K, else K's `step`.
-template <class K, auto M, class... Args>
-[[gnu::always_inline]] inline auto lane_step(Args&&... args) {
-	if constexpr (has_modes<K>) {
-		return K::template step<M>(std::forward<Args>(args)...);
-	}
-	else {
-		return K::step(std::forward<Args>(args)...);
-	}
-}
 
 /// @brief N lanes of @p K's packed coefficients and state, with the lane-wise configure, reset and state access.
 /// @details Configure and set_mode set the one mode every lane runs; configure asserts that a lane's mode matches it
@@ -82,10 +58,11 @@ public:
 		coefficients_.mode = mode;
 		shared_.mode = mode;
 	}
-	/// @brief Lane @p lane's state to K's reset state.
+	/// @brief Lane @p lane's state to K's reset state: State{}, or whatever K's `static void reset(State&)` quirk sets
+	/// when K declares one, as Mono::reset.
 	void reset(std::size_t lane) {
 		assert(lane < N);
-		set_lane(state_, lane, typename K::State{});
+		reset_lane(state_, lane);
 	}
 
 	/// @brief Runs the event @p Event on lane @p lane alone: that lane's scalar state (and coefficients, when the event
@@ -130,6 +107,13 @@ protected:
 	[[nodiscard]] const PackedState& packed_state() const { return state_; }
 	/// @brief Stores @p s as every lane's state.
 	void set_packed_state(const PackedState& s) { state_ = s; }
+	/// @brief Lane @p lane of @p s to K's reset state, through the one reset rule (detail::reset_state), so a reset
+	/// quirk runs on the lane as on a Mono.
+	static void reset_lane(PackedState& s, std::size_t lane) {
+		auto scalar = get_lane<typename K::State>(s, lane);
+		reset_state<K>(scalar);
+		set_lane(s, lane, scalar);
+	}
 
 private:
 	PackedCoefficients coefficients_{}; ///< Every lane's coefficients; the shared mode.

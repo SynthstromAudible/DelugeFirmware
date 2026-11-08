@@ -43,8 +43,8 @@ namespace deluge::dsp {
 /// **Per block.** A K that declares `prepare` has it called once, on the packed coefficients and state, before the
 /// block's frames, as Mono does for one copy.
 /// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
-/// is not written, and its state is reset to State{} after every block; lanes share nothing, so it perturbs no
-/// other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
+/// is not written, and its state is returned to K's reset state after every block; lanes share nothing, so it perturbs
+/// no other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
 /// empty); frames go in and out N at a time through a transpose, the last n mod N frames lane by lane. **Mode.**
 /// Configure and set_mode set the mode; configure asserts it matches once any lane has been configured, and that
 /// never clears, so the mode stays the last one set, even once every lane is parked. **Empty blocks.** A block with
@@ -90,7 +90,7 @@ public:
 	{
 		const std::size_t n = block_length(in);
 		assert(block_length(out) == n);
-		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out, n); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out, n); });
 	}
 
 	/// @brief One block of a generator: lane l writes @p out[l]. Every unparked lane's span has the same length; a
@@ -100,7 +100,7 @@ public:
 	{
 		const std::size_t n = block_length(out);
 		const std::array<fp::Signal, N> no_input{};
-		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(no_input, out, n); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(no_input, out, n); });
 	}
 
 private:
@@ -142,10 +142,7 @@ private:
 			p.in[l] = in[l].data();
 			p.out[l] = out[l].data();
 		}
-		kernel_block_t<K> block{};
-		if constexpr (detail::declares_prepare<K>) {
-			block = K::prepare(c, s, n);
-		}
+		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, n);
 		std::size_t i = 0;
 		for (; i + N <= n; i += N) {
 			step_frames<M>(c, block, s, parked, p, i);
@@ -155,7 +152,7 @@ private:
 		}
 		for (std::size_t l = 0; l < N; ++l) {
 			if ((parked & bit(l)) != 0) {
-				set_lane(s, l, typename K::State{});
+				Base::reset_lane(s, l);
 			}
 		}
 		this->set_packed_state(s);
@@ -175,10 +172,10 @@ private:
 		}
 		for (std::size_t t = 0; t < N; ++t) {
 			if constexpr (processor_kernel<K>) {
-				frames[t] = detail::lane_step<K, M>(c, block, s, frames[t]);
+				frames[t] = kernel_ops::step_at<K, M>(c, block, s, frames[t]);
 			}
 			else {
-				frames[t] = detail::lane_step<K, M>(c, block, s);
+				frames[t] = kernel_ops::step_at<K, M>(c, block, s);
 			}
 		}
 		transpose(frames); // frames[l] = copy l's samples i … i + N − 1
@@ -202,10 +199,10 @@ private:
 					x.set(l, p.in[l][i]);
 				}
 			}
-			y = detail::lane_step<K, M>(c, block, s, x);
+			y = kernel_ops::step_at<K, M>(c, block, s, x);
 		}
 		else {
-			y = detail::lane_step<K, M>(c, block, s);
+			y = kernel_ops::step_at<K, M>(c, block, s);
 		}
 		for (std::size_t l = 0; l < N; ++l) {
 			if ((parked & bit(l)) == 0) {

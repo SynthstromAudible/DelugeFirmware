@@ -78,7 +78,7 @@ public:
 	requires(!std::same_as<Mix, mix::StereoPair>)
 	{
 		assert(out.size() == in.size());
-		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out.data(), nullptr); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out.data(), nullptr); });
 	}
 
 	/// @brief One block into left and right; the mode is dispatched once per block.
@@ -86,7 +86,7 @@ public:
 	requires std::same_as<Mix, mix::StereoPair>
 	{
 		assert(left.size() == in.size() && right.size() == in.size());
-		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, left.data(), right.data()); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, left.data(), right.data()); });
 	}
 
 private:
@@ -100,20 +100,17 @@ private:
 		const PackedCoefficients c = this->coefficients();
 		PackedState s = this->packed_state();
 		const V gains = gains_;
-		kernel_block_t<K> block{};
-		if constexpr (detail::declares_prepare<K>) {
-			block = K::prepare(c, s, in.size());
-		}
+		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
 		std::size_t i = 0;
 		for (; i + N <= in.size(); i += N) {
 			Frames y;
 			for (std::size_t t = 0; t < N; ++t) {
-				y[t] = detail::lane_step<K, M>(c, block, s, V{in[i + t]});
+				y[t] = kernel_ops::step_at<K, M>(c, block, s, V{in[i + t]});
 			}
 			mix_frames(y, gains, first, second, i);
 		}
 		for (; i < in.size(); ++i) {
-			mix_one(detail::lane_step<K, M>(c, block, s, V{in[i]}), gains, first, second, i);
+			mix_one(kernel_ops::step_at<K, M>(c, block, s, V{in[i]}), gains, first, second, i);
 		}
 		this->set_packed_state(s);
 	}

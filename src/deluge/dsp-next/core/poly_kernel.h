@@ -43,16 +43,17 @@ concept declares_fields = requires { std::tuple_size_v<std::remove_cvref_t<declt
 /// with `fields` naming each V member, and whose step is a template over V.
 /// @details `Coefficients` is `CoefficientsT<f32>` and `State` is `StateT<f32>`, as Mono and Linked read them. A
 /// coefficient member that is not a V (the mode) is not a field: every lane of one Poly or Bank shares it. A `prepare`
-/// the kernel declares is a template over V, so it runs on a packed state as on a scalar one.
+/// the kernel declares is a template over V, so it runs on a packed state as on a scalar one. It declares no
+/// `kLoopState`: Poly, Bank and a chain on packed lanes step a lane's whole State, as Mono steps a kernel without one.
 template <class K>
-concept poly_kernel =
-    (processor_kernel<K> || generator_kernel<K>) && std::same_as<typename K::value_type, f32>
-    && std::same_as<typename K::Coefficients, typename K::template CoefficientsT<f32>>
-    && std::same_as<typename K::State, typename K::template StateT<f32>>
-    && detail::declares_fields<typename K::template CoefficientsT<f32>>
-    && detail::declares_fields<typename K::template CoefficientsT<Pack<f32, 4>>>
-    && detail::declares_fields<typename K::template StateT<f32>>
-    && detail::declares_fields<typename K::template StateT<Pack<f32, 4>>> && !detail::declares_context<K>;
+concept poly_kernel = (processor_kernel<K> || generator_kernel<K>) && std::same_as<typename K::value_type, f32>
+                      && std::same_as<typename K::Coefficients, typename K::template CoefficientsT<f32>>
+                      && std::same_as<typename K::State, typename K::template StateT<f32>>
+                      && detail::declares_fields<typename K::template CoefficientsT<f32>>
+                      && detail::declares_fields<typename K::template CoefficientsT<Pack<f32, 4>>>
+                      && detail::declares_fields<typename K::template StateT<f32>>
+                      && detail::declares_fields<typename K::template StateT<Pack<f32, 4>>>
+                      && !detail::declares_context<K> && !detail::declares_loop_state<K>;
 
 template <class S, class P>
 void set_lane(P& packed, std::size_t lane, const S& scalar);
