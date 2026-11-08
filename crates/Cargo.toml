@@ -2,7 +2,7 @@
 # their C ABIs into the staticlib the C++ unit tests link.
 [workspace]
 resolver = "2"
-members = ["deluge_alloc", "deluge_audio_format", "deluge_resource", "deluge_rust", "deluge_sample_source", "deluge_sample_fill", "deluge_sample_reader", "deluge_sample_stream"]
+members = ["deluge_alloc", "deluge_resource", "deluge_rust", "deluge_sample_source", "deluge_sample_fill", "deluge_sample_reader", "deluge_sample_stream"]
 # The fuzz crate is a nightly cargo-fuzz package with its own profile. `deluge_sample_convert`'s
 # build script compiles app C++ and needs a std test harness, which this workspace's
 # `panic = "abort"` release profile would break.

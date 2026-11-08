@@ -28,7 +28,8 @@ heapless = { version = "0.8", default-features = false }
 miniz_oxide = { version = "0.8.9", default-features = false }
 
 # The header decoder the audio loader walks headers through, and whose C ABI the app calls.
-deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
+# deluge-sdk's `deluge-audio-format`, at the pin below; `c-abi` exports what the app calls.
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = ["c-abi"] }
 deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
@@ -37,16 +38,16 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's,
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
 # `fault-blink` handler.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", default-features = false, features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", default-features = false, features = [
     "flash",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", features = [
+usb-classes = { package = "deluge-usb-classes", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = [
     "device-audio",
     "device-midi",
 ] }
 # The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
-rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", features = [
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = [
     "rza1l",
     "unstable-driver-steal",
 ] }
@@ -61,15 +62,14 @@ embedded-io-async = "0.7.0"
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
-rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = "0.2"
 block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3" }
 aligned = "0.4"
 # The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs.
-# Renamed on import, as before (deluge-sdk's allocator is `rza1-alloc` now, so the names no longer
-# collide; the alias keeps the call sites unchanged).
+# Renamed on import, as before (deluge-sdk's heaps are `deluge_bsp::heap` now, so the names no
+# longer collide; the alias keeps the call sites unchanged).
 fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
 
 # The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
@@ -108,10 +108,9 @@ deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional
 block-device-driver = { version = "0.2", optional = true }
 block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3", optional = true }
 aligned = { version = "0.4", optional = true }
-# The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", optional = true }
-# The simulator's panel/audio link, which `sim_panel` plugs into deluge-bsp's host-panel hook.
-deluge-sim-link = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", optional = true }
+# The desktop simulator window for `sim`, and its panel/audio link (`deluge_simulator::link`), which
+# `sim_panel` plugs into deluge-bsp's host-panel hook.
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", optional = true }
 
 [features]
 default = ["host-runtime"]
@@ -150,7 +149,7 @@ host_app = [
 
 ## The emulator (`dbt sim`): the host app runs as the brain of deluge-sdk's desktop simulator, in
 ## one process.
-sim = ["host_app", "dep:deluge-simulator", "dep:deluge-sim-link", "deluge-bsp/host-panel"]
+sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/host-panel"]
 
 [build-dependencies]
 # Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
@@ -190,8 +189,6 @@ opt-level = "s"
 [profile.release.package.deluge_resource]
 opt-level = "s"
 [profile.release.package.deluge_alloc]
-opt-level = "s"
-[profile.release.package.rza1-alloc]
 opt-level = "s"
 [profile.release.package.rza1-hal]
 opt-level = "s"

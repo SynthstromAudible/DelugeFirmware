@@ -27,7 +27,7 @@
 #include <optional>
 #include <span>
 
-// The chunk walk itself lives in Rust (`crates/deluge_audio_format`), which is fuzzed and held against
+// The chunk walk itself lives in Rust (deluge-sdk's `deluge-audio-format`), which is fuzzed and held against
 // the whole sample corpus by a differential test. What is left here is the adapter: it turns
 // AudioByteSource's pull-with-seek surface into the window requests the decoder asks for, and lowers the
 // decoder's plain header value onto SampleHeader / WaveTableHeader.

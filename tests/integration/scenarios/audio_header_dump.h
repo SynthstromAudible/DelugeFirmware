@@ -17,7 +17,7 @@
 
 #pragma once
 
-/// @brief Host-only C++ oracle for the corpus differential over `crates/deluge_audio_format`.
+/// @brief Host-only C++ oracle for the corpus differential over deluge-sdk's `deluge-audio-format`.
 ///
 /// The C++ entry points (`parseSampleHeader()`/`parseWaveTableHeader()`) call straight into this
 /// crate, so both sides of the differential are the same decoder: it compares two different entry
@@ -29,7 +29,7 @@
 /// uses, since all it needs is `AudioByteSource`'s four-call surface over an in-memory buffer), then
 /// runs `parseSampleHeader()` and `parseWaveTableHeader()` (at both `makeWaveTableWorkAtAllCosts`
 /// settings) against it, and renders every field plus the error/reject outcome of each as one JSON
-/// line. `crates/deluge_audio_format/tests/corpus_differential.rs` runs golden_vt_render's
+/// line. `crates/deluge_rust/tests/audio_format_corpus.rs` runs golden_vt_render's
 /// `audio_header_dump` scenario (audio_header_dump_scenario.h) as a subprocess and parses this output
 /// to compare field-by-field against the new Rust parser.
 ///

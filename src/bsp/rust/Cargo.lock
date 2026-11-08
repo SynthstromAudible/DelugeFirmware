@@ -1238,6 +1238,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge-audio-format"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
+
+[[package]]
 name = "deluge-block-device-adapters"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1250,11 +1255,13 @@ dependencies = [
 
 [[package]]
 name = "deluge-bsp"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "cortex-ar",
  "critical-section",
+ "deluge-flash-protect",
+ "deluge-usb-classes",
  "embassy-executor",
  "embassy-futures",
  "embassy-sync",
@@ -1264,9 +1271,9 @@ dependencies = [
  "heapless 0.9.3",
  "log",
  "max5136",
+ "rlsf",
  "rza1-hal",
  "rza1-rt",
- "usb-classes",
 ]
 
 [[package]]
@@ -1278,13 +1285,13 @@ dependencies = [
  "block-device-driver",
  "cortex-ar",
  "critical-section",
+ "deluge-audio-format",
  "deluge-block-device-adapters",
  "deluge-bsp",
  "deluge-embedded-fatfs",
- "deluge-sim-link",
  "deluge-simulator",
+ "deluge-usb-classes",
  "deluge_alloc",
- "deluge_audio_format",
  "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",
@@ -1302,9 +1309,7 @@ dependencies = [
  "log",
  "miniz_oxide 0.8.9",
  "rtt-target",
- "rza1-alloc",
  "rza1-hal",
- "usb-classes",
 ]
 
 [[package]]
@@ -1318,27 +1323,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "deluge-protocol"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+name = "deluge-flash-protect"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 
 [[package]]
-name = "deluge-sim-link"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
-dependencies = [
- "ringbuf",
-]
+name = "deluge-panel-protocol"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 
 [[package]]
 name = "deluge-simulator"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "clap",
  "cpal",
- "deluge-protocol",
- "deluge-sim-link",
+ "deluge-panel-protocol",
  "embedded-graphics",
  "env_logger",
  "hound",
@@ -1347,17 +1348,29 @@ dependencies = [
  "midir",
  "png 0.17.16",
  "resvg",
+ "ringbuf",
  "serialport",
  "tiny-skia 0.12.0",
  "usvg",
 ]
 
 [[package]]
-name = "deluge_alloc"
-version = "0.1.0"
+name = "deluge-usb-classes"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
+dependencies = [
+ "critical-section",
+ "embassy-futures",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb",
+ "embassy-usb-driver",
+ "heapless 0.9.3",
+ "log",
+]
 
 [[package]]
-name = "deluge_audio_format"
+name = "deluge_alloc"
 version = "0.1.0"
 
 [[package]]
@@ -3118,8 +3131,8 @@ dependencies = [
 
 [[package]]
 name = "max5136"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
@@ -4628,18 +4641,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "rza1-alloc"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
-dependencies = [
- "critical-section",
- "rlsf",
-]
-
-[[package]]
 name = "rza1-hal"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -4661,21 +4665,21 @@ dependencies = [
 
 [[package]]
 name = "rza1-pac"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 
 [[package]]
 name = "rza1-rt"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "rza1-rt-macros",
 ]
 
 [[package]]
 name = "rza1-rt-macros"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5463,21 +5467,6 @@ name = "unicode-width"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
-
-[[package]]
-name = "usb-classes"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=2a0733cf9c01182408ce4826d2fb08168d5c2243#2a0733cf9c01182408ce4826d2fb08168d5c2243"
-dependencies = [
- "critical-section",
- "embassy-futures",
- "embassy-sync",
- "embassy-time",
- "embassy-usb",
- "embassy-usb-driver",
- "heapless 0.9.3",
- "log",
-]
 
 [[package]]
 name = "usb-device"

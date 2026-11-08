@@ -2187,7 +2187,7 @@ level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format parser and its corpus differential, the sample fill/reader/source/stream crates"
+gates = "every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format corpus differential (deluge-sdk runs the parser's own tests), the sample fill/reader/source/stream crates"
 run = ["cargo", "nextest", "run", "--profile", "ci"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
@@ -2202,7 +2202,7 @@ level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its rza1-alloc pin fails here instead of being rewritten."
+gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its deluge-sdk pin fails here instead of being rewritten."
 run = ["cargo", "test", "--locked"]
 requires = ["cargo"]
 tier = "pr"
@@ -2839,21 +2839,6 @@ run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
 tier = "pr"
 group = "tooling"
 runtime = "~1s"
-
-# tier = "manual": a fuzzer has no natural end; this bounds one run to a minute, for when the parser changes.
-[[harness]]
-name = "audio-format-fuzz"
-path = "crates/deluge_audio_format/fuzz"
-level = "component"
-runner = "script"
-kind = "fuzz"
-status = "gate"
-gates = "the audio-format header parser must not panic, overrun or loop on arbitrary input"
-run = ["cargo", "+nightly", "fuzz", "run", "parse", "--", "-max_total_time=60"]
-requires = ["cargo-fuzz"]
-tier = "manual"
-group = "unit"
-runtime = "~2m"
 
 [[harness]]
 name = "dsp-bench-parser"

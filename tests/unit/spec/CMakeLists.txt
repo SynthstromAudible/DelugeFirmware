@@ -44,7 +44,7 @@ scenes/support/fake_bindings_relevant.cpp
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled
   deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify)
 
-# audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
+# audio_file_format.cpp's header parse IS the Rust decoder (deluge-sdk's deluge-audio-format, reached through
 # include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is
 # the umbrella staticlib defined once in tests/unit/CMakeLists.txt -- i686 on Linux, host-native on macOS.
 # This subdirectory is added unconditionally, so fail loudly on a platform that defines neither rather

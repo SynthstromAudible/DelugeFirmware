@@ -5,7 +5,7 @@
 //!
 //! On the device the PIC co-processor drives the pads and LEDs, and the OLED is on its own SPI bus. On the host
 //! the BSP's peripheral modules call the installed [`deluge_bsp::host_panel::HostPanel`] instead, and this
-//! module keeps the shared panel ([`deluge_sim_link::SharedPanel`]):
+//! module keeps the shared panel ([`deluge_simulator::link::SharedPanel`]):
 //!
 //! - every outbound PIC command ([`deluge_bsp::pic`]'s `tx`) is applied as the PIC would apply it. Pad colours go
 //!   into a virtual PIC framebuffer, which a refresh (`DONE_SENDING_ROWS`) publishes, and the smooth-scroll
@@ -23,8 +23,8 @@ use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, OnceLock, PoisonError};
 
-use deluge_sim_link::audio::BrainEnds;
-use deluge_sim_link::{InputEvent, SharedPanel};
+use deluge_simulator::link::audio::BrainEnds;
+use deluge_simulator::link::{InputEvent, SharedPanel};
 
 use deluge_bsp::rgb::{COLS, ROWS};
 
@@ -60,7 +60,7 @@ pub fn panel() -> Option<&'static SharedPanel> {
     PANEL.get()
 }
 
-pub use deluge_sim_link::audio::{BLOCK_FRAMES, Sample};
+pub use deluge_simulator::link::audio::{BLOCK_FRAMES, Sample};
 
 /// Exchange one block with the simulator's audio device, if its output has room for the block: `render` is handed
 /// the block's input (the frames the input device captured, silence where it has fallen behind) and replaces it with
@@ -75,7 +75,7 @@ pub fn render_block(render: impl FnOnce(&mut [Sample; BLOCK_FRAMES])) -> bool {
 }
 
 fn exchange(ends: &mut BrainEnds, render: impl FnOnce(&mut [Sample; BLOCK_FRAMES])) -> bool {
-    use deluge_sim_link::audio::{Consumer, Observer, Producer};
+    use deluge_simulator::link::audio::{Consumer, Observer, Producer};
 
     if ends.out.vacant_len() < BLOCK_FRAMES {
         return false;
@@ -212,8 +212,8 @@ fn shift_row(
 }
 
 /// The grid as the panel's `set_all_pads` takes it: column-major `[r, g, b]`, `(col·ROWS + row)·3`.
-fn all_pads(grid: &[[[u8; 3]; ROWS]; COLS]) -> [u8; deluge_sim_link::ALL_PADS_BYTES] {
-    let mut buf = [0u8; deluge_sim_link::ALL_PADS_BYTES];
+fn all_pads(grid: &[[[u8; 3]; ROWS]; COLS]) -> [u8; deluge_simulator::link::ALL_PADS_BYTES] {
+    let mut buf = [0u8; deluge_simulator::link::ALL_PADS_BYTES];
     for (col, rows) in grid.iter().enumerate() {
         for (row, rgb) in rows.iter().enumerate() {
             let o = (col * ROWS + row) * 3;
@@ -367,9 +367,9 @@ mod tests {
 
     #[test]
     fn a_block_renders_its_input_into_the_output_while_the_output_has_room() {
-        use deluge_sim_link::audio::{Consumer, Observer, Producer};
+        use deluge_simulator::link::audio::{Consumer, Observer, Producer};
 
-        let (mut brain, mut gui) = deluge_sim_link::audio::new_bridge();
+        let (mut brain, mut gui) = deluge_simulator::link::audio::new_bridge();
         // Half a block of input: the rest of the block reads as silence.
         for n in 0..BLOCK_FRAMES / 2 {
             gui.in_.try_push([n as f32, -(n as f32)]).unwrap();
