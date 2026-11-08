@@ -6,20 +6,26 @@
 /// The menu is opened on the global guest over the instrument clip view, as `openShellMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls.
 
+#include "deluge-project/mapping_table.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/learn_mapping.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/knob_target.h"
+#include "modulation/params/param.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_core.h"
 #include "scenes/menu/menu_scene.h"
@@ -342,6 +348,23 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		expect(menu::select_turn_edits_instrument(ctx, st)).to_be_false(); // row 1, the plain submenu
 	});
 });
+describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the menu's sink", $ {
+	it("marks the current instrument edited once a param's knob is unlearned", _ {
+		namespace params = deluge::modulation::params;
+		spec::SongFixture fx = spec::make_synth_song();
+		activate(fx);
+		expect(getCurrentInstrument() == fx.instrument).to_be_true();
+		const deluge::project::OwnerParamTarget knob{
+		    {deluge::project::ControlsAddress::Kind::OUTPUT, *fx.instrument->id()},
+		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::LOCAL_VOLUME),
+		                                    params::Kind::UNPATCHED_SOUND)};
+		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
+		expect(fx.song->project.mappings.find(knob) != nullptr).to_be_true();
+		fx.instrument->editedByUser = false;
+		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(fx.instrument->editedByUser).to_be_true();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(menu_edited_spec, menu_edited_guest, menu_edited_rule)
+DELUGE_SPEC(menu_edited_spec, menu_edited_guest, menu_edited_rule, menu_edited_unlearn)

@@ -729,8 +729,16 @@ bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<d
 		return false;
 	}
 	if (!command) {
+		// `MenuItemWithCCLearning::unlearnAction`: the menu unlearns only a param's knob, which marks the current
+		// instrument edited (`SoundEditor::markInstrumentAsEdited`), as `learn_knob` does for the learn.
 		deluge::edits::UnlearnMapping edit{std::move(target)};
-		return applied(edit);
+		if (!applied(edit)) {
+			return false;
+		}
+		if (Instrument* instrument = getCurrentInstrument()) {
+			instrument->beenEdited();
+		}
+		return true;
 	}
 	std::optional<deluge::edits::InputLearn> learned_input;
 	if (input) {
