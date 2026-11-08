@@ -16,8 +16,8 @@
  */
 #pragma once
 
+#include "dsp-next/core/copies.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lane_set.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
@@ -47,22 +47,22 @@ namespace deluge::dsp {
 /// does on an empty block.
 template <poly_kernel K, std::size_t N>
 requires(N == 2 || N == 4)
-class Poly : public detail::LaneSet<K, N> {
-	using Lanes = detail::LaneSet<K, N>;
+class Poly : public detail::Copies<K, N> {
+	using Base = detail::Copies<K, N>;
 	using V = Pack<f32, N>;
 	using Mode = K::Mode;
-	using typename Lanes::PackedCoefficients;
-	using typename Lanes::PackedState;
+	using typename Base::PackedCoefficients;
+	using typename Base::PackedState;
 
 public:
-	using Lanes::reset;
-	using Lanes::set_mode;
-	using Lanes::state;
+	using Base::reset;
+	using Base::set_mode;
+	using Base::state;
 
 	/// @brief Sets lane @p lane from @p settings, and un-parks it. Its mode must be the bank's mode once any lane is
 	/// configured.
 	void configure(std::size_t lane, const K::Settings& settings) {
-		Lanes::configure(lane, settings);
+		Base::configure(lane, settings);
 		parked_.reset(lane);
 	}
 	/// @brief Lane @p lane at rest, fed zero, its output unwritten, until it is configured again.

@@ -24,14 +24,15 @@
 #include <cstddef>
 
 /// @file
-/// @brief detail::LaneSet<K, N>: the per-lane coefficients, state and mode that Poly and Bank share.
+/// @brief detail::Copies<K, N>: the per-lane coefficients, state and mode that Poly and Bank share.
 namespace deluge::dsp::detail {
 
 /// @brief N lanes of @p K's packed coefficients and state, with the lane-wise configure, reset and state access.
 /// @details Configure and set_mode set the one mode every lane runs; configure asserts that a lane's mode matches it
-/// once any lane is configured. `configured_` is never cleared, so the mode stays the last one set.
+/// once any lane is configured. Poly re-declares configure to un-park the lane. `configured_` is never cleared, so the
+/// mode stays the last one set.
 template <poly_kernel K, std::size_t N>
-class LaneSet {
+class Copies {
 public:
 	/// @brief Sets lane @p lane from @p settings. Its mode must be the lanes' mode once any lane is configured.
 	void configure(std::size_t lane, const K::Settings& settings) {

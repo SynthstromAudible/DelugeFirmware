@@ -16,8 +16,8 @@
  */
 #pragma once
 
+#include "dsp-next/core/copies.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lane_set.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
@@ -50,18 +50,18 @@ struct StereoPair {};
 /// lane 0, right = lane 1.
 template <poly_kernel K, std::size_t N, class Mix>
 requires(N == 2 || N == 4)
-class Bank : public detail::LaneSet<K, N> {
-	using Lanes = detail::LaneSet<K, N>;
+class Bank : public detail::Copies<K, N> {
+	using Base = detail::Copies<K, N>;
 	using V = Pack<f32, N>;
 	using Mode = K::Mode;
-	using typename Lanes::PackedCoefficients;
-	using typename Lanes::PackedState;
+	using typename Base::PackedCoefficients;
+	using typename Base::PackedState;
 
 public:
-	using Lanes::configure;
-	using Lanes::reset;
-	using Lanes::set_mode;
-	using Lanes::state;
+	using Base::configure;
+	using Base::reset;
+	using Base::set_mode;
+	using Base::state;
 
 	/// @brief Lane @p lane's gain in the mix.
 	void set_gain(std::size_t lane, f32 gain)
@@ -71,7 +71,7 @@ public:
 		gains_.set(lane, gain);
 	}
 
-	/// @brief One block into one output.
+	/// @brief One block into one output; the mode is dispatched once per block.
 	void render_block(fp::Signal in, fp::Buffer out)
 	requires(!std::same_as<Mix, mix::StereoPair>)
 	{
@@ -87,7 +87,7 @@ public:
 		});
 	}
 
-	/// @brief One block into left and right.
+	/// @brief One block into left and right; the mode is dispatched once per block.
 	void render_block(fp::Signal in, fp::Buffer left, fp::Buffer right)
 	requires std::same_as<Mix, mix::StereoPair>
 	{

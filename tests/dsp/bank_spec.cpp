@@ -131,6 +131,26 @@ void bank_specs(auto& self) {
 			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
 		}
 	});
+	it("mixes a Weighted lane whose gain was never set at gain 1", _ {
+		fp::FlushToZero ftz;
+		const auto in = input();
+		const auto ref = mono_outputs<N>(in);
+		Bank<fp::Svf, N, mix::Weighted> bank;
+		for (std::size_t l = 0; l < N; ++l) {
+			bank.configure(l, band(l));
+		}
+		bank.set_gain(0, 0.5f);
+		std::vector<f32> out(in.size());
+		bank.render_block(fp::Signal{in}, fp::Buffer{out});
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			f32 expected = ref[0][i] * 0.5f;
+			for (std::size_t l = 1; l < N; ++l) {
+				const f32 term = ref[l][i] * 1.f;
+				expected = expected + term;
+			}
+			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+		}
+	});
 	it("sends even lanes left and odd lanes right", _ {
 		fp::FlushToZero ftz;
 		const auto in = input();
