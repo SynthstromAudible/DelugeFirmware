@@ -122,9 +122,9 @@ public:
 	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
 	/// @return True.
 	bool select_acts_on_release() const override { return true; }
-	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
-	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return learn_mode(); }
+	/// @brief True where `SoundEditor::buttonAction`'s Select arm does not act: learn mode, and any UI mode the host
+	///        reports outside the five SELECT acts in (`set_host_mode_gates`).
+	bool select_release_blocked() const override { return !select_and_back_act(); }
 	/// @brief Whether LEARN holds the menu in learn mode, legacy's `UI_MODE_MIDI_LEARN`, which the menu keeps itself
 	///        rather than in `currentUIMode`; the guest refuses select turns in it.
 	bool learn_mode() const { return visit_.learn.mode(); }
@@ -214,6 +214,14 @@ public:
 	/// @brief Enter or leave `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host decides: while held a
 	///        param write reaches every drum (`MenuContext::affect_entire_held`) and AFFECT ENTIRE blinks fast.
 	void set_affect_entire_hold(bool on);
+	/// @brief `SoundEditor::buttonAction`'s two UI-mode gates, as a host's own UI mode answers them at a button.
+	struct HostModeGates {
+		bool learn = true;           ///< `!currentUIMode`: a LEARN press may refuse, unlearn or start learn mode.
+		bool select_and_back = true; ///< `currentUIMode` is exactly one of the five modes SELECT and BACK act in.
+	};
+	/// @brief Set by a host that keeps a UI mode the shell does not see, before it feeds each button. Unset, the
+	///        menu's own learn mode alone gates SELECT and BACK, and held pads stand in for the mode at LEARN.
+	void set_host_mode_gates(const HostModeGates& gates) { host_gates_ = gates; }
 	/// @brief The clip's affect-entire changed under the open menu (the clip minder's toggle):
 	/// `MenuContext::affect_entire`.
 	void set_clip_affect_entire(bool on) { ctx_.affect_entire = on; }
@@ -540,6 +548,10 @@ public:
 	///         target's own; 0 when that node has no id.
 	uint16_t arm_shortcut_landing(const Node& target);
 
+	/// @brief Do SELECT and BACK act now? Legacy's five-mode test, of which learn mode (`UI_MODE_MIDI_LEARN`) is not
+	///        one.
+	bool select_and_back_act() const { return !learn_mode() && (!host_gates_ || host_gates_->select_and_back); }
+	std::optional<HostModeGates> host_gates_;
 	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
 	///        `render_*` functions it dispatches to, answered before they run.
 	/// @return The claim set.

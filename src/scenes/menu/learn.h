@@ -76,9 +76,10 @@ public:
 	/// @param st    The menu state.
 	/// @param event The event; anything but LEARN is ignored.
 	/// @param ui    The input context: Shift and the held pads.
+	/// @param host_allows The host's `!currentUIMode` at the press, when it has a mode the shell does not see.
 	/// @return True when the release restarts the shared normal blink (`blinkLed(LEARN)`, `:736-738`).
 	bool observe(const MenuContext& ctx, const MenuState& st, const deluge::ui::shell::UiEvent& event,
-	             const deluge::ui::shell::UiContext& ui);
+	             const deluge::ui::shell::UiContext& ui, std::optional<bool> host_allows = std::nullopt);
 
 	/// @brief Declare the LEARN LED: learn mode's fast blink, else @p shared_blink while the item wants it.
 	void leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::LedState shared_blink);

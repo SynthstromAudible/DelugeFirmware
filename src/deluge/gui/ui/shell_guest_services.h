@@ -158,6 +158,14 @@ bool shellFreezesDrumSelection();
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
 
+/// @brief Tell the ported menu how `SoundEditor::buttonAction`'s UI-mode gates answer `currentUIMode` now: LEARN's
+///        press acts only with no mode on, SELECT and BACK only in exactly one of five. Called before each button
+///        is fed.
+void refreshMenuModeGates();
+
+/// @brief Whether the ported menu is in its learn mode (`MenuScene::learn_mode`).
+bool shellMenuLearnMode();
+
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.
 ///        `ShellHostUI::closeGuest` hands the guest's notice popup over first; the console strip, the working

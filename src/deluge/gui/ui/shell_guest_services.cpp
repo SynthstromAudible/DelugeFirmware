@@ -255,6 +255,18 @@ int32_t lastRangeTop = -1;
 const deluge::scenes::menu::Node* lastScreen = nullptr;
 } // namespace
 
+void refreshMenuModeGates() {
+	const bool selectAndBack =
+	    currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || currentUIMode == UI_MODE_NOTES_PRESSED
+	    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR || currentUIMode == UI_MODE_STUTTERING;
+	deluge::scenes::menu_scene().set_host_mode_gates(
+	    {.learn = currentUIMode == UI_MODE_NONE, .select_and_back = selectAndBack});
+}
+
+bool shellMenuLearnMode() {
+	return deluge::scenes::menu_scene().learn_mode();
+}
+
 void refreshShellRangeDisplay() {
 	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
 	const bool open = shellSoundMenuOpen();

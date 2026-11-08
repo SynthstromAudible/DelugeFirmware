@@ -993,6 +993,10 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// a real cell for a `b` legacy never means as a matrix button. Stated rather than guarded, because no such profile
 	// exists and a guard against one would be untestable. So a guard here would be a second copy of a check that
 	// already holds. A mutation removing one is unkillable, which is the evidence.
+	//
+	// `SoundEditor::buttonAction` gates LEARN, SELECT and BACK on `currentUIMode`, which the shell does not see: the
+	// menu is given this button's answer before it is fed.
+	refreshMenuModeGates();
 	const Cartesian xy = deluge::hid::button::toXY(b);
 	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 	                      static_cast<int16_t>(on ? 255 : 0)});
@@ -1138,11 +1142,11 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	}
 	// `SoundEditor::selectEncoderAction`'s gate, after its automation-view forward: the menu edits only in the UI modes
 	// `selectEncoderUIModes` lists, and not in learn mode, which the menu holds itself rather than in `currentUIMode`
-	// and reports as `select_release_blocked` (`MenuScene::learn_mode`). Only the menu is a sound editor screen; a
-	// scene it opened takes its turns as before.
+	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
+	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
 	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
-	    && (!isUIModeWithinRange(selectEncoderUIModes) || top.select_release_blocked())) {
+	    && (!isUIModeWithinRange(selectEncoderUIModes) || shellMenuLearnMode())) {
 		return;
 	}
 	// `void`: legacy discards nothing because there is nothing to discard

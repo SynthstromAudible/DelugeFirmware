@@ -243,17 +243,20 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	}
 }
 
-bool MenuLearn::observe(const MenuContext& ctx, const MenuState& st, const UiEvent& event, const UiContext& ui) {
-	// A press with no UI mode on (a held pad is legacy's auditioning or notes-pressed mode, a kit-wide AFFECT ENTIRE
-	// hold its own) refuses an item that does not allow learn with a popup, unlearns with Shift held, else starts
-	// learn mode; the release ends it.
+bool MenuLearn::observe(const MenuContext& ctx, const MenuState& st, const UiEvent& event, const UiContext& ui,
+                        std::optional<bool> host_allows) {
+	// A press with no UI mode on refuses an item that does not allow learn with a popup, unlearns with Shift held,
+	// else starts learn mode; the release ends it.
 	if (event.kind != UiEvent::Kind::Button || event.button != ButtonId::Learn) {
 		return false;
 	}
 	const bool pad_held = std::ranges::any_of(ui.held_pads.cols, [](uint32_t col) { return col != 0; });
 	mode_ = false;
 	const bool restart_blink = !event.on && wants_blink(st);
-	if (event.on && !pad_held && !ctx.addresses.affect_entire) {
+	// With a host, its answer alone: `main`'s test is `!currentUIMode`, and a pad fed to this shell (a shortcut or a
+	// patching source) sets no mode there. Without one, the held pads and the AFFECT ENTIRE hold stand in for it.
+	const bool no_mode = host_allows.has_value() ? *host_allows : (!pad_held && !ctx.addresses.affect_entire);
+	if (event.on && no_mode) {
 		if (!allows_mode(ctx, st)) {
 			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
 		}

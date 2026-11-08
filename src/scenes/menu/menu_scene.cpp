@@ -128,6 +128,7 @@ void MenuScene::retarget(const Node& node) {
 
 void MenuScene::reset_process_state() {
 	refused_recorder_landing_ = nullptr;
+	host_gates_.reset();
 	walk_.forget_rows();
 	st_.dx = DxState{};
 	pending_retarget_ = 0;
@@ -632,6 +633,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		visit_.blink_restart = visit_.blink_restart || wants_learn_blink();
 	}
 
+	st_.tick.back_acts = select_and_back_act();
 	view_.render(core(), f, *node);
 }
 
@@ -1061,7 +1063,12 @@ Result MenuScene::after_render_navigation() {
 }
 
 deluge::ui::InputClaims MenuScene::owned_input() const {
-	return menu::owned_input(ctx_, st_);
+	deluge::ui::InputClaims claims = menu::owned_input(ctx_, st_);
+	// A BACK the UI mode refuses goes to `handle()`, which swallows it, not to the render, which would go up.
+	if (!select_and_back_act()) {
+		claims.back = false;
+	}
+	return claims;
 }
 
 bool MenuScene::owns(const UiEvent& event) const {
@@ -1089,6 +1096,12 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// context.
 	ctx_.affect_entire_held = holding_affect_entire_;
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	// `SoundEditor::buttonAction` acts on SELECT and BACK only in the five UI modes it lists, which learn mode is not:
+	// in any other, a press of either does nothing.
+	if ((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	    && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc) && !select_and_back_act()) {
+		return Result{.handled = true};
+	}
 	// A select or BACK press, and a select turn, restart the hold's blink (`sound_editor.cpp`'s three
 	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
 	if (holding_affect_entire_
@@ -1120,13 +1133,9 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		return Result{.handled = true};
 	}
 
-	// `SoundEditor::buttonAction` acts on BACK only outside learn mode; in it, the press does nothing.
-	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && visit_.learn.mode()) {
-		return Result{.handled = true};
-	}
-
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
-	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
+	if (visit_.learn.observe(ctx_, st_, event, ctx,
+	                         host_gates_ ? std::optional<bool>{host_gates_->learn} : std::nullopt)) {
 		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`SoundEditor::buttonAction` in
 		                             // `sound_editor.cpp`, the learn-button release)
 	}

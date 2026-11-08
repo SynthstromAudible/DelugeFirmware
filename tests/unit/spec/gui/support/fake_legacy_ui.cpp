@@ -419,6 +419,15 @@ void wireShellGuestServices() {
 	fakelegacyui::service_wirings++;
 }
 
+// The menu's UI-mode gates and learn mode, which `ShellHostUI` asks for around a button and a select turn. This suite
+// has no menu: no gate to refresh, and never in learn mode.
+void refreshMenuModeGates() {
+}
+
+bool shellMenuLearnMode() {
+	return false;
+}
+
 // `gui/ui/shell_action_dispatch.cpp`'s share, on the terms of the one above: the real one
 // reads `deluge::scenes::menu_scene()` and its seven arms name `performanceView`, `audioClipView`,
 // `stemExport`, two `gui/context_menu/` singletons, `soundEditor` and

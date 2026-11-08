@@ -53,8 +53,9 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 
 	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
 	// legacy's back at the root closing the editor (`SoundEditor::buttonAction`'s BACK arm -> `goUpOneLevel()`, whose
-	// depth-0 arm is `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
-	if (st.depth > 0) {
+	// depth-0 arm is `exitCompletely()`) -- so the render must not read it there: the read IS the claim. Nor where the
+	// UI mode refuses BACK.
+	if (st.depth > 0 && st.tick.back_acts) {
 		st.tick.back_claimed = f.back_pressed();
 	}
 
