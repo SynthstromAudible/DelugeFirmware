@@ -30,6 +30,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -50,6 +51,22 @@ struct SettingsChannelProbe {
 	}
 	static size_t unknownSettingCount() { return runtimeFeatureSettings.unknownSettings.size(); }
 	static void truncateUnknownSettings(size_t count) { runtimeFeatureSettings.unknownSettings.resize(count); }
+	/// Everything a factory reset throws away, so the scenario can put it back for the gates that read the card image
+	/// after it.
+	struct Saved {
+		decltype(runtimeFeatureSettings.settings) settings;
+		std::string startupSong;
+		decltype(runtimeFeatureSettings.unknownSettings) unknown;
+	};
+	static Saved save() {
+		return {runtimeFeatureSettings.settings, runtimeFeatureSettings.startupSong,
+		        runtimeFeatureSettings.unknownSettings};
+	}
+	static void restore(const Saved& saved) {
+		runtimeFeatureSettings.settings = saved.settings;
+		runtimeFeatureSettings.startupSong = saved.startupSong;
+		runtimeFeatureSettings.unknownSettings = saved.unknown;
+	}
 	static void forgetPerformanceDefaults() { performanceView.successfullyReadDefaultsFromFile = false; }
 	static void readPerformanceDefaults() { performanceView.readDefaultsFromFile(); }
 	static bool performanceDefaultsLoaded() { return performanceView.successfullyReadDefaultsFromFile; }
@@ -147,6 +164,11 @@ enum class Stage : uint8_t {
 	OrphanWait,
 	OrphanReadWait,
 	OrphanCheck,
+	ResetStart,
+	ResetWait,
+	ResetWrite,
+	ResetWriteWait,
+	ResetCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -174,6 +196,9 @@ bool g_oversizeHadFile = false;
 std::vector<uint8_t> g_oversizeBefore;
 size_t g_unknownBefore = 0;
 int32_t g_tierBefore = 0;
+/// What the reset stage's factory reset discards, kept for the restore.
+std::optional<SettingsChannelProbe::Saved> g_beforeReset;
+size_t g_unknownAfterReset = 0;
 /// The seam's refused-tick count when the busy stage submitted its write.
 int32_t g_refusedBefore = 0;
 /// How many ticks the busy stage's write was refused, taken once the seam went idle.
@@ -725,6 +750,44 @@ void runTick() {
 			g_failures++;
 		}
 		(void)deluge::io::unlink(kOrphanPath);
+		g_stage = Stage::ResetStart;
+		break;
+	}
+	case Stage::ResetStart:
+		// A community-features factory reset forgets the unknown settings it read, so a settings file written after it
+		// does not carry them forward.
+		g_beforeReset = SettingsChannelProbe::save();
+		SettingsChannelProbe::addUnknownSetting("scResetProbe", 7);
+		runtimeFeatureSettings.factoryReset(false);
+		g_unknownAfterReset = SettingsChannelProbe::unknownSettingCount();
+		g_waitTicks = 0;
+		g_stage = Stage::ResetWait;
+		break;
+
+	case Stage::ResetWait:
+		waitIdleThen("SC-RESET", Stage::ResetWrite, Stage::ResetWrite);
+		break;
+
+	case Stage::ResetWrite:
+		runtimeFeatureSettings.writeSettingsToFile();
+		g_waitTicks = 0;
+		g_stage = Stage::ResetWriteWait;
+		break;
+
+	case Stage::ResetWriteWait:
+		waitIdleThen("SC-RESET", Stage::ResetCheck, Stage::ResetCheck);
+		break;
+
+	case Stage::ResetCheck: {
+		std::vector<uint8_t> written;
+		const bool hasFile = readWholeFile("SETTINGS/CommunityFeatures.XML", written);
+		const std::string text(written.begin(), written.end());
+		const bool carried = text.find("scResetProbe") != std::string::npos;
+		printf("SC-RESET unknownAfter=%zu file=%d carried=%d\n", g_unknownAfterReset, (int)hasFile, (int)carried);
+		if (g_unknownAfterReset != 0 || !hasFile || carried) {
+			printf("SC-RESET FAIL a factory reset kept an unknown setting and wrote it back\n");
+			g_failures++;
+		}
 		g_stage = Stage::Fallback;
 		break;
 	}
@@ -742,6 +805,9 @@ void runTick() {
 
 	case Stage::Restore:
 		// The card image is shared with other gates that read this file at boot: leave the setting as it was.
+		if (g_beforeReset) {
+			SettingsChannelProbe::restore(*g_beforeReset);
+		}
 		runtimeFeatureSettings.set(kProbeSetting, g_original);
 		runtimeFeatureSettings.writeSettingsToFile();
 		MIDIDeviceManager::dinMIDIPorts.sendClock = g_originalSendClock;
