@@ -88,6 +88,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/notify.h"
+#include <cassert>
 #include <iterator>
 #include <math.h>
 #include <new>
@@ -354,9 +355,17 @@ void PlaybackHandler::recordButtonPressed() {
 /// first start after boot -- and action every timer tick since in that one block. While the hold stands the render
 /// does not tick (`AudioEngine::tickSongFinalizeWindows` reads isClockStarting()); nothing is due before the start-up
 /// ends, so the first tick still lands where the start-up schedules it.
+///
+/// The ordering argument is the device's: one core, on which the render preempts the start-up at an instruction
+/// boundary and so sees its writes in program order. The fence keeps the compiler from moving the start-up's writes
+/// above the flag. On a multi-core host the render's plain `playbackState` load is not ordered against its load of the
+/// flag.
+///
+/// The flag is a bool, not a depth: start-ups do not nest, which the constructor asserts.
 class PlaybackHandler::ClockStartHold {
 public:
 	explicit ClockStartHold(PlaybackHandler& handler) : handler_(handler) {
+		assert(!handler_.clockStarting_.load(std::memory_order_relaxed));
 		handler_.clockStarting_.store(true, std::memory_order_relaxed);
 		// Every write of the start-up comes after this one, for the render that preempts it.
 		std::atomic_thread_fence(std::memory_order_seq_cst);

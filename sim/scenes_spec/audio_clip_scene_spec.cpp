@@ -121,8 +121,8 @@
 #include "spec/support/spec_main.h"
 
 /// @brief `PlaybackHandler`'s "the swung-tick answer is zero" latch
-///        (`playback/playback_handler.cpp:119`, read at
-///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`, `:1210-1219`).
+///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at
+///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`).
 ///
 /// Declared rather than included, exactly as `sim/scenes_spec/timeline_spec.cpp` declares it, and
 /// for its reason: `Clip::getLivePos()` adds

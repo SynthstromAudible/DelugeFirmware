@@ -84,8 +84,8 @@ using deluge::scenes::timeline::ZoomOutcome;
 namespace spec_fixture = deluge::scenes::spec;
 
 /// @brief `PlaybackHandler`'s own "the swung-tick answer is zero" latch
-///        (`playback/playback_handler.cpp:119`, read at
-///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`, `:1210-1219`).
+///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at
+///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`).
 ///
 /// Declared here rather than included because it is a file-scope global with no header declaration
 /// -- the same shape `menu/nodes/settings.cpp` uses for `jcong`. **Not a convenience.**

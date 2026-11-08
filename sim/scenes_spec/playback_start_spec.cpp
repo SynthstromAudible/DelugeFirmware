@@ -43,6 +43,27 @@ void render_block_in_startup() {
 	g_ticksScheduledInBlock = playbackHandler.nextTimerTickScheduled;
 }
 
+/// What the render saw and scheduled from a block in an external-clock start-up.
+struct ExternalBlock {
+	bool held = false;
+	bool swungTickScheduled = true;
+	bool midiClockOutTickScheduled = true;
+	bool triggerClockOutTickScheduled = true;
+};
+ExternalBlock g_external;
+
+/// The render block the device can run where an external-clock start-up's `setupPlayback` has published
+/// `playbackState`.
+void render_block_in_external_startup() {
+	g_preemptions++;
+	g_external.held = playbackHandler.isClockStarting();
+	size_t frames = kBlockFrames;
+	AudioEngine::tickSongFinalizeWindows(frames);
+	g_external.swungTickScheduled = playbackHandler.swungTickScheduled;
+	g_external.midiClockOutTickScheduled = playbackHandler.midiClockOutTickScheduled;
+	g_external.triggerClockOutTickScheduled = playbackHandler.triggerClockOutTickScheduled;
+}
+
 /// Stopped, at kStartSample, with the timebase a first start after boot finds.
 void reset_to_stopped() {
 	playbackHandler.playbackState = 0;
@@ -83,6 +104,31 @@ describe playback_start_spec_body("PlaybackHandler start-up under a preempting r
 		expect(static_cast<uint32_t>(playbackHandler.timeLastTimerTickBig >> 32)).to_equal(kStartSample);
 
 		playbackHandler.endPlayback();
+	});
+
+	it("a render block that lands while external-clock playback starts is held off the clock and schedules nothing", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		currentSong = fixture.song;
+		spec::QuietAudio quiet;
+		reset_to_stopped();
+		const bool midiOut = playbackHandler.midiOutClockEnabled;
+		playbackHandler.midiOutClockEnabled = true; // so the render has a clock-out tick to schedule
+		g_external = {};
+
+		deluge::playback::renderPreemptsStartupForHarness = render_block_in_external_startup;
+		playbackHandler.setupPlaybackUsingExternalClock(false);
+		deluge::playback::renderPreemptsStartupForHarness = nullptr;
+
+		expect(g_preemptions).to_equal(1);
+		expect(playbackHandler.isExternalClockActive()).to_be_true();
+		expect(g_external.held).to_be_true();
+		expect(g_external.swungTickScheduled).to_be_false();
+		expect(g_external.midiClockOutTickScheduled).to_be_false();
+		expect(g_external.triggerClockOutTickScheduled).to_be_false();
+		expect(playbackHandler.isClockStarting()).to_be_false();
+
+		playbackHandler.endPlayback();
+		playbackHandler.midiOutClockEnabled = midiOut;
 	});
 });
 // clang-format on

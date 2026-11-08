@@ -330,7 +330,7 @@ void midiGateOutputTimerFired();
 /// recording is live". `setMonitoringMode()` below enables input monitoring only for the two
 /// channels the recorder UI arms; `hid/buttons.cpp:147,180` gate shift+RECORD on them;
 /// `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
-/// `playback/playback_handler.cpp:2503`, `playback/mode/arrangement.cpp:328`,
+/// `PlaybackHandler::setLedStates`, `playback/mode/arrangement.cpp:328`,
 /// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5535` and
 /// `gui/ui/browser/sample_browser.cpp:492` all test one of them.
 ///
