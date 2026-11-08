@@ -31,3 +31,11 @@ and high-pass positions (`LowPassSlot`, `HighPassSlot`), the instrument a track 
 `InstrumentSlot`), a menu position (`SlotPosition`), a one-entry mailbox (the stream channel's `AnswerSlot`). A slot
 is never one of N parallel copies (that is a lane of `Poly`, `Bank` or `Linked`) and never a deduplicated read (the
 matrix's source reads).
+
+## Lane
+
+In DSP code a **lane** is one element of a SIMD vector. A name may say "lane" only in that sense: the vector holding
+the lanes (`detail::F32Lanes`), a mask over them (`Poly::LaneMask`), the per-lane pointers a loop steps
+(`Poly::LanePointers`), the lane an index picks (`set_lane`, `get_lane`). An adaptor or a component is named for how
+its copies relate (`Mono`, `Linked`, `Stereo`, `Poly`, `Bank`, `Taps`, `Copies`), never "lanes". Outside DSP, a lane is
+an automation or param lane (`LaneSnapshot`, `PublishedLane`, `LaneView`) or a kit's row in the song topology.
