@@ -2,7 +2,7 @@
 title: "Embedded Foundations"
 date: 2026-11-08
 authors:
-  - Katherine Whitlock
+  - katherine-whitlock
 ---
 
 Hi everyone, I'm Katherine Whitlock, one of the core maintainers of the Deluge's Community Firmware alongside Mark and Sean. For the last six to eight months I've been working on a branch internally called `next`, which is planned to be the second major release (i.e. 2.x). As we get closer to releasing it, currently planned for the end of January, I thought it might be worth doing a set of blog posts on _what_ the major changes are and why they're being done. These include, but are not limited to, topics like:
@@ -18,6 +18,8 @@ Hi everyone, I'm Katherine Whitlock, one of the core maintainers of the Deluge's
 - The Deluge's synth architecture
 
 And many other things!
+
+<!-- excerpt -->
 
 So without further ado, here's the first entry in the series:
 

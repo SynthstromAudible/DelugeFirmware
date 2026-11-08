@@ -68,27 +68,25 @@ const readouts = [
     set:html={plot}
   />
   <div class="gb-env-readouts">
-    {
-      readouts.map(({ key, title, caption }) => (
-        <label class="gb-env-oled">
-          <span class="gb-env-oled-title">ENV1 {title}</span>
-          <output>{settings[key]}</output>
-          <input
-            type="range"
-            min="0"
-            max="50"
-            step="1"
-            value={settings[key]}
-            data-param={key}
-            autocomplete="off"
-            aria-label={`Envelope ${key}`}
-            style={`--fill: ${settings[key] * 2}%`}
-            disabled
-          />
-          <span class="gb-env-oled-caption">{caption}</span>
-        </label>
-      ))
-    }
+    {readouts.map(({ key, title, caption }) => (
+      <label class="gb-env-oled">
+        <span class="gb-env-oled-title">ENV1 {title}</span>
+        <output>{settings[key]}</output>
+        <input
+          type="range"
+          min="0"
+          max="50"
+          step="1"
+          value={settings[key]}
+          data-param={key}
+          autocomplete="off"
+          aria-label={`Envelope ${key}`}
+          style={`--fill: ${settings[key] * 2}%`}
+          disabled
+        />
+        <span class="gb-env-oled-caption">{caption}</span>
+      </label>
+    ))}
     <p class="gb-env-sticker" hidden>
       <svg class="gb-env-sticker-leader" aria-hidden="true" height="10">
         <line x1="7.7" y1="5" x2="100%" y2="5"></line>
@@ -96,9 +94,10 @@ const readouts = [
       </svg>
       <span class="gb-env-sticker-text">
         <span class="gb-env-sticker-title">TRY IT</span>
-        <span class="gb-env-sticker-hint"
-          >(drag a bar, <br />or hold a note)</span
-        >
+        <span class="gb-env-sticker-hint">
+          (drag a bar, <br />
+          or hold a note)
+        </span>
       </span>
     </p>
   </div>
@@ -108,12 +107,13 @@ const readouts = [
     </button>
     <fieldset class="gb-env-dest-choice">
       <legend>Modulating</legend>
-      <label
-        ><input type="radio" name={`${id}-dest`} value="volume" /> Volume</label
-      >
-      <label
-        ><input type="radio" name={`${id}-dest`} value="other" checked /> Other destination</label
-      >
+      <label>
+        <input type="radio" name={`${id}-dest`} value="volume" /> Volume
+      </label>
+      <label>
+        <input type="radio" name={`${id}-dest`} value="other" checked /> Other
+        destination
+      </label>
     </fieldset>
   </div>
 </figure>
