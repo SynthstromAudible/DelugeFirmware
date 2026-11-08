@@ -264,11 +264,12 @@ inline constexpr Node arp_rhythm = with_column_art(
     arp_rhythm_art);
 /// A MIDI or CV arp's host values are settings, which legacy's items write on the selected arp alone.
 inline constexpr Node arp_rhythm_midi =
-    with_column_art(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM), Kind::Int,
-                                                       arp_row("arpeggiator/rhythm", false)),
-                                          sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
-                               2),
-                    arp_rhythm_midi_art);
+    with_leaf_text(with_column_art(with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RHYTHM),
+                                                                      Kind::Int, arp_row("arpeggiator/rhythm", false)),
+                                                         sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
+                                              2),
+                                   arp_rhythm_midi_art),
+                   arp_rhythm_name_text);
 inline constexpr Node arp_sequence_length = with_value_text(
     with_short_column_label(param(
         sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),

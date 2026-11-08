@@ -575,27 +575,6 @@ void set_default_magnitude(const MenuContext&, int32_t value) {
 	const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
 	FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
 }
-size_t default_magnitude_names(const MenuContext&, std::span<std::string_view> out) {
-	// `defaults::Magnitude` has no option *names*: it draws `96 << value`
-	// (`defaults/magnitude.h:22-29`) over a `size()` of 7 (`:31`). The seven numbers are built here
-	// so the node still has a list to page through.
-	static char buffers[7][8];
-	size_t n = 0;
-	for (int32_t i = 0; i < 7 && n < out.size(); i++) {
-		int32_t value = 96 << i;
-		size_t len = 0;
-		char digits[8];
-		while (value > 0 && len < sizeof(digits)) {
-			digits[len++] = static_cast<char>('0' + value % 10);
-			value /= 10;
-		}
-		for (size_t d = 0; d < len; d++) {
-			buffers[i][d] = digits[len - 1 - d];
-		}
-		out[n++] = std::string_view{buffers[i], len};
-	}
-	return n;
-}
 
 int32_t get_default_bend_range(const MenuContext&) {
 	return FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; // `defaults/bend_range.h:26 readCurrentValue`

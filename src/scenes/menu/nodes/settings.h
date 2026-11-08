@@ -253,7 +253,6 @@ int32_t get_default_velocity(const MenuContext& ctx);
 void set_default_velocity(const MenuContext& ctx, int32_t value);
 int32_t get_default_magnitude(const MenuContext& ctx);
 void set_default_magnitude(const MenuContext& ctx, int32_t value);
-size_t default_magnitude_names(const MenuContext& ctx, std::span<std::string_view> out);
 int32_t get_default_bend_range(const MenuContext& ctx);
 void set_default_bend_range(const MenuContext& ctx, int32_t value);
 int32_t get_default_metronome_volume(const MenuContext& ctx);
@@ -933,13 +932,13 @@ inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kD
 inline constexpr Node default_velocity = with_title(
     int_item(sid(String::STRING_FOR_VELOCITY), get_default_velocity, set_default_velocity, IntRange{1, 127, 1}),
     sid(String::STRING_FOR_DEFAULT_VELOC_MENU_TITLE));
-/// `defaults::Magnitude` is an `Enumeration` with `size() == 7` that draws `96 << value`
-/// (`defaults/magnitude.h:29-32`), i.e. a number rather than a name -- so the option list is the
-/// seven resolutions, built at render time.
+/// `defaults::Magnitude` (`defaults/magnitude.h`): an `Enumeration` of seven whose screen is one number, `96 << value`;
+/// it turns and clamps as an integer does.
 inline constexpr Node default_magnitude =
-    with_title(dynamic_enumeration(sid(String::STRING_FOR_RESOLUTION), default_magnitude_names, get_default_magnitude,
-                                   set_default_magnitude),
-               sid(String::STRING_FOR_DEFAULT_RESOL_MENU_TITLE));
+    with_leaf_text(with_title(int_item(sid(String::STRING_FOR_RESOLUTION), get_default_magnitude, set_default_magnitude,
+                                       IntRange{0, 6, 1}),
+                              sid(String::STRING_FOR_DEFAULT_RESOL_MENU_TITLE)),
+                   default_magnitude_text);
 inline constexpr Node default_bend_range = with_title(
     int_item(sid(String::STRING_FOR_BEND_RANGE), get_default_bend_range, set_default_bend_range, IntRange{0, 96, 1}),
     sid(String::STRING_FOR_DEFAULT_BEND_R));
@@ -986,8 +985,9 @@ inline constexpr Node default_slice_mode =
                sid(String::STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE));
 inline constexpr Node default_cpu_indicator = toggle_item(sid(String::STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR),
                                                           get_default_cpu_indicator, set_default_cpu_indicator);
-inline constexpr Node default_hold_time =
-    int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1});
+inline constexpr Node default_hold_time = with_leaf_text(
+    int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1}),
+    hold_time_text);
 
 /// `ScreensaverModeMenu::getOptions` (`defaults/screensaver.h:44-50`).
 inline constexpr uint16_t kScreensaverModeNames[] = {
@@ -998,9 +998,11 @@ inline constexpr uint16_t kScreensaverModeNames[] = {
 };
 inline constexpr Node screensaver_mode = enumeration(sid(String::STRING_FOR_SCREENSAVER_MODE), kScreensaverModeNames,
                                                      get_screensaver_mode, set_screensaver_mode);
-inline constexpr Node screensaver_timeout =
+/// `ScreensaverTimeout` (`defaults/screensaver.h`): minutes, with `getUnit`'s " MIN".
+inline constexpr Node screensaver_timeout = with_value_style(
     int_item(sid(String::STRING_FOR_SCREENSAVER_TIMEOUT), get_screensaver_timeout, set_screensaver_timeout,
-             IntRange{kMinScreensaverTimeoutMinutes, kMaxScreensaverTimeoutMinutes, 1});
+             IntRange{kMinScreensaverTimeoutMinutes, kMaxScreensaverTimeoutMinutes, 1}),
+    {.unit = " MIN"});
 inline constexpr const Node* kScreensaverChildren[] = {&screensaver_mode, &screensaver_timeout};
 inline constexpr Node screensaver = submenu(sid(String::STRING_FOR_SCREENSAVER), kScreensaverChildren);
 

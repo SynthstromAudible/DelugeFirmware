@@ -70,6 +70,12 @@ ValueText cv_volts_word(const MenuContext& ctx, int32_t value, ValueTextUse use,
 ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:50-73`): AUTO below zero.
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `defaults::HoldTime::getDisplayValue`/`getUnit`: twentieths of a second, 1..19 in milliseconds, 20 as 1 SEC.
+ValueText hold_time_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `defaults::Magnitude::drawPixelsForOled`: the resolution, `96 << value`.
+ValueText default_magnitude_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `arpeggiator::midi_cv::Rhythm::drawInteger`: the pattern's name.
+ValueText arp_rhythm_name_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `sample::Reverse` and `audio_clip::Reverse::getNotificationValue` (`sample/reverse.h:77-79`): ON or OFF.
 ValueText on_off_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::Width::getColumnLabel` (`reverb/width.h`): DIFFUSION for the plate models, else the short width.

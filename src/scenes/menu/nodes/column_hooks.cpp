@@ -320,6 +320,32 @@ ValueText ducking_auto_text(const MenuContext&, int32_t value, ValueTextUse use,
 	return use == ValueTextUse::Notification ? put_int(value, out) : kValueTextFallback;
 }
 
+ValueText hold_time_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column) {
+		return kValueTextFallback;
+	}
+	if (value == 20) {
+		return put("1 SEC", out);
+	}
+	char buf[12];
+	const int written = std::snprintf(buf, sizeof(buf), "%d MS", static_cast<int>(value * 50));
+	return written <= 0 ? ValueText{} : put(std::string_view{buf, static_cast<size_t>(written)}, out);
+}
+
+ValueText default_magnitude_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > 6) {
+		return kValueTextFallback;
+	}
+	return put_int(96 << value, out);
+}
+
+ValueText arp_rhythm_name_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+		return kValueTextFallback;
+	}
+	return put(arpRhythmPatternNames[static_cast<size_t>(value)], out);
+}
+
 ValueText on_off_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use != ValueTextUse::Notification) {
 		return kValueTextFallback;

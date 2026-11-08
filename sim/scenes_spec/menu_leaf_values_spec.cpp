@@ -38,6 +38,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/project_bridge/patch_cable_words.h"
+#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/sync.h"
@@ -360,6 +361,66 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 			expect(screen_text(*n, r.ctx, 128)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_NONE)});
 			expect(screen_text(*n, r.ctx, 7)).to_equal(std::string{});
 		}
+	});
+
+	it("names a sound's MIDI output channel 0 Off, from l10n as OutputMidiChannel::drawInteger does", _ {
+		Rig r;
+		expect(screen_text(nodes::output_midi_channel, r.ctx, 0))
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_OFF)});
+		expect(screen_text(nodes::output_midi_channel, r.ctx, 5)).to_equal(std::string{});
+	});
+
+	it("spells the hold time in milliseconds, and its top as 1 SEC", _ {
+		Rig r;
+		expect(screen_text(nodes::default_hold_time, r.ctx, 1)).to_equal(std::string{"50 MS"});
+		expect(screen_text(nodes::default_hold_time, r.ctx, 19)).to_equal(std::string{"950 MS"});
+		expect(screen_text(nodes::default_hold_time, r.ctx, 20)).to_equal(std::string{"1 SEC"});
+	});
+
+	it("draws the hold time's text in the huge face where the digits go", _ {
+		Rig r;
+		const auto saved = FlashStorage::defaultHoldTime;
+		FlashStorage::defaultHoldTime = 20;
+		r.open(nodes::default_hold_time);
+		deluge::ui::test::Rig48 rig;
+		draw(rig, 0);
+		rig.reference.draw_string_centred("1 SEC", 18 + 5, 18, 20);
+		expect(rows_match(rig, 23, 42)).to_be_true();
+		FlashStorage::defaultHoldTime = saved;
+	});
+
+	it("appends MIN to the screensaver timeout", _ {
+		Rig r;
+		const auto saved = FlashStorage::screensaverTimeoutMinutes;
+		FlashStorage::screensaverTimeoutMinutes = 5;
+		r.open(nodes::screensaver_timeout);
+		deluge::ui::test::Rig48 rig;
+		draw(rig, 0);
+		rig.reference.draw_string_centred("5 MIN", 18 + 5, 18, 20);
+		expect(rows_match(rig, 23, 42)).to_be_true();
+		FlashStorage::screensaverTimeoutMinutes = saved;
+	});
+
+	it("names the reverb ducking's AUTO on its full screen", _ {
+		Rig r;
+		expect(screen_text(nodes::reverb_sidechain_volume, r.ctx, -1))
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_AUTO)});
+		expect(screen_text(nodes::reverb_sidechain_volume, r.ctx, 20)).to_equal(std::string{});
+	});
+
+	it("draws the default resolution as one number, 96 << value, over seven values", _ {
+		Rig r;
+		expect(nodes::default_magnitude.kind == menu::Kind::Int).to_be_true();
+		expect(menu::bindings::range(nodes::default_magnitude, r.ctx).min).to_equal(0);
+		expect(menu::bindings::range(nodes::default_magnitude, r.ctx).max).to_equal(6);
+		expect(screen_text(nodes::default_magnitude, r.ctx, 0)).to_equal(std::string{"96"});
+		expect(screen_text(nodes::default_magnitude, r.ctx, 2)).to_equal(std::string{"384"});
+		expect(screen_text(nodes::default_magnitude, r.ctx, 6)).to_equal(std::string{"6144"});
+	});
+
+	it("names a MIDI or CV arpeggiator's rhythm by its pattern", _ {
+		Rig r;
+		expect(screen_text(nodes::arp_rhythm_midi, r.ctx, 3)).to_equal(std::string{arpRhythmPatternNames[3]});
 	});
 });
 // clang-format on

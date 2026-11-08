@@ -236,11 +236,13 @@ inline constexpr Node reverb_lpf = setting_item(sid(deluge::l10n::String::STRING
                                                  .group = deluge::project::SettingGroupId::SONG},
                                                 Hint::Lpf);
 
-inline constexpr Node reverb_sidechain_volume = with_column_name(
-    with_value_text(int_item(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), get_reverb_sidechain_volume,
-                             set_reverb_sidechain_volume, IntRange{-1, kMaxMenuValue, 1}, Hint::Ducking),
-                    ducking_auto_text),
-    sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
+inline constexpr Node reverb_sidechain_volume =
+    with_leaf_text(with_column_name(with_value_text(int_item(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING),
+                                                             get_reverb_sidechain_volume, set_reverb_sidechain_volume,
+                                                             IntRange{-1, kMaxMenuValue, 1}, Hint::Ducking),
+                                                    ducking_auto_text),
+                                    sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT)),
+                   ducking_auto_text);
 inline constexpr Node reverb_sidechain_shape =
     with_column_name(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SHAPE), Kind::Int,
                                              {.kind = deluge::scenes::bind::Target::Kind::MODEL,
