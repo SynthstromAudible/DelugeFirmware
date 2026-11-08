@@ -150,6 +150,10 @@ uint32_t routine();
 bool routine_task();
 void routineWithClusterLoading();
 void runRoutine();
+/// @brief The render's sequencer step for one window: action every timer and swung tick due at the window's start, and
+///        shorten @p numSamples so the window ends at the next one. Runs on the audio tier, from the render.
+/// @param numSamples The window's length in samples; shortened in place to end at the next tick.
+void tickSongFinalizeWindows(size_t& numSamples);
 
 void init();
 /// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the

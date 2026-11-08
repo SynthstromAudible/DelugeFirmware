@@ -315,7 +315,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// unrefcounted. There is one WorkingScene and no record of who armed it, so when two
 			// subsystems have a Kind::Working up at once, whichever raises ClearWorking first takes
 			// the other's animation down and leaves it working with no indicator. Two raisers
-			// exist today: `PlaybackHandler::doSongSwap` (`playback/playback_handler.cpp:1564`, via
+			// exist today: `PlaybackHandler::doSongSwap` (via
 			// `notice_working`, `util/notify.h:52`) and the scenes layer's async listing seam
 			// (`scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
 			// Closing it means a refcount, or an owner token on the arm/clear pair, so a clear from

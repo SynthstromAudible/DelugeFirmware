@@ -139,7 +139,7 @@
 ///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` . The two fill adjustments
 ///     (`:345-354`) name `instrumentClipView`, on `scenes-no-root-ui`'s list, and `InstrumentClipScene`
 ///     is not ported. What survives is the arm's "otherwise", `currentSong->changeFillMode(on)`.
-///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`playback_handler.cpp:2508-2509`).
+///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`PlaybackHandler::setLedStates`).
 ///     The external-clock LED is a board *signal*, not an `IndicatorLED`, so it has no `ButtonId`
 ///     and therefore no `ui::LedId` (`shell/profiles/deluge.h`: "LedId values = ButtonId values").
 ///     `LedFrame` cannot express it. Owed to whoever widens the LED surface.

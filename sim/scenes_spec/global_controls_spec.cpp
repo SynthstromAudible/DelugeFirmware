@@ -170,7 +170,7 @@ struct StubDisplay final : deluge::hid::Display {
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
 /// `PlaybackHandler::playButtonPressed` reaches `AudioEngine::routineWithClusterLoading`
-/// (`playback/playback_handler.cpp:572`), which **segfaults** in a spec process on the host input
+/// (`PlaybackHandler::setupPlayback`), which **segfaults** in a spec process on the host input
 /// ring (`AudioEngine::inputRing`). `support/card_access.h` exists precisely so
 /// this disarm is not re-derived per spec; what it disarms is `AudioEngine::routine()`, which
 /// returns immediately while `audioRoutineLocked` is set. Nothing this spec asserts is part of the
@@ -375,7 +375,7 @@ struct GcRig {
 	// reached when PLAY goes down with RECORD held and playback running -- and nothing in a spec
 	// process ever reaps it (`AudioRecorder::slowRoutine` is not driven here). Left standing, it
 	// makes `AudioEngine::foregroundRecordingSource()` report `OUTPUT` for every later example,
-	// which suppresses the RECORD LED (`playback_handler.cpp:2503-2506`) and flips the PLAY arm's
+	// which suppresses the RECORD LED (`PlaybackHandler::setLedStates`) and flips the PLAY arm's
 	// first test (`:147`). Cleared through the published seam, which is the same storage
 	// (`processing/engines/audio_engine.h`).
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
@@ -1136,9 +1136,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		const std::vector<std::pair<uint8_t, bool>> got = led_pairs(f, 0);
 		const std::vector<std::pair<uint8_t, bool>> want{
-		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2581`
-		    {static_cast<uint8_t>(ButtonId::Record), false},      // `:2585`
-		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2591`
+		    {static_cast<uint8_t>(ButtonId::Play), false},        // `PlaybackHandler::setLedStates`
+		    {static_cast<uint8_t>(ButtonId::Record), false},      // `PlaybackHandler::setLedStates`
+		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `PlaybackHandler::setLedStates`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
 		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:325`
@@ -1169,7 +1169,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(led_is(f, ButtonId::Load, deluge::ui::LedState::Kind::Off)).to_be_true();
 		rig.press(ButtonId::Save, false, 26'005 + GlobalControls::kShortPressMs);
 
-		// `playback_handler.cpp:2503-2506`: while recording to the arrangement the RECORD LED
+		// `PlaybackHandler::setLedStates`: while recording to the arrangement the RECORD LED
 		// is not declared at all.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		deluge::ui::LedFrame f2;

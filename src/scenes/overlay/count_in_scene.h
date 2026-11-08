@@ -7,7 +7,7 @@
 /// Ports the count-in half of `drain_notifications` (`gui/ui/notify_drain.cpp:92-114`). This is
 /// **not** a `View`/UI method at all -- the digit itself is `PlaybackHandler::count_in_visual()`
 /// (`PlaybackHandler::count_in_visual`), moved by `PlaybackHandler::setupPlayback()`'s count-in entry
-/// (`playback_handler.cpp:441-447`, resetting it to 0 and setting `UI_MODE_RECORD_COUNT_IN`) and
+/// (`PlaybackHandler::setupPlaybackUsingInternalClock`, resetting it to 0 and setting `UI_MODE_RECORD_COUNT_IN`) and
 /// by `PlaybackHandler::considerPlaybackTiming()`'s tick tree, both when a count-in position first
 /// starts recording (`:1037-1039`, resetting the count to 0) and, otherwise, on every remaining
 /// beat (`:1044-1051`). The popup lifecycle -- when it draws, and when it stops -- is

@@ -346,6 +346,29 @@ void PlaybackHandler::recordButtonPressed() {
 	}
 }
 
+/// @brief Held by a start-up from stopped from before `setupPlayback` publishes `playbackState` until the clock's
+///        timebase is set.
+///
+/// The render runs on the audio tier, which preempts the start-up wherever it is. A block that lands after
+/// `playbackState` is published sees the clock running; ticking it then would start from the old timebase -- 0 on the
+/// first start after boot -- and action every timer tick since in that one block. While the hold stands the render
+/// does not tick (`AudioEngine::tickSongFinalizeWindows` reads isClockStarting()); nothing is due before the start-up
+/// ends, so the first tick still lands where the start-up schedules it.
+class PlaybackHandler::ClockStartHold {
+public:
+	explicit ClockStartHold(PlaybackHandler& handler) : handler_(handler) {
+		handler_.clockStarting_.store(true, std::memory_order_relaxed);
+		// Every write of the start-up comes after this one, for the render that preempts it.
+		std::atomic_thread_fence(std::memory_order_seq_cst);
+	}
+	~ClockStartHold() { handler_.clockStarting_.store(false, std::memory_order_release); }
+	ClockStartHold(const ClockStartHold&) = delete;
+	ClockStartHold& operator=(const ClockStartHold&) = delete;
+
+private:
+	PlaybackHandler& handler_;
+};
+
 void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn,
                                                       bool restartingPlayback, bool restartingPlaybackAtBeginning) {
 	if (!currentSong) {
@@ -471,6 +494,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 		newPlaybackState |= PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 	}
 
+	// The render must not tick the clock until its timebase is set, below.
+	ClockStartHold hold{*this};
+
 	// The next timer tick will be 0, and we need to set this here because the call to setupPlayback(), below,
 	// may well do things which need to look at the current internal tick count (e.g. AudioClip::resume()), and that
 	// reads from this.
@@ -559,6 +585,11 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	                            // and insanely most stuff worked
 
 	playbackState = newPlaybackState;
+#if defined(DELUGE_HOST)
+	if (deluge::playback::renderPreemptsStartupForHarness != nullptr) {
+		deluge::playback::renderPreemptsStartupForHarness();
+	}
+#endif
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
@@ -1658,6 +1689,9 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 	int32_t newPlaybackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
 
 	if (!switchingFromInternalClock) {
+		// Playback is stopped here; the render must not tick the clock, or schedule its clock-out ticks, from state
+		// setupPlayback() has not finished writing.
+		ClockStartHold hold{*this};
 		bool shouldShiftAccordingToClipInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
 		decideOnCurrentPlaybackMode();
 		setupPlayback(newPlaybackState, posToNextContinuePlaybackFrom, false, shouldShiftAccordingToClipInstance);
