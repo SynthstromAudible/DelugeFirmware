@@ -40,6 +40,10 @@ constexpr float initialdry = 0;
 constexpr float initialwidth = 1;
 constexpr int32_t stereospread = 23;
 
+// Most frames processed in one block, and so how far a block can run past the end of a delay line's buffer: the size of
+// the spare overhang after each buffer (see DelayLines)
+constexpr int32_t maxblockframes = 128;
+
 // These values assume 44.1KHz sample rate
 // they will probably be OK for 48KHz sample rate
 // but would need scaling for 96KHz (or other) sample rates.

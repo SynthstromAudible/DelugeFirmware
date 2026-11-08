@@ -75,16 +75,10 @@ public:
 		int32_t out_r = 0;
 
 		// Accumulate comb filters in parallel
-		for (int32_t i = 0; i < numcombs; i++) {
-			out_l += combL[i].process(input);
-			out_r += combR[i].process(input);
-		}
+		combs_.process(input, out_l, out_r);
 
 		// Feed through allpasses in series
-		for (int32_t i = 0; i < numallpasses; i++) {
-			out_l = allpassL[i].process(out_l);
-			out_r = allpassR[i].process(out_r);
-		}
+		allpasses_.process(out_l, out_r);
 
 		// Calculate output
 		out_l = (out_l + multiply_32x32_rshift32_rounded(out_r, wet2)) << 1;
@@ -95,18 +89,7 @@ public:
 		output_sample.r += multiply_32x32_rshift32_rounded(out_r, this->getPanRight());
 	}
 
-	[[gnu::always_inline]] void process(std::span<int32_t> input, std::span<StereoSample> output) override {
-		// HPF on reverb input, cos if it has DC offset, the reverb magnifies that, and the sound farts out
-		for (int32_t& reverb_sample : input) {
-			int32_t distance_to_go_l = reverb_sample - reverb_send_post_lpf_;
-			reverb_send_post_lpf_ += distance_to_go_l >> 11;
-			reverb_sample -= reverb_send_post_lpf_;
-		}
-
-		for (size_t frame = 0; frame < input.size(); frame++) {
-			ProcessOne(input[frame], output[frame]);
-		}
-	}
+	void process(std::span<int32_t> input, std::span<StereoSample> output) override;
 
 private:
 	void update();
@@ -125,40 +108,38 @@ private:
 	// with its subsequent error-checking messiness
 
 	// Comb filters
-	std::array<freeverb::Comb, numcombs> combL;
-	std::array<freeverb::Comb, numcombs> combR;
+	freeverb::Combs combs_;
 
 	// Allpass filters
-	std::array<freeverb::Allpass, numallpasses> allpassL;
-	std::array<freeverb::Allpass, numallpasses> allpassR;
+	freeverb::Allpasses allpasses_;
 
 	// Buffers for the combs
-	std::array<int32_t, combtuningL1> bufcombL1;
-	std::array<int32_t, combtuningR1> bufcombR1;
-	std::array<int32_t, combtuningL2> bufcombL2;
-	std::array<int32_t, combtuningR2> bufcombR2;
-	std::array<int32_t, combtuningL3> bufcombL3;
-	std::array<int32_t, combtuningR3> bufcombR3;
-	std::array<int32_t, combtuningL4> bufcombL4;
-	std::array<int32_t, combtuningR4> bufcombR4;
-	std::array<int32_t, combtuningL5> bufcombL5;
-	std::array<int32_t, combtuningR5> bufcombR5;
-	std::array<int32_t, combtuningL6> bufcombL6;
-	std::array<int32_t, combtuningR6> bufcombR6;
-	std::array<int32_t, combtuningL7> bufcombL7;
-	std::array<int32_t, combtuningR7> bufcombR7;
-	std::array<int32_t, combtuningL8> bufcombL8;
-	std::array<int32_t, combtuningR8> bufcombR8;
+	std::array<int32_t, combtuningL1 + maxblockframes> bufcombL1;
+	std::array<int32_t, combtuningR1 + maxblockframes> bufcombR1;
+	std::array<int32_t, combtuningL2 + maxblockframes> bufcombL2;
+	std::array<int32_t, combtuningR2 + maxblockframes> bufcombR2;
+	std::array<int32_t, combtuningL3 + maxblockframes> bufcombL3;
+	std::array<int32_t, combtuningR3 + maxblockframes> bufcombR3;
+	std::array<int32_t, combtuningL4 + maxblockframes> bufcombL4;
+	std::array<int32_t, combtuningR4 + maxblockframes> bufcombR4;
+	std::array<int32_t, combtuningL5 + maxblockframes> bufcombL5;
+	std::array<int32_t, combtuningR5 + maxblockframes> bufcombR5;
+	std::array<int32_t, combtuningL6 + maxblockframes> bufcombL6;
+	std::array<int32_t, combtuningR6 + maxblockframes> bufcombR6;
+	std::array<int32_t, combtuningL7 + maxblockframes> bufcombL7;
+	std::array<int32_t, combtuningR7 + maxblockframes> bufcombR7;
+	std::array<int32_t, combtuningL8 + maxblockframes> bufcombL8;
+	std::array<int32_t, combtuningR8 + maxblockframes> bufcombR8;
 
 	// Buffers for the allpasses
-	std::array<int32_t, allpasstuningL1> bufallpassL1;
-	std::array<int32_t, allpasstuningR1> bufallpassR1;
-	std::array<int32_t, allpasstuningL2> bufallpassL2;
-	std::array<int32_t, allpasstuningR2> bufallpassR2;
-	std::array<int32_t, allpasstuningL3> bufallpassL3;
-	std::array<int32_t, allpasstuningR3> bufallpassR3;
-	std::array<int32_t, allpasstuningL4> bufallpassL4;
-	std::array<int32_t, allpasstuningR4> bufallpassR4;
+	std::array<int32_t, allpasstuningL1 + maxblockframes> bufallpassL1;
+	std::array<int32_t, allpasstuningR1 + maxblockframes> bufallpassR1;
+	std::array<int32_t, allpasstuningL2 + maxblockframes> bufallpassL2;
+	std::array<int32_t, allpasstuningR2 + maxblockframes> bufallpassR2;
+	std::array<int32_t, allpasstuningL3 + maxblockframes> bufallpassL3;
+	std::array<int32_t, allpasstuningR3 + maxblockframes> bufallpassR3;
+	std::array<int32_t, allpasstuningL4 + maxblockframes> bufallpassL4;
+	std::array<int32_t, allpasstuningR4 + maxblockframes> bufallpassR4;
 
 	int32_t reverb_send_post_lpf_ = 0;
 };
