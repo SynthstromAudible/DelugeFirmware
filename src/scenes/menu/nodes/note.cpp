@@ -187,6 +187,18 @@ bool permitted_row(const MenuContext&) {
 // The three bespoke value texts, shared by both families.
 // -------------------------------------------------------------------------------------------
 
+/// A probability value split as the editors store it: the percentage in fives, and whether the note latches (a value
+/// past `kNumProbabilityValues` carries the latch above its low seven bits).
+struct ProbabilityShown {
+	int32_t percent;
+	bool latching;
+};
+
+ProbabilityShown probability_shown(int32_t value) {
+	const bool latching = value > kNumProbabilityValues;
+	return {.percent = (latching ? value & 127 : value) * 5, .latching = latching};
+}
+
 /// `Probability::getProbabilityValue` (`note/probability.h:93-104`), and its two callers:
 /// `renderInHorizontalMenu` (`:70-79`, column: `"35%"`/`"35L"`) and `getNotificationValue`
 /// (`:81-89`, notification: `"35%"`/`"35% ltch"`). `note_row::Probability` is byte-identical
@@ -195,13 +207,7 @@ ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;
 	}
-	bool latching = false;
-	int32_t probability = value;
-	if (probability > kNumProbabilityValues) {
-		probability &= 127;
-		latching = true;
-	}
-	const int32_t shown = probability * 5;
+	const auto [shown, latching] = probability_shown(value);
 
 	char buffer[24];
 	int written =
@@ -261,15 +267,10 @@ ValueText leaf_text_probability(const MenuContext&, int32_t value, ValueTextUse 
 	if (use != ValueTextUse::Column) {
 		return kValueTextFallback;
 	}
-	bool latching = false;
-	int32_t probability = value;
-	if (probability > kNumProbabilityValues) {
-		probability &= 127;
-		latching = true;
-	}
+	const auto [shown, latching] = probability_shown(value);
 	char buffer[24];
 	const int written =
-	    std::snprintf(buffer, sizeof(buffer), "%d%%%s", static_cast<int>(probability * 5), latching ? " (L)" : "");
+	    std::snprintf(buffer, sizeof(buffer), "%d%%%s", static_cast<int>(shown), latching ? " (L)" : "");
 	if (written <= 0) {
 		return ValueText{};
 	}
