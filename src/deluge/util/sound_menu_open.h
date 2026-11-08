@@ -49,6 +49,10 @@ void readSoundMenuValueAgain();
 ///        `SoundEditor::mpeZonesPotentiallyUpdated`, and the ported member-channel page re-read when it is frontmost.
 void mpeZonesPotentiallyUpdated();
 
+/// @brief Legacy's `currentUI == &sampleBrowser || &sampleMarkerEditor || &renameDrumUI`, or the guest's ported sample
+///        browser, marker editor or drum rename frontmost: the UIs under which `setSelectedDrum` keeps the selection.
+bool drumSelectionFrozen();
+
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu`,
 ///        or the ported menu frontmost on the note-range picker.
 bool rangePickerOpen();

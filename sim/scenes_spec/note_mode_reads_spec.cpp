@@ -740,7 +740,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
 	   "`preventOverScrolling`", _ {
-		// `gui/views/instrument_clip_view.cpp:4455` into `scrollVertical_limit`'s `:4531-4516`: no row at the
+		// `InstrumentClipView::scrollVertical`'s `preventOverScrolling` limit: no row at the
 		// auditioned y once scrolled, so no scroll.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

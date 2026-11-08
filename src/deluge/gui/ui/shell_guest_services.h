@@ -145,6 +145,16 @@ void shellMenuReadValueAgain();
 ///        re-reads it, as `SoundEditor::mpeZonesPotentiallyUpdated` re-reads `zoneNumMemberChannelsMenu`.
 void shellMpeZonesPotentiallyUpdated();
 
+/// @brief Whether a scene of kind @p kind frontmost on the guest stands for one of the three UIs under which
+///        `InstrumentClipView::setSelectedDrum` keeps the kit's selection: the sample browser, the sample marker
+///        editor and the drum rename.
+/// @param kind  The scene's `SceneKind`, as its underlying integer (this header names no port type).
+/// @param which The browser's `BrowserId` or the rename's `TargetId`; ignored for every other kind.
+bool drumSelectionFrozenBy(uint8_t kind, uint16_t which);
+
+/// @brief Whether the guest is current with one of `drumSelectionFrozenBy`'s scenes as its input top.
+bool shellFreezesDrumSelection();
+
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
 

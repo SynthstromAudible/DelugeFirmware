@@ -44,12 +44,14 @@
 #include "processing/source.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
+#include "scenes/rename/rename_scene.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
@@ -168,6 +170,32 @@ std::atomic<bool> guestPreviewSounds{false};
 
 bool shellRangePickerOpen() {
 	return shellSoundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
+}
+
+bool drumSelectionFrozenBy(uint8_t raw_kind, uint16_t which) {
+	const auto kind = static_cast<deluge::ui::shell::SceneKind>(raw_kind);
+	if (kind == deluge::scenes::browser::kBrowserSceneKind) {
+		return which == static_cast<uint16_t>(deluge::scenes::browser::BrowserId::Sample);
+	}
+	if (kind == deluge::scenes::rename::kRenameSceneKind) {
+		return which == static_cast<uint16_t>(deluge::scenes::rename::TargetId::Drum);
+	}
+	return kind == deluge::scenes::marker::kMarkerSceneKind;
+}
+
+bool shellFreezesDrumSelection() {
+	if (getCurrentUI() != &shellHostUI) {
+		return false;
+	}
+	const deluge::ui::shell::Scene& top = shellHostUI.shell().stack().input_top();
+	uint16_t which = 0;
+	if (&top == &deluge::scenes::browser::browser_scene()) {
+		which = static_cast<uint16_t>(deluge::scenes::browser::browser_scene().browser_id());
+	}
+	else if (&top == &deluge::scenes::rename::rename_scene()) {
+		which = static_cast<uint16_t>(deluge::scenes::rename::rename_scene().target_id());
+	}
+	return drumSelectionFrozenBy(static_cast<uint8_t>(top.kind()), which);
 }
 
 bool shellRangeDependentOpen() {

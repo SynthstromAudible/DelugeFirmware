@@ -25,6 +25,8 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/rename/rename_drum_ui.h"
+#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/shell_guest_services.h" // the shell* arms
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -66,6 +68,12 @@ std::optional<int32_t> dxColumnFlashRow() {
 		return menu_item::dxParam.flash_row;
 	}
 	return std::nullopt;
+}
+
+bool drumSelectionFrozen() {
+	const UI* current = getCurrentUI();
+	return current == &sampleBrowser || current == &sampleMarkerEditor || current == &renameDrumUI
+	       || shellFreezesDrumSelection();
 }
 
 bool rangePickerOpen() {

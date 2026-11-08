@@ -30,8 +30,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_note_mode.h"
@@ -5123,8 +5121,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
 	// if no, update selected drum
 	if (kit->selectedDrum != drum) {
-		if ((!deluge::gui::ui::menuCurrent() || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
-		    && currentUI != &sampleMarkerEditor && currentUI != &renameDrumUI) {
+		if ((!deluge::gui::ui::menuCurrent() || inNoteOrNoteRowEditor) && !deluge::gui::ui::drumSelectionFrozen()) {
 
 			kit->selectedDrum = drum;
 			drumSelectionChanged = true;
