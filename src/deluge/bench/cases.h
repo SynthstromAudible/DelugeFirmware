@@ -2136,6 +2136,7 @@ struct FloatBlepSettings {
 	using Kernel = dsp::fp::BlepOscillator;  ///< The kernel timed.
 	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
 	static constexpr bool kGated = false;    ///< No gate events.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
 	static constexpr auto kGateOn = 0;       ///< Unused.
 	static constexpr auto kGateOff = 0;      ///< Unused.
 	/// @return Lane @p lane's saw.
@@ -2149,6 +2150,7 @@ struct FloatTableSettings {
 	using Kernel = dsp::fp::TableOscillator; ///< The kernel timed.
 	static constexpr bool kSawBands = true;  ///< Whether the kernel reads the saw bands (build_saw_bands).
 	static constexpr bool kGated = false;    ///< No gate events.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
 	static constexpr auto kGateOn = 0;       ///< Unused.
 	static constexpr auto kGateOff = 0;      ///< Unused.
 	/// @return Lane @p lane's saw.
@@ -2162,6 +2164,7 @@ struct FloatEnvelopeSettings {
 	using Kernel = dsp::fp::Envelope;                   ///< The kernel timed.
 	static constexpr bool kSawBands = false;            ///< Whether the kernel reads the saw bands (build_saw_bands).
 	static constexpr bool kGated = true;                ///< Gate events run at each block's start.
+	static constexpr bool kHeld = false;                ///< Not held in sustain at setup.
 	static constexpr auto kGateOn = &Kernel::gate_on;   ///< The gate-on event.
 	static constexpr auto kGateOff = &Kernel::gate_off; ///< The gate-off event.
 	/// @return Lane @p lane's program.
@@ -2176,6 +2179,7 @@ struct FloatBlepVoiceSettings {
 	using Kernel = dsp::Chain<dsp::fp::BlepOscillator, dsp::fp::Svf, FloatVoiceVca>; ///< The kernel timed.
 	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
 	static constexpr bool kGated = true;     ///< Gate events run at each block.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
 	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
 	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
 	/// @return Lane @p lane's voice: its own pitch, cutoff 0.03 + 0.05 per lane, Q 0.8 + 1 per lane, program and gain.
@@ -2193,6 +2197,7 @@ struct FloatTableVoiceSettings {
 	using Kernel = dsp::Chain<dsp::fp::TableOscillator, dsp::fp::Svf, FloatVoiceVca>; ///< The kernel timed.
 	static constexpr bool kSawBands = true; ///< Whether the kernel reads the saw bands (build_saw_bands).
 	static constexpr bool kGated = true;    ///< Gate events run at each block.
+	static constexpr bool kHeld = false;    ///< Not held in sustain at setup.
 	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
 	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
 	/// @return Lane @p lane's voice, as FloatBlepVoiceSettings::settings.
@@ -2205,10 +2210,25 @@ struct FloatTableVoiceSettings {
 	}
 };
 
+/// @brief The envelope held in sustain: FloatEnvelopeSettings' programs, gated on once at setup and rendered until
+/// every stage before the sustain has finished, with no gate event in the timed region.
+struct FloatEnvelopeSustainSettings : FloatEnvelopeSettings {
+	static constexpr bool kGated = false; ///< No gate events in the timed region.
+	static constexpr bool kHeld = true;   ///< Gated on at setup and rendered into sustain.
+};
+
+/// @brief The BLEP voice held in sustain, as FloatEnvelopeSustainSettings.
+struct FloatBlepVoiceSustainSettings : FloatBlepVoiceSettings {
+	static constexpr bool kGated = false; ///< No gate events in the timed region.
+	static constexpr bool kHeld = true;   ///< Gated on at setup and rendered into sustain.
+};
+
 /// @brief `Mono<K>` of a float generator (oscillator, envelope or voice) into one f32 stream.
 /// @details **Timed state:** the kernel renders from rest at setup under flush-to-zero (FloatBenchFlush), its state
 /// carrying from block to block. A gated kernel gets float_gate_at(0, block)'s event at the start of every block,
-/// inside the timed region.
+/// inside the timed region: its lanes change stage every few dozen samples, so the cases are transition-heavy. A held
+/// kernel (kHeld) is gated on at setup and rendered until it sits in sustain, and gets no event while timed: the steady
+/// state a held note spends most of its time in.
 /// @tparam S The kernel's settings: FloatBlepSettings, FloatTableSettings, FloatEnvelopeSettings or a voice's.
 template <class S>
 class FloatSourceMonoCase {
@@ -2419,29 +2439,33 @@ struct CaseSet {
 	PitchShiftCase pitch_shift_stereo_up7{
 	    {.phase_increment = kPitchShiftUp7, .stereo = true}}; ///< `pitch_shift_stereo_up7`
 	PitchShiftCase pitch_shift_perc_up7{
-	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                 ///< `pitch_shift_perc_up7`
-	FloatMonoCase<FloatOnePoleSettings> fp_one_pole_mono;                         ///< `fp_one_pole_mono`
-	FloatPolyCase<FloatOnePoleSettings, 2> fp_one_pole_poly2;                     ///< `fp_one_pole_poly2`
-	FloatPolyCase<FloatOnePoleSettings, 4> fp_one_pole_poly4;                     ///< `fp_one_pole_poly4`
-	FloatLinkedCase<FloatOnePoleSettings, 2> fp_one_pole_linked2;                 ///< `fp_one_pole_linked2`
-	FloatMonoCase<FloatSmootherSettings> fp_smoother_mono;                        ///< `fp_smoother_mono`
-	FloatPolyCase<FloatSmootherSettings, 4> fp_smoother_poly4;                    ///< `fp_smoother_poly4`
-	FloatMonoCase<FloatSvfSettings> fp_svf_mono;                                  ///< `fp_svf_mono`
-	FloatPolyCase<FloatSvfSettings, 2> fp_svf_poly2;                              ///< `fp_svf_poly2`
-	FloatPolyCase<FloatSvfSettings, 4> fp_svf_poly4;                              ///< `fp_svf_poly4`
-	FloatLinkedCase<FloatSvfSettings, 2> fp_svf_linked2;                          ///< `fp_svf_linked2`
-	FloatBankCase fp_svf_bank4_sum;                                               ///< `fp_svf_bank4_sum`
-	FloatSourceMonoCase<FloatBlepSettings> fp_blep_saw_mono;                      ///< `fp_blep_saw_mono`
-	FloatSourcePolyCase<FloatBlepSettings, 2> fp_blep_saw_poly2;                  ///< `fp_blep_saw_poly2`
-	FloatSourcePolyCase<FloatBlepSettings, 4> fp_blep_saw_poly4;                  ///< `fp_blep_saw_poly4`
-	FloatSourceMonoCase<FloatTableSettings> fp_table_saw_mono;                    ///< `fp_table_saw_mono`
-	FloatSourcePolyCase<FloatTableSettings, 2> fp_table_saw_poly2;                ///< `fp_table_saw_poly2`
-	FloatSourcePolyCase<FloatTableSettings, 4> fp_table_saw_poly4;                ///< `fp_table_saw_poly4`
-	FloatSourceMonoCase<FloatEnvelopeSettings> fp_envelope_mono;                  ///< `fp_envelope_mono`
-	FloatSourcePolyCase<FloatEnvelopeSettings, 4> fp_envelope_poly4;              ///< `fp_envelope_poly4`
-	FloatSourceMonoCase<FloatBlepVoiceSettings> fp_voice_blep_mono;               ///< `fp_voice_blep_mono`
-	FloatSourcePolyCase<FloatBlepVoiceSettings, 2> fp_voice_blep_poly2;           ///< `fp_voice_blep_poly2`
-	FloatSourcePolyCase<FloatBlepVoiceSettings, 4> fp_voice_blep_poly4;           ///< `fp_voice_blep_poly4`
+	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                   ///< `pitch_shift_perc_up7`
+	FloatMonoCase<FloatOnePoleSettings> fp_one_pole_mono;                           ///< `fp_one_pole_mono`
+	FloatPolyCase<FloatOnePoleSettings, 2> fp_one_pole_poly2;                       ///< `fp_one_pole_poly2`
+	FloatPolyCase<FloatOnePoleSettings, 4> fp_one_pole_poly4;                       ///< `fp_one_pole_poly4`
+	FloatLinkedCase<FloatOnePoleSettings, 2> fp_one_pole_linked2;                   ///< `fp_one_pole_linked2`
+	FloatMonoCase<FloatSmootherSettings> fp_smoother_mono;                          ///< `fp_smoother_mono`
+	FloatPolyCase<FloatSmootherSettings, 4> fp_smoother_poly4;                      ///< `fp_smoother_poly4`
+	FloatMonoCase<FloatSvfSettings> fp_svf_mono;                                    ///< `fp_svf_mono`
+	FloatPolyCase<FloatSvfSettings, 2> fp_svf_poly2;                                ///< `fp_svf_poly2`
+	FloatPolyCase<FloatSvfSettings, 4> fp_svf_poly4;                                ///< `fp_svf_poly4`
+	FloatLinkedCase<FloatSvfSettings, 2> fp_svf_linked2;                            ///< `fp_svf_linked2`
+	FloatBankCase fp_svf_bank4_sum;                                                 ///< `fp_svf_bank4_sum`
+	FloatSourceMonoCase<FloatBlepSettings> fp_blep_saw_mono;                        ///< `fp_blep_saw_mono`
+	FloatSourcePolyCase<FloatBlepSettings, 2> fp_blep_saw_poly2;                    ///< `fp_blep_saw_poly2`
+	FloatSourcePolyCase<FloatBlepSettings, 4> fp_blep_saw_poly4;                    ///< `fp_blep_saw_poly4`
+	FloatSourceMonoCase<FloatTableSettings> fp_table_saw_mono;                      ///< `fp_table_saw_mono`
+	FloatSourcePolyCase<FloatTableSettings, 2> fp_table_saw_poly2;                  ///< `fp_table_saw_poly2`
+	FloatSourcePolyCase<FloatTableSettings, 4> fp_table_saw_poly4;                  ///< `fp_table_saw_poly4`
+	FloatSourceMonoCase<FloatEnvelopeSettings> fp_envelope_mono;                    ///< `fp_envelope_mono`
+	FloatSourcePolyCase<FloatEnvelopeSettings, 4> fp_envelope_poly4;                ///< `fp_envelope_poly4`
+	FloatSourcePolyCase<FloatEnvelopeSustainSettings, 4> fp_envelope_sustain_poly4; ///< `fp_envelope_sustain_poly4`
+	FloatSourceMonoCase<FloatBlepVoiceSettings> fp_voice_blep_mono;                 ///< `fp_voice_blep_mono`
+	FloatSourcePolyCase<FloatBlepVoiceSettings, 2> fp_voice_blep_poly2;             ///< `fp_voice_blep_poly2`
+	FloatSourcePolyCase<FloatBlepVoiceSettings, 4> fp_voice_blep_poly4;             ///< `fp_voice_blep_poly4`
+	FloatSourceMonoCase<FloatBlepVoiceSustainSettings> fp_voice_blep_sustain_mono;  ///< `fp_voice_blep_sustain_mono`
+	FloatSourcePolyCase<FloatBlepVoiceSustainSettings, 4>
+	    fp_voice_blep_sustain_poly4;                                              ///< `fp_voice_blep_sustain_poly4`
 	FloatSourceLinkedCase<FloatBlepVoiceSettings, 2> fp_voice_blep_linked2;       ///< `fp_voice_blep_linked2`
 	FloatSourcePolyCase<FloatTableVoiceSettings, 4> fp_voice_table_poly4;         ///< `fp_voice_table_poly4`
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
@@ -2546,8 +2570,9 @@ enum class CaseList : uint8_t {
 	/// feedback chain's two cases from the chain list, as in the delay list.
 	FLOAT_FILTERS,
 	/// The calibration loop, the float oscillators (BLEP and table saws) in Mono and Poly at 2 and 4 lanes, the
-	/// envelope in Mono and Poly at 4, a whole voice (oscillator, SVF, envelope amplifier) in Mono, Poly at 2 and 4
-	/// lanes and Linked at 2, then the feedback chain's two cases from the chain list, as in the delay list.
+	/// envelope in Mono and Poly at 4 (also held in sustain), a whole voice (oscillator, SVF, envelope amplifier) in
+	/// Mono, Poly at 2 and 4 lanes and Linked at 2, then the feedback chain's two cases from the chain list, as in the
+	/// delay list.
 	FLOAT_VOICE,
 };
 

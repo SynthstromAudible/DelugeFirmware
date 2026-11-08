@@ -48,18 +48,31 @@ VoiceBlocks voice_blocks{};
 	return dsp::fp::Buffer{voice_blocks.output.data() + stream * kMaxBlock, n};
 }
 
-/// @brief Runs @p gate on every lane of @p component that block @p block gates.
-template <class S, class C>
-void gate_lanes(C& component, std::size_t lane, std::size_t block) {
-	switch (float_gate_at(lane, block)) {
+/// @brief Runs the gate event @p gate on @p component, on @p lane when given (Poly), else on every lane.
+template <class S, class C, class... Lane>
+void run_gate(C& component, FloatGate gate, Lane... lane) {
+	switch (gate) {
 	case FloatGate::ON:
-		component.template on<S::kGateOn>(lane);
+		component.template on<S::kGateOn>(lane...);
 		break;
 	case FloatGate::OFF:
-		component.template on<S::kGateOff>(lane);
+		component.template on<S::kGateOff>(lane...);
 		break;
 	case FloatGate::NONE:
 		break;
+	}
+}
+
+/// @brief Samples rendered at setup to bring a held kernel into sustain: every stage before it ends well within.
+constexpr std::size_t kSustainSamples = 8192;
+
+/// @brief Renders a held kernel's blocks until it sits in sustain.
+/// @param n The block size.
+/// @param render Renders one block.
+template <class Render>
+void settle(std::size_t n, Render&& render) {
+	for (std::size_t done = 0; done < kSustainSamples; done += n) {
+		render();
 	}
 }
 
@@ -75,22 +88,17 @@ void FloatSourceMonoCase<S>::setup(std::size_t n) {
 	block_ = 0;
 	mono_.configure(S::settings(0));
 	mono_.reset();
+	if constexpr (S::kHeld) {
+		run_gate<S>(mono_, FloatGate::ON);
+		settle(n, [&] { mono_.render_block(out_); });
+	}
 }
 
 template <class S>
 void FloatSourceMonoCase<S>::block(std::size_t /*n*/) {
 	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (S::kGated) {
-		switch (float_gate_at(0, block_)) {
-		case FloatGate::ON:
-			mono_.template on<S::kGateOn>();
-			break;
-		case FloatGate::OFF:
-			mono_.template on<S::kGateOff>();
-			break;
-		case FloatGate::NONE:
-			break;
-		}
+		run_gate<S>(mono_, float_gate_at(0, block_));
 	}
 	++block_;
 	mono_.render_block(out_);
@@ -108,6 +116,12 @@ void FloatSourcePolyCase<S, N>::setup(std::size_t n) {
 		poly_.configure(lane, S::settings(lane));
 		poly_.reset(lane);
 	}
+	if constexpr (S::kHeld) {
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			run_gate<S>(poly_, FloatGate::ON, lane);
+		}
+		settle(n, [&] { poly_.render_block(out_); });
+	}
 }
 
 template <class S, std::size_t N>
@@ -115,7 +129,7 @@ void FloatSourcePolyCase<S, N>::block(std::size_t /*n*/) {
 	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (S::kGated) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
-			gate_lanes<S>(poly_, lane, block_);
+			run_gate<S>(poly_, float_gate_at(lane, block_), lane);
 		}
 	}
 	++block_;
@@ -134,22 +148,17 @@ void FloatSourceLinkedCase<S, N>::setup(std::size_t n) {
 	block_ = 0;
 	linked_.configure(S::settings(0));
 	linked_.reset();
+	if constexpr (S::kHeld) {
+		run_gate<S>(linked_, FloatGate::ON);
+		settle(n, [&] { linked_.render_block(out_); });
+	}
 }
 
 template <class S, std::size_t N>
 void FloatSourceLinkedCase<S, N>::block(std::size_t /*n*/) {
 	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (S::kGated) {
-		switch (float_gate_at(0, block_)) {
-		case FloatGate::ON:
-			linked_.template on<S::kGateOn>();
-			break;
-		case FloatGate::OFF:
-			linked_.template on<S::kGateOff>();
-			break;
-		case FloatGate::NONE:
-			break;
-		}
+		run_gate<S>(linked_, float_gate_at(0, block_));
 	}
 	++block_;
 	linked_.render_block(out_);
@@ -159,13 +168,16 @@ template class FloatSourceMonoCase<FloatBlepSettings>;
 template class FloatSourceMonoCase<FloatTableSettings>;
 template class FloatSourceMonoCase<FloatEnvelopeSettings>;
 template class FloatSourceMonoCase<FloatBlepVoiceSettings>;
+template class FloatSourceMonoCase<FloatBlepVoiceSustainSettings>;
 template class FloatSourcePolyCase<FloatBlepSettings, 2>;
 template class FloatSourcePolyCase<FloatBlepSettings, 4>;
 template class FloatSourcePolyCase<FloatTableSettings, 2>;
 template class FloatSourcePolyCase<FloatTableSettings, 4>;
 template class FloatSourcePolyCase<FloatEnvelopeSettings, 4>;
+template class FloatSourcePolyCase<FloatEnvelopeSustainSettings, 4>;
 template class FloatSourcePolyCase<FloatBlepVoiceSettings, 2>;
 template class FloatSourcePolyCase<FloatBlepVoiceSettings, 4>;
+template class FloatSourcePolyCase<FloatBlepVoiceSustainSettings, 4>;
 template class FloatSourcePolyCase<FloatTableVoiceSettings, 4>;
 template class FloatSourceLinkedCase<FloatBlepVoiceSettings, 2>;
 

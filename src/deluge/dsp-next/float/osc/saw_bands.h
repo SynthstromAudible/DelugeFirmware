@@ -34,7 +34,8 @@ inline constexpr std::size_t kSawBands = 11;
 namespace detail {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,bugprone-dynamic-static-initializers): written once,
 // by build_saw_bands().
-/// The set's storage: @ref kSawBands bands of `kSawBandSize + 1` samples.
+/// The set's storage: @ref kSawBands bands of `kSawBandSize + 1` samples, in SDRAM on the device (all-zero until
+/// build_saw_bands() writes it).
 extern std::array<f32, kSawBands*(kSawBandSize + 1)> saw_band_storage;
 /// Whether build_saw_bands() has filled the storage.
 extern bool saw_bands_built;

@@ -514,10 +514,25 @@ const std::vector<std::string_view> kFloatFilterCaseNames{
 
 /// The float voice list's names, in order.
 const std::vector<std::string_view> kFloatVoiceCaseNames{
-    "calibration_loop",      "fp_blep_saw_mono",     "fp_blep_saw_poly2",           "fp_blep_saw_poly4",
-    "fp_table_saw_mono",     "fp_table_saw_poly2",   "fp_table_saw_poly4",          "fp_envelope_mono",
-    "fp_envelope_poly4",     "fp_voice_blep_mono",   "fp_voice_blep_poly2",         "fp_voice_blep_poly4",
-    "fp_voice_blep_linked2", "fp_voice_table_poly4", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+    "calibration_loop",
+    "fp_blep_saw_mono",
+    "fp_blep_saw_poly2",
+    "fp_blep_saw_poly4",
+    "fp_table_saw_mono",
+    "fp_table_saw_poly2",
+    "fp_table_saw_poly4",
+    "fp_envelope_mono",
+    "fp_envelope_poly4",
+    "fp_envelope_sustain_poly4",
+    "fp_voice_blep_mono",
+    "fp_voice_blep_poly2",
+    "fp_voice_blep_poly4",
+    "fp_voice_blep_sustain_mono",
+    "fp_voice_blep_sustain_poly4",
+    "fp_voice_blep_linked2",
+    "fp_voice_table_poly4",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
 };
 
 /// The effect chain list's names, in order.
