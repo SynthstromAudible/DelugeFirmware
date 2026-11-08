@@ -510,6 +510,7 @@ void stepEditorSetup() {
 	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
 	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::On);
 	if (!soundEditor.setup(clip) || !openUI(&soundEditor) || getCurrentUI() != &soundEditor) {
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 		fail("SU-RETIRED", "the sound editor could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
@@ -562,6 +563,7 @@ void stepEditorRun() {
 	}
 	if (!loadOver()) {
 		if (++g_steps > kMaxSettleSteps) {
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 			fail("SU-RETIRED", "the NEXT_SONG load never ended");
 			g_stage = Stage::Report;
 		}

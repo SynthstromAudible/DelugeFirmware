@@ -1555,7 +1555,11 @@ describe menu_entry_legacy_closed("with ShellMenu on the legacy editor cannot op
 		{
 			ToggleGuard on{RuntimeFeatureStateToggle::On};
 			expect(soundEditor.setup(f.clip)).to_be_true();
-			expect(openUI(&soundEditor)).to_be_false();
+			const bool opened = openUI(&soundEditor);
+			if (opened) {
+				soundEditor.exitCompletely();
+			}
+			expect(opened).to_be_false();
 			expect(isUIOpen(&soundEditor)).to_be_false();
 			expect(getCurrentUI() == &instrumentClipView).to_be_true();
 		}

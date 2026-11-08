@@ -448,7 +448,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("the real performer hands a NoteEditorEdit pad to the note editor's edit action and leaves the "
 	   "menu open", _ {
-		// `SoundEditor::potentialShortcutPadAction` (`sound_editor.cpp`) returns `DEALT_WITH` -- no exit. The sidebar
+		// `SoundEditor::padAction` (`sound_editor.cpp`) returns `DEALT_WITH` -- no exit. The sidebar
 		// half is its `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
 		RecordingNotePads recording;

@@ -15,6 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+// This scenario drives legacy's own recorder menu, so it opens the legacy sound editor. With the ported menu selected
+// `SoundEditor::opened` refuses, so `openRecorder` selects the legacy menu (the Legacy Menu setting) for the open only.
+
 #include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
 #include "scenarios/slot_coherence.h"
