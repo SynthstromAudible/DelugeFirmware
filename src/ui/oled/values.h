@@ -33,9 +33,10 @@ struct ValueStyle {
 	/// them.
 	bool continuous = false;
 	/// An item whose `drawPixelsForOled` names its value: given the value after this tick's edit, the text drawn in the
-	/// huge face in place of the digits, with no bar; empty for the digits. For `decimal_value` the text is drawn on
-	/// the digits' row in the huge face with no cursor, and the horizontal encoder moves nothing while it answers
-	/// (`cv::Volts`, `osc::RetriggerPhase`).
+	/// huge face in place of the digits, with no bar; empty for the digits. With `label_in_digits` the text takes the
+	/// digits' place instead, in their face and band, and a `continuous` value keeps its bar. For `decimal_value` the
+	/// text is drawn on the digits' row in the huge face with no cursor, and the horizontal encoder moves nothing
+	/// while it answers (`cv::Volts`, `osc::RetriggerPhase`).
 	std::string_view (*label)(int32_t value, const void* hook_ctx, std::span<char> out) = nullptr;
 	/// An item whose `selectEncoderAction` moves the value its own way: the value a turn of `offset` detents makes from
 	/// `value` (clamped to the range after), or `nullopt` for the step.

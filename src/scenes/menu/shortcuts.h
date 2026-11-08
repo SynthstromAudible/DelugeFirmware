@@ -94,10 +94,11 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///
 /// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
 ///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`
-///       (`sound_editor.cpp:1208-1212`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
-///       `(15, 3)` cells were never pressable. They are still in the layer, and still blink, because
-///       `setupShortcutsBlinkFromTable` (`:825`) scans the whole table with no such guard. The other
-///       four roots' guards match their tables exactly and add nothing here.
+///       (`SoundEditor::get_basic_shortcut_action` in `gui/ui/sound_editor.cpp`), so
+///       `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and `(15, 3)` cells were never pressable. They
+///       are still in the layer, and still blink, because `SoundEditor::setupShortcutsBlinkFromTable`
+///       (the same file) scans the whole table with no such guard. The other four roots' guards match
+///       their tables exactly and add nothing here.
 ///
 /// @param x            Absolute pad column.
 /// @param y            Absolute pad row.
