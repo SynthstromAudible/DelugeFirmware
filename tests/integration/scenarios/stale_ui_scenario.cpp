@@ -44,6 +44,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -179,6 +180,9 @@ int32_t g_steps = 0;
 std::string g_scriptPath;
 int32_t g_events = 0;
 Song* g_songBefore = nullptr;
+/// The Legacy Menu setting before the editor leg, which turns it on: the leg drives legacy's own editor, which the
+/// setting keeps while it exists and which refuses to open with it off.
+RuntimeFeatureStateToggle g_legacyMenuBefore = RuntimeFeatureStateToggle::Off;
 Clip* g_clipBefore = nullptr;
 /// Compared by address only: once the old song is freed, nothing it held may be dereferenced.
 const void* g_modBefore = nullptr;
@@ -502,7 +506,11 @@ void stepEditorSetup() {
 	if (!playbackHandler.isEitherClockActive()) {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
 	}
+	g_legacyMenuBefore =
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::On);
 	if (!soundEditor.setup(clip) || !openUI(&soundEditor) || getCurrentUI() != &soundEditor) {
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 		fail("SU-RETIRED", "the sound editor could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
@@ -555,6 +563,7 @@ void stepEditorRun() {
 	}
 	if (!loadOver()) {
 		if (++g_steps > kMaxSettleSteps) {
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 			fail("SU-RETIRED", "the NEXT_SONG load never ended");
 			g_stage = Stage::Report;
 		}
@@ -600,6 +609,7 @@ void stepEditorRun() {
 			fail("SU-SWAPWORK", "the outgoing song was still auditioning after the swap's interaction side ran");
 		}
 	}
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 	g_steps = 0;
 	g_stage = Stage::AuditionSetup;
 }

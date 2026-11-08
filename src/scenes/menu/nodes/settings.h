@@ -83,10 +83,12 @@
 /// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
 ///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
 ///       (`ScreensaverSettingsChanged`), pad brightness (`PadBrightnessChanged`), the menu highlighting
-///       (`HighlightingChanged`), sticky shift turning off (`ShiftStickyOff`), leaving the slow cursor flash
+///       (`HighlightingChanged`), rounded corners (`RoundedCornersChanged`), sticky shift
+///       (`ShiftStickyChanged`), leaving the slow cursor flash
 ///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/context_menu_items.h" // the five kReset*Item instances
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
@@ -244,6 +246,11 @@ void set_default_automation_no_audition(const MenuContext& ctx, int32_t value);
 
 int32_t get_default_swing_interval(const MenuContext& ctx);
 void set_default_swing_interval(const MenuContext& ctx, int32_t value);
+/// `defaults::SwingInterval::getNoteLengthName`: the default resolution, `FlashStorage::defaultMagnitude`.
+int32_t default_resolution_magnitude(const MenuContext& ctx);
+/// `sync_level::RelativeToSong::getNoteLengthName` names value v as magnitude 3 - v; `syncValueToString` at tick
+/// magnitude 1 is that name.
+int32_t relative_to_song_magnitude(const MenuContext& ctx);
 int32_t get_default_scale(const MenuContext& ctx);
 void set_default_scale(const MenuContext& ctx, int32_t value);
 size_t default_scale_names(const MenuContext& ctx, std::span<std::string_view> out);
@@ -251,7 +258,6 @@ int32_t get_default_velocity(const MenuContext& ctx);
 void set_default_velocity(const MenuContext& ctx, int32_t value);
 int32_t get_default_magnitude(const MenuContext& ctx);
 void set_default_magnitude(const MenuContext& ctx, int32_t value);
-size_t default_magnitude_names(const MenuContext& ctx, std::span<std::string_view> out);
 int32_t get_default_bend_range(const MenuContext& ctx);
 void set_default_bend_range(const MenuContext& ctx, int32_t value);
 int32_t get_default_metronome_volume(const MenuContext& ctx);
@@ -310,9 +316,15 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 }
 /// @}
 
-/// @brief `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`) minus
-///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
+/// @brief `ShiftIsSticky::writeCurrentValue`: the setting, the shift LED, and
+///        `MenuAction::ShiftStickyChanged` for the shift machines (`hid/` and the guest's, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
+/// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `MenuAction::RoundedCornersChanged` for
+///        the canvas flag and the guest's panels.
+void set_rounded_corners(const MenuContext& ctx, int32_t value);
+/// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
+///        `HorizontalMenu::renderingStyle()` reads it live.
+void set_horizontal_menus(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes (`menu_item/usb/audio.h`).
@@ -431,14 +443,15 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // here, ahead of the two selectors, because a chain hook needs their addresses;
 // `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
 
-/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:32-34`). Legacy draws
-/// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
-/// bespoke render this generation's `Decimal` interpreter has no field for.
-inline constexpr Node cv_volts =
-    with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts,
-                                           IntRange{0, 200, 1}, 2),
-                              sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
-                   kTitleArgSourceIndex);
+/// `cv::Volts` (`cv/volts.h`): 0..200 at two places, the cursor on the tenths, and Hz/V at 0 with no
+/// cursor (`drawPixelsForOled`, `horizontalEncoderAction`).
+inline constexpr Node cv_volts = with_default_edit_pos(
+    with_decimal_word(with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts,
+                                                             set_cv_volts, IntRange{0, 200, 1}, 2),
+                                                sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
+                                     kTitleArgSourceIndex),
+                      cv_volts_word),
+    1);
 /// `cv::Transpose` (`cv/transpose.h:31-33`) -- the same `{-9600, 9600}` two-place packing the
 /// oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
 inline constexpr Node cv_transpose =
@@ -471,9 +484,12 @@ inline constexpr Node gate_mode =
 /// `gate::OffTime` (`gate/off_time.h:22-30`), over `cvEngine.minGateOffTime` -- the one page here
 /// with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
 /// `STRING_FOR_MINIMUM_OFF_TIME` (`menus.cpp:1224`); a `Node` with `name == 0` would trip
-/// `validate_tree`'s `MissingTitle`, so the port uses the title for both.
-inline constexpr Node gate_off_time = decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time,
-                                                   set_gate_off_time, IntRange{1, 100, 1}, 1);
+/// `validate_tree`'s `MissingTitle`, so the port uses the title for both. `getDefaultEditPos` is 1: the cursor
+/// starts on the units.
+inline constexpr Node gate_off_time =
+    with_default_edit_pos(decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time, set_gate_off_time,
+                                       IntRange{1, 100, 1}, 1),
+                          1);
 
 /// @brief `cv::Selection::selectButtonPress` (`cv/selection.h:41-46`) and
 ///        `gate::Selection::selectButtonPress` (`gate/selection.h:43-54`).
@@ -906,9 +922,11 @@ inline constexpr Node default_key =
                set_default_key_lower, &kDefaultKeySpec, kDefaultKeyRange);
 /// @}
 
-inline constexpr Node default_swing_interval =
-    sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
-                    get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange);
+inline constexpr Node default_swing_interval = with_sync_name_magnitude(
+    with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
+                              get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange),
+              swing_interval_turn),
+    default_resolution_magnitude);
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
@@ -919,13 +937,13 @@ inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kD
 inline constexpr Node default_velocity = with_title(
     int_item(sid(String::STRING_FOR_VELOCITY), get_default_velocity, set_default_velocity, IntRange{1, 127, 1}),
     sid(String::STRING_FOR_DEFAULT_VELOC_MENU_TITLE));
-/// `defaults::Magnitude` is an `Enumeration` with `size() == 7` that draws `96 << value`
-/// (`defaults/magnitude.h:29-32`), i.e. a number rather than a name -- so the option list is the
-/// seven resolutions, built at render time.
+/// `defaults::Magnitude` (`defaults/magnitude.h`): an `Enumeration` of seven whose screen is one number, `96 << value`;
+/// it turns and clamps as an integer does.
 inline constexpr Node default_magnitude =
-    with_title(dynamic_enumeration(sid(String::STRING_FOR_RESOLUTION), default_magnitude_names, get_default_magnitude,
-                                   set_default_magnitude),
-               sid(String::STRING_FOR_DEFAULT_RESOL_MENU_TITLE));
+    with_leaf_text(with_title(int_item(sid(String::STRING_FOR_RESOLUTION), get_default_magnitude, set_default_magnitude,
+                                       IntRange{0, 6, 1}),
+                              sid(String::STRING_FOR_DEFAULT_RESOL_MENU_TITLE)),
+                   default_magnitude_text);
 inline constexpr Node default_bend_range = with_title(
     int_item(sid(String::STRING_FOR_BEND_RANGE), get_default_bend_range, set_default_bend_range, IntRange{0, 96, 1}),
     sid(String::STRING_FOR_DEFAULT_BEND_R));
@@ -972,8 +990,9 @@ inline constexpr Node default_slice_mode =
                sid(String::STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE));
 inline constexpr Node default_cpu_indicator = toggle_item(sid(String::STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR),
                                                           get_default_cpu_indicator, set_default_cpu_indicator);
-inline constexpr Node default_hold_time =
-    int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1});
+inline constexpr Node default_hold_time = with_leaf_text(
+    int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1}),
+    hold_time_text);
 
 /// `ScreensaverModeMenu::getOptions` (`defaults/screensaver.h:44-50`).
 inline constexpr uint16_t kScreensaverModeNames[] = {
@@ -984,9 +1003,11 @@ inline constexpr uint16_t kScreensaverModeNames[] = {
 };
 inline constexpr Node screensaver_mode = enumeration(sid(String::STRING_FOR_SCREENSAVER_MODE), kScreensaverModeNames,
                                                      get_screensaver_mode, set_screensaver_mode);
-inline constexpr Node screensaver_timeout =
+/// `ScreensaverTimeout` (`defaults/screensaver.h`): minutes, with `getUnit`'s " MIN".
+inline constexpr Node screensaver_timeout = with_value_style(
     int_item(sid(String::STRING_FOR_SCREENSAVER_TIMEOUT), get_screensaver_timeout, set_screensaver_timeout,
-             IntRange{kMinScreensaverTimeoutMinutes, kMaxScreensaverTimeoutMinutes, 1});
+             IntRange{kMinScreensaverTimeoutMinutes, kMaxScreensaverTimeoutMinutes, 1}),
+    {.unit = " MIN"});
 inline constexpr const Node* kScreensaverChildren[] = {&screensaver_mode, &screensaver_timeout};
 inline constexpr Node screensaver = submenu(sid(String::STRING_FOR_SCREENSAVER), kScreensaverChildren);
 
@@ -1095,9 +1116,10 @@ inline constexpr Node record_count_in = with_value_style(
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
 /// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`record/quantize.h:23`).
-inline constexpr Node record_quantize =
+inline constexpr Node record_quantize = with_sync_name_magnitude(
     sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,
-                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1});
+                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1}),
+    relative_to_song_magnitude);
 inline constexpr Node record_margins =
     toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);
 
@@ -1154,10 +1176,8 @@ DELUGE_RUNTIME_TOGGLE(feature_alt_playback_start, 15,
                       STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR);
 DELUGE_RUNTIME_TOGGLE(feature_grid_loop_pads, 16, STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS);
 DELUGE_RUNTIME_TOGGLE(feature_alt_tap_tempo, 17, STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR);
-DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 18, STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS);
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
-DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 21, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS);
 DELUGE_RUNTIME_TOGGLE(feature_legacy_menu, 23, STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
@@ -1172,10 +1192,16 @@ inline constexpr Node feature_shortcut_overlay =
     enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY), kShortcutOverlayNames,
                 get_runtime_feature<22>, set_runtime_feature<22>);
 
-/// `ShiftIsSticky` (index 9) is the one toggle with a write of its own
+/// `ShiftIsSticky` (index 9) has a write of its own
 /// (`runtime_feature/shift_is_sticky.cpp`).
 inline constexpr Node feature_sticky_shift =
     toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), get_runtime_feature<9>, set_shift_is_sticky);
+/// `RoundedCorners` (index 21) restyles main's canvas and the guest's panels as it is written.
+inline constexpr Node feature_rounded_corners = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS),
+                                                            get_runtime_feature<21>, set_rounded_corners);
+/// `HorizontalMenus` (index 18) reaches the open menu as it is written.
+inline constexpr Node feature_horizontal_menus = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS),
+                                                             get_runtime_feature<18>, set_horizontal_menus);
 /// `SyncScalingAction` (index 6) -- two literal options, not l10n ids.
 inline constexpr Node feature_sync_scaling =
     dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), sync_scaling_action_names,

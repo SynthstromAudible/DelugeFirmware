@@ -302,6 +302,28 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(nodes::osc1_type_chain(r.menu_context(), r.state()) == nullptr).to_be_true();
 	});
 
+	it("a re-read of the engine version takes the patch's mode again", _ {
+		// `DxEngineSelect::readValueAgain`: `currentValue` is the patch's `engineMode`, read afresh.
+		MenuRig r;
+		r.open(nodes::dx_engine_select);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
+		deluge::instrument::DxPatchState vintage = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		vintage.engine_mode = 2;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, vintage)).to_be_true();
+		menu_scene().read_value_again();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
+	});
+
+	it("a re-read of the parameter page sets its pad blink up and restarts the side column, as DxParam::readValueAgain", _ {
+		MenuRig r;
+		r.open(nodes::dx_param);
+		menu_scene().state_for_spec().dx.pad_blink = false;
+		menu_scene().state_for_spec().dx.flash_restart = false;
+		menu_scene().read_value_again();
+		expect(r.state().dx.pad_blink).to_be_true();
+		expect(r.state().dx.flash_restart).to_be_true();
+	});
+
 	it("lists DX7 source's three rows as legacy's dxMenu does", _ {
 		const ::MenuItem* const legacy_rows[] = {&legacy::dxBrowseMenu, &legacy::dxGlobalParams, &legacy::dxEngineSelect};
 		expect(std::size(nodes::kDxMenuChildren)).to_equal(std::size(legacy_rows));
@@ -332,6 +354,47 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(-3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2); // legacy drops a turn that would leave the modes
 		expect(sink.gestures.size()).to_equal(size_t{1});
+	});
+
+	it("turns the engine version's list five steps under Shift, and drops a turn that would leave the modes", _ {
+		// `SoundEditor::selectEncoderAction` hands `DxEngineSelect` the offset times 5; it does nothing out of range.
+		MenuRig r;
+		bind::RecordingSink sink;
+		r.open(nodes::dx_engine_select, &sink);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(0);
+		expect(sink.gestures.empty()).to_be_true();
+		r.button(kShiftX, kShiftY, false);
+	});
+
+	it("turns the DX7 parameter and operator lists five rows under Shift, as their clamp reads it", _ {
+		// `DxGlobalParams` and `DxOperatorParams` clamp `currentValue + offset`, on the scaled offset.
+		for (const Node* page : {&nodes::dx_global_params, &nodes::dx_operator_params}) {
+			MenuRig r;
+			r.open(*page);
+			r.button(kShiftX, kShiftY, true);
+			r.turn(1);
+			expect(static_cast<int32_t>(r.cursor())).to_equal(5);
+			r.button(kShiftX, kShiftY, false);
+		}
+	});
+
+	it("turns the DX7 value five steps under Shift, then clamps to its limit", _ {
+		// `DxParam::selectEncoderAction` adds the scaled offset to the value and clamps it to `upper_limit`.
+		MenuRig r;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		patch.params[134] = 3;
+		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch)).to_be_true();
+		bind::RecordingSink sink;
+		menu_scene().land_dx(menu::DxState{.param = 134});
+		r.open(nodes::dx_param, &sink);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1);
+		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->params[134])).to_equal(8);
+		r.turn(10);
+		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->params[134])).to_equal(31);
+		r.button(kShiftX, kShiftY, false);
 	});
 
 	it("opens the parameter page or an operator's list from DX7 parameters, as legacy's rows do", _ {

@@ -18,6 +18,9 @@
 ///       `rename_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_host_ui.h"
+#include "hid/display/screensaver.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -891,7 +894,85 @@ describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 		// widget instead: `tests/golden/ui/widgets/option_window_scrolled_{48,64}.pbm`.
 	});
 });
+describe cm_live_settings("scenes::context_menu resets re-apply on the guest what main reads live", $ {
+	it("a community-features reset reaches the guest's shift machine and the open menu's layout", _ {
+		reset_globals();
+		const ResetWitness entry = witness();
+		const uint32_t sticky = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+		const uint32_t horizontal = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
+		const MenuContext ctx{};
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
+		shellHostUI.shell().lowering().set_shift_is_sticky(true);
+		// A SHIFT latched under the old setting: main's `shiftCurrentlyStuck`, which the reset leaves set.
+		shellHostUI.shell().lowering().seed_shift(/*pressed=*/false, /*stuck=*/true, 0);
+		menu_scene().set_horizontal_menus(false);
+
+		(void)context_menu::descriptor(DescriptorId::ResetCommunityFeatures).accept(ctx, 0);
+		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky)).to_be_false(); // the default
+		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)).to_be_true(); // the default
+		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();
+		expect(shellHostUI.shell().lowering().sticky()).to_be_true(); // the latch outlives the reset, as in main
+		expect(shellHostUI.shell().lowering().shift()).to_be_true();
+		expect(menu_scene().menu_context().horizontal_menus).to_be_true();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, sticky);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, horizontal);
+		shellHostUI.shell().lowering().set_shift_is_sticky(sticky == RuntimeFeatureStateToggle::On);
+		shellHostUI.shell().lowering().clear_shift_sticky();
+		restore(entry);
+		reset_globals();
+	});
+
+	it("leaves rounded corners as main does after it, stale until the next boot", _ {
+		reset_globals();
+		const ResetWitness entry = witness();
+		const uint32_t rounded = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+		const MenuContext ctx{};
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, RuntimeFeatureStateToggle::Off);
+		deluge::gui::ui::pushShellRoundedCorners();
+
+		(void)context_menu::descriptor(DescriptorId::ResetCommunityFeatures).accept(ctx, 0);
+		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners)).to_be_true(); // the default
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, rounded);
+		deluge::gui::ui::pushShellRoundedCorners();
+		restore(entry);
+		reset_globals();
+	});
+
+	it("a flash reset restyles the guest's highlighting and re-times its screensaver", _ {
+		reset_globals();
+		spec::ErasedFlash flash; // the reset programs the settings sector -- see `support/host_flash.h`
+		const ResetWitness entry = witness();
+		const MenuHighlighting highlighting = FlashStorage::accessibilityMenuHighlighting;
+		const ScreensaverMode mode = FlashStorage::screensaverMode;
+		const uint8_t minutes = FlashStorage::screensaverTimeoutMinutes;
+		const MenuContext ctx{};
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::pushShellHighlighting();
+		FlashStorage::screensaverMode = ScreensaverMode::OFF;
+		deluge::hid::display::Screensaver::settingsChanged();
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t{0});
+
+		(void)context_menu::descriptor(DescriptorId::ResetFlash).accept(ctx, 0);
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting
+		       == deluge::ui::Highlighting::PartialInversion)
+		    .to_be_true(); // `resetSettings`' default
+		expect(shellHostUI.shell().screensaver_idle_ms())
+		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u); // a minute, as `arm()` counts
+
+		FlashStorage::accessibilityMenuHighlighting = highlighting;
+		FlashStorage::screensaverMode = mode;
+		FlashStorage::screensaverTimeoutMinutes = minutes;
+		deluge::gui::ui::pushShellHighlighting();
+		deluge::hid::display::Screensaver::settingsChanged();
+		restore(entry);
+		reset_globals();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions,
-            cm_pixels)
+            cm_pixels, cm_live_settings)

@@ -66,7 +66,9 @@ later tick, not dropped.
 
 **The tick window.** Input arrives *between* ticks, so the shell opens the window lazily on the first
 feed (`on_board_event`, `on_encoder_edges`, `set_sd_busy`) or at `pump_input`, and closes it at the
-bottom of `tick()`.
+bottom of `tick()`. A host whose scenes leave without a tick first runs one when `input_pending()`
+says input is waiting, so it reaches the scenes it was fed to, then calls `discard_pending_input()`,
+which closes the window and drops whatever is left, so nothing fed for them reaches the scenes up next.
 
 | gate | effect | for |
 |---|---|---|

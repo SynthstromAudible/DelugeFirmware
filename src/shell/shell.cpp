@@ -247,6 +247,13 @@ void Shell::set_highlighting(ui::Highlighting h) {
 	}
 }
 
+void Shell::set_rounded(bool rounded) {
+	surfaces_.set_rounded(rounded);
+	for (OledSurface& s : surfaces_.oled()) {
+		s.gate.request_repaint();
+	}
+}
+
 void Shell::song_loading(bool loading) {
 	if (loading) {
 		stack_.reset();
@@ -270,6 +277,11 @@ void Shell::ensure_tick_window(uint32_t now_ms) {
 		lowering_.begin_tick(now_ms);
 		tick_open_ = true;
 	}
+}
+
+void Shell::discard_pending_input() {
+	lowering_.discard_pending();
+	tick_open_ = false;
 }
 
 void Shell::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {

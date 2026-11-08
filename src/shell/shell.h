@@ -263,6 +263,11 @@ public:
 	/// @param h The highlighting the card stores.
 	void set_highlighting(ui::Highlighting h);
 
+	/// @brief Restyle the rounded primitives on every surface and repaint them: the host calls it once the card's
+	///        settings are read and whenever the RoundedCorners setting changes.
+	/// @param rounded Whether `rect_rounded` and `invert_rounded` round their corners.
+	void set_rounded(bool rounded);
+
 	/// @brief The shell's half of the song-load protocol: what the firmware calls from
 	///        the load path to bracket a song read.
 	///
@@ -438,6 +443,14 @@ public:
 	/// earlier, never later: a deadline already set stands.
 	/// @param now_ms The clock now.
 	void reconsider_wake(uint32_t now_ms);
+	/// @brief Drop every input fed since the last tick, and close the tick window it opened.
+	///
+	/// For a host whose scenes leave without a tick: what was fed for them would otherwise wait in the open window and
+	/// be routed by the next tick to whatever scenes are up by then. The lowering keeps its held buttons and partial
+	/// detents (`InputLowering::discard_pending`).
+	void discard_pending_input();
+	/// @brief Whether input was fed since the last tick: the tick window is open.
+	bool input_pending() const { return tick_open_; }
 
 	/// @name Inspection
 	/// @{

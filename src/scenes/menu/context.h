@@ -267,7 +267,8 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1991`.
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
 /// "Not owned by this file"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first

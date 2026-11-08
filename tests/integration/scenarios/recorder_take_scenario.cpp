@@ -15,6 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+// This scenario drives legacy's own recorder menu, so it opens the legacy sound editor. With the ported menu selected
+// `SoundEditor::opened` refuses, so `openRecorder` selects the legacy menu (the Legacy Menu setting) for the open only.
+
 #include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
 #include "scenarios/slot_coherence.h"
@@ -41,6 +44,7 @@
 #include "model/output.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -201,9 +205,14 @@ void openRecorder() {
 	const bool setup = soundEditor.setup(g_clip, &sample0RecorderMenu, 0);
 	g_sound = soundEditor.currentSound;
 	g_range = soundEditor.currentMultiRange;
+	// legacy's own editor, which the Legacy Menu setting keeps
+	const auto legacyMenuBefore =
+	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::On);
 	if (setup && openUI(&soundEditor) && getCurrentUI() == &soundEditor) {
 		soundEditor.enterSubmenu(&sample0RecorderMenu);
 	}
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, legacyMenuBefore);
 }
 
 /// Starts a take for @p marker's leg; false (with the failure reported) when none is running under the recorder UI.

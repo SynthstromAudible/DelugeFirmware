@@ -66,7 +66,11 @@ public:
 	void enter_leaf(MenuCore core, const Node& node, FocusCause cause) const;
 	/// @brief Commit the edit storage for @p node through `bindings::write`.
 	void commit(MenuCore core, const Node& node) const;
-	/// @brief Reload the focused leaf's value and redraw -- `Value::readValueAgain` (`value.h:77-80`).
+	/// @brief `MenuItem::readValueAgain`: the focused node's value read again from the model, and a redraw asked for.
+	///
+	/// Only the value storage moves. A number's edit position, a list's scroll and a range's edge stay where the user
+	/// left them, and a page writes nothing, because its columns read live. A custom item re-reads through its
+	/// `on_reread`, which does nothing unless legacy's counterpart takes its value from the model.
 	void read_again(MenuCore core) const;
 
 private:

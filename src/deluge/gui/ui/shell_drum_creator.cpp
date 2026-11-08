@@ -17,6 +17,7 @@
 
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_host_ui.h"
 
 #include "gui/ui/ui.h" // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
@@ -67,6 +68,8 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 		return false;
 	}
 	creatorDrum = drum;
+	// Legacy opens the browser over the clip view with no editor; its exit leaves the UI mode alone.
+	shellHostUI.markVisitWithoutEditor();
 	// The browser is pushed from the menu's next render, after this returns; `enterDrumCreator` opens it with no
 	// `beginScreen`, so the file selector's own blink is never armed.
 	setShellBrowserFromDrumCreator(true);
@@ -82,6 +85,8 @@ bool openShellDrumRecorder(InstrumentClip* clip) {
 	}
 	// And should the recorder refuse, the fallback's file selector, whose browser legacy opens on the new drum.
 	landShellMenuOnFileSelectorIfRecorderRefuses();
+	// Legacy opens the recorder over the clip view with no editor; the take's end leaves the UI mode alone.
+	shellHostUI.markVisitWithoutEditor();
 	return true;
 }
 

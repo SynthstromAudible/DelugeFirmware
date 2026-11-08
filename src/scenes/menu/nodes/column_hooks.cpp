@@ -274,11 +274,30 @@ std::optional<ArtColumn> midi_preset_art(const MenuContext&, int32_t value) {
 	return ArtColumn{.text = deluge::l10n::getView(String::STRING_FOR_NONE)};
 }
 
+std::optional<int32_t> midi_preset_turn(const MenuContext&, int32_t value, int32_t offset) {
+	const int32_t span = kMidiPresetRange.max - kMidiPresetRange.min + 1;
+	return kMidiPresetRange.min + (((value + offset - kMidiPresetRange.min) % span) + span) % span;
+}
+
+ValueText midi_preset_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value != kMidiPresetRange.max) {
+		return kValueTextFallback;
+	}
+	return put_string(String::STRING_FOR_NONE, out);
+}
+
 ValueText off_at_zero_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label || value != 0) {
 		return use == ValueTextUse::Notification ? put_int(value, out) : kValueTextFallback;
 	}
 	return put_string(String::STRING_FOR_OFF, out);
+}
+
+ValueText cv_volts_word(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value != 0) {
+		return kValueTextFallback;
+	}
+	return put("Hz/V", out);
 }
 
 ValueText retrigger_phase_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
@@ -299,6 +318,43 @@ ValueText ducking_auto_text(const MenuContext&, int32_t value, ValueTextUse use,
 		return put_string(String::STRING_FOR_AUTO, out);
 	}
 	return use == ValueTextUse::Notification ? put_int(value, out) : kValueTextFallback;
+}
+
+ValueText hold_time_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column) {
+		return kValueTextFallback;
+	}
+	if (value == 20) {
+		return put("1 SEC", out);
+	}
+	char buf[12];
+	const int written = std::snprintf(buf, sizeof(buf), "%d MS", static_cast<int>(value * 50));
+	return written <= 0 ? ValueText{} : put(std::string_view{buf, static_cast<size_t>(written)}, out);
+}
+
+ValueText default_magnitude_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > 6) {
+		return kValueTextFallback;
+	}
+	return put_int(96 << value, out);
+}
+
+ValueText arp_rhythm_name_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+		return kValueTextFallback;
+	}
+	return put(arpRhythmPatternNames[static_cast<size_t>(value)], out);
+}
+
+ValueText arp_rhythm_screen_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+		return kValueTextFallback;
+	}
+	char name[12];
+	const int written = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(value),
+	                                  arpRhythmPatternNames[static_cast<size_t>(value)]);
+	// "%d: " alone is three bytes, so `written` is positive.
+	return put(std::string_view{name, std::min(static_cast<size_t>(written), sizeof(name) - 1)}, out);
 }
 
 ValueText on_off_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {

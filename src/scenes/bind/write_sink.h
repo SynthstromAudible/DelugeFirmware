@@ -153,7 +153,9 @@ public:
 	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
 	/// the change, so the step learns it after.
 	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
-	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt.
+	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt. Any
+	/// unlearn marks the current instrument edited, as `learn_knob`'s learn does; the menu is the only caller and
+	/// unlearns only a param's knob.
 	/// @param input A note learned on a track's or kit row's input: what the learn takes from the note's cable.
 	/// @return Whether it was taken: false where @p target's owner is not in the song.
 	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
@@ -208,7 +210,8 @@ public:
 	/// @return Whether it was taken.
 	virtual bool delete_knob_automation(const project::ParamAddress& address) = 0;
 	/// @brief Mark the instrument @p focus's knobs edit as edited by the user (a synth, a kit row's kit, a kit's own
-	/// chain): a runtime flag no record holds, which a gesture that edited it sets.
+	/// chain): a runtime flag no record holds, which a gesture that edited it sets, and the menu after a select turn on
+	/// an item that edits a sound's instrument.
 	/// @return Whether it was taken.
 	virtual bool instrument_edited(const KnobFocus& focus) = 0;
 };

@@ -70,6 +70,7 @@ public:
 	                                 MenuState& state) const override;
 	/// @brief `readValueAgain` (`engine_select.cpp:38-42`): the cursor on the patch's mode.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	void on_reread(const MenuContext& ctx, MenuState& state) const override;
 };
 
 inline const DxBrowseItem kDxBrowse{};
@@ -122,6 +123,7 @@ public:
 	/// @brief Opens with no pad blinking (`DxState::pad_blink`), unless the keyboard's DX column opened it
 	///        (`DxState::blink_on_focus`).
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	void on_reread(const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The param's own pad, every other cycle, once a horizontal step has set it up; none for the scaling params
 	///        (`readValueAgain`'s `setupShortcutBlink(x, y, 1)`).
 	std::optional<ItemBlink> own_blink(const MenuContext& ctx, const MenuState& state) const override;

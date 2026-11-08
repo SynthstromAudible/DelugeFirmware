@@ -116,6 +116,10 @@ bool noteModeCurrentMenuItemIs(NoteModeMenuItem item);
 /// @brief `soundEditor.getCurrentMenuItem()->readValueAgain()`, ported.
 void noteModeReadValueAgain();
 
+/// @brief `adjustVelocity`'s "is the velocity menu displayed" asked of the ported menu: frontmost on the note's
+///        velocity item, or on the note editor's root drawn as a horizontal page, whose velocity column reads live.
+bool noteModeVelocityShown();
+
 /// @brief `potentiallyRefreshNoteRowMenu`'s test (`gui/views/instrument_clip_view.cpp`), asked of the ported menu
 ///        outside the note modes: `getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow` with Play
 ///        Direction the current item.

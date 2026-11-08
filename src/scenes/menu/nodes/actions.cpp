@@ -122,6 +122,11 @@ void PerformEditorItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 	state.scroll[d] = deluge::ui::ScrollText{};
 }
 
+void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const {
+	// `EditingMode::readCurrentValue`: the cursor is the mode the performance view is in now.
+	state.list[depth_of(state)].cursor = static_cast<int16_t>(performance_editing_mode());
+}
+
 void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	draw_title_for(f, state);
 

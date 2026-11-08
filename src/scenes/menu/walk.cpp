@@ -501,11 +501,12 @@ void MenuWalk::restore(MenuCore core, ValueSession& session, const SceneState& s
 	}
 }
 
-bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t direction) {
+bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t direction,
+                                   MenuContext::Root chain_root) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// `HorizontalMenu::switchHorizontalMenu` (`horizontal_menu.cpp:364-394`).
-	const std::span<const Node* const> chain = chain_for(ctx.root);
+	const std::span<const Node* const> chain = chain_for(chain_root);
 	if (chain.empty() || direction == 0) {
 		return false;
 	}

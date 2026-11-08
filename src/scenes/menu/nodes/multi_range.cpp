@@ -242,8 +242,9 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	// `SoundEditor::buttonAction`'s BACK arm asks a range item to cancel its edge first (`Range::cancelEditingIfItsOn`,
 	// `range.cpp:87-95`), and goes up only when there was none.
 	// At the root the menu leaves BACK to its own handling (closing the editor) unless an item claims it, so the press
-	// is read here as well as from the menu's own read below the root.
-	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off && (state.tick.back_claimed || f.back_pressed())) {
+	// is read here as well as from the menu's own read below the root. A BACK the host's UI mode refuses is not read.
+	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off && state.tick.back_acts
+	    && (state.tick.back_claimed || f.back_pressed())) {
 		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
 		state.tick.back_claimed = false;
 	}

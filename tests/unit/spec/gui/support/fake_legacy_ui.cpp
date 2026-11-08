@@ -313,6 +313,9 @@ void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
 
+// `gui/ui/ui.cpp`'s, which `ShellHostUI::closeGuest` ends as `SoundEditor::exitCompletely` does.
+uint32_t currentUIMode = 0;
+
 // `gui/ui/sound_editor.cpp`'s list and `ui.cpp`'s check, which `ShellHostUI::selectEncoderAction` gates the menu's
 // turns on. This suite never sets a UI mode, and with none on every list admits it.
 const uint32_t selectEncoderUIModes[] = {0};
@@ -416,6 +419,15 @@ void wireShellGuestServices() {
 	fakelegacyui::service_wirings++;
 }
 
+// The menu's UI-mode gates and learn mode, which `ShellHostUI` asks for around a button and a select turn. This suite
+// has no menu: no gate to refresh, and never in learn mode.
+void refreshMenuModeGates() {
+}
+
+bool shellMenuLearnMode() {
+	return false;
+}
+
 // `gui/ui/shell_action_dispatch.cpp`'s share, on the terms of the one above: the real one
 // reads `deluge::scenes::menu_scene()` and its seven arms name `performanceView`, `audioClipView`,
 // `stemExport`, two `gui/context_menu/` singletons, `soundEditor` and
@@ -500,6 +512,9 @@ void dispatchShellActions() {
 	}
 }
 
+void dispatchShellActionsAtClose() {
+}
+
 // `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
 // `deluge::scenes::browser::browser_scene()` and its Sample arm performs a load that names
 // `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. No callback hook here
@@ -512,6 +527,9 @@ void dispatchShellChoices() {
 // `gui/ui/shell_slice_ops.cpp`'s share: the real one drives `SliceCore` over the current kit. This suite has no
 // slicer: a spec says whether a slice is out, and the release records where in the close it ran.
 void pollShellSlicer() {
+}
+bool shellVisitFellBackToEditor() {
+	return false;
 }
 bool shellSlicerBusy() {
 	return false;

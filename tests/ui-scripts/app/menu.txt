@@ -190,7 +190,7 @@
 # **The gesture is legacy's own**: hold an audition pad on a synth clip and press LOAD.
 # `InstrumentClipView::buttonAction`'s arm is `currentUIMode == UI_MODE_AUDITIONING && (b == LOAD ||
 # b == KIT)` (`:469-470`) with the synth half at `:496`. The audition pads are sidebar column
-# `kDisplayWidth + 1` = 17 (`instrument_clip_view.cpp:1978`, `auditionPadAction` at `:2027`).
+# `kDisplayWidth + 1` = 17 (`InstrumentClipView::auditionPadAction`).
 #
 # **Why a NEW clip rather than the boot one.** The section above converted the song's only clip to
 # an AudioClip, and site 8 needs `getCurrentOutputType() == OutputType::SYNTH`. Pressing an empty
@@ -208,7 +208,7 @@
 #
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
-# check runs (`gui/ui/sound_editor.cpp:1991`), so the ported browser refused to open at all; and
+# check runs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), so the ported browser refused to open at all; and
 # `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp`) which
 # no `setup()` had ever written with ShellMenu on, so the claim SIGSEGVed the ON leg.
 6500   button Back down
@@ -374,7 +374,7 @@
 24120  button SelectEnc up
 24400  snapshot note-row-editor-open
 
-# 7. A short BACK closes it through `exitNoteRowEditor()` (`gui/ui/sound_editor.cpp:754-756`). Then
+# 7. A short BACK closes it through `exitNoteRowEditor()` (`SoundEditor::exitCompletely` in `gui/ui/sound_editor.cpp`). Then
 # release the audition pad.
 24800  button Back down
 24820  button Back up

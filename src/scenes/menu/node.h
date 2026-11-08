@@ -280,6 +280,10 @@ using NotificationSuffixFn = size_t (*)(const MenuContext& ctx, std::span<char> 
 /// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
 using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
+/// @brief `Binding::sync_name_magnitude`'s hook: the tick magnitude a `Kind::SyncLevel` value's note length is named
+///        against.
+using TickMagnitudeFn = int32_t (*)(const MenuContext& ctx);
+
 /// @brief `Binding::leaf_draw`'s hook: legacy's `drawInteger` override that draws an `Int` item's whole screen below
 ///        its title, given the value after this tick's edit and the screen's side-scroll state.
 using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
@@ -459,15 +463,31 @@ struct Binding {
 	TurnFn turn = nullptr;
 
 	/// @brief Legacy's `drawPixelsForOled` override that names an `Int` value: while this answers
-	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar.
-	///        Null for every ordinary node.
+	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar. With
+	///        `ValueStyle::label_in_digits` it is legacy's `drawInteger` override instead: the text takes the digits'
+	///        place, in their face and band, and a continuous value keeps its bar. Null for every ordinary node.
 	ValueTextFn leaf_text = nullptr;
 	/// @brief Legacy's `drawInteger` override that draws the item's own screen (`LeafDrawFn`). Null for every ordinary
 	///        node.
 	LeafDrawFn leaf_draw = nullptr;
+	/// @brief Legacy's `drawPixelsForOled` override on a `Decimal` that names some of its values (`cv::Volts`' Hz/V at
+	///        0, `osc::RetriggerPhase`'s OFF below 0): while this answers (`ValueTextUse::Column`), the full screen
+	///        draws the word with no cursor and the horizontal encoder moves nothing. Null for every ordinary node.
+	ValueTextFn decimal_word = nullptr;
+	/// @brief `osc::RetriggerPhase::selectEncoderAction` on the full screen: a turn up from below zero starts at minus
+	///        the edit step. The page's twin is `HorizontalStep::restart_from_negative`.
+	bool decimal_restart_from_negative = false;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
+	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`:
+	///        2 (the units of a two-place value) unless the item overrides it. A detent moves the value `10^place`.
+	int8_t default_edit_pos = 2;
+
+	/// @brief Legacy's `getNoteLengthName` override (`defaults::SwingInterval`, `sync_level::RelativeToSong`): the tick
+	///        magnitude a `Kind::SyncLevel` leaf's screen and notification name its value against. Null: the song's
+	///        input tick magnitude, `SyncLevel::getNoteLengthName`'s. The column label always reads the song's.
+	TickMagnitudeFn sync_name_magnitude = nullptr;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
 	///        (`MenuItem::wrapAround` answering true on a horizontal page).
@@ -602,6 +622,16 @@ struct CustomItem {
 	/// the last *output* the user chose and "keep the cursor" puts it back on MINIMUM OFF TIME. See
 	/// `nodes::GateSelectionItem::on_focus_backward`.
 	virtual void on_focus_backward(const MenuContext&, MenuState&) const {}
+
+	/// @brief The focused item's value read again from the model -- legacy's `MenuItem::readValueAgain` /
+	///        `readCurrentValue`, which no `beginSession` is part of.
+	///
+	/// `ValueSession::read_again` raises the redraw itself. Do-nothing default, which is what legacy does for an item
+	/// with no override or one that only redraws: the cursor, the list, the edit edge and the walk state stay where the
+	/// user left them, and nothing is loaded, written or opened. Override it only where legacy's
+	/// `readCurrentValue` takes the value from the model, and then write the value alone, never what `on_focus`
+	/// initialises.
+	virtual void on_reread(const MenuContext&, MenuState&) const {}
 
 	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
 	///        bespoke item whose value does not live in a `Binding`.
@@ -1197,6 +1227,25 @@ constexpr Node with_horizontal_step(Node n, HorizontalStep step) {
 	return n;
 }
 
+/// @brief `n` whose full-screen cursor starts on place @p pos (`Binding::default_edit_pos`).
+constexpr Node with_default_edit_pos(Node n, int8_t pos) {
+	n.bind.default_edit_pos = pos;
+	return n;
+}
+
+/// @brief `n` naming some of its full-screen decimal values with @p word (`Binding::decimal_word`).
+constexpr Node with_decimal_word(Node n, ValueTextFn word) {
+	n.bind.decimal_word = word;
+	return n;
+}
+
+/// @brief `n` whose full-screen turn up from below zero restarts at minus the step
+///        (`Binding::decimal_restart_from_negative`).
+constexpr Node with_decimal_restart_from_negative(Node n) {
+	n.bind.decimal_restart_from_negative = true;
+	return n;
+}
+
 /// @brief `n` wrapping past its ends on a horizontal page (`Binding::wrap_in_horizontal`).
 constexpr Node with_wrap_in_horizontal(Node n) {
 	n.bind.wrap_in_horizontal = true;
@@ -1212,6 +1261,12 @@ constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
 /// @brief `n` with @p suffix after its notification text (`Binding::notification_suffix`).
 constexpr Node with_notification_suffix(Node n, NotificationSuffixFn suffix) {
 	n.bind.notification_suffix = suffix;
+	return n;
+}
+
+/// @brief `n` naming its sync levels against @p magnitude's answer (`Binding::sync_name_magnitude`).
+constexpr Node with_sync_name_magnitude(Node n, TickMagnitudeFn magnitude) {
+	n.bind.sync_name_magnitude = magnitude;
 	return n;
 }
 

@@ -113,5 +113,11 @@ pad 5 2
 snapshot editor_pad
 press BACK
 snapshot editor_back
+down SHIFT
+pad 8 7
+up SHIFT
+snapshot shift_pad_lpf
+press BACK
+snapshot shift_pad_back
 press KEYBOARD 20
 snapshot closed

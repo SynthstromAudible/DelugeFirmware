@@ -319,19 +319,19 @@ struct Layers {
 };
 
 /// @brief Which table each root reads, i.e. legacy's chain of context tests
-///        (`sound_editor.cpp:1195-1225` for the jump, `:812-848` for the blink) resolved once.
+///        (`SoundEditor::potentialShortcutPadAction` for the jump, `updatePadLightsFor` for the blink) resolved once.
 ///
 /// * `Sound` / `Drum` -- `paramShortcutsForSounds`, the `else` arm; `Drum` is the kit-drum output
 ///   whose name editor is the drum one. Both carry the second layer.
 /// * `MidiOrCv` / `MidiDrum` -- `midiOrCVParamShortcuts`; `MidiDrum` again swaps the name editor.
-/// * `GateDrum` -- `gateDrumParamShortcuts` (`:1277`'s `editingGateDrumRow()`).
+/// * `GateDrum` -- `gateDrumParamShortcuts` (`potentialShortcutPadAction`'s `editingGateDrumRow()` arm).
 /// * `AudioClip` -- `paramShortcutsForAudioClips`.
 /// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
 /// * `NoteEditor` / `NoteRowEditor` -- nothing either: `padAction`'s own gate
-///   (`sound_editor.cpp:1467`) skips `potentialShortcutPadAction` on both, exactly as it does for
-///   `Settings`, so neither root's blink or press table is ever consulted.
+///   (`SoundEditor::padAction` in `sound_editor.cpp`) skips `potentialShortcutPadAction` on both, exactly as it does
+///   for `Settings`, so neither root's blink or press table is ever consulted.
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
 constexpr Layers kByRootV3[static_cast<size_t>(MenuContext::Root::Count)] = {
@@ -434,6 +434,18 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 	// They are disjoint from the table's own column, so the order only decides what happens if that
 	// ever stops being true -- and the table has to win, because it is the transcription.
 	return l.resolve_only != nullptr ? cell_of(*l.resolve_only, x, y) : nullptr;
+}
+
+bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
+	switch (root) {
+	case MenuContext::Root::Sound:
+	case MenuContext::Root::Drum:
+		return (x == 4 && (y == 2 || y == 3 || y == 6)) || (x == 5 && (y == 2 || y == 3));
+	case MenuContext::Root::AudioClip:
+		return x == 7 && y == 7;
+	default:
+		return false;
+	}
 }
 
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {

@@ -1,4 +1,5 @@
 #include "gui/ui/shell_bind_host.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
@@ -729,8 +730,16 @@ bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<d
 		return false;
 	}
 	if (!command) {
+		// `MenuItemWithCCLearning::unlearnAction`: the menu unlearns only a param's knob, which marks the current
+		// instrument edited (`SoundEditor::markInstrumentAsEdited`), as `learn_knob` does for the learn.
 		deluge::edits::UnlearnMapping edit{std::move(target)};
-		return applied(edit);
+		if (!applied(edit)) {
+			return false;
+		}
+		if (Instrument* instrument = getCurrentInstrument()) {
+			instrument->beenEdited();
+		}
+		return true;
 	}
 	std::optional<deluge::edits::InputLearn> learned_input;
 	if (input) {
@@ -1312,6 +1321,10 @@ void host_grab_tempo(deluge::project::ClipAddress clip) {
 	if (::AudioClip* audio = gui::audioClipAt(clip)) {
 		playbackHandler.grabTempoFromClip(audio);
 	}
+}
+
+void host_settings_reset() {
+	gui::ui::reapplyLiveSettingsAfterReset();
 }
 
 const deluge::scenes::services::Waveforms& host_waveforms() {

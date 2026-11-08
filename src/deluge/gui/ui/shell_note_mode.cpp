@@ -22,6 +22,7 @@
 #include "gui/ui/shell_note_mode.h"
 
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
+#include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
 #include "gui/ui/sound_editor.h"          // soundEditor
 #include "gui/ui/ui.h"                    // uiNeedsRendering
@@ -29,6 +30,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "util/note_editor_open.h"
 
+#include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -101,8 +103,8 @@ constexpr NoteModeLegacyCalls kRealCalls{
 const NoteModeLegacyCalls* installed = &kRealCalls;
 
 /// @brief The mode a menu root names -- `inNoteEditor()` / `inNoteRowEditor()`'s comparison of
-///        `menuItemNavigationRecord[0]` against the two root items (`gui/ui/sound_editor.cpp:1914-1920`),
-///        in the port's representation of "which root is open".
+///        `menuItemNavigationRecord[0]` against the two root items (`SoundEditor::inNoteEditor` in
+///        `gui/ui/sound_editor.cpp`), in the port's representation of "which root is open".
 NoteModeKind modeForRoot(MenuContext::Root root) {
 	switch (root) {
 	case MenuContext::Root::NoteEditor:
@@ -206,9 +208,12 @@ std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
 std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 	switch (activeNoteMode()) {
 	case NoteModeKind::NoteEditor:
-		return noteModeLegacyCalls().noteEditorVertical(offset); // `gui/ui/sound_editor.cpp:1593-1595`
+		// `SoundEditor::verticalEncoderAction` (`gui/ui/sound_editor.cpp`): its `inNoteEditor()` arm calls
+		// `handleNoteEditorVerticalEncoderAction`.
+		return noteModeLegacyCalls().noteEditorVertical(offset);
 	case NoteModeKind::NoteRowEditor:
-		return noteModeLegacyCalls().noteRowEditorVertical(offset); // `:1596-1598`
+		// `SoundEditor::verticalEncoderAction`'s `inNoteRowEditor()` arm.
+		return noteModeLegacyCalls().noteRowEditorVertical(offset);
 	case NoteModeKind::None:
 		break;
 	}
@@ -238,16 +243,17 @@ void exitNoteModeBeforeClose() {
 	//   * A song swap resets the root to `Settings` (`MenuScene::on_model_changed`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
-		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`
-		// `:751-752`, "refresh grid to potentially unhighlight edited notes": `uiNeedsRendering(this,
+		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`
+		// `exitCompletely`'s "refresh grid to potentially unhighlight edited notes" step is `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- with ShellMenu on, this guest.
-		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:309-333`),
+		// `uiNeedsRendering` queues every main row against the guest's place in the hierarchy,
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.
 		uiNeedsRendering(&shellHostUI, 0xFFFFFFFF, 0);
 		break;
 	case NoteModeKind::NoteRowEditor:
-		noteModeLegacyCalls().exitNoteRowEditor(); // `gui/ui/sound_editor.cpp:754-755`, no repaint
+		// `SoundEditor::exitCompletely`, with no repaint.
+		noteModeLegacyCalls().exitNoteRowEditor();
 		break;
 	case NoteModeKind::None:
 		break;
@@ -292,6 +298,18 @@ void noteModeReadValueAgain() {
 	// `MenuScene::read_value_again` is `MenuItem::readValueAgain`'s port, the one
 	// `services::ModKnobs` already calls for `View`'s own `readValueAgain()`.
 	deluge::scenes::menu_scene().read_value_again();
+}
+
+bool noteModeVelocityShown() {
+	// Main's rule: the note's velocity item, or the note editor's root drawn horizontally.
+	if (!shellMenuFrontmost()) {
+		return false;
+	}
+	const deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	const Node* const focused = menu.focused();
+	return focused == &nodes::note_velocity
+	       || (focused == &nodes::note_editor_root
+	           && deluge::scenes::menu::renders_horizontal(nodes::note_editor_root, menu.menu_context()));
 }
 
 bool portedMenuOnAuditionedRowDirection() {

@@ -122,9 +122,9 @@ public:
 	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
 	/// @return True.
 	bool select_acts_on_release() const override { return true; }
-	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
-	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return learn_mode(); }
+	/// @brief True where `SoundEditor::buttonAction`'s Select arm does not act: learn mode, and any UI mode the host
+	///        reports outside the five SELECT acts in (`set_host_mode_gates`).
+	bool select_release_blocked() const override { return !select_and_back_act(); }
 	/// @brief Whether LEARN holds the menu in learn mode, legacy's `UI_MODE_MIDI_LEARN`, which the menu keeps itself
 	///        rather than in `currentUIMode`; the guest refuses select turns in it.
 	bool learn_mode() const { return visit_.learn.mode(); }
@@ -139,7 +139,7 @@ public:
 	}
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
-	/// @brief `SoundEditor::padAction`'s gate at `gui/ui/sound_editor.cpp:1467`, as a declaration.
+	/// @brief `SoundEditor::padAction`'s gate in `gui/ui/sound_editor.cpp`, as a declaration.
 	///
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
 	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --
@@ -199,15 +199,53 @@ public:
 	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
 	///        at the next tick, as a shortcut's jump is.
 	void reroot(const Node& root, const MenuContext& ctx, const Node& column);
+	/// @brief Re-root the open menu at @p root on @p ctx and land it as a fresh open lands: where @p shortcut lands
+	///        (`arm_shortcut_landing`) when it is given, else on the node @p arg names, else (0) on the root itself.
+	///        `setup()` on the open sound editor and `enterOrUpdateSoundEditor`'s already-open `beginScreen`, for an
+	///        entry that reaches the menu while it is up. The move is a `Replace` at the next tick, as a shortcut's
+	///        jump is.
+	void reroot_at(const Node& root, const MenuContext& ctx, uint16_t arg, const Node* shortcut);
+	/// @brief Whether, this visit, a scene the menu pushed for an item refused its enter (the browser or the recorder):
+	///        legacy's failed `openUI(...)`, after which the drum creator opens the editor. Reset by `open`.
+	[[nodiscard]] bool pushed_scene_refused() const { return pushed_scene_refused_; }
 	/// @brief Whether AFFECT ENTIRE is this menu's hold rather than the clip's toggle: a kit row's menu
 	///        (`editingKitRow()`) on an item that uses it (`menu::uses_affect_entire`).
 	bool takes_affect_entire() const;
 	/// @brief Enter or leave `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, which the host decides: while held a
 	///        param write reaches every drum (`MenuContext::affect_entire_held`) and AFFECT ENTIRE blinks fast.
 	void set_affect_entire_hold(bool on);
+	/// @brief `SoundEditor::buttonAction`'s two UI-mode gates, as a host's own UI mode answers them at a button.
+	struct HostModeGates {
+		bool learn = true;           ///< `!currentUIMode`: a LEARN press may refuse, unlearn or start learn mode.
+		bool select_and_back = true; ///< `currentUIMode` is exactly one of the five modes SELECT and BACK act in.
+	};
+	/// @brief Set by a host that keeps a UI mode the shell does not see, before it feeds each button. Unset, the
+	///        menu's own learn mode alone gates SELECT and BACK, and held pads stand in for the mode at LEARN.
+	void set_host_mode_gates(const HostModeGates& gates) { host_gates_ = gates; }
 	/// @brief The clip's affect-entire changed under the open menu (the clip minder's toggle):
 	/// `MenuContext::affect_entire`.
 	void set_clip_affect_entire(bool on) { ctx_.affect_entire = on; }
+	/// @brief The HorizontalMenus community feature changed under the open menu (`MenuContext::horizontal_menus`):
+	///        legacy reads it on every draw, so a page entered after the write lays out as it now says.
+	void set_horizontal_menus(bool on) { ctx_.horizontal_menus = on; }
+	/// @brief The host's answer to "is a shortcut press on a kit's row now the kit's own effects", and the context
+	///        that press resolves against: legacy's `setupKitGlobalFXMenu`, which `potentialShortcutPadAction`'s table
+	///        (`get_basic_shortcut_action(editingKitAffectEntire())`), the `setup()` after it, the SHIFT overlay and
+	///        the horizontal-menu chain all read live. Asked afresh at each of those, never stored.
+	/// @param open The menu's context now.
+	/// @return The kit's own effects while the host's latch is set, or `nullopt`.
+	using KitGlobalShortcutFn = std::optional<MenuContext> (*)(const MenuContext& open);
+	/// @brief Install the host's `KitGlobalShortcutFn`; null answers `nullopt` always.
+	void set_kit_global_shortcut_source(KitGlobalShortcutFn source) { kit_global_shortcut_source_ = source; }
+	/// @brief Run @p hook when a shortcut press moves the menu onto the kit's own effects, before anything else of the
+	///        tick reads the editor's context: legacy's `setup()` re-points its editor there at once.
+	/// @param hook The host's adopt, or null for none.
+	void set_context_adopted_hook(void (*hook)()) { context_adopted_hook_ = hook; }
+	/// @brief Run @p hook after a shortcut jump from a scene over the menu (`shortcut_jump`, the marker editor's):
+	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`, whose write to
+	///        `setupKitGlobalFXMenu` is the host's to make.
+	/// @param hook The host's write, or null for none.
+	void set_reentry_hook(void (*hook)()) { reentry_hook_ = hook; }
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
@@ -239,16 +277,9 @@ public:
 
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
-	/// The port of the one call legacy makes to it from outside the menu:
-	/// `View::modEncoderButtonAction_changeModControllable`'s
-	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1392-1394`), run
-	/// after a gold-knob **push** has changed a `ModControllable` param behind the menu's back. The
-	/// edit storage this scene keeps (`MenuState::edit_int`, `enum_index`, …) is loaded on focus,
-	/// so without this the menu would keep showing the value it read on the way in.
-	///
-	/// Spelled as `enter_leaf(node, FocusCause::NoRowPress)` because that is exactly what
-	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
-	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
+	/// The value is re-read and the cursor kept (`ValueSession::read_again`). Callers: the gold-knob push
+	/// (`services::ModKnobs`), the note modes' re-reads, `View::displayAutomation` and the MPE refresh
+	/// (`util/sound_menu_open.h`). A no-op when nothing is focused.
 	void read_value_again();
 	/// @brief The param a knob learn binds to on the learn node (`MenuLearn::node`): the row, column or item under the
 	///        cursor.
@@ -538,6 +569,14 @@ public:
 	///         target's own; 0 when that node has no id.
 	uint16_t arm_shortcut_landing(const Node& target);
 
+	/// @brief Prepare the next `on_enter` to open @p page with @p column focused: `reroot`'s landing, for an open
+	///        that goes through the shell's own `SceneId` (`open()` must already have run).
+	/// @return The `SceneId::arg` to open: @p page's id.
+	uint16_t arm_page_landing(const Node& page, const Node& column);
+
+	/// @brief Do SELECT and BACK act now? Legacy's five-mode test, of which learn mode (`UI_MODE_MIDI_LEARN`) is not
+	///        one.
+	bool select_and_back_act() const { return !learn_mode() && (!host_gates_ || host_gates_->select_and_back); }
 	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
 	///        `render_*` functions it dispatches to, answered before they run.
 	/// @return The claim set.
@@ -564,6 +603,16 @@ private:
 	                                       const deluge::ui::shell::UiContext& ctx);
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
+	/// @brief The kit's own effects for a shortcut press on a kit's row, from the host
+	/// (`set_kit_global_shortcut_source`),
+	///        or `nullopt` off a kit row or while the host's latch is clear. The note editors and Settings take no
+	///        shortcut press, as `SoundEditor::padAction` skips them.
+	std::optional<MenuContext> kit_global_shortcut_context() const;
+	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while
+	///        `kit_global_shortcut_context` answers, else the menu's.
+	MenuContext::Root shortcut_root() const;
+	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`).
+	void install_context(const MenuContext& ctx);
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
 	bool on_horizontal_page() const { return menu::on_horizontal_page(ctx_, st_); }
@@ -579,6 +628,11 @@ private:
 
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
+
+	/// @brief `SoundEditor::markInstrumentAsEdited` after a select turn: the sound's instrument (a synth, a kit row's
+	///        kit) when the menu edits a sound, outside the settings menu, and the focused item edits the instrument
+	///        (`select_turn_edits_instrument`).
+	void mark_edited_after_turn();
 
 	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
 	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
@@ -603,6 +657,14 @@ private:
 	/// The renders, and the storage a horizontal page draws from.
 	MenuView view_;
 	MenuContext ctx_{};
+	/// @brief The host's live kit-global answer (`set_kit_global_shortcut_source`).
+	KitGlobalShortcutFn kit_global_shortcut_source_ = nullptr;
+	/// @brief The host's adopt after a press moves the menu (`set_context_adopted_hook`).
+	void (*context_adopted_hook_)() = nullptr;
+	/// @brief The host's write after a jump from a scene over the menu (`set_reentry_hook`).
+	void (*reentry_hook_)() = nullptr;
+	/// @brief The host's UI-mode gates (`set_host_mode_gates`); unset, the menu's own learn mode alone gates.
+	std::optional<HostModeGates> host_gates_;
 	/// @brief The cause an event of this tick noted, and the value node it found (`take_transition`).
 	std::optional<TransitionCause> pending_transition_;
 	const Node* transition_from_ = nullptr;
@@ -624,6 +686,10 @@ private:
 	bool land_dx_cartridge_ = false;
 	/// `arm_refused_recorder_landing`'s node, until the next resume from a push spends it.
 	const Node* refused_recorder_landing_ = nullptr;
+	/// The kind of the scene the last `pending_scene` drain pushed, until the resume that follows it.
+	deluge::ui::shell::SceneKind pushed_kind_ = deluge::ui::shell::SceneKind::Null;
+	/// `pushed_scene_refused`'s answer.
+	bool pushed_scene_refused_ = false;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
 	/// The host's hold mode (`set_affect_entire_hold`): survives a shortcut's `Replace`, as legacy's UI mode does.

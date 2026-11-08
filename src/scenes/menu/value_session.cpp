@@ -50,7 +50,8 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		break;
 	case Kind::Decimal:
 		st.edit_int = bindings::read(node, ctx);
-		st.decimal_pos = 0;
+		// `Decimal::beginSession`: the cursor starts on `getDefaultEditPos()`.
+		st.decimal_pos = node.bind.default_edit_pos;
 		st.cursor_blink = deluge::ui::Blink{};
 		break;
 	case Kind::Range: {
@@ -153,11 +154,42 @@ void ValueSession::commit(MenuCore core, const Node& node) const {
 
 void ValueSession::read_again(MenuCore core) const {
 	const Node* node = focused(core.st);
-	if (node != nullptr) {
-		enter_leaf(core, *node, FocusCause::NoRowPress);
-		// `Value::readValueAgain` redraws (`value.h:77-80`); the shell draws a raised fact on its next tick.
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
+	if (node == nullptr) {
+		return;
 	}
+	MenuContext& ctx = core.ctx;
+	MenuState& st = core.st;
+	// `MenuItem::readValueAgain`: the value is read again and the screen redrawn, and where the user is in it -- a
+	// number's edit position, a list's scroll, a range's edge -- stays (`Value::readValueAgain` is `readCurrentValue`
+	// and a render). A page has no value of its own: `Submenu::readValueAgain` only redraws, and its columns read live.
+	switch (node->kind) {
+	case Kind::Submenu:
+		break;
+	case Kind::Enum:
+		st.enum_index = bindings::read(*node, ctx);
+		break;
+	case Kind::Toggle:
+		st.edit_bool = bindings::read(*node, ctx) != 0;
+		break;
+	case Kind::Range:
+		st.edit_int = bindings::read(*node, ctx);
+		st.edit_upper = st.edit_int;
+		if (const RangeSpec* spec = node->bind.range_spec; spec != nullptr && spec->get_upper != nullptr) {
+			st.edit_upper = spec->get_upper(ctx);
+		}
+		break;
+	case Kind::Custom:
+		// The item's own re-read (`CustomItem::on_reread`), not its `on_focus`: `beginSession` loads programs, opens
+		// scenes and rewinds cursors, none of which `readValueAgain` does.
+		if (node->custom != nullptr) {
+			node->custom->on_reread(ctx, st);
+		}
+		break;
+	default:
+		st.edit_int = bindings::read(*node, ctx);
+		break;
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 } // namespace deluge::scenes::menu

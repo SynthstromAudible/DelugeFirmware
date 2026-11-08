@@ -59,7 +59,7 @@ int32_t instrument_button_index(ButtonId b) {
 } // namespace
 
 std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSession& session, const UiEvent& event,
-                                         const UiContext& ui) {
+                                         const UiContext& ui, MenuContext::Root chain_root) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page -- `HorizontalMenu::buttonAction`
@@ -98,7 +98,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 				// `:85-94`: SHIFT + CROSS_SCREEN/SCALE at depth 0 switches the chained menu (`switchHorizontalMenu`,
 				// `:364-394`); otherwise, and at depth > 0 where there is no chain, `switchVisiblePage` (`:341-362`).
 				if (st.depth == 0 && ui.shift) {
-					repaint = walk.switch_chained_page(core, session, page_dir);
+					repaint = walk.switch_chained_page(core, session, page_dir, chain_root);
 				}
 				else if (n > 0) {
 					const int32_t target = deluge::ui::oled::page_switch(

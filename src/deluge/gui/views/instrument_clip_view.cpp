@@ -30,8 +30,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_note_mode.h"
@@ -2759,8 +2757,12 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, bool display_val
 		bool velocity_menu_displayed = false; // default is to show velocity change as a popup
 
 		// check if we're currently in the sound editor
-		// The shell's note menus expose no velocity item to ask about, so this reads the legacy editor only.
-		if (currentUI == &soundEditor) {
+		if (deluge::gui::ui::noteModeVelocityShown()) {
+			// See `gui/ui/shell_note_mode.h`
+			velocity_menu_displayed = true;
+			deluge::gui::ui::noteModeReadValueAgain();
+		}
+		else if (currentUI == &soundEditor) {
 			// check if we're in the note editor menu or note velocity menu
 
 			// get the current menu item
@@ -3759,7 +3761,7 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 }
 
 // if you've selected a single note row and pressed the select encoder, you can enter the note row editor menu
-bool InstrumentClipView::enterNoteRowEditor() {
+bool InstrumentClipView::enterNoteRowEditor(bool onPlayDirection) {
 	if (getNumNoteRowsAuditioning() == 1) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
@@ -3786,7 +3788,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 			// guest open it re-roots the open menu (`openShellNoteRowEditor`). Both legs then do what follows legacy's
 			// open.
 			if (deluge::gui::ui::shellMenuEnabled() && getCurrentUI() != &soundEditor) {
-				if (deluge::gui::ui::openShellNoteRowEditor(clip)) {
+				if (deluge::gui::ui::openShellNoteRowEditor(clip, onPlayDirection)) {
 					if (!auditioningSilently) { // see the legacy leg below
 						auditionPadAction(0, lastAuditionedYDisplay, true);
 						auditionPadAction(1, lastAuditionedYDisplay, true);
@@ -5119,8 +5121,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
 	// if no, update selected drum
 	if (kit->selectedDrum != drum) {
-		if ((!deluge::gui::ui::menuCurrent() || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
-		    && currentUI != &sampleMarkerEditor && currentUI != &renameDrumUI) {
+		if ((!deluge::gui::ui::menuCurrent() || inNoteOrNoteRowEditor) && !deluge::gui::ui::drumSelectionFrozen()) {
 
 			kit->selectedDrum = drum;
 			drumSelectionChanged = true;
@@ -5675,15 +5676,18 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// This operation targets the new drum, even if a previous grid-pad action left
 	// the editor configured for kit-global FX while Affect Entire was enabled.
 	soundEditor.setupKitGlobalFXMenu = false;
+	deluge::gui::ui::clearShellKitGlobalFx();
 
 	// Under the shell menu the ported browser, or for a take the ported recorder, opens on the new drum
-	// (`gui/ui/shell_drum_creator.h`).
+	// (`gui/ui/shell_drum_creator.h`). A guest that refuses to open says `setup()`'s refusal below, and nothing legacy
+	// opens; the new drum stays in the kit as an ordinary empty drum.
 	if (deluge::gui::ui::shellMenuEnabled()) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
-		                : deluge::gui::ui::openShellDrumCreator(clip, newDrum)) {
-			return;
+		if (!(doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
+		                  : deluge::gui::ui::openShellDrumCreator(clip, newDrum))) {
+			display->displayError(Error::UNSPECIFIED);
 		}
+		return;
 	}
 
 	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
@@ -5707,18 +5711,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	if (!success) {
 		// The recorder or the browser refused: `main` opens the editor on the file selector, whose own session opens
-		// the browser again (`FileSelector::beginSession`). Under the shell menu this runs only when the guest's own
-		// open above refused, and the legacy editor must not open: the guest is tried once more, on the file
-		// selector, and its refusal is said as `setup()`'s is.
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			if (!deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
-			                                    /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
-			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
-			                                    deluge::gui::ui::ShellMenuNode::Osc0FileSelector)) {
-				display->displayError(Error::UNSPECIFIED);
-			}
-			return;
-		}
+		// the browser again (`FileSelector::beginSession`).
 		openUI(&soundEditor);
 	}
 }

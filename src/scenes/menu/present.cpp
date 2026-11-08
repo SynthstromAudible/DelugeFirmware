@@ -232,6 +232,22 @@ int32_t input_tick_magnitude(const MenuContext& ctx) {
 	                            : 0;
 }
 
+std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32_t value, std::span<char> out) {
+	const auto copy = [&](std::string_view from) {
+		const size_t n = std::min(from.size(), out.size());
+		std::copy_n(from.data(), n, out.data());
+		return std::string_view{out.data(), n};
+	};
+	if (value == 0) {
+		return copy(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF));
+	}
+	const int32_t magnitude =
+	    node.bind.sync_name_magnitude != nullptr ? node.bind.sync_name_magnitude(ctx) : input_tick_magnitude(ctx);
+	etl::string<30> length;
+	syncValueToString(static_cast<uint32_t>(value), length, magnitude);
+	return copy(std::string_view{length.data(), length.size()});
+}
+
 void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	const auto* call = static_cast<const ColumnSlot::OptionList*>(ctx);
 	if (call == nullptr || call->node == nullptr || call->ctx == nullptr) {
@@ -450,16 +466,9 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		}
 		return copy(names[static_cast<size_t>(clamp_to(value, 0, static_cast<int32_t>(count) - 1))]);
 	}
-	case Kind::SyncLevel: {
-		// `Enumeration::getNotificationValue` is `getShortOption` (`enumeration.h:25`), which `SyncLevel` spells as
-		// the note length, or OFF (`sync_level.cpp:83-91`).
-		if (value == 0) {
-			return copy(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF));
-		}
-		etl::string<30> length;
-		syncValueToString(static_cast<uint32_t>(value), length, input_tick_magnitude(ctx));
-		return copy(std::string_view{length.data(), length.size()});
-	}
+	case Kind::SyncLevel:
+		// `Enumeration::getNotificationValue` is `getShortOption`, which `SyncLevel` spells as its note length, or OFF.
+		return sync_level_name(column, ctx, value, out);
 	case Kind::Toggle:
 		// `Toggle` has no `getNotificationValue`, so the base class's empty one stands (`menu_item.h:324`).
 		return {};

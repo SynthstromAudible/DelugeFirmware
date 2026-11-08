@@ -45,7 +45,7 @@ using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
+void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f, bool kit_global_latched) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// Reads no input at all. That is what keeps "a scene reads any one input in at most one render
@@ -65,7 +65,7 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
-	const BlinkPlan plan = plan_blinks(ctx, st, *node);
+	const BlinkPlan plan = plan_blinks(ctx, st, *node, kit_global_latched);
 	// An item that delays its blink (the patch cables list) starts over on every cursor move, as its own
 	// `readValueAgain` restarts the wait, even when the plan stays the same.
 	const uint16_t delay = node->custom != nullptr ? node->custom->blink_delay_ms() : 0;
@@ -235,6 +235,13 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		}
 
 		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
+		// A `comingSoonMenu` cell pops its message ahead of every other check (`potentialShortcutPadAction`).
+		if (target == nullptr && shortcut_coming_soon(ctx.root, event.x, event.y)) {
+			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		// Over the automation view only a param's shortcut is taken; any other is swallowed
 		// (`potentialShortcutPadAction`'s `getParamKind() == Kind::NONE` refusal, ahead of `setup()`'s).
 		if (target != nullptr && ctx.root_is_automation && !is_automation_item(*target)) {
@@ -328,7 +335,7 @@ deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuSta
 	return {0xFFFFFFFFu, 0};
 }
 
-std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& st) {
+std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& st, bool kit_global_latched) {
 	if (st.blink_covered) {
 		return std::nullopt;
 	}
@@ -336,7 +343,7 @@ std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& 
 	if (node == nullptr) {
 		return std::nullopt;
 	}
-	const BlinkPlan plan = plan_blinks(ctx, st, *node);
+	const BlinkPlan plan = plan_blinks(ctx, st, *node, kit_global_latched);
 	if (plan.any_source()) {
 		return kSourceBlinkMs;
 	}

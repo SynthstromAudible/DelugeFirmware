@@ -1335,11 +1335,11 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			if (p.node->kind != menu::Kind::Enum || !relevant_here(p)) {
 				continue;
 			}
-			// `defaults::Magnitude` is an `Enumeration`, not a `Selection`: it has no option *names*
-			// at all, it draws `96 << value` (`defaults/magnitude.h:22-32`). Nothing to compare.
+			// Every enum node is a legacy `Selection`: `defaults::Magnitude`, the one `Enumeration` with no option
+			// names, is an `Int` node that draws `96 << value`.
 			auto* selection = dynamic_cast<legacy::Selection*>(p.item);
+			expect(selection != nullptr).to_be_true();
 			if (selection == nullptr) {
-				expect(p.node == &nodes::default_magnitude).to_be_true();
 				continue;
 			}
 			install(p.root->ctx, p.root->song);

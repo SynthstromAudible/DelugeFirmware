@@ -359,6 +359,12 @@ public:
 	///        the root on the same call and so cannot leave the close to the next tick (`forwardMenuViewButton`'s
 	///        SESSION). The same hand-back as the guest's own two close paths (`closeGuest`).
 	void closeNow() { closeGuest(); }
+
+	/// @brief Mark this visit as one legacy runs with no editor open: the drum creator's browser or take, opened
+	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as the legacy browser's and
+	///        recorder's own exits do; every other close ends the mode, as `SoundEditor::exitCompletely` does. Call it
+	///        after the open succeeded; the next `opened()` forgets it.
+	void markVisitWithoutEditor() { visitWithoutEditor_ = true; }
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;
@@ -502,6 +508,12 @@ private:
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
 	/// (`gui/ui/ui.cpp:227`). Callers must not re-arm after it.
 	void closeGuest();
+	/// @brief Run the tick a close would otherwise skip: input fed since the last tick reaches the scenes it was fed
+	///        to, as legacy hands a turn or press to the current UI at once, before they go. Ticks only when input is
+	///        pending, and never inside its own tick.
+	void flushPendingInput();
+	/// @brief The shell's tick, with the facts every tick reads first.
+	void tickShell(uint32_t now);
 
 	/// @brief Does the scene that would receive this pad claim it? The grid-claim predicate.
 	///
@@ -517,6 +529,10 @@ private:
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.
 	deluge::ui::PadMask fedPads_{};
+	/// @brief Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
+	bool visitWithoutEditor_ = false;
+	/// @brief `flushPendingInput`'s tick is running.
+	bool flushing_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.

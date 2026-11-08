@@ -523,6 +523,12 @@ void set_default_automation_no_audition(const MenuContext&, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Defaults: the rest
 
+int32_t default_resolution_magnitude(const MenuContext&) {
+	return FlashStorage::defaultMagnitude;
+}
+int32_t relative_to_song_magnitude(const MenuContext&) {
+	return 1;
+}
 int32_t get_default_swing_interval(const MenuContext&) {
 	return FlashStorage::defaultSwingInterval; // `defaults/swing_interval.h:28 readCurrentValue`
 }
@@ -574,27 +580,6 @@ void set_default_magnitude(const MenuContext&, int32_t value) {
 	FlashStorage::defaultMagnitude = static_cast<int8_t>(value);
 	const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
 	FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
-}
-size_t default_magnitude_names(const MenuContext&, std::span<std::string_view> out) {
-	// `defaults::Magnitude` has no option *names*: it draws `96 << value`
-	// (`defaults/magnitude.h:22-29`) over a `size()` of 7 (`:31`). The seven numbers are built here
-	// so the node still has a list to page through.
-	static char buffers[7][8];
-	size_t n = 0;
-	for (int32_t i = 0; i < 7 && n < out.size(); i++) {
-		int32_t value = 96 << i;
-		size_t len = 0;
-		char digits[8];
-		while (value > 0 && len < sizeof(digits)) {
-			digits[len++] = static_cast<char>('0' + value % 10);
-			value /= 10;
-		}
-		for (size_t d = 0; d < len; d++) {
-			buffers[i][d] = digits[len - 1 - d];
-		}
-		out[n++] = std::string_view{buffers[i], len};
-	}
-	return n;
 }
 
 int32_t get_default_bend_range(const MenuContext&) {
@@ -789,16 +774,26 @@ void runtime_feature_set(int32_t type, int32_t value) {
 	                           static_cast<uint32_t>(value)); // `setting.cpp:35-38`
 }
 
+void set_rounded_corners(const MenuContext&, int32_t value) {
+	// `RoundedCornersSettingToggle::writeCurrentValue`: the setting, then the canvas flag, which is `hid/`.
+	runtime_feature_set(RuntimeFeatureSettingType::RoundedCorners, value);
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::RoundedCornersChanged});
+}
+
+void set_horizontal_menus(const MenuContext&, int32_t value) {
+	// `HorizontalMenu::renderingStyle()` reads the setting live; the open menu's context holds the copy it lays out by.
+	runtime_feature_set(RuntimeFeatureSettingType::HorizontalMenus, value);
+	menu_scene().set_horizontal_menus(value != 0);
+}
+
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
-	// `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`); its
-	// `Buttons::clearShiftSticky()` is `MenuAction::ShiftStickyOff`.
+	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; the guest's shift machine and legacy's
+	// latch are `MenuAction::ShiftStickyChanged`.
 	runtime_feature_set(RuntimeFeatureSettingType::ShiftIsSticky, value);
 	if (value != 0) {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
 	}
-	else {
-		menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyOff});
-	}
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyChanged});
 }
 
 size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {

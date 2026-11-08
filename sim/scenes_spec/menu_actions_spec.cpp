@@ -50,6 +50,7 @@
 #include "scenes/menu/nodes/actions.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h" // menu::shortcuts_version -- the port half of the setting
+#include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -82,12 +83,14 @@
 #include "hid/button.h"
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/screensaver.h" // the legacy screensaver, half of what the seventh verb moves
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer, the KEYBOARD release arm's clock
 #include "processing/stem_export/stem_export.h"
@@ -1261,6 +1264,20 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
 			expect(scene().take_action().engaged()).to_be_false(); // opening files nothing
 		}
+	});
+
+	it("a re-read takes the performance view's mode again, as EditingMode::readCurrentValue does", _ {
+		select_language();
+		PerformViewGuard guard;
+		Rig r;
+		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		(void)r.open(nodes::perform_editor);
+		r.shell.tick(10);
+		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(0);
+		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM); // changed outside the menu
+		scene().read_value_again();
+		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
+		expect(scene().take_action().engaged()).to_be_false();
 	});
 
 	it("files OpenPerformanceView carrying the chosen mode, and stays on the page", _ {
@@ -2884,9 +2901,9 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
 	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
-	// storing (`defaults/pad_brightness.h:32-36`, `runtime_feature/shift_is_sticky.cpp:22-24`, `flash/status.h:27-31`,
-	// `colour.h:44-47`; highlighting is read live by every renderer, `horizontal_menu.cpp:268`). Each is `hid/` or the
-	// guest's shell, so the setter files it for `dispatchShellActions`.
+	// storing (`PadBrightness`'s and `Colour`'s write, `ShiftIsSticky::writeCurrentValue`, `flash::Status`'s write;
+	// highlighting is read live by every renderer, `HorizontalMenu`'s rendering). Each is `hid/` or the guest's shell,
+	// so the setter files it for `dispatchShellActions`.
 	it("each setter files its action, and only on legacy's own condition", _ {
 		const menu::MenuContext ctx{};
 		const auto filed = [] {
@@ -2899,10 +2916,14 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(filed() == MenuAction::PadBrightnessChanged).to_be_true();
 		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
 		expect(filed() == MenuAction::HighlightingChanged).to_be_true();
+		nodes::set_rounded_corners(ctx, 0);
+		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
+		nodes::set_rounded_corners(ctx, 1);
+		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 0);
-		expect(filed() == MenuAction::ShiftStickyOff).to_be_true();
+		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 1);
-		expect(filed() == MenuAction::ShiftStickyOff).to_be_false();
+		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
 		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_true();
@@ -2945,6 +2966,86 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		    .to_be_true();
 		FlashStorage::accessibilityMenuHighlighting = was;
 		deluge::gui::ui::pushShellHighlighting();
+	});
+
+	it("a rounded-corners write reaches main's canvas and the guest's panels at once", _ {
+		// `RoundedCornersSettingToggle::writeCurrentValue` sets `Canvas::roundedCornersEnabled`, which main's rounded
+		// primitives read; the guest's panels draw from their own style.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		const menu::MenuContext ctx{};
+		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+		menu::bindings::write(nodes::feature_rounded_corners, ctx, 1);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
+		deluge::gui::ui::pushShellRoundedCorners();
+	});
+
+	it("pushing the card's rounded corners restyles both, as the settings read does", _ {
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, RuntimeFeatureStateToggle::Off);
+		deluge::gui::ui::pushShellRoundedCorners();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
+		deluge::gui::ui::pushShellRoundedCorners();
+	});
+
+	it("a horizontal-menus write reaches the open menu, so the voice usage page lays out as it now says", _ {
+		// `HorizontalMenu::renderingStyle()` reads the setting on every draw; the port's context holds a copy.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_true();
+		menu::bindings::write(nodes::feature_horizontal_menus, scene().menu_context(), 0);
+		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)).to_be_false();
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_false();
+		menu::bindings::write(nodes::feature_horizontal_menus, scene().menu_context(), 1);
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, saved);
+	});
+
+	it("a sticky-shift write reaches the guest's own shift machine, and turning it off releases both latches", _ {
+		// `ShiftIsSticky::writeCurrentValue`: `shellHostUI.shell().lowering().set_shift_is_sticky(on)`, and off,
+		// `Buttons::clearShiftSticky()`.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+		const uint32_t saved_light = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		const menu::MenuContext ctx{};
+		shellHostUI.shell().lowering().set_shift_is_sticky(false);
+
+		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_true();
+
+		Buttons::commandToggleShift(true); // SHIFT held: legacy's own state, which the off arm releases
+		menu::bindings::write(nodes::feature_sticky_shift, ctx, 0);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();
+		expect(Buttons::isShiftButtonPressed()).to_be_false();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, saved);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, saved_light);
+		shellHostUI.shell().lowering().set_shift_is_sticky(saved == RuntimeFeatureStateToggle::On);
+		Buttons::clearShiftSticky();
 	});
 });
 // clang-format on

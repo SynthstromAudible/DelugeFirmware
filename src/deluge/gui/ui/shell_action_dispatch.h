@@ -133,6 +133,12 @@ namespace deluge::gui::ui {
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
 
+/// @brief `dispatchShellActions` for a close: a setting a value write filed (the shortcuts version, the screensaver,
+///        pad brightness, highlighting, rounded corners, sticky shift, the flash status, the pad colours) is applied,
+///        as legacy's `writeCurrentValue` applies both its halves at once; a request that opens a UI or moves the
+///        menu is dropped, because the menu is going.
+void dispatchShellActionsAtClose();
+
 /// @brief `soundEditor.exitCompletely()`, ported: take the ported menu off the guest's scene stack
 ///        and let `ShellHostUI::timerCallback` close the guest itself.
 ///
@@ -163,6 +169,17 @@ bool legacyInhibitsScreensaver();
 /// @brief Restyle the guest's panels from `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read
 ///        live (`horizontal_menu.cpp:268`): at boot once the settings are read, and after every write of it.
 void pushShellHighlighting();
+
+/// @brief Apply the RoundedCorners community feature to main's canvas (`Canvas::roundedCornersEnabled`, which its
+///        rounded primitives read) and to the guest's panels: once the card's settings are read, and after every write
+///        of it.
+void pushShellRoundedCorners();
+
+/// @brief After a flash, community-features or full reset, give the open guest every reset setting main reads live: the
+///        menu highlighting, the screensaver's timing (which also re-arms legacy's screensaver, as
+///        `Screensaver::settingsChanged` does), sticky shift and horizontal menus. Rounded corners and pad
+///        brightness are left as they are, stale until the next boot, as main leaves its own copies.
+void reapplyLiveSettingsAfterReset();
 
 /// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
 ///        open right now, or `std::nullopt` for the roots it leaves alone.

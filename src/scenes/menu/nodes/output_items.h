@@ -106,6 +106,9 @@ public:
 	///                    (`nodes/sample.h`) makes, and pinned by `static_assert` in the `.cpp`.
 	explicit MidiDeviceLinkedItem(uint16_t browser_arg) : browser_arg_{browser_arg} {}
 
+	/// @brief True: the legacy item is a `Toggle`, a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
+
 	/// @brief Which browser the link arm opens. Exposed so a spec can assert the wiring by identity
 	///        rather than only by driving it.
 	uint16_t browser_arg() const { return browser_arg_; }

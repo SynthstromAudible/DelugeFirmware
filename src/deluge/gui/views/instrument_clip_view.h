@@ -376,7 +376,8 @@ public:
 	void pulseSelectedNote();
 
 	// note row editor
-	bool enterNoteRowEditor();
+	/// @param onPlayDirection With the ported menu, land on PLAY DIRECTION (the sequence-direction shortcut).
+	bool enterNoteRowEditor(bool onPlayDirection = false);
 	void exitNoteRowEditor();
 	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
 	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);

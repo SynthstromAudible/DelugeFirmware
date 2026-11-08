@@ -241,4 +241,12 @@ void setShellBrowserFromDrumCreator(bool fromCreator);
 /// fails the build, and a `default:` would absorb it silently.
 void dispatchShellChoices();
 
+/// @brief Whether the visit open now pushed a scene that refused: the drum creator's browser or take, after which
+///        legacy opens its editor on the file selector (`enterDrumCreator`'s `openUI(&soundEditor)`).
+///
+/// It is declared here because this file is a bridge that already names the menu scene: the UI layer rules count each
+/// legacy file's includes of and names from the port, so the one read of `MenuScene::pushed_scene_refused` sits where
+/// that count is already paid rather than adding to `shell_drum_creator.cpp`'s.
+bool shellVisitFellBackToEditor();
+
 } // namespace deluge::gui::ui

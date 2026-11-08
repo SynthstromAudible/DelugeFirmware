@@ -32,6 +32,7 @@
 
 #include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
@@ -44,6 +45,7 @@
 #include "notify/dirty_set.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
+#include "scenes/menu/menu_core.h"
 
 #include <span>
 #include <utility>
@@ -85,6 +87,8 @@ int64_t pow10_of(int32_t exponent) {
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	refused_recorder_landing_ = nullptr;
+	pushed_kind_ = SceneKind::Null;
+	pushed_scene_refused_ = false;
 	const DxState dx = st_.dx;
 	st_ = MenuState{};
 	st_.dx = dx;
@@ -126,6 +130,7 @@ void MenuScene::retarget(const Node& node) {
 
 void MenuScene::reset_process_state() {
 	refused_recorder_landing_ = nullptr;
+	host_gates_.reset();
 	walk_.forget_rows();
 	st_.dx = DxState{};
 	pending_retarget_ = 0;
@@ -154,10 +159,10 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// **The allocation legacy's permission check performs before it opens a named item.**
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs
 		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
-		// (`gui/ui/sound_editor.cpp:1845-1846`), and for every range-dependent item that lands in
+		// (`SoundEditor::setup`'s item arm), and for every range-dependent item that lands in
 		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
-		// statement** is `source->getOrCreateFirstRange()` (`:1993`) -- a *create*, not a read,
-		// which fails only with `INSUFFICIENT_RAM` (`:1994-1997`).
+		// statement** is `source->getOrCreateFirstRange()` -- a *create*, not a read,
+		// which fails only with `INSUFFICIENT_RAM`.
 		//
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of
@@ -245,11 +250,15 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 	return pads_.arm_landing(ctx_, target);
 }
 
+uint16_t MenuScene::arm_page_landing(const Node& page, const Node& column) {
+	return pads_.arm_landing_on(page, column);
+}
+
 void MenuScene::on_resume() {
 	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
 	visit_.learn.cancel();
-	visit_.blink_restart =
-	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
+	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
+	                             // (`SoundEditor::focusRegained` in `sound_editor.cpp`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
@@ -273,6 +282,13 @@ void MenuScene::on_resume() {
 	if (const Node* landing = std::exchange(st_.walk.resume_landing, nullptr); landing != nullptr) {
 		(void)reroot_to_page_listing(*landing);
 	}
+	// The resume a push brings, refused or not (`SceneStack::push` resumes the scene beneath a refused enter): which
+	// scene it was, and whether it refused.
+	if (const SceneKind pushed = std::exchange(pushed_kind_, SceneKind::Null); pushed != SceneKind::Null) {
+		const bool refused = (pushed == recorder::kRecorderSceneKind && recorder::recorder_scene().last_enter_refused())
+		                     || (pushed == browser::kBrowserSceneKind && browser::browser_scene().last_enter_refused());
+		pushed_scene_refused_ = pushed_scene_refused_ || refused;
+	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
 		const Node* const landing = std::exchange(refused_recorder_landing_, nullptr);
@@ -291,24 +307,64 @@ void MenuScene::on_resume() {
 }
 
 std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
-	const Node* target = shortcut_node(ctx_.root, false, x, y);
-	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
+	// The kit's own effects while the host's latch is set, as for a press on the menu itself.
+	const std::optional<MenuContext> kit_global = kit_global_shortcut_context();
+	const MenuContext& press = kit_global.has_value() ? *kit_global : ctx_;
+	// A `comingSoonMenu` cell pops its message and goes nowhere (`potentialShortcutPadAction`).
+	if (shortcut_coming_soon(press.root, x, y)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return std::nullopt;
 	}
-	if (!shortcut_applies(*target, ctx_)) {
-		target = nodes::dx_shortcut_fallback(*target, ctx_, x);
+	const Node* target = shortcut_node(press.root, false, x, y);
+	if (target == nullptr || (press.root_is_automation && !is_automation_item(*target))) {
+		return std::nullopt;
+	}
+	if (!shortcut_applies(*target, press)) {
+		target = nodes::dx_shortcut_fallback(*target, press, x);
 		if (target == nullptr) {
 			deluge::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return std::nullopt;
 		}
 	}
+	if (kit_global.has_value()) {
+		install_context(*kit_global);
+	}
 	const uint16_t id = arm_shortcut_landing(*target);
 	if (id == 0) {
 		return std::nullopt;
 	}
 	landing_survives_resume_ = true;
+	// `enterOrUpdateSoundEditor` from the UI over the editor: its write to `setupKitGlobalFXMenu` is the host's.
+	if (reentry_hook_ != nullptr) {
+		reentry_hook_();
+	}
 	return SceneId{SceneKind::FirstApp, id};
+}
+
+std::optional<MenuContext> MenuScene::kit_global_shortcut_context() const {
+	if (kit_global_shortcut_source_ == nullptr || !ctx_.is_kit || ctx_.is_kit_global_fx) {
+		return std::nullopt;
+	}
+	switch (ctx_.root) {
+	case MenuContext::Root::Drum:
+	case MenuContext::Root::MidiDrum:
+	case MenuContext::Root::GateDrum:
+		return kit_global_shortcut_source_(ctx_);
+	default:
+		return std::nullopt;
+	}
+}
+
+MenuContext::Root MenuScene::shortcut_root() const {
+	return kit_global_shortcut_context().has_value() ? MenuContext::Root::KitGlobalFx : ctx_.root;
+}
+
+void MenuScene::install_context(const MenuContext& ctx) {
+	ctx_ = ctx;
+	if (context_adopted_hook_ != nullptr) {
+		context_adopted_hook_();
+	}
 }
 
 void MenuScene::dx_column_press(int32_t op) {
@@ -343,7 +399,13 @@ void MenuScene::set_affect_entire_hold(bool on) {
 
 void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
 	open(root, ctx);
-	pending_retarget_ = pads_.arm_landing_on(root, column);
+	pending_retarget_ = arm_page_landing(root, column);
+	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
+}
+
+void MenuScene::reroot_at(const Node& root, const MenuContext& ctx, uint16_t arg, const Node* shortcut) {
+	open(root, ctx);
+	pending_retarget_ = shortcut != nullptr ? arm_shortcut_landing(*shortcut) : arg;
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 
@@ -406,7 +468,7 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 	// nowhere falls back to the page that does (the audio clip's sample page). Legacy answers `nullptr` when no menu
 	// lists the item, and its caller then does nothing -- which is this `false`.
 	const Node* page = nullptr;
-	for (const Node* candidate : chain_for(ctx_.root)) {
+	for (const Node* candidate : chain_for(shortcut_root())) {
 		if (candidate != nullptr && page_lists(*candidate, item)) {
 			page = candidate;
 			break;
@@ -577,7 +639,11 @@ MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool 
 		}
 		return xenc_held ? HorizontalTurn::Neither : HorizontalTurn::Menu;
 	}
-	if (node->kind != Kind::Submenu && node->custom == nullptr && node->bind.param.valid()) {
+	// `Param::horizontalEncoderAction` hands a param's number screen's turn to the root. A `Decimal` keeps it whatever
+	// it learns: `Transpose` is a `Decimal` first, and its learn-only param leaves the cursor to
+	// `Decimal::horizontalEncoderAction`.
+	if (node->kind != Kind::Submenu && node->kind != Kind::Decimal && node->custom == nullptr
+	    && node->bind.param.valid()) {
 		return HorizontalTurn::Root;
 	}
 	return HorizontalTurn::Menu;
@@ -617,6 +683,12 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		visit_.blink_restart = visit_.blink_restart || wants_learn_blink();
 	}
 
+	st_.tick.back_acts = select_and_back_act();
+	// The turn the page owns arrives in this frame. Read only where `owned_input` grants it, so the read claims
+	// nothing the page does not.
+	if (owned_input().turn && f.turn() != 0) {
+		st_.tick.select_turned = true;
+	}
 	view_.render(core(), f, *node);
 }
 
@@ -627,11 +699,12 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (!f.covered) {
 		visit_.shift_held = f.shift();
 		if (overlay_up()) {
-			render_overlay(f, ctx_, st_, focused_value());
+			const std::optional<MenuContext> kit_global = kit_global_shortcut_context();
+			render_overlay(f, kit_global.has_value() ? *kit_global : ctx_, st_, focused_value());
 		}
 	}
 	// The blinks flash over the overlay: the control surface plays them over whatever the pads hold.
-	pads_.render_grid(core(), f);
+	pads_.render_grid(core(), f, kit_global_shortcut_context().has_value());
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
@@ -718,6 +791,20 @@ void MenuScene::flip_in_place(const Node& node) {
 	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
 }
 
+void MenuScene::mark_edited_after_turn() {
+	// `currentSound`, which the slot stands for, and `markInstrumentAsEdited`'s `!inSettingsMenu()`: the settings menu
+	// can be opened over a synth with a slot resolved.
+	if (ctx_.sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
+	    || !select_turn_edits_instrument(ctx_, st_)) {
+		return;
+	}
+	const deluge::project::SlotAddress slot = *ctx_.addresses.slot;
+	const bool drum = slot.kind == deluge::project::SlotAddress::Kind::DRUM;
+	(void)ctx_.sink->instrument_edited(deluge::scenes::bind::KnobFocus{
+	    .owner = deluge::scenes::bind::SoundFocus{
+	        .slot = slot, .clip = ctx_.addresses.clip, .kit = drum ? ctx_.addresses.kit_output : std::nullopt}});
+}
+
 Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
@@ -795,6 +882,11 @@ Result MenuScene::after_render_navigation() {
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
 		// which is a documented no-op (`Action::Kind::Repaint`'s doc in `shell/scene.h`).
 		repaint = true;
+	}
+
+	// After the write, as legacy marks after `writeCurrentValue`: `beenEdited` copies the clip's arp as it now is.
+	if (st_.tick.select_turned) {
+		mark_edited_after_turn();
 	}
 
 	// The horizontal menu's notification popup, `HorizontalMenu::displayNotification`
@@ -985,7 +1077,8 @@ Result MenuScene::after_render_navigation() {
 		// item legacy enters.
 		case MenuAction::PadBrightnessChanged:
 		case MenuAction::HighlightingChanged:
-		case MenuAction::ShiftStickyOff:
+		case MenuAction::RoundedCornersChanged:
+		case MenuAction::ShiftStickyChanged:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:
 		case MenuAction::FileSelectorOpened:
@@ -1018,6 +1111,7 @@ Result MenuScene::after_render_navigation() {
 		visit_.shift_held = false; // the pushed scene is the one SHIFT now reaches
 
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
+		pushed_kind_ = st_.walk.pending_scene.kind;
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
 		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and
@@ -1045,7 +1139,12 @@ Result MenuScene::after_render_navigation() {
 }
 
 deluge::ui::InputClaims MenuScene::owned_input() const {
-	return menu::owned_input(ctx_, st_);
+	deluge::ui::InputClaims claims = menu::owned_input(ctx_, st_);
+	// A BACK the UI mode refuses goes to `handle()`, which swallows it, not to the render, which would go up.
+	if (!select_and_back_act()) {
+		claims.back = false;
+	}
+	return claims;
 }
 
 bool MenuScene::owns(const UiEvent& event) const {
@@ -1073,6 +1172,12 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// context.
 	ctx_.affect_entire_held = holding_affect_entire_;
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+	// `SoundEditor::buttonAction` acts on SELECT and BACK only in the five UI modes it lists, which learn mode is not:
+	// in any other, a press of either does nothing.
+	if ((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	    && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc) && !select_and_back_act()) {
+		return Result{.handled = true};
+	}
 	// A select or BACK press, and a select turn, restart the hold's blink (`sound_editor.cpp`'s three
 	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
 	if (holding_affect_entire_
@@ -1080,6 +1185,10 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
 	        || (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select))) {
 		affect_entire_blink_restart_ = true;
+	}
+	// A turn the page does not own (a bespoke item that takes it as an event) is routed here instead of the frame.
+	if (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select && event.delta != 0) {
+		st_.tick.select_turned = true;
 	}
 
 	// A MIDI message is an offer for MIDI learn, and nothing else here reads it.
@@ -1104,14 +1213,11 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		return Result{.handled = true};
 	}
 
-	// `SoundEditor::buttonAction` acts on BACK only outside learn mode; in it, the press does nothing.
-	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && visit_.learn.mode()) {
-		return Result{.handled = true};
-	}
-
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
-	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
-		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+	if (visit_.learn.observe(ctx_, st_, event, ctx,
+	                         host_gates_ ? std::optional<bool>{host_gates_->learn} : std::nullopt)) {
+		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`SoundEditor::buttonAction` in
+		                             // `sound_editor.cpp`, the learn-button release)
 	}
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn && event.on) {
 		read_learned_value_again(); // SHIFT + LEARN's unlearn
@@ -1134,11 +1240,36 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// The six page buttons on a horizontal page, ahead of the shortcut-pad jump, as legacy's `buttonAction` override
 	// is reached before `SoundEditor::buttonAction`'s own switch.
-	if (std::optional<Result> r = handle_page_button(core(), walk_, visit_.session, event, ctx)) {
+	// SHIFT + CROSS_SCREEN/SCALE at depth 0 steps the kit's own chain while the host's latch is set
+	// (`horizontalMenusChainForKit` under `editingKitAffectEntire()`), and a step lands the menu on the kit's effects.
+	const bool chain_step = event.kind == UiEvent::Kind::Button && ctx.shift && st_.depth == 0
+	                        && (event.button == ButtonId::CrossScreen || event.button == ButtonId::Scale);
+	if (std::optional<MenuContext> kit_global = chain_step ? kit_global_shortcut_context() : std::nullopt) {
+		const Node* const before = st_.path[0];
+		if (std::optional<Result> r = handle_page_button(MenuCore{*kit_global, st_}, walk_, visit_.session, event, ctx,
+		                                                 MenuContext::Root::KitGlobalFx)) {
+			if (st_.path[0] != before) {
+				install_context(*kit_global);
+			}
+			return *r;
+		}
+	}
+	else if (std::optional<Result> r = handle_page_button(core(), walk_, visit_.session, event, ctx, ctx_.root)) {
 		return *r;
 	}
 
-	if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
+	// A shortcut press after the host's latch went true reads the kit's own effects, and a jump moves the menu there.
+	const bool shortcut_press =
+	    event.kind == UiEvent::Kind::Pad && event.on && (ctx.shift || event.shortcut_without_shift);
+	if (std::optional<MenuContext> kit_global = shortcut_press ? kit_global_shortcut_context() : std::nullopt) {
+		if (std::optional<Result> r = pads_.handle_pad(MenuCore{*kit_global, st_}, walk_, visit_.session, event, ctx)) {
+			if (std::ranges::any_of(r->actions, [](const Action& a) { return a.kind == Action::Kind::Replace; })) {
+				install_context(*kit_global);
+			}
+			return *r;
+		}
+	}
+	else if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
 		return *r;
 	}
 
@@ -1203,7 +1334,7 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
 		return sample;
 	}
-	std::optional<uint32_t> next = pad_next_timer(ctx_, st_);
+	std::optional<uint32_t> next = pad_next_timer(ctx_, st_, kit_global_shortcut_context().has_value());
 	if (dx_column_flashing()) {
 		// The keyboard DX column's next flip, which the host reads after the tick (`dx_column_flash`).
 		const uint32_t phase = (render_ms_ - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;

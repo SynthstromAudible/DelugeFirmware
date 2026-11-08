@@ -28,6 +28,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
 #include "gfx/oled/font.h"
@@ -393,7 +394,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
 	// before `after_render`, so reading it from the render is what keeps the page in step with the
 	// encoder instead of one tick behind it (`browser_scene.h` §5.7 records the same finding).
-	if (const int8_t turn = f.turn(); turn != 0) {
+	if (const auto turn = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); turn != 0) {
 		const int32_t next = next_recordable_index(ctx, tracks, editing, state.list[d].cursor, turn);
 		if (next >= 0) { // `:51-53`
 			state.list[d].cursor = static_cast<int16_t>(next);

@@ -315,7 +315,7 @@ constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), s
 /// target has to have been given a node id or `handle()` refuses to offer the jump at all.
 constexpr const Node* kRoots[] = {&settings_root,      &nodes::sound_root, &nodes::filters_group, &nodes::source_group,
                                   &nodes::voice_group, &nodes::env_group,  &nodes::lfo_group,     &nodes::reverb_group,
-                                  &nodes::arp_group,   &flip_list};
+                                  &nodes::arp_group,   &flip_list,         &nodes::default_tempo};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
 ///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
@@ -1577,6 +1577,69 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_PARAMETER_NOT_APPLICABLE)});
 	});
 
+	it("a coming-soon pad inside the menu says Feature not (yet?) implemented and stays put", _ {
+		// `potentialShortcutPadAction`: a `comingSoonMenu` cell pops STRING_FOR_UNIMPLEMENTED and opens nothing.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(menu::shortcut_coming_soon(menu_scene().menu_context().root, 4, 2)).to_be_true();
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(4, 2, 64, 20);
+		r.shell.tick(30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(r.shell.notices().last_popup_text())
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
+	});
+
+	it("says Feature not (yet?) implemented only on the roots and cells main's table marks, and only with Shift", _ {
+		select_language();
+		const std::string unimplemented{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)};
+		struct Case {
+			MenuContext::Root root;
+			uint8_t x, y;
+			bool shift;
+			bool says;
+		};
+		const Case cases[] = {
+		    {MenuContext::Root::Settings, 4, 2, true, false},    // a sound cell, but not on this root
+		    {MenuContext::Root::NoteEditor, 4, 2, true, false},  // likewise
+		    {MenuContext::Root::AudioClip, 4, 2, true, false},   // the audio clip's table has only (7,7)
+		    {MenuContext::Root::AudioClip, 7, 7, true, true},    // the control: its own cell
+		    {MenuContext::Root::Sound, 4, 2, false, false},      // the cell, but not a shortcut without Shift
+		    {MenuContext::Root::Sound, 4, 2, true, true},        // the control: the cell, with Shift
+		};
+		for (const Case& c : cases) {
+			deluge::notify::dirty().drain();
+			Rig r;
+			MenuContext ctx = r.open(settings_root);
+			ctx.root = c.root;
+			menu_scene().open(settings_root, ctx);
+			r.shell.tick(0);
+			if (c.shift) {
+				r.button(kShiftX, kShiftY, true, 10);
+			}
+			r.pad(c.x, c.y, 64, 20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect(r.shell.notices().last_popup_text() == unimplemented).to_equal(c.says);
+		}
+	});
+
+	it("a coming-soon pad from the scene over the menu says so and jumps nowhere", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(menu_scene().shortcut_jump(5, 3).has_value()).to_be_false();
+		r.shell.tick(10);
+		expect(r.shell.notices().last_popup_text())
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
+	});
+
 	it("a range-dependent jump on a multisampled source lands, after the range pick, on the page", _ {
 		// `setup()` puts the picker first (MUST_SELECT_RANGE); the picker's select answers the item, and
 		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it
@@ -1955,6 +2018,39 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_up).to_be_true();
 	});
 
+	it("leaves an edited edge alone when the host's UI mode refuses BACK, and cancels it once the mode allows", _ {
+		// The picker reads BACK from its own frame, so only the menu's claim keeps a refused press from reaching it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(nodes::multi_range, ctx);
+		r.shell.tick(0);
+		r.edges(1, -2, 10);
+		r.shell.tick(15);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+
+		menu_scene().set_host_mode_gates({.learn = true, .select_and_back = false});
+		r.button(7, 1, true, 20); // BACK, refused
+		r.button(7, 1, false, 20);
+		r.shell.tick(25);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+
+		menu_scene().set_host_mode_gates({.learn = true, .select_and_back = true});
+		r.button(7, 1, true, 30);
+		r.button(7, 1, false, 30);
+		r.shell.tick(35);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+	});
+
 	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
 		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sink.
 		select_language();
@@ -2003,7 +2099,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
-		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1991`), so a
+		// first statement is `source->getOrCreateFirstRange()`, so a
 		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
 		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
@@ -2039,10 +2135,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// for a *descent*; a deep link does not descend, it re-roots -- `on_enter` resolves
 		// `node_by_id(id.arg)` and hands it to `retarget`. Legacy makes no such distinction:
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs the named item's own
-		// `checkPermissionToBeginSession` (`sound_editor.cpp:1845-1846`) whichever way the item was
+		// `checkPermissionToBeginSession` (`SoundEditor::setup`'s item arm) whichever way the item was
 		// asked for, and for a range-dependent one that is
 		// `checkPermissionToBeginSessionForRangeSpecificParam`, whose first statement creates the
-		// range (`:1993`).
+		// range.
 		//
 		// Two callers arrive this way and both were affected: site 8 of
 		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
@@ -2396,11 +2492,12 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
 
-		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts at 0; it
-		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
+		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on
+		// `Binding::default_edit_pos` (2, `Decimal::getDefaultEditPos`): one detent is 1.00.
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		r.turn(1, 120);
 		r.shell.tick(130);
-		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1235);
+		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1334);
 	});
 
 	it("a SyncLevel leaf reads OFF at zero and edits through the select encoder, not the gold knobs", _ {
@@ -2535,6 +2632,75 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			expect(r.shell.notices().last_popup_text() != deleted).to_be_true(); // not an automation item
 		}
 		currentSong = saved_song;
+	});
+
+	it("a re-read of a Decimal takes the value again and leaves the cursor where the user put it", _ {
+		// `Value::readValueAgain` is `readCurrentValue()` and a render (`gui/menu_item/value.h`): `Decimal`'s edit
+		// position is untouched.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::master_transpose);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		menu_scene().state_for_spec().edit_int = 12345;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(1);
+		expect(menu_scene().state().edit_int)
+		    .to_equal(menu::bindings::read(nodes::master_transpose, menu_scene().menu_context()));
+	});
+
+	it("a re-read of an Enum takes the value again and keeps the list's scroll", _ {
+		select_language();
+		Rig r;
+		(void)r.open(nodes::lpf_mode);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().enum_list.scroll = 1;
+		menu_scene().state_for_spec().enum_index = 99;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().enum_list.scroll)).to_equal(1);
+		expect(menu_scene().state().enum_index)
+		    .to_equal(menu::bindings::read(nodes::lpf_mode, menu_scene().menu_context()));
+	});
+
+	it("a re-read of a Range takes both ends again and keeps the edge being edited", _ {
+		// `IntegerRange` has no `readValueAgain` of its own: `editingRangeEdge` survives it.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::default_tempo);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().edit_edge = deluge::ui::oled::RangeEdge::Right;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().edit_edge))
+		    .to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
+		expect(menu_scene().state().edit_int)
+		    .to_equal(menu::bindings::read(nodes::default_tempo, menu_scene().menu_context()));
+	});
+
+	it("a re-read of a patch-cable strength keeps its cursor, which the page's own read would put back on the "
+	   "hundredths", _ {
+		// `PatchCableStrength` is a `Decimal`: `Value::readValueAgain` leaves `numberEditPos` alone, while the port's
+		// item read (`PatchCableStrengthItem::on_focus`) is `beginSession`'s, which sets `getDefaultEditPos()`.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 0;
+		menu_scene().state_for_spec().edit_int = 12345;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
+		expect(menu_scene().state().edit_int != 12345).to_be_true(); // the strength is read again
+	});
+
+	it("a re-read on a horizontal page writes no edit storage: Submenu::readValueAgain only redraws", _ {
+		select_language();
+		Rig r;
+		(void)r.open(nodes::lpf);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().edit_int = 777;
+		(void)deluge::notify::dirty().drain();
+		menu_scene().read_value_again();
+		expect(menu_scene().state().edit_int).to_equal(777);
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_true();
 	});
 });
 

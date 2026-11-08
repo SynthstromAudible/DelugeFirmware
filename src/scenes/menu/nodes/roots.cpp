@@ -74,6 +74,9 @@ const Node& midi_or_cv_root(const MenuContext& ctx) {
 int32_t get_swing_interval(const MenuContext& ctx) {
 	return ctx.model != nullptr ? static_cast<int32_t>(ctx.model->groove.swing_interval) : 0; // `swing/interval.h`
 }
+std::optional<int32_t> swing_interval_turn(const MenuContext&, int32_t value, int32_t offset) {
+	return wrapSwingIntervalSyncLevel(value + offset);
+}
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
 	bindings::write_song(ctx, "swingInterval", value); // `swing/interval.h`
 }

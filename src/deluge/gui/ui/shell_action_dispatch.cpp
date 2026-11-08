@@ -243,21 +243,10 @@ namespace {
 /// export queued, guest closed, export runs. The divergence is real only on the cooperative BSPs,
 /// where no stem export is driven from a ported menu.
 ///
-/// One more of `exitCompletely`'s tail has no counterpart on the guest's close path and is left
-/// unpaid here: `currentUIMode = UI_MODE_NONE` (`gui/ui/sound_editor.cpp:770`). **The export's own
-/// mode engages either way, and that is the whole of what is safe to claim.**
-/// `UI_MODE_STEM_EXPORT` is `64` (`gui/ui/ui.h:78`), which is not `> EXCLUSIVE_UI_MODES_MASK` (`255`,
-/// `:81`), so `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`)
-/// takes `enterUIMode`'s else branch, `currentUIMode = (currentUIMode & ~255) | 64`
-/// (`gui/ui/ui.cpp:488-489`) -- it never refuses.
-///
-/// But that clears only the **exclusive** bits. The five non-exclusive modes (`gui/ui/ui.h:85-89`:
-/// `QUANTIZE`, `STUTTERING`, `HORIZONTAL_SCROLL`, `AUDITIONING`,
-/// `HOLDING_HORIZONTAL_ENCODER_BUTTON`, all bits 27-31) survive it, where legacy's
-/// `UI_MODE_NONE` is `0` and clears every bit. So a menu entered with, say,
-/// `UI_MODE_AUDITIONING` latched leaves that flag set through the whole export under the guest and
-/// not under legacy. The residue is specifically those five flags; it belongs to the guest's close
-/// path rather than to this arm, and is reported rather than fixed from here.
+/// `exitCompletely`'s last statement, `currentUIMode = UI_MODE_NONE`, is the guest's close's
+/// (`ShellHostUI::closeGuest`), which runs after this arm has started the export. The close keeps the export's own
+/// `UI_MODE_STEM_EXPORT` and drops every other bit, which is the value legacy's order (reset, then
+/// `enterUIMode(UI_MODE_STEM_EXPORT)`, which keeps only the non-exclusive bits the reset already cleared) leaves.
 void startStemExport() {
 	// `start.h:32` -- first, exactly as legacy has it.
 	closePortedMenu();
@@ -303,6 +292,41 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 	return std::nullopt;
 }
 
+namespace {
+void performMenuAction(const MenuActionRequest& req);
+
+/// @brief Whether @p action opens a UI or moves the menu, rather than applying a setting a value write left half done.
+bool opensOrMoves(MenuAction action) {
+	switch (action) {
+	case MenuAction::None:
+	case MenuAction::OpenPerformanceView:
+	case MenuAction::StartStemExport:
+	case MenuAction::SetClipLengthToSampleLength:
+	case MenuAction::OpenSongMidiLearn:
+	case MenuAction::OpenSongMacros:
+	case MenuAction::FileSelectorOpened:
+		return true;
+	case MenuAction::SetShortcutsVersion:
+	case MenuAction::ScreensaverSettingsChanged:
+	case MenuAction::PadBrightnessChanged:
+	case MenuAction::HighlightingChanged:
+	case MenuAction::RoundedCornersChanged:
+	case MenuAction::ShiftStickyChanged:
+	case MenuAction::FlashStatusLeftSlow:
+	case MenuAction::PadColoursChanged:
+		return false;
+	}
+	return true;
+}
+} // namespace
+
+void dispatchShellActionsAtClose() {
+	const MenuActionRequest req = menu_scene().take_action();
+	if (req.engaged() && !opensOrMoves(req.action)) {
+		performMenuAction(req);
+	}
+}
+
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
 	// the request and clears it in the same call (`MenuScene::take_action`). So an early
@@ -313,7 +337,11 @@ void dispatchShellActions() {
 	if (!req.engaged()) {
 		return;
 	}
+	performMenuAction(req);
+}
 
+namespace {
+void performMenuAction(const MenuActionRequest& req) {
 	switch (req.action) {
 	case MenuAction::None:
 		// Unreachable: `MenuActionRequest::engaged()` IS `action != None`, so the guard
@@ -354,8 +382,8 @@ void dispatchShellActions() {
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
 		// relies on the item being reachable only under the audio-clip root, which
-		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1773`'s
-		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1811-1813`).
+		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp`'s
+		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip`).
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
@@ -455,11 +483,20 @@ void dispatchShellActions() {
 	case MenuAction::HighlightingChanged:
 		pushShellHighlighting();
 		break;
-
-	case MenuAction::ShiftStickyOff:
-		// `ShiftIsSticky::writeCurrentValue`'s off arm (`runtime_feature/shift_is_sticky.cpp:22-24`).
-		Buttons::clearShiftSticky();
+	case MenuAction::RoundedCornersChanged:
+		pushShellRoundedCorners();
 		break;
+
+	case MenuAction::ShiftStickyChanged: {
+		// `ShiftIsSticky::writeCurrentValue`'s live half: the guest's shift machine takes the setting (`opened()` seeds
+		// it only on the way in), and off, legacy's latch goes with the guest's.
+		const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
+		shellHostUI.shell().lowering().set_shift_is_sticky(on);
+		if (!on) {
+			Buttons::clearShiftSticky();
+		}
+		break;
+	}
 
 	case MenuAction::FlashStatusLeftSlow:
 		// `flash::Status::writeCurrentValue`'s first statement (`flash/status.h:28-30`).
@@ -479,6 +516,7 @@ void dispatchShellActions() {
 		break;
 	}
 }
+} // namespace
 
 bool legacyInhibitsScreensaver() {
 	return deluge::hid::display::OLED::isPermanentPopupPresent() || stemExport.processStarted;
@@ -510,6 +548,21 @@ void pushShellHighlighting() {
 		h = deluge::ui::Highlighting::NoInversion;
 	}
 	shellHostUI.shell().set_highlighting(h);
+}
+
+void pushShellRoundedCorners() {
+	const bool rounded = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
+	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = rounded;
+	shellHostUI.shell().set_rounded(rounded);
+}
+
+void reapplyLiveSettingsAfterReset() {
+	pushShellHighlighting();
+	deluge::hid::display::Screensaver::settingsChanged();
+	// The setting alone: a latch made before the reset stays, as `Buttons`' does in main.
+	shellHostUI.shell().lowering().adopt_shift_is_sticky(
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky));
+	menu_scene().set_horizontal_menus(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus));
 }
 
 } // namespace deluge::gui::ui

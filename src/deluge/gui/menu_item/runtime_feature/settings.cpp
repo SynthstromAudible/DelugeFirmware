@@ -16,7 +16,7 @@
  */
 
 #include "settings.h"
-#include "hid/display/oled_canvas/canvas.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
 #include <array>
@@ -25,15 +25,14 @@ extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMen
 
 namespace deluge::gui::menu_item::runtime_feature {
 
-// The RoundedCorners toggle additionally pushes its value into the Canvas drawing flag,
+// The RoundedCorners toggle additionally pushes its value into the Canvas drawing flag and the guest's panels,
 // so the low-level primitives don't have to read runtime feature settings themselves.
 class RoundedCornersSettingToggle final : public SettingToggle {
 public:
 	using SettingToggle::SettingToggle;
 	void writeCurrentValue() override {
 		SettingToggle::writeCurrentValue();
-		hid::display::oled_canvas::Canvas::roundedCornersEnabled =
-		    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
+		deluge::gui::ui::pushShellRoundedCorners();
 	}
 };
 

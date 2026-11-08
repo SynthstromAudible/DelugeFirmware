@@ -303,7 +303,7 @@ StubDisplay& stub_display() {
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
 /// Two reasons here, not one. `PlaybackHandler::playButtonPressed` reaches
-/// `AudioEngine::routineWithClusterLoading` (`playback/playback_handler.cpp:572`), which segfaults
+/// `AudioEngine::routineWithClusterLoading` (`PlaybackHandler::setupPlayback`), which segfaults
 /// a spec process on the host input ring (in `processing/engines/audio_engine.cpp`) -- the reason
 /// `global_controls_spec.cpp` holds it. And `View::endMIDILearn` writes the settings to flash
 /// unless `AudioEngine::audioRoutineLocked` (`view.cpp:501-505`), which is a real card write; the

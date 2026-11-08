@@ -21,6 +21,7 @@
 #include "runtime/app_loop.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
+#include <atomic>
 #include <cstdint>
 
 enum class RecordingMode {
@@ -246,6 +247,10 @@ public:
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
+	/// @brief Whether a start-up from stopped is under way: `setupPlayback` may have published `playbackState`, but the
+	///        timebase the clock ticks from is set only when the start-up ends, so the render must not tick yet.
+	///        [audio]
+	bool isClockStarting() const { return clockStarting_.load(std::memory_order_acquire); }
 
 	// TEMPO encoder commands
 	void commandDisplaySwingAmount();
@@ -266,6 +271,10 @@ public:
 	float calculateBPMForDisplay();
 
 private:
+	class ClockStartHold;
+	/// Set by a `ClockStartHold`, read by the render: see isClockStarting().
+	std::atomic<bool> clockStarting_{false};
+
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
 
 	// These are all only relevant while playing synced.
@@ -310,3 +319,12 @@ private:
 };
 
 extern PlaybackHandler playbackHandler;
+
+#if defined(DELUGE_HOST)
+namespace deluge::playback {
+/// @brief The host harness's stand-in for the audio tier preempting a start-up from stopped: when set,
+///        `PlaybackHandler::setupPlayback` calls it right after it publishes `playbackState`, where a render block can
+///        land on the device. Null outside a spec that installs it.
+inline void (*renderPreemptsStartupForHarness)() = nullptr;
+} // namespace deluge::playback
+#endif

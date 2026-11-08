@@ -645,21 +645,16 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// leaf back and the script's closing select turn is the one that moves the value a second time.
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
-		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`),
-		// by `10^edit_pos` per detent -- `edit_pos` stays 0 throughout, so the script's very first
-		// step, `100 encoder Select +1`, moves the value by 1 * 1 on its own. The `GoldUpper` turn
-		// that follows still reaches nobody -- it lands on the source picker the select press opens,
-		// which reads no edit encoder -- and a closing `GoldUpper` turn (back on the leaf) would test
-		// nothing either, since `decimal_value` claims no gold input at all. That step is `encoder Select +2`,
-		// landing at `1 + 2 = 3`.
-		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 3, 9600));
-		// `after_select_turn`'s pixel diff against `idle` is a real effect of the Select turn
-		// (the digits move by 1), not only the cursor's own time-driven blink. What verifies the cursor specifically: `edit_pos` moves only on the
-		// "Horizontal" encoder, which this script never touches, so it must still be 0 after both
-		// select turns, a select press/release and the one remaining `GoldUpper` turn -- Select edits
-		// the value on a Decimal screen, exactly as it moves the cursor's *place*, but it
-		// still never moves the cursor's *position*.
-		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
+		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), by
+		// `10^edit_pos` per detent. `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`), so the
+		// script's `Select +1` moves the value 1.00 and its closing `Select +2` moves it 2.00, landing
+		// at `before + 300`. The `GoldUpper` turn between them reaches nobody: it lands on the source
+		// picker the select press opens, which reads no edit encoder.
+		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 300, 9600));
+		// `after_select_turn`'s pixel diff against `idle` is a real effect of the Select turn, not only
+		// the cursor's blink. `edit_pos` moves only on the "Horizontal" encoder, which this script never
+		// touches, so it is still 2 after both select turns.
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 	});
 
 	it("Enum: nodes::lpf_mode renders and edits through the real Shell", _ {

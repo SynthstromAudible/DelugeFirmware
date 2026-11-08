@@ -94,10 +94,11 @@
 ///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
 ///     item, so it is not a thing a user can do wrong with ShellMenu on. It is noted in
 ///     `src/scenes/README.md`'s boot-wiring section.
-///  5. **One of the fifteen entry points still opens the legacy `SoundEditor`**: site 10, the legacy browser's own
-///     claim, which ShellMenu on reaches only through site 9's legacy fallback -- see `shell_menu_entry.cpp`'s table.
-///     A wrong node is worse than a legacy menu, so with ShellMenu on the firmware has *both* menus, reachable by
-///     different gestures.
+///  5. **No entry point opens the legacy `SoundEditor`.** With ShellMenu on `SoundEditor::opened` refuses, so the
+///     legacy editor, and the legacy browser, recorder, marker editor and slicer only it opens, belong to the
+///     ShellMenu-off leg; site 10, the one row `shell_menu_entry.cpp`'s table does not gate, is that browser's own.
+
+#include "definitions_cxx.hpp" // ActionResult
 
 #include <cstdint>
 
@@ -173,14 +174,18 @@ bool shellMenuEnabled();
 /// @param performanceView        `setup()`'s `currentUI == &performanceView && !shift`.
 /// @param sessionOrArrangerRoot  `setup()`'s `!rootUIIsClipMinderScreen()`.
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
-/// @param kitGlobalFx            `setup()`'s `setupKitGlobalFXMenu` member.
+/// @param kitGlobalFx            True to edit a kit's own effects: the clip views' SELECT on a kit with
+///                               affect-entire on, which also sets `setupKitGlobalFXMenu` before its `setup()`. True
+///                               sets the latch (`shellKitGlobalFx`) for the shortcut presses that follow; false
+///                               leaves it as it is. The open reads this argument, never the latch.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
 /// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
 ///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
 ///                               `enterNoteEditor`/`enterNoteRowEditor`'s explicit item: no undo-log wipe, and the
 ///                               kit `affectEntire` clear. `NoteEditorFromUiMode` is `setup(clip)`'s own inference:
 ///                               the wipe, no clear. `None` for every other caller.
-/// @return Whether the guest is now open. False means nothing was opened and nothing was left
+/// @return Whether the guest is now open; with it already open the open menu re-roots in place, as legacy's setup()
+///         re-sets the open editor. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
@@ -194,19 +199,65 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 /// lands where `setup()` lands a named item (`MenuScene::arm_shortcut_landing`). The undo log is
 /// kept, as `setup()` keeps it when given an item.
 ///
-/// @param clip                   The current clip.
+/// @param clip                   The current clip, or null off a clip minder (the song is then edited).
 /// @param x                      Absolute pad column.
 /// @param y                      Absolute pad row.
 /// @param performanceView        As `openShellMenu`'s.
 /// @param sessionOrArrangerRoot  As `openShellMenu`'s.
 /// @param sessionViewRoot        As `openShellMenu`'s.
-/// @param kitGlobalFx            `SoundEditor::setupKitGlobalFXMenu`.
-/// @return Whether the guest is now open. False, with nothing opened, when the context does not
-///         resolve, the pad names no numbered node, or the node does not apply
-///         (`menu::shortcut_applies`): the caller then runs legacy's statements, whose `setup()`
-///         makes the same refusal with its popup.
+/// @param kitGlobalFx            As `openShellMenu`'s: true sets the latch, and the open reads it.
+/// @return Whether the menu is now open on the pad's node; with the guest already open the open menu re-roots in
+///         place, as legacy's setup() re-sets the open editor. False, with nothing opened, when the context does not
+///         resolve, the pad names no numbered node, or the node does not apply and has no DX7 fallback; the last says
+///         "PARAMETER NOT APPLICABLE", as `setup()` does.
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
+
+/// @brief `SoundEditor::setupKitGlobalFXMenu` for the ported menu: whether an open, and a shortcut press re-rooting
+///        the open guest, edit a kit's own effects rather than its selected row.
+///
+/// Sticky, as legacy's member is. `shellShortcutPadAction` writes it with the guest closed, on every press it is
+/// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
+/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). It is read live, never copied: by the
+/// shortcut presses with the guest closed (`shellShortcutPadAction`), by the open menu's own Shift + pad, SHIFT overlay
+/// and horizontal-menu chain on a kit's row (`wireShellKitGlobalShortcuts`), and by the automation view
+/// (`soundMenuKitGlobalFx`), as legacy's `get_basic_shortcut_action`, `setup()`, `renderMainShortcutsOnly` and
+/// `getCurrentHorizontalMenusChain` read `setupKitGlobalFXMenu`. The other opens edit what the clip's affect-entire
+/// says now (DIFFERENCES D130).
+bool shellKitGlobalFx();
+
+/// @brief Clear the latch `shellKitGlobalFx` reads, as legacy's `exitCompletely` and `enterDrumCreator` clear
+///        `setupKitGlobalFXMenu`.
+void clearShellKitGlobalFx();
+
+/// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's
+///        claim, the marker editor's shortcut jump): a kit clip with affect-entire on, with SHIFT held and no audition,
+///        sets the latch `shellKitGlobalFx` reads.
+void latchShellKitGlobalFxOnReentry();
+
+/// @brief Point the ported menu at the latch, its one source for every shortcut-layer decision on a kit's row (the
+///        Shift + pad item, the SHIFT overlay, the horizontal-menu chain), and at the host's halves: the adopt when a
+///        press moves the menu onto the kit's own effects, and the re-entry write after the marker editor's jump.
+void wireShellKitGlobalShortcuts();
+
+/// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the
+///        guest open, which re-roots itself whichever menu the setting now selects.
+bool shellOwnsShortcutPads();
+
+/// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
+///        screen and the performance view ask of a main-grid press.
+///
+/// The gate first (`shortcutPadGate`: SHIFT, or an audition held over the instrument clip view, inside the two
+/// shortcut modes; the automation view's interpolation pads stay the view's). Then the item: a kit with nothing to edit
+/// has none; a coming-soon cell says "Feature not (yet?) implemented"; the sequence-direction pad with one row
+/// auditioning opens the note-row editor; any other pad goes to `openShellMenuAtShortcut`, which opens, re-roots or
+/// says its refusal. Off a clip minder the context names no clip, so the song view's table and the song are read, as
+/// legacy's `setup()` reads them. Nothing here opens the legacy editor.
+/// @param x,y The pad.
+/// @param on  Whether it is a press.
+/// @return `NOT_DEALT_WITH` for a release, a sidebar pad or a press the gate passes on to the view; `DEALT_WITH`
+///         otherwise, whether or not anything opened.
+ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on);
 
 /// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the ported menu.
 ///
@@ -220,8 +271,11 @@ bool openShellDxColumn(int32_t op);
 /// @brief `InstrumentClipView::enterNoteRowEditor`'s open with ShellMenu on: with the guest closed `openShellMenu` at
 ///        `NoteMode::NoteRowEditor`; with it open (audition + the sequence-direction shortcut inside the menu) the open
 ///        menu re-roots at the note-row editor on PLAY DIRECTION, as legacy's `setup()` re-roots the open editor.
+/// @param onPlayDirection The sequence-direction shortcut asked: the closed leg opens on PLAY DIRECTION too, as
+///        `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)` before the open does; otherwise it opens on the
+///        root's first row.
 /// @return Whether the note-row editor is now the menu's root.
-bool openShellNoteRowEditor(Clip* clip);
+bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection = false);
 
 /// @brief `InstrumentClipView::enterDrumCreator`'s fallback for the ported take: should the recorder the open guest is
 ///        about to push refuse, the menu lands on `nodes::file0_selector` instead of going up, as legacy opens the

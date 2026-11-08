@@ -18,9 +18,10 @@ class ForwardingFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
 	/// @brief What this wrapper answers itself; every other fact is the real host's.
 	struct Overrides {
-		bool sample_load_in_flight = false; ///< a sample load said to be running
-		bool popup_showing = false;         ///< a popup said to be up
-		bool auditioning = false;           ///< legacy's `UI_MODE_AUDITIONING` said to be up
+		bool sample_load_in_flight = false;                    ///< a sample load said to be running
+		bool popup_showing = false;                            ///< a popup said to be up
+		bool auditioning = false;                              ///< legacy's `UI_MODE_AUDITIONING` said to be up
+		std::optional<deluge::scenes::bind::CableList> cables; ///< the sound's cables said to be these
 	};
 	ForwardingFacts(const deluge::scenes::bind::RuntimeFacts& real, Overrides overrides)
 	    : real_(real), overrides_(overrides) {}
@@ -72,7 +73,7 @@ public:
 		return real_.param_value_at(address, pos);
 	}
 	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override {
-		return real_.cables(owner);
+		return overrides_.cables ? *overrides_.cables : real_.cables(owner);
 	}
 	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override { return real_.tracks(); }
 	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>

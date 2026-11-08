@@ -24,12 +24,10 @@
 
 #include "scenes/menu/bindings.h"
 
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
 #include "gui/l10n/strings.h"
-#include "modulation/sync.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/columns.h"
 #include "ui/oled/values.h"
@@ -53,8 +51,9 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 
 	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
 	// legacy's back at the root closing the editor (`SoundEditor::buttonAction`'s BACK arm -> `goUpOneLevel()`, whose
-	// depth-0 arm is `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
-	if (st.depth > 0) {
+	// depth-0 arm is `exitCompletely()`) -- so the render must not read it there: the read IS the claim. Nor where the
+	// UI mode refuses BACK.
+	if (st.depth > 0 && st.tick.back_acts) {
 		st.tick.back_claimed = f.back_pressed();
 	}
 
@@ -151,7 +150,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 
 	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
 	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
-	// `SoundEditor::selectEncoderAction` hands it the raw offset (`gui/ui/sound_editor.cpp:1122`) --
+	// `SoundEditor::selectEncoderAction` hands it the raw offset --
 	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). The edit is the
 	// offset times `calcNextKnobSpeed` (`:326`, `:630-633`, `kHorizontalMenuAcceleration`), truncated
 	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
@@ -347,7 +346,7 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		st.tick.value_node = &node;
 	}
 	// `int_value` owns the select encoder -- legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
+	// (`SoundEditor::selectEncoderAction` in `sound_editor.cpp`), and so does this port
 	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
 	// claim -- `int_value` never reads `select_pressed()`.
@@ -399,10 +398,24 @@ void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
 	// the rect horizontally only (`decimal_value` in `ui/oled/values.h`), and its goldens were recorded that way.
+	deluge::ui::oled::ValueStyle style{.restart_from_negative = node.bind.decimal_restart_from_negative};
+	struct WordCall {
+		const Node* node;
+		const MenuContext* ctx;
+	};
+	const WordCall call{&node, &ctx};
+	if (node.bind.decimal_word != nullptr) {
+		style.hook_ctx = &call;
+		style.label = [](int32_t value, const void* c, std::span<char> out) -> std::string_view {
+			const auto& wc = *static_cast<const WordCall*>(c);
+			const ValueText vt = wc.node->bind.decimal_word(*wc.ctx, value, ValueTextUse::Column, out);
+			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
+		};
+	}
 	const deluge::ui::Response r =
 	    deluge::ui::oled::decimal_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx),
 	                                    node.bind.decimal_places, st.decimal_pos, st.cursor_blink,
-	                                    /*focused=*/true);
+	                                    /*focused=*/true, style);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;
@@ -468,13 +481,17 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 
 	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
 	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`
-	// just above -- the SELECT ENCODER moves the value here, clamped rather than wrapped
-	// (`Enumeration::selectEncoderAction`, `enumeration.cpp:19-31`, `wrapAround()` unoverridden by
-	// `SyncLevel`). The gold knobs are left unclaimed, same as legacy leaves them alone for any
-	// `Enumeration`.
+	// just above -- the SELECT ENCODER moves the value here: clamped, as `Enumeration::selectEncoderAction`
+	// does, unless the node's `turn` says otherwise. The gold knobs are left unclaimed, same as legacy
+	// leaves them alone for any `Enumeration`.
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
-		const int32_t next = std::clamp<int32_t>(st.edit_int + d, r.min, r.max);
+		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
+		const auto offset = static_cast<int32_t>(deluge::ui::oled::select_delta(f));
+		// A `Binding::turn` is the item's own `selectEncoderAction` (`swing::Interval` wraps).
+		const std::optional<int32_t> turned =
+		    node.bind.turn != nullptr ? node.bind.turn(ctx, st.edit_int, offset) : std::nullopt;
+		const int32_t next = std::clamp<int32_t>(turned.value_or(st.edit_int + offset), r.min, r.max);
 		if (next != st.edit_int) {
 			st.edit_int = next;
 			st.tick.render_resp.changed = true;
@@ -503,19 +520,9 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
 	                                   deluge::ui::oled::text_height_for(kFont)};
 
-	// Centred text, not digits: legacy draws the literal "OFF" at zero, else `syncValueToString`
-	// against the song's *input* tick magnitude (`sync_level.cpp:26-28`), never the raw menu-option
-	// integer this node's binding actually stores.
-	etl::string<30> buffer;
-	std::string_view text_val;
-	if (st.edit_int != 0) {
-		syncValueToString(static_cast<uint32_t>(st.edit_int), buffer, input_tick_magnitude(ctx));
-		text_val = std::string_view{buffer.data(), buffer.size()};
-	}
-	else {
-		TextScratch off_scratch;
-		text_val = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	}
+	// Centred text, not digits: OFF at zero, else the note length (`sync_level_name`), never the raw menu option.
+	char name_buf[32];
+	const std::string_view text_val = sync_level_name(node, ctx, st.edit_int, name_buf);
 	deluge::ui::oled::text(f, band, text_val, {.font = kFont, .align = deluge::ui::oled::Align::Centre});
 
 	// The select press leaves the item, same as every other leaf's arm.

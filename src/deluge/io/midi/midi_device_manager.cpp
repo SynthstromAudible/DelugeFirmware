@@ -21,7 +21,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
@@ -40,6 +39,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/notify.h"
+#include "util/sound_menu_open.h"
 #include <algorithm>
 #include <new>
 #include <strings.h>
@@ -717,7 +717,7 @@ void parseDevices(Deserializer& reader) {
 
 	recountSmallestMPEZones();
 
-	soundEditor.mpeZonesPotentiallyUpdated();
+	deluge::gui::ui::mpeZonesPotentiallyUpdated();
 }
 
 void readAHostedDeviceFromFile(Deserializer& reader) {

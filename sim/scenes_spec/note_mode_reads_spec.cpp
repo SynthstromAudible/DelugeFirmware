@@ -55,6 +55,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
+#include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
@@ -84,6 +85,7 @@ using namespace deluge::scenes;
 using deluge::gui::ui::NoteModeKind;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
+using deluge::scenes::spec::FeatureSetting;
 using deluge::scenes::spec::GlobalGuestGuard;
 using deluge::scenes::spec::open_note_mode_over_clip_view;
 using deluge::scenes::spec::SongFixture;
@@ -157,18 +159,6 @@ struct ActiveClipSeed {
 	~ActiveClipSeed() { OutputPeek::active_clip(output) = saved; }
 	ActiveClipSeed(const ActiveClipSeed&) = delete;
 	ActiveClipSeed& operator=(const ActiveClipSeed&) = delete;
-};
-
-/// @brief Set one runtime feature setting for an example, and put it back.
-struct FeatureSetting {
-	RuntimeFeatureSettingType type;
-	uint32_t saved;
-	FeatureSetting(RuntimeFeatureSettingType t, uint32_t value) : type(t), saved(runtimeFeatureSettings.get(t)) {
-		runtimeFeatureSettings.set(type, value);
-	}
-	~FeatureSetting() { runtimeFeatureSettings.set(type, saved); }
-	FeatureSetting(const FeatureSetting&) = delete;
-	FeatureSetting& operator=(const FeatureSetting&) = delete;
 };
 
 /// @brief Every piece of legacy view state these examples borrow, seeded and given back.
@@ -452,6 +442,61 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		legacy.pressed.push_back({1, 0});
 		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 	});
+
+	it("a velocity turn on the full-screen velocity item shows the item's new value and no popup -- adjustVelocity's "
+	   "noteVelocityMenu arm", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues); // velocity 80
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		menu_scene().enter_submenu(nodes::note_velocity);
+		expect(menu_scene().state().edit_int).to_equal(int32_t{80});
+		deluge::hid::display::OLED::removePopup();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_false();
+		expect(menu_scene().state().edit_int).to_equal(int32_t{85});
+	});
+
+	it("with horizontal menus on, the note editor's root shows velocity as a column: no popup", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		deluge::hid::display::OLED::removePopup();
+		(void)deluge::notify::dirty().drain();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_false();
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
+	});
+
+	it("with horizontal menus off, the root is a list without velocity: the popup shows, as main's", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		deluge::hid::display::OLED::removePopup();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_true();
+	});
 });
 
 describe note_mode_reads_note_row_editor("the note-row editor's handlers' own menu calls, ported", $ {
@@ -695,7 +740,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
 	   "`preventOverScrolling`", _ {
-		// `gui/views/instrument_clip_view.cpp:4455` into `scrollVertical_limit`'s `:4531-4516`: no row at the
+		// `InstrumentClipView::scrollVertical`'s `preventOverScrolling` limit: no row at the
 		// auditioned y once scrolled, so no scroll.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

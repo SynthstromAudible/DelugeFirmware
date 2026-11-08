@@ -10,8 +10,10 @@
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/multi_range.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/sound_actions.h"
 #include "scenes/menu/relevance.h"
+#include "scenes/menu/value_session.h"
 #include "scenes/services/view_state.h"
 
 #include "deluge-project/setting_group.h"
@@ -75,6 +77,37 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(picker_cursor(other)).to_equal(1);
 		// `:48-51`: the invalid default is worked out afresh and written back.
 		expect(sound.sources[1].defaultRangeI).to_equal(1);
+	});
+
+	it("a re-read of the range picker keeps the edge being edited and the range, and writes nothing", _ {
+		// `MultiRange` has no `readCurrentValue`: `readValueAgain` redraws and nothing else, where `beginSession` clears
+		// the edge and files the default range.
+		spec::SongFixture f = spec::make_synth_song();
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		give_three_ranges(sound, 0);
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		sound.sources[0].defaultRangeI = 2;
+		menu::MenuState st{};
+		st.path[0] = &nodes::multi_range;
+		st.depth = 0;
+		st.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		st.list[0].cursor = 0;
+		menu::ValueSession{}.read_again({ctx, st});
+		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
+		expect(static_cast<int>(st.list[0].cursor)).to_equal(0);
+		expect(static_cast<int>(st.walk.range_choice)).to_equal(-1);
+		expect(sound.sources[0].defaultRangeI).to_equal(2);
+	});
+
+	it("a re-read of the modulation list puts a cursor past the last cable back on the list, as PatchCables::readValueAgain does", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		menu::MenuState st{};
+		st.path[0] = &nodes::patch_cables;
+		st.depth = 0;
+		st.list[0].cursor = 99; // the cables it was on deleted under it
+		menu::ValueSession{}.read_again({ctx, st});
+		expect(st.list[0].cursor < 99).to_be_true();
 	});
 
 	it("opens the range picker on the range already selected, and remembers it for the source", _ {

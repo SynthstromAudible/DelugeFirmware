@@ -60,7 +60,7 @@ struct OledSurface {
 	uint8_t index = 0;
 	bool blit_pending = false;
 	/// The surface's copy of the board profile's style (`SurfaceSet`'s own), made at build time so a render pass never
-	/// re-indexes the profile and `set_highlighting` can restyle it.
+	/// re-indexes the profile and `set_highlighting` and `set_rounded` can restyle it.
 	/// @warning The shell requires a style for every surface it renders. This is null for a
 	///          surface past the end of `BoardProfile::style_by_index`; such a surface must not be
 	///          rendered, and a board profile that leaves one null is a profile bug.
@@ -178,6 +178,14 @@ public:
 			styles_[i].highlighting = h;
 		}
 	}
+	/// @brief Restyle every surface's rounded primitives: main's `Canvas::roundedCornersEnabled`, which its rounded
+	///        rectangle and invert read live.
+	/// @param rounded Whether `rect_rounded` and `invert_rounded` round their corners.
+	void set_rounded(bool rounded) {
+		for (uint8_t i = 0; i < oled_count_; i++) {
+			styles_[i].rounded = rounded;
+		}
+	}
 	/// @brief The LED/indicator surface.
 	LedSurface& leds() { return leds_; }
 
@@ -259,7 +267,8 @@ protected:
 	void build(const DelugeBoard& board, const BoardProfile& profile);
 
 	uint8_t storage_[kMaxOled][kOledStorageBytes]{};
-	/// Each surface's style, copied from the board profile so the shell can restyle it (`set_highlighting`).
+	/// Each surface's style, copied from the board profile so the shell can restyle it (`set_highlighting`,
+	/// `set_rounded`).
 	Style styles_[kMaxOled]{};
 	OledSurface oled_[kMaxOled];
 	uint8_t oled_count_ = 0;

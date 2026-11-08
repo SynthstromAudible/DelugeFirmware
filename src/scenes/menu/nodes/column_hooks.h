@@ -49,8 +49,12 @@ std::optional<deluge::ui::oled::ArtColumn> arp_rhythm_art(const MenuContext& ctx
 std::optional<deluge::ui::oled::ArtColumn> arp_rhythm_midi_art(const MenuContext& ctx, int32_t value);
 /// `unison::Count::renderInHorizontalMenu` (`unison/count.h:62-67`): the count in the "Big" face.
 std::optional<deluge::ui::oled::ArtColumn> unison_count_art(const MenuContext& ctx, int32_t value);
-/// `midi::Preset::renderInHorizontalMenu` (`midi/preset.h:62-79`): NONE at 128, else the number.
+/// `midi::Preset::renderInHorizontalMenu`: NONE at 128, else the number.
 std::optional<deluge::ui::oled::ArtColumn> midi_preset_art(const MenuContext& ctx, int32_t value);
+/// `midi::Preset::selectEncoderAction` (`midi/preset.h`): a turn wraps round `kMidiPresetRange`, 128 being none.
+std::optional<int32_t> midi_preset_turn(const MenuContext& ctx, int32_t value, int32_t offset);
+/// `midi::Preset::drawInteger`: NONE at 128 on the full screen.
+ValueText midi_preset_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// @}
 
 /// @name Column texts (`Binding::value_text`)
@@ -59,11 +63,22 @@ std::optional<deluge::ui::oled::ArtColumn> midi_preset_art(const MenuContext& ct
 /// `voice::VoiceCount` and `arpeggiator::SequenceLength`'s OFF at zero (`voice/polyphony.h:89-96`,
 /// `arpeggiator/sequence_length.h:27-44`): the column's word and the notification's.
 ValueText off_at_zero_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `cv::Volts::drawPixelsForOled`: 0 V/octave is Hz/V.
+ValueText cv_volts_word(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `osc::RetriggerPhase` (`osc/retrigger_phase.h:106-123`): OFF while free-running, and a notification of the raw
 /// number.
 ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:50-73`): AUTO below zero.
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `defaults::HoldTime::getDisplayValue`/`getUnit`: twentieths of a second, 1..19 as 50..950 ms, 20 as 1 SEC.
+ValueText hold_time_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `defaults::Magnitude::drawPixelsForOled`: the resolution, `96 << value`.
+ValueText default_magnitude_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `arpeggiator::midi_cv::Rhythm::drawInteger`: the pattern's name.
+ValueText arp_rhythm_name_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `arpeggiator::Rhythm::drawInteger`: "index: pattern", cut to its 12-byte buffer. A leaf text drawn in the digits'
+/// place (`ValueStyle::label_in_digits`), not in the huge face.
+ValueText arp_rhythm_screen_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `sample::Reverse` and `audio_clip::Reverse::getNotificationValue` (`sample/reverse.h:77-79`): ON or OFF.
 ValueText on_off_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::Width::getColumnLabel` (`reverb/width.h`): DIFFUSION for the plate models, else the short width.

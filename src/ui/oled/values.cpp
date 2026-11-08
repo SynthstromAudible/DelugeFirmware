@@ -44,19 +44,16 @@ void continuous_bar(OledFrame& f, int32_t value, Range range) {
 	panel.rect_rounded(Rect{left_most, kBarTop, right_most - left_most, kBarHeight + 1});
 }
 
+/// `style.label`'s answer for @p value, or empty when it has none.
+std::string_view label_of(const ValueStyle& style, int32_t value, std::span<char> out) {
+	return style.label != nullptr ? style.label(value, style.hook_ctx, out) : std::string_view{};
+}
+
 /// `value + delta`, clamped into \p range. Widened to 64 bits first because the sum can overflow
 /// int32 near the type's ends, and the clamp that follows would then read a wrapped value.
 int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 	const int64_t next = static_cast<int64_t>(value) + delta;
 	return static_cast<int32_t>(std::clamp<int64_t>(next, range.min, range.max));
-}
-
-/// The select encoder's detents for a value edit, as `SoundEditor::selectEncoderAction`
-/// (`gui/ui/sound_editor.cpp`) hands them to a non-submenu item: multiplied by 5 while SHIFT
-/// is held. Read through the frame, so an unfocused frame contributes nothing.
-int64_t select_delta(const OledFrame& f) {
-	const int64_t detents = f.turn();
-	return f.shift() ? detents * 5 : detents;
 }
 
 /// A `step` of 0 would freeze the coarse knob, so it is read as the default (1) rather than
@@ -136,12 +133,21 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		panel.clear(Rect{0, kBarTop, panel.canvas.geometry().width, kBarHeight + 1});
 	}
 	std::array<char, 24> label_buf{};
-	if (const std::string_view label =
-	        style.label != nullptr ? style.label(value, style.hook_ctx, label_buf) : std::string_view{};
-	    !label.empty()) {
+	const std::string_view label =
+	    style.label != nullptr ? style.label(value, style.hook_ctx, label_buf) : std::string_view{};
+	if (!label.empty() && !style.label_in_digits) {
+		// `drawPixelsForOled` overridden: the text alone, in the huge face.
 		const Rect huge{rect.x, rect.y + kValueY, rect.w, text_height_for(f.style.value_font)};
 		f.clear(huge);
 		text(f, huge, label, TextStyle{.font = f.style.value_font, .align = Align::Centre});
+		return resp;
+	}
+	if (!label.empty()) {
+		// `drawInteger` overridden: the text in the digits' place, and a continuous value's bar as ever.
+		text(f, band, label, TextStyle{.font = font, .align = Align::Centre});
+		if (style.continuous) {
+			continuous_bar(f, value, range);
+		}
 		return resp;
 	}
 
@@ -168,7 +174,7 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 }
 
 Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uint8_t places, int8_t& edit_pos,
-                       Blink& blink, bool focused) {
+                       Blink& blink, bool focused, ValueStyle style) {
 	Response resp{};
 	resp.focused = focused;
 	const uint32_t now = f.now_ms();
@@ -182,28 +188,46 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		f.claim_horizontal();
 		f.claim_turn();
 		const int8_t horizontal = f.horizontal();
+		// `cv::Volts` and `RetriggerPhase::horizontalEncoderAction`: a value the item names has no cursor to move,
+		// judged on the value before this tick's select edit.
+		std::array<char, 24> named_buf{};
+		const bool named = !label_of(style, value, named_buf).empty();
 		// A tick still restarts the blink lit even when blocked by either bound below (matches
 		// the legacy ordering, where the moving-cursor flag is set unconditionally after the
 		// position update).
-		horizontal_ticked = horizontal != 0;
-		if (horizontal > 0 && edit_pos > 0) {
+		horizontal_ticked = horizontal != 0 && !named;
+		if (!named && horizontal > 0 && edit_pos > 0) {
 			edit_pos--;
 		}
-		else if (horizontal < 0 && static_cast<int64_t>(pow10(edit_pos)) * 10 <= range.max) {
+		else if (!named && horizontal < 0 && static_cast<int64_t>(pow10(edit_pos)) * 10 <= range.max) {
 			edit_pos++;
 		}
 
-		// Ports legacy `Decimal::selectEncoderAction`: the value moves by 10^edit_pos per detent,
-		// then clamps.
-		const int64_t delta = select_delta(f) * pow10(edit_pos);
+		// Ports legacy `Decimal::selectEncoderAction`: the value moves by 10^edit_pos per detent, then clamps.
+		// `RetriggerPhase`'s override first puts a value below zero at minus one step.
+		const int64_t step = pow10(edit_pos);
+		const int64_t delta = select_delta(f) * step;
 		if (delta != 0) {
-			const int32_t next = add_clamped(value, delta, range);
+			const int32_t from =
+			    style.restart_from_negative && delta > 0 && value < 0 ? static_cast<int32_t>(-step) : value;
+			const int32_t next = add_clamped(from, delta, range);
 			if (next != value) {
 				value = next;
 				resp.changed = true;
 				f.gate().request_repaint();
 			}
 		}
+	}
+
+	// `cv::Volts` and `RetriggerPhase::drawPixelsForOled`: the word, centred in the huge face on the digits' row
+	// (canvas-absolute 20), and no cursor -- neither calls `setupBlink`.
+	std::array<char, 24> word_buf{};
+	if (const std::string_view word = label_of(style, value, word_buf); !word.empty()) {
+		const Rect band{rect.x, 20 - f.origin.y, rect.w, text_height_for(f.style.big_font)};
+		f.clear(band);
+		f.clear(Rect{rect.x, 41 - f.origin.y, rect.w, 2});
+		text(f, band, word, TextStyle{.font = f.style.big_font, .align = Align::Centre});
+		return resp;
 	}
 
 	// A value change restarts the blink phase dark; a horizontal tick restarts it lit immediately.
@@ -299,7 +323,8 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	// Ports legacy `Enumeration::selectEncoderAction`.
 	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
 	if (f.turn() != 0) {
-		next += f.turn();
+		// `SoundEditor::selectEncoderAction` hands a non-submenu item five detents a click while SHIFT is held.
+		next += static_cast<int32_t>(select_delta(f));
 		next = wrap ? ((next % n) + n) % n : std::clamp<int32_t>(next, 0, n - 1);
 	}
 	resp.changed = next != index;

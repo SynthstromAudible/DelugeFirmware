@@ -56,12 +56,17 @@
 
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "notify/dirty_set.h"
+#include "scenes/browser/browser_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
+#include "scenes/rename/rename_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 #include "shell/scene.h" // SceneKind
 
 #include "support/global_guest_menu.h"
@@ -430,7 +435,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("keeps the note arms inside the clip view's case: another root takes its own arm", _ {
-		// `sound_editor.cpp:1474` comes before the note arms, and `:1515` is a separate root: the note arms are nested in
+		// `SoundEditor::potentialShortcutPadAction`'s `ignoreAction` gate comes before the note arms, and its tail is a separate root: the note arms are nested in
 		// `rootUI == &instrumentClipView`, so a note root over another root view changes nothing.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -448,8 +453,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("the real performer hands a NoteEditorEdit pad to the note editor's edit action and leaves the "
 	   "menu open", _ {
-		// `sound_editor.cpp:1484`, then `:1490`'s `return DEALT_WITH` -- no exit. The sidebar half is `:1488`'s
-		// `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
+		// `SoundEditor::padAction` (`sound_editor.cpp`) returns `DEALT_WITH` -- no exit. The sidebar
+		// half is its `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
 		RecordingNotePads recording;
 		UiStackGuard ui_guard;
@@ -937,6 +942,56 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(deluge::gui::ui::menuCurrent()).to_be_true();
 		instrumentClipView.setSelectedDrum(b, false);
 		expect(kit->selectedDrum == a).to_be_true();
+	});
+
+	it("freezes the selection under exactly the ported scenes of main's three UIs", _ {
+		// `setSelectedDrum`'s `currentUI != &sampleBrowser && != &sampleMarkerEditor && != &renameDrumUI`.
+		namespace browser = deluge::scenes::browser;
+		namespace rename = deluge::scenes::rename;
+		const auto id = [](auto e) { return static_cast<uint16_t>(e); };
+		const auto drumSelectionFrozenBy = [](SceneKind kind, uint16_t which) {
+			return deluge::gui::ui::drumSelectionFrozenBy(static_cast<uint8_t>(kind), which);
+		};
+		expect(drumSelectionFrozenBy(browser::kBrowserSceneKind, id(browser::BrowserId::Sample))).to_be_true();
+		expect(drumSelectionFrozenBy(browser::kBrowserSceneKind, id(browser::BrowserId::DxSyx))).to_be_false();
+		expect(drumSelectionFrozenBy(browser::kBrowserSceneKind, id(browser::BrowserId::MidiDeviceDefinition)))
+		    .to_be_false();
+		expect(drumSelectionFrozenBy(deluge::scenes::marker::kMarkerSceneKind, 0)).to_be_true();
+		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Drum))).to_be_true();
+		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Clip))).to_be_false();
+		expect(drumSelectionFrozenBy(rename::kRenameSceneKind, id(rename::TargetId::Output))).to_be_false();
+		expect(drumSelectionFrozenBy(deluge::scenes::slicing::kSlicerSceneKind, 0)).to_be_false();
+		expect(drumSelectionFrozenBy(deluge::scenes::recorder::kRecorderSceneKind, 0)).to_be_false();
+		expect(drumSelectionFrozenBy(deluge::ui::shell::SceneKind::FirstApp, 0)).to_be_false();
+	});
+
+	it("keeps the kit's selected drum while the ported drum rename is over the menu, and not under a clip rename", _ {
+		ShellMenuOn on;
+		GlobalGuestGuard guest_guard;
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_kit_song();
+		auto* a = spec::add_drum<SoundDrum>(fx);
+		auto* b = spec::add_drum<SoundDrum>(fx);
+		auto* kit = static_cast<Kit*>(fx.instrument);
+		fx.clip->affectEntire = false;
+		kit->selectedDrum = a;
+		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
+		namespace rename = deluge::scenes::rename;
+		rename::rename_scene().open(menu_scene().menu_context());
+		expect(shellHostUI.shell().stack().push(
+		           SceneId{rename::kRenameSceneKind, static_cast<uint16_t>(rename::TargetId::Drum)}))
+		    .to_be_true();
+		expect(deluge::gui::ui::menuCurrent()).to_be_false();
+		instrumentClipView.setSelectedDrum(b, false);
+		expect(kit->selectedDrum == a).to_be_true();
+
+		shellHostUI.shell().stack().pop(deluge::ui::shell::SceneKind::Null);
+		rename::rename_scene().open(menu_scene().menu_context());
+		expect(shellHostUI.shell().stack().push(
+		           SceneId{rename::kRenameSceneKind, static_cast<uint16_t>(rename::TargetId::Clip)}))
+		    .to_be_true();
+		instrumentClipView.setSelectedDrum(b, false);
+		expect(kit->selectedDrum == b).to_be_true();
 	});
 
 	it("on a kit row's item that uses it, AFFECT ENTIRE holds; elsewhere it toggles the clip's affect-entire", _ {

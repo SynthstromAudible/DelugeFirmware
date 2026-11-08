@@ -332,6 +332,11 @@ std::optional<ActionResult> forwardMenuHorizontal(int32_t offset, uint32_t now_m
 	if (!menuTakesInput()) {
 		return std::nullopt;
 	}
+	// `SoundEditor::horizontalEncoderAction`'s keyboard arm, ahead of the item: with only a keyboard note held, every
+	// turn is the keyboard's, whatever the menu shows.
+	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
+		return keyboardScreen.horizontalEncoderAction(offset);
+	}
 	using HorizontalTurn = deluge::scenes::menu::MenuScene::HorizontalTurn;
 	const HorizontalTurn route = deluge::scenes::menu_scene().route_horizontal_turn(
 	    offset, Buttons::isButtonPressed(deluge::hid::button::X_ENC), now_ms);

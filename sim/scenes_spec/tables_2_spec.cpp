@@ -1371,7 +1371,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// The legacy *write* path is not driven, for the reason this file already records for
 		// `ParamRef` nodes: with no root UI open, `PatchCableStrength::writeCurrentValue` resolves
 		// `soundEditor.getCurrentModelStack` down the `!rootUIIsClipMinderScreen()` arm
-		// (`sound_editor.cpp:2039`) and asks the *song's* param manager for a patch-cable collection
+		// (`SoundEditor::getCurrentModelStack`) and asks the *song's* param manager for a patch-cable collection
 		// it does not have -- which is `FREEZE_WITH_ERROR("E412")`, i.e. a null-`display` segfault in
 		// the host build. `bindings_spec` covers the model-stack half directly.
 		expect(seed_cable(f.ctx, learn, -2500)).to_be_true(); // sentinel
@@ -1721,7 +1721,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		//
 		// `ParamRef` nodes are deliberately not here: legacy's `UnpatchedParam::writeCurrentValue`
 		// resolves its model stack through `SoundEditor::getCurrentModelStack`, which with no root
-		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`sound_editor.cpp:2039`) and writes
+		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`SoundEditor::getCurrentModelStack`) and writes
 		// the *song's* param collection where the port writes the clip's. That is a divergence
 		// that is a property of the harness, not of the tables, and
 		// `bindings_spec` already covers the param write path end to end. The next example covers

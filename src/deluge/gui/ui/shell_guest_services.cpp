@@ -44,15 +44,19 @@
 #include "processing/source.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
+#include "scenes/rename/rename_scene.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
 #include <atomic>
@@ -135,6 +139,10 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	// The menu's kit context goes with it (`adoptShellMenuContext` wrote it at open), as legacy's `exitCompletely`
 	// clears it; a legacy menu opened afterwards sets it only when it means it.
 	soundEditor.setupKitGlobalFXMenu = false;
+	clearShellKitGlobalFx();
+	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
+	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.
+	(void)deluge::scenes::menu_scene().take_transition();
 	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
 	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
 		display->displayNotification(shown->name, shown->value);
@@ -167,6 +175,32 @@ std::atomic<bool> guestPreviewSounds{false};
 
 bool shellRangePickerOpen() {
 	return shellSoundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
+}
+
+bool drumSelectionFrozenBy(uint8_t raw_kind, uint16_t which) {
+	const auto kind = static_cast<deluge::ui::shell::SceneKind>(raw_kind);
+	if (kind == deluge::scenes::browser::kBrowserSceneKind) {
+		return which == static_cast<uint16_t>(deluge::scenes::browser::BrowserId::Sample);
+	}
+	if (kind == deluge::scenes::rename::kRenameSceneKind) {
+		return which == static_cast<uint16_t>(deluge::scenes::rename::TargetId::Drum);
+	}
+	return kind == deluge::scenes::marker::kMarkerSceneKind;
+}
+
+bool shellFreezesDrumSelection() {
+	if (getCurrentUI() != &shellHostUI) {
+		return false;
+	}
+	const deluge::ui::shell::Scene& top = shellHostUI.shell().stack().input_top();
+	uint16_t which = 0;
+	if (&top == &deluge::scenes::browser::browser_scene()) {
+		which = static_cast<uint16_t>(deluge::scenes::browser::browser_scene().browser_id());
+	}
+	else if (&top == &deluge::scenes::rename::rename_scene()) {
+		which = static_cast<uint16_t>(deluge::scenes::rename::rename_scene().target_id());
+	}
+	return drumSelectionFrozenBy(static_cast<uint8_t>(top.kind()), which);
 }
 
 bool shellRangeDependentOpen() {
@@ -225,6 +259,18 @@ int32_t lastRangeTop = -1;
 /// screen change (`possibleChangeToCurrentRangeDisplay`), which redraws a kit's selected-drum pad for affect-entire.
 const deluge::scenes::menu::Node* lastScreen = nullptr;
 } // namespace
+
+void refreshMenuModeGates() {
+	const bool selectAndBack =
+	    currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || currentUIMode == UI_MODE_NOTES_PRESSED
+	    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR || currentUIMode == UI_MODE_STUTTERING;
+	deluge::scenes::menu_scene().set_host_mode_gates(
+	    {.learn = currentUIMode == UI_MODE_NONE, .select_and_back = selectAndBack});
+}
+
+bool shellMenuLearnMode() {
+	return deluge::scenes::menu_scene().learn_mode();
+}
 
 void refreshShellRangeDisplay() {
 	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
@@ -352,6 +398,13 @@ void shellMenuReadValueAgain() {
 	deluge::scenes::menu_scene().read_value_again();
 }
 
+void shellMpeZonesPotentiallyUpdated() {
+	if (shellMenuFrontmost()
+	    && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::mpe_zone_num_member_channels) {
+		deluge::scenes::menu_scene().read_value_again();
+	}
+}
+
 bool guestKnobsSeeAutomationEditor() {
 	return guestServices().knobs.view_state().in_automation_editor;
 }
@@ -359,6 +412,7 @@ bool guestKnobsSeeAutomationEditor() {
 void wireShellGuestServices() {
 	GuestServices& services = guestServices();
 	ShellHostUI::setCloseHook(&handOffGuestOverlays);
+	wireShellKitGlobalShortcuts();
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
 	// `scenes-currentSong` row) and which all three services resolve against

@@ -66,6 +66,9 @@ struct MenuTick {
 	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
+	/// Whether the host's UI mode lets BACK act this tick (`MenuScene::select_and_back_act`). When it does not, the
+	/// render does not read BACK, as a read is a claim, and `handle()` swallows the press instead.
+	bool back_acts = true;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
 	/// claims the press only for a submenu column, `ui::oled::columns`). `after_render`
 	/// answers it the way a leaf's own select press is answered, not the way this field's name
@@ -85,6 +88,10 @@ struct MenuTick {
 	/// An item used the current Select press up, as legacy's `Buttons::selectButtonPressUsedUp = true`: the
 	/// cable-strength page's polarity turn under a held Select (`PatchCableStrength::selectEncoderAction`).
 	bool use_up_select = false;
+	/// A select turn reached the menu this tick, through the render's frame or, for a bespoke item that takes it as an
+	/// event, through `handle`: `after_render` marks the instrument edited for it, as
+	/// `SoundEditor::selectEncoderAction` does after its item takes the turn.
+	bool select_turned = false;
 };
 
 /// @brief What belongs to one walk through the tree from a root: the range picker, the selectors' choices, the

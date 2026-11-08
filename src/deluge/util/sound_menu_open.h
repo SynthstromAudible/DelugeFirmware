@@ -38,12 +38,24 @@ bool soundMenuOpen();
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, or the ported menu frontmost on a root other than the settings.
 bool soundMenuCurrent();
 
+/// @brief Legacy's `soundEditor.setupKitGlobalFXMenu`, or under the ported menu its latch (`shellKitGlobalFx`), the one
+///        source the menu's own shortcut presses read too.
+bool soundMenuKitGlobalFx();
+
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, whatever its root, or the ported menu frontmost on any root.
 bool menuCurrent();
 
 /// @brief The open menu re-reads its value: legacy's `getCurrentMenuItem()->readValueAgain()` when `soundEditor` is
-///        current, or the ported menu's.
+///        current, or the ported menu's when it is frontmost, whatever its root (both of `DISPLAY_AUTOMATION`'s arms).
 void readSoundMenuValueAgain();
+
+/// @brief An MPE zone may have changed (an MPE configuration message, a device file read): legacy's
+///        `SoundEditor::mpeZonesPotentiallyUpdated`, and the ported member-channel page re-read when it is frontmost.
+void mpeZonesPotentiallyUpdated();
+
+/// @brief Legacy's `currentUI == &sampleBrowser || &sampleMarkerEditor || &renameDrumUI`, or the guest's ported sample
+///        browser, marker editor or drum rename frontmost: the UIs under which `setSelectedDrum` keeps the selection.
+bool drumSelectionFrozen();
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu`,
 ///        or the ported menu frontmost on the note-range picker.

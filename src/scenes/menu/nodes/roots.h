@@ -328,30 +328,39 @@ inline constexpr Node midi_device_definition =
     submenu(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION), kMidiDeviceDefinitionChildren, Layout::Vertical,
             relevance::is_midi_out);
 
-// `midi::Preset::selectEncoderAction` wraps at 129 and draws 128 as "NONE" (`midi/preset.h:34-49`),
-// so the editable range is 0..128 and `getMaxValue()` says 128 (`:22`).
+// `midi::Preset`: 0..127, and 128 for none (`getMaxValue`); `midi_preset_turn` wraps round it and
+// `midi_preset_text` names its top.
 inline constexpr IntRange kMidiPresetRange{0, 128, 1};
-inline constexpr Node midi_bank = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiBank",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_BANK)),
-                    midi_preset_art));
-inline constexpr Node midi_sub_bank = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiSub",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_SUB_BANK)),
-                    midi_preset_art));
-inline constexpr Node midi_pgm = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiPGM",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE)),
-                    midi_preset_art));
+inline constexpr Node midi_bank =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiBank",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_BANK)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
+inline constexpr Node midi_sub_bank =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiSub",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_SUB_BANK)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
+inline constexpr Node midi_pgm =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiPGM",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
 /// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
 /// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout
@@ -401,7 +410,7 @@ inline constexpr const Node* kMidiOrCvRootChildren[] = {
     &midi_or_cv_actions, &midi_device_definition, &midi_program, &arp_midi,          &randomizer, &bend,
     &cv2_source,         &mpe_y_to_mod_wheel,     &midi_mpe,     &sequence_direction};
 inline constexpr Node root_midi_or_cv = submenu(sid(String::STRING_FOR_MIDI_INST_MENU_TITLE), kMidiOrCvRootChildren);
-/// The CV spelling of the very same root -- `sound_editor.cpp:1786`'s retitle, as a second node.
+/// The CV spelling of the very same root -- `SoundEditor::setup`'s retitle, as a second node.
 inline constexpr Node root_cv = submenu(sid(String::STRING_FOR_CV_INSTRUMENT), kMidiOrCvRootChildren);
 
 /// @brief Which of the two MIDI/CV root nodes @p ctx wants -- the port of `setup()`'s retitle.
@@ -539,8 +548,13 @@ inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT
 /// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:30`) rather than
 /// `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
 inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
-inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval,
-                                                       set_swing_interval, kSwingIntervalRange);
+/// `swing::Interval::selectEncoderAction` (`wrapSwingIntervalSyncLevel`): a turn wraps within the even levels and
+/// never lands on 0, OFF. `defaults::SwingInterval` inherits it.
+std::optional<int32_t> swing_interval_turn(const MenuContext& ctx, int32_t value, int32_t offset);
+inline constexpr Node swing_interval =
+    with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval, set_swing_interval,
+                              kSwingIntervalRange),
+              swing_interval_turn);
 
 inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`

@@ -1402,6 +1402,24 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu::nodes::osc0_type.bind.wrap_in_horizontal).to_be_true();
 	});
 
+	it("turns the oscillator type past its last value round to its first on a horizontal page", _ {
+		// Main's `osc::Type` wraps only while its parent renders horizontally (`wrapAround`), so the type column
+		// goes from the last type to the first.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open_real(menu::nodes::source0);
+		const menu::IntRange range = menu::bindings::range(menu::nodes::osc0_type, ctx);
+		menu::bindings::write(menu::nodes::osc0_type, ctx, range.max);
+		menu_scene().open(menu::nodes::source0, ctx);
+		r.shell.tick(0);
+		expect(menu_scene().focused_value() == &menu::nodes::osc0_type).to_be_true();
+		r.turn(1, 300);
+		r.shell.tick(310);
+		r.shell.tick(400);
+		expect(menu::bindings::read(menu::nodes::osc0_type, ctx)).to_equal(range.min);
+	});
+
 	it("with HorizontalMenus off a horizontal page is a vertical list", _ {
 		// `HorizontalMenu::renderingStyle()` is VERTICAL with the feature off (`horizontal_menu.cpp:592-597`): the page
 		// renders and edits as a `Submenu`, the select knob moving the row cursor.

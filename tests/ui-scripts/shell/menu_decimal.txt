@@ -1,11 +1,10 @@
 # Level-2 acceptance: a Decimal leaf (nodes::source0_transpose), opened directly.
 #
 # `decimal_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), never the gold
-# pair, by `10^edit_pos` per detent -- `edit_pos` is 0 throughout this script, so both edit steps
-# below move the value by their raw detent count, the first (`100`, below) included, which
-# `after_select_turn`'s golden shows.
+# pair, by `10^edit_pos` per detent -- `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`) and
+# stays there, so each detent below moves the value 1.00.
 0     snapshot idle
-100   encoder Select +1               # 0 -> +1: edits
+100   encoder Select +1               # 0 -> 1.00: edits
 120   snapshot after_select_turn
 200   button SelectEnc down
 220   button SelectEnc up
@@ -22,7 +21,7 @@
 # nodes, whose `selectButtonPress` opens the source picker (`gui/menu_item/patched_param.cpp:32-38`).
 # The Back above comes back to the leaf; the select turn below is what edits it a second time, and
 # keeps this script's "the value moved" assertion about the leaf's own kind.
-500   encoder Select +2               # +1 -> +3: `decimal_value` claims the select turn, not the
+500   encoder Select +2               # 1.00 -> 3.00: `decimal_value` claims the select turn, not the
                                       # gold knobs
 520   snapshot after_select_edit
 600   quit

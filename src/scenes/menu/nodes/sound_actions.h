@@ -84,12 +84,13 @@ inline constexpr Node sequence_direction =
                                         get_sequence_direction, set_sequence_direction),
                     sequence_direction_art);
 
-// `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h:34`) and
-// `OutputMidiNoteForDrum`'s (`note_for_drum.h:29-30`). Both render a plain number
-// (`Integer::drawInteger`), so `Hint::None`.
-inline constexpr Node output_midi_channel =
+// `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h`) and `OutputMidiNoteForDrum`'s
+// (`note_for_drum.h`). The channel's `drawInteger` names 0 Off (the l10n string, `off_at_zero_text`); the note draws
+// a plain number.
+inline constexpr Node output_midi_channel = with_leaf_text(
     with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
-                                    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"}));
+                                    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"})),
+    off_at_zero_text);
 inline constexpr Node output_midi_note = with_affect_entire(
     setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE), Kind::Int,
                  {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/noteForDrum"}));

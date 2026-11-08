@@ -922,7 +922,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			// The *index* is the item's own; the *kind* is not. `UnpatchedParam::getParamKind`
 			// (`gui/menu_item/unpatched_param.cpp`) reports whatever param collection
 			// `SoundEditor::getCurrentModelStack` lands on, and with no root UI open that function
-			// takes its `!rootUIIsClipMinderScreen()` arm (`gui/ui/sound_editor.cpp:2039`) and
+			// takes its `!rootUIIsClipMinderScreen()` arm (`SoundEditor::getCurrentModelStack`) and
 			// returns the *song's* stack -- so an unpatched item reports UNPATCHED_GLOBAL here and
 			// UNPATCHED_SOUND on a real sound-editor screen. A `ParamRef` states one kind
 			// statically, and the node's PARAM target names the param by id either way, so both
@@ -1134,7 +1134,7 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 		//
 		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI
 		// open, legacy's `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection
-		// (`sound_editor.cpp:2039`) where the port resolves the clip's. `bindings_spec` covers that
+		// (`SoundEditor::getCurrentModelStack`'s `!rootUIIsClipMinderScreen()` arm) where the port resolves the clip's. `bindings_spec` covers that
 		// path directly.
 		Fixture& f = fixture();
 		size_t exercised = 0;

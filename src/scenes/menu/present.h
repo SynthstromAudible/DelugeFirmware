@@ -97,6 +97,15 @@ std::string_view display_text(const Node& node, ValueTextUse use, const MenuCont
 /// @return The magnitude.
 int32_t input_tick_magnitude(const MenuContext& ctx);
 
+/// @brief A `Kind::SyncLevel` value's name: OFF at zero, else its note length against the node's tick magnitude
+///        (`SyncLevel::drawPixelsForOled` and `getShortOption`, through `getNoteLengthName`).
+/// @param node  The sync-level node.
+/// @param ctx   The menu context.
+/// @param value The menu option.
+/// @param out   Storage the returned view points into.
+/// @return The name.
+std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32_t value, std::span<char> out);
+
 /// @brief Fill @p col's label and value drawing for @p node showing @p value: legacy's `getColumnLabel`,
 ///        `showColumnLabel` and `renderInHorizontalMenu` for that item.
 /// @param node  The column's node.

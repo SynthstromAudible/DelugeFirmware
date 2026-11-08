@@ -457,6 +457,29 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.sticky()).to_be_true();
 	});
 
+	it("adopts a sticky setting without touching the latch, as main's reset leaves Buttons' latch", _ {
+		// `RuntimeFeatureSettings::factoryReset` changes the setting under `Buttons::commandToggleShift` and calls no
+		// `clearShiftSticky()`: a SHIFT latched before it stays latched, and with sticky off no tap unlatches it.
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);
+		in.on_board_event(button_ev(8, 0, false), 20);
+		expect(in.sticky()).to_be_true();
+		in.adopt_shift_is_sticky(false);
+		expect(in.shift_is_sticky()).to_be_false();
+		expect(in.sticky()).to_be_true();
+		expect(in.shift()).to_be_true();
+		// A tap that would have unlatched it under sticky leaves it latched now (`buttons.cpp`'s release skips the
+		// latch arithmetic with sticky off and keeps the pressed flag while stuck).
+		in.on_board_event(button_ev(8, 0, true), 100);
+		in.on_board_event(button_ev(8, 0, false), 120);
+		expect(in.sticky()).to_be_true();
+		expect(in.shift()).to_be_true();
+		// Adopting sticky on again latches nothing new and releases nothing.
+		in.adopt_shift_is_sticky(true);
+		expect(in.sticky()).to_be_true();
+	});
+
 	it("debounces the first turn and an immediate reversal of a gold knob", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		UiEvent e;

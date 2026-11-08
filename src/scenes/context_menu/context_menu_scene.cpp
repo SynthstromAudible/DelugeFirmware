@@ -24,6 +24,7 @@
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
@@ -82,11 +83,13 @@ constexpr uint16_t kConfirmOptions[] = {sid(String::STRING_FOR_OK)};
 
 bool accept_reset_flash(const menu::MenuContext&, uint8_t) {
 	FlashStorage::factoryReset();
-	return false; // `acceptCurrentOption` returns false -> the menu closes.
+	menu::host_settings_reset(); // what main reads live reaches the open guest too
+	return false;                // `acceptCurrentOption` returns false -> the menu closes.
 }
 
 bool accept_reset_community_features(const menu::MenuContext&, uint8_t) {
 	runtimeFeatureSettings.factoryReset();
+	menu::host_settings_reset();
 	return false;
 }
 
@@ -102,6 +105,7 @@ bool accept_reset_midi_devices(const menu::MenuContext&, uint8_t) {
 
 bool accept_reset_all(const menu::MenuContext&, uint8_t) {
 	Deluge::factoryReset();
+	menu::host_settings_reset();
 	return false;
 }
 

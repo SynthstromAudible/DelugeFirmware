@@ -21,13 +21,15 @@ deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuSta
 
 /// @brief When the pad blinks next need a frame: the shorter of the shortcut counter's two steps the plan uses, or
 ///        nullopt with nothing blinking.
-std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& st);
+/// @param kit_global_latched As `plan_blinks`'.
+std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& st, bool kit_global_latched = false);
 
 /// @brief The shortcut pads and the landing a jump arms.
 class MenuPads {
 public:
 	/// @brief Flash the shortcut blinks for `pad_subject()` (`blinkShortcut`, `sound_editor.cpp:1205-1245`).
-	void render_grid(MenuCore core, deluge::ui::grid::GridFrame& f);
+	/// @param kit_global_latched As `plan_blinks`'.
+	void render_grid(MenuCore core, deluge::ui::grid::GridFrame& f, bool kit_global_latched = false);
 	/// @brief SHIFT + a pad: the second-layer toggle and the jump (`potentialShortcutPadAction`).
 	/// @return The result when the event was a SHIFT + pad press, else nullopt.
 	std::optional<deluge::ui::shell::Result> handle_pad(MenuCore core, MenuWalk& walk, ValueSession& session,

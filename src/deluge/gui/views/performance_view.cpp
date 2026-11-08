@@ -1958,9 +1958,19 @@ void PerformanceView::defaultsAbsent(void* ctx) {
 }
 
 void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
+	auto* self = static_cast<PerformanceView*>(ctx);
 	// An unreadable card is the inline arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
 	if (outcome == deluge::storage::bytes::SettingsOutcome::Unreadable) {
-		static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+		self->loadDefaultLayout();
+	}
+	// The view drew its pads when it opened, before the layout arrived: what focusRegained did after the read, it
+	// does again now. The pads are asked for while the view is open (uiNeedsRendering draws them only where they show);
+	// the SAVE and LOAD LEDs are its own only while it is the current UI, as when focusRegained ran.
+	if (isUIOpen(self)) {
+		if (getCurrentUI() == self) {
+			self->updateLayoutChangeStatus();
+		}
+		uiNeedsRendering(self, 0xFFFFFFFF, 0); // refresh main pads only
 	}
 }
 

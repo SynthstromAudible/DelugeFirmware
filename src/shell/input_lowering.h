@@ -224,6 +224,11 @@ public:
 	/// the old setting would stay on with nothing left to clear it.
 	/// @param sticky The new setting.
 	void set_shift_is_sticky(bool sticky);
+	/// @brief Take up a new sticky-shift setting and leave the latch as it is: a reset changes the setting under the
+	///        shift machine, and `Buttons::commandToggleShift` reads it at the next release while nothing releases a
+	///        latch made before (`RuntimeFeatureSettings::factoryReset` calls no `clearShiftSticky()`).
+	/// @param sticky The new setting.
+	void adopt_shift_is_sticky(bool sticky) { cfg_.shift_is_sticky = sticky; }
 	/// @brief Take up a SHIFT state that arose before this lowering saw any event: held (@p pressed), and latched
 	///        (@p stuck) -- legacy's `isShiftButtonPressed` and `isShiftStuck`, which a SHIFT pressed before the
 	///        shell took input leaves set. A held SHIFT carried in releases on its next release event, and latches
@@ -233,6 +238,11 @@ public:
 	/// @brief Forget every held pad without a release event: the shell is starting over, and the scenes that heard
 	///        those presses are gone. Unlike `clear_all_held`, nothing is emitted.
 	void forget_held_pads() { held_pads_ = PadMask{}; }
+	/// @brief Drop what was lowered and not yet routed: the queue, the events carried to the next tick, and this
+	///        tick's detent sums, edges and pads. The held buttons and pads, the shift machine and each encoder's
+	///        partial detent stay, as a physical encoder's remainder does. Events held back while the card is busy
+	///        stay too: they are not lowered yet, and a release among them is what lets go of its button.
+	void discard_pending();
 	/// @brief Is the sticky-shift feature enabled?
 	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
 	/// @brief Set the tap threshold at runtime, in milliseconds.

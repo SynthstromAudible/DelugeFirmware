@@ -101,11 +101,10 @@
 ///     scene today, and inventing one would be a push no user could perform.
 ///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of
 ///     `playbackHandler.count_in_visual()`, and the only writer of that number is
-///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1044-1051`),
-///     which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that
-///     reason; `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2
-///     shape of the same stand-in. The script's own header carries the schedule, so the golden is
-///     still readable against something written down.
+///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in
+///     branch), which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that reason;
+///     `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same stand-in.
+///     The script's own header carries the schedule, so the golden is still readable against something written down.
 ///
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
@@ -187,8 +186,8 @@ namespace nodes = deluge::scenes::menu::nodes;
 /// `Clip::getLivePos()` where the clip is -- which, on a song whose transport a spec started but
 /// whose audio thread never runs, reaches `getActualSwungTickCount`'s external-clock swing branch
 /// and divides by `(uint32_t)(50 + currentSong->project.groove.swing_amount)`
-/// (`playback_handler.cpp:1266`): a **SIGFPE**, not a failure. Holding the latch takes legacy's
-/// own early return (`:1211-1216`).
+/// (`PlaybackHandler::getActualSwungTickCount`): a **SIGFPE**, not a failure. Holding the latch takes legacy's
+/// own early return (`PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`).
 extern bool currentlyActioningSwungTickOrResettingPlayPos;
 
 namespace {
@@ -324,7 +323,7 @@ struct SceneReset {
 		// `services::GlobalControls`, so `playbackHandler` is genuinely running by the end of it.
 		// `setForegroundRecording` matters even though no script here starts an output recording:
 		// one left standing suppresses the RECORD LED for every later example
-		// (`playback_handler.cpp:2503-2506`), which is exactly the cross-contamination this file's
+		// (`PlaybackHandler::setLedStates`), which is exactly the cross-contamination this file's
 		// own LED assertions would then be reading.
 		playbackHandler.playbackState = saved_playback_state;
 		playbackHandler.currentVisualCountForCountIn = saved_count_in;
@@ -410,7 +409,7 @@ std::function<void(uint32_t)> slicer_seed() {
 /// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands
 /// in for wiring that does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which
 /// `count_in_scene.h` says outright. The schedule stands in for
-/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1044-1051`),
+/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in branch),
 /// which needs a running `AudioEngine`; `count_in_spec.cpp` writes the same field directly for the
 /// same reason. Both are written into `tests/ui-scripts/shell/count_in.txt`'s header so the golden
 /// can be read against something.

@@ -47,7 +47,7 @@
 ///     to drive on either side.
 ///   * **The UNDO-vs-REDO choice** at `view.cpp:416-417`. `playbackHandler.slowRoutine()` at
 ///     `:417` consumes the pending command inside the same call
-///     (`playback/playback_handler.cpp:201-202`) and a spec cannot make `deluge::sync::sd_busy()`
+///     (`PlaybackHandler::slowRoutine`) and a spec cannot make `deluge::sync::sd_busy()`
 ///     true, so both spellings read `NONE` by the time control returns. The arm's *body running*
 ///     is covered; which of the two it chose is not. See the BACK example.
 ///
@@ -118,10 +118,10 @@ using deluge::ui::shell::SceneStack;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// `playback/playback_handler.cpp:113` defines this with no declaration in the header, exactly as
+/// `playback/playback_handler.cpp` defines this with no declaration in the header, exactly as
 /// `View::buttonAction` itself has to declare it (`gui/views/view.cpp:101`).
 extern GlobalMIDICommand pendingGlobalMIDICommand;
-/// The `int32_t` twin at `playback/playback_handler.cpp:114`, which `view.cpp` mis-declares as a
+/// The `int32_t` twin beside it in `playback/playback_handler.cpp`, which `view.cpp` mis-declares as a
 /// `GlobalMIDICommand`. Declared with the defining type here; see `global_controls.cpp`'s note.
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
@@ -170,7 +170,7 @@ struct StubDisplay final : deluge::hid::Display {
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
 /// `PlaybackHandler::playButtonPressed` reaches `AudioEngine::routineWithClusterLoading`
-/// (`playback/playback_handler.cpp:572`), which **segfaults** in a spec process on the host input
+/// (`PlaybackHandler::setupPlayback`), which **segfaults** in a spec process on the host input
 /// ring (`AudioEngine::inputRing`). `support/card_access.h` exists precisely so
 /// this disarm is not re-derived per spec; what it disarms is `AudioEngine::routine()`, which
 /// returns immediately while `audioRoutineLocked` is set. Nothing this spec asserts is part of the
@@ -375,7 +375,7 @@ struct GcRig {
 	// reached when PLAY goes down with RECORD held and playback running -- and nothing in a spec
 	// process ever reaps it (`AudioRecorder::slowRoutine` is not driven here). Left standing, it
 	// makes `AudioEngine::foregroundRecordingSource()` report `OUTPUT` for every later example,
-	// which suppresses the RECORD LED (`playback_handler.cpp:2503-2506`) and flips the PLAY arm's
+	// which suppresses the RECORD LED (`PlaybackHandler::setLedStates`) and flips the PLAY arm's
 	// first test (`:147`). Cleared through the published seam, which is the same storage
 	// (`processing/engines/audio_engine.h`).
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
@@ -446,7 +446,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
-		// Legacy moved: `PlaybackHandler::recordButtonPressed` (`playback_handler.cpp:318-323`).
+		// Legacy moved: `PlaybackHandler::recordButtonPressed`.
 		expect(legacy_result != RecordingMode::OFF).to_be_true();
 
 		// --- Poison, so a port that writes nothing cannot inherit the answer ---------------
@@ -1003,7 +1003,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// **What is observable, and what is not.** `:417` calls `playbackHandler.slowRoutine()`
 		// in the same statement sequence, and that function *consumes* the command it was just
 		// handed -- `pendingGlobalMIDICommand = GlobalMIDICommand::NONE`
-		// (`playback/playback_handler.cpp:201-202`) -- unless `deluge::sync::sd_busy()` is true,
+		// (`PlaybackHandler::slowRoutine`) -- unless `deluge::sync::sd_busy()` is true,
 		// which a spec cannot make true (`sync/sd_access.cpp:23-25` reads the host BSP). So the
 		// UNDO-vs-REDO *choice* at `:414-415` is **uncovered here**: by the time control returns,
 		// both spellings read NONE. What IS observable is `:416`, the second assignment, which
@@ -1136,9 +1136,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		const std::vector<std::pair<uint8_t, bool>> got = led_pairs(f, 0);
 		const std::vector<std::pair<uint8_t, bool>> want{
-		    {static_cast<uint8_t>(ButtonId::Play), false},        // `playback_handler.cpp:2581`
-		    {static_cast<uint8_t>(ButtonId::Record), false},      // `:2585`
-		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `:2591`
+		    {static_cast<uint8_t>(ButtonId::Play), false},        // `PlaybackHandler::setLedStates`
+		    {static_cast<uint8_t>(ButtonId::Record), false},      // `PlaybackHandler::setLedStates`
+		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `PlaybackHandler::setLedStates`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
 		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:325`
@@ -1169,7 +1169,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(led_is(f, ButtonId::Load, deluge::ui::LedState::Kind::Off)).to_be_true();
 		rig.press(ButtonId::Save, false, 26'005 + GlobalControls::kShortPressMs);
 
-		// `playback_handler.cpp:2503-2506`: while recording to the arrangement the RECORD LED
+		// `PlaybackHandler::setLedStates`: while recording to the arrangement the RECORD LED
 		// is not declared at all.
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		deluge::ui::LedFrame f2;

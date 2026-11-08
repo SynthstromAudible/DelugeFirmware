@@ -150,6 +150,22 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 	carried_ = 0;
 }
 
+void InputLowering::discard_pending() {
+	queue_head_ = 0;
+	queue_count_ = 0;
+	in_snapshot_ = 0;
+	carried_ = 0;
+	last_in_snapshot_ = false;
+	had_input_ = false;
+	select_edge_ = false;
+	select_release_edge_ = false;
+	back_edge_ = false;
+	for (int8_t& d : tick_delta_) {
+		d = 0;
+	}
+	pad_events_.clear();
+}
+
 void InputLowering::end_tick(uint32_t now_ms) {
 	// The tick's clock, not the clock of whichever feed happened to open the window.
 	now_ms_ = now_ms;
@@ -437,7 +453,7 @@ void InputLowering::seed_shift(bool pressed, bool stuck, uint32_t now_ms) {
 void InputLowering::set_shift_is_sticky(bool sticky) {
 	cfg_.shift_is_sticky = sticky;
 	if (!sticky) {
-		// `ShiftIsSticky::writeCurrentValue` (`shift_is_sticky.cpp:25-27`): turning the feature off
+		// `ShiftIsSticky::writeCurrentValue`: turning the feature off
 		// must also release a shift that is latched under it.
 		clear_shift_sticky();
 	}

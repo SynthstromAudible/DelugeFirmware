@@ -46,6 +46,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 namespace deluge::gui::ui {
 
@@ -99,6 +100,11 @@ bool ShellHostUI::opened() {
 	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
 	fedPads_ = deluge::ui::PadMask{};
 	shell_.lowering().forget_held_pads();
+	// Nor any input an earlier visit was fed and closed before a tick routed: a turn just before a direct close is the
+	// UI's that was current then, never this menu's.
+	shell_.discard_pending_input();
+	// A visit is the editor's until its opener says otherwise (`markVisitWithoutEditor`).
+	visitWithoutEditor_ = false;
 
 	// Start from an empty stack rather than pushing onto whatever the last session left. This is
 	// not tidiness: `SceneStack` holds one `Scene*` per kind, so pushing a kind that is already
@@ -486,10 +492,7 @@ ActionResult ShellHostUI::timerCallback() {
 
 	// The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`); the working animation is the
 	// shell's own scene.
-	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
-	shell_.set_acceleration_clock_ms(accelerationClockMs());
-	shell_.set_owns_notices(getCurrentUI() == this);
-	shell_.tick(now);
+	tickShell(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
@@ -542,6 +545,12 @@ ActionResult ShellHostUI::timerCallback() {
 	// The slicer's loads -- the open a SLICE asked for above, an audition, a slice -- advance on the guest's ticks, as
 	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.
 	pollShellSlicer();
+
+	// A drum creator's browser or take that refused: legacy opens its editor in their place, whose exit ends the UI
+	// mode, so this visit's close must too. Read before the close check below, which may close on this tick.
+	if (visitWithoutEditor_ && shellVisitFellBackToEditor()) {
+		visitWithoutEditor_ = false;
+	}
 
 	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
 	refreshShellSamplePreviewSounds();
@@ -639,9 +648,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
 	// construction, and `focusRegained`'s is the one arm that MUST fire while this guard is
 	// suppressing, so guarding it too would be the wedge this one avoids. **The eleventh is not**:
-	// `padAction`'s forward branch can leave a legacy view current when it returns --
-	// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
-	// (`PerformanceView::padAction`, `KeyboardScreen::padAction`) -- so that
+	// `padAction`'s forward branch runs a legacy view's pad handler, which may open a UI over the guest -- so that
 	// one site carries its own `getCurrentUI() == this` guard rather than relying on this
 	// precondition; see the comment there. Nor are the three note-mode forwards in
 	// `buttonAction`, `horizontalEncoderAction` and `verticalEncoderAction`, which call legacy
@@ -851,12 +858,11 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// The pad is the legacy root view's, as it is in `SoundEditor::padAction`.
 			//
 			// **The guest may not be current when this returns**, and nothing below may assume it
-			// is: `performanceView.padAction` opens the legacy sound editor on a shift press
-			// (`PerformanceView::padAction`) and `keyboardScreen.padAction` reaches the
-			// same call unconditionally (`KeyboardScreen::padAction`); the `Exit` arm's
-			// `closePortedMenu()` empties this guest's own stack instead, which leaves the guest
-			// current. `armTickSoon` itself is unguarded (see `rearmTimer`'s docblock) -- arming
-			// `UI_SPECIFIC` while some other UI is current would deliver the tick to *that* UI
+			// is: the forward runs a legacy view's own pad handler, and nothing in it promises not to open a UI
+			// over the guest (its shortcut press re-roots this guest instead, but the rest is the view's); the `Exit`
+			// arm's `closePortedMenu()` empties this guest's own stack instead, which leaves the guest current.
+			// `armTickSoon` itself is unguarded (see `rearmTimer`'s docblock) -- arming `UI_SPECIFIC` while some other
+			// UI is current would deliver the tick to *that* UI
 			// (`UITimerManager::routine`), not to this one -- so the
 			// guard is here instead: arm only when this guest is still the current UI. `Exit` is
 			// unaffected by the guard -- the guest is current after the menu leaves its stack -- and the
@@ -987,6 +993,10 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	// a real cell for a `b` legacy never means as a matrix button. Stated rather than guarded, because no such profile
 	// exists and a guard against one would be untestable. So a guard here would be a second copy of a check that
 	// already holds. A mutation removing one is unkillable, which is the evidence.
+	//
+	// `SoundEditor::buttonAction` gates LEARN, SELECT and BACK on `currentUIMode`, which the shell does not see: the
+	// menu is given this button's answer before it is fed.
+	refreshMenuModeGates();
 	const Cartesian xy = deluge::hid::button::toXY(b);
 	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 	                      static_cast<int16_t>(on ? 255 : 0)});
@@ -1132,11 +1142,11 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	}
 	// `SoundEditor::selectEncoderAction`'s gate, after its automation-view forward: the menu edits only in the UI modes
 	// `selectEncoderUIModes` lists, and not in learn mode, which the menu holds itself rather than in `currentUIMode`
-	// and reports as `select_release_blocked` (`MenuScene::learn_mode`). Only the menu is a sound editor screen; a
-	// scene it opened takes its turns as before.
+	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
+	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
 	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
-	    && (!isUIModeWithinRange(selectEncoderUIModes) || top.select_release_blocked())) {
+	    && (!isUIModeWithinRange(selectEncoderUIModes) || shellMenuLearnMode())) {
 		return;
 	}
 	// `void`: legacy discards nothing because there is nothing to discard
@@ -1151,6 +1161,22 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 // ---------------------------------------------------------------------------------------------
 // Leaving
 // ---------------------------------------------------------------------------------------------
+
+void ShellHostUI::tickShell(uint32_t now) {
+	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
+	shell_.set_acceleration_clock_ms(accelerationClockMs());
+	shell_.set_owns_notices(getCurrentUI() == this);
+	shell_.tick(now);
+}
+
+void ShellHostUI::flushPendingInput() {
+	if (flushing_ || !shell_.input_pending()) {
+		return;
+	}
+	flushing_ = true;
+	tickShell(nowMs());
+	flushing_ = false;
+}
 
 ActionResult ShellHostUI::exitUI() {
 	// **What this hook is in legacy.** Chiefly the long-press-Back exit: `Buttons` arms
@@ -1231,6 +1257,9 @@ ActionResult ShellHostUI::exitUI() {
 	if (shellSliceOut()) {
 		return ActionResult::DEALT_WITH;
 	}
+	// A turn or press fed since the last tick is the scene's that is up now, as legacy gives it to the current UI at
+	// once; a BACK among them may leave nothing for this exit to remove.
+	flushPendingInput();
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
 	}
@@ -1248,6 +1277,11 @@ ActionResult ShellHostUI::exitUI() {
 }
 
 void ShellHostUI::closeGuest() {
+	// Input fed since the last tick reaches the closing scenes first; whatever is left after is dropped below. A
+	// setting the flush's turn wrote is applied whole before the settings are saved, as legacy's `writeCurrentValue`
+	// applies both its halves at once; an open or a move the flush asked for goes with the menu.
+	flushPendingInput();
+	dispatchShellActionsAtClose();
 	// **Hand the two knob indicator rings back to legacy, coherently.** `GuestSurfaceSet::set_indicator` writes the
 	// hardware through `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow -- there
 	// is no scalar at that seam to hand `actuallySetKnobIndicatorLevel`, because a `KnobIndicator` is already the four
@@ -1316,6 +1350,8 @@ void ShellHostUI::closeGuest() {
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
 	shell_.stack().reset();
+	// Anything still pending after the flush was for the scenes just emptied.
+	shell_.discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);
@@ -1326,6 +1362,16 @@ void ShellHostUI::closeGuest() {
 	// line later or, worse, deliver this guest's `timerCallback` to that UI -- `UITimerManager::routine` dispatches to
 	// `getCurrentUI()`.
 	close();
+
+	// `exitCompletely`'s last statement, after its `close()`: the modes the menu was left under end with it (a held
+	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep legacy's value instead.
+	// A stem export a menu item started has engaged its own mode before this close, where legacy resets first and
+	// engages after, so that mode is what is left. A visit legacy runs with no editor open (`markVisitWithoutEditor`)
+	// ends as the legacy browser's and recorder's exits do, with the mode untouched.
+	if (!std::exchange(visitWithoutEditor_, false)) {
+		currentUIMode =
+		    (currentUIMode & EXCLUSIVE_UI_MODES_MASK) == UI_MODE_STEM_EXPORT ? UI_MODE_STEM_EXPORT : UI_MODE_NONE;
+	}
 }
 
 // -- MIDI learn ---------------------------------------------------------------------

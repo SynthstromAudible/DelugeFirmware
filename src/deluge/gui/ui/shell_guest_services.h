@@ -141,8 +141,31 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();
 
+/// @brief The guest's half of `mpeZonesPotentiallyUpdated`: the ported menu frontmost on the member-channel page
+///        re-reads it, as `SoundEditor::mpeZonesPotentiallyUpdated` re-reads `zoneNumMemberChannelsMenu`.
+void shellMpeZonesPotentiallyUpdated();
+
+/// @brief Whether a scene of kind @p kind frontmost on the guest stands for one of the three UIs under which
+///        `InstrumentClipView::setSelectedDrum` keeps the kit's selection: the sample browser, the sample marker
+///        editor and the drum rename.
+/// @param kind  The scene's `SceneKind`, as its underlying integer (this header names no port type).
+/// @param which The browser's `BrowserId` or the rename's `TargetId`; ignored for every other kind.
+bool drumSelectionFrozenBy(uint8_t kind, uint16_t which);
+
+/// @brief Whether the guest is current with one of `drumSelectionFrozenBy`'s scenes as its input top.
+bool shellFreezesDrumSelection();
+
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
+
+/// @brief Tell the ported menu how `SoundEditor::buttonAction`'s UI-mode gates answer `currentUIMode` now: LEARN's
+///        press acts only with no mode on, SELECT and BACK only in exactly one of five. Called before each button
+///        is fed. The events run at the tick, so a mode change between two buttons inside one tick is read by the
+///        later button's own refresh; no input path can put two buttons around a mode change in one tick.
+void refreshMenuModeGates();
+
+/// @brief Whether the ported menu is in its learn mode (`MenuScene::learn_mode`).
+bool shellMenuLearnMode();
 
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.

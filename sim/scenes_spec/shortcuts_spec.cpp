@@ -494,6 +494,29 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		    .to_equal(std::string{});
 	});
 
+	it("names legacy's coming-soon cells, which shortcut_node leaves empty, and no others", _ {
+		std::string diffs;
+		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+				const bool sound = x < std::size(paramShortcutsForSounds) && paramShortcutsForSounds[x][y] == coming_soon();
+				const bool audio = paramShortcutsForAudioClips[x][y] == coming_soon();
+				if (menu::shortcut_coming_soon(Root::Sound, x, y) != sound
+				    || menu::shortcut_coming_soon(Root::Drum, x, y) != sound
+				    || menu::shortcut_coming_soon(Root::AudioClip, x, y) != audio) {
+					diffs += "(" + std::to_string(x) + "," + std::to_string(y) + ") ";
+				}
+				for (const Root r : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum, Root::Performance, Root::Song,
+				                     Root::KitGlobalFx, Root::Settings, Root::NoteEditor, Root::NoteRowEditor}) {
+					if (menu::shortcut_coming_soon(r, x, y)) {
+						diffs += "root(" + std::to_string(static_cast<int>(r)) + ") ";
+					}
+				}
+			}
+		}
+		expect(diffs).to_equal(std::string{});
+		expect(menu::shortcut_coming_soon(Root::Sound, 4, 2)).to_be_true(); // the scan found the cells at all
+	});
+
 	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
 		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1337-1357`), in the
 		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots

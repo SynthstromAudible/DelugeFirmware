@@ -526,6 +526,14 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SoundEditor::opened() {
+	// With ShellMenu on every entry point opens the ported menu, and this editor may not open: the sites that still
+	// could (the legacy browser's claim, the note-row editor and shortcut pads asked from inside this editor, the
+	// legacy marker editor's return) are reached only through it. A session opened before the setting changed is never
+	// re-opened, so it carries on. `openUI` and `changeUIAtLevel` roll a refused open back.
+	if (deluge::gui::ui::shellMenuEnabled()) {
+		return false;
+	}
+
 	// we don't want to process select button release when entering menu
 	Buttons::selectButtonPressUsedUp = true;
 
@@ -1461,6 +1469,11 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
+	// The ported menu answers the press whole, its refusals included, unless legacy's own open editor or marker editor
+	// is asking.
+	if (getCurrentUI() != this && getCurrentUI() != &sampleMarkerEditor && deluge::gui::ui::shellOwnsShortcutPads()) {
+		return deluge::gui::ui::shellShortcutPadAction(x, y, on);
+	}
 	// a bunch of other views call this, in which case we actually want to know if we *would* edit kit affect entire
 	// if we were to open a menu. There's a weird edge case in kits otherwise where trying to open a kit param that
 	// doesn't exist in the current selected drum row (like if a filter is off or different modfx) otherwise
@@ -1642,15 +1655,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 				noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
 				instrumentClipView.enterNoteRowEditor();
-				return ActionResult::DEALT_WITH;
-			}
-
-			// From a clip view the ported menu opens instead, where it has a node for the pad.
-			if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor
-			    && deluge::gui::ui::shellMenuEnabled()
-			    && deluge::gui::ui::openShellMenuAtShortcut(currentClip, x, y, getRootUI() == &performanceView,
-			                                                !rootUIIsClipMinderScreen(), getRootUI() == &sessionView,
-			                                                setupKitGlobalFXMenu)) {
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -2407,6 +2411,7 @@ void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
 	// the new type applies to by it. Left unwritten, a stale index from an earlier legacy session would select the
 	// wrong range.
 	currentMultiRangeIndex = resolved.rangeIndex;
-	// The automation view reads it while the menu is open, to tell a kit row's params from the kit's own.
+	// Legacy's member, mirrored for any legacy reader while the ported menu is open; the automation view reads the
+	// ported menu's latch itself (`soundMenuKitGlobalFx`).
 	setupKitGlobalFXMenu = resolved.kitGlobalFx;
 }

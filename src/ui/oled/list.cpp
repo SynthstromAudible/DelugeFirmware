@@ -84,8 +84,13 @@ Rect menu_rect(const OledFrame& f) {
 	return Rect{b.x, base, b.w, b.h - base};
 }
 
+int64_t select_delta(const OledFrame& f) {
+	const int64_t detents = f.turn();
+	return f.shift() ? detents * 5 : detents;
+}
+
 Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow> rows, ScrollText& scroll_label,
-              bool allow_motion) {
+              bool allow_motion, bool accelerate) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(rows.size());
 	const int32_t visible = list_visible_rows(f, rect);
@@ -100,7 +105,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	f.claim_turn();
 	f.claim_select();
 	if (f.turn() != 0 && n > 0 && !state.hide_cursor && !state.freeze_cursor) {
-		cursor = move_cursor(cursor, f.turn(), rows, n);
+		cursor = move_cursor(cursor, accelerate ? static_cast<int32_t>(select_delta(f)) : f.turn(), rows, n);
 	}
 	resp.changed = cursor != state.cursor;
 	state.cursor = static_cast<int16_t>(cursor);

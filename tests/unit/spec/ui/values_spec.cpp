@@ -1,5 +1,6 @@
 #include "../gfx/support/golden.h"
 #include "support/frames.h"
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/core/state.h"
 #include "ui/core/style.h"
@@ -9,6 +10,7 @@
 #include "cppspec.hpp"
 
 #include "../support/spec_main.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -510,6 +512,105 @@ describe values_w("ui::oled::values", $ {
 		expect(unfocused).to_equal(1234);
 	});
 
+	it("draws a drawInteger label where the digits go, in their face, keeping the continuous bar", _ {
+		// `arpeggiator::Rhythm::drawInteger` inside `IntegerContinuous::drawPixelsForOled`: the label takes the digits'
+		// place and the bar is drawn as for any continuous value. So "7ms" as a label draws exactly as 7 with unit "ms".
+		const auto seven_ms = [](int32_t, const void*, std::span<char> out) -> std::string_view {
+			constexpr std::string_view kText = "7ms";
+			std::copy(kText.begin(), kText.end(), out.begin());
+			return {out.data(), kText.size()};
+		};
+		uitest::Rig48 labelled;
+		int32_t a = 7;
+		int_value(labelled.frame, labelled.frame.bounds(), a, Range{.min = 0, .max = 50},
+		          ValueStyle{.continuous = true, .label = seven_ms, .label_in_digits = true});
+		uitest::Rig48 digits;
+		int32_t b = 7;
+		int_value(digits.frame, digits.frame.bounds(), b, Range{.min = 0, .max = 50},
+		          ValueStyle{.unit = "ms", .continuous = true});
+		expect(labelled.pbm()).to_equal(digits.pbm());
+	});
+
+	it("draws a named decimal as its word with no cursor, and refuses the horizontal encoder there", _ {
+		// `cv::Volts::drawPixelsForOled`: drawStringCentred("Hz/V", 20, kTextHugeSpacingX, kTextHugeSizeY), no
+		// setupBlink; `horizontalEncoderAction` returns at 0.
+		const auto hz_per_volt = [](int32_t v, const void*, std::span<char> out) -> std::string_view {
+			if (v != 0) {
+				return {};
+			}
+			constexpr std::string_view kWord = "Hz/V";
+			std::copy(kWord.begin(), kWord.end(), out.begin());
+			return {out.data(), kWord.size()};
+		};
+		uitest::Rig48 r;
+		int32_t value = 0;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.horizontal = -1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(int(edit_pos)).to_equal(1);
+		r.reference.draw_string_centred("Hz/V", 20, 18, 20);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+
+		uitest::Rig48 moved;
+		int32_t five = 5;
+		moved.input.horizontal = -1;
+		decimal_value(moved.frame, moved.frame.bounds(), five, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(int(edit_pos)).to_equal(2);     // a value the label does not name has its cursor
+	});
+
+	it("does not light the blink for a tick on a named value, even when the same frame's turn unnames it", _ {
+		// Main: `Volts::horizontalEncoderAction` does nothing at 0 (no movingCursor); the select turn that follows
+		// restarts the blink dark. A tick on a named value is not a cursor move.
+		const auto hz_per_volt = [](int32_t v, const void*, std::span<char> out) -> std::string_view {
+			if (v != 0) {
+				return {};
+			}
+			constexpr std::string_view kWord = "Hz/V";
+			std::copy(kWord.begin(), kWord.end(), out.begin());
+			return {out.data(), kWord.size()};
+		};
+		uitest::Rig48 r;
+		int32_t value = 0;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.now_ms = 5000;
+		r.input.horizontal = -1;
+		r.input.turn = 1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(value).to_equal(10);
+		expect(int(edit_pos)).to_equal(1);
+		expect(blink_lit(blink, 5000)).to_be_false();
+	});
+
+	it("restarts a turn up from below zero at minus one step, so the first detent lands on 0", _ {
+		// `osc::RetriggerPhase::selectEncoderAction`: setValue(-getNumberEditSize()) before Decimal's own add.
+		uitest::Rig48 r;
+		int32_t value = -1;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.turn = 1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = -1, .max = 360}, 0, edit_pos, blink, true,
+		              ValueStyle{.restart_from_negative = true});
+		expect(value).to_equal(0);
+
+		uitest::Rig48 plain;
+		int32_t without = -1;
+		plain.input.turn = 1;
+		decimal_value(plain.frame, plain.frame.bounds(), without, Range{.min = -1, .max = 360}, 0, edit_pos, blink);
+		expect(without).to_equal(9);           // without it the detent is a plain 10^1
+
+		uitest::Rig48 down;
+		int32_t floor = -1;
+		down.input.turn = -1;
+		decimal_value(down.frame, down.frame.bounds(), floor, Range{.min = -1, .max = 360}, 0, edit_pos, blink, true,
+		              ValueStyle{.restart_from_negative = true});
+		expect(floor).to_equal(-1);            // a turn down clamps as Decimal's does
+	});
+
 	// --------------------------------------------------------------- enum_value
 
 	it("windows six names around the current one", _ {
@@ -554,6 +655,21 @@ describe values_w("ui::oled::values", $ {
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
 	});
 
+	it("scales an enumeration's select turn by 5 while shift is held, then clamps", _ {
+		// `SoundEditor::selectEncoderAction`'s scaledOffset reaches `Enumeration::selectEncoderAction` too.
+		const std::string_view names[] = {"A", "B", "C", "D", "E", "F", "G", "H"};
+		uitest::Rig48 r;
+		ListState st;
+		ScrollText sc;
+		int32_t index = 1;
+		r.input.turn = 1;
+		r.input.shift = true;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(6);
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(7); // clamped at the last option
+	});
+
 	it("clamps by default and wraps when asked", _ {
 		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
 		uitest::Rig48 r;
@@ -582,6 +698,30 @@ describe values_w("ui::oled::values", $ {
 		r.input.select_pressed = true;
 		const Response entered = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(entered.entered).to_be_true();
+	});
+
+	it("turns five options a click while SHIFT is held, and wraps by the scaled offset", _ {
+		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
+		uitest::Rig48 r;
+		ListState st;
+		ScrollText sc;
+		r.input.shift = true;
+
+		// Five options up from 4 is 9, which wraps to 3; five down from 1 is -4, which wraps to 2.
+		int32_t index = 4;
+		r.input.turn = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
+		expect(index).to_equal(3);
+		r.input.turn = -1;
+		index = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
+		expect(index).to_equal(2);
+
+		// Without wrapping the scaled offset clamps instead.
+		index = 4;
+		r.input.turn = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(5);
 	});
 
 	it("keeps a long list off the stack", _ {

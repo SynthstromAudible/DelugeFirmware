@@ -18,12 +18,12 @@
 #include "io/midi/midi_device.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
+#include "util/sound_menu_open.h"
 #include <string.h>
 
 MIDICable::MIDICable() {
@@ -113,7 +113,7 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 
 				// TODO: we're supposed to also ensure no notes left on by channels no longer in use...
 
-				soundEditor.mpeZonesPotentiallyUpdated();
+				deluge::gui::ui::mpeZonesPotentiallyUpdated();
 			}
 
 			// Master Channel of Upper zone

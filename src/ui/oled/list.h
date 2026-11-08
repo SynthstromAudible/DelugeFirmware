@@ -65,6 +65,14 @@ int32_t list_visible_rows(const OledFrame& f, gfx::oled::Rect rect);
 /// @return Index of the first visible row.
 int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 
+/// @brief The select encoder's detents for a non-submenu item: multiplied by 5 while SHIFT is held.
+///
+/// Ports `SoundEditor::selectEncoderAction`'s `item->isSubmenu() ? offset : scaledOffset`
+/// (`gui/ui/sound_editor.cpp`). A submenu and a horizontal page take `f.turn()` itself; every other item takes
+/// this, and then applies its own clamp, wrap or refusal. Read through the frame, so an unfocused frame
+/// contributes nothing.
+int64_t select_delta(const OledFrame& f);
+
 /// @brief The vertical menu, as one immediate-mode call.
 ///
 /// @note Ports legacy `MenuItem::drawItemsForOled`, `Submenu::drawSubmenuItemsForOled`,
@@ -127,9 +135,11 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 /// @param rows         The rows to draw this frame.
 /// @param scroll_label Scroll state for the selected row's label.
 /// @param allow_motion Whether the selected label's scroller may advance this frame.
+/// @param accelerate   Whether SHIFT multiplies the turn by 5 (`select_delta`): set for a list that is a
+///                     non-submenu item in legacy, left off for a submenu's own rows.
 /// @return `changed` if the cursor moved; `entered` if a selectable row was chosen.
 Response list(OledFrame& f, gfx::oled::Rect rect, ListState& state, std::span<const ListRow> rows,
-              ScrollText& scroll_label, bool allow_motion = true);
+              ScrollText& scroll_label, bool allow_motion = true, bool accelerate = false);
 
 /// @brief A vertical scroll indicator for @p rect.
 ///

@@ -352,6 +352,23 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(r.focused() == &nodes::dx_menu).to_be_true();
 	});
 
+	it("a re-read of the cartridge page redraws and loads nothing: the program and the cursor stay", _ {
+		// `DxCartridge::readValueAgain` only redraws; `beginSession` is what loads the first program.
+		select_language();
+		MenuRig r;
+		r.song.instrument->mightExistOnCard = false;
+		load_bank();
+		r.open(nodes::dx_cartridge);
+		r.turn(3);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
+		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
+		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		menu_scene().read_value_again();
+		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
+		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
+		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]).value() == before).to_be_true();
+	});
+
 	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {
 		DxCard card;
 		select_language();
@@ -502,6 +519,21 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(1);
 		expect(programs() == std::vector<int64_t>{3, 31}).to_be_true();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
+	});
+
+	it("turns the cartridge's programs five a click under Shift, clamping to the bank", _ {
+		// `DxCartridge::selectEncoderAction` clamps `currentValue + offset`, on the scaled offset.
+		load_bank();
+		MenuRig r;
+		bind::RecordingSink sink;
+		r.open(nodes::dx_cartridge, &sink);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
+		expect(sink.gestures.back().value).to_equal(int64_t{5});
+		r.turn(10);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
+		r.button(kShiftX, kShiftY, false);
 	});
 
 	it("closes the whole menu on SELECT, as legacy's exitCompletely does, rather than going up a level", _ {
