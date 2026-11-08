@@ -180,7 +180,8 @@ bool shellMenuEnabled();
 ///                               `enterNoteEditor`/`enterNoteRowEditor`'s explicit item: no undo-log wipe, and the
 ///                               kit `affectEntire` clear. `NoteEditorFromUiMode` is `setup(clip)`'s own inference:
 ///                               the wipe, no clear. `None` for every other caller.
-/// @return Whether the guest is now open. False means nothing was opened and nothing was left
+/// @return Whether the guest is now open; with it already open the open menu re-roots in place, as legacy's setup()
+///         re-sets the open editor. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
@@ -201,7 +202,8 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 /// @param sessionOrArrangerRoot  As `openShellMenu`'s.
 /// @param sessionViewRoot        As `openShellMenu`'s.
 /// @param kitGlobalFx            `SoundEditor::setupKitGlobalFXMenu`.
-/// @return Whether the guest is now open. False, with nothing opened, when the context does not
+/// @return Whether the guest is now open; with it already open the open menu re-roots in place, as legacy's setup()
+///         re-sets the open editor. False, with nothing opened, when the context does not
 ///         resolve, the pad names no numbered node, or the node does not apply
 ///         (`menu::shortcut_applies`): the caller then runs legacy's statements, whose `setup()`
 ///         makes the same refusal with its popup.

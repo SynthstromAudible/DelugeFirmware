@@ -1192,8 +1192,51 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
 	});
 });
+
+describe menu_entry_reopen("an entry that reaches the open guest re-roots it in place, as setup() re-sets the open editor", $ {
+	it("re-roots the Settings menu on the pad's node when Shift + a pad is forwarded to the keyboard screen", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		setRootUILowLevel(&keyboardScreen);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Settings).to_be_true();
+		{
+			// `GridPadClaim::None` on the settings root: the guest forwards the pad to `keyboardScreen.padAction`, whose
+			// first statement is the shortcut entry.
+			HeldShift shift;
+			(void)shellHostUI.padAction(8, 7, 64);
+		}
+		(void)shellHostUI.timerCallback(); // the `Replace` the re-root filed
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Sound).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+
+		// One guest on the hierarchy: one exit leaves the keyboard screen current.
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(getCurrentUI() == &keyboardScreen).to_be_true();
+	});
+
+	it("re-roots for a direct shortcut open too, keeping one guest", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		expect(entry::openShellMenuAtShortcut(f.clip, 9, 7, false, false, false, false)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(getCurrentUI() == &instrumentClipView).to_be_true();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode)
+            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen)

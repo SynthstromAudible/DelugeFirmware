@@ -199,6 +199,12 @@ public:
 	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
 	///        at the next tick, as a shortcut's jump is.
 	void reroot(const Node& root, const MenuContext& ctx, const Node& column);
+	/// @brief Re-root the open menu at @p root on @p ctx and land it as a fresh open lands: where @p shortcut lands
+	///        (`arm_shortcut_landing`) when it is given, else on the node @p arg names, else (0) on the root itself.
+	///        `setup()` on the open sound editor and `enterOrUpdateSoundEditor`'s already-open `beginScreen`, for an
+	///        entry that reaches the menu while it is up. The move is a `Replace` at the next tick, as a shortcut's
+	///        jump is.
+	void reroot_at(const Node& root, const MenuContext& ctx, uint16_t arg, const Node* shortcut);
 	/// @brief Whether AFFECT ENTIRE is this menu's hold rather than the clip's toggle: a kit row's menu
 	///        (`editingKitRow()`) on an item that uses it (`menu::uses_affect_entire`).
 	bool takes_affect_entire() const;
