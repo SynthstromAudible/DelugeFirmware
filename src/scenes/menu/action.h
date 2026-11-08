@@ -205,6 +205,9 @@ enum class MenuAction : uint8_t {
 	/// The accessibility highlighting item: legacy's renderers read `FlashStorage::accessibilityMenuHighlighting` live
 	/// (`horizontal_menu.cpp:268`), so the guest's panels are restyled (`pushShellHighlighting`).
 	HighlightingChanged,
+	/// `RoundedCornersSettingToggle::writeCurrentValue`'s `Canvas::roundedCornersEnabled`, which main's rounded
+	/// primitives read, and the guest's panels with it (`pushShellRoundedCorners`).
+	RoundedCornersChanged,
 	/// `ShiftIsSticky::writeCurrentValue`'s `Buttons::clearShiftSticky()` when it turns off
 	/// (`runtime_feature/shift_is_sticky.cpp:22-24`).
 	ShiftStickyOff,

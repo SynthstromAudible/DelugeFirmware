@@ -1028,6 +1028,7 @@ Result MenuScene::after_render_navigation() {
 		// item legacy enters.
 		case MenuAction::PadBrightnessChanged:
 		case MenuAction::HighlightingChanged:
+		case MenuAction::RoundedCornersChanged:
 		case MenuAction::ShiftStickyOff:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:

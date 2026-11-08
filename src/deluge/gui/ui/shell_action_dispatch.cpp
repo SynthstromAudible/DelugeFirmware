@@ -444,6 +444,9 @@ void dispatchShellActions() {
 	case MenuAction::HighlightingChanged:
 		pushShellHighlighting();
 		break;
+	case MenuAction::RoundedCornersChanged:
+		pushShellRoundedCorners();
+		break;
 
 	case MenuAction::ShiftStickyOff:
 		// `ShiftIsSticky::writeCurrentValue`'s off arm (`runtime_feature/shift_is_sticky.cpp:22-24`).
@@ -499,6 +502,12 @@ void pushShellHighlighting() {
 		h = deluge::ui::Highlighting::NoInversion;
 	}
 	shellHostUI.shell().set_highlighting(h);
+}
+
+void pushShellRoundedCorners() {
+	const bool rounded = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
+	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = rounded;
+	shellHostUI.shell().set_rounded(rounded);
 }
 
 } // namespace deluge::gui::ui

@@ -263,6 +263,11 @@ public:
 	/// @param h The highlighting the card stores.
 	void set_highlighting(ui::Highlighting h);
 
+	/// @brief Restyle the rounded primitives on every surface and repaint them: the host calls it once the card's
+	///        settings are read and whenever the RoundedCorners setting changes.
+	/// @param rounded Whether `rect_rounded` and `invert_rounded` round their corners.
+	void set_rounded(bool rounded);
+
 	/// @brief The shell's half of the song-load protocol: what the firmware calls from
 	///        the load path to bracket a song read.
 	///

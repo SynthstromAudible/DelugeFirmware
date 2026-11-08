@@ -82,12 +82,14 @@
 #include "hid/button.h"
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/screensaver.h" // the legacy screensaver, half of what the seventh verb moves
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer, the KEYBOARD release arm's clock
 #include "processing/stem_export/stem_export.h"
@@ -2913,6 +2915,10 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(filed() == MenuAction::PadBrightnessChanged).to_be_true();
 		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
 		expect(filed() == MenuAction::HighlightingChanged).to_be_true();
+		nodes::set_rounded_corners(ctx, 0);
+		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
+		nodes::set_rounded_corners(ctx, 1);
+		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 0);
 		expect(filed() == MenuAction::ShiftStickyOff).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 1);
@@ -2959,6 +2965,39 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		    .to_be_true();
 		FlashStorage::accessibilityMenuHighlighting = was;
 		deluge::gui::ui::pushShellHighlighting();
+	});
+
+	it("a rounded-corners write reaches main's canvas and the guest's panels at once", _ {
+		// `RoundedCornersSettingToggle::writeCurrentValue` sets `Canvas::roundedCornersEnabled`, which main's rounded
+		// primitives read; the guest's panels draw from their own style.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		const menu::MenuContext ctx{};
+		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+		menu::bindings::write(nodes::feature_rounded_corners, ctx, 1);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
+		deluge::gui::ui::pushShellRoundedCorners();
+	});
+
+	it("pushing the card's rounded corners restyles both, as the settings read does", _ {
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, RuntimeFeatureStateToggle::Off);
+		deluge::gui::ui::pushShellRoundedCorners();
+		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
+		deluge::gui::ui::pushShellRoundedCorners();
 	});
 });
 // clang-format on

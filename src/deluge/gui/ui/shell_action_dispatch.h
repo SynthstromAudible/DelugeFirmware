@@ -164,6 +164,11 @@ bool legacyInhibitsScreensaver();
 ///        live (`horizontal_menu.cpp:268`): at boot once the settings are read, and after every write of it.
 void pushShellHighlighting();
 
+/// @brief Apply the RoundedCorners community feature to main's canvas (`Canvas::roundedCornersEnabled`, which its
+///        rounded primitives read) and to the guest's panels: once the card's settings are read, and after every write
+///        of it.
+void pushShellRoundedCorners();
+
 /// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
 ///        open right now, or `std::nullopt` for the roots it leaves alone.
 ///

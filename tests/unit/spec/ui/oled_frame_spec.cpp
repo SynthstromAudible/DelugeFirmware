@@ -216,6 +216,17 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		});
 	});
 
+	it("inverts a square box with rounded corners off, as main's invertAreaRounded does", _ {
+		uitest::Rig64 r;
+		deluge::ui::Style square = r.style;
+		square.rounded = false;
+		OledFrame f = root_frame(r.canvas, square, r.ctx);
+		f.invert_rounded(Rect{10, 10, 20, 9});
+		r.reference.invert_area(10, 20, 10, 18); // `invertArea` alone: no corner restored
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		expect(r.lit(10, 10)).to_be_true(); // the corner a rounded invert spares
+	});
+
 	it("clips a nested region's drawing to the intersection, not to the outer region", _ {
 		uitest::Rig64 r;
 		r.frame.region(Rect{20, 12, 24, 19}, [](OledFrame& f) {

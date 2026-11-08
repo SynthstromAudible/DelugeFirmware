@@ -789,6 +789,12 @@ void runtime_feature_set(int32_t type, int32_t value) {
 	                           static_cast<uint32_t>(value)); // `setting.cpp:35-38`
 }
 
+void set_rounded_corners(const MenuContext&, int32_t value) {
+	// `RoundedCornersSettingToggle::writeCurrentValue`: the setting, then the canvas flag, which is `hid/`.
+	runtime_feature_set(RuntimeFeatureSettingType::RoundedCorners, value);
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::RoundedCornersChanged});
+}
+
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
 	// `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`); its
 	// `Buttons::clearShiftSticky()` is `MenuAction::ShiftStickyOff`.

@@ -83,7 +83,8 @@
 /// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
 ///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
 ///       (`ScreensaverSettingsChanged`), pad brightness (`PadBrightnessChanged`), the menu highlighting
-///       (`HighlightingChanged`), sticky shift turning off (`ShiftStickyOff`), leaving the slow cursor flash
+///       (`HighlightingChanged`), rounded corners (`RoundedCornersChanged`), sticky shift turning off
+///       (`ShiftStickyOff`), leaving the slow cursor flash
 ///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
 
 #include "scenes/menu/node.h"
@@ -313,6 +314,10 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 /// @brief `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`) minus
 ///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
+/// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `MenuAction::RoundedCornersChanged` for
+/// the
+///        canvas flag and the guest's panels.
+void set_rounded_corners(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes (`menu_item/usb/audio.h`).
@@ -1157,7 +1162,6 @@ DELUGE_RUNTIME_TOGGLE(feature_alt_tap_tempo, 17, STRING_FOR_COMMUNITY_FEATURE_AL
 DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 18, STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS);
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
-DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 21, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS);
 DELUGE_RUNTIME_TOGGLE(feature_legacy_menu, 23, STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
@@ -1176,6 +1180,9 @@ inline constexpr Node feature_shortcut_overlay =
 /// (`runtime_feature/shift_is_sticky.cpp`).
 inline constexpr Node feature_sticky_shift =
     toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), get_runtime_feature<9>, set_shift_is_sticky);
+/// `RoundedCorners` (index 21) restyles main's canvas and the guest's panels as it is written.
+inline constexpr Node feature_rounded_corners = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS),
+                                                            get_runtime_feature<21>, set_rounded_corners);
 /// `SyncScalingAction` (index 6) -- two literal options, not l10n ids.
 inline constexpr Node feature_sync_scaling =
     dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), sync_scaling_action_names,

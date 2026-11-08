@@ -247,6 +247,13 @@ void Shell::set_highlighting(ui::Highlighting h) {
 	}
 }
 
+void Shell::set_rounded(bool rounded) {
+	surfaces_.set_rounded(rounded);
+	for (OledSurface& s : surfaces_.oled()) {
+		s.gate.request_repaint();
+	}
+}
+
 void Shell::song_loading(bool loading) {
 	if (loading) {
 		stack_.reset();
