@@ -569,6 +569,11 @@ public:
 	///         target's own; 0 when that node has no id.
 	uint16_t arm_shortcut_landing(const Node& target);
 
+	/// @brief Prepare the next `on_enter` to open @p page with @p column focused: `reroot`'s landing, for an open
+	///        that goes through the shell's own `SceneId` (`open()` must already have run).
+	/// @return The `SceneId::arg` to open: @p page's id.
+	uint16_t arm_page_landing(const Node& page, const Node& column);
+
 	/// @brief Do SELECT and BACK act now? Legacy's five-mode test, of which learn mode (`UI_MODE_MIDI_LEARN`) is not
 	///        one.
 	bool select_and_back_act() const { return !learn_mode() && (!host_gates_ || host_gates_->select_and_back); }

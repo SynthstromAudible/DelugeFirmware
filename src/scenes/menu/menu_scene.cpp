@@ -250,6 +250,10 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 	return pads_.arm_landing(ctx_, target);
 }
 
+uint16_t MenuScene::arm_page_landing(const Node& page, const Node& column) {
+	return pads_.arm_landing_on(page, column);
+}
+
 void MenuScene::on_resume() {
 	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
 	visit_.learn.cancel();

@@ -1934,6 +1934,8 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteRowEditor)
 		    .to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		// The page with the column focused, as `focusChild` leaves it: not PLAY DIRECTION's own screen.
+		expect(deluge::scenes::menu_scene().focused() != &nodes::sequence_direction).to_be_true();
 		closeGuest();
 	});
 

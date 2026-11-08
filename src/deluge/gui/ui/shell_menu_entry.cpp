@@ -171,8 +171,8 @@ const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
 	return rootIndex < roots.size() ? roots[rootIndex] : nullptr;
 }
 
-/// @brief Install @p ctx on `MenuScene` and open the guest on @p arg, or on where @p shortcut lands
-///        when it is given.
+/// @brief Install @p ctx on `MenuScene` and open the guest on @p arg, on where @p shortcut lands when it is given, or
+///        on @p root's page with @p pageColumn focused when that is.
 ///
 /// The root passed to `open` is not what decides where the menu lands -- `MenuScene::on_enter`
 /// re-roots from `SceneId::arg`, or from `ctx_.root` for `arg == 0` (the `@warning` on
@@ -183,7 +183,8 @@ const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
 /// editor. The guest is taken to be the frontmost UI there: the legacy context menus and the ported ones take every
 /// pad, so no press arrives while another UI is pushed above it.
 /// @return Whether the guest is now open.
-bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t arg, const menu::Node* shortcut) {
+bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t arg, const menu::Node* shortcut,
+               const menu::Node* pageColumn = nullptr) {
 	if (isUIOpen(&shellHostUI)) {
 		// `setup()` on the open editor, then `enterOrUpdateSoundEditor`'s already-open arm, `beginScreen`: the open
 		// menu re-roots in place. A Shift + pad the Settings root forwards to the keyboard screen or the performance
@@ -203,6 +204,9 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 	adoptShellMenuContext();
 	if (shortcut != nullptr) {
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
+	}
+	else if (pageColumn != nullptr) {
+		arg = deluge::scenes::menu_scene().arm_page_landing(root, *pageColumn);
 	}
 	shellHostUI.setInitialScene(deluge::ui::shell::SceneId{.kind = deluge::ui::shell::SceneKind::FirstApp, .arg = arg});
 	// `setup()` cancels whatever popup legacy's display holds once it has found its item: a drum name an audition
@@ -467,7 +471,7 @@ bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection) {
 	clearKitAffectEntireForNoteMode(ctx, clip);
 	// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `setup()`: on the open editor, or opening it.
 	if (!guestOpen) {
-		return openGuest(*root, ctx, 0, &menu::nodes::sequence_direction);
+		return openGuest(*root, ctx, 0, nullptr, &menu::nodes::sequence_direction);
 	}
 	deluge::scenes::menu_scene().reroot(*root, ctx, menu::nodes::sequence_direction);
 	adoptShellMenuContext();
