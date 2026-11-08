@@ -26,6 +26,12 @@ set(kernel_spec_DEPS)
 # writes generically are header-only too.
 set(frame_spec_DEPS)
 set(pack_spec_DEPS)
+# The float pack and kernels are header-only. Their fused twins build with -mfma on the x86 host (the policy an FMA
+# target runs); the A9 has no fused multiply-add, so the ARM tree skips them.
+set(pack_f32_spec_DEPS)
+set(pack_f32_fused_spec_DEPS)
+set(pack_f32_fused_spec_OPTIONS -mfma)
+set(_fused_specs pack_f32_fused_spec)
 # The Linked spec needs no sources: Linked, its reference kernels and the kernels it runs against Mono are header-only.
 set(linked_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
@@ -360,6 +366,9 @@ file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
   if(NOT DSP_SPEC_ARM AND _name IN_LIST _arm_only_specs)
+    continue()
+  endif()
+  if(DSP_SPEC_ARM AND _name IN_LIST _fused_specs)
     continue()
   endif()
 
