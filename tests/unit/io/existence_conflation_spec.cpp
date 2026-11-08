@@ -161,7 +161,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	});
 
 	// A path that names a FILE, not a directory, is a real efatfs Error::InvalidInput
-	// (crates/embedded-fatfs/src/dir.rs:252-256), which maps to DELUGE_ERR_PARAM -- Undeterminable,
+	// (deluge-sdk crates/embedded-fatfs/src/dir.rs:252-256), which maps to DELUGE_ERR_PARAM -- Undeterminable,
 	// not Absent. Opening it as a directory must not be reported as a safe absence.
 	it("classifies a directory-open on a file path as Undeterminable, not absent", _ {
 		mock_file_io_reset();
