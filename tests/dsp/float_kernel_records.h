@@ -27,10 +27,14 @@ inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 2508712197U;
 inline constexpr uint32_t kSmootherExponential = 957903478U;
+inline constexpr uint32_t kSvfLowPass = 3003083457U;
+inline constexpr uint32_t kSvfNotch = 1315717876U;
 #else
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 1153755580U;
 inline constexpr uint32_t kSmootherExponential = 1232577157U;
+inline constexpr uint32_t kSvfLowPass = 857356867U;
+inline constexpr uint32_t kSvfNotch = 3338462520U;
 #endif
 } // namespace records

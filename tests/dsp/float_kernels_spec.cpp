@@ -25,6 +25,7 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
+#include "dsp-next/float/filter/svf.h"
 
 #include "float_kernel_records.h"
 
@@ -145,7 +146,7 @@ struct NoFields {
 
 } // namespace
 
-static_assert(poly_kernel<fp::OnePole> && poly_kernel<fp::Smoother>);
+static_assert(poly_kernel<fp::OnePole> && poly_kernel<fp::Smoother> && poly_kernel<fp::Svf>);
 static_assert(processor_kernel<NoFields> && !poly_kernel<NoFields>);
 static_assert(!poly_kernel<fixed::OnePole>);
 
@@ -294,12 +295,93 @@ describe float_kernels_spec("float kernels", ${
 			expect(digest(out)).to_equal(records::kSmootherLinear);
 		});
 	});
+	context("Svf", _ {
+		it("low-passes: unity at DC, -3 dB at fc for Q = 1/sqrt 2, -12 dB per octave above", _ {
+			fp::FlushToZero ftz;
+			Mono<fp::Svf> f;
+			f.configure({.cutoff = 0.01f, .q = std::numbers::sqrt2_v<f32> / 2.f, .mode = fp::Svf::Mode::LOW_PASS});
+			expect(std::fabs(sine_gain(f, 0.01f) - std::numbers::sqrt2_v<f32> / 2.f) < 0.01f).to_be_true();
+			f.reset();
+			// Two octaves above fc the warped frequency ratio is s = tan(4*pi*fc)/tan(pi*fc), about 4.02, so
+			// |H| = 1/sqrt((1 - s^2)^2 + (s/Q)^2), about 0.062: -24 dB.
+			const f32 two_octaves = sine_gain(f, 0.04f);
+			expect(two_octaves < 0.08f && two_octaves > 0.05f).to_be_true();
+		});
+		it("band-passes at a peak gain of Q at fc", _ {
+			fp::FlushToZero ftz;
+			Mono<fp::Svf> f;
+			f.configure({.cutoff = 0.02f, .q = 4.f, .mode = fp::Svf::Mode::BAND_PASS});
+			// v1 = g*s / (s^2 + k*g*s + g^2) with s = j*g at fc: |H| = g^2 / (k*g^2) = 1/k = Q.
+			expect(std::fabs(sine_gain(f, 0.02f) - 4.f) < 0.1f).to_be_true();
+		});
+		it("high-passes and notches", _ {
+			fp::FlushToZero ftz;
+			Mono<fp::Svf> hp, notch;
+			hp.configure({.cutoff = 0.02f, .q = 0.7071f, .mode = fp::Svf::Mode::HIGH_PASS});
+			notch.configure({.cutoff = 0.02f, .q = 2.f, .mode = fp::Svf::Mode::NOTCH});
+			expect(sine_gain(hp, 0.2f) > 0.98f).to_be_true();
+			expect(sine_gain(notch, 0.02f) < 0.02f).to_be_true();
+		});
+		it("stays bounded under cutoff and Q sweeps to the clamps", _ {
+			fp::FlushToZero ftz;
+			Mono<fp::Svf> f;
+			const auto in = noise(kBlock, 4);
+			std::vector<f32> out(kBlock);
+			for (int k = 0; k < 400; ++k) {
+				f.configure({.cutoff = 0.0001f + (0.6f * static_cast<f32>(k % 40) / 40.f),
+				             .q = 0.1f + static_cast<f32>(k % 50),
+				             .mode = fp::Svf::Mode::LOW_PASS});
+				f.render_block(fp::Signal{in}, fp::Buffer{out});
+				for (f32 y : out) {
+					expect(std::isfinite(y) && std::fabs(y) < 100.f).to_be_true();
+				}
+			}
+		});
+		it("matches its records", _ {
+			fp::FlushToZero ftz;
+			const auto in = noise(kBlock * 4, 6);
+			std::vector<f32> out(in.size());
+			Mono<fp::Svf> f;
+			f.configure({.cutoff = 0.03f, .q = 3.f, .mode = fp::Svf::Mode::LOW_PASS});
+			f.render_block(fp::Signal{in}, fp::Buffer{out});
+			expect(digest(out)).to_equal(records::kSvfLowPass);
+			f.reset();
+			f.configure({.cutoff = 0.03f, .q = 3.f, .mode = fp::Svf::Mode::NOTCH});
+			f.render_block(fp::Signal{in}, fp::Buffer{out});
+			expect(digest(out)).to_equal(records::kSvfNotch);
+		});
+	});
 	context("Linked", _ {
 		it("runs each lane exactly as Mono", _ {
 			fp::FlushToZero ftz;
 			Linked<fp::OnePole, 2, Frame<f32, 2>> two;
 			Mono<fp::OnePole> one, other;
 			const fp::OnePole::Settings set{.cutoff = 0.03f, .mode = fp::OnePole::Mode::LOW_PASS};
+			two.configure(set);
+			one.configure(set);
+			other.configure(set);
+			const auto in = noise(kBlock * 2, 3);
+			std::vector<Frame<f32, 2>> frames(kBlock), framed_out(kBlock);
+			std::vector<f32> left(kBlock), left_out(kBlock), right(kBlock), right_out(kBlock);
+			for (std::size_t i = 0; i < kBlock; ++i) {
+				frames[i].lane[0] = in[2 * i];
+				frames[i].lane[1] = in[(2 * i) + 1];
+				left[i] = in[2 * i];
+				right[i] = in[(2 * i) + 1];
+			}
+			two.render_block(std::span<const Frame<f32, 2>>{frames}, std::span<Frame<f32, 2>>{framed_out});
+			one.render_block(fp::Signal{left}, fp::Buffer{left_out});
+			other.render_block(fp::Signal{right}, fp::Buffer{right_out});
+			for (std::size_t i = 0; i < kBlock; ++i) {
+				expect(std::bit_cast<uint32_t>(framed_out[i].lane[0])).to_equal(std::bit_cast<uint32_t>(left_out[i]));
+				expect(std::bit_cast<uint32_t>(framed_out[i].lane[1])).to_equal(std::bit_cast<uint32_t>(right_out[i]));
+			}
+		});
+		it("runs each Svf lane exactly as Mono", _ {
+			fp::FlushToZero ftz;
+			Linked<fp::Svf, 2, Frame<f32, 2>> two;
+			Mono<fp::Svf> one, other;
+			const fp::Svf::Settings set{.cutoff = 0.02f, .q = 3.f, .mode = fp::Svf::Mode::NOTCH};
 			two.configure(set);
 			one.configure(set);
 			other.configure(set);

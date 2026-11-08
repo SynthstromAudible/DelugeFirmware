@@ -7,6 +7,7 @@
 #include "dsp-next/core/poly.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
+#include "dsp-next/float/filter/svf.h"
 
 #include <array>
 #include <bit>
@@ -150,6 +151,17 @@ void poly_specs(auto& self) {
 			    [seed](std::size_t l) {
 				    return fp::OnePole::Settings{.cutoff = 0.001f + (0.07f * static_cast<f32>((l + seed) % 7)),
 				                                 .mode = fp::OnePole::Mode::HIGH_PASS};
+			    },
+			    seed);
+		}
+	});
+	it("steps each Svf lane exactly as Mono with its own cutoff and Q", _ {
+		for (uint32_t seed = 0; seed < 8; ++seed) {
+			expect_lanes_equal_mono<fp::Svf, N>(self,
+			    [seed](std::size_t l) {
+				    return fp::Svf::Settings{.cutoff = 0.002f + (0.06f * static_cast<f32>((l + seed) % 5)),
+				                             .q = 0.6f + static_cast<f32>((l * 3 + seed) % 9),
+				                             .mode = fp::Svf::Mode::BAND_PASS};
 			    },
 			    seed);
 		}
