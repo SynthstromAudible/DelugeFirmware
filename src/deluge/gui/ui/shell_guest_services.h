@@ -160,7 +160,8 @@ bool guestKnobsSeeAutomationEditor();
 
 /// @brief Tell the ported menu how `SoundEditor::buttonAction`'s UI-mode gates answer `currentUIMode` now: LEARN's
 ///        press acts only with no mode on, SELECT and BACK only in exactly one of five. Called before each button
-///        is fed.
+///        is fed. The events run at the tick, so a mode change between two buttons inside one tick is read by the
+///        later button's own refresh; no input path can put two buttons around a mode change in one tick.
 void refreshMenuModeGates();
 
 /// @brief Whether the ported menu is in its learn mode (`MenuScene::learn_mode`).

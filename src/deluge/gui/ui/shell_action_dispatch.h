@@ -169,8 +169,9 @@ void pushShellHighlighting();
 ///        of it.
 void pushShellRoundedCorners();
 
-/// @brief After a flash or community-features reset, give the open guest every reset setting main reads live: the
-///        menu highlighting, the screensaver's timing, sticky shift and horizontal menus. Rounded corners and pad
+/// @brief After a flash, community-features or full reset, give the open guest every reset setting main reads live: the
+///        menu highlighting, the screensaver's timing (which also re-arms legacy's screensaver, as
+///        `Screensaver::settingsChanged` does), sticky shift and horizontal menus. Rounded corners and pad
 ///        brightness are left as they are, stale until the next boot, as main leaves its own copies.
 void reapplyLiveSettingsAfterReset();
 

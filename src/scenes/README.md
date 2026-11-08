@@ -10,7 +10,7 @@ reaches them through `scenes/bind` and a `MenuContext` rather than through legac
 
 The library is linked into the firmware and the host app and is the default menu. The **Legacy Menu** community
 feature (default Off) brings back legacy's `SoundEditor` and its `MenuItem` classes (`src/deluge/gui/menu_item/`) at
-every gated entry point until 3d; with it off, fourteen of the fifteen `openUI(&soundEditor)` sites open this tree,
+every gated entry point until 3d; with it off, every gated `openUI(&soundEditor)` site opens this tree,
 inside `ShellHostUI` (see "Coexistence with legacy" below).
 
 > **Read this before adding a menu item.** A menu item users must be able to open goes into
@@ -655,9 +655,9 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: fourteen of the fifteen
-`openUI(&soundEditor)` sites route through it when `shellMenuEnabled()`, and run their exact legacy statements
-otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every gated
+`openUI(&soundEditor)` site routes through it when `shellMenuEnabled()`, and runs its exact legacy statements
+otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -744,7 +744,6 @@ it leaves both lists.
 
 | legacy | gap | what porting it takes |
 |---|---|---|
-| one `openUI(&soundEditor)` site | site 10 of `gui/ui/shell_menu_entry.cpp`'s table, the legacy browser's claim, still opens the legacy `SoundEditor` with ShellMenu on, for the reason that table gives | a decision, then its gate |
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
 | the catalogue claim over a browsing session | the leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim | claim-on-open/release-on-close, with the load/save browsers |

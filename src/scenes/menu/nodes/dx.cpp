@@ -100,7 +100,7 @@ void focus_list(MenuState& state, int16_t cursor) {
 
 using PatchBytes = std::array<uint8_t, 156>;
 
-/// @brief `show` (`param.cpp:328-342`): @p text on one of the page's two rows at a character column, inverted when
+/// @brief `param.cpp`'s `show`: @p text on one of the page's two rows at a character column, inverted when
 ///        it is the param shown.
 void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column, bool inverted = false) {
 	using namespace deluge::gfx::oled;
@@ -119,7 +119,7 @@ void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t co
 	show(p, digits, row, column, inverted);
 }
 
-/// @brief `renderEnvelope` (`param.cpp:344-353`): rates over levels; `op` 6 is the pitch envelope.
+/// @brief `param.cpp`'s `renderEnvelope`: rates over levels; `op` 6 is the pitch envelope.
 void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate", 0, 0);
 	show(p, "levl", 1, 0);
@@ -129,7 +129,7 @@ void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int
 	}
 }
 
-/// @brief `renderScaling` (`param.cpp:355-399`): the two depths over the two curves, the breakpoint between them.
+/// @brief `param.cpp`'s `renderScaling`: the two depths over the two curves, the breakpoint between them.
 void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	using namespace deluge::gfx::oled;
 	for (int32_t i = 0; i < 2; i++) {
@@ -146,7 +146,7 @@ void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int3
 	}
 }
 
-/// @brief `renderSensParams` (`param.cpp:401-410`).
+/// @brief `param.cpp`'s `renderSensParams`.
 void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate scale", 0, 1);
 	show(p, params[op * 21 + 13], 0, 12, idx == 13);
@@ -156,7 +156,7 @@ void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, 
 	show(p, params[op * 21 + 15], 1, 16, idx == 15);
 }
 
-/// @brief `renderTuning` (`param.cpp:412-428`): the mode, coarse, fine and detune (shown from -7), then the level.
+/// @brief `param.cpp`'s `renderTuning`: the mode, coarse, fine and detune (shown from -7), then the level.
 void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, params[op * 21 + 17] != 0 ? "fixed" : "ratio", 0, 1, idx == 17);
 	for (int32_t i = 0; i < 3; i++) {
@@ -170,7 +170,7 @@ void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32
 	show(p, params[op * 21 + 16], 1, 7, idx == 16);
 }
 
-/// @brief `renderLFO` (`param.cpp:430-458`).
+/// @brief `param.cpp`'s `renderLFO`.
 void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[137 + i], 0, 1 + i * 3, 137 + i == param);
@@ -186,7 +186,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 	show(p, digits, 1, 10, param == 143);
 }
 
-/// @brief `renderAlgorithm` (`param.cpp:460-476`): a "#NN" badge inverted at the title's right, and the diagram.
+/// @brief `param.cpp`'s `renderAlgorithm`: a "#NN" badge inverted at the title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::gfx::oled;
 	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
@@ -203,7 +203,7 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 	p.graphic(d.data, d.x, d.y, d.width, d.height, d.num_bytes_tall);
 }
 
-/// @brief `DxParam::drawPixelsForOled` (`param.cpp:478-512`) for @p param of @p patch, on the panel frame @p p.
+/// @brief `DxParam::drawPixelsForOled` for @p param of @p patch, on the panel frame @p p.
 /// @param top The panel's first visible row, `OLED_MAIN_TOPMOST_PIXEL` on the 48-row panel.
 void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instrument::DxPatchState& patch,
                 int16_t param) {
@@ -466,7 +466,7 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 	f.claim_turn();
 	f.claim_horizontal();
 	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0 && patch) {
-		// `selectEncoderAction` (`param.cpp:183-198`) and `setValue` (`:59-73`): oscillator 1's patch, always.
+		// `DxParam::selectEncoderAction` and `DxParam::setValue`: oscillator 1's patch, always.
 		if (param >= 0 && param <= dx::kLastParam) {
 			const int32_t value = patch->params[param] + t;
 			patch->params[param] = static_cast<uint8_t>(std::clamp<int32_t>(value, 0, dx::upper_limit(param)));
@@ -478,7 +478,7 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 		f.gate().request_repaint();
 	}
 	if (const int8_t h = f.horizontal(); h != 0) {
-		// `horizontalEncoderAction` (`param.cpp:200-229`), each arm ending in `readValueAgain`, which sets the pad's
+		// `DxParam::horizontalEncoderAction`, each arm ending in `readValueAgain`, which sets the pad's
 		// blink up; the Shift arm returns before it outside the operators and the pitch envelope's first rate.
 		if (!f.shift()) {
 			param = dx::step_param(param, h);
@@ -529,7 +529,7 @@ void DxParamItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const 
 }
 
 std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const MenuState& state) const {
-	// `renderScaling` (`param.cpp:375-398`) sets the breakpoint note's pad blinking on every draw of a keyboard scaling
+	// `param.cpp`'s `renderScaling` sets the breakpoint note's pad blinking on every draw of a keyboard scaling
 	// param over the isomorphic keyboard, after `readValueAgain` and `beginScreen` have unset it.
 	const int16_t param = state.dx.param;
 	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12

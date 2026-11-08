@@ -245,12 +245,12 @@ int32_t get_default_automation_no_audition(const MenuContext& ctx);
 void set_default_automation_no_audition(const MenuContext& ctx, int32_t value);
 
 int32_t get_default_swing_interval(const MenuContext& ctx);
+void set_default_swing_interval(const MenuContext& ctx, int32_t value);
 /// `defaults::SwingInterval::getNoteLengthName`: the default resolution, `FlashStorage::defaultMagnitude`.
 int32_t default_resolution_magnitude(const MenuContext& ctx);
 /// `sync_level::RelativeToSong::getNoteLengthName` names value v as magnitude 3 - v; `syncValueToString` at tick
 /// magnitude 1 is that name.
 int32_t relative_to_song_magnitude(const MenuContext& ctx);
-void set_default_swing_interval(const MenuContext& ctx, int32_t value);
 int32_t get_default_scale(const MenuContext& ctx);
 void set_default_scale(const MenuContext& ctx, int32_t value);
 size_t default_scale_names(const MenuContext& ctx, std::span<std::string_view> out);
@@ -320,8 +320,7 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 ///        `MenuAction::ShiftStickyChanged` for the shift machines (`hid/` and the guest's, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 /// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `MenuAction::RoundedCornersChanged` for
-/// the
-///        canvas flag and the guest's panels.
+///        the canvas flag and the guest's panels.
 void set_rounded_corners(const MenuContext& ctx, int32_t value);
 /// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
 ///        `HorizontalMenu::renderingStyle()` reads it live.

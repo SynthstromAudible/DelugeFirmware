@@ -437,7 +437,7 @@ void InputLowering::seed_shift(bool pressed, bool stuck, uint32_t now_ms) {
 void InputLowering::set_shift_is_sticky(bool sticky) {
 	cfg_.shift_is_sticky = sticky;
 	if (!sticky) {
-		// `ShiftIsSticky::writeCurrentValue` (`shift_is_sticky.cpp:25-27`): turning the feature off
+		// `ShiftIsSticky::writeCurrentValue`: turning the feature off
 		// must also release a shift that is latched under it.
 		clear_shift_sticky();
 	}

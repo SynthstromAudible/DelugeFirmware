@@ -319,12 +319,12 @@ struct Layers {
 };
 
 /// @brief Which table each root reads, i.e. legacy's chain of context tests
-///        (`sound_editor.cpp:1195-1225` for the jump, `:812-848` for the blink) resolved once.
+///        (`SoundEditor::potentialShortcutPadAction` for the jump, `updatePadLightsFor` for the blink) resolved once.
 ///
 /// * `Sound` / `Drum` -- `paramShortcutsForSounds`, the `else` arm; `Drum` is the kit-drum output
 ///   whose name editor is the drum one. Both carry the second layer.
 /// * `MidiOrCv` / `MidiDrum` -- `midiOrCVParamShortcuts`; `MidiDrum` again swaps the name editor.
-/// * `GateDrum` -- `gateDrumParamShortcuts` (`:1277`'s `editingGateDrumRow()`).
+/// * `GateDrum` -- `gateDrumParamShortcuts` (`potentialShortcutPadAction`'s `editingGateDrumRow()` arm).
 /// * `AudioClip` -- `paramShortcutsForAudioClips`.
 /// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).

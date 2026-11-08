@@ -554,7 +554,6 @@ public:
 	/// @brief Do SELECT and BACK act now? Legacy's five-mode test, of which learn mode (`UI_MODE_MIDI_LEARN`) is not
 	///        one.
 	bool select_and_back_act() const { return !learn_mode() && (!host_gates_ || host_gates_->select_and_back); }
-	std::optional<HostModeGates> host_gates_;
 	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
 	///        `render_*` functions it dispatches to, answered before they run.
 	/// @return The claim set.
@@ -625,6 +624,8 @@ private:
 	/// The renders, and the storage a horizontal page draws from.
 	MenuView view_;
 	MenuContext ctx_{};
+	/// @brief The host's UI-mode gates (`set_host_mode_gates`); unset, the menu's own learn mode alone gates.
+	std::optional<HostModeGates> host_gates_;
 	/// @brief The cause an event of this tick noted, and the value node it found (`take_transition`).
 	std::optional<TransitionCause> pending_transition_;
 	const Node* transition_from_ = nullptr;

@@ -196,7 +196,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 /// lands where `setup()` lands a named item (`MenuScene::arm_shortcut_landing`). The undo log is
 /// kept, as `setup()` keeps it when given an item.
 ///
-/// @param clip                   The current clip.
+/// @param clip                   The current clip, or null off a clip minder (the song is then edited).
 /// @param x                      Absolute pad column.
 /// @param y                      Absolute pad row.
 /// @param performanceView        As `openShellMenu`'s.

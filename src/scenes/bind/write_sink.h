@@ -153,8 +153,9 @@ public:
 	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
 	/// the change, so the step learns it after.
 	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
-	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt. A
-	/// param's knob unlearned marks the current instrument edited, as `learn_knob`'s learn does.
+	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt. Any
+	/// unlearn marks the current instrument edited, as `learn_knob`'s learn does; the menu is the only caller and
+	/// unlearns only a param's knob.
 	/// @param input A note learned on a track's or kit row's input: what the learn takes from the note's cable.
 	/// @return Whether it was taken: false where @p target's owner is not in the song.
 	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,

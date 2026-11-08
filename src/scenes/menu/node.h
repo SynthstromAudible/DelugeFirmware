@@ -463,8 +463,9 @@ struct Binding {
 	TurnFn turn = nullptr;
 
 	/// @brief Legacy's `drawPixelsForOled` override that names an `Int` value: while this answers
-	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar.
-	///        Null for every ordinary node.
+	///        (`ValueTextUse::Column`), the full-screen value is that text in the huge face, with no value bar. With
+	///        `ValueStyle::label_in_digits` it is legacy's `drawInteger` override instead: the text takes the digits'
+	///        place, in their face and band, and a continuous value keeps its bar. Null for every ordinary node.
 	ValueTextFn leaf_text = nullptr;
 	/// @brief Legacy's `drawInteger` override that draws the item's own screen (`LeafDrawFn`). Null for every ordinary
 	///        node.

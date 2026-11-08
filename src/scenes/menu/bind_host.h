@@ -27,9 +27,10 @@ const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
 ///        the running transport, which no record holds.
 void host_grab_tempo(deluge::project::ClipAddress clip);
 
-/// @brief A flash or community-features reset ran: the app re-applies, on the guest and the open menu, the reset
+/// @brief A flash, community-features or full reset ran: the app re-applies, on the guest and the open menu, the reset
 ///        settings main reads live.
 void host_settings_reset();
+
 /// @brief The waveforms of the song the app plays.
 const deluge::scenes::services::Waveforms& host_waveforms();
 /// @brief The file the sample browser last started to preview or load (legacy's `SampleBrowser::lastFilePathLoaded`),

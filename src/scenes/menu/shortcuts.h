@@ -4,8 +4,8 @@
 ///        shortcut pad sits so `plan_blinks` (`shortcut_blink.h`) can blink it.
 ///
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
-/// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp:2174-2275`), `midiOrCVParamShortcuts` and
-/// `gateDrumParamShortcuts` (`:1200-1220`) -- transcribed cell by cell as `Node` pointers, keyed by
+/// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp`), `midiOrCVParamShortcuts` and
+/// `gateDrumParamShortcuts` -- transcribed cell by cell as `Node` pointers, keyed by
 /// `MenuContext::Root`. `sim/scenes_spec/shortcuts_spec.cpp` cross-checks every cell of every table
 /// against the legacy array it came from, in both directions.
 ///
@@ -40,7 +40,7 @@ struct ShortcutPos {
 	/// False when the node has no shortcut pad in @p root's table at all.
 	bool valid = false;
 	/// True when the pad is the node's in the second layer, which legacy blinks yellow
-	/// (`sound_editor.cpp:1119`).
+	/// (`SoundEditor::updatePadLightsFor`).
 	bool second_layer = false;
 };
 
@@ -61,7 +61,7 @@ struct ShortcutPos {
 /// @return The cells. Every root resolves to a layer of exactly `kShortcutCols * kShortcutRows`
 ///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks a
 ///         shortcut while the settings menu is open (`updatePadLightsFor`'s `!inSettingsMenu()`
-///         guard, `sound_editor.cpp:850`).
+///         guard).
 std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer);
 
 /// @brief The node the shortcut pad at (@p x, @p y) opens, or `nullptr` for a pad with no
@@ -74,23 +74,23 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///
 /// @param root         Which menu root is open, i.e. which table applies.
 /// @param second_layer Take the cell from the second layer where that layer has one. This is
-///                     legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1379`) --
+///                     legacy's `secondLayerShortcutsToggled` --
 ///                     pressing the focused item's *own* shortcut pad a second time -- **not**
 ///                     "shift is held". Shift is only the gate that lets a pad be a shortcut at
-///                     all (`:1114`), which is the caller's business. As in legacy, a null second
+///                     all, which is the caller's business. As in legacy, a null second
 ///                     layer cell falls back to the first layer's, so this never *removes* a
 ///                     shortcut. Only `Root::Sound` and `Root::Drum` have a second layer
 ///                     (`paramShortcutsForSoundsSecondLayer`); for every other root both layers
 ///                     are the same cells.
 /// @note **Resolve-only cells.** `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum` also
 ///       resolve four pads that are in no legacy table, because legacy spells them inline in the
-///       very same arm (`sound_editor.cpp:1337-1357`): `(4, 7)` is `sequenceDirectionMenu` and
+///       very same arm of `potentialShortcutPadAction`: `(4, 7)` is `sequenceDirectionMenu` and
 ///       `(15, 1..3)` the MIDI/CV randomizer trio. They are reachable from here and **not** from
 ///       `shortcut_layer` or `shortcut_pos`, which is exactly legacy's asymmetry: the blink side
-///       (`updatePadLightsFor`, `:833-853`) scans column 11 and nothing else, so pressing those
+///       (`updatePadLightsFor`) scans column 11 and nothing else, so pressing those
 ///       four pads navigates but never lights them. Two further arms of the same `if` stay out
-///       because they are separate mechanisms rather than cells -- the DX7 pad grid (`:1170-1177`)
-///       and the patching-source column, `x` in {14, 15} (`:1180-1268`).
+///       because they are separate mechanisms rather than cells -- the DX7 pad grid
+///       and the patching-source column, `x` in {14, 15}.
 ///
 /// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
 ///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`

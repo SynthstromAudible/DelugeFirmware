@@ -523,7 +523,7 @@ private:
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.
 	deluge::ui::PadMask fedPads_{};
-	/// Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
+	/// @brief Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
 	bool visitWithoutEditor_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,

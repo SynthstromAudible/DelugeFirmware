@@ -212,7 +212,8 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 		// `handleNoteEditorVerticalEncoderAction`.
 		return noteModeLegacyCalls().noteEditorVertical(offset);
 	case NoteModeKind::NoteRowEditor:
-		return noteModeLegacyCalls().noteRowEditorVertical(offset); // `:1596-1598`
+		// `SoundEditor::verticalEncoderAction`'s `inNoteRowEditor()` arm.
+		return noteModeLegacyCalls().noteRowEditorVertical(offset);
 	case NoteModeKind::None:
 		break;
 	}
@@ -243,16 +244,16 @@ void exitNoteModeBeforeClose() {
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`
-		// `:751-752`, "refresh grid to potentially unhighlight edited notes": `uiNeedsRendering(this,
+		// `exitCompletely`'s "refresh grid to potentially unhighlight edited notes" step is `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- with ShellMenu on, this guest.
-		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:309-333`),
+		// `uiNeedsRendering` queues every main row against the guest's place in the hierarchy,
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.
 		uiNeedsRendering(&shellHostUI, 0xFFFFFFFF, 0);
 		break;
 	case NoteModeKind::NoteRowEditor:
-		noteModeLegacyCalls()
-		    .exitNoteRowEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`, no repaint
+		// `SoundEditor::exitCompletely`, with no repaint.
+		noteModeLegacyCalls().exitNoteRowEditor();
 		break;
 	case NoteModeKind::None:
 		break;
@@ -300,7 +301,7 @@ void noteModeReadValueAgain() {
 }
 
 bool noteModeVelocityShown() {
-	// `noteVelocityMenu`, or `noteEditorRootMenu` with `renderingStyle() == HORIZONTAL`.
+	// Main's rule: the note's velocity item, or the note editor's root drawn horizontally.
 	if (!shellMenuFrontmost()) {
 		return false;
 	}
