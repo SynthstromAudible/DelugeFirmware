@@ -107,6 +107,30 @@ void pack_specs(auto& self) {
 		}
 		expect(bits(sum(a))).to_equal(bits(expected));
 	});
+	it("gathers one table entry per lane", _ {
+		std::array<f32, 16> table{};
+		for (std::size_t i = 0; i < table.size(); ++i) {
+			table[i] = 0.5f * static_cast<f32>(i) - 3.f;
+		}
+		Pack<f32, N> index{};
+		for (std::size_t i = 0; i < N; ++i) {
+			index.set(i, static_cast<f32>((i * 5) % table.size()));
+		}
+		const Pack<f32, N> got = gather(table.data(), index);
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(bits(got.get(i))).to_equal(bits(gather(table.data(), index.get(i))));
+		}
+	});
+	it("reports whether any lane of a mask is set", _ {
+		Pack<f32, N> a{0.f};
+		expect(any(a > Pack<f32, N>{0.f})).to_be_false();
+		a.set(N - 1, 1.f);
+		const Mask<N> m = a > Pack<f32, N>{0.f};
+		expect(any(m)).to_be_true();
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(m.get(i)).to_equal(i == N - 1);
+		}
+	});
 	it("transposes and transposes back", _ {
 		std::array<Pack<f32, N>, N> m{};
 		for (std::size_t r = 0; r < N; ++r) {

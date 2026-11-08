@@ -20,6 +20,7 @@
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/sample.h"
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <tuple>
@@ -53,19 +54,73 @@ concept poly_kernel =
     && detail::declares_fields<typename K::template StateT<f32>>
     && detail::declares_fields<typename K::template StateT<Pack<f32, 4>>> && !detail::declares_context<K>;
 
+template <class S, class P>
+void set_lane(P& packed, std::size_t lane, const S& scalar);
+template <class S, class P>
+[[nodiscard]] S get_lane(const P& packed, std::size_t lane);
+
 namespace detail {
+template <class S, class P>
+requires declares_fields<S> && declares_fields<P>
+void set_field(P& packed, std::size_t lane, const S& scalar);
+template <class S, class P>
+requires declares_fields<S> && declares_fields<P>
+void get_field(const P& packed, std::size_t lane, S& scalar);
+
+/// A V field: one lane.
+template <class P>
+requires requires(P p, std::size_t l, f32 x) { p.set(l, x); }
+void set_field(P& packed, std::size_t lane, const f32& scalar) {
+	packed.set(lane, scalar);
+}
+/// An array of fields: element by element.
+template <class S, class P, std::size_t K>
+void set_field(std::array<P, K>& packed, std::size_t lane, const std::array<S, K>& scalar) {
+	for (std::size_t k = 0; k < K; ++k) {
+		set_field(packed[k], lane, scalar[k]);
+	}
+}
+/// A struct declaring its own fields: recurse.
+template <class S, class P>
+requires declares_fields<S> && declares_fields<P>
+void set_field(P& packed, std::size_t lane, const S& scalar) {
+	set_lane(packed, lane, scalar);
+}
+
+/// A V field: one lane.
+template <class P>
+requires requires(const P p, std::size_t l) {
+	{ p.get(l) } -> std::same_as<f32>;
+}
+void get_field(const P& packed, std::size_t lane, f32& scalar) {
+	scalar = packed.get(lane);
+}
+/// An array of fields: element by element.
+template <class S, class P, std::size_t K>
+void get_field(const std::array<P, K>& packed, std::size_t lane, std::array<S, K>& scalar) {
+	for (std::size_t k = 0; k < K; ++k) {
+		get_field(packed[k], lane, scalar[k]);
+	}
+}
+/// A struct declaring its own fields: recurse.
+template <class S, class P>
+requires declares_fields<S> && declares_fields<P>
+void get_field(const P& packed, std::size_t lane, S& scalar) {
+	scalar = get_lane<S>(packed, lane);
+}
+
 template <class S, class P, std::size_t... I>
 void set_lane_at(P& packed, std::size_t lane, const S& scalar, std::index_sequence<I...> /*fields*/) {
 	static_assert(std::tuple_size_v<decltype(S::fields)> == std::tuple_size_v<decltype(P::fields)>,
 	              "the scalar and packed structs name the same fields");
-	((packed.*std::get<I>(P::fields)).set(lane, scalar.*std::get<I>(S::fields)), ...);
+	(set_field(packed.*std::get<I>(P::fields), lane, scalar.*std::get<I>(S::fields)), ...);
 }
 
 template <class S, class P, std::size_t... I>
 void get_lane_at(const P& packed, std::size_t lane, S& scalar, std::index_sequence<I...> /*fields*/) {
 	static_assert(std::tuple_size_v<decltype(S::fields)> == std::tuple_size_v<decltype(P::fields)>,
 	              "the scalar and packed structs name the same fields");
-	((scalar.*std::get<I>(S::fields) = (packed.*std::get<I>(P::fields)).get(lane)), ...);
+	(get_field(packed.*std::get<I>(P::fields), lane, scalar.*std::get<I>(S::fields)), ...);
 }
 } // namespace detail
 

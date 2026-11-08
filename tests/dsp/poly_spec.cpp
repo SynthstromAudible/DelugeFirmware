@@ -17,6 +17,7 @@
 #include <cppspec.hpp>
 #include <cstring>
 #include <random>
+#include <tuple>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -24,6 +25,25 @@ using namespace deluge::dsp;
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
 // flags (poly_unsafe_math_spec) compares the kernels against IEEE order. The headers above pin themselves.
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
+
+namespace nested_test {
+template <class V>
+struct Inner {
+	V a{};
+	V b{};
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+	static constexpr auto fields = std::tuple{&Inner::a, &Inner::b};
+};
+template <class V>
+struct Outer {
+	std::array<Inner<V>, 3> items{};
+	Inner<V> one{};
+	V x{};
+	int tag = 7; // not a field: untouched by set_lane
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+	static constexpr auto fields = std::tuple{&Outer::items, &Outer::one, &Outer::x};
+};
+} // namespace nested_test
 
 namespace {
 
@@ -382,6 +402,45 @@ void poly_specs(auto& self) {
 				expect(std::bit_cast<uint32_t>(a[i])).to_equal(std::bit_cast<uint32_t>(b[i]));
 			}
 		}
+	});
+	it("moves a lane through arrays and nested field structs", _ {
+		using nested_test::Outer;
+		const auto make = [](f32 base) {
+			Outer<f32> o;
+			f32 v = base;
+			for (auto& item : o.items) {
+				item.a = v++;
+				item.b = v++;
+			}
+			o.one.a = v++;
+			o.one.b = v++;
+			o.x = v;
+			return o;
+		};
+		const auto same = [](const Outer<f32>& p, const Outer<f32>& q) {
+			const auto b = [](f32 x) { return std::bit_cast<uint32_t>(x); };
+			bool eq = b(p.x) == b(q.x) && b(p.one.a) == b(q.one.a) && b(p.one.b) == b(q.one.b);
+			for (std::size_t k = 0; k < 3; ++k) {
+				eq = eq && b(p.items[k].a) == b(q.items[k].a) && b(p.items[k].b) == b(q.items[k].b);
+			}
+			return eq;
+		};
+		Outer<Pack<f32, N>> packed;
+		for (std::size_t l = 0; l < N; ++l) {
+			set_lane(packed, l, make(10.f * static_cast<f32>(l + 1)));
+		}
+		for (std::size_t l = 0; l < N; ++l) {
+			expect(same(get_lane<Outer<f32>>(packed, l), make(10.f * static_cast<f32>(l + 1)))).to_be_true();
+		}
+		Outer<f32> changed = make(-5.f);
+		changed.tag = 99;
+		set_lane(packed, 0, changed);
+		expect(same(get_lane<Outer<f32>>(packed, 0), make(-5.f))).to_be_true();
+		for (std::size_t l = 1; l < N; ++l) {
+			expect(same(get_lane<Outer<f32>>(packed, l), make(10.f * static_cast<f32>(l + 1)))).to_be_true();
+		}
+		expect(packed.tag).to_equal(7);
+		expect(get_lane<Outer<f32>>(packed, 0).tag).to_equal(7);
 	});
 	it("reads back each lane's state, and resets one lane alone", _ {
 		fp::FlushToZero ftz;

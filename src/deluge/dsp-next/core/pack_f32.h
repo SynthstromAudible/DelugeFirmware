@@ -89,6 +89,16 @@ inline constexpr bool kFusedMulAdd = detail::has_fused_mul_add();
 	return x;
 }
 
+/// @brief @p base[@p index]: the scalar form of a pack's gather. @p index is a non-negative integer held in an f32.
+[[nodiscard]] [[gnu::always_inline]] inline f32 gather(const f32* base, f32 index) {
+	return base[static_cast<std::size_t>(index)];
+}
+
+/// @brief @p x: the scalar form of a mask's any.
+[[nodiscard]] [[gnu::always_inline]] inline bool any(bool x) {
+	return x;
+}
+
 namespace detail {
 /// N f32 lanes as a GNU vector: a q register for 4, a d register for 2.
 template <std::size_t N>
@@ -104,6 +114,9 @@ requires(N == 2 || N == 4)
 struct Mask {
 	/// All ones in a lane where the comparison held, zero elsewhere: the vector comparison's own result type.
 	decltype(detail::F32Lanes<N>{} < detail::F32Lanes<N>{}) bits;
+
+	/// @brief Whether the comparison held in lane @p i. No float arithmetic: a read of the lane's bits.
+	[[nodiscard]] [[gnu::always_inline]] bool get(std::size_t i) const { return bits[i] != 0; }
 };
 
 /// @brief N f32 lanes on one NEON register.
@@ -179,6 +192,15 @@ struct Pack<f32, N> {
 	[[nodiscard]] [[gnu::always_inline]] friend Pack select(Mask<N> m, Pack a, Pack b) {
 		return Pack{m.bits ? a.v : b.v};
 	}
+	/// @brief Lane i is `base[index.get(i)]`; the indices are non-negative integers held in f32. No float arithmetic:
+	/// N scalar loads.
+	[[nodiscard]] [[gnu::always_inline]] friend Pack gather(const f32* base, Pack index) {
+		std::array<f32, N> out;
+		for (std::size_t i = 0; i < N; ++i) {
+			out[i] = base[static_cast<std::size_t>(index.v[i])];
+		}
+		return load(out.data());
+	}
 	/// @brief The lanes' sum, lane 0 first, then each next lane added in order.
 	[[nodiscard]] [[gnu::always_inline]] friend f32 sum(Pack a) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
@@ -189,6 +211,16 @@ struct Pack<f32, N> {
 		return s;
 	}
 };
+
+/// @brief Whether any lane of @p m holds. No float arithmetic: an OR of the lanes' bits.
+template <std::size_t N>
+[[nodiscard]] [[gnu::always_inline]] inline bool any(Mask<N> m) {
+	bool r = false;
+	for (std::size_t i = 0; i < N; ++i) {
+		r = r || m.get(i);
+	}
+	return r;
+}
 
 /// @brief Transposes @p m in place: lane c of row r becomes lane r of row c.
 template <std::size_t N>
