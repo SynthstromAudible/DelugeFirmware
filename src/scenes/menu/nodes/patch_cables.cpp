@@ -377,7 +377,8 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	// and scroll (`:95-111`), which `list` already owns.
 	state.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)]);
+	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
+	                           /*allow_motion=*/true, /*accelerate=*/true);
 	if (n == 0 && f.select_pressed()) {
 		// `selectButtonPress`'s "there were no items" arm (`:168-172`): with nothing to select, the
 		// press goes up a level -- `MenuItem::selectButtonPress`'s own `return nullptr`. `list` never
@@ -477,7 +478,8 @@ void SourceSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 	// the widget instead of re-deriving them.
 	state.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)]);
+	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
+	                           /*allow_motion=*/true, /*accelerate=*/true);
 
 	// `selectEncoderAction`'s `s = sourceMenuContents[newValue]` (`:172`): the cursor IS the value,
 	// so it is republished every frame rather than only when it moves.

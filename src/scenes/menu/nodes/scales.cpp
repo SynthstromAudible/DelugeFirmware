@@ -141,7 +141,8 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	const size_t d = depth_of(state);
 	state.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, kScaleRows}, state.scroll[d]);
+	                           std::span<const deluge::ui::oled::ListRow>{rows, kScaleRows}, state.scroll[d],
+	                           /*allow_motion=*/true, /*accelerate=*/true);
 
 	if (!state.tick.render_resp.entered) {
 		return;

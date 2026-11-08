@@ -489,7 +489,7 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
 		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
-		const int32_t offset = f.shift() ? d * 5 : d;
+		const auto offset = static_cast<int32_t>(deluge::ui::oled::select_delta(f));
 		// A `Binding::turn` is the item's own `selectEncoderAction` (`swing::Interval` wraps).
 		const std::optional<int32_t> turned =
 		    node.bind.turn != nullptr ? node.bind.turn(ctx, st.edit_int, offset) : std::nullopt;

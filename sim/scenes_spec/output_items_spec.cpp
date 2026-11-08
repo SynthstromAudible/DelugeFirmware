@@ -872,6 +872,26 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		expect(legacy != rig.midi).to_be_true();
 	});
 
+	it("steps five outputs a click while shift is held, skipping those it cannot record from", _ {
+		// `getNextRecordableOutputIndex(outputIndex, offset)` takes the scaled offset: five steps from the synth at
+		// index 1 run past the end of the list, where the walk stops on the last recordable output.
+		ClipRig rig;
+		(void)rig.add_synth("C");
+		Instrument* const last = rig.add_synth("D");
+		rig.song.output->setOutputRecordingFrom(rig.synth_a);
+		Output* legacy = legacy_pick(5);
+
+		rig.song.output->setOutputRecordingFrom(rig.synth_a);
+		Rig r;
+		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
+		r.button(8, 0, true); // SHIFT
+		r.turn(1);
+		r.step();
+		r.button(8, 0, false);
+		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
+		expect(legacy == last).to_be_true();
+	});
+
 	it("stops at the end of the list rather than wrapping", _ {
 		ClipRig rig;
 		rig.song.output->setOutputRecordingFrom(rig.synth_a);

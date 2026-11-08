@@ -85,7 +85,8 @@ deluge::ui::Response draw_list(deluge::ui::oled::OledFrame& f, MenuState& state,
 	const size_t d = depth_of(state);
 	state.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                           std::span<const deluge::ui::oled::ListRow>{rows.data(), n}, state.scroll[d]);
+	                           std::span<const deluge::ui::oled::ListRow>{rows.data(), n}, state.scroll[d],
+	                           /*allow_motion=*/true, /*accelerate=*/true);
 	return state.tick.render_resp;
 }
 
@@ -295,7 +296,7 @@ void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	deluge::ui::ListState& list = state.list[depth_of(state)];
 	// `selectEncoderAction`: the cursor clamps to the bank, and only a move loads the program.
 	list.freeze_cursor = true;
-	if (const int32_t t = f.turn(); t != 0) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
 		const int32_t next = std::clamp<int32_t>(list.cursor + t, 0, bank->count - 1);
 		if (next != list.cursor) {
 			list.cursor = static_cast<int16_t>(next);
@@ -346,7 +347,7 @@ void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// rather than stopping at the end.
 	constexpr std::array<std::string_view, 3> kModes{"auto", "modern", "vintage"};
 	list.freeze_cursor = true;
-	if (const int32_t t = f.turn(); t != 0) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
 		const int32_t next = list.cursor + t;
 		if (next >= 0 && next < std::ssize(kModes)) {
 			if (std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx)) {
@@ -464,7 +465,7 @@ void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 	int16_t& param = state.dx.param;
 	f.claim_turn();
 	f.claim_horizontal();
-	if (const int32_t t = f.turn(); t != 0 && patch) {
+	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0 && patch) {
 		// `selectEncoderAction` (`param.cpp:183-198`) and `setValue` (`:59-73`): oscillator 1's patch, always.
 		if (param >= 0 && param <= dx::kLastParam) {
 			const int32_t value = patch->params[param] + t;

@@ -521,6 +521,21 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
 	});
 
+	it("turns the cartridge's programs five a click under Shift, clamping to the bank", _ {
+		// `DxCartridge::selectEncoderAction` clamps `currentValue + offset`, on the scaled offset.
+		load_bank();
+		MenuRig r;
+		bind::RecordingSink sink;
+		r.open(nodes::dx_cartridge, &sink);
+		r.button(kShiftX, kShiftY, true);
+		r.turn(1);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(5);
+		expect(sink.gestures.back().value).to_equal(int64_t{5});
+		r.turn(10);
+		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
+		r.button(kShiftX, kShiftY, false);
+	});
+
 	it("closes the whole menu on SELECT, as legacy's exitCompletely does, rather than going up a level", _ {
 		DxCard card;
 		select_language();

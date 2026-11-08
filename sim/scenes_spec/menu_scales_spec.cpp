@@ -469,6 +469,24 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		}
 	});
 
+	it("turns the scale list five rows a click while shift is held, clamping at the last", _ {
+		// `SoundEditor::selectEncoderAction` hands `ActiveScaleMenu` the offset times 5; it clamps `currentPos + offset`.
+		select_language();
+		Rig r;
+		ScalesGuard guard;
+		(void)r.open(nodes::active_scales);
+		r.shell.tick(5);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 255}, 8); // SHIFT
+		r.turn(1, 10);
+		r.shell.tick(15);
+		const auto& list = scene().state().list;
+		expect(static_cast<int32_t>(list[scene().state().depth].cursor)).to_equal(5);
+		r.turn(10, 20);
+		r.shell.tick(25);
+		expect(static_cast<int32_t>(list[scene().state().depth].cursor)).to_equal(static_cast<int32_t>(LAST_PRESET_SCALE));
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 0}, 30);
+	});
+
 	it("records the goldens at both panel geometries", _ {
 		select_language();
 		Rig r;

@@ -37,10 +37,14 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/project_bridge/patch_cable_words.h"
+#include "modulation/params/param.h"
+#include "modulation/patch/patch_cable.h"
 #include "modulation/sync.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
 
+#include "support/forwarding_facts.h"
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
@@ -122,6 +126,10 @@ bool rows_match(const R& rig, int y0, int y1) {
 		}
 	}
 	return true;
+}
+
+int32_t list_cursor() {
+	return menu_scene().state().list[menu_scene().state().depth].cursor;
 }
 
 int decimal_pos() {
@@ -271,6 +279,51 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 		up.input.shift = true;
 		draw(up, 0);
 		expect(menu_scene().state().edit_int).to_equal(wrapSwingIntervalSyncLevel(kTop + 5));
+	});
+
+	it("turns a quantized stutter rate five options a click while shift is held, then clamps", _ {
+		// `stutter::Rate::selectEncoderAction` clamps `idx + offset` on the scaled offset: 37 is option 3 of 0..4.
+		Rig r;
+		menu::nodes::set_stutter_direction(r.ctx, 1); // the sound's own stutter
+		menu::nodes::set_stutter_quantize(r.ctx, 1);
+		menu::bindings::write(nodes::stutter_rate, r.ctx, 37);
+		r.open(nodes::stutter_rate);
+		deluge::ui::test::Rig48 rig;
+		rig.input.turn = -1;
+		rig.input.shift = true;
+		draw(rig, 0);
+		expect(menu_scene().state().edit_int).to_equal(0);
+	});
+
+	it("turns the patch cable list five rows a click while shift is held", _ {
+		// `PatchCables::selectEncoderAction` clamps `currentValue + offset` on the scaled offset.
+		Rig r;
+		deluge::scenes::bind::CableList cables;
+		for (const PatchSource source :
+		     {PatchSource::LFO_GLOBAL_1, PatchSource::LFO_LOCAL_1, PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1,
+		      PatchSource::VELOCITY, PatchSource::NOTE, PatchSource::RANDOM}) {
+			cables.items[cables.count++].depth =
+			    deluge::bridge::cable_depth(source, deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ));
+		}
+		const deluge::scenes::spec::ForwardingFacts facts{*r.ctx.facts, {.cables = cables}};
+		r.ctx.facts = &facts;
+		r.open(nodes::patch_cables);
+		deluge::ui::test::Rig48 rig;
+		rig.input.turn = 1;
+		rig.input.shift = true;
+		draw(rig, 0);
+		expect(list_cursor()).to_equal(5);
+	});
+
+	it("turns the source list five rows a click while shift is held", _ {
+		// `SourceSelection::selectEncoderAction` steps `offset` times over the allowed sources.
+		Rig r;
+		r.open(nodes::source_selection_regular);
+		deluge::ui::test::Rig48 rig;
+		rig.input.turn = 1;
+		rig.input.shift = true;
+		draw(rig, 0);
+		expect(list_cursor()).to_equal(5);
 	});
 });
 // clang-format on

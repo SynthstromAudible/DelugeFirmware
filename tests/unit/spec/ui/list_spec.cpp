@@ -166,6 +166,21 @@ describe list_w("ui::oled::list", $ {
 		expect(st.scroll).to_equal(int16_t(1)); // just far enough
 	});
 
+	it("walks five rows a click under shift only for a list that asks, then clamps", _ {
+		// `SoundEditor::selectEncoderAction` scales the offset for a non-submenu item and hands a submenu the raw one.
+		const ListRow rows[] = {{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}};
+		uitest::Rig48 r; ListState submenu; ListState item; ScrollText sc;
+		const Rect m = menu_rect(r.frame);
+		r.input.turn = 1;
+		r.input.shift = true;
+		list(r.frame, m, submenu, rows, sc);
+		expect(submenu.cursor).to_equal(int16_t(1));
+		list(r.frame, m, item, rows, sc, true, true);
+		expect(item.cursor).to_equal(int16_t(5));
+		list(r.frame, m, item, rows, sc, true, true);
+		expect(item.cursor).to_equal(int16_t(7));
+	});
+
 	it("moves the cursor with turn, clamps, and keeps it visible", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;

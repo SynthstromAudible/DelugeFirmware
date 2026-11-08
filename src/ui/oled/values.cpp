@@ -56,14 +56,6 @@ int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 	return static_cast<int32_t>(std::clamp<int64_t>(next, range.min, range.max));
 }
 
-/// The select encoder's detents for a value edit, as `SoundEditor::selectEncoderAction`
-/// (`gui/ui/sound_editor.cpp`) hands them to a non-submenu item: multiplied by 5 while SHIFT
-/// is held. Read through the frame, so an unfocused frame contributes nothing.
-int64_t select_delta(const OledFrame& f) {
-	const int64_t detents = f.turn();
-	return f.shift() ? detents * 5 : detents;
-}
-
 /// A `step` of 0 would freeze the coarse knob, so it is read as the default (1) rather than
 /// honoured.
 int32_t coarse_step(Range range) {
