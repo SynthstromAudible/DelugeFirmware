@@ -1054,7 +1054,9 @@ startAgain:
 int32_t* grainReverbBuffer = reverbMemory.data();
 
 void feedReverbBackdoorForGrain(int index, q31_t value) {
-	grainReverbBuffer[index] += value;
+	if (grainReverbBuffer != nullptr) {
+		grainReverbBuffer[index] += value;
+	}
 }
 void renderReverb(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};

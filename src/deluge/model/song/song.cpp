@@ -2498,23 +2498,17 @@ void Song::deleteSoundsWhichWontSound() {
 }
 
 namespace {
-// A track headed for USB sends its reverb here instead - the Deluge's reverb is part of the main mix. Never read
-// (passing a zero send amount instead would also change the track's mod FX, which take it too)
-alignas(CACHE_LINE_SIZE) std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> discarded_reverb_memory;
-
 /// Renders a track whose destination is USB straight into the USB tracks buffer, like any track into the main mix.
 /// Its reverb send is dropped, so the host always gets tracks dry of the Deluge's reverb
 void renderOutputForUSB(Output* output, ModelStack* modelStack, size_t numSamples, int32_t reverbAmountAdjust,
                         int32_t sideChainHitPending, bool isClipActiveNow) {
 	std::span<StereoSample> to_usb{AudioEngine::getUSBTracksBuffer(), numSamples};
 
-	// Cleared so the sends never pile up past overflowing
-	memset(discarded_reverb_memory.data(), 0, numSamples * sizeof(int32_t));
-	// The grain FX send to the reverb their own way, so drop theirs too
+	// No reverb buffer drops the send. The grain FX send to the reverb their own way, so drop theirs too
 	int32_t* const song_grain_reverb_buffer = AudioEngine::grainReverbBuffer;
-	AudioEngine::grainReverbBuffer = discarded_reverb_memory.data();
-	output->renderOutput(modelStack, to_usb, discarded_reverb_memory.data(), reverbAmountAdjust, sideChainHitPending,
-	                     !isClipActiveNow, isClipActiveNow);
+	AudioEngine::grainReverbBuffer = nullptr;
+	output->renderOutput(modelStack, to_usb, nullptr, reverbAmountAdjust, sideChainHitPending, !isClipActiveNow,
+	                     isClipActiveNow);
 	AudioEngine::grainReverbBuffer = song_grain_reverb_buffer;
 }
 } // namespace
