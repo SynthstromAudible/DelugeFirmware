@@ -208,9 +208,9 @@ enum class MenuAction : uint8_t {
 	/// `RoundedCornersSettingToggle::writeCurrentValue`'s `Canvas::roundedCornersEnabled`, which main's rounded
 	/// primitives read, and the guest's panels with it (`pushShellRoundedCorners`).
 	RoundedCornersChanged,
-	/// `ShiftIsSticky::writeCurrentValue`'s `Buttons::clearShiftSticky()` when it turns off
-	/// (`runtime_feature/shift_is_sticky.cpp:22-24`).
-	ShiftStickyOff,
+	/// `ShiftIsSticky::writeCurrentValue`'s live half, on every write: the guest's own shift machine takes the setting,
+	/// and turned off, legacy's latch is released too (`Buttons::clearShiftSticky()`).
+	ShiftStickyChanged,
 	/// `flash::Status::writeCurrentValue`'s `PadLEDs::clearTickSquares()` when the old value was the slow flash
 	/// (`flash/status.h:27-31`).
 	FlashStatusLeftSlow,

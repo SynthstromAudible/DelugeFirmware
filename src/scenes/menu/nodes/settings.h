@@ -83,8 +83,8 @@
 /// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
 ///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
 ///       (`ScreensaverSettingsChanged`), pad brightness (`PadBrightnessChanged`), the menu highlighting
-///       (`HighlightingChanged`), rounded corners (`RoundedCornersChanged`), sticky shift turning off
-///       (`ShiftStickyOff`), leaving the slow cursor flash
+///       (`HighlightingChanged`), rounded corners (`RoundedCornersChanged`), sticky shift
+///       (`ShiftStickyChanged`), leaving the slow cursor flash
 ///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
 
 #include "scenes/menu/node.h"
@@ -311,8 +311,8 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 }
 /// @}
 
-/// @brief `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`) minus
-///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
+/// @brief `ShiftIsSticky::writeCurrentValue`: the setting, the shift LED, and
+///        `MenuAction::ShiftStickyChanged` for the shift machines (`hid/` and the guest's, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 /// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `MenuAction::RoundedCornersChanged` for
 /// the
@@ -1176,7 +1176,7 @@ inline constexpr Node feature_shortcut_overlay =
     enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY), kShortcutOverlayNames,
                 get_runtime_feature<22>, set_runtime_feature<22>);
 
-/// `ShiftIsSticky` (index 9) is the one toggle with a write of its own
+/// `ShiftIsSticky` (index 9) has a write of its own
 /// (`runtime_feature/shift_is_sticky.cpp`).
 inline constexpr Node feature_sticky_shift =
     toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), get_runtime_feature<9>, set_shift_is_sticky);

@@ -448,10 +448,16 @@ void dispatchShellActions() {
 		pushShellRoundedCorners();
 		break;
 
-	case MenuAction::ShiftStickyOff:
-		// `ShiftIsSticky::writeCurrentValue`'s off arm (`runtime_feature/shift_is_sticky.cpp:22-24`).
-		Buttons::clearShiftSticky();
+	case MenuAction::ShiftStickyChanged: {
+		// `ShiftIsSticky::writeCurrentValue`'s live half: the guest's shift machine takes the setting (`opened()` seeds
+		// it only on the way in), and off, legacy's latch goes with the guest's.
+		const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
+		shellHostUI.shell().lowering().set_shift_is_sticky(on);
+		if (!on) {
+			Buttons::clearShiftSticky();
+		}
 		break;
+	}
 
 	case MenuAction::FlashStatusLeftSlow:
 		// `flash::Status::writeCurrentValue`'s first statement (`flash/status.h:28-30`).

@@ -2900,7 +2900,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
 	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
-	// storing (`defaults/pad_brightness.h:32-36`, `runtime_feature/shift_is_sticky.cpp:22-24`, `flash/status.h:27-31`,
+	// storing (`defaults/pad_brightness.h:32-36`, `ShiftIsSticky::writeCurrentValue`, `flash/status.h:27-31`,
 	// `colour.h:44-47`; highlighting is read live by every renderer, `horizontal_menu.cpp:268`). Each is `hid/` or the
 	// guest's shell, so the setter files it for `dispatchShellActions`.
 	it("each setter files its action, and only on legacy's own condition", _ {
@@ -2920,9 +2920,9 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		nodes::set_rounded_corners(ctx, 1);
 		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 0);
-		expect(filed() == MenuAction::ShiftStickyOff).to_be_true();
+		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
 		nodes::set_shift_is_sticky(ctx, 1);
-		expect(filed() == MenuAction::ShiftStickyOff).to_be_false();
+		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
 		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_true();
@@ -2998,6 +2998,36 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
 		deluge::gui::ui::pushShellRoundedCorners();
+	});
+
+	it("a sticky-shift write reaches the guest's own shift machine, and turning it off releases both latches", _ {
+		// `ShiftIsSticky::writeCurrentValue`: `shellHostUI.shell().lowering().set_shift_is_sticky(on)`, and off,
+		// `Buttons::clearShiftSticky()`.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+		const uint32_t saved_light = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		const menu::MenuContext ctx{};
+		shellHostUI.shell().lowering().set_shift_is_sticky(false);
+
+		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_true();
+
+		Buttons::commandToggleShift(true); // SHIFT held: legacy's own state, which the off arm releases
+		menu::bindings::write(nodes::feature_sticky_shift, ctx, 0);
+		(void)scene().after_render();
+		deluge::gui::ui::dispatchShellActions();
+		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();
+		expect(Buttons::isShiftButtonPressed()).to_be_false();
+
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, saved);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, saved_light);
+		shellHostUI.shell().lowering().set_shift_is_sticky(saved == RuntimeFeatureStateToggle::On);
+		Buttons::clearShiftSticky();
 	});
 });
 // clang-format on

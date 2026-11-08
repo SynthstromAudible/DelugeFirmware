@@ -796,15 +796,13 @@ void set_rounded_corners(const MenuContext&, int32_t value) {
 }
 
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
-	// `ShiftIsSticky::writeCurrentValue` (`runtime_feature/shift_is_sticky.cpp:20-33`); its
-	// `Buttons::clearShiftSticky()` is `MenuAction::ShiftStickyOff`.
+	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; the guest's shift machine and legacy's
+	// latch are `MenuAction::ShiftStickyChanged`.
 	runtime_feature_set(RuntimeFeatureSettingType::ShiftIsSticky, value);
 	if (value != 0) {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
 	}
-	else {
-		menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyOff});
-	}
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyChanged});
 }
 
 size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {

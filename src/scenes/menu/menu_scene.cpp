@@ -1029,7 +1029,7 @@ Result MenuScene::after_render_navigation() {
 		case MenuAction::PadBrightnessChanged:
 		case MenuAction::HighlightingChanged:
 		case MenuAction::RoundedCornersChanged:
-		case MenuAction::ShiftStickyOff:
+		case MenuAction::ShiftStickyChanged:
 		case MenuAction::FlashStatusLeftSlow:
 		case MenuAction::PadColoursChanged:
 		case MenuAction::FileSelectorOpened:
