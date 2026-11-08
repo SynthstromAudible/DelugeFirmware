@@ -21,6 +21,7 @@
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
 #include "dsp-next/core/sample.h"
+#include "dsp-next/float/math/detail.h"
 
 #include <array>
 #include <cassert>
@@ -61,16 +62,6 @@ struct Program {
 };
 
 namespace detail {
-/// e^(-x) for x in [0, 1]: a 20-term Taylor series in Horner form, in double, within 1e-15 of the true value. Plain
-/// arithmetic in a fixed order, so every target computes the same bits (a library exp may differ).
-[[nodiscard]] inline double exp_negative(double x) {
-#pragma clang fp contract(off) reassociate(off) reciprocal(off)
-	double r = 1.0;
-	for (int k = 20; k >= 1; --k) {
-		r = 1.0 - ((r * x) / static_cast<double>(k));
-	}
-	return r;
-}
 /// A one-pole coefficient with time constant @p time samples (at least 1): 1 - e^(-1/time).
 [[nodiscard]] inline f32 one_pole_rate(f32 time) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)

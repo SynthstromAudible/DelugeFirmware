@@ -242,13 +242,18 @@ struct Pack<f32, N> {
 };
 
 /// @brief Whether any lane of @p m holds. No float arithmetic: an OR of the lanes' bits.
+/// @details Reduced in the vector domain (the high half onto the low, then the other lane of the pair) so that one
+/// lane crosses to the core; reading each lane costs a transfer apiece on the A9.
 template <std::size_t N>
 [[nodiscard]] [[gnu::always_inline]] inline bool any(Mask<N> m) {
-	bool r = false;
-	for (std::size_t i = 0; i < N; ++i) {
-		r = r || m.get(i);
+	if constexpr (N == 4) {
+		const auto halves =
+		    __builtin_shufflevector(m.bits, m.bits, 0, 1) | __builtin_shufflevector(m.bits, m.bits, 2, 3);
+		return (halves | __builtin_shufflevector(halves, halves, 1, 0))[0] != 0;
 	}
-	return r;
+	else {
+		return (m.bits | __builtin_shufflevector(m.bits, m.bits, 1, 0))[0] != 0;
+	}
 }
 
 /// @brief Transposes @p m in place: lane c of row r becomes lane r of row c.

@@ -20,11 +20,11 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/sample.h"
+#include "dsp-next/float/math/detail.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 #include <tuple>
 #include <type_traits>
 
@@ -87,7 +87,7 @@ struct Svf {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const f32 fc = std::clamp(settings.cutoff, 1.f / 48000.f, 0.49f);
 		const f32 q = std::clamp(settings.q, 0.5f, 40.f);
-		const f32 g = std::tan(std::numbers::pi_v<f32> * fc);
+		const f32 g = static_cast<f32>(detail::tan_pi(static_cast<double>(fc)));
 		const f32 k = 1.f / q;
 		const f32 a1 = 1.f / (1.f + (g * (g + k)));
 		const f32 a2 = g * a1;

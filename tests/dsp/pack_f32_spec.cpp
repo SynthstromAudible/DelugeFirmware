@@ -146,6 +146,15 @@ void pack_specs(auto& self) {
 			expect(m.get(i)).to_equal(i == N - 1);
 		}
 	});
+	it("reports any for every single-lane pattern and for none", _ {
+		const Pack<f32, N> zero{0.f};
+		expect(any(Pack<f32, N>{0.f} > zero)).to_be_false();
+		for (std::size_t set = 0; set < N; ++set) {
+			Pack<f32, N> a{0.f};
+			a.set(set, 1.f);
+			expect(any(a > zero)).to_be_true();
+		}
+	});
 	it("ands two masks lane by lane", _ {
 		Pack<f32, N> a{0.f}, b{0.f};
 		for (std::size_t i = 0; i < N; ++i) {

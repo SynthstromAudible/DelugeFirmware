@@ -26,32 +26,32 @@ namespace records {
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 2508712197U;
-inline constexpr uint32_t kSmootherExponential = 957903478U;
-inline constexpr uint32_t kSvfLowPass = 3003083457U;
-inline constexpr uint32_t kSvfNotch = 1315717876U;
-inline constexpr uint32_t kSvfHighPass = 1567773475U;
+inline constexpr uint32_t kSmootherExponential = 539644771U;
+inline constexpr uint32_t kSvfLowPass = 2930967566U;
+inline constexpr uint32_t kSvfNotch = 26242838U;
+inline constexpr uint32_t kSvfHighPass = 595765005U;
 inline constexpr uint32_t kBlepSaw = 262873454U;
 inline constexpr uint32_t kBlepPulse = 2717416499U;
 inline constexpr uint32_t kTableSaw = 4229038149U;
 inline constexpr uint32_t kEnvAdsr = 3510208178U;
 inline constexpr uint32_t kEnvFourSegment = 4163814850U;
-inline constexpr uint32_t kBlepVoice = 768591211U;
-inline constexpr uint32_t kTableVoice = 4278655398U;
+inline constexpr uint32_t kBlepVoice = 1702334556U;
+inline constexpr uint32_t kTableVoice = 2871905927U;
 #else
 inline constexpr uint32_t kBlepSaw = 262873454U;
 inline constexpr uint32_t kBlepPulse = 2717416499U;
 inline constexpr uint32_t kTableSaw = 811564572U;
 inline constexpr uint32_t kEnvAdsr = 1674674664U;
 inline constexpr uint32_t kEnvFourSegment = 4163814850U;
-inline constexpr uint32_t kBlepVoice = 1800510562U;
-inline constexpr uint32_t kTableVoice = 3588553519U;
+inline constexpr uint32_t kBlepVoice = 4009388515U;
+inline constexpr uint32_t kTableVoice = 880284926U;
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 1153755580U;
-inline constexpr uint32_t kSmootherExponential = 1232577157U;
-inline constexpr uint32_t kSvfLowPass = 857356867U;
-inline constexpr uint32_t kSvfNotch = 3338462520U;
-inline constexpr uint32_t kSvfHighPass = 4274204595U;
+inline constexpr uint32_t kSmootherExponential = 3365775788U;
+inline constexpr uint32_t kSvfLowPass = 1703463923U;
+inline constexpr uint32_t kSvfNotch = 3138167853U;
+inline constexpr uint32_t kSvfHighPass = 3402081241U;
 #endif
 /// The PolyBLEP saw's aliased energy (the 0.39 fs bin of a 0.09 fs saw) over its fundamental's: measured (4.4e-4),
 /// rounded up to one significant digit.

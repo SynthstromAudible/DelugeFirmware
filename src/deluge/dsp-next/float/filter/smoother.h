@@ -20,6 +20,7 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/sample.h"
+#include "dsp-next/float/math/detail.h"
 
 #include <algorithm>
 #include <cmath>
@@ -91,7 +92,7 @@ struct Smoother {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		f32 rate = 1.f;
 		if (settings.mode == Mode::EXPONENTIAL && settings.time > 0.f) {
-			rate = 1.f - std::exp(-1.f / settings.time);
+			rate = static_cast<f32>(1.0 - detail::exp_negative(1.0 / static_cast<double>(settings.time)));
 		}
 		return {.target = settings.target, .rate = rate, .mode = settings.mode};
 	}
