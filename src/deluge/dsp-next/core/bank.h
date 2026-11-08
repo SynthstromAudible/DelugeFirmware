@@ -1,0 +1,128 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#pragma once
+
+#include "dsp-next/core/kernel.h"
+#include "dsp-next/core/lane_set.h"
+#include "dsp-next/core/mode.h"
+#include "dsp-next/core/pack_f32.h"
+#include "dsp-next/core/poly_kernel.h"
+#include "dsp-next/core/sample.h"
+
+#include <cassert>
+#include <concepts>
+#include <cstddef>
+
+/// @file
+/// @brief Bank<K, N, Mix>: one signal into N copies of a float kernel, each with its own settings, mixed to the
+/// output: a filter, comb or allpass bank.
+namespace deluge::dsp {
+
+namespace mix {
+/// @brief The lanes summed in lane order.
+struct Sum {};
+/// @brief Each lane times its gain, summed in lane order.
+struct Weighted {};
+/// @brief The even lanes summed to left, the odd lanes to right, each in lane order.
+struct StereoPair {};
+} // namespace mix
+
+/// @brief N copies of @p K reading one input: each sample broadcasts to every lane, one step over Pack<f32, N> steps
+/// every copy, and @p Mix reduces the lanes to the output.
+/// @details Settings per lane and one mode, as @ref Poly; a K that declares `prepare` has it called once per block
+/// on the packed coefficients and state, as Poly does. Each copy is bit for bit Mono<K> with its settings; the mix
+/// adds the lanes in lane order, unfused (a lane's gain multiplies, then the sum adds), so the output is the Mono
+/// outputs' sum in that order. N = 4 StereoPair: left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2: left =
+/// lane 0, right = lane 1.
+template <poly_kernel K, std::size_t N, class Mix>
+requires(N == 2 || N == 4)
+class Bank : public detail::LaneSet<K, N> {
+	using Lanes = detail::LaneSet<K, N>;
+	using V = Pack<f32, N>;
+	using Mode = K::Mode;
+	using typename Lanes::PackedCoefficients;
+	using typename Lanes::PackedState;
+
+public:
+	using Lanes::configure;
+	using Lanes::reset;
+	using Lanes::set_mode;
+	using Lanes::state;
+
+	/// @brief Lane @p lane's gain in the mix.
+	void set_gain(std::size_t lane, f32 gain)
+	requires std::same_as<Mix, mix::Weighted>
+	{
+		assert(lane < N);
+		gains_.set(lane, gain);
+	}
+
+	/// @brief One block into one output.
+	void render_block(fp::Signal in, fp::Buffer out)
+	requires(!std::same_as<Mix, mix::StereoPair>)
+	{
+		assert(out.size() == in.size());
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
+			run<M>(in, [&](std::size_t i, V y) {
+#pragma clang fp contract(off) reassociate(off)
+				if constexpr (std::same_as<Mix, mix::Weighted>) {
+					y = y * gains_;
+				}
+				out[i] = sum(y);
+			});
+		});
+	}
+
+	/// @brief One block into left and right.
+	void render_block(fp::Signal in, fp::Buffer left, fp::Buffer right)
+	requires std::same_as<Mix, mix::StereoPair>
+	{
+		assert(left.size() == in.size() && right.size() == in.size());
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
+			run<M>(in, [&](std::size_t i, V y) {
+#pragma clang fp contract(off) reassociate(off)
+				if constexpr (N == 4) {
+					left[i] = y.get(0) + y.get(2);
+					right[i] = y.get(1) + y.get(3);
+				}
+				else {
+					left[i] = y.get(0);
+					right[i] = y.get(1);
+				}
+			});
+		});
+	}
+
+private:
+	template <Mode M, class Write>
+	void run(fp::Signal in, const Write& write) {
+		const PackedCoefficients c = this->coefficients();
+		PackedState s = this->packed_state();
+		kernel_block_t<K> block{};
+		if constexpr (detail::declares_prepare<K>) {
+			block = K::prepare(c, s, in.size());
+		}
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			write(i, K::template step<M>(c, block, s, V{in[i]}));
+		}
+		this->set_packed_state(s);
+	}
+
+	V gains_{1.f}; ///< Weighted: each lane's gain.
+};
+
+} // namespace deluge::dsp

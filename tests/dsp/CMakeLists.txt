@@ -34,6 +34,7 @@ set(pack_f32_fused_spec_OPTIONS -mfma)
 set(_fused_specs pack_f32_fused_spec)
 # The Poly spec needs no sources: Poly and the float kernels it runs against Mono are header-only.
 set(poly_spec_DEPS)
+set(bank_spec_DEPS)
 set(float_kernels_spec_DEPS)
 set(float_kernels_fused_spec_DEPS)
 set(float_kernels_fused_spec_OPTIONS -mfma)
