@@ -65,7 +65,6 @@ PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
 PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
-Deserializer* activeReader = &smDeserializer;
 
 namespace {
 Serializer* activeWriter = &smSerializer;
@@ -324,12 +323,8 @@ Error StorageManager::parseInstrumentDocument(deluge::storage::TreeDocument& doc
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Error error;
-	{
-		deluge::storage::ActiveReaderScope reading(document.reader());
-		document.reader().match('{'); // into the instrument's object: needed for JSON, a no-op in XML
-		error = newInstrument->readFromFile(document.reader(), song, clip, 0);
-	}
+	document.reader().match('{'); // into the instrument's object: needed for JSON, a no-op in XML
+	Error error = newInstrument->readFromFile(document.reader(), song, clip, 0);
 
 	// If that somehow didn't work...
 	if (error != Error::NONE) {
@@ -388,11 +383,7 @@ Error StorageManager::parseMidiDeviceDefinitionDocument(deluge::storage::TreeDoc
                                                         bool updateFileName) {
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	Error error;
-	{
-		deluge::storage::ActiveReaderScope reading(document.reader());
-		error = midiInstrument->readDeviceDefinitionFile(document.reader());
-	}
+	Error error = midiInstrument->readDeviceDefinitionFile(document.reader());
 	// The definition's labels and hide flag are the track's record's too.
 	if (error == Error::NONE) {
 		midiInstrument->seedDocOutputIdentity();
@@ -456,12 +447,8 @@ Error StorageManager::parseSynthDrumDocument(deluge::storage::TreeDocument& docu
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	Error error;
-	{
-		deluge::storage::ActiveReaderScope reading(document.reader());
-		document.reader().match('{'); // into the preset's object: needed for JSON, a no-op in XML
-		error = newDrum->readFromFile(document.reader(), song, clip, 0);
-	}
+	document.reader().match('{'); // into the preset's object: needed for JSON, a no-op in XML
+	Error error = newDrum->readFromFile(document.reader(), song, clip, 0);
 
 	// If that somehow didn't work...
 	if (error != Error::NONE) {

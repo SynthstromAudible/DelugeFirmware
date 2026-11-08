@@ -14,7 +14,7 @@
 # through, so it cannot be the thing a gold turn here edits. What the turn DOES move is whatever real
 # modulation param GoldUpper is currently pointed at: `idle`'s `indicator upper` reads `16` and
 # `after_gold_turn`'s reads `36`. And because `ModKnobs::popup_suppressed` -- the port of legacy's "let's see if we're editing the same
-# param in the menu, if so, don't show pop-up" (`view.cpp:894-901`) -- compares the turn's param
+# param in the menu, if so, don't show pop-up" (`view.cpp`) -- compares the turn's param
 # against `menu_scene().focused()->bind.param`, and `nodes::saturation` has none to compare, the
 # guard cannot suppress the popup here: a `ParamPopupScene` goes up over the menu. `idle` carries one
 # `scene` line, `after_gold_turn` carries two, and `after_back` carries one again -- not the menu's:
@@ -35,7 +35,7 @@
 # **The first gold detent is swallowed, and that is the port working.** `RealServices::installer`
 # calls `ModKnobs::set_focus`, which opens with `pretend_knobs_untouched()`
 # (legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1969-1973`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
+# `view.cpp`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
 # opening half of a possible wiggle. `param_popup.txt` carries the same note and the same two-turn
 # opening for the same reason. This half is unaffected by the select-encoder fix: it was always about
 # the gold path into `ModKnobs`, which this script now actually reaches.

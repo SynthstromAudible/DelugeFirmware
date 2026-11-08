@@ -148,8 +148,42 @@ using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 uint32_t routine();
 bool routine_task();
-void routineWithClusterLoading();
 void runRoutine();
+
+/// @brief [interaction] Holds off the audio tick for its scope: while any hold is alive, `routine_task()` and
+///        `routine()` return at once without rendering.
+///
+/// For an edit the tick must not interleave with, and for test fixtures that must not have a render land between a
+/// write and its check. Holds nest; ticks resume when the outermost one ends. The constructor waits out a render
+/// block already in flight (an empty AudioExcludedSection). On the device that is the whole guarantee: the audio tier
+/// preempts and runs to completion, so no tick starts under the hold. On host the tick runs on another thread, and one
+/// that passed its check before the hold began can still render a block after the drain; only the snapshot boundary
+/// (M4) closes that. On the device every tick a hold spans is a tick of silence, so hold for as short a span as the
+/// edit allows.
+class AudioTickHold {
+public:
+	AudioTickHold();
+	~AudioTickHold();
+	AudioTickHold(const AudioTickHold&) = delete;
+	AudioTickHold& operator=(const AudioTickHold&) = delete;
+	AudioTickHold(AudioTickHold&&) = delete;
+	AudioTickHold& operator=(AudioTickHold&&) = delete;
+};
+
+/// @brief [task] [audio] Whether an AudioTickHold is alive anywhere.
+/// @return True while the hold depth is non-zero.
+bool audioTicksHeld() noexcept;
+
+/// @brief [task] [audio] Whether the audio routine is running or held: the caller is on the audio context, or a tick
+///        hold is alive. Work that must not run inside the routine, such as a flash write, defers while this is true.
+/// @return `deluge_in_audio_context() || audioTicksHeld()`.
+bool audioBusy() noexcept;
+
+#ifdef DELUGE_HOST
+/// @brief [interaction] Host-only test seam: run @p hook once, the next time `routine()` gets past its re-entry and
+///        hold checks; nullptr clears it. A throwing hook stands in for a throw out of the routine.
+void setRoutineInjection(void (*hook)());
+#endif
 
 void init();
 /// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
@@ -281,8 +315,6 @@ int32_t* inputRingStart();
 int32_t* inputRingEnd();
 extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
-extern bool audioRoutineLocked;
-extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 /// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
 /// reverb. Its sync type is set only from the menu.
@@ -371,23 +403,6 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
 /// @brief The foreground recording's channel -- `AudioRecorder::recordingSource`.
 /// @return `AudioInputChannel::NONE` when nothing is recording.
 AudioInputChannel foregroundRecordingSource();
-/// @brief Is it unsafe to free a `SampleRecorder` right now?
-///
-/// `discardRecorder` destroys and frees the object, and that must not happen from inside the SD
-/// routine: the recorder may be suspended part-way through its own `cardRoutine()`, so freeing it
-/// there leaves that `cardRoutine()` running on freed memory and then frees it a second time.
-/// `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`) is where legacy states that,
-/// and its guard is `deluge::sync::sd_busy()` -- exactly this condition.
-/// `discardRecorder`'s own ALPHA_OR_BETA diagnostic now reads this function too, so the precondition
-/// has one spelling rather than two.
-///
-/// A sibling of the seam above, and here for the same reason: the other caller that has to ask is
-/// `deluge::scenes::recorder::RecorderScene`, and `src/scenes` may include neither
-/// `OSLikeStuff/scheduler_api.h` nor `sync/sd_access.h` (`scripts/check_layer_rules.py`,
-/// `scenes-includes-outside`). `audio_engine.cpp` already reaches both.
-///
-/// @return True while a caller must **defer and retry** rather than free.
-bool sdRoutineBusy();
 /// @}
 
 /// @brief Re-derive `inputMonitor`'s decision from the foreground recording.

@@ -45,12 +45,11 @@ void FileListing::beginRead(std::string_view dir, std::string_view searchName, C
 void FileListing::clear() {
 	AudioEngine::logAction("emptyFileItems");
 
-	// Erase in chunks from the end, keeping the audio routine fed in between - this can be thousands of items.
+	// Erase in chunks from the end: this can be thousands of items.
 	while (!items_.empty()) {
 		size_t chunk = std::min<size_t>(256, items_.size());
 		items_.erase(items_.end() - chunk, items_.end());
 		AudioEngine::logAction("emptyFileItems in loop");
-		AudioEngine::routineWithClusterLoading();
 	}
 	items_.shrink_to_fit();
 
@@ -67,12 +66,11 @@ void FileListing::eraseAt(int32_t index) {
 }
 
 void FileListing::eraseRange(int32_t startAt, int32_t stopAt) {
-	// Erase in chunks from the back of the range, keeping the audio routine fed in between.
+	// Erase in chunks from the back of the range.
 	while (stopAt > startAt) {
 		int32_t chunkStart = std::max(startAt, stopAt - 256);
 		items_.erase(items_.begin() + chunkStart, items_.begin() + stopAt);
 		stopAt = chunkStart;
-		AudioEngine::routineWithClusterLoading();
 	}
 }
 

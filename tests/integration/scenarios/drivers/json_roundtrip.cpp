@@ -85,12 +85,10 @@ static Song* loadFromXml(char* xml, size_t xmlLen, Error* loadErr) {
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
-		activeReader = &adapter;
 		e = openTreeFile(adapter, "song");
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
-		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -108,12 +106,10 @@ static Song* loadFromJson(char* json, size_t jsonLen, Error* loadErr) {
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Json);
-		activeReader = &adapter;
 		e = openTreeFileJson(adapter, "song");
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
-		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

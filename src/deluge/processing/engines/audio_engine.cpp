@@ -82,7 +82,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "sync/sd_access.h"
 #include "synth/modulation/envelope.h"
 #include "util/boot.h"
 #include "util/functions.h"
@@ -104,6 +103,7 @@
 #include <numeric>
 #include <optional>
 #include <ranges>
+#include <utility>
 
 // Last, after every other header: these declare namespace deluge::util, which would shadow the global ::util for
 // the headers above that name util:: from inside namespace deluge.
@@ -470,7 +470,6 @@ int32_t numSamplesLastTime = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
-bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 
 // See audio_engine.h: the app-owned mirror of the received input, and the read
@@ -516,7 +515,6 @@ bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
-bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
 // For debugging
@@ -734,28 +732,6 @@ int32_t getNumVoices() {
 		return std::transform_reduce(all.cbegin(), all.cend(), 0, std::plus{},
 		                             [](auto sound) { return sound->voices().size(); });
 	});
-}
-
-void routineWithClusterLoading() {
-	logAction("AudioDriver::routineWithClusterLoading");
-	DELUGE_LOAD_TRACE("routine");
-
-	// In-memory deserialization (FileReader::callRoutines == false) opts out of the cooperative
-	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
-	// reads keep callRoutines == true. This also lets a headless host harness load a Song without
-	// standing up the audio engine.
-	if (activeReader != nullptr && !activeReader->shouldCallRoutines()) {
-		return;
-	}
-
-	routineBeenCalled = false;
-
-	if (!routineBeenCalled) {
-		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
-
-		logAction("call runRoutine() from routineWithClusterLoading()");
-		runRoutine();
-	}
 }
 
 void runRoutine() {
@@ -1306,11 +1282,7 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 	try {
 		return AudioEngine::routine_task();
 	} catch (...) {
-		// routine() may have thrown after setting audioRoutineLocked and before clearing it; left set,
-		// that reentrancy guard would make every future tick return false and silence audio for good.
-		// Clear it here so the next tick renders. Nothing else to report to: this tick counts as one
-		// that rendered nothing.
-		AudioEngine::audioRoutineLocked = false;
+		// routine()'s re-entry guard clears on unwind, so the next tick renders; this one rendered nothing.
 		return false;
 	}
 }
@@ -1723,26 +1695,78 @@ bool routine_task() {
 	if (stemExport.renderingOffline()) {
 		return false;
 	}
-	if (audioRoutineLocked) {
+	if (audioTicksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return false;
 	}
 	return routine() > 0;
 }
+
+namespace {
+/// The hold depth: how many AudioTickHolds are alive.
+std::atomic<uint32_t> tickHoldDepth{0};
+
+/// Whether routine() is running. The audio tier runs it, and so does the interaction tier at boot (runRoutine()) and
+/// for an offline export; the host runs those tiers on separate threads, hence the atomic.
+std::atomic<bool> inRoutine{false};
+
+/// Sets inRoutine for its scope, and clears it on unwind too: left set, every later tick would return at once.
+struct InRoutineGuard {
+	InRoutineGuard() { inRoutine.store(true, std::memory_order_relaxed); }
+	~InRoutineGuard() { inRoutine.store(false, std::memory_order_relaxed); }
+	InRoutineGuard(const InRoutineGuard&) = delete;
+	InRoutineGuard& operator=(const InRoutineGuard&) = delete;
+};
+
+#ifdef DELUGE_HOST
+void (*routineInjection)() = nullptr;
+#endif
+} // namespace
+
+AudioTickHold::AudioTickHold() {
+	tickHoldDepth.fetch_add(1, std::memory_order_acq_rel);
+	// Wait out a render block already in flight: the section cannot begin until it ends.
+	{ AudioExcludedSection drain; }
+}
+
+AudioTickHold::~AudioTickHold() {
+	tickHoldDepth.fetch_sub(1, std::memory_order_release);
+}
+
+bool audioTicksHeld() noexcept {
+	return tickHoldDepth.load(std::memory_order_acquire) != 0;
+}
+
+bool audioBusy() noexcept {
+	return deluge_in_audio_context() || audioTicksHeld();
+}
+
+#ifdef DELUGE_HOST
+void setRoutineInjection(void (*hook)()) {
+	routineInjection = hook;
+}
+#endif
+
 uint32_t routine() {
 
 	logAction("AudioDriver::routine");
 
-	if (audioRoutineLocked) {
+	if (inRoutine.load(std::memory_order_relaxed) || audioTicksHeld()) {
 		logAction("AudioDriver::routine locked");
 		return 0; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		          // called from within this!
 	}
 
-	audioRoutineLocked = true;
+	InRoutineGuard guard;
+
+#ifdef DELUGE_HOST
+	if (void (*hook)() = std::exchange(routineInjection, nullptr); hook != nullptr) {
+		hook();
+	}
+#endif
 
 #if MEM_GUARD
-	// Periodically validate the whole heap from a safe point. audioRoutineLocked guards against re-entry, and
+	// Periodically validate the whole heap from a safe point. inRoutine guards against re-entry, and
 	// checkEverythingOk additionally bails if an alloc/dealloc is in flight (lock held), so the boundary tags are
 	// stable while we walk.
 	static uint32_t memGuardWalkCountdown = MEM_GUARD_WALK_INTERVAL;
@@ -1828,8 +1852,6 @@ uint32_t routine() {
 			}
 		}
 	}
-	audioRoutineLocked = false;
-	routineBeenCalled = true;
 	return renders;
 }
 
@@ -2404,25 +2426,8 @@ errorAfterAllocation:
 	return newRecorder;
 }
 
-bool sdRoutineBusy() {
-	return deluge::sync::sd_busy();
-}
-
-// PLEASE don't call this if there's any chance you might be in the SD card routine...
-// ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
-// cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
-// time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
-// leaving the rule as a comment for each caller to honour, enforce it.
-//
-// Diagnostic only, not a hard invariant: sd_busy() answers "is ANY filesystem operation in flight anywhere", not "is
-// THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
-// not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
-// this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
-// operation.
+// Free only a settled recorder (SampleRecorder::settled): a cluster write still out borrows its buffer.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && sdRoutineBusy()) {
-		D_PRINTLN("discardRecorder: sd_busy() was true on entry");
-	}
 
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;

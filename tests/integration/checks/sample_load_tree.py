@@ -13,7 +13,7 @@ What the checks cover (tests/integration/scenarios/sample_load_tree_scenario.cpp
                 - Each preset's sample resolves to the preset's own folder, with its path rewritten there.
     SLT-CLIP    the audio clip's name after the load is its sample's path.
     SLT-SONG / SLT-SYNTH / SLT-KIT
-                how many times each load called routineWithClusterLoading, the cadence that keeps audio running.
+                what each load found: the song's parts, and each preset's load error.
     LT          the load trace: one line per call into the traced leaf functions, while a load runs.
     SLT-CRUCIAL a song loaded while playback runs: which holders its crucial-only pass bound (only what the playing
                 clips need first), that its armed swap happened, and every holder bound to its collected copy after.

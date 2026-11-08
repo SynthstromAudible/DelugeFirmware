@@ -429,13 +429,13 @@ struct Rig {
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
 		// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
 		// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-		// (`model/song/song.cpp:3215-3217`), and `SampleHolder::getLoopLengthAtSystemSampleRate`
+		// (`model/song/song.cpp:3190-3192`), and `SampleHolder::getLoopLengthAtSystemSampleRate`
 		// divides by it (`model/sample/sample_holder.cpp:105-111`) -- so
 		// `setClipLengthEqualToSampleLength` computed a length of **zero** on BOTH sides, and the
 		// comparison passed while nothing happened. Caught by `expect_edit_matches`' "each side
 		// differs from the seed" half, which is the whole reason that half is there.
 		//
-		// 120 BPM, through `Song::setBPMInner`'s own arithmetic (`song.cpp:3074-3083`) rather than
+		// 120 BPM, through `Song::setBPMInner`'s own arithmetic (`song.cpp:3049-3058`) rather than
 		// by calling it: `setTempoFromNumSamples` reaches `playbackHandler`, and this process has
 		// no transport.
 		const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
@@ -504,7 +504,7 @@ LegacyPads legacy_pads() {
 ///        shown, as a PBM.
 ///
 /// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp:2106-2116`), so that is what is read back.
+/// into `hid::display::OLED::main` (`gui/views/view.cpp`), so that is what is read back.
 std::string legacy_oled() {
 	deluge::hid::display::OLED::clearMainImage();
 	legacy_view.renderOLED(deluge::hid::display::OLED::main);
@@ -1518,13 +1518,10 @@ describe audio_clip_scene_spec_body(
 		        // and is emphatically not what an undo would have done.
 		        //
 		        // **Every example in this group holds `QuietAudio`, and none of the render examples
-		        // above does.** Driving legacy's own gestures reaches cluster loading and
-		        // `AudioEngine::routineWithClusterLoading`, and a spec process never booted the engine
-		        // -- so without the latch these segfault rather than fail (`support/card_access.h`'s
-		        // `@warning`; found here by exactly that segfault, in `AudioClip::unassignVoiceSample`
-		        // at `:1311` and again in legacy's `setupScroll` pre-render). It must NOT spread to a
-		        // pad comparison: there the same pump is what makes the waveform scan succeed, and a
-		        // failed scan is the vacuity the `Sentinel` docstring is about.
+		        // above does.** The latch keeps the audio routine still while legacy's own gestures run
+		        // (`support/card_access.h`). It must NOT spread to a pad comparison: the overview scan
+		        // waits while the latch is held, and a failed scan is the vacuity the `Sentinel`
+		        // docstring is about.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        Input in;

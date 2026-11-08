@@ -77,10 +77,6 @@ public:
 
 	void reset() override;
 
-	/// @brief Always false: the whole tree is resident, so there is never anything to yield to. This gates the
-	///        AudioEngine render loop off during a tree-backed load (via the active-reader gate).
-	[[nodiscard]] bool shouldCallRoutines() const override { return false; }
-
 	[[nodiscard]] ValueTreeDeserializer* asTreeReader() override { return this; }
 
 	/// @brief The Value node this cursor is currently positioned at.

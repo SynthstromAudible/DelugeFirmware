@@ -774,7 +774,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp:1690`): `numBlinks` 255 (i.e. forever) on
+	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp`): `numBlinks` 255 (i.e. forever) on
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 

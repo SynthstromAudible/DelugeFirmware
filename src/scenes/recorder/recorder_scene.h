@@ -28,7 +28,7 @@
 /// this:
 ///
 /// - `process()`'s loop body, and where each part goes here:
-///   - `AudioEngine::routineWithClusterLoading()`, `uiTimerManager.routine()`, `deluge_display_service()`,
+///   - `uiTimerManager.routine()`, `deluge_display_service()`,
 ///     `deluge_control_flush()`, `readButtonsAndPads()`, `AudioEngine::slowRoutine()` -- the shell's own tick;
 ///     none of it is this scene's.
 ///   - `if (recorder->status >= COMPLETE || hadCardError)` -> attach the sample, `finishRecording()`,

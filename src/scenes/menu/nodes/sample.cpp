@@ -150,9 +150,9 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuWalkState::go_up_on_resume`.
 	// So the consequence here is still one extra BACK press after a recording.
 	//
-	// `process()` is not called either: legacy runs the recorder
-	// as a blocking loop from this stack frame (`gui/ui/audio_recorder.cpp:193-242`), while the
-	// scene is driven by the shell's own tick (`recorder_scene.h` §1).
+	// `process()` is not called either: legacy drives the recorder from its own app-loop job
+	// (`AudioRecorder::slowRoutine`), while the scene is driven by the shell's own tick
+	// (`recorder_scene.h` §1).
 	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
 }

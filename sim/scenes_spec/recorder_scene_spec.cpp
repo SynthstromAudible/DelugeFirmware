@@ -13,7 +13,8 @@
 /// **Nothing here writes to the SD card, and that is a property of the code rather than of a guard.**
 /// `SampleRecorder::setup` (`model/sample/sample_recorder.cpp`) allocates a `Sample` and one
 /// capture buffer and returns; the file is created in `cardRoutine()`, which only
-/// `AudioEngine::doRecorderCardRoutines()` calls and which nothing in this spec pumps.
+/// `AudioEngine::doRecorderCardRoutines()` calls on the device. The one example that pumps it does
+/// so on an aborted take that never created a file, whose teardown is memory only.
 /// `endSyncedRecording` (`:1195`) is arithmetic over `numSamplesCaptured`, and `abort()` (`:367`) is
 /// a single status store -- the file deletion that follows an abort is, again, in `cardRoutine()`.
 /// The file runs with no card installed (`NoSdRoot`), and the card is in memory, so a future change
@@ -85,7 +86,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <functional>
 #include <string>
 #include <utility>
 
@@ -520,32 +520,6 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
-extern "C" bool deluge_host_storage_hold_fs(bool hold);
-
-/// @brief Hold the filesystem lock for the scope: `AudioEngine::sdRoutineBusy()` genuinely true.
-///
-/// **Not a fake flag.** `sdRoutineBusy()` is `deluge::sync::sd_busy()`, which is true while the
-/// filesystem lock is held -- by a card operation in flight, or here by the host's
-/// `deluge_host_storage_hold_fs`, which takes that same lock on this thread and releases it however
-/// the scope ends. Nothing in the scope may touch a file: a filesystem call on this thread would wait
-/// on the lock it holds.
-struct CardBusy {
-	CardBusy() {
-		if (!deluge_host_storage_hold_fs(true)) {
-			spec_bail("CardBusy: the filesystem lock is already held");
-		}
-	}
-	~CardBusy() { (void)deluge_host_storage_hold_fs(false); }
-	CardBusy(const CardBusy&) = delete;
-	CardBusy& operator=(const CardBusy&) = delete;
-};
-
-/// @brief Run @p body while the card is busy (`CardBusy`).
-void in_sd_routine(const std::function<void()>& body) {
-	const CardBusy busy;
-	body();
-}
-
 } // namespace
 
 // clang-format off
@@ -861,32 +835,30 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(k.recorded_name()).to_equal(std::string{"REC2"});
 	});
 
-	it("defers the whole completion arm while the SD routine is running", _ {
-		// `AudioRecorder::slowRoutine`'s guard (`:168-176`), which `after_render()` needs for the
-		// same reason: `finish_recording()` frees the recorder, and freeing one that is suspended
-		// part-way through its own `cardRoutine()` leaves that routine running on freed memory.
+	it("ends the take on a card error and frees it only once the recorder has settled", _ {
+		// `AudioRecorder::slowRoutine`'s card-error arm: stop capturing, then wait for the
+		// recorder to close its file and for the driver to answer the last write it was given --
+		// `finish_recording()` frees the buffer that write borrows.
 		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 		const Take take{*rec, "SAMPLES/RECORD/REC000.WAV"};
-		rec->status = RecorderStatus::COMPLETE;
+		rec->numSamplesCaptured = 1024;
+		rec->hadCardError = true;
 
-		// The poll tick that would finish it, run from inside a real card routine.
-		in_sd_routine([&r] { r.tick(10); });
-
-		// Nothing freed, nothing attached, nothing closed.
+		r.tick(10);
+		expect(recorder_scene().stopping()).to_be_true();
 		expect(recorder_scene().recording()).to_be_true();
 		expect(recorder_scene().recorder() == rec).to_be_true();
-		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.on_stack()).to_be_true();
 
-		// And the cost of the deferral is exactly one poll: the next tick, outside the routine,
-		// runs the completion arm in full.
+		// Settled: the card routine has closed the take. The next poll frees it, attaching nothing.
+		rec->status = RecorderStatus::COMPLETE;
 		r.tick(20);
 		expect(recorder_scene().recording()).to_be_false();
-		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
+		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 		expect(r.on_stack()).to_be_false();
 	});
 
@@ -898,7 +870,15 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 		rec->status = RecorderStatus::ABORTED;
+		// Not settled until its card routine has torn the take down, which the app loop does on the
+		// device. No file was ever created, so the teardown is memory only.
 		r.tick(10);
+		expect(recorder_scene().recording()).to_be_true();
+		for (int32_t pass = 0; pass < 8 && !rec->settled(); ++pass) {
+			(void)rec->cardRoutine();
+		}
+		expect(rec->settled()).to_be_true();
+		r.tick(20);
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(recorder_scene().recording()).to_be_false();

@@ -51,7 +51,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "sync/sd_access.h"
 #include "util/c_string.h"
 #include <iterator>
 #include <string.h>
@@ -196,14 +195,6 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
-	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
-	// that cardRoutine() running on freed memory (then freeing it a second time). The Embassy scheduler runs
-	// cardRoutine() inline and to completion, so it is never suspended part-way; this guard covers the rest.
-	if (deluge::sync::sd_busy()) {
-		return;
-	}
-
 	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		// setupRecordingToFile() always assigns recorder before recordingSource, so this can't happen - but don't let
 		// it become a silent hang: StemExport's yield loop waits on recordingSource, which only finishRecording()

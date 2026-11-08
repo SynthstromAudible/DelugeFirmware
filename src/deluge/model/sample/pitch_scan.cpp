@@ -77,7 +77,6 @@ void PitchScan::startPass() {
 	currentOffset_ = s.beginningOffsetForPitchDetection;
 	writeIndex_ = 0;
 	biggestValueFound_ = 0;
-	count_ = 0;
 	thisValue_ = 0;
 	valueIndex_ = 0;
 	// A stereo sample blends left and right through the same averaging.
@@ -113,11 +112,6 @@ PitchScan::ReadOutcome PitchScan::stepRead() {
 			needWindow_ = true;
 			continue;
 		}
-
-		if (!(count_ & 255)) {
-			AudioEngine::routineWithClusterLoading();
-		}
-		count_++;
 
 		// Left-justify this byteDepth-byte little-endian sample into the top of a 32-bit word.
 		int32_t individualSampleValue = 0;

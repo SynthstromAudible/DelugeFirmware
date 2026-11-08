@@ -475,8 +475,8 @@ void View::startMIDILearn() {
 
 void View::endMIDILearn() {
 	if (shouldSaveSettingsAfterMidiLearn) {
-		if (!AudioEngine::audioRoutineLocked) {
-			FlashStorage::writeSettings(); // Rare case where we could have been called during audio routine
+		if (!AudioEngine::audioBusy()) {
+			FlashStorage::writeSettings(); // Rare case: called during the audio routine, which never writes flash
 		}
 	}
 	uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH);
@@ -2658,8 +2658,6 @@ getOut:
 
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &instrumentClipView || rootUI == &automationView) {
-			AudioEngine::routineWithClusterLoading();
-
 			instrumentClipView.recalculateColours();
 
 			uiNeedsRendering(rootUI);

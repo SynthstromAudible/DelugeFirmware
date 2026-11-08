@@ -3816,7 +3816,7 @@ void Sound::detachSourcesFromAudioFiles() {
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 	// during memory allocation
-	// audioRoutineLocked gates only the cooperative audio routine, not the render, so excluding the render here needs
+	// An AudioTickHold holds off only the audio tick, not the render, so excluding the render here needs an
 	// AudioExcludedSection.
 	AudioExcludedSection section;
 	killAllVoices();

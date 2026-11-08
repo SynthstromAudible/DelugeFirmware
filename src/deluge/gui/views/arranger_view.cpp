@@ -2690,8 +2690,6 @@ void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output
 
 	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
-	AudioEngine::routineWithClusterLoading();
-
 	// If the user released the audition pad before this completed, exitSubModeWithoutAction() has
 	// already run endAudition() and cleared currentUIMode -- nothing will ever end a note started
 	// here. Same if a later press moved the audition to a different row: currentUIMode matches again,

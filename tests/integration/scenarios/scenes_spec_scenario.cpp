@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <optional>
 
 namespace {
 /// The file's exit code: 0 when every example passed; -1 before it has run.
@@ -61,8 +62,8 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	nullifyUIs();
 	// Nor did they run under a live audio tier: a render between an example's write and its check would consume state
 	// it set (an arpeggiator's restart flag, a voice). Held for the whole file, as `QuietAudio` holds it per example.
-	const bool audio_was_locked = AudioEngine::audioRoutineLocked;
-	AudioEngine::audioRoutineLocked = true;
+	std::optional<AudioEngine::AudioTickHold> audio_hold;
+	audio_hold.emplace();
 	std::printf("SCENES-SPEC %s start\n", id);
 	std::fflush(stdout);
 	char program[] = "scenes_spec";
@@ -81,7 +82,7 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 		std::printf("SCENES-SPEC %s threw a non-standard exception\n", id);
 		g_exit = 99;
 	}
-	AudioEngine::audioRoutineLocked = audio_was_locked;
+	audio_hold.reset();
 	const deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 	std::printf("SLOT-WRITE-AUDIT %s writes=%u mismatches=%u %s\n", id, static_cast<unsigned>(audit.writes),
 	            static_cast<unsigned>(audit.mismatches), audit.first.c_str());

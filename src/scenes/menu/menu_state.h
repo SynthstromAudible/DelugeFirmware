@@ -97,7 +97,7 @@ struct MenuWalkState {
 	bool range_picker_pending = false;
 	/// The node that will be entered once a range is chosen -- legacy's
 	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:334-336`).
+	/// `selectButtonPress` returns (`multi_range.cpp`).
 	const Node* pending_after_range = nullptr;
 	/// @brief A range index the focused picker chose this tick, or -1 for none.
 	///

@@ -169,13 +169,10 @@ struct StubDisplay final : deluge::hid::Display {
 
 /// @brief `spec::QuietAudio`, held for the whole process.
 ///
-/// `PlaybackHandler::playButtonPressed` reaches `AudioEngine::routineWithClusterLoading`
-/// (`playback/playback_handler.cpp:572`), which **segfaults** in a spec process on the host input
-/// ring (`AudioEngine::inputRing`). `support/card_access.h` exists precisely so
-/// this disarm is not re-derived per spec; what it disarms is `AudioEngine::routine()`, which
-/// returns immediately while `audioRoutineLocked` is set. Nothing this spec asserts is part of the
-/// audio routine's contract: every comparison is on `PlaybackHandler`'s own state, which
-/// `setupPlayback` has already written by the time it calls the routine.
+/// It keeps the audio routine still while the transport runs (`support/card_access.h`): no render
+/// advances the playback this spec compares. Nothing this spec asserts is part of the audio
+/// routine's contract: every comparison is on `PlaybackHandler`'s own state, which
+/// `playButtonPressed` writes on the interaction tier.
 ///
 /// Process-scoped rather than example-scoped because both sides of every comparison need it and
 /// the legacy side is driven outside any rig.
@@ -1109,7 +1106,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f3);
 		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::LedState::Kind::On)).to_be_true();
 
-		// `view.cpp:522-524`: blinking once the clip minder showing it IS that clip.
+		// `view.cpp`: blinking once the clip minder showing it IS that clip.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);

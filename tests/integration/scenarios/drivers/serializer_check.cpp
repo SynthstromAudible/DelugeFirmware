@@ -199,12 +199,10 @@ int serializer_check_main(int argc, char** argv, Io driverIo) {
 	}
 	Song* song = freshSong();
 	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-	activeReader = &adapter;
 	Error e = openTreeFile(adapter, "song", format);
 	if (e == Error::NONE) {
 		e = deluge::bridge::loadSong(*song, adapter);
 	}
-	activeReader = &smDeserializer;
 	if (e != Error::NONE) {
 		std::fprintf(io.err, "LOADFAIL -> Error %d\n", static_cast<int>(e));
 		return 1;

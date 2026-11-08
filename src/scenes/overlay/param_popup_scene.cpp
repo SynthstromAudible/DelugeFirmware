@@ -35,12 +35,12 @@ inline constexpr uint32_t kDisplayTimeoutMs = 250;       // kSampleRate / 4
 inline constexpr uint32_t kMinUpdateIntervalMs = 45;     // kSampleRate / 22, ~45ms
 
 /// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` -- `View::displayModEncoderValuePopup`'s
-/// refresh-only arm (`view.cpp:1302`) and `OLED::displayNotification`'s own arm (`oled.cpp:793`,
+/// refresh-only arm (`view.cpp`) and `OLED::displayNotification`'s own arm (`oled.cpp:793`,
 /// reached whenever this scene's arbitration actually commits a redraw).
 inline constexpr uint32_t kPopupLifetimeMs = 2000;
 
 /// @brief A bounded, no-allocation append target -- `etl::string<40>`'s append-and-truncate
-///        behaviour (`view.cpp:1125-1126`'s `parameter_name`/`parameter_value`), without the
+///        behaviour (`view.cpp`'s `parameter_name`/`parameter_value`), without the
 ///        dependency.
 struct FixedAppend {
 	char* buf;
@@ -82,7 +82,7 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
-/// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp:1128-1173`).
+/// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp`).
 ///
 /// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the
 /// patch-cable form (`:1114-1121`), the MIDI-clip CC/expression form (`:1122-1147`) and the plain
@@ -143,7 +143,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 	}
 }
 
-/// @brief The value half of `displayModEncoderValuePopup` (`view.cpp:1174-1213`).
+/// @brief The value half of `displayModEncoderValuePopup` (`view.cpp`).
 ///
 /// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
 /// @param kind          The param's kind.

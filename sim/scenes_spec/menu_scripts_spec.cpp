@@ -1410,8 +1410,19 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    static_cast<int>(AudioInputChannel::NONE));
 		expect(recorder::recorder_scene().recording()).to_be_false();
 
+		// Each tick runs an aborted recorder's card routine first, as the app loop's
+		// `AudioEngine::doRecorderCardRoutines` does on the device: the scene closes once the take is
+		// torn down (`SampleRecorder::settled`). Nothing captured, so no file exists and the teardown
+		// is memory only.
+		uitest::RunOptions opts = opts_for(nodes::sound_root);
+		opts.before_tick = [](uint32_t) {
+			SampleRecorder* rec = recorder::recorder_scene().recorder();
+			if (rec != nullptr && rec->status == RecorderStatus::ABORTED) {
+				(void)rec->cardRoutine();
+			}
+		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
 		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// Armed for real TWICE -- once through SOUND -> ACTIONS -> RECORD TO SAMPLE, once through the
@@ -1419,10 +1430,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// could only succeed because the first close ran `finish_recording()` in full, since
 		// `on_enter` refuses on a leftover `recorder_` and `can()` refuses on a leftover published
 		// recording. With nothing captured,
-		// `endSyncedRecording` takes its `numSamplesCaptured == 0` abort arm
-		// (`model/sample/sample_recorder.cpp:1243-1246`), `after_render`'s completion arm sees
-		// `status >= COMPLETE` and `finish_recording()` unpublishes and discards -- so this pair says
-		// the whole close path ran, not merely that nothing is left over.
+		// `endSyncedRecording` takes its `numSamplesCaptured == 0` abort arm, the card routine tears the
+		// take down until it is settled, `after_render`'s completion arm sees that, and
+		// `finish_recording()` unpublishes and discards -- so this pair says the whole close path ran,
+		// not merely that nothing is left over.
 		expect(recorder::recorder_scene().recording()).to_be_false();
 		expect(recorder::recorder_scene().stopping()).to_be_false();
 		// **This is the assertion that made `script_runner.h`'s carried gap stop being latent.**

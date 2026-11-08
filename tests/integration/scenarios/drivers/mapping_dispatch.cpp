@@ -264,12 +264,10 @@ Song* loadSong(std::string_view text, FILE* err) {
 		return nullptr;
 	}
 	deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
-	activeReader = &adapter;
 	Error e = openTreeFile(adapter, "song");
 	if (e == Error::NONE) {
 		e = deluge::bridge::loadSong(*song, adapter);
 	}
-	activeReader = &smDeserializer;
 	if (e != Error::NONE) {
 		std::fprintf(err, "MAPPING-DISPATCH FAIL the song's load failed: error %d\n", static_cast<int>(e));
 		return nullptr;

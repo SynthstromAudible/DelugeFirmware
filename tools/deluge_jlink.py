@@ -14,6 +14,8 @@ RAM-linked Rust firmware needs):
   arm-none-eabi-gdb: monitor reset
                      monitor cp15 1,0,0,0 = 0x00C50078     (MMU + caches off before the load)
                      monitor cp15 12,0,0,0 = 0x20000000    (VBAR)
+                     monitor memU32 <CHCTRL n> = 0x0A      (every DMA channel stopped: the halted
+                                                            firmware's rings would write into the load)
                      load                                  (the image is RAM-linked)
                      set $cpsr = 0x1DF                     (SVC, IRQ/FIQ masked)
                      monitor exec SetRTTAddr <_SEGGER_RTT>
@@ -294,6 +296,32 @@ class Target:
             os.unlink(self.gdb_script)
 
 
+# Each DMAC channel's CHCTRL (RZ/A1L TRM: channels 0-7 from 0xE8200000 every 0x40, channels 8-15
+# from 0xE8200400, CHCTRL at +0x28), and the write that stops it: CLREN | SWRST.
+DMA_CHCTRL = [0xE820_0028 + ch * 0x40 for ch in range(8)] + [
+    0xE820_0428 + ch * 0x40 for ch in range(8)
+]
+DMA_STOP = 0x0000_000A
+
+
+def load_commands(entry: str | None, before_run: list[str]) -> list[str]:
+    """The gdb commands that load the image and leave the core ready to run it.
+
+    The halt-only reset stops the core but no peripheral, so a firmware's DMA keeps running while
+    the image is loaded, and a ring (a UART receive, an audio stream) writes into it. The image's
+    own start-up stops every channel, but only once it runs, so every channel is stopped first."""
+    cmds = [
+        "monitor reset",
+        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
+        "monitor cp15 12, 0, 0, 0 = 0x20000000",
+    ]
+    cmds += [f"monitor memU32 {addr:#010x} = {DMA_STOP:#010x}" for addr in DMA_CHCTRL]
+    cmds += ["load", "set $cpsr = 0x1DF"]
+    if entry:
+        cmds.append(f"set $pc = {entry}")
+    return cmds + before_run
+
+
 def start_target(args: argparse.Namespace, res: Result, started: float) -> Target:
     """Starts the GDB server, loads and runs the ELF (no breakpoints; RAM only), and waits for the RTT
     port; raises TargetError when any step fails."""
@@ -373,16 +401,7 @@ def start_target(args: argparse.Namespace, res: Result, started: float) -> Targe
         f"target extended-remote :{GDB_PORT}",
     ]
     if not args.no_load:
-        script += [
-            "monitor reset",
-            "monitor cp15 1, 0, 0, 0 = 0x00C50078",
-            "monitor cp15 12, 0, 0, 0 = 0x20000000",
-            "load",
-            "set $cpsr = 0x1DF",
-        ]
-        if entry:
-            script.append(f"set $pc = {entry}")
-        script += args.before_run
+        script += load_commands(entry, args.before_run)
     script += [f"monitor exec SetRTTAddr {addr}", "continue"]
 
     with tempfile.NamedTemporaryFile("w", suffix=".gdb", delete=False) as handle:

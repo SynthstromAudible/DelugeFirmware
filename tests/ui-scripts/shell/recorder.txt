@@ -23,9 +23,11 @@
 # as on the device; nothing is stubbed. What a spec process has no way to do is *capture* into it --
 # nothing pumps the audio thread -- so `numSamplesCaptured` stays 0. That is what shapes both closes:
 # BACK -> `endRecordingSoon` (`audio_recorder.cpp`) -> `SampleRecorder::endSyncedRecording`,
-# whose `numSamplesCaptured == 0` arm **aborts** (`model/sample/sample_recorder.cpp:1243-1246`);
-# `after_render`'s completion arm then sees `status >= COMPLETE`, attaches nothing (the `ABORTED`
-# guard), runs `finish_recording()` and files the `Remove` that closes the scene.
+# whose `numSamplesCaptured == 0` arm **aborts** (`SampleRecorder::endSyncedRecording`). The spec
+# runs the aborted recorder's card routine before each tick, as the app loop does on the device;
+# once the teardown has settled (`SampleRecorder::settled`, two ticks later), `after_render`'s
+# completion arm attaches nothing (the `ABORTED` guard), runs `finish_recording()` and files the
+# `Remove` that closes the scene.
 #
 # `idle` is also where the LEDs and the greyout are recorded: `opened()`'s LED tail (`:100-106`) is
 # BACK at the 110 ms blink, RECORD at the 60 ms one, and SYNTH lit because the context is not a kit;

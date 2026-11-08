@@ -463,7 +463,7 @@ describe shell_router("shell::Router", $ {
 		//
 		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only
 		// after the current UI: with the scene first, "after the UI" and "not a `mod_knobs` event"
-		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1350-1368`)
+		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp`)
 		// with no route to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};

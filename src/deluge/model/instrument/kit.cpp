@@ -1091,14 +1091,8 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	setupPatching(modelStackWithTimelineCounter);
 
-	int32_t count = 0;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-
-			if (!(count & 7)) {
-				AudioEngine::routineWithClusterLoading();
-			}
-			count++;
 
 			SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
@@ -1121,17 +1115,10 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
 
-	int32_t count = 0;
-
 	if (clip) {
 		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 			NoteRow* thisNoteRow = &clip->noteRows[i];
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
-
-				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading();
-				}
-				count++;
 
 				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
@@ -1153,11 +1140,6 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	else {
 		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DrumType::SOUND) {
-
-				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading();
-				}
-				count++;
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
@@ -1190,7 +1172,6 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 
 		resetDrumTempValues();
 		if (modelStack) {
-			int32_t count = 0;
 			NoteRowVector* noteRows = &((InstrumentClip*)modelStack->getTimelineCounter())->noteRows;
 			for (int32_t i = 0; i < std::ssize(*noteRows); i++) {
 				NoteRow* thisNoteRow = &(*noteRows)[i];
@@ -1202,12 +1183,6 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 					thisNoteRow->drum->earlyNoteVelocity = 0;
 
 					if (thisNoteRow->drum->type == DrumType::SOUND) {
-
-						if (!(count & 7)) {
-							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
-							AudioEngine::routineWithClusterLoading();
-						}
-						count++;
 
 						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
@@ -1247,7 +1222,6 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			AudioEngine::routineWithClusterLoading();
 			song->live.param_backup.deleteFor(*thisDrum);
 			if (std::optional<uint32_t> drumId = thisDrum->id()) {
 				song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));

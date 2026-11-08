@@ -743,11 +743,11 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 
 	// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
 	// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-	// (`model/song/song.cpp:3215-3217`), and `getLoopLengthAtSystemSampleRate` divides by it
+	// (`model/song/song.cpp:3190-3192`), and `getLoopLengthAtSystemSampleRate` divides by it
 	// (`model/sample/sample_holder.cpp:105-113`) -- so the computed length would be **zero** and
 	// `adjustLoopLength` would write nothing while every assertion about "a popup happened" still
 	// passed. `audio_clip_scene_spec.cpp` found that the hard way; this is its arithmetic,
-	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3074-3083`) rather than by
+	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3049-3058`) rather than by
 	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
 	const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
 	f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
@@ -2339,7 +2339,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      below -- so nothing here observes a half-open stack either way.
 	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
 	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
-	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:816`). Neither clears the other.
+	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp`). Neither clears the other.
 	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
 	//      order observable, which is why it belongs in the argument rather than being left out of
 	//      it.** It recomputes from `getUIGreyoutColsAndRows`, which walks the
@@ -2357,7 +2357,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
-	//      blinks (`gui/views/view.cpp:496`).
+	//      blinks (`gui/views/view.cpp`).
 	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
 	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.

@@ -152,19 +152,16 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	// Through the Value tree, as a song load is: parse the whole XML, then replay it. The tree reader's
-	// shouldCallRoutines() is false, which gates the AudioEngine yields off for the load.
+	// Through the Value tree, as a song load is: parse the whole XML, then replay it.
 	std::optional<deluge::storage::Value> tree =
 	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), xmlLen), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-		activeReader = &adapter;
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
-		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

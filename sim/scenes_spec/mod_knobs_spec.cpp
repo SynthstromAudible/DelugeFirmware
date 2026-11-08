@@ -16,12 +16,12 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp:887-892`,
+///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp`,
 ///     `:885`). `PerformanceScene` does not exist and the song browser is not among the legacy UIs
 ///     `BrowserScene` carries, so there is no port-side state that could make either fire. See
 ///     `ModKnobs::popup_suppressed`.
 ///   * **`PopupContext::stuttering` true**: no example plays a stutter while a knob turns.
-///   * **`PopupContext::midi_clip`, the MIDI-clip CC/expression naming arm** (`view.cpp:1140-1164`): no example
+///   * **`PopupContext::midi_clip`, the MIDI-clip CC/expression naming arm** (`view.cpp`): no example
 ///     compares its text with legacy's. The filter-aware naming half of the context IS driven, below.
 ///   * **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer.** Legacy's
 ///     timer callback is `automationView.displayAutomation()` / `view.displayAutomation()`
@@ -156,7 +156,7 @@ struct StubDisplay final : deluge::hid::Display {
 };
 
 /// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe
-///        (`song_fixture.h`, `song.cpp:379-404`'s `couldntLoad` branch), applied again.
+///        (`song_fixture.h`, `song.cpp:370-395`'s `couldntLoad` branch), applied again.
 ///
 /// The two-clip shape is the point: legacy and the port each get a clip of their own, so neither
 /// can read the other's model.
@@ -425,7 +425,7 @@ inline constexpr const deluge::scenes::menu::Node* kRoots[] = {&res_page};
 
 /// @brief A live `ModKnobs` over a real (empty) scene stack and a real `InputLowering`.
 /// @brief The knobs' focus on @p counter's active mod controllable, resolved as legacy's
-///        `View::setActiveModControllableTimelineCounter` resolves it (`view.cpp:1869-1883`), over a stack of its own.
+///        `View::setActiveModControllableTimelineCounter` resolves it (`view.cpp`), over a stack of its own.
 deluge::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (counter != nullptr) {
@@ -1229,7 +1229,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// A `Sound` in mod-knob mode 0 has a real param on both knobs, so the way to reach the
 		// non-existent arm without inventing a `ModControllable` is the target with no controllable
-		// at all -- `view.cpp:842`'s test, which skips the whole body on both sides.
+		// at all -- `view.cpp`'s test, which skips the whole body on both sides.
 		view.setActiveModControllableTimelineCounter(nullptr, false);
 		view.modEncoderAction(0, 5);
 
@@ -1657,7 +1657,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_be_false();
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
-		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5540-5547`);
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5505-5512`);
 		//    without it the song resolves nothing and this shape would collapse into shape 1.
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
@@ -1867,7 +1867,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
-		// `view.cpp:1684-1685` -- the one row of the table that is not "on iff selected", and the
+		// `view.cpp` -- the one row of the table that is not "on iff selected", and the
 		// only reason the VU meter is ported at all. It needs three things at once: the song
 		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
 		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
@@ -1885,7 +1885,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = f.song;
-		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5540-5547`)
+		f.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5505-5512`)
 		pf.song->persistentView.affectEntire = true;
 
 		KnobRig rig;
@@ -1972,7 +1972,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
-		// `view.cpp:1688-1689` and `:1403-1406`. Legacy's condition is
+		// `view.cpp`. Legacy's condition is
 		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
 		// process can produce -- there is no root UI here at all -- so this arm is driven through
 		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
@@ -2239,7 +2239,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("clears both indicator columns when the knobs point at nothing, as clearKnobIndicatorLevels does", _ {
-		// `view.cpp:1416-1418`. `indicator_leds::clearKnobIndicatorLevels`
+		// `view.cpp`. `indicator_leds::clearKnobIndicatorLevels`
 		// (`hid/led/indicator_leds.cpp:318-322`) is `setKnobIndicatorLevel(i, 0)` for both, so the
 		// legacy side is driven through exactly that and read back from the same shadow.
 		KnobRig rig;
@@ -2262,7 +2262,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
-		// `view.cpp:1398-1400`. The mod LEDs are unaffected -- that block is below the early return
+		// `view.cpp`. The mod LEDs are unaffected -- that block is below the early return
 		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
 		// of `leds()` are gated separately.
 		spec::SongFixture f = spec::make_synth_song();
@@ -2281,7 +2281,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
-		// `view.cpp:1350-1367` and its two helpers. The push arrives as an `EncoderButton` event,
+		// `view.cpp` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
 		// (`InputLowering::on_button`) -- and which the router routes here, after
 		// the scene (`tests/spec/shell/router_spec.cpp`).

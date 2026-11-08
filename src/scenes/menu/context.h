@@ -214,7 +214,7 @@ struct MenuContext {
 ///                                normally pass the clip's `affectEntire`, which is exactly what
 ///                                both writers of that member set it from
 ///                                (`model/clip/instrument_clip_minder.cpp:466-467`,
-///                                `gui/views/automation_view.cpp:1643-1645`); the kit-row grid
+///                                `gui/views/automation_view.cpp:1641-1643`); the kit-row grid
 ///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
@@ -257,7 +257,7 @@ int32_t range_count(const MenuContext& ctx);
 ///        top one") when @p index is out of range.
 ///
 /// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
-/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:287-332`). `MultiRange` is a
+/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp`). `MultiRange` is a
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);

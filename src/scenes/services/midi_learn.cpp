@@ -151,40 +151,39 @@ void MidiLearn::begin() {
 	if (other_mode_active_ && !active_) {
 		return;
 	}
-	pressed_ = LearnTarget{};      // `:474` `thingPressedForMidiLearn = MidiLearn::NONE`
-	should_save_settings_ = false; // `:475`
-	active_ = true;                // `:476`
-	flash_step();                  // `:477` `midiLearnFlash()`
-	// `:478` `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` -- declarative here; see
-	// `leds()`.
+	pressed_ = LearnTarget{}; // `thingPressedForMidiLearn = MidiLearn::NONE`
+	should_save_settings_ = false;
+	active_ = true;
+	flash_step(); // `midiLearnFlash()`
+	              // `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` -- declarative here; see
+	              // `leds()`.
 }
 
 void MidiLearn::end() {
 	// `View::endMIDILearn` (`view.cpp`).
-	// Legacy's own comment on the inner guard: "Rare case where we could have been
-	// called during audio routine."
+	// The inner guard: rarely this is called during the audio routine, which never writes flash.
 	if (should_save_settings_) {
-		if (!AudioEngine::audioRoutineLocked) {
+		if (!AudioEngine::audioBusy()) {
 			FlashStorage::writeSettings();
 		}
 	}
-	flash_remaining_ms_.reset(); // `:488` `unsetTimer(TimerName::MIDI_LEARN_FLASH)`
-	flash_on_ = false;           // `:489`
-	// `:490-492` `getRootUI()->midiLearnFlash()` is the root view's grid repaint. Here that is
+	flash_remaining_ms_.reset(); // `unsetTimer(TimerName::MIDI_LEARN_FLASH)`
+	flash_on_ = false;
+	// `getRootUI()->midiLearnFlash()` is the root view's grid repaint. Here that is
 	// `timer_repaints()`'s grid claim, which `Shell::tick` has already armed for the deadline this
 	// call is cancelling -- the gate fires once more and the scenes repaint with `flash_on()`
 	// false, which is exactly what legacy's call buys.
-	active_ = false; // `:494-496`
+	active_ = false;
 
-	// `:498-499` `playbackHandler.setLedStates()` + `setLedState(LEARN, false)`: declarative, see
+	// `playbackHandler.setLedStates()` + `setLedState(LEARN, false)`: declarative, see
 	// `leds()`. Not clearing `pressed_` here is legacy's too -- `endMIDILearn` leaves
-	// `thingPressedForMidiLearn` alone and the next `startMIDILearn` resets it (`:474`).
+	// `thingPressedForMidiLearn` alone and the next `startMIDILearn` resets it.
 }
 
 // -- The pressed thing ---------------------------------------------------------------------------
 
 void MidiLearn::end_press_session(LearnTarget new_thing) {
-	// `View::endMidiLearnPressSession` (`view.cpp:615-639`).
+	// `View::endMidiLearnPressSession` (`view.cpp`).
 	//
 	// `:599-612`'s switch calls `playbackHandler.setLedStates()` for the three button kinds and
 	// nothing for the other six. In a declarative LED model that call is not a state change at
@@ -237,7 +236,7 @@ void MidiLearn::thing_pressed(LearnTarget target, bool on) {
 		return;
 	}
 	if (on) {
-		end_press_session(target); // `view.cpp:538` / `View::buttonAction`'s TAP_TEMPO arm
+		end_press_session(target); // `view.cpp` / `View::buttonAction`'s TAP_TEMPO arm
 		delete_on_release_ = true; // `:521` / `:153`
 		// `:522` `learnedThing = &…` is `end_press_session`'s own assignment of `target.thing`.
 		return;
@@ -278,7 +277,7 @@ void MidiLearn::commit(const ::LearnedMIDI& learned, std::optional<deluge::scene
 }
 
 void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t /*velocity*/) {
-	// `View::noteOnReceivedForMidiLearn` (`view.cpp:641-761`).
+	// `View::noteOnReceivedForMidiLearn` (`view.cpp`).
 	if (pressed_.kind == ::MidiLearn::NONE) { // `:624`
 		return;
 	}
@@ -447,7 +446,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 
 void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 	if (!active_) {
-		// `View::endMIDILearn`'s two LED calls (`view.cpp:516-517`), declaratively: stop declaring
+		// `View::endMIDILearn`'s two LED calls (`view.cpp`), declaratively: stop declaring
 		// PLAY/RECORD/TAP_TEMPO so `GlobalControls`'s `PlaybackHandler::setLedStates` port -- which
 		// composed a moment earlier -- is the last writer again, and put LEARN out.
 		//
@@ -459,12 +458,12 @@ void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 		return;
 	}
 
-	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:478`): forever, on the fast
+	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp`): forever, on the fast
 	// blink every `blinkingType` 1 LED shares -- legacy drives this LED from that blinker phase, NOT
 	// from `midiLearnFlashOn`.
 	(void)frame.set(led(ButtonId::Learn), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 
-	// `View::midiLearnFlash`'s three writes (`view.cpp:822-833`). Each is declared only when its
+	// `View::midiLearnFlash`'s three writes (`view.cpp`). Each is declared only when its
 	// condition holds, so an unlearned, unheld button keeps whatever `GlobalControls` declared --
 	// which is exactly what legacy's `if` does by simply not calling `setLedState`.
 	const deluge::ui::LedState phase = flash_on_ ? kOn : kOff;
@@ -484,7 +483,7 @@ void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 // -- Time ----------------------------------------------------------------------------------------
 
 void MidiLearn::flash_step() {
-	// `View::midiLearnFlash`'s own two lines (`view.cpp:815-816`): toggle, then re-arm at
+	// `View::midiLearnFlash`'s own two lines (`view.cpp`): toggle, then re-arm at
 	// `kFastFlashTime`. The `getRootUI()->midiLearnFlash()` at `:800-802` is the grid repaint,
 	// which `timer_repaints()` declares once rather than requesting per step.
 	flash_on_ = !flash_on_;

@@ -1645,10 +1645,6 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	for (int32_t i = noteRowIndexStart; i < noteRowIndexEnd; i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 
-		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading();
-		}
-
 		int32_t yNote;
 
 		if (output->type == OutputType::KIT) {
@@ -1890,9 +1886,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
 
-	AudioEngine::routineWithClusterLoading();
-
-	AudioEngine::audioRoutineLocked = true;
+	// No audio tick runs while the instrument is swapped under this clip. Once the render reads snapshots (M4, the
+	// snapshot boundary) the swap publishes a new one, and this span can shrink or go.
+	std::optional<AudioEngine::AudioTickHold> hold;
+	hold.emplace();
 
 	/* Further stuff to optimize in here:
 	 * -- Delete surplus NoteRows in advance (must stop those Drums playing)
@@ -1925,6 +1922,12 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	                                                     // in changeInstrumentPreset() after all Drums matched up
 	if (error != Error::NONE) {
 		FREEZE_WITH_ERROR("E039");
+		// The clip has left its old instrument and failed to take the new one. Past a resumed freeze the audio tick
+		// stays held for the rest of the session rather than render that half-swapped state.
+		static std::optional<AudioEngine::AudioTickHold> heldAfterFailedSwap;
+		if (!heldAfterFailedSwap) {
+			heldAfterFailedSwap.emplace();
+		}
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -1962,10 +1965,9 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 
 	// Can safely call audio routine again now
-	AudioEngine::audioRoutineLocked = false;
+	hold.reset();
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading();
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1998,9 +2000,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 					break;
 				}
 			}
-
-			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2344,7 +2343,6 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			AudioEngine::routineWithClusterLoading();
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3485,8 +3483,6 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				unbindNoteRowStructure(noteRows[i]);
 				noteRows.deleteNoteRowAtIndex(i);
-
-				AudioEngine::routineWithClusterLoading();
 			}
 			else {
 				i++;
@@ -4138,7 +4134,6 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = &noteRows[i];
 
 			if (!(noteRowCount & 15)) {
-				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("nlkr");
 			}
 

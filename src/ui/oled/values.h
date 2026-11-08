@@ -312,7 +312,7 @@ inline constexpr size_t kRangeTextMax = 12;
 /// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held (`range.cpp:37-39`)
 ///       and consults `mayEditRangeEdge` before selecting an edge (`:52`, `:73`). Neither is ported:
 ///       shift is the shell's, and `mayEditRangeEdge`'s only override in the whole firmware is
-///       `MultiRange`'s (`gui/menu_item/multi_range.cpp:383`), which is a different editor this
+///       `MultiRange`'s (`gui/menu_item/multi_range.cpp`), which is a different editor this
 ///       widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever gains
 ///       a second consumer.
 ///
