@@ -1,20 +1,22 @@
 # The open value follows a change made behind the menu. From the synth clip, SHIFT + the LPF frequency shortcut opens
 # its page (or, with Horizontal Menus off, its full screen); LEARN held takes the upper gold knob, then a CC. Out of
 # learn mode the learned knob and the CC each move the frequency the menu shows, with no knob popup over it.
+# Snapshot windows end between the patching-source blink's flashes (every 800 ms from the page's opening, near
+# 1200, 2000, 2800, ... ms here), never on one: that blink's phase differs from main's by a few ms (D129).
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down
 420   pad 8 7 up
 500   button Shift up
-1200  snapshot lpf_freq
+1300  snapshot lpf_freq
 1500  button Learn down
 1700  encoder GoldUpper +1
-2000  button Learn up
+2100  button Learn up
 2600  encoder GoldUpper -3
-3300  snapshot follows_knob
-3600  button Learn down
-3800  cc 1 21 64
-4100  button Learn up
+3200  snapshot follows_knob
+3800  button Learn down
+4000  cc 1 21 64
+4200  button Learn up
 4600  cc 1 21 110
 5300  snapshot follows_cc
 5600  encoder GoldUpper +2
