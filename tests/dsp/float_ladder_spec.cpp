@@ -15,11 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The float ladder's saturator: odd, monotone, bounded, unity slope at 0, landing on ±1 at its knee with no slope, and
-// lane for lane equal to its scalar form.
+// The float ladder: its saturator (odd, monotone, bounded, unity slope at 0, landing on ±1 at its knee with no slope,
+// lane for lane equal to its scalar form), its responses (slopes, DC gain, the resonance peak, self-oscillation), its
+// morph between presets, and its stability at every setting.
 
 #include "dsp-next/core/flush_to_zero.h"
+#include "dsp-next/core/mono.h"
 #include "dsp-next/core/pack_f32.h"
+#include "dsp-next/float/filter/ladder.h"
 #include "dsp-next/float/math/detail.h"
 
 #include <array>
@@ -28,6 +31,10 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <numbers>
+#include <random>
+#include <vector>
 
 using namespace deluge::dsp;
 
@@ -35,6 +42,42 @@ namespace {
 
 [[nodiscard]] uint32_t bits(f32 x) {
 	return std::bit_cast<uint32_t>(x);
+}
+
+using Ladder = fp::Ladder;
+using Response = Ladder::Response;
+constexpr std::size_t kBlock = 128;
+
+/// The steady-state gain of a sine of amplitude @p amplitude at @p freq (fraction of fs) through a ladder configured
+/// with @p settings, after 32 blocks to settle: the peak over the next 32 blocks over the amplitude.
+[[nodiscard]] f32 sine_gain(const Ladder::Settings& settings, f32 freq, f32 amplitude = 0.01F) {
+	Mono<Ladder> ladder;
+	ladder.configure(settings);
+	std::vector<f32> in(kBlock * 64), out(in.size());
+	for (std::size_t i = 0; i < in.size(); ++i) {
+		in[i] = amplitude * std::sin(2.F * std::numbers::pi_v<f32> * freq * static_cast<f32>(i));
+	}
+	ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+	f32 peak = 0.F;
+	for (std::size_t i = kBlock * 32; i < out.size(); ++i) {
+		peak = std::max(peak, std::fabs(out[i]));
+	}
+	return peak / amplitude;
+}
+
+[[nodiscard]] f32 db(f32 ratio) {
+	return 20.F * std::log10(ratio);
+}
+
+/// Seeded noise over ±1.
+[[nodiscard]] std::vector<f32> noise(std::size_t n, uint32_t seed) {
+	std::mt19937 rng{seed};
+	std::uniform_real_distribution<f32> d{-1.F, 1.F};
+	std::vector<f32> v(n);
+	for (f32& x : v) {
+		x = d(rng);
+	}
+	return v;
 }
 
 } // namespace
@@ -94,6 +137,146 @@ describe float_ladder_spec("the float ladder", ${
 			for (std::size_t l = 0; l < 4; ++l) {
 				expect(bits(y.get(l))).to_equal(bits(fp::detail::soft_clip(in[l])));
 				expect(bits(d.get(l))).to_equal(bits(fp::detail::soft_clip_slope(in[l])));
+			}
+		});
+	});
+	context("Ladder, CLEAN", _ {
+		fp::FlushToZero ftz;
+		constexpr f32 kFc = 0.005F;
+		it("falls 24 dB per octave above the cutoff as LP24, and 12 as LP12", _ {
+			const f32 lp24 = db(sine_gain({.cutoff = kFc}, 8 * kFc) / sine_gain({.cutoff = kFc}, 4 * kFc));
+			const f32 lp12 = db(sine_gain({.cutoff = kFc, .response = Response::LP12}, 8 * kFc) /
+			                    sine_gain({.cutoff = kFc, .response = Response::LP12}, 4 * kFc));
+			expect(std::fabs(lp24 + 24.F) < 2.F).to_be_true();
+			expect(std::fabs(lp12 + 12.F) < 2.F).to_be_true();
+		});
+		it("rises 24 dB per octave below the cutoff as HP", _ {
+			const Ladder::Settings hp{.cutoff = kFc, .response = Response::HP};
+			const f32 slope = db(sine_gain(hp, kFc / 8) / sine_gain(hp, kFc / 16));
+			expect(std::fabs(slope - 24.F) < 2.F).to_be_true();
+		});
+		it("peaks near the cutoff as BP", _ {
+			const Ladder::Settings bp{.cutoff = kFc, .response = Response::BP};
+			f32 best = 0.F;
+			f32 at = 0.F;
+			for (int i = 0; i <= 20; ++i) {
+				const f32 f = kFc * std::pow(2.F, (static_cast<f32>(i) - 10.F) / 5.F);
+				const f32 gain = sine_gain(bp, f);
+				if (gain > best) {
+					best = gain;
+					at = f;
+				}
+			}
+			expect(std::fabs(at / kFc - 1.F) < 0.2F).to_be_true();
+		});
+		it("passes DC at unity with no resonance, and with compensation at resonance 2", _ {
+			for (const Ladder::Settings settings : {Ladder::Settings{.cutoff = kFc},
+			                                        Ladder::Settings{.cutoff = kFc, .resonance = 2.F, .compensate = true}}) {
+				Mono<Ladder> ladder;
+				ladder.configure(settings);
+				std::vector<f32> in(kBlock * 64, 0.01F), out(in.size());
+				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+				const f32 tolerance = settings.compensate ? 0.02F : 1e-4F;
+				expect(std::fabs(out.back() / 0.01F - 1.F) < tolerance).to_be_true();
+			}
+		});
+		it("raises its peak at the cutoff as the resonance rises", _ {
+			f32 last = 0.F;
+			for (const f32 k : {0.F, 1.F, 2.F, 3.F, 3.5F}) {
+				const f32 gain = sine_gain({.cutoff = kFc, .resonance = k}, kFc);
+				expect(gain > last).to_be_true();
+				last = gain;
+			}
+		});
+		it("self-oscillates near its cutoff above resonance 4, held by its saturator", _ {
+			constexpr f32 kOsc = 0.01F;
+			Mono<Ladder> ladder;
+			ladder.configure({.cutoff = kOsc, .resonance = 4.25F});
+			std::vector<f32> in(48000, 0.F), out(in.size());
+			in[0] = 1e-3F;
+			ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+			f32 peak = 0.F;
+			int crossings = 0;
+			for (std::size_t i = 48000 - 4800; i < out.size(); ++i) {
+				peak = std::max(peak, std::fabs(out[i]));
+				crossings += (out[i - 1] < 0.F) != (out[i] < 0.F) ? 1 : 0;
+			}
+			const f32 frequency = static_cast<f32>(crossings) / 2.F / 4800.F;
+			expect(peak > 0.05F && peak <= 1.F).to_be_true();
+			expect(std::fabs(frequency / kOsc - 1.F) < 0.05F).to_be_true();
+		});
+		it("sustains an impulse at resonance 4 without growing or decaying", _ {
+			Mono<Ladder> ladder;
+			ladder.configure({.cutoff = 0.01F, .resonance = 4.F});
+			std::vector<f32> in(48000, 0.F), out(in.size());
+			in[0] = 1e-3F;
+			ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+			const auto peak_of = [&](std::size_t from) {
+				f32 peak = 0.F;
+				for (std::size_t i = from; i < from + 4800; ++i) {
+					peak = std::max(peak, std::fabs(out[i]));
+				}
+				return peak;
+			};
+			const f32 early = peak_of(4800);
+			const f32 late = peak_of(48000 - 4800);
+			expect(early > 0.F).to_be_true();
+			expect(std::fabs(late / early - 1.F) < 0.1F).to_be_true();
+		});
+		it("morphs linearly in its weights", _ {
+			const Ladder::Settings lp{.cutoff = 0.02F, .resonance = 1.F, .response = Response::LP24};
+			Ladder::Settings bp = lp;
+			bp.response = Response::BP;
+			Ladder::Settings half = lp;
+			half.morph_to = Response::BP;
+			half.morph = 0.5F;
+			const Ladder::Coefficients c = Ladder::coefficients(half);
+			for (std::size_t i = 0; i < 5; ++i) {
+				const double a = Ladder::weights(Response::LP24)[i];
+				const double b = Ladder::weights(Response::BP)[i];
+				expect(bits(c.w[i])).to_equal(bits(static_cast<f32>(a + 0.5 * (b - a))));
+			}
+			const auto in = noise(kBlock * 4, 3);
+			std::vector<f32> a(in.size()), b(in.size()), m(in.size());
+			Mono<Ladder> la, lb, lm;
+			la.configure(lp);
+			lb.configure(bp);
+			lm.configure(half);
+			la.render_block(fp::Signal{in}, fp::Buffer{a});
+			lb.render_block(fp::Signal{in}, fp::Buffer{b});
+			lm.render_block(fp::Signal{in}, fp::Buffer{m});
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				expect(std::fabs(m[i] - 0.5F * (a[i] + b[i])) < 1e-6F).to_be_true();
+			}
+		});
+		it("stays finite and bounded at every setting", _ {
+			const auto in = noise(kBlock, 7);
+			std::vector<f32> out(kBlock);
+			constexpr f32 kNan = std::numeric_limits<f32>::quiet_NaN();
+			for (int i = 0; i < 400; ++i) {
+				Ladder::Settings s{.cutoff = 1e-5F + 0.6F * static_cast<f32>(i % 20) / 20.F,
+				                   .resonance = -1.F + 6.F * static_cast<f32>(i / 20) / 20.F,
+				                   .drive = 1.F + static_cast<f32>(i % 7),
+				                   .compensate = (i % 2) == 0,
+				                   .response = static_cast<Response>(i % 4)};
+				if (i % 50 == 0) {
+					s.cutoff = kNan;
+				}
+				if (i % 50 == 1) {
+					s.resonance = kNan;
+				}
+				if (i % 50 == 2) {
+					s.drive = kNan;
+				}
+				if (i % 50 == 3) {
+					s.morph = kNan;
+				}
+				Mono<Ladder> ladder;
+				ladder.configure(s);
+				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+				for (const f32 y : out) {
+					expect(std::isfinite(y) && std::fabs(y) <= 64.F).to_be_true();
+				}
 			}
 		});
 	});
