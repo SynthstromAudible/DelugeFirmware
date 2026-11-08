@@ -208,7 +208,8 @@ public:
 	/// @return Whether it was taken.
 	virtual bool delete_knob_automation(const project::ParamAddress& address) = 0;
 	/// @brief Mark the instrument @p focus's knobs edit as edited by the user (a synth, a kit row's kit, a kit's own
-	/// chain): a runtime flag no record holds, which a gesture that edited it sets.
+	/// chain): a runtime flag no record holds, which a gesture that edited it sets, and the menu after a select turn on
+	/// an item that edits a sound's instrument.
 	/// @return Whether it was taken.
 	virtual bool instrument_edited(const KnobFocus& focus) = 0;
 };

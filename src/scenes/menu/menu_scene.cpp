@@ -32,6 +32,7 @@
 
 #include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
@@ -44,6 +45,7 @@
 #include "notify/dirty_set.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
+#include "scenes/menu/menu_core.h"
 
 #include <span>
 #include <utility>
@@ -634,6 +636,11 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	}
 
 	st_.tick.back_acts = select_and_back_act();
+	// The turn the page owns arrives in this frame. Read only where `owned_input` grants it, so the read claims
+	// nothing the page does not.
+	if (owned_input().turn && f.turn() != 0) {
+		st_.tick.select_turned = true;
+	}
 	view_.render(core(), f, *node);
 }
 
@@ -735,6 +742,20 @@ void MenuScene::flip_in_place(const Node& node) {
 	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
 }
 
+void MenuScene::mark_edited_after_turn() {
+	// `currentSound`, which the slot stands for, and `markInstrumentAsEdited`'s `!inSettingsMenu()`: the settings menu
+	// can be opened over a synth with a slot resolved.
+	if (ctx_.sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
+	    || !select_turn_edits_instrument(ctx_, st_)) {
+		return;
+	}
+	const deluge::project::SlotAddress slot = *ctx_.addresses.slot;
+	const bool drum = slot.kind == deluge::project::SlotAddress::Kind::DRUM;
+	(void)ctx_.sink->instrument_edited(deluge::scenes::bind::KnobFocus{
+	    .owner = deluge::scenes::bind::SoundFocus{
+	        .slot = slot, .clip = ctx_.addresses.clip, .kit = drum ? ctx_.addresses.kit_output : std::nullopt}});
+}
+
 Result MenuScene::after_render_navigation() {
 	Result r;
 #ifdef DELUGE_HOST
@@ -812,6 +833,11 @@ Result MenuScene::after_render_navigation() {
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
 		// which is a documented no-op (`Action::Kind::Repaint`'s doc in `shell/scene.h`).
 		repaint = true;
+	}
+
+	// After the write, as legacy marks after `writeCurrentValue`: `beenEdited` copies the clip's arp as it now is.
+	if (st_.tick.select_turned) {
+		mark_edited_after_turn();
 	}
 
 	// The horizontal menu's notification popup, `HorizontalMenu::displayNotification`
@@ -1109,6 +1135,10 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
 	        || (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select))) {
 		affect_entire_blink_restart_ = true;
+	}
+	// A turn the page does not own (a bespoke item that takes it as an event) is routed here instead of the frame.
+	if (event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select && event.delta != 0) {
+		st_.tick.select_turned = true;
 	}
 
 	// A MIDI message is an offer for MIDI learn, and nothing else here reads it.

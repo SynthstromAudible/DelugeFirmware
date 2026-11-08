@@ -88,6 +88,10 @@ struct MenuTick {
 	/// An item used the current Select press up, as legacy's `Buttons::selectButtonPressUsedUp = true`: the
 	/// cable-strength page's polarity turn under a held Select (`PatchCableStrength::selectEncoderAction`).
 	bool use_up_select = false;
+	/// A select turn reached the menu this tick, through the render's frame or, for a bespoke item that takes it as an
+	/// event, through `handle`: `after_render` marks the instrument edited for it, as
+	/// `SoundEditor::selectEncoderAction` does after its item takes the turn.
+	bool select_turned = false;
 };
 
 /// @brief What belongs to one walk through the tree from a root: the range picker, the selectors' choices, the

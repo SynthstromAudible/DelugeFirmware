@@ -45,6 +45,11 @@ const Node* focused_value(const MenuContext& ctx, const MenuState& st);
 ///        (`flips_in_place`), else false (`Submenu::usesAffectEntire`).
 bool uses_affect_entire(const MenuContext& ctx, const MenuState& st);
 
+/// @brief `getCurrentMenuItem()->selectEncoderActionEditsInstrument()` after a select turn: a leaf whose legacy item
+///        is a `Value` (every value kind, and a bespoke item's `CustomItem::is_value`), or a horizontal page whose
+///        selected child is one; drawn as a list, that is the row under the cursor. A plain submenu answers false.
+bool select_turn_edits_instrument(const MenuContext& ctx, const MenuState& st);
+
 /// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
 const CustomItem* focused_custom(const MenuState& st);
 

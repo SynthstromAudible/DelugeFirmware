@@ -93,4 +93,56 @@ bool uses_affect_entire(const MenuContext& ctx, const MenuState& st) {
 	return flips_in_place(*child) && node_uses_affect_entire(*child);
 }
 
+namespace {
+
+/// Whether @p node's legacy item derives from `Value`, whose `selectEncoderActionEditsInstrument` is true and final.
+bool is_value_item(const Node& node) {
+	switch (node.kind) {
+	case Kind::Toggle:
+	case Kind::Enum:
+	case Kind::Int:
+	case Kind::Decimal:
+	case Kind::SyncLevel:
+	case Kind::Range:
+		return true;
+	case Kind::Custom:
+		return node.custom != nullptr && node.custom->is_value();
+	case Kind::Submenu:
+		return false;
+	}
+	return false;
+}
+
+/// What @p item, a horizontal menu's current item, answers: a plain submenu false, a horizontal one its own current
+/// item, which is the item it starts on (each such column holds values only, so the item it last showed answers the
+/// same).
+bool current_item_edits_instrument(const MenuContext& ctx, const Node& item) {
+	if (item.kind != Kind::Submenu) {
+		return is_value_item(item);
+	}
+	if (item.layout != Layout::Horizontal) {
+		return false;
+	}
+	const Node* first = child_at(ctx, item, 0);
+	return first != nullptr && current_item_edits_instrument(ctx, *first);
+}
+
+} // namespace
+
+bool select_turn_edits_instrument(const MenuContext& ctx, const MenuState& st) {
+	const Node* node = focused(st);
+	if (node == nullptr) {
+		return false;
+	}
+	if (node->kind != Kind::Submenu) {
+		return is_value_item(*node);
+	}
+	// `HorizontalMenu` asks its current item whichever way it is drawn; a plain `Submenu` answers false.
+	if (node->layout != Layout::Horizontal) {
+		return false;
+	}
+	const Node* child = selected_child(ctx, st, *node);
+	return child != nullptr && current_item_edits_instrument(ctx, *child);
+}
+
 } // namespace deluge::scenes::menu

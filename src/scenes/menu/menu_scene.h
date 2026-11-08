@@ -594,6 +594,11 @@ private:
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
 
+	/// @brief `SoundEditor::markInstrumentAsEdited` after a select turn: the sound's instrument (a synth, a kit row's
+	///        kit) when the menu edits a sound, outside the settings menu, and the focused item edits the instrument
+	///        (`select_turn_edits_instrument`).
+	void mark_edited_after_turn();
+
 	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
 	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
 	///        and `FollowKitRootNote::learnNoteOn` call `setValue` as well as storing the input, and redraw.
