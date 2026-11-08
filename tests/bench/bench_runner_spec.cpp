@@ -494,6 +494,24 @@ const std::vector<std::string_view> kPitchShiftCaseNames{
     "delay_feedback_chain_digital",
 };
 
+/// The float filters list's names, in order.
+const std::vector<std::string_view> kFloatFilterCaseNames{
+    "calibration_loop",
+    "fp_one_pole_mono",
+    "fp_one_pole_poly2",
+    "fp_one_pole_poly4",
+    "fp_one_pole_linked2",
+    "fp_smoother_mono",
+    "fp_smoother_poly4",
+    "fp_svf_mono",
+    "fp_svf_poly2",
+    "fp_svf_poly4",
+    "fp_svf_linked2",
+    "fp_svf_bank4_sum",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -1093,7 +1111,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
 		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
 		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames},
-		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames}}) {
+		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames},
+		                                     std::pair{CaseList::FLOAT_FILTERS, kFloatFilterCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1176,7 +1195,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
 		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
 		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames},
-		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames}}) {
+		                                     std::pair{CaseList::PITCH_SHIFT, kPitchShiftCaseNames},
+		                                     std::pair{CaseList::FLOAT_FILTERS, kFloatFilterCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

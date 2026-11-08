@@ -18,8 +18,8 @@
 /// @file
 /// @brief The float_filters list's cases: the float kernels (one-pole, smoother, SVF) in Mono, Poly, Linked and Bank.
 /// @details Every case reads this file's f32 input block, filled from the seeded noise scaled to ±1, and writes its
-/// f32 output block. Each case sets flush-to-zero at setup (FloatBenchFlush) and keeps it for the run, as the float
-/// instrument will.
+/// f32 output block. Each case runs its blocks under flush-to-zero (FloatBenchFlush): set at setup and kept for the
+/// run on the device, as the float instrument will; held for one block at a time on the host.
 
 #include "bench/cases.h"
 
@@ -88,6 +88,7 @@ void FloatMonoCase<S>::setup(std::size_t n) {
 
 template <class S>
 void FloatMonoCase<S>::block(std::size_t /*n*/) {
+	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (S::kRetargets) {
 		mono_.configure(S::settings(0, block_++));
 	}
@@ -109,6 +110,7 @@ void FloatPolyCase<S, N>::setup(std::size_t n) {
 
 template <class S, std::size_t N>
 void FloatPolyCase<S, N>::block(std::size_t /*n*/) {
+	[[maybe_unused]] const auto flush = flush_.scope();
 	if constexpr (S::kRetargets) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
 			poly_.configure(lane, S::settings(lane, block_));
@@ -132,6 +134,7 @@ void FloatLinkedCase<S, N>::setup(std::size_t n) {
 
 template <class S, std::size_t N>
 void FloatLinkedCase<S, N>::block(std::size_t /*n*/) {
+	[[maybe_unused]] const auto flush = flush_.scope();
 	linked_.render_block(in_, out_);
 }
 
@@ -147,6 +150,7 @@ void FloatBankCase::setup(std::size_t n) {
 }
 
 void FloatBankCase::block(std::size_t /*n*/) {
+	[[maybe_unused]] const auto flush = flush_.scope();
 	bank_.render_block(in_, out_);
 }
 

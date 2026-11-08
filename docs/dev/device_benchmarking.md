@@ -116,6 +116,6 @@ option cached.
 
 The `float_filters` list times the float kernels (`fp::OnePole`, `fp::Smoother`, `fp::Svf`) in `Mono`, `Poly` at 2 and
 4 lanes, `Linked` at 2 lanes, and an SVF `Bank` of four bands, beside the calibration loop and the two
-`delay_feedback_chain` controls. Each case sets flush-to-zero at setup and keeps it for the run. Cycles are per
+`delay_feedback_chain` controls. On the device each case sets flush-to-zero at setup and keeps it for the run; on the host it is held one block at a time. Cycles are per
 channel-sample for Poly and Linked and per input sample for the Bank. The figures are in
 `docs/dev/a9_dsp_performance.md`.

@@ -1955,25 +1955,35 @@ struct FloatSvfBandSettings {
 	}
 };
 
-/// @brief Flush-to-zero for the rest of the run, which the float instrument runs under.
-/// @details Set on a case's first setup and never restored: the warm-up, the timed blocks and every later case run
-/// with FPSCR.FZ set. The fixed-point cases that share a list do not use the VFP.
+/// @brief Flush-to-zero for a float case's blocks, which the float instrument runs under.
+/// @details **On the device** (a DELUGE_DSP_BENCH image) `enable` sets it at the case's first setup and never restores
+/// it, so the warm-up, the timed blocks and every later case run with FPSCR.FZ set, and `scope` costs nothing. **On the
+/// host** `enable` does nothing and `scope` holds it for one block, so no later spec runs with it set.
 class FloatBenchFlush {
 public:
-	/// @brief Sets flush-to-zero, once.
+#if defined(DELUGE_DSP_BENCH)
+	/// @brief Sets flush-to-zero, once, for the rest of the run.
 	void enable() {
 		if (!flush_) {
 			flush_.emplace();
 		}
 	}
+	/// @brief Nothing: flush-to-zero is already set.
+	[[nodiscard]] static std::nullopt_t scope() { return std::nullopt; }
 
 private:
 	std::optional<dsp::fp::FlushToZero> flush_;
+#else
+	/// @brief Nothing: each block sets it for its own span.
+	static void enable() {}
+	/// @brief Flush-to-zero until the returned object ends.
+	[[nodiscard]] static dsp::fp::FlushToZero scope() { return dsp::fp::FlushToZero{}; }
+#endif
 };
 
 /// @brief `Mono<K>` over one stream of f32: the float input into the float output.
 /// @details **Timed state:** the kernel's state carries from block to block from rest at setup, following the one
-/// input block the case repeats, under flush-to-zero (FloatBenchFlush, set at setup). A kernel that retargets
+/// input block the case repeats, under flush-to-zero (FloatBenchFlush). A kernel that retargets
 /// (the smoother) is configured again at the start of every block, inside the timed region, as its owner does.
 /// @tparam S The kernel's settings: FloatOnePoleSettings, FloatSmootherSettings or FloatSvfSettings.
 template <class S>
@@ -2055,7 +2065,7 @@ private:
 
 /// @brief `Bank<Svf, 4, mix::Sum>`: one stream of f32 into four band-pass filters, summed.
 /// @details **Timed state:** four band-pass states carry from block to block from rest at setup, all four reading
-/// the one input block the case repeats, under flush-to-zero (FloatBenchFlush, set at setup). One input sample is one
+/// the one input block the case repeats, under flush-to-zero (FloatBenchFlush). One input sample is one
 /// block sample, so the figure is cycles per input sample (no `kLanes`): four filters' work.
 class FloatBankCase {
 public:
