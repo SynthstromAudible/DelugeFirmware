@@ -700,7 +700,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 	// The blinks flash over the overlay: the control surface plays them over whatever the pads hold.
-	pads_.render_grid(core(), f);
+	pads_.render_grid(core(), f, kit_global_shortcut_context().has_value());
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
@@ -1330,7 +1330,7 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
 		return sample;
 	}
-	std::optional<uint32_t> next = pad_next_timer(ctx_, st_);
+	std::optional<uint32_t> next = pad_next_timer(ctx_, st_, kit_global_shortcut_context().has_value());
 	if (dx_column_flashing()) {
 		// The keyboard DX column's next flip, which the host reads after the tick (`dx_column_flash`).
 		const uint32_t phase = (render_ms_ - *st_.dx.flash_anchor_ms) % dx::kColumnFlashPeriodMs;

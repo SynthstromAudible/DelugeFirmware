@@ -78,11 +78,17 @@ struct BlinkPlan {
 /// (`updatePadLightsFor`'s `setupShortcutBlink(x, y, 0, ...)`, `sound_editor.cpp:1093-1112`).
 /// Nothing blinks for the name editors and the sample-marker editors, nor under the settings, note
 /// and note-row roots (`:1029-1040`).
+/// The table follows `updatePadLightsFor`'s choice: a kit with affect-entire on and the host's kit-global latch set
+/// blinks from the kit's own table (`paramShortcutsForKitGlobalFX`), whatever row the menu edits; a kit-global menu
+/// with affect-entire off falls through to the sound table, as legacy's chain does.
 /// @param ctx What the menu edits.
 /// @param state The menu's state.
 /// @param focused The focused node.
+/// @param kit_global_latched The host's latch (`MenuScene::kit_global_shortcut_context` answering); a kit-global
+///        context implies it.
 /// @return The plan; an empty one when nothing blinks.
-BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused);
+BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused,
+                      bool kit_global_latched = false);
 
 /// @brief A blink of one pad and nothing else, every other cycle by default --
 /// `SoundEditor::setupExclusiveShortcutBlink`,

@@ -88,12 +88,15 @@
 #include "cppspec.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <optional>
 #include <string>
 
 #include "spec/support/spec_main.h"
+#include "spec/ui/support/frames.h"
 
 /// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
 ///       these (`hid/buttons.cpp`) and the header does not export them.
@@ -1493,6 +1496,9 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		// `get_basic_shortcut_action(x, y, editingKitAffectEntire())` reads the latch: the kit's own LPF.
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		// With affect-entire off `updatePadLightsFor` scans the sound table, which has no kit LPF: nothing blinks.
+		(void)shellHostUI.timerCallback();
+		expect(deluge::scenes::menu_scene().state().blink_plan.param.valid).to_be_false();
 		closeGuest();
 	});
 
@@ -1570,6 +1576,37 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(std::ranges::find(kit_chain, page) != kit_chain.end()).to_be_true();
 		expect(std::ranges::find(sound_chain, page) == sound_chain.end()).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		closeGuest();
+	});
+
+	it("the SHIFT overlay on the drum menu shows the kit's own map while the latch is set, the drum's once it clears", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::FeatureSetting overlay{
+		    RuntimeFeatureSettingType::ShortcutOverlay,
+		    util::to_underlying(RuntimeFeatureStateShortcutOverlay::MenuOnly)};
+		LatchedKit k;
+		k.f.clip->affectEntire = false;
+		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		HeldShift shift;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)shellHostUI.timerCallback();
+		const auto shown = [] {
+			deluge::ui::test::GridRig grid;
+			grid.input.shift = true; // SHIFT held: the overlay is up
+			grid.begin_tick(0);
+			deluge::scenes::menu_scene().render_grid(grid.frame);
+			return grid.state();
+		};
+		const auto kit_map = shown();
+		entry::clearShellKitGlobalFx(); // as a close clears it; the menu itself is unchanged
+		const auto drum_map = shown();
+		expect(kit_map != deluge::ui::test::GridRig{}.state()).to_be_true();
+		expect(kit_map != drum_map).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		closeGuest();
 	});
 
@@ -1668,6 +1705,9 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   expect(shellHostUI.shell().stack().input_top().kind() == shell::SceneKind::FirstApp).to_be_true();
 		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		   expect(entry::shellKitGlobalFx()).to_be_true();
+		   // `updatePadLightsFor` takes the kit's own table from now on, which has no drum LPF: nothing blinks.
+		   (void)shellHostUI.timerCallback();
+		   expect(deluge::scenes::menu_scene().state().blink_plan.param.valid).to_be_false();
 		   // The next press reads it: the kit's own LPF.
 		   shortcut();
 		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();

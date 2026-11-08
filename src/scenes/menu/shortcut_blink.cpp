@@ -151,7 +151,22 @@ bool BlinkPlan::any_source() const {
 	});
 }
 
-BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused) {
+BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const Node& focused,
+                      bool kit_global_latched) {
+	// `updatePadLightsFor`'s table: `KIT && affectEntire && setupKitGlobalFXMenu` takes the kit's own, ahead of the
+	// gate, MIDI and sound arms; a kit-global menu without affect-entire reaches the sound arm.
+	MenuContext ctx = menu_ctx;
+	const bool kit_row = ctx.root == MenuContext::Root::Drum || ctx.root == MenuContext::Root::MidiDrum
+	                     || ctx.root == MenuContext::Root::GateDrum || ctx.root == MenuContext::Root::KitGlobalFx;
+	if (kit_row && ctx.is_kit) {
+		const bool latched = kit_global_latched || ctx.is_kit_global_fx;
+		if (ctx.affect_entire && latched) {
+			ctx.root = MenuContext::Root::KitGlobalFx;
+		}
+		else if (ctx.root == MenuContext::Root::KitGlobalFx) {
+			ctx.root = MenuContext::Root::Drum;
+		}
+	}
 	BlinkPlan plan;
 	// `updatePadLightsFor` returns at once under the note and note-row editors and sets nothing up
 	// in the settings menu (`sound_editor.cpp:1029-1036`).
