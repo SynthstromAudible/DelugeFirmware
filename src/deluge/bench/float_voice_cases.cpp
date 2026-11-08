@@ -89,6 +89,9 @@ void FloatSourceMonoCase<S>::setup(std::size_t n) {
 	block_ = 0;
 	mono_.configure(S::settings(0));
 	mono_.reset();
+	if constexpr (drifting_source<S>) {
+		drift_.configure({.time_blocks = S::kDriftTime, .seed = 1});
+	}
 	if constexpr (S::kHeld) {
 		run_gate<S>(mono_, FloatGate::ON);
 		settle(n, [&] { mono_.render_block(out_); });
@@ -98,6 +101,9 @@ void FloatSourceMonoCase<S>::setup(std::size_t n) {
 template <class S>
 void FloatSourceMonoCase<S>::block(std::size_t /*n*/) {
 	[[maybe_unused]] const auto flush = flush_.scope();
+	if constexpr (drifting_source<S>) {
+		mono_.configure(S::drifted(0, drift_.next()));
+	}
 	if constexpr (S::kGated) {
 		run_gate<S>(mono_, float_gate_at(0, block_));
 	}
@@ -116,6 +122,9 @@ void FloatSourcePolyCase<S, N>::setup(std::size_t n) {
 		out_[lane] = output_stream(lane, n);
 		poly_.configure(lane, S::settings(lane));
 		poly_.reset(lane);
+		if constexpr (drifting_source<S>) {
+			drift_[lane].configure({.time_blocks = S::kDriftTime, .seed = static_cast<uint32_t>(lane + 1)});
+		}
 	}
 	if constexpr (S::kHeld) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
@@ -128,6 +137,11 @@ void FloatSourcePolyCase<S, N>::setup(std::size_t n) {
 template <class S, std::size_t N>
 void FloatSourcePolyCase<S, N>::block(std::size_t /*n*/) {
 	[[maybe_unused]] const auto flush = flush_.scope();
+	if constexpr (drifting_source<S>) {
+		for (std::size_t lane = 0; lane < N; ++lane) {
+			poly_.configure(lane, S::drifted(lane, drift_[lane].next()));
+		}
+	}
 	if constexpr (S::kGated) {
 		for (std::size_t lane = 0; lane < N; ++lane) {
 			run_gate<S>(poly_, float_gate_at(lane, block_), lane);
@@ -180,6 +194,8 @@ template class FloatSourcePolyCase<FloatBlepVoiceSettings, 2>;
 template class FloatSourcePolyCase<FloatBlepVoiceSettings, 4>;
 template class FloatSourcePolyCase<FloatBlepVoiceSustainSettings, 4>;
 template class FloatSourcePolyCase<FloatTableVoiceSettings, 4>;
+template class FloatSourceMonoCase<FloatLadderVoiceSettings>;
+template class FloatSourcePolyCase<FloatLadderVoiceSettings, 4>;
 template class FloatSourceLinkedCase<FloatBlepVoiceSettings, 2>;
 
 } // namespace deluge::bench

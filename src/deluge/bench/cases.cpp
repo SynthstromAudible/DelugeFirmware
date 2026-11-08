@@ -927,6 +927,12 @@ std::span<const Case> float_voice_list(CaseSet& s) {
 	    make_case("fp_voice_blep_sustain_poly4", s.fp_voice_blep_sustain_poly4),
 	    make_case("fp_voice_blep_linked2", s.fp_voice_blep_linked2),
 	    make_case("fp_voice_table_poly4", s.fp_voice_table_poly4),
+	    make_case("fp_ladder_clean_mono", s.fp_ladder_clean_mono),
+	    make_case("fp_ladder_clean_poly4", s.fp_ladder_clean_poly4),
+	    make_case("fp_ladder_drive_mono", s.fp_ladder_drive_mono),
+	    make_case("fp_ladder_drive_poly4", s.fp_ladder_drive_poly4),
+	    make_case("fp_voice_ladder_mono", s.fp_voice_ladder_mono),
+	    make_case("fp_voice_ladder_poly4", s.fp_voice_ladder_poly4),
 	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
 	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
 	};

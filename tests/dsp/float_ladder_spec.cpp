@@ -31,9 +31,11 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <complex>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <numbers>
 #include <random>
@@ -103,6 +105,90 @@ constexpr std::size_t kBlock = 128;
 		x = d(rng);
 	}
 	return v;
+}
+
+/// The power spectrum of @p x under a four-term Blackman-Harris window (sidelobes below −92 dB), by an in-place radix-2
+/// FFT; x.size() a power of two.
+[[nodiscard]] std::vector<double> power_spectrum(const std::vector<f32>& x) {
+	const std::size_t n = x.size();
+	std::vector<std::complex<double>> a(n);
+	for (std::size_t i = 0; i < n; ++i) {
+		const double t = 2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(n);
+		const double w =
+		    0.35875 - (0.48829 * std::cos(t)) + (0.14128 * std::cos(2.0 * t)) - (0.01168 * std::cos(3.0 * t));
+		a[i] = static_cast<double>(x[i]) * w;
+	}
+	for (std::size_t i = 1, j = 0; i < n; ++i) {
+		std::size_t bit = n >> 1U;
+		for (; (j & bit) != 0; bit >>= 1U) {
+			j ^= bit;
+		}
+		j ^= bit;
+		if (i < j) {
+			std::swap(a[i], a[j]);
+		}
+	}
+	for (std::size_t len = 2; len <= n; len <<= 1U) {
+		const std::complex<double> step = std::polar(1.0, -2.0 * std::numbers::pi / static_cast<double>(len));
+		for (std::size_t i = 0; i < n; i += len) {
+			std::complex<double> w{1.0, 0.0};
+			for (std::size_t k = 0; k < len / 2; ++k) {
+				const auto u = a[i + k];
+				const auto v = a[i + k + (len / 2)] * w;
+				a[i + k] = u + v;
+				a[i + k + (len / 2)] = u - v;
+				w *= step;
+			}
+		}
+	}
+	std::vector<double> p(n / 2);
+	for (std::size_t i = 0; i < n / 2; ++i) {
+		p[i] = std::norm(a[i]);
+	}
+	return p;
+}
+
+/// The aliased energy of a saw at @p f0 through a ladder configured with @p settings: the energy away from the
+/// harmonics (more than 8 bins from every k·f0 below Nyquist, DC excluded) over the fundamental's, in dB. The saw is
+/// additive (its harmonics below Nyquist, summed in double), so everything away from the harmonics is the ladder's.
+[[nodiscard]] double aliasing_db(const Ladder::Settings& settings, f32 f0) {
+	constexpr std::size_t kN = 65536;
+	constexpr std::size_t kSettle = 8192;
+	fp::FlushToZero ftz;
+	std::vector<f32> wave(kSettle + kN), out(wave.size());
+	const auto f = static_cast<double>(f0);
+	for (std::size_t i = 0; i < wave.size(); ++i) {
+		double x = 0.0;
+		for (int k = 1; static_cast<double>(k) * f < 0.5; ++k) {
+			x += std::sin(2.0 * std::numbers::pi * static_cast<double>(k) * f * static_cast<double>(i)) / k;
+		}
+		wave[i] = static_cast<f32>(x * 2.0 / std::numbers::pi);
+	}
+	Mono<Ladder> ladder;
+	ladder.configure(settings);
+	ladder.render_block(fp::Signal{wave}, fp::Buffer{out});
+	const auto p = power_spectrum(std::vector<f32>(out.begin() + kSettle, out.end()));
+	std::vector<bool> harmonic(p.size(), false);
+	for (std::size_t i = 0; i < 9; ++i) {
+		harmonic[i] = true;
+	}
+	const double per_bin = f * static_cast<double>(kN);
+	for (double centre = per_bin; centre < static_cast<double>(p.size()) - 9.0; centre += per_bin) {
+		const auto c = static_cast<std::size_t>(std::lround(centre));
+		for (std::size_t i = c - 8; i <= c + 8; ++i) {
+			harmonic[i] = true;
+		}
+	}
+	const auto first = static_cast<std::size_t>(std::lround(per_bin));
+	double fundamental = 0.0;
+	for (std::size_t i = first - 8; i <= first + 8; ++i) {
+		fundamental += p[i];
+	}
+	double aliased = 0.0;
+	for (std::size_t i = 0; i < p.size(); ++i) {
+		aliased += harmonic[i] ? 0.0 : p[i];
+	}
+	return 10.0 * std::log10(aliased / fundamental);
 }
 
 /// The digest of 8 blocks of seeded noise through a ladder configured with @p settings, in one render.
@@ -367,6 +453,20 @@ describe float_ladder_spec("the float ladder", ${
 				}
 			}
 			expect(std::fabs(out[half] - out[half - 1]) <= 2.F * largest).to_be_true();
+		});
+	});
+	context("aliasing", _ {
+		it("measures the aliased energy of a saw at high drive and resonance (recorded, not gated)", _ {
+			for (const f32 f0 : {0.0213F, 0.005F}) {
+				const double soft = aliasing_db({.cutoff = 0.2F}, f0);
+				const double clean = aliasing_db({.cutoff = 0.2F, .resonance = 3.5F}, f0);
+				const double drive =
+				    aliasing_db({.cutoff = 0.2F, .resonance = 3.5F, .drive = 8.F, .mode = Ladder::Mode::DRIVE}, f0);
+				std::printf("ladder aliasing, saw at f0 %.4f into LP24 at 0.2: CLEAN k 0 %.1f dB, CLEAN k 3.5 %.1f dB, "
+				            "DRIVE k 3.5 drive 8 %.1f dB\n",
+				            static_cast<double>(f0), soft, clean, drive);
+				expect(std::isfinite(soft) && std::isfinite(clean) && std::isfinite(drive)).to_be_true();
+			}
 		});
 	});
 	context("Linked", _ {

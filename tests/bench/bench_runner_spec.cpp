@@ -531,6 +531,12 @@ const std::vector<std::string_view> kFloatVoiceCaseNames{
     "fp_voice_blep_sustain_poly4",
     "fp_voice_blep_linked2",
     "fp_voice_table_poly4",
+    "fp_ladder_clean_mono",
+    "fp_ladder_clean_poly4",
+    "fp_ladder_drive_mono",
+    "fp_ladder_drive_poly4",
+    "fp_voice_ladder_mono",
+    "fp_voice_ladder_poly4",
     "delay_feedback_chain_analog",
     "delay_feedback_chain_digital",
 };

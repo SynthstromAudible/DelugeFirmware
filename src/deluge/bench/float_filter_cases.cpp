@@ -162,6 +162,10 @@ template class FloatPolyCase<FloatOnePoleSettings, 4>;
 template class FloatPolyCase<FloatSmootherSettings, 4>;
 template class FloatPolyCase<FloatSvfSettings, 2>;
 template class FloatPolyCase<FloatSvfSettings, 4>;
+template class FloatMonoCase<FloatLadderCleanSettings>;
+template class FloatMonoCase<FloatLadderDriveSettings>;
+template class FloatPolyCase<FloatLadderCleanSettings, 4>;
+template class FloatPolyCase<FloatLadderDriveSettings, 4>;
 template class FloatLinkedCase<FloatOnePoleSettings, 2>;
 template class FloatLinkedCase<FloatSvfSettings, 2>;
 
