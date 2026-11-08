@@ -85,17 +85,8 @@ public:
 	void render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out)
 	requires processor_kernel<K>
 	{
-		std::size_t n = 0;
-		bool first = true;
-		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked(l)) {
-				if (first) {
-					n = in[l].size();
-					first = false;
-				}
-				assert(in[l].size() == n && out[l].size() == n);
-			}
-		}
+		const std::size_t n = block_length(in);
+		assert(block_length(out) == n);
 		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out, n); });
 	}
 
@@ -104,22 +95,29 @@ public:
 	void render_block(std::array<fp::Buffer, N> out)
 	requires generator_kernel<K>
 	{
-		std::size_t n = 0;
-		bool first = true;
-		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked(l)) {
-				if (first) {
-					n = out[l].size();
-					first = false;
-				}
-				assert(out[l].size() == n);
-			}
-		}
+		const std::size_t n = block_length(out);
 		const std::array<fp::Signal, N> no_input{};
 		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(no_input, out, n); });
 	}
 
 private:
+	/// The length of the unparked lanes' spans in @p spans, which must agree; 0 when every lane is parked.
+	template <class Span>
+	[[nodiscard]] std::size_t block_length(const std::array<Span, N>& spans) const {
+		std::size_t n = 0;
+		bool first = true;
+		for (std::size_t l = 0; l < N; ++l) {
+			if (!parked(l)) {
+				if (first) {
+					n = spans[l].size();
+					first = false;
+				}
+				assert(spans[l].size() == n);
+			}
+		}
+		return n;
+	}
+
 	[[nodiscard]] static constexpr LaneMask bit(std::size_t lane) {
 		assert(lane < N);
 		return LaneMask{1} << lane;

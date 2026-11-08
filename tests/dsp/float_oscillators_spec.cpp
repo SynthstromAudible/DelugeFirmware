@@ -93,7 +93,8 @@ describe float_oscillators_spec("float oscillators", ${
 			}
 		});
 		it("keeps aliased energy below the recorded bound", _ {
-			// The bin 0.03 fs off the 4th harmonic holds only aliases (no harmonic of 0.09 lands there).
+			// No harmonic of 0.09 fs lands on 0.39 fs below Nyquist; only the folded 29th and 71st do, so the bin measures
+			// aliasing.
 			Mono<fp::BlepOscillator> osc;
 			osc.configure({.frequency = 0.09f, .mode = fp::BlepOscillator::Mode::SAW});
 			std::vector<f32> out(100 * 64);
@@ -108,6 +109,30 @@ describe float_oscillators_spec("float oscillators", ${
 			osc.render_block(fp::Buffer{out});
 			const auto high = std::ranges::count_if(out, [](f32 y) { return y > 0.f; });
 			expect(std::abs(static_cast<double>(high) / static_cast<double>(out.size()) - 0.25) < 0.01).to_be_true();
+		});
+		it("holds a pulse's mean and fundamental", _ {
+			// f0 = 0.04 fs, width 0.3: 25-sample windows hold whole cycles.
+			constexpr f32 kWidth = 0.3f;
+			Mono<fp::BlepOscillator> osc;
+			osc.configure({.frequency = 0.04f, .width = kWidth, .mode = fp::BlepOscillator::Mode::PULSE});
+			std::vector<f32> out(25 * 64);
+			osc.render_block(fp::Buffer{out});
+			double mean = 0.0;
+			for (f32 y : out) { mean += y; }
+			expect(std::fabs(mean / static_cast<double>(out.size()) - (2.0 * kWidth - 1.0)) < 1e-3).to_be_true();
+			const f32 x = std::numbers::pi_v<f32> * 0.04f;
+			const f32 droop = (std::sin(x) / x) * (std::sin(x) / x);
+			const f32 expected = droop * 4.f / std::numbers::pi_v<f32> * std::sin(std::numbers::pi_v<f32> * kWidth);
+			expect(std::fabs(bin(out, 0.04f) - expected) < 0.05f * expected).to_be_true();
+		});
+		it("stays finite and bounded at the top of the frequency clamp", _ {
+			// At 0.45 fs the residual windows [0, inc) and (1 - inc, 1) are each under half a cycle, so they never
+			// overlap and the correction never doubles: |out| stays within 1 + the residual's peak.
+			Mono<fp::BlepOscillator> osc;
+			osc.configure({.frequency = 0.45f, .mode = fp::BlepOscillator::Mode::SAW});
+			std::vector<f32> out(1000);
+			osc.render_block(fp::Buffer{out});
+			expect(std::ranges::all_of(out, [](f32 y) { return std::isfinite(y) && std::fabs(y) <= 1.5f; })).to_be_true();
 		});
 		it("matches its records", _ {
 			Mono<fp::BlepOscillator> saw, pulse;

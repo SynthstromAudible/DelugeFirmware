@@ -51,7 +51,7 @@ struct StereoPair {};
 /// lane 0, right = lane 1. The mix takes N samples at a time: their N packs transpose into one pack per lane, which
 /// add as packs in lane order and store as one vector; the last n mod N samples mix one at a time.
 template <poly_kernel K, std::size_t N, class Mix>
-requires(N == 2 || N == 4)
+requires(processor_kernel<K> && (N == 2 || N == 4))
 class Bank : public detail::Copies<K, N> {
 	using Base = detail::Copies<K, N>;
 	using V = Pack<f32, N>;
