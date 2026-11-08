@@ -1,4 +1,5 @@
 #include "gui/ui/shell_bind_host.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
@@ -1320,6 +1321,10 @@ void host_grab_tempo(deluge::project::ClipAddress clip) {
 	if (::AudioClip* audio = gui::audioClipAt(clip)) {
 		playbackHandler.grabTempoFromClip(audio);
 	}
+}
+
+void host_settings_reset() {
+	gui::ui::reapplyLiveSettingsAfterReset();
 }
 
 const deluge::scenes::services::Waveforms& host_waveforms() {

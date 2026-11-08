@@ -224,6 +224,11 @@ public:
 	/// the old setting would stay on with nothing left to clear it.
 	/// @param sticky The new setting.
 	void set_shift_is_sticky(bool sticky);
+	/// @brief Take up a new sticky-shift setting and leave the latch as it is: a reset changes the setting under the
+	///        shift machine, and `Buttons::commandToggleShift` reads it at the next release while nothing releases a
+	///        latch made before (`RuntimeFeatureSettings::factoryReset` calls no `clearShiftSticky()`).
+	/// @param sticky The new setting.
+	void adopt_shift_is_sticky(bool sticky) { cfg_.shift_is_sticky = sticky; }
 	/// @brief Take up a SHIFT state that arose before this lowering saw any event: held (@p pressed), and latched
 	///        (@p stuck) -- legacy's `isShiftButtonPressed` and `isShiftStuck`, which a SHIFT pressed before the
 	///        shell took input leaves set. A held SHIFT carried in releases on its next release event, and latches

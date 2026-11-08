@@ -516,4 +516,13 @@ void pushShellRoundedCorners() {
 	shellHostUI.shell().set_rounded(rounded);
 }
 
+void reapplyLiveSettingsAfterReset() {
+	pushShellHighlighting();
+	deluge::hid::display::Screensaver::settingsChanged();
+	// The setting alone: a latch made before the reset stays, as `Buttons`' does in main.
+	shellHostUI.shell().lowering().adopt_shift_is_sticky(
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky));
+	menu_scene().set_horizontal_menus(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus));
+}
+
 } // namespace deluge::gui::ui
