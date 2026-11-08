@@ -163,9 +163,11 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 size_t transpose0_range_suffix(const MenuContext& ctx, std::span<char> out);
 size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
 
-/// @brief `osc::RetriggerPhase`'s full screen on @p n: `getDefaultEditPos` is 1, so the cursor starts on the tens.
+/// @brief `osc::RetriggerPhase`'s full screen on @p n: OFF below zero with no cursor (`drawPixelsForOled`,
+///        `horizontalEncoderAction`), a turn up from OFF lands on 0 (`selectEncoderAction`), and the cursor starts on
+///        the tens (`getDefaultEditPos` 1).
 constexpr Node retrigger_phase_screen(Node n) {
-	return with_default_edit_pos(n, 1);
+	return with_default_edit_pos(with_decimal_restart_from_negative(with_decimal_word(n, retrigger_phase_text)), 1);
 }
 
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \

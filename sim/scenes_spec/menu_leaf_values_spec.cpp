@@ -185,4 +185,39 @@ describe leaf_horizontal("scenes::menu full-screen Decimal horizontal turn", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal)
+// clang-format off
+describe leaf_words("scenes::menu full-screen Decimal words", $ {
+	it("draws CV volts' 0 as Hz/V with no cursor, and keeps its cursor still there", _ {
+		Rig r;
+		const uint8_t saved = cvEngine.cvChannels[0].voltsPerOctave;
+		cvEngine.cvChannels[0].voltsPerOctave = 0;
+		r.open(nodes::cv_volts);
+		deluge::ui::test::Rig48 rig;
+		rig.input.horizontal = -1;
+		draw(rig, 0);
+		expect(decimal_pos()).to_equal(1);
+		rig.reference.draw_string_centred("Hz/V", 20, 18, 20);
+		expect(rows_match(rig, 20, 42)).to_be_true();
+		cvEngine.cvChannels[0].voltsPerOctave = saved;
+	});
+
+	it("draws retrigger phase's free-running value as OFF, and the first detent up lands on 0", _ {
+		Rig r;
+		menu::bindings::write(nodes::osc0_phase, r.ctx, -1);
+		r.open(nodes::osc0_phase);
+		deluge::ui::test::Rig48 rig;
+		rig.input.horizontal = -1;
+		draw(rig, 0);
+		expect(decimal_pos()).to_equal(1);
+		rig.reference.draw_string_centred(deluge::l10n::get(String::STRING_FOR_OFF), 20, 18, 20);
+		expect(rows_match(rig, 20, 42)).to_be_true();
+
+		deluge::ui::test::Rig48 turned;
+		turned.input.turn = 1;
+		draw(turned, 10);
+		expect(menu_scene().state().edit_int).to_equal(0);
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words)

@@ -400,10 +400,24 @@ void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
 	// the rect horizontally only (`decimal_value` in `ui/oled/values.h`), and its goldens were recorded that way.
+	deluge::ui::oled::ValueStyle style{.restart_from_negative = node.bind.decimal_restart_from_negative};
+	struct WordCall {
+		const Node* node;
+		const MenuContext* ctx;
+	};
+	const WordCall call{&node, &ctx};
+	if (node.bind.decimal_word != nullptr) {
+		style.hook_ctx = &call;
+		style.label = [](int32_t value, const void* c, std::span<char> out) -> std::string_view {
+			const auto& wc = *static_cast<const WordCall*>(c);
+			const ValueText vt = wc.node->bind.decimal_word(*wc.ctx, value, ValueTextUse::Column, out);
+			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
+		};
+	}
 	const deluge::ui::Response r =
 	    deluge::ui::oled::decimal_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx),
 	                                    node.bind.decimal_places, st.decimal_pos, st.cursor_blink,
-	                                    /*focused=*/true);
+	                                    /*focused=*/true, style);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;

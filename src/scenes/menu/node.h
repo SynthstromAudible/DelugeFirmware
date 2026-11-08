@@ -465,6 +465,13 @@ struct Binding {
 	/// @brief Legacy's `drawInteger` override that draws the item's own screen (`LeafDrawFn`). Null for every ordinary
 	///        node.
 	LeafDrawFn leaf_draw = nullptr;
+	/// @brief Legacy's `drawPixelsForOled` override on a `Decimal` that names some of its values (`cv::Volts`' Hz/V at
+	///        0, `osc::RetriggerPhase`'s OFF below 0): while this answers (`ValueTextUse::Column`), the full screen
+	///        draws the word with no cursor and the horizontal encoder moves nothing. Null for every ordinary node.
+	ValueTextFn decimal_word = nullptr;
+	/// @brief `osc::RetriggerPhase::selectEncoderAction` on the full screen: a turn up from below zero starts at minus
+	///        the edit step. The page's twin is `HorizontalStep::restart_from_negative`.
+	bool decimal_restart_from_negative = false;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
@@ -1213,6 +1220,19 @@ constexpr Node with_horizontal_step(Node n, HorizontalStep step) {
 /// @brief `n` whose full-screen cursor starts on place @p pos (`Binding::default_edit_pos`).
 constexpr Node with_default_edit_pos(Node n, int8_t pos) {
 	n.bind.default_edit_pos = pos;
+	return n;
+}
+
+/// @brief `n` naming some of its full-screen decimal values with @p word (`Binding::decimal_word`).
+constexpr Node with_decimal_word(Node n, ValueTextFn word) {
+	n.bind.decimal_word = word;
+	return n;
+}
+
+/// @brief `n` whose full-screen turn up from below zero restarts at minus the step
+///        (`Binding::decimal_restart_from_negative`).
+constexpr Node with_decimal_restart_from_negative(Node n) {
+	n.bind.decimal_restart_from_negative = true;
 	return n;
 }
 

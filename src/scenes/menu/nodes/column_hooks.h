@@ -61,6 +61,8 @@ std::optional<deluge::ui::oled::ArtColumn> midi_preset_art(const MenuContext& ct
 ValueText off_at_zero_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `osc::RetriggerPhase` (`osc/retrigger_phase.h:106-123`): OFF while free-running, and a notification of the raw
 /// number.
+/// `cv::Volts::drawPixelsForOled`: 0 V/octave is Hz/V.
+ValueText cv_volts_word(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:50-73`): AUTO below zero.
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);

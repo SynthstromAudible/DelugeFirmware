@@ -281,6 +281,13 @@ ValueText off_at_zero_text(const MenuContext&, int32_t value, ValueTextUse use, 
 	return put_string(String::STRING_FOR_OFF, out);
 }
 
+ValueText cv_volts_word(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value != 0) {
+		return kValueTextFallback;
+	}
+	return put("Hz/V", out);
+}
+
 ValueText retrigger_phase_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;

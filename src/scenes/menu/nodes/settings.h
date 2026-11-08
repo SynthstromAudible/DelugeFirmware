@@ -88,6 +88,7 @@
 ///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/context_menu_items.h" // the five kReset*Item instances
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
@@ -439,15 +440,15 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // here, ahead of the two selectors, because a chain hook needs their addresses;
 // `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
 
-/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces`/`getDefaultEditPos` (`cv/volts.h`). Legacy draws
-/// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
-/// bespoke render this generation's `Decimal` interpreter has no field for.
-inline constexpr Node cv_volts =
-    with_default_edit_pos(with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts,
-                                                                 set_cv_volts, IntRange{0, 200, 1}, 2),
-                                                    sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
-                                         kTitleArgSourceIndex),
-                          1);
+/// `cv::Volts` (`cv/volts.h`): 0..200 at two places, the cursor on the tenths, and Hz/V at 0 with no
+/// cursor (`drawPixelsForOled`, `horizontalEncoderAction`).
+inline constexpr Node cv_volts = with_default_edit_pos(
+    with_decimal_word(with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts,
+                                                             set_cv_volts, IntRange{0, 200, 1}, 2),
+                                                sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
+                                     kTitleArgSourceIndex),
+                      cv_volts_word),
+    1);
 /// `cv::Transpose` (`cv/transpose.h:31-33`) -- the same `{-9600, 9600}` two-place packing the
 /// oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
 inline constexpr Node cv_transpose =

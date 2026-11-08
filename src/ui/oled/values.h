@@ -33,11 +33,16 @@ struct ValueStyle {
 	/// them.
 	bool continuous = false;
 	/// An item whose `drawPixelsForOled` names its value: given the value after this tick's edit, the text drawn in the
-	/// huge face in place of the digits, with no bar; empty for the digits.
+	/// huge face in place of the digits, with no bar; empty for the digits. For `decimal_value` the text is drawn on
+	/// the digits' row in the huge face with no cursor, and the horizontal encoder moves nothing while it answers
+	/// (`cv::Volts`, `osc::RetriggerPhase`).
 	std::string_view (*label)(int32_t value, const void* hook_ctx, std::span<char> out) = nullptr;
 	/// An item whose `selectEncoderAction` moves the value its own way: the value a turn of `offset` detents makes from
 	/// `value` (clamped to the range after), or `nullopt` for the step.
 	std::optional<int32_t> (*turn)(int32_t value, int32_t offset, const void* hook_ctx) = nullptr;
+	/// `decimal_value` only: `osc::RetriggerPhase::selectEncoderAction` -- a turn up from below zero starts at minus
+	/// the edit step, so its first detent lands on 0.
+	bool restart_from_negative = false;
 	/// An item whose `drawInteger` draws its own screen: called with the value after this tick's edit, in place of the
 	/// digits (`midi::FollowChannel`). The edit is `int_value`'s as for any integer.
 	void (*draw)(OledFrame& f, gfx::oled::Rect rect, int32_t value, const void* hook_ctx) = nullptr;
@@ -129,10 +134,12 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// @param edit_pos Digit position the cursor and select edit amount are anchored to, in/out.
 /// @param blink    Cursor blink phase state, armed and advanced by this widget.
 /// @param focused  Whether this control currently owns the horizontal and select encoders.
+/// @param style    `label` names values that have no cursor; `restart_from_negative` as its doc says.
+///                 `unit`, `off_at_zero`, `continuous`, `turn` and `draw` are `int_value`'s and ignored here.
 /// @return `Response::changed` set when @p value moved this tick; `Response::focused` echoes
 ///         @p focused.
 Response decimal_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range range, uint8_t places,
-                       int8_t& edit_pos, Blink& blink, bool focused = true);
+                       int8_t& edit_pos, Blink& blink, bool focused = true, ValueStyle style = {});
 
 /// @brief Renders and edits a windowed, scrollable name list with a cursor, as one call.
 ///

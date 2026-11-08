@@ -9,6 +9,7 @@
 #include "cppspec.hpp"
 
 #include "../support/spec_main.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -508,6 +509,61 @@ describe values_w("ui::oled::values", $ {
 		Blink b;
 		decimal_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 0, .max = 9999}, 2, pos, b, false);
 		expect(unfocused).to_equal(1234);
+	});
+
+	it("draws a named decimal as its word with no cursor, and refuses the horizontal encoder there", _ {
+		// `cv::Volts::drawPixelsForOled`: drawStringCentred("Hz/V", 20, kTextHugeSpacingX, kTextHugeSizeY), no
+		// setupBlink; `horizontalEncoderAction` returns at 0.
+		const auto hz_per_volt = [](int32_t v, const void*, std::span<char> out) -> std::string_view {
+			if (v != 0) {
+				return {};
+			}
+			constexpr std::string_view kWord = "Hz/V";
+			std::copy(kWord.begin(), kWord.end(), out.begin());
+			return {out.data(), kWord.size()};
+		};
+		uitest::Rig48 r;
+		int32_t value = 0;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.horizontal = -1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(int(edit_pos)).to_equal(1);
+		r.reference.draw_string_centred("Hz/V", 20, 18, 20);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+
+		uitest::Rig48 moved;
+		int32_t five = 5;
+		moved.input.horizontal = -1;
+		decimal_value(moved.frame, moved.frame.bounds(), five, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(int(edit_pos)).to_equal(2);     // a value the label does not name has its cursor
+	});
+
+	it("restarts a turn up from below zero at minus one step, so the first detent lands on 0", _ {
+		// `osc::RetriggerPhase::selectEncoderAction`: setValue(-getNumberEditSize()) before Decimal's own add.
+		uitest::Rig48 r;
+		int32_t value = -1;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.turn = 1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = -1, .max = 360}, 0, edit_pos, blink, true,
+		              ValueStyle{.restart_from_negative = true});
+		expect(value).to_equal(0);
+
+		uitest::Rig48 plain;
+		int32_t without = -1;
+		plain.input.turn = 1;
+		decimal_value(plain.frame, plain.frame.bounds(), without, Range{.min = -1, .max = 360}, 0, edit_pos, blink);
+		expect(without).to_equal(9);           // without it the detent is a plain 10^1
+
+		uitest::Rig48 down;
+		int32_t floor = -1;
+		down.input.turn = -1;
+		decimal_value(down.frame, down.frame.bounds(), floor, Range{.min = -1, .max = 360}, 0, edit_pos, blink, true,
+		              ValueStyle{.restart_from_negative = true});
+		expect(floor).to_equal(-1);            // a turn down clamps as Decimal's does
 	});
 
 	// --------------------------------------------------------------- enum_value
