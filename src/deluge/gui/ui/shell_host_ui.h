@@ -508,6 +508,12 @@ private:
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
 	/// (`gui/ui/ui.cpp:227`). Callers must not re-arm after it.
 	void closeGuest();
+	/// @brief Run the tick a close would otherwise skip: input fed since the last tick reaches the scenes it was fed
+	///        to, as legacy hands a turn or press to the current UI at once, before they go. Ticks only when input is
+	///        pending, and never inside its own tick.
+	void flushPendingInput();
+	/// @brief The shell's tick, with the facts every tick reads first.
+	void tickShell(uint32_t now);
 
 	/// @brief Does the scene that would receive this pad claim it? The grid-claim predicate.
 	///
@@ -525,6 +531,8 @@ private:
 	deluge::ui::PadMask fedPads_{};
 	/// @brief Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
 	bool visitWithoutEditor_ = false;
+	/// @brief `flushPendingInput`'s tick is running.
+	bool flushing_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.

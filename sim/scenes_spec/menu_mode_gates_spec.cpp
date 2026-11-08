@@ -15,9 +15,11 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
+#include "hid/buttons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/sound/sound.h"
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -250,6 +252,90 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(open_transpose()).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
+		(void)shellHostUI.exitUI();
+	});
+
+	it("a select turn fed just before a long-BACK close is applied to the closing menu, as main applies it at once", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::source0_transpose, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+		shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
+		                                                       menu::node_id(nodes::source0_transpose)});
+		expect(openUI(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2); // a turn steps one semitone
+		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(fx.instrument->toModControllable()));
+		const int32_t before = sound->sources[0].transpose;
+		shellHostUI.selectEncoderAction(1);
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(sound->sources[0].transpose).to_equal(before + 1);
+	});
+
+	it("a BACK fed just before a long-BACK close closes the menu once", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sound_root, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+		shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, 0});
+		expect(openUI(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		static int closes = 0;
+		closes = 0;
+		const deluge::gui::ui::ShellHostUI::CloseHook saved = deluge::gui::ui::ShellHostUI::closeHook();
+		deluge::gui::ui::ShellHostUI::setCloseHook([](uint32_t now_ms) {
+			closes++;
+			deluge::gui::ui::handOffGuestOverlays(now_ms);
+		});
+		// The BACK at the root closes the menu when it is routed; the long press then has nothing left to close.
+		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, true);
+		expect(shellHostUI.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, false);
+		deluge::gui::ui::ShellHostUI::setCloseHook(saved);
+		expect(closes).to_equal(1);
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(getCurrentUI() == &instrumentClipView).to_be_true();
+	});
+
+	it("a Shift + pad fed before a teardown that skips the close does not jump the next menu opened", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		const auto open_transpose = [&fx] {
+			menu_scene().open(nodes::source0_transpose, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+			shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
+			                                                       menu::node_id(nodes::source0_transpose)});
+			return openUI(&shellHostUI);
+		};
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		::Buttons::shiftCurrentlyPressed = true;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)shellHostUI.timerCallback();
+		(void)shellHostUI.padAction(9, 7, 64); // HPF frequency's shortcut, queued
+		nullifyUIs();                          // a song load takes every UI down with no close
+		setRootUILowLevel(&instrumentClipView);
+
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		(void)shellHostUI.timerCallback();
+		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		::Buttons::shiftCurrentlyPressed = false;
+		(void)shellHostUI.padAction(9, 7, 0);
 		(void)shellHostUI.exitUI();
 	});
 

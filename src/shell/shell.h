@@ -449,6 +449,8 @@ public:
 	/// be routed by the next tick to whatever scenes are up by then. The lowering keeps its held buttons and partial
 	/// detents (`InputLowering::discard_pending`).
 	void discard_pending_input();
+	/// @brief Whether input was fed since the last tick: the tick window is open.
+	bool input_pending() const { return tick_open_; }
 
 	/// @name Inspection
 	/// @{

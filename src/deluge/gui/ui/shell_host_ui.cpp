@@ -492,10 +492,7 @@ ActionResult ShellHostUI::timerCallback() {
 
 	// The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`); the working animation is the
 	// shell's own scene.
-	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
-	shell_.set_acceleration_clock_ms(accelerationClockMs());
-	shell_.set_owns_notices(getCurrentUI() == this);
-	shell_.tick(now);
+	tickShell(now);
 
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
@@ -1165,6 +1162,22 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 // Leaving
 // ---------------------------------------------------------------------------------------------
 
+void ShellHostUI::tickShell(uint32_t now) {
+	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
+	shell_.set_acceleration_clock_ms(accelerationClockMs());
+	shell_.set_owns_notices(getCurrentUI() == this);
+	shell_.tick(now);
+}
+
+void ShellHostUI::flushPendingInput() {
+	if (flushing_ || !shell_.input_pending()) {
+		return;
+	}
+	flushing_ = true;
+	tickShell(nowMs());
+	flushing_ = false;
+}
+
 ActionResult ShellHostUI::exitUI() {
 	// **What this hook is in legacy.** Chiefly the long-press-Back exit: `Buttons` arms
 	// `TimerName::BACK_MENU_EXIT` for `LONG_PRESS_DURATION` when Back goes down and unsets it on
@@ -1244,6 +1257,9 @@ ActionResult ShellHostUI::exitUI() {
 	if (shellSliceOut()) {
 		return ActionResult::DEALT_WITH;
 	}
+	// A turn or press fed since the last tick is the scene's that is up now, as legacy gives it to the current UI at
+	// once; a BACK among them may leave nothing for this exit to remove.
+	flushPendingInput();
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
 	}
@@ -1261,6 +1277,8 @@ ActionResult ShellHostUI::exitUI() {
 }
 
 void ShellHostUI::closeGuest() {
+	// Input fed since the last tick reaches the closing scenes first; whatever is left after is dropped below.
+	flushPendingInput();
 	// **Hand the two knob indicator rings back to legacy, coherently.** `GuestSurfaceSet::set_indicator` writes the
 	// hardware through `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow -- there
 	// is no scalar at that seam to hand `actuallySetKnobIndicatorLevel`, because a `KnobIndicator` is already the four
@@ -1329,7 +1347,7 @@ void ShellHostUI::closeGuest() {
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
 	shell_.stack().reset();
-	// What was fed and not yet routed was for the scenes just emptied.
+	// Anything still pending after the flush was for the scenes just emptied.
 	shell_.discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
