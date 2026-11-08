@@ -221,7 +221,7 @@ describe float_kernels_spec("float kernels", ${
 		it("lands exactly on the target at the block's end, LINEAR", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Smoother> s;
-			s.configure({.target = 0.75f, .time = 0.f, .block = static_cast<f32>(kBlock), .mode = fp::Smoother::Mode::LINEAR});
+			s.configure({.target = 0.75f, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock);
 			s.render_block(fp::Signal{unused}, fp::Buffer{out});
 			expect(out.back()).to_equal(0.75f);
@@ -230,7 +230,7 @@ describe float_kernels_spec("float kernels", ${
 		it("reaches 1 - 1/e of a step in its time constant, EXPONENTIAL", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Smoother> s;
-			s.configure({.target = 1.f, .time = 100.f, .block = static_cast<f32>(kBlock), .mode = fp::Smoother::Mode::EXPONENTIAL});
+			s.configure({.target = 1.f, .time = 100.f, .mode = fp::Smoother::Mode::EXPONENTIAL});
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock);
 			s.render_block(fp::Signal{unused}, fp::Buffer{out});
 			expect(std::fabs(out[99] - (1.f - std::exp(-1.f))) < 1e-3f).to_be_true();
@@ -240,34 +240,38 @@ describe float_kernels_spec("float kernels", ${
 			Mono<fp::Smoother> s;
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock * 4);
 			for (std::size_t b = 0; b < 4; ++b) {
-				s.configure({.target = (b % 2 == 0) ? 0.9f : -0.3f, .time = 37.f, .block = static_cast<f32>(kBlock),
-				             .mode = fp::Smoother::Mode::EXPONENTIAL});
+				s.configure({.target = (b % 2 == 0) ? 0.9f : -0.3f, .time = 37.f, .mode = fp::Smoother::Mode::EXPONENTIAL});
 				s.render_block(fp::Signal{unused}, fp::Buffer{out}.subspan(b * kBlock, kBlock));
 			}
 			expect(digest(out)).to_equal(records::kSmootherExponential);
 		});
-		it("lands exactly on the target at the last sample of any block length, LINEAR", _ {
+		it("lands exactly on the target at the last sample of each block, whatever its length, LINEAR", _ {
 			fp::FlushToZero ftz;
-			for (const std::size_t n : {100UZ, 37UZ, 1UZ, 128UZ}) {
-				Mono<fp::Smoother> s;
-				s.configure({.target = 0.75f, .time = 0.f, .block = static_cast<f32>(n), .mode = fp::Smoother::Mode::LINEAR});
+			// One smoother, configured once per block with only a target: each block's ramp spans that block.
+			Mono<fp::Smoother> s;
+			f32 from = 0.f;
+			f32 target = 0.75f;
+			for (const std::size_t n : {100UZ, 37UZ, 1UZ, 128UZ, 2UZ}) {
+				s.configure({.target = target, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 				std::vector<f32> unused(n, 0.f), out(n);
 				s.render_block(fp::Signal{unused}, fp::Buffer{out});
-				expect(std::bit_cast<uint32_t>(out.back())).to_equal(std::bit_cast<uint32_t>(0.75f));
+				expect(std::bit_cast<uint32_t>(out.back())).to_equal(std::bit_cast<uint32_t>(target));
 				bool before_is_between = true;
 				for (std::size_t i = 0; i + 1 < n; ++i) {
-					before_is_between = before_is_between && out[i] > 0.f && out[i] < 0.75f;
+					before_is_between = before_is_between && out[i] > std::min(from, target) && out[i] < std::max(from, target);
 				}
 				expect(before_is_between).to_be_true();
+				from = target;
+				target = -target * 0.5f;
 			}
 		});
 		it("starts each LINEAR block from the last value and lands on the new target", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Smoother> s;
 			std::vector<f32> unused(64, 0.f), first(64), second(64);
-			s.configure({.target = 0.5f, .time = 0.f, .block = 64.f, .mode = fp::Smoother::Mode::LINEAR});
+			s.configure({.target = 0.5f, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 			s.render_block(fp::Signal{unused}, fp::Buffer{first});
-			s.configure({.target = -0.25f, .time = 0.f, .block = 64.f, .mode = fp::Smoother::Mode::LINEAR});
+			s.configure({.target = -0.25f, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 			s.render_block(fp::Signal{unused}, fp::Buffer{second});
 			expect(std::bit_cast<uint32_t>(first.back())).to_equal(std::bit_cast<uint32_t>(0.5f));
 			expect(second.front() < 0.5f && second.front() > 0.5f - 0.75f / 32.f).to_be_true();
@@ -277,7 +281,7 @@ describe float_kernels_spec("float kernels", ${
 			fp::FlushToZero ftz;
 			for (const f32 time : {0.f, -5.f}) {
 				Mono<fp::Smoother> s;
-				s.configure({.target = 0.3f, .time = time, .block = 16.f, .mode = fp::Smoother::Mode::EXPONENTIAL});
+				s.configure({.target = 0.3f, .time = time, .mode = fp::Smoother::Mode::EXPONENTIAL});
 				std::vector<f32> unused(16, 0.f), out(16);
 				s.render_block(fp::Signal{unused}, fp::Buffer{out});
 				bool all_target = true;
@@ -292,8 +296,7 @@ describe float_kernels_spec("float kernels", ${
 			Mono<fp::Smoother> s;
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock * 4);
 			for (std::size_t b = 0; b < 4; ++b) {
-				s.configure({.target = (b % 2 == 0) ? 0.9f : -0.3f, .time = 0.f, .block = static_cast<f32>(kBlock),
-				             .mode = fp::Smoother::Mode::LINEAR});
+				s.configure({.target = (b % 2 == 0) ? 0.9f : -0.3f, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 				s.render_block(fp::Signal{unused}, fp::Buffer{out}.subspan(b * kBlock, kBlock));
 			}
 			expect(digest(out)).to_equal(records::kSmootherLinear);

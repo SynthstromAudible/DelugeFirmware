@@ -249,16 +249,16 @@ void poly_specs(auto& self) {
 		expect_lanes_equal_mono<fp::Smoother, N>(self,
 		    [](std::size_t l) {
 			    return fp::Smoother::Settings{.target = -0.5f + (0.3f * static_cast<f32>(l)), .time = 20.f + static_cast<f32>(l),
-			                                  .block = 128.f, .mode = fp::Smoother::Mode::EXPONENTIAL};
+			                                  .mode = fp::Smoother::Mode::EXPONENTIAL};
 		    },
 		    5);
 	});
 	it("steps each linear Smoother lane exactly as Mono with its own target, block by block", _ {
 		for (const std::size_t block : {128uz, 125uz, 7uz, 1uz}) {
 			expect_lanes_equal_mono<fp::Smoother, N>(self,
-			    [block](std::size_t l) {
+			    [](std::size_t l) {
 				    return fp::Smoother::Settings{.target = 0.9f - (0.45f * static_cast<f32>(l)), .time = 0.f,
-				                                  .block = static_cast<f32>(block), .mode = fp::Smoother::Mode::LINEAR};
+				                                  .mode = fp::Smoother::Mode::LINEAR};
 			    },
 			    11, block);
 		}
@@ -270,8 +270,7 @@ void poly_specs(auto& self) {
 	it("leaves the other lanes unchanged when a linear Smoother lane is parked", _ {
 		expect_lanes_equal_mono<fp::Smoother, N>(self,
 		    [](std::size_t l) {
-			    return fp::Smoother::Settings{.target = 0.2f * static_cast<f32>(l + 1), .block = 125.f,
-			                                  .mode = fp::Smoother::Mode::LINEAR};
+			    return fp::Smoother::Settings{.target = 0.2f * static_cast<f32>(l + 1), .mode = fp::Smoother::Mode::LINEAR};
 		    },
 		    4, 125, 0);
 	});
@@ -286,9 +285,8 @@ void poly_specs(auto& self) {
 				    block, N - 1, 2, 5, empty);
 				expect_scenario_equals_mono<fp::Smoother, N>(
 				    self,
-				    [block](std::size_t l, std::size_t /*b*/) {
-					    return fp::Smoother::Settings{.target = 0.3f * static_cast<f32>(l + 1), .block = static_cast<f32>(block),
-					                                  .mode = fp::Smoother::Mode::LINEAR};
+				    [](std::size_t l, std::size_t /*b*/) {
+					    return fp::Smoother::Settings{.target = 0.3f * static_cast<f32>(l + 1), .mode = fp::Smoother::Mode::LINEAR};
 				    },
 				    block, 0, 2, 5, empty);
 			}
@@ -306,7 +304,7 @@ void poly_specs(auto& self) {
 			    self,
 			    [](std::size_t l, std::size_t b) {
 				    return fp::Smoother::Settings{.target = 0.2f * static_cast<f32>(l) - 0.1f * static_cast<f32>(b),
-				                                  .block = 126.f, .mode = fp::Smoother::Mode::LINEAR};
+				                                  .mode = fp::Smoother::Mode::LINEAR};
 			    },
 			    126, 1, 1, 3, empty);
 		}
@@ -317,7 +315,7 @@ void poly_specs(auto& self) {
 			    self,
 			    [mode](std::size_t l, std::size_t b) {
 				    return fp::Smoother::Settings{.target = 0.25f * static_cast<f32>(b) - 0.2f * static_cast<f32>(l),
-				                                  .time = 10.f + static_cast<f32>(3 * b + l), .block = 126.f, .mode = mode};
+				                                  .time = 10.f + static_cast<f32>(3 * b + l), .mode = mode};
 			    },
 			    126, N, 5, 5, false);
 		}

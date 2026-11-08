@@ -35,9 +35,10 @@ namespace deluge::dsp::fp {
 /// @brief Moves y toward a per-block target. EXPONENTIAL: y ← y + a·(target − y), a = 1 − exp(−1/time).
 /// LINEAR: a ramp from the block's start value that reaches the target at the block's last sample.
 /// @details A processor kernel whose input is ignored (it is the cursor a Mono block needs), so it runs in Mono and
-/// Poly as any processor does. LINEAR's sample t (counting from 1) is the target itself once t reaches the block
-/// length, and a rounded ramp value before it, so the block's last sample is exactly the target and no earlier one is,
-/// for any block length. EXPONENTIAL with `time` ≤ 0 sets y to the target exactly.
+/// Poly as any processor does. LINEAR's ramp spans the block being rendered: `prepare` takes its length from the
+/// block's n, so sample t (counting from 1) is the target itself once t reaches n, and a rounded ramp value before
+/// it, so the block's last sample is exactly the target and no earlier one is, for any block length. EXPONENTIAL with
+/// `time` ≤ 0 sets y to the target exactly. The target is not clamped.
 struct Smoother {
 	using value_type = f32; ///< The smoothed value.
 	using step_type = f32;  ///< One value per sample.
@@ -53,7 +54,6 @@ struct Smoother {
 	struct Settings {
 		f32 target = 0.f;              ///< Where y goes.
 		f32 time = 0.f;                ///< EXPONENTIAL: the time constant, in samples; 0 or less jumps to the target.
-		f32 block = 128.f;             ///< LINEAR: the block's length, in samples.
 		Mode mode = Mode::EXPONENTIAL; ///< How y moves.
 	};
 
@@ -61,11 +61,10 @@ struct Smoother {
 	template <class V>
 	struct CoefficientsT {
 		V target{};                    ///< Where y goes.
-		V rate{};                      ///< EXPONENTIAL: a, and y is the target where a ≥ 1. LINEAR: 1/block.
-		V length{};                    ///< LINEAR: the block's length in samples, at least 1.
+		V rate{};                      ///< EXPONENTIAL: a, and y is the target where a ≥ 1.
 		Mode mode = Mode::EXPONENTIAL; ///< Shared by every lane.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-		static constexpr auto fields = std::tuple{&CoefficientsT::target, &CoefficientsT::rate, &CoefficientsT::length};
+		static constexpr auto fields = std::tuple{&CoefficientsT::target, &CoefficientsT::rate};
 	};
 	using Coefficients = CoefficientsT<f32>;
 
@@ -80,33 +79,37 @@ struct Smoother {
 	};
 	using State = StateT<f32>;
 
+	/// @brief LINEAR's ramp for the block being rendered: one value for every lane, since every lane's block has the
+	/// same length.
+	struct Block {
+		f32 length = 1.f; ///< The block's length in samples, at least 1.
+		f32 step = 1.f;   ///< 1/length: how far one sample moves along the ramp.
+	};
+
 	/// @brief The coefficients for @p settings.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		f32 rate = 1.f;
-		f32 length = 1.f;
-		if (settings.mode == Mode::LINEAR) {
-			length = std::max(settings.block, 1.f);
-			rate = 1.f / length;
-		}
-		else if (settings.time > 0.f) {
+		if (settings.mode == Mode::EXPONENTIAL && settings.time > 0.f) {
 			rate = 1.f - std::exp(-1.f / settings.time);
 		}
-		return {.target = settings.target, .rate = rate, .length = length, .mode = settings.mode};
+		return {.target = settings.target, .rate = rate, .mode = settings.mode};
 	}
 
-	/// @brief Starts a block's ramp at the current value, over V. Runs every block, in either mode.
+	/// @brief Starts a block of @p n samples' ramp at the current value, over V. Runs every block, in either mode.
 	template <class V>
-	static EmptyBlock prepare(const CoefficientsT<V>& /*c*/, StateT<V>& st, std::size_t /*n*/) {
+	static Block prepare(const CoefficientsT<V>& /*c*/, StateT<V>& st, std::size_t n) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		st.start = st.y;
 		st.t = V{};
-		return {};
+		const f32 length = std::max(static_cast<f32>(n), 1.f);
+		return {.length = length, .step = 1.f / length};
 	}
 
 	/// @brief One sample over V; the input is ignored.
 	template <Mode M, class V>
-	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
-	                                                   StateT<V>& st, std::type_identity_t<V> /*x*/) {
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const Block& b, StateT<V>& st,
+	                                                   std::type_identity_t<V> /*x*/) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		if constexpr (M == Mode::EXPONENTIAL) {
 			st.y = select(c.rate >= V{1.f}, c.target, mul_add(st.y, c.rate, c.target - st.y));
@@ -114,7 +117,7 @@ struct Smoother {
 		else {
 			st.t = st.t + V{1.f};
 			// Where t has reached the block's length the sample is the target itself, so the ramp ends exactly on it.
-			st.y = select(st.t >= c.length, c.target, mul_add(st.start, st.t * c.rate, c.target - st.start));
+			st.y = select(st.t >= V{b.length}, c.target, mul_add(st.start, st.t * V{b.step}, c.target - st.start));
 		}
 		return st.y;
 	}
