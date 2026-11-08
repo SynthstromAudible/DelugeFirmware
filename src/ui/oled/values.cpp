@@ -193,7 +193,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		// `cv::Volts` and `RetriggerPhase::horizontalEncoderAction`: a value the item names has no cursor to move.
 		std::array<char, 24> named_buf{};
 		const bool named = !label_of(style, value, named_buf).empty();
-		horizontal_ticked = horizontal != 0 && !named;
+		horizontal_ticked = horizontal != 0;
 		if (!named && horizontal > 0 && edit_pos > 0) {
 			edit_pos--;
 		}
