@@ -193,7 +193,9 @@ private:
 	/// @brief `deluge::storage::bytes::AbsentFn`: the defaults file is absent in both locations.
 	/// @param ctx The `PerformanceView` instance, passed through unexamined by the channel.
 	static void defaultsAbsent(void* ctx);
-	/// @brief `deluge::storage::bytes::DoneFn` for the defaults read: an unreadable card uses the default layout.
+	/// @brief `deluge::storage::bytes::DoneFn` for the defaults read: an unreadable card uses the default layout, and
+	/// an
+	///        open view draws its pads with the layout that arrived.
 	/// @param ctx     The `PerformanceView` instance, passed through unexamined by the channel.
 	/// @param outcome How the read ended.
 	static void defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome);

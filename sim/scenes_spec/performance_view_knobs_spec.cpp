@@ -7,9 +7,11 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "storage/byte_channel.h"
 
 #include "support/song_fixture.h"
 
@@ -25,11 +27,23 @@ namespace params = deluge::modulation::params;
 /// @brief The spec's view into what the performance view keeps private; every check drives its real entry points.
 struct PerformanceViewKnobsProbe {
 	static void loadDefaultLayout() { performanceView.loadDefaultLayout(); }
+	/// The byte channel's delivery of a defaults file that is absent on the card: its AbsentFn, then its DoneFn.
+	static void deliverAbsentDefaults() {
+		PerformanceView::defaultsAbsent(&performanceView);
+		PerformanceView::defaultsReadDone(&performanceView, deluge::storage::bytes::SettingsOutcome::Absent);
+	}
+	/// The byte channel's delivery of an unreadable card: its DoneFn alone.
+	static void deliverUnreadableDefaults() {
+		PerformanceView::defaultsReadDone(&performanceView, deluge::storage::bytes::SettingsOutcome::Unreadable);
+	}
 	static void releaseViewOnExit() {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		performanceView.releaseViewOnExit(currentSong->setupModelStackWithSongAsTimelineCounter(memory));
 	}
 };
+
+/// `gui/ui/ui.cpp`'s pending main-pad render rows, which `uiNeedsRendering` sets for a UI on the stack.
+extern uint32_t whichMainRowsNeedRendering;
 
 namespace {
 
@@ -129,6 +143,29 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 		expect(performanceView.possiblyRefreshPerformanceViewDisplay(params::Kind::UNPATCHED_GLOBAL,
 		                                                             params::UNPATCHED_HPF_FREQ, 10))
 		    .to_be_false();
+	});
+
+	it("draws its pads again when its defaults arrive from the card after it opened", _ {
+		PerformanceRig rig;
+		whichMainRowsNeedRendering = 0;
+		PerformanceViewKnobsProbe::deliverAbsentDefaults();
+		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
+
+		whichMainRowsNeedRendering = 0;
+		PerformanceViewKnobsProbe::deliverUnreadableDefaults();
+		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
+	});
+
+	it("leaves the LOAD LED alone when its defaults arrive after it was left", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = f.song;
+		nullifyUIs();
+		indicator_leds::setLedState(IndicatorLED::LOAD, true);
+		PerformanceViewKnobsProbe::deliverAbsentDefaults();
+		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::LOAD)]).to_be_true();
+		indicator_leds::setLedState(IndicatorLED::LOAD, false);
+		currentSong = saved;
 	});
 });
 // clang-format on
