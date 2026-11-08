@@ -96,7 +96,7 @@ _How this contract catches a mistake: introducing a `u32` where a `u16` is expec
 
 _The retirement timeline, over four months._
 
-The first step to migrating all of this is to look at the existing boundary, and begin routing both the Renesas C platform code and the C++ application calls through new C headers.
+The first step to migrating all of this was to look at the existing boundary, and begin routing both the Renesas C platform code and the C++ application calls through new C headers.
 
 Following the convention that platform code is typically provided as a library, I decided to call this platform layer "libdeluge".
 
