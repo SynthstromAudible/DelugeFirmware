@@ -1,7 +1,8 @@
 // Poly<K, N>: every lane, configured with its own settings, equals Mono<K> with those settings, bit for bit, at
 // N = 2 and 4, for OnePole, Svf (every mode) and Smoother (both modes), on noise and on an impulse decaying through the
 // flush-to-zero range; a fresh Poly has every lane parked; a parked lane changes no other; configure mid-stream takes
-// effect at the next block.
+// effect at the next block; reset and parking run a kernel's reset quirk as Mono's reset does; a kernel declaring a
+// loop state is no poly kernel.
 
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
@@ -9,6 +10,8 @@
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
+#include "dsp-next/float/osc/blep_oscillator.h"
+#include "dsp-next/float/osc/table_oscillator.h"
 
 #include <algorithm>
 #include <array>
@@ -17,6 +20,7 @@
 #include <cppspec.hpp>
 #include <cstring>
 #include <random>
+#include <tuple>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -24,6 +28,81 @@ using namespace deluge::dsp;
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
 // flags (poly_unsafe_math_spec) compares the kernels against IEEE order. The headers above pin themselves.
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
+
+namespace nested_test {
+template <class V>
+struct Inner {
+	V a{};
+	V b{};
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+	static constexpr auto fields = std::tuple{&Inner::a, &Inner::b};
+};
+template <class V>
+struct Outer {
+	std::array<Inner<V>, 3> items{};
+	Inner<V> one{};
+	V x{};
+	int tag = 7; // not a field: untouched by set_lane
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+	static constexpr auto fields = std::tuple{&Outer::items, &Outer::one, &Outer::x};
+};
+} // namespace nested_test
+
+namespace quirk_test {
+/// A leaky integrator whose reset quirk starts it at 1, not at StateT{}: Poly must run the quirk on a lane as Mono runs
+/// it on its one copy.
+struct ResetToOne {
+	using value_type = f32;
+	using step_type = f32;
+
+	struct Settings {
+		f32 leak = 0.5f;
+	};
+	template <class V>
+	struct CoefficientsT {
+		V leak{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&CoefficientsT::leak};
+	};
+	using Coefficients = CoefficientsT<f32>;
+	template <class V>
+	struct StateT {
+		V level{};
+		V last{};
+		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
+		static constexpr auto fields = std::tuple{&StateT::level, &StateT::last};
+	};
+	using State = StateT<f32>;
+
+	[[nodiscard]] static Coefficients coefficients(const Settings& settings) { return {.leak = settings.leak}; }
+	static void reset(State& s) {
+		s = State{};
+		s.level = 1.f;
+	}
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, StateT<V>& s,
+	                                                   std::type_identity_t<V> x) {
+		s.last = x;
+		s.level = (s.level * c.leak) + x;
+		return s.level;
+	}
+};
+static_assert(poly_kernel<ResetToOne>);
+
+/// ResetToOne stepping a loop state, the `level` member alone: a kernel Mono can run, but no poly kernel, since Poly,
+/// Bank and a chain on packed lanes step a lane's whole State.
+struct LevelLoopState : ResetToOne {
+	static constexpr auto kLoopState = &State::level;
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, V& level,
+	                                                   std::type_identity_t<V> x) {
+		level = (level * c.leak) + x;
+		return level;
+	}
+};
+static_assert(processor_kernel<LevelLoopState>);
+static_assert(!poly_kernel<LevelLoopState>);
+} // namespace quirk_test
 
 namespace {
 
@@ -72,6 +151,41 @@ void expect_lanes_equal_mono(auto& self, SettingsFor settings_for, uint32_t seed
 			    .to_be_true();
 			continue;
 		}
+		for (std::size_t i = 0; i < out[l].size(); ++i) {
+			expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
+		}
+		const auto ps = poly.state(l);
+		const auto ms = mono[l].state();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
+		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
+		    .to_be_true();
+	}
+}
+
+/// Runs @p blocks blocks of a generator through a Poly and N Monos configured by @p settings_for, and expects every
+/// lane's output, and its state, to equal its Mono's bit for bit.
+template <class K, std::size_t N, class SettingsFor>
+void expect_generator_lanes_equal_mono(auto& self, SettingsFor settings_for, std::size_t block = 128) {
+	constexpr std::size_t kBlocks = 3;
+	fp::FlushToZero ftz;
+	Poly<K, N> poly;
+	std::array<Mono<K>, N> mono{};
+	std::array<std::vector<f32>, N> out{}, ref{};
+	for (std::size_t l = 0; l < N; ++l) {
+		poly.configure(l, settings_for(l));
+		mono[l].configure(settings_for(l));
+		out[l].resize(block * kBlocks);
+		ref[l].resize(block * kBlocks);
+	}
+	for (std::size_t b = 0; b < kBlocks; ++b) {
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			os[l] = fp::Buffer{out[l]}.subspan(b * block, block);
+			mono[l].render_block(fp::Buffer{ref[l]}.subspan(b * block, block));
+		}
+		poly.render_block(os);
+	}
+	for (std::size_t l = 0; l < N; ++l) {
 		for (std::size_t i = 0; i < out[l].size(); ++i) {
 			expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
 		}
@@ -266,6 +380,37 @@ void poly_specs(auto& self) {
 			    11, block);
 		}
 	});
+	it("steps each BlepOscillator saw lane exactly as Mono at its own pitch, block by block", _ {
+		for (const std::size_t block : {128uz, 125uz, 7uz}) {
+			expect_generator_lanes_equal_mono<fp::BlepOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::BlepOscillator::Settings{.frequency = 0.013f + (0.11f * static_cast<f32>(l)),
+				                                        .mode = fp::BlepOscillator::Mode::SAW};
+			    },
+			    block);
+		}
+	});
+	it("steps each BlepOscillator pulse lane exactly as Mono at its own pitch and width", _ {
+		for (const std::size_t block : {128uz, 125uz}) {
+			expect_generator_lanes_equal_mono<fp::BlepOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::BlepOscillator::Settings{.frequency = 0.021f + (0.09f * static_cast<f32>(l)),
+				                                        .width = 0.1f + (0.2f * static_cast<f32>(l)),
+				                                        .mode = fp::BlepOscillator::Mode::PULSE};
+			    },
+			    block);
+		}
+	});
+	it("steps each TableOscillator lane, a kernel without modes, exactly as Mono, each in its own band", _ {
+		fp::build_saw_bands();
+		for (const std::size_t block : {128uz, 125uz, 7uz}) {
+			expect_generator_lanes_equal_mono<fp::TableOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::TableOscillator::Settings{.frequency = 0.0007f * static_cast<f32>(1 << (2 * l))};
+			    },
+			    block);
+		}
+	});
 	it("leaves the other lanes unchanged when one is parked", _ {
 		expect_lanes_equal_mono<fp::OnePole, N>(self,
 		    [](std::size_t l) { return fp::OnePole::Settings{.cutoff = 0.01f * static_cast<f32>(l + 1)}; }, 9, 128, 1);
@@ -351,6 +496,53 @@ void poly_specs(auto& self) {
 			expect(same_bits(poly.state(l), fp::OnePole::State{})).to_be_true();
 		}
 	});
+	it("resets a lane through K's reset quirk, as Mono resets, and leaves the other lanes", _ {
+		using quirk_test::ResetToOne;
+		Poly<ResetToOne, N> poly;
+		std::array<Mono<ResetToOne>, N> mono{};
+		std::array<std::vector<f32>, N> in{}, out{};
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			const ResetToOne::Settings settings{.leak = 0.25f + (0.125f * static_cast<f32>(l))};
+			poly.configure(l, settings);
+			mono[l].configure(settings);
+			in[l].assign(13, 0.5f - (0.25f * static_cast<f32>(l)));
+			out[l].resize(13);
+			is[l] = fp::Signal{in[l]};
+			os[l] = fp::Buffer{out[l]};
+			std::vector<f32> sink(13);
+			mono[l].render_block(is[l], fp::Buffer{sink});
+		}
+		poly.render_block(is, os);
+		poly.reset(1);
+		mono[1].reset();
+		expect(poly.state(1).level).to_equal(1.f);
+		for (std::size_t l = 0; l < N; ++l) {
+			expect(same_bits(poly.state(l), mono[l].state())).to_be_true();
+		}
+	});
+	it("returns a parked lane to K's reset quirk after every block, as Mono resets", _ {
+		using quirk_test::ResetToOne;
+		Poly<ResetToOne, N> poly;
+		Mono<ResetToOne> rest;
+		rest.reset();
+		std::array<std::vector<f32>, N> in{}, out{};
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			poly.configure(l, {.leak = 0.5f});
+			in[l].assign(9, 0.75f);
+			out[l].resize(9);
+			is[l] = fp::Signal{in[l]};
+			os[l] = fp::Buffer{out[l]};
+		}
+		poly.park(0);
+		expect(same_bits(poly.state(0), rest.state())).to_be_true();
+		poly.render_block(is, os);
+		expect(same_bits(poly.state(0), rest.state())).to_be_true();
+		expect(same_bits(poly.state(1), rest.state())).to_be_false();
+	});
 	it("un-parks a lane when it is configured", _ {
 		Poly<fp::OnePole, N> poly;
 		poly.configure(0, {.cutoff = 0.1f});
@@ -382,6 +574,45 @@ void poly_specs(auto& self) {
 				expect(std::bit_cast<uint32_t>(a[i])).to_equal(std::bit_cast<uint32_t>(b[i]));
 			}
 		}
+	});
+	it("moves a lane through arrays and nested field structs", _ {
+		using nested_test::Outer;
+		const auto make = [](f32 base) {
+			Outer<f32> o;
+			f32 v = base;
+			for (auto& item : o.items) {
+				item.a = v++;
+				item.b = v++;
+			}
+			o.one.a = v++;
+			o.one.b = v++;
+			o.x = v;
+			return o;
+		};
+		const auto same = [](const Outer<f32>& p, const Outer<f32>& q) {
+			const auto b = [](f32 x) { return std::bit_cast<uint32_t>(x); };
+			bool eq = b(p.x) == b(q.x) && b(p.one.a) == b(q.one.a) && b(p.one.b) == b(q.one.b);
+			for (std::size_t k = 0; k < 3; ++k) {
+				eq = eq && b(p.items[k].a) == b(q.items[k].a) && b(p.items[k].b) == b(q.items[k].b);
+			}
+			return eq;
+		};
+		Outer<Pack<f32, N>> packed;
+		for (std::size_t l = 0; l < N; ++l) {
+			set_lane(packed, l, make(10.f * static_cast<f32>(l + 1)));
+		}
+		for (std::size_t l = 0; l < N; ++l) {
+			expect(same(get_lane<Outer<f32>>(packed, l), make(10.f * static_cast<f32>(l + 1)))).to_be_true();
+		}
+		Outer<f32> changed = make(-5.f);
+		changed.tag = 99;
+		set_lane(packed, 0, changed);
+		expect(same(get_lane<Outer<f32>>(packed, 0), make(-5.f))).to_be_true();
+		for (std::size_t l = 1; l < N; ++l) {
+			expect(same(get_lane<Outer<f32>>(packed, l), make(10.f * static_cast<f32>(l + 1)))).to_be_true();
+		}
+		expect(packed.tag).to_equal(7);
+		expect(get_lane<Outer<f32>>(packed, 0).tag).to_equal(7);
 	});
 	it("reads back each lane's state, and resets one lane alone", _ {
 		fp::FlushToZero ftz;

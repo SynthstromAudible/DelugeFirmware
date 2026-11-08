@@ -51,16 +51,16 @@ struct StereoPair {};
 /// lane 0, right = lane 1. The mix takes N samples at a time: their N packs transpose into one pack per lane, which
 /// add as packs in lane order and store as one vector; the last n mod N samples mix one at a time.
 template <poly_kernel K, std::size_t N, class Mix>
-requires(N == 2 || N == 4)
+requires(processor_kernel<K> && (N == 2 || N == 4))
 class Bank : public detail::Copies<K, N> {
 	using Base = detail::Copies<K, N>;
 	using V = Pack<f32, N>;
-	using Mode = K::Mode;
 	using typename Base::PackedCoefficients;
 	using typename Base::PackedState;
 
 public:
 	using Base::configure;
+	using Base::on;
 	using Base::reset;
 	using Base::set_mode;
 	using Base::state;
@@ -78,7 +78,7 @@ public:
 	requires(!std::same_as<Mix, mix::StereoPair>)
 	{
 		assert(out.size() == in.size());
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out.data(), nullptr); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out.data(), nullptr); });
 	}
 
 	/// @brief One block into left and right; the mode is dispatched once per block.
@@ -86,7 +86,7 @@ public:
 	requires std::same_as<Mix, mix::StereoPair>
 	{
 		assert(left.size() == in.size() && right.size() == in.size());
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, left.data(), right.data()); });
+		kernel_ops::dispatch_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, left.data(), right.data()); });
 	}
 
 private:
@@ -95,25 +95,22 @@ private:
 
 	/// One block into @p first (the output, or left) and @p second (right, for StereoPair): N samples at a time, the
 	/// last n mod N one at a time.
-	template <Mode M>
+	template <auto M>
 	void run(fp::Signal in, f32* first, f32* second) {
 		const PackedCoefficients c = this->coefficients();
 		PackedState s = this->packed_state();
 		const V gains = gains_;
-		kernel_block_t<K> block{};
-		if constexpr (detail::declares_prepare<K>) {
-			block = K::prepare(c, s, in.size());
-		}
+		const kernel_block_t<K> block = kernel_ops::prepare_block<K>(c, s, in.size());
 		std::size_t i = 0;
 		for (; i + N <= in.size(); i += N) {
 			Frames y;
 			for (std::size_t t = 0; t < N; ++t) {
-				y[t] = K::template step<M>(c, block, s, V{in[i + t]});
+				y[t] = kernel_ops::step_at<K, M>(c, block, s, V{in[i + t]});
 			}
 			mix_frames(y, gains, first, second, i);
 		}
 		for (; i < in.size(); ++i) {
-			mix_one(K::template step<M>(c, block, s, V{in[i]}), gains, first, second, i);
+			mix_one(kernel_ops::step_at<K, M>(c, block, s, V{in[i]}), gains, first, second, i);
 		}
 		this->set_packed_state(s);
 	}

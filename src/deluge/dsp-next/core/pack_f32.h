@@ -22,6 +22,7 @@
 
 #include <array>
 #include <bit>
+#include <cassert>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
@@ -89,6 +90,27 @@ inline constexpr bool kFusedMulAdd = detail::has_fused_mul_add();
 	return x;
 }
 
+/// @brief The integer part of @p x, which must be in [0, 2^23): the scalar form of a pack's trunc_nonnegative, which a
+/// step written over V calls. It equals ⌊x⌋ there, and is a float-to-int-to-float round trip rather than a library
+/// call.
+[[nodiscard]] [[gnu::always_inline]] inline f32 trunc_nonnegative(f32 x) {
+	assert(x >= 0.f && x < 8388608.f);
+	return static_cast<f32>(static_cast<int32_t>(x));
+}
+
+/// @brief @p base[@p index]: the scalar form of a pack's gather.
+/// @pre @p index is a non-negative integer held in an f32 and inside the table (asserted in debug builds up to
+/// non-negativity and integrality; the upper bound is the caller's).
+[[nodiscard]] [[gnu::always_inline]] inline f32 gather(const f32* base, f32 index) {
+	assert(index >= 0.f && index == std::floor(index));
+	return base[static_cast<std::size_t>(index)];
+}
+
+/// @brief @p x: the scalar form of a mask's any.
+[[nodiscard]] [[gnu::always_inline]] inline bool any(bool x) {
+	return x;
+}
+
 namespace detail {
 /// N f32 lanes as a GNU vector: a q register for 4, a d register for 2.
 template <std::size_t N>
@@ -96,6 +118,9 @@ using F32Lanes = f32 __attribute__((vector_size(N * sizeof(f32))));
 /// The same lanes' bits.
 template <std::size_t N>
 using U32Lanes = uint32_t __attribute__((vector_size(N * sizeof(uint32_t))));
+/// N int32 lanes, the same width as F32Lanes<N>.
+template <std::size_t N>
+using I32Lanes = int32_t __attribute__((vector_size(N * sizeof(int32_t))));
 } // namespace detail
 
 /// @brief The per-lane result of a comparison of two Pack<f32, N>, which @ref select reads.
@@ -104,6 +129,12 @@ requires(N == 2 || N == 4)
 struct Mask {
 	/// All ones in a lane where the comparison held, zero elsewhere: the vector comparison's own result type.
 	decltype(detail::F32Lanes<N>{} < detail::F32Lanes<N>{}) bits;
+
+	/// @brief Whether the comparison held in lane @p i. No float arithmetic: a read of the lane's bits.
+	[[nodiscard]] [[gnu::always_inline]] bool get(std::size_t i) const { return bits[i] != 0; }
+
+	/// @brief The lanes where both @p a and @p b hold. No float arithmetic: an AND of the lanes' bits.
+	[[nodiscard]] [[gnu::always_inline]] friend Mask operator&(Mask a, Mask b) { return {a.bits & b.bits}; }
 };
 
 /// @brief N f32 lanes on one NEON register.
@@ -175,9 +206,29 @@ struct Pack<f32, N> {
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>(Pack a, Pack b) { return {a.v > b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator<=(Pack a, Pack b) { return {a.v <= b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>=(Pack a, Pack b) { return {a.v >= b.v}; }
+	/// @brief The integer part of each lane of @p a, which must be in [0, 2^23): ⌊a⌋ there. Exact: a convert to int32
+	/// and back, so the Cortex-A9 (no vrndm) needs no per-lane library call.
+	[[nodiscard]] [[gnu::always_inline]] friend Pack trunc_nonnegative(Pack a) {
+		using Ints = detail::I32Lanes<N>;
+		for (std::size_t i = 0; i < N; ++i) {
+			assert(a.v[i] >= 0.f && a.v[i] < 8388608.f);
+		}
+		return Pack{__builtin_convertvector(__builtin_convertvector(a.v, Ints), Lanes)};
+	}
 	/// @brief @p a where @p m holds, @p b elsewhere.
 	[[nodiscard]] [[gnu::always_inline]] friend Pack select(Mask<N> m, Pack a, Pack b) {
 		return Pack{m.bits ? a.v : b.v};
+	}
+	/// @brief Lane i is `base[index.get(i)]`. No float arithmetic: N scalar loads.
+	/// @pre Every index is a non-negative integer held in f32 and inside the table (asserted in debug builds up to
+	/// non-negativity and integrality; the upper bound is the caller's).
+	[[nodiscard]] [[gnu::always_inline]] friend Pack gather(const f32* base, Pack index) {
+		std::array<f32, N> out;
+		for (std::size_t i = 0; i < N; ++i) {
+			assert(index.v[i] >= 0.f && index.v[i] == std::floor(index.v[i]));
+			out[i] = base[static_cast<std::size_t>(index.v[i])];
+		}
+		return load(out.data());
 	}
 	/// @brief The lanes' sum, lane 0 first, then each next lane added in order.
 	[[nodiscard]] [[gnu::always_inline]] friend f32 sum(Pack a) {
@@ -189,6 +240,16 @@ struct Pack<f32, N> {
 		return s;
 	}
 };
+
+/// @brief Whether any lane of @p m holds. No float arithmetic: an OR of the lanes' bits.
+template <std::size_t N>
+[[nodiscard]] [[gnu::always_inline]] inline bool any(Mask<N> m) {
+	bool r = false;
+	for (std::size_t i = 0; i < N; ++i) {
+		r = r || m.get(i);
+	}
+	return r;
+}
 
 /// @brief Transposes @p m in place: lane c of row r becomes lane r of row c.
 template <std::size_t N>

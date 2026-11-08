@@ -99,6 +99,21 @@ void pack_specs(auto& self) {
 		expect_lanewise<N>(self, [](auto a, auto b, auto c) { return select(a < b, c, a); },
 		                   [](f32 a, f32 b, f32 c) { return select(a < b, c, a); });
 	});
+	it("truncates non-negative values lane by lane as the scalar form does, and to the floor", _ {
+		std::mt19937 rng{3};
+		std::uniform_real_distribution<f32> d{0.f, 2100.f};
+		for (int round = 0; round < 64; ++round) {
+			Pack<f32, N> x{};
+			for (std::size_t i = 0; i < N; ++i) {
+				x.set(i, round < 2 ? (round == 0 ? 0.f : 8388607.f) : (round % 3 == 0 ? std::floor(d(rng)) : d(rng)));
+			}
+			const Pack<f32, N> got = trunc_nonnegative(x);
+			for (std::size_t i = 0; i < N; ++i) {
+				expect(bits(got.get(i))).to_equal(bits(trunc_nonnegative(x.get(i))));
+				expect(bits(got.get(i))).to_equal(bits(std::floor(x.get(i))));
+			}
+		}
+	});
 	it("sums its lanes in lane order", _ {
 		const auto [a, b, c] = operands<N>(7);
 		f32 expected = a.get(0);
@@ -106,6 +121,41 @@ void pack_specs(auto& self) {
 			expected = expected + a.get(i);
 		}
 		expect(bits(sum(a))).to_equal(bits(expected));
+	});
+	it("gathers one table entry per lane", _ {
+		std::array<f32, 16> table{};
+		for (std::size_t i = 0; i < table.size(); ++i) {
+			table[i] = 0.5f * static_cast<f32>(i) - 3.f;
+		}
+		Pack<f32, N> index{};
+		for (std::size_t i = 0; i < N; ++i) {
+			index.set(i, static_cast<f32>((i * 5) % table.size()));
+		}
+		const Pack<f32, N> got = gather(table.data(), index);
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(bits(got.get(i))).to_equal(bits(gather(table.data(), index.get(i))));
+		}
+	});
+	it("reports whether any lane of a mask is set", _ {
+		Pack<f32, N> a{0.f};
+		expect(any(a > Pack<f32, N>{0.f})).to_be_false();
+		a.set(N - 1, 1.f);
+		const Mask<N> m = a > Pack<f32, N>{0.f};
+		expect(any(m)).to_be_true();
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(m.get(i)).to_equal(i == N - 1);
+		}
+	});
+	it("ands two masks lane by lane", _ {
+		Pack<f32, N> a{0.f}, b{0.f};
+		for (std::size_t i = 0; i < N; ++i) {
+			a.set(i, static_cast<f32>(i % 2));
+			b.set(i, static_cast<f32>((i / 2) % 2));
+		}
+		const Mask<N> both = (a > Pack<f32, N>{0.5f}) & (b > Pack<f32, N>{0.5f});
+		for (std::size_t i = 0; i < N; ++i) {
+			expect(both.get(i)).to_equal((i % 2 == 1) && ((i / 2) % 2 == 1));
+		}
 	});
 	it("transposes and transposes back", _ {
 		std::array<Pack<f32, N>, N> m{};

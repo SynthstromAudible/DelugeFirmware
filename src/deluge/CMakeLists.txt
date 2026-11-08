@@ -42,6 +42,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/stutter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pitch_shift_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/float_filter_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/float_voice_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/reverb_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/dx7_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/fft_cases.cpp
@@ -181,9 +182,11 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_PITCH_SHIFT=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "float_filters")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FLOAT_FILTERS=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "float_voice")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FLOAT_VOICE=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
         message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, \
-reverb, dx7, fx_chains, fft_forward, fft_inverse, mod_matrix, va_shapes, pitch_shift or float_filters, \
+reverb, dx7, fx_chains, fft_forward, fft_inverse, mod_matrix, va_shapes, pitch_shift, float_filters or float_voice, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

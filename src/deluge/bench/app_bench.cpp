@@ -7,6 +7,9 @@
 #include "bench/cases.h"
 #include "bench/pmu_a9.h"
 #include "bench/runner.h"
+#if defined(DELUGE_DSP_BENCH_FLOAT_VOICE)
+#include "dsp-next/float/osc/saw_bands.h"
+#endif
 
 #include <array>
 #include <cstddef>
@@ -55,6 +58,17 @@ extern "C" bool deluge_app_bench(void) noexcept {
 	asm volatile("cpsid i" ::: "memory");
 	log_dbgauthstatus();
 	deluge::bench::PmuA9 pmu;
+#if defined(DELUGE_DSP_BENCH_FLOAT_VOICE)
+	// The saw bands are built once at boot, before any table oscillator renders: time that one build, caches cold.
+	pmu.start();
+	const deluge::bench::Sample before = pmu.read();
+	deluge::dsp::fp::build_saw_bands();
+	const deluge::bench::Sample after = pmu.read();
+	{
+		std::array<char, deluge::bench::kLineCapacity> buffer{};
+		log_line(deluge::bench::format_info_line(buffer, "build_saw_bands_cycles", after.cycles - before.cycles));
+	}
+#endif
 	std::ignore = deluge::bench::run(deluge::bench::cases(deluge::bench::kBenchCaseList),
 	                                 {.block_sizes = deluge::bench::kBlockSizes}, pmu, log_line);
 	if (!were_masked) {

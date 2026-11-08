@@ -16,11 +16,14 @@
  */
 #pragma once
 
+#include "dsp-next/core/kernel.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
 
 #include <cassert>
 #include <cstddef>
+#include <type_traits>
+#include <utility>
 
 /// @file
 /// @brief detail::Copies<K, N>: the per-lane coefficients, state and mode that Poly and Bank share.
@@ -29,7 +32,9 @@ namespace deluge::dsp::detail {
 /// @brief N lanes of @p K's packed coefficients and state, with the lane-wise configure, reset and state access.
 /// @details Configure and set_mode set the one mode every lane runs; configure asserts that a lane's mode matches it
 /// once any lane is configured. Poly re-declares configure to un-park the lane. `configured_` is never cleared, so the
-/// mode stays the last one set.
+/// mode stays the last one set. The members of K's Coefficients that are not fields (its mode; a chain's mode and each
+/// part's) are shared by every lane: they are kept from the last configure, so an event on a lane sees them as a
+/// Mono configured alike does.
 template <poly_kernel K, std::size_t N>
 class Copies {
 public:
@@ -37,17 +42,54 @@ public:
 	void configure(std::size_t lane, const K::Settings& settings) {
 		assert(lane < N);
 		const typename K::Coefficients c = K::coefficients(settings);
-		assert(!configured_ || c.mode == coefficients_.mode);
-		coefficients_.mode = c.mode;
+		if constexpr (has_modes<K>) {
+			assert(!configured_ || c.mode == coefficients_.mode);
+			coefficients_.mode = c.mode;
+		}
 		set_lane(coefficients_, lane, c);
+		shared_ = c;
 		configured_ = true;
 	}
-	/// @brief Every lane's mode, from the next block.
-	void set_mode(K::Mode mode) { coefficients_.mode = mode; }
-	/// @brief Lane @p lane's state to K's reset state.
+	/// @brief Every lane's mode, from the next block. A moded kernel only. For a chain this is the mode it dispatches
+	/// on; each part's own mode, which only an event reads, stays the last configured.
+	void set_mode(const auto& mode)
+	requires has_modes<K>
+	{
+		coefficients_.mode = mode;
+		shared_.mode = mode;
+	}
+	/// @brief Lane @p lane's state to K's reset state: State{}, or whatever K's `static void reset(State&)` quirk sets
+	/// when K declares one, as Mono::reset.
 	void reset(std::size_t lane) {
 		assert(lane < N);
-		set_lane(state_, lane, typename K::State{});
+		reset_lane(state_, lane);
+	}
+
+	/// @brief Runs the event @p Event on lane @p lane alone: that lane's scalar state (and coefficients, when the event
+	/// takes them) are read out, the event runs on them as it does on a Mono, and the state is written back. The
+	/// coefficients are the lane's fields over the shared members that are not fields, every mode included.
+	/// @tparam Event A function as Mono::on accepts.
+	/// @param lane The lane the event addresses.
+	/// @param args The event's own arguments.
+	/// @return What @p Event returns, by value.
+	template <auto Event, typename... A>
+	decltype(auto) on(std::size_t lane, A&&... args) {
+		assert(lane < N);
+		typename K::State s = get_lane<typename K::State>(this->packed_state(), lane);
+		const typename K::Coefficients c = get_lane(this->coefficients(), lane, shared_);
+		using Result = decltype(detail::run_event<K, Event>(c, s, std::forward<A>(args)...));
+		PackedState packed = this->packed_state();
+		if constexpr (std::is_void_v<Result>) {
+			detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
+			set_lane(packed, lane, s);
+			this->set_packed_state(packed);
+		}
+		else {
+			std::remove_cvref_t<Result> result = detail::run_event<K, Event>(c, s, std::forward<A>(args)...);
+			set_lane(packed, lane, s);
+			this->set_packed_state(packed);
+			return result;
+		}
 	}
 	/// @brief Lane @p lane's state.
 	[[nodiscard]] K::State state(std::size_t lane) const {
@@ -65,11 +107,21 @@ protected:
 	[[nodiscard]] const PackedState& packed_state() const { return state_; }
 	/// @brief Stores @p s as every lane's state.
 	void set_packed_state(const PackedState& s) { state_ = s; }
+	/// @brief Lane @p lane of @p s to K's reset state, through the one reset rule (detail::reset_state), so a reset
+	/// quirk runs on the lane as on a Mono.
+	static void reset_lane(PackedState& s, std::size_t lane) {
+		auto scalar = get_lane<typename K::State>(s, lane);
+		reset_state<K>(scalar);
+		set_lane(s, lane, scalar);
+	}
 
 private:
 	PackedCoefficients coefficients_{}; ///< Every lane's coefficients; the shared mode.
 	PackedState state_{};               ///< Every lane's state.
-	bool configured_ = false;           ///< Whether any lane has been configured since construction.
+	/// @brief The last configured lane's scalar coefficients, with the mode set_mode set: their members that are not
+	/// fields are every lane's. Their fields are not read.
+	K::Coefficients shared_{};
+	bool configured_ = false; ///< Whether any lane has been configured since construction.
 };
 
 } // namespace deluge::dsp::detail
