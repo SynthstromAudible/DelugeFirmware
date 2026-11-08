@@ -228,8 +228,11 @@ bool shellKitGlobalFx();
 ///        `setupKitGlobalFXMenu`.
 void clearShellKitGlobalFx();
 
-/// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered after the browser's claim: a kit
-///        clip with affect-entire on, with SHIFT held and no audition, sets the latch `shellKitGlobalFx` reads.
+/// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's
+///        claim, the marker editor's shortcut jump): a kit clip with affect-entire on, with SHIFT held and no audition,
+///        sets the latch `shellKitGlobalFx` reads. An open menu on the kit's row then takes the kit's own effects for
+///        its next shortcut press (`MenuScene::set_kit_global_shortcut_context`), as legacy's open editor reads the
+///        member at its next press.
 void latchShellKitGlobalFxOnReentry();
 
 /// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the

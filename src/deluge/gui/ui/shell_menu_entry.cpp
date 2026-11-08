@@ -228,6 +228,22 @@ void latchShellKitGlobalFxOnReentry() {
 	kitGlobalFxLatch = kitGlobalFxLatch
 	                   || (currentSong != nullptr && kitAffectEntireNow(getCurrentClip())
 	                       && Buttons::isShiftButtonPressed() && !isUIModeActive(UI_MODE_AUDITIONING));
+	// Legacy's editor stays open through this write and reads it at its next shortcut press: the open menu, if it
+	// edits a kit's row, is handed the kit's own effects for that press.
+	if (!kitGlobalFxLatch || !isUIOpen(&shellHostUI) || currentSong == nullptr) {
+		return;
+	}
+	const menu::MenuContext& open = deluge::scenes::menu_scene().menu_context();
+	if (!open.is_kit || open.is_kit_global_fx) {
+		return;
+	}
+	const bool clipMinder = rootUIIsClipMinderScreen();
+	const menu::MenuContext kitGlobal =
+	    resolveContext(clipMinder ? getCurrentClip() : nullptr, open.source_index, getRootUI() == &performanceView,
+	                   !clipMinder, getRootUI() == &sessionView, /*kitGlobalFx=*/true);
+	if (kitGlobal.resolved && kitGlobal.is_kit_global_fx) {
+		deluge::scenes::menu_scene().set_kit_global_shortcut_context(kitGlobal);
+	}
 }
 
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,

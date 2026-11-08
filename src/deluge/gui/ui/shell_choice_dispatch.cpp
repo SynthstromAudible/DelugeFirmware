@@ -568,6 +568,11 @@ void dispatchShellChoices() {
 	pollDxCartridgeRead();
 	dispatchPreview();
 	dispatchScroll();
+	// A shortcut press this tick moved the menu onto a kit's own effects (`MenuScene::take_context_replaced`):
+	// legacy's `setup()` re-pointed its editor there, and the legacy views read the editor's context.
+	if (deluge::scenes::menu_scene().take_context_replaced()) {
+		adoptShellMenuContext();
+	}
 }
 
 bool shellVisitFellBackToEditor() {

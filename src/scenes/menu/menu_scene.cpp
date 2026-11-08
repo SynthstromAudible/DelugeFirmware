@@ -97,6 +97,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	holding_affect_entire_ = false;
+	kit_global_shortcut_ctx_.reset();
 	pads_.forget_landing();
 	retarget(root);
 }
@@ -303,29 +304,44 @@ void MenuScene::on_resume() {
 }
 
 std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
+	// The kit's own effects once the host's latch went true, as for a press on the menu itself.
+	const MenuContext& press = kit_global_shortcut_ctx_.has_value() ? *kit_global_shortcut_ctx_ : ctx_;
 	// A `comingSoonMenu` cell pops its message and goes nowhere (`potentialShortcutPadAction`).
-	if (shortcut_coming_soon(ctx_.root, x, y)) {
+	if (shortcut_coming_soon(press.root, x, y)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return std::nullopt;
 	}
-	const Node* target = shortcut_node(ctx_.root, false, x, y);
-	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
+	const Node* target = shortcut_node(press.root, false, x, y);
+	if (target == nullptr || (press.root_is_automation && !is_automation_item(*target))) {
 		return std::nullopt;
 	}
-	if (!shortcut_applies(*target, ctx_)) {
-		target = nodes::dx_shortcut_fallback(*target, ctx_, x);
+	if (!shortcut_applies(*target, press)) {
+		target = nodes::dx_shortcut_fallback(*target, press, x);
 		if (target == nullptr) {
 			deluge::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return std::nullopt;
 		}
 	}
+	if (kit_global_shortcut_ctx_.has_value()) {
+		install_kit_global_shortcut_context();
+	}
 	const uint16_t id = arm_shortcut_landing(*target);
 	if (id == 0) {
 		return std::nullopt;
 	}
 	landing_survives_resume_ = true;
+	// `enterOrUpdateSoundEditor` from the UI over the editor: its write to `setupKitGlobalFXMenu` is the host's.
+	if (reentry_hook_ != nullptr) {
+		reentry_hook_();
+	}
 	return SceneId{SceneKind::FirstApp, id};
+}
+
+void MenuScene::install_kit_global_shortcut_context() {
+	ctx_ = *kit_global_shortcut_ctx_;
+	kit_global_shortcut_ctx_.reset();
+	context_replaced_ = true;
 }
 
 void MenuScene::dx_column_press(int32_t op) {
@@ -1204,7 +1220,19 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		return *r;
 	}
 
-	if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
+	// A shortcut press after the host's latch went true reads the kit's own effects, and a jump moves the menu there.
+	const bool shortcut_press =
+	    event.kind == UiEvent::Kind::Pad && event.on && (ctx.shift || event.shortcut_without_shift);
+	if (kit_global_shortcut_ctx_.has_value() && shortcut_press) {
+		MenuContext kit_global = *kit_global_shortcut_ctx_;
+		if (std::optional<Result> r = pads_.handle_pad(MenuCore{kit_global, st_}, walk_, visit_.session, event, ctx)) {
+			if (std::ranges::any_of(r->actions, [](const Action& a) { return a.kind == Action::Kind::Replace; })) {
+				install_kit_global_shortcut_context();
+			}
+			return *r;
+		}
+	}
+	else if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
 		return *r;
 	}
 

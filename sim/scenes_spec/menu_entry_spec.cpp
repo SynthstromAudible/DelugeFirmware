@@ -29,6 +29,7 @@
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -40,6 +41,7 @@
 #include "shell/scene.h"
 #include "shell/shell.h"
 
+#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_bridge.h"
@@ -62,16 +64,23 @@
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/heaps.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
+#include "storage/multi_range/multisample_range.h"
 
 #include "support/card_access.h"
+#include "support/feature_setting.h"
 #include "support/song_fixture.h"
 #include "support/ui_mode_guard.h"
 
@@ -263,6 +272,48 @@ std::string text(deluge::l10n::String s) {
 }
 
 /// @brief A kit clip with a fresh note row at index 0, and the model stack `enterDrumCreator` takes for it.
+/// @brief A sample the marker editor can open on, without a card: `marker_scene_spec.cpp`'s fixture, cut to what the
+///        editor's open asks of it (a length, and an overview cache every column reads from).
+Sample* make_marker_sample() {
+	constexpr size_t kClusterSize = 32768;
+	constexpr int32_t kBytesPerFrame = 2;
+	constexpr uint64_t kLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
+	constexpr int32_t kClusters = 32;
+	Cluster::set_size(kClusterSize);
+	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
+	auto* s = new (deluge::memory::alloc_fast(sizeof(Sample))) Sample();
+	s->byteDepth = 2;
+	s->numChannels = 1;
+	s->sampleRate = 44100;
+	s->audioDataStartPosBytes = 0;
+	s->audioDataLengthBytes = kLength * kBytesPerFrame;
+	s->lengthInSamples = kLength;
+	s->maxValueFound = 127 << 24;
+	s->minValueFound = -128 << 24;
+	s->resizeOverviewCache(kClusters);
+	for (int32_t i = 0; i < kClusters; i++) {
+		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
+		e.min = -16;
+		e.max = 16;
+		e.investigated = true;
+	}
+	return s;
+}
+
+/// @brief Give @p drum's source 0 one range holding @p sample, recorded as a load records it.
+void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, SoundDrum& drum, Sample* sample) {
+	Source& source = drum.sources[0];
+	source.oscType = OscType::SAMPLE;
+	source.repeatMode = SampleRepeatMode::ONCE;
+	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+	range->sampleHolder.audioFile = sample;
+	range->sampleHolder.startPos = 0;
+	range->sampleHolder.endPos = sample->lengthInSamples;
+	range->sampleHolder.waveformViewZoom = 0;
+	range->sampleHolder.waveformViewScroll = 0;
+	deluge::bridge::recordLoadedSound(drum, *f.song);
+}
+
 struct DrumRowStack {
 	alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack = nullptr;
@@ -1452,6 +1503,95 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   expect(entry::shellKitGlobalFx()).to_be_true();
 		   entry::clearShellKitGlobalFx();
 	   });
+
+	it("a second Shift + pad after the marker editor's jump opens the kit's own item, as legacy's re-entry latched",
+	   _ {
+		   (void)quiet_audio();
+		   ToggleGuard on{RuntimeFeatureStateToggle::On};
+		   RootUIGuard root_guard;
+		   deluge::scenes::spec::UiModeGuard mode;
+		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		   SoundDrum* const drum = deluge::scenes::spec::add_drum<SoundDrum>(f);
+		   give_drum_a_sample(f, *drum, make_marker_sample());
+		   f.clip->affectEntire = true;
+		   setRootUILowLevel(&instrumentClipView);
+		   // The drum creator's leg: the latch cleared, the menu on the new drum with affect-entire on.
+		   entry::clearShellKitGlobalFx();
+		   expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		   const menu::MenuContext drum_ctx = deluge::scenes::menu_scene().menu_context();
+		   expect(drum_ctx.root == menu::MenuContext::Root::Drum).to_be_true();
+		   // SAMPLE > START: the marker editor over the menu.
+		   deluge::scenes::menu_scene().reroot_at(*menu::MenuScene::roots()[static_cast<size_t>(drum_ctx.root)],
+		                                          drum_ctx, menu::node_id(nodes::sample0_start), nullptr);
+		   for (int i = 0; i < 3; i++) {
+			   (void)shellHostUI.timerCallback();
+		   }
+		   expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind)
+		       .to_be_true();
+		   HeldShift shift;
+		   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		   const auto shortcut = [] {
+			   (void)shellHostUI.padAction(8, 7, 64);
+			   for (int i = 0; i < 3; i++) {
+				   (void)shellHostUI.timerCallback();
+			   }
+			   (void)shellHostUI.padAction(8, 7, 0);
+			   (void)shellHostUI.timerCallback();
+		   };
+		   // Both firmwares land on the drum's LPF; legacy's re-entry from the marker editor latches the fact.
+		   shortcut();
+		   expect(shellHostUI.shell().stack().input_top().kind() == shell::SceneKind::FirstApp).to_be_true();
+		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		   expect(entry::shellKitGlobalFx()).to_be_true();
+		   // The next press reads it: the kit's own LPF.
+		   shortcut();
+		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		   expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		   closeGuest();
+	   });
+
+	it("a Shift + pad after a browser claim made with SHIFT held opens the kit's own item", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&instrumentClipView);
+		// Legacy's claim re-enters its editor only where a page lists the file selector, which takes HorizontalMenus.
+		deluge::scenes::spec::FeatureSetting horizontal{RuntimeFeatureSettingType::HorizontalMenus,
+		                                                util::to_underlying(RuntimeFeatureStateToggle::On)};
+		entry::clearShellKitGlobalFx();
+		// The file selector on the drum, whose hook pushes the browser.
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::ShellMenuNode::Osc0FileSelector))
+		    .to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
+		    .to_be_true();
+		HeldShift shift;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		// The claim lands with SHIFT held: legacy's `claimCurrentFile` re-enters its editor and latches the fact.
+		entry::shellSampleClaimDone(true);
+		// The browser leaves on its claim's success; no file was pressed here, so it is taken off as it takes itself.
+		(void)shellHostUI.shell().stack().remove(deluge::scenes::browser::kBrowserSceneKind);
+		for (int i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		expect(shellHostUI.shell().stack().input_top().kind() == shell::SceneKind::FirstApp).to_be_true();
+		(void)shellHostUI.padAction(8, 7, 64);
+		for (int i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		(void)shellHostUI.padAction(8, 7, 0);
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		closeGuest();
+	});
 
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};

@@ -239,6 +239,11 @@ void setShellBrowserFromDrumCreator(bool fromCreator);
 /// The same rule `dispatchShellActions` runs under, for the same reason: `-Werror=switch` is on for
 /// every target (`cmake/deluge_common_options.cmake:32`), so a `BrowserId` added without an arm here
 /// fails the build, and a `default:` would absorb it silently.
+///
+/// @par The menu's context, last
+///
+/// A shortcut press that moved the menu onto a kit's own effects (`MenuScene::take_context_replaced`) is adopted
+/// into `soundEditor`'s context (`adoptShellMenuContext`), as legacy's `setup()` re-points its editor.
 void dispatchShellChoices();
 
 /// @brief Whether the visit open now pushed a scene that refused: the drum creator's browser or take, after which
