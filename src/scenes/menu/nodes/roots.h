@@ -401,7 +401,7 @@ inline constexpr const Node* kMidiOrCvRootChildren[] = {
     &midi_or_cv_actions, &midi_device_definition, &midi_program, &arp_midi,          &randomizer, &bend,
     &cv2_source,         &mpe_y_to_mod_wheel,     &midi_mpe,     &sequence_direction};
 inline constexpr Node root_midi_or_cv = submenu(sid(String::STRING_FOR_MIDI_INST_MENU_TITLE), kMidiOrCvRootChildren);
-/// The CV spelling of the very same root -- `sound_editor.cpp:1786`'s retitle, as a second node.
+/// The CV spelling of the very same root -- `sound_editor.cpp:1782`'s retitle, as a second node.
 inline constexpr Node root_cv = submenu(sid(String::STRING_FOR_CV_INSTRUMENT), kMidiOrCvRootChildren);
 
 /// @brief Which of the two MIDI/CV root nodes @p ctx wants -- the port of `setup()`'s retitle.

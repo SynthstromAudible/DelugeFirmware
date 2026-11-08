@@ -1725,9 +1725,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("does NOT arm the tick after a forward that left some other UI current", _ {
-		// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
-		// (`gui/views/performance_view.cpp`, `gui/ui/keyboard/keyboard_screen.cpp`), which
-		// leaves `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming
+		// A forwarded pad runs a legacy view's own pad handler, which may open a UI over the guest and leave
+		// `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming
 		// `TimerName::UI_SPECIFIC` there would hand this guest's tick to whatever just opened
 		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp`) -- the same hazard
 		// `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see

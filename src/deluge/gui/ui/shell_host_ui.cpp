@@ -642,9 +642,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
 	// construction, and `focusRegained`'s is the one arm that MUST fire while this guard is
 	// suppressing, so guarding it too would be the wedge this one avoids. **The eleventh is not**:
-	// `padAction`'s forward branch can leave a legacy view current when it returns --
-	// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
-	// (`PerformanceView::padAction`, `KeyboardScreen::padAction`) -- so that
+	// `padAction`'s forward branch runs a legacy view's pad handler, which may open a UI over the guest -- so that
 	// one site carries its own `getCurrentUI() == this` guard rather than relying on this
 	// precondition; see the comment there. Nor are the three note-mode forwards in
 	// `buttonAction`, `horizontalEncoderAction` and `verticalEncoderAction`, which call legacy
@@ -854,12 +852,11 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// The pad is the legacy root view's, as it is in `SoundEditor::padAction`.
 			//
 			// **The guest may not be current when this returns**, and nothing below may assume it
-			// is: `performanceView.padAction` opens the legacy sound editor on a shift press
-			// (`PerformanceView::padAction`) and `keyboardScreen.padAction` reaches the
-			// same call unconditionally (`KeyboardScreen::padAction`); the `Exit` arm's
-			// `closePortedMenu()` empties this guest's own stack instead, which leaves the guest
-			// current. `armTickSoon` itself is unguarded (see `rearmTimer`'s docblock) -- arming
-			// `UI_SPECIFIC` while some other UI is current would deliver the tick to *that* UI
+			// is: the forward runs a legacy view's own pad handler, and nothing in it promises not to open a UI
+			// over the guest (its shortcut press re-roots this guest instead, but the rest is the view's); the `Exit`
+			// arm's `closePortedMenu()` empties this guest's own stack instead, which leaves the guest current.
+			// `armTickSoon` itself is unguarded (see `rearmTimer`'s docblock) -- arming `UI_SPECIFIC` while some other
+			// UI is current would deliver the tick to *that* UI
 			// (`UITimerManager::routine`), not to this one -- so the
 			// guard is here instead: arm only when this guest is still the current UI. `Exit` is
 			// unaffected by the guard -- the guest is current after the menu leaves its stack -- and the

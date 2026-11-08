@@ -52,6 +52,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/button.h"
 #include "hid/display/oled.h"
@@ -74,6 +75,8 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <optional>
+#include <string>
 
 #include "spec/support/spec_main.h"
 
@@ -175,7 +178,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 ///
 /// **The site-8 example really opens the ported browser**, because
 /// `MenuScene::on_enter` now performs the `Source::getOrCreateFirstRange()` legacy's permission
-/// check performs (`gui/ui/sound_editor.cpp:1991`) -- so `browser::sample_can` stops refusing and
+/// check performs (`gui/ui/sound_editor.cpp:1987`) -- so `browser::sample_can` stops refusing and
 /// the scene reads `SAMPLES/` off the fixture card, which holds a file. The
 /// next `openUI(&shellHostUI)` resets the stack, `BrowserScene::on_exit` calls
 /// `FileCatalogue::emptyFileItems`, and that pumps `AudioEngine::routineWithClusterLoading()`
@@ -216,6 +219,42 @@ struct RootUIGuard {
 	RootUIGuard(const RootUIGuard&) = delete;
 	RootUIGuard& operator=(const RootUIGuard&) = delete;
 };
+
+/// @brief A legacy display that records the last popup and error: what the entry said when it refused.
+struct PopupSpy final : deluge::hid::Display {
+	std::string last_popup;
+	std::optional<Error> last_error;
+
+	using deluge::hid::Display::displayPopup;
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override { last_popup = text; }
+	void popupText(char const*, PopupType) override {}
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error error) override { last_error = error; }
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType) override { return false; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief Point legacy's `display` at @p shown for the scope.
+struct DisplayGuard {
+	deluge::hid::Display* saved = display;
+	explicit DisplayGuard(deluge::hid::Display& shown) { display = &shown; }
+	~DisplayGuard() { display = saved; }
+	DisplayGuard(const DisplayGuard&) = delete;
+	DisplayGuard& operator=(const DisplayGuard&) = delete;
+};
+
+/// @brief `l10n::get` as a `std::string`, for `to_equal`.
+std::string text(deluge::l10n::String s) {
+	return std::string{deluge::l10n::get(s)};
+}
 
 /// @brief A kit clip with a fresh note row at index 0, and the model stack `enterDrumCreator` takes for it.
 struct DrumRowStack {
@@ -585,8 +624,10 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
-	it("a node that does not apply opens nothing, so legacy's setup() refuses it", _ {
+	it("a node that does not apply opens nothing and says PARAMETER NOT APPLICABLE, as setup() does", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		PopupSpy spy;
+		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		// The first even-column pad whose node does not apply to this synth.
 		const menu::MenuContext ctx =
@@ -607,6 +648,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 
 		expect(entry::openShellMenuAtShortcut(f.clip, px, py, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 	});
 
 	it("does not wipe the undo log", _ {
@@ -664,7 +706,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(3 * 21 + 2);
 		closeGuest();
 
-		// The same pad on a sound that is not DX7 is refused, so legacy's `setup()` shows its popup.
+		// The same pad on a sound that is not DX7 is refused, with setup()'s popup.
 		sound->sources[0].setOscType(OscType::SAW);
 		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -734,7 +776,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
-		// `sound_editor.cpp:1771` is inside `if (item) ... else if (clip)`, so the wipe follows the
+		// `sound_editor.cpp:1767` is inside `if (item) ... else if (clip)`, so the wipe follows the
 		// clip and not the open. the "Not owned by this file" note in `scenes/menu/context.cpp` records it as owed to
 		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
@@ -1235,8 +1277,123 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(getCurrentUI() == &instrumentClipView).to_be_true();
 	});
 });
+
+describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers the press whole, and legacy never opens", $ {
+	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and the DX7 test reads the pad's own source", _ {
+		// A DX7 source an earlier menu left in legacy's mirror: legacy's fallback tests it and opens its `dxParam`.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		sound->sources[0].setOscType(OscType::SAW);
+		sound->sources[1].setOscType(OscType::DX7);
+		Source* const saved_source = soundEditor.currentSource;
+		soundEditor.currentSource = &sound->sources[1];
+		setRootUILowLevel(&instrumentClipView);
+		{
+			HeldShift shift;
+			expect(soundEditor.potentialShortcutPadAction(4, 0, true) == ActionResult::DEALT_WITH).to_be_true();
+		}
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		soundEditor.currentSource = saved_source;
+		sound->sources[1].setOscType(OscType::SAW);
+		nullifyUIs();
+	});
+
+	it("says Feature not (yet?) implemented for a coming-soon cell and opens nothing", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		setRootUILowLevel(&instrumentClipView);
+		{
+			HeldShift shift;
+			expect(soundEditor.potentialShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+		}
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+	});
+
+	it("says nothing at all on a kit with neither affect-entire nor a selected row, even on a coming-soon cell", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)kit;
+		setRootUILowLevel(&instrumentClipView);
+		{
+			HeldShift shift;
+			expect(soundEditor.potentialShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+		}
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(spy.last_popup).to_equal(std::string{});
+	});
+
+	it("reads the song view's table from the performance view and edits the song, as legacy's call does", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		setRootUILowLevel(&performanceView);
+		{
+			HeldShift shift;
+			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+		}
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Performance).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		closeGuest();
+	});
+
+	it("is the open guest's to answer even once the setting selects the legacy menu: it re-roots, legacy stays shut", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		setRootUILowLevel(&keyboardScreen);
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		{
+			ToggleGuard off{RuntimeFeatureStateToggle::Off};
+			HeldShift shift;
+			(void)shellHostUI.padAction(8, 7, 64);
+		}
+		expect(isUIOpen(&soundEditor)).to_be_false();
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		closeGuest();
+	});
+
+	it("passes a release, a sidebar pad and an ungated press back to the view", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		setRootUILowLevel(&instrumentClipView);
+		expect(soundEditor.potentialShortcutPadAction(8, 7, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		HeldShift shift;
+		expect(soundEditor.potentialShortcutPadAction(8, 7, false) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(soundEditor.potentialShortcutPadAction(kDisplayWidth, 3, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen)
+            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
+            menu_entry_shortcut_whole)

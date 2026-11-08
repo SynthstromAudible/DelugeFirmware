@@ -18,16 +18,24 @@
 #include "util/shell_menu_entry.h"
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_choice_dispatch.h" // adoptShellMenuContext
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_pad_forward.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "scenes/menu/context.h"
@@ -53,7 +61,7 @@
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
 /// |---|---|---|---|
-/// | 1 | `gui/views/view.cpp:444-456` `View::buttonAction` | `soundEditor.setup()` with SHIFT held, so `setup()`'s three view tests (`sound_editor.cpp:2060`, `:2063`) are all false and the root is `settingsRootMenu` (`:2068`) | `MenuContext::Root::Settings`, i.e. all four UI arguments false. The same reading, for the same arm, that `services::GlobalControls::handle_settings_menu` already made (`services::GlobalControls::handle_settings_menu`) |
+/// | 1 | `gui/views/view.cpp:444-456` `View::buttonAction` | `soundEditor.setup()` with SHIFT held, so `setup()`'s three view tests (`sound_editor.cpp:2060`, `:2063`) are all false and the root is `settingsRootMenu` (`:2064`) | `MenuContext::Root::Settings`, i.e. all four UI arguments false. The same reading, for the same arm, that `services::GlobalControls::handle_settings_menu` already made (`services::GlobalControls::handle_settings_menu`) |
 /// | 2 | `gui/views/session_view.cpp:539-554` `SessionView::buttonAction` | `soundEditor.setup()` with no shift from the session view -> `soundEditorRootMenuSongView` (`SoundEditor::setup`) | `Root::Song`; `sessionViewRoot` true, which is the *only* thing two items in that root read (`MenuContext::is_session_view`) |
 /// | 3 | `gui/views/arranger_view.cpp:337-350` `ArrangerView::buttonAction` | the same call from the arranger -> the same `soundEditorRootMenuSongView` | `Root::Song`, `sessionViewRoot` **false** |
 /// | 4 | `gui/views/performance_view.cpp:896-912` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view`. Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
@@ -63,7 +71,7 @@
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
 /// | 12 | `gui/views/instrument_clip_view.cpp:3572-3597` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`sound_editor.cpp:2018-2020`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it |
 /// | 13 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Not while the legacy `soundEditor` is current (audition + the sequence-direction shortcut inside an editor site 9's legacy fallback opened), which keeps opening the legacy editor. Inside the ported menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
-/// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view (the current UI is neither `soundEditor` nor `sampleMarkerEditor`) | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad | `openShellMenuAtShortcut`, the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`: the horizontal page listing it, focused on it). The DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). A press from the sample-marker editor stays legacy, as does any pad the port resolves no node for |
+/// | 9 | `gui/ui/sound_editor.cpp` `SoundEditor::potentialShortcutPadAction`, from a clip view, the keyboard screen or the performance view | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad, behind the Shift/audition gate, the coming-soon popup and the sequence-direction arm | `shellShortcutPadAction`, the whole press: the gate (`shortcutPadGate`), the coming-soon popup (`menu::shortcut_coming_soon`), the sequence-direction arm, then `openShellMenuAtShortcut` on the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`); off a clip minder, the song view's table and the song, as legacy's call reads them. A node that does not apply says "PARAMETER NOT APPLICABLE"; the DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). With the guest open, a pad the Settings root forwards re-roots it in place. Legacy's statements run only with ShellMenu off and no guest open, or when legacy's own editor or marker editor asks |
 /// | 11 | `model/clip/instrument_clip_minder.cpp:304-305` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`gui/ui/menus.cpp:1735`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
 /// | 15 | `gui/ui/keyboard/column_controls/dx.cpp:101-108` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`gui/menu_item/dx/param.cpp:514-542`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
 /// | 14 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterDrumCreator` | `soundEditor.setup(clip, &file0SelectorMenu, 0)`, then `openUI(&audioRecorder)` for a take or `openUI(&sampleBrowser)`; if that refuses, `openUI(&soundEditor)`, whose `FileSelector::beginSession` opens the browser again | (a) RECORD (adding a drum row, or with an audition pad held): `openShellDrumRecorder` opens the guest on `nodes::sample0_recorder`, whose hook pushes the ported recorder; it leaves the menu at the take's end, as legacy's recorder leaves the clip view. A refused take lands on `nodes::file0_selector` instead (`landShellMenuOnFileSelectorIfRecorderRefuses`), whose hook pushes the ported browser, as legacy's fallback does. (b) Otherwise `openShellDrumCreator` opens the guest on `nodes::file0_selector`, whose hook pushes the ported browser on the new drum. The legacy fallback runs with ShellMenu on only when the guest itself refused to open; it tries the guest on the file selector and never opens the legacy editor |
@@ -142,6 +150,12 @@ void clearKitAffectEntireForNoteMode(menu::MenuContext& ctx, Clip* clip) {
 	// editing the kit's own `sequenceDirectionMode` instead of the selected drum's row.
 	ctx.affect_entire = false;
 	view.setActiveModControllableTimelineCounter(clip);
+}
+
+/// @brief `SoundEditor::shouldEditKitAffectEntire()`: a kit clip with affect-entire on.
+bool kitAffectEntireNow(const Clip* clip) {
+	return clip != nullptr && clip->type == ClipType::INSTRUMENT && clip->output->type == OutputType::KIT
+	       && static_cast<const InstrumentClip*>(clip)->affectEntire;
 }
 
 /// @brief The node `MenuScene::roots()` holds for @p ctx's root, or `nullptr` when there is none.
@@ -244,7 +258,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// either: the source keeps it (`Source::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
-	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`sound_editor.cpp:2230`)
+	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`sound_editor.cpp:2226`)
 	// belongs to whoever *opens* a range-dependent item, and this function does not: it hands the
 	// node id to `MenuScene::on_enter` through `SceneId::arg`, which is where the open happens and
 	// where it belongs. Site 8 -- the only site here that names a leaf -- is the one this shows up
@@ -281,20 +295,82 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 	if (!ctx.resolved) {
 		return false;
 	}
-	// A node that does not apply is refused here so that legacy's own `setup()` refuses it, with its
-	// "PARAMETER NOT APPLICABLE" popup.
+	// A pad with no node opens nothing and says nothing: legacy's item is null there.
 	const menu::Node* node = menu::shortcut_node(ctx.root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 	const menu::Node* root = rootNodeFor(ctx);
 	if (node == nullptr || menu::node_id(*node) == 0 || root == nullptr) {
 		return false;
 	}
 	if (!menu::shortcut_applies(*node, ctx)) {
-		// The DX7 fallback opens the parameter page alone; any other refusal is legacy's `setup()`'s to show.
+		// The DX7 fallback opens the parameter page alone; any other refusal is `setup()`'s, with its popup.
 		const menu::Node* fallback = menu::nodes::dx_shortcut_fallback(*node, ctx, static_cast<uint8_t>(x));
-		return fallback != nullptr && openGuest(*root, ctx, menu::node_id(*fallback), nullptr);
+		if (fallback == nullptr) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return false;
+		}
+		return openGuest(*root, ctx, menu::node_id(*fallback), nullptr);
 	}
 	// No undo-log wipe: `setup()` wipes only when it is given no item.
 	return openGuest(*root, ctx, 0, node);
+}
+
+bool shellOwnsShortcutPads() {
+	return shellMenuEnabled() || isUIOpen(&shellHostUI);
+}
+
+ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on) {
+	// A release, a sidebar pad, and with SHIFT the automation view's interpolation and pad-selection pads: not
+	// shortcuts, so the view keeps them (legacy's `ignoreAction` and its first return).
+	const bool shift = Buttons::isShiftButtonPressed();
+	if (!on || x >= kDisplayWidth || (shift && rootKeepsShortcutPad(x, y))) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	switch (shortcutPadGate(shift)) {
+	case ShortcutPadGate::Forward:
+		return ActionResult::NOT_DEALT_WITH;
+	case ShortcutPadGate::Swallow:
+		return ActionResult::DEALT_WITH; // outside the two shortcut modes: taken, and nothing happens
+	case ShortcutPadGate::Shift:
+	case ShortcutPadGate::Audition:
+		break;
+	}
+	Clip* const clip = getCurrentClip();
+	if (clip == nullptr) {
+		return ActionResult::DEALT_WITH;
+	}
+	// Off a clip minder legacy reads the song view's table (`get_basic_shortcut_action`'s first arm) and `setup()`
+	// edits the song, which is what a context naming no clip resolves, as the performance view's SELECT already opens
+	// it.
+	const bool clipMinder = rootUIIsClipMinderScreen();
+	Clip* const editClip = clipMinder ? clip : nullptr;
+	const bool performanceRoot = getRootUI() == &performanceView;
+	const bool sessionRoot = getRootUI() == &sessionView;
+	// `setupKitGlobalFXMenu = shouldEditKitAffectEntire()`, which legacy writes for every press it is asked about.
+	const bool kitGlobalFx = kitAffectEntireNow(clip);
+	const menu::MenuContext ctx =
+	    resolveContext(editClip, x & 1, performanceRoot, !clipMinder, sessionRoot, kitGlobalFx);
+	// `editingNothing()`: a kit with neither affect-entire nor a selected row has no table, so no item.
+	if (!ctx.resolved && !ctx.is_drum) {
+		return ActionResult::DEALT_WITH;
+	}
+	const auto px = static_cast<uint8_t>(x);
+	const auto py = static_cast<uint8_t>(y);
+	if (menu::shortcut_coming_soon(ctx.root, px, py)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+		return ActionResult::DEALT_WITH;
+	}
+	// `[audition pad] + [sequence direction pad]`: the note-row editor on PLAY DIRECTION (site 13's ported leg).
+	if (clip->type == ClipType::INSTRUMENT
+	    && menu::shortcut_node(ctx.root, false, px, py) == &menu::nodes::sequence_direction
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus) == RuntimeFeatureStateToggle::On
+	    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
+		(void)instrumentClipView.enterNoteRowEditor();
+		return ActionResult::DEALT_WITH;
+	}
+	// Opens, re-roots the open guest, or says its refusal; a kit row with no note row is refused silently, as
+	// `setup()` refuses it.
+	(void)openShellMenuAtShortcut(editClip, x, y, performanceRoot, !clipMinder, sessionRoot, kitGlobalFx);
+	return ActionResult::DEALT_WITH;
 }
 
 bool openShellDxColumn(int32_t op) {

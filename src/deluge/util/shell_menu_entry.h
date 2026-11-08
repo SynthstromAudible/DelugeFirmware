@@ -99,6 +99,8 @@
 ///     A wrong node is worse than a legacy menu, so with ShellMenu on the firmware has *both* menus, reachable by
 ///     different gestures.
 
+#include "definitions_cxx.hpp" // ActionResult
+
 #include <cstdint>
 
 class Clip;
@@ -202,13 +204,31 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 /// @param sessionOrArrangerRoot  As `openShellMenu`'s.
 /// @param sessionViewRoot        As `openShellMenu`'s.
 /// @param kitGlobalFx            `SoundEditor::setupKitGlobalFXMenu`.
-/// @return Whether the guest is now open; with it already open the open menu re-roots in place, as legacy's setup()
-///         re-sets the open editor. False, with nothing opened, when the context does not
-///         resolve, the pad names no numbered node, or the node does not apply
-///         (`menu::shortcut_applies`): the caller then runs legacy's statements, whose `setup()`
-///         makes the same refusal with its popup.
+/// @return Whether the menu is now open on the pad's node; with the guest already open the open menu re-roots in
+///         place, as legacy's setup() re-sets the open editor. False, with nothing opened, when the context does not
+///         resolve, the pad names no numbered node, or the node does not apply and has no DX7 fallback; the last says
+///         "PARAMETER NOT APPLICABLE", as `setup()` does.
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
+
+/// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the
+///        guest open, which re-roots itself whichever menu the setting now selects.
+bool shellOwnsShortcutPads();
+
+/// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
+///        screen and the performance view ask of a main-grid press.
+///
+/// The gate first (`shortcutPadGate`: SHIFT, or an audition held over the instrument clip view, inside the two
+/// shortcut modes; the automation view's interpolation pads stay the view's). Then the item: a kit with nothing to edit
+/// has none; a coming-soon cell says "Feature not (yet?) implemented"; the sequence-direction pad with one row
+/// auditioning opens the note-row editor; any other pad goes to `openShellMenuAtShortcut`, which opens, re-roots or
+/// says its refusal. Off a clip minder the context names no clip, so the song view's table and the song are read, as
+/// legacy's `setup()` reads them. Nothing here opens the legacy editor.
+/// @param x,y The pad.
+/// @param on  Whether it is a press.
+/// @return `NOT_DEALT_WITH` for a release, a sidebar pad or a press the gate passes on to the view; `DEALT_WITH`
+///         otherwise, whether or not anything opened.
+ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on);
 
 /// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the ported menu.
 ///

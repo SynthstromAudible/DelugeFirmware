@@ -436,6 +436,18 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 	return l.resolve_only != nullptr ? cell_of(*l.resolve_only, x, y) : nullptr;
 }
 
+bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
+	switch (root) {
+	case MenuContext::Root::Sound:
+	case MenuContext::Root::Drum:
+		return (x == 4 && (y == 2 || y == 3 || y == 6)) || (x == 5 && (y == 2 || y == 3));
+	case MenuContext::Root::AudioClip:
+		return x == 7 && y == 7;
+	default:
+		return false;
+	}
+}
+
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	const Layers& l = layers_for(root);
 	// Second layer first, the order `updatePadLightsFor` scans in (`sound_editor.cpp:905` before

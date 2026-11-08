@@ -104,6 +104,12 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 /// @return The node, or `nullptr`.
 const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y);
 
+/// @brief Whether legacy's first-layer table holds `comingSoonMenu` at (@p x, @p y) for @p root: the cells
+///        `shortcut_node` answers `nullptr` for and `SoundEditor::potentialShortcutPadAction` answers with "Feature not
+///        (yet?) implemented". Sound and drum roots (`paramShortcutsForSounds`) and the audio clip
+///        (`paramShortcutsForAudioClips`); neither shortcut layout moves them.
+bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
+
 /// @brief Where @p node's own shortcut pad is, for the focused-param blink
 ///        (`SoundEditor::updatePadLightsFor` / `setupShortcutBlink`, `sound_editor.cpp:844-943`,
 ///        whose `currentParamShortcutX` / `currentParamShortcutY` this replaces).
