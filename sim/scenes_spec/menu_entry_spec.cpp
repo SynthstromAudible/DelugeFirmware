@@ -27,6 +27,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "processing/sound/sound_drum.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -1280,6 +1281,29 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(getCurrentUI() == &keyboardScreen).to_be_true();
+	});
+
+	it("keeps the kit-global-FX fact the menu was opened with, so Shift + a pad edits the selected drum", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&keyboardScreen);
+		// The Settings menu over a kit clip with affect-entire on: it was opened with the fact false.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_false();
+		{
+			HeldShift shift;
+			(void)shellHostUI.padAction(8, 7, 64);
+		}
+		(void)shellHostUI.timerCallback();
+		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+		expect(ctx.is_kit_global_fx).to_be_false();
+		expect(ctx.is_drum).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		(void)shellHostUI.exitUI();
 	});
 
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {

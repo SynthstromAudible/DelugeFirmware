@@ -344,8 +344,11 @@ ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on) {
 	Clip* const editClip = clipMinder ? clip : nullptr;
 	const bool performanceRoot = getRootUI() == &performanceView;
 	const bool sessionRoot = getRootUI() == &sessionView;
-	// `setupKitGlobalFXMenu = shouldEditKitAffectEntire()`, which legacy writes for every press it is asked about.
-	const bool kitGlobalFx = kitAffectEntireNow(clip);
+	// Legacy writes `setupKitGlobalFXMenu = shouldEditKitAffectEntire()` only when its editor is not open. With the
+	// guest open, a press keeps the fact the menu was opened with, so a Settings menu over a kit's keyboard screen
+	// still edits the selected drum.
+	const bool kitGlobalFx = isUIOpen(&shellHostUI) ? deluge::scenes::menu_scene().menu_context().is_kit_global_fx
+	                                                : kitAffectEntireNow(clip);
 	const menu::MenuContext ctx =
 	    resolveContext(editClip, x & 1, performanceRoot, !clipMinder, sessionRoot, kitGlobalFx);
 	// `editingNothing()`: a kit with neither affect-entire nor a selected row has no table, so no item.
