@@ -61,18 +61,34 @@ struct Program {
 };
 
 namespace detail {
-/// A one-pole coefficient with time constant @p time samples: 1 - e^(-1/time).
+/// e^(-x) for x in [0, 1]: a 20-term Taylor series in Horner form, in double, within 1e-15 of the true value. Plain
+/// arithmetic in a fixed order, so every target computes the same bits (a library exp may differ).
+[[nodiscard]] inline double exp_negative(double x) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+	double r = 1.0;
+	for (int k = 20; k >= 1; --k) {
+		r = 1.0 - ((r * x) / static_cast<double>(k));
+	}
+	return r;
+}
+/// A one-pole coefficient with time constant @p time samples (at least 1): 1 - e^(-1/time).
 [[nodiscard]] inline f32 one_pole_rate(f32 time) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-	return 1.f - std::exp(-1.f / time);
+	const double t = time < 1.f ? 1.0 : static_cast<double>(time);
+	return static_cast<f32>(1.0 - exp_negative(1.0 / t));
 }
 /// An exponential segment aiming at @p aim, ending at @p target, entering @p next.
 [[nodiscard]] inline Segment<f32> exponential_segment(f32 target, f32 aim, f32 time, f32 next) {
 	return {.target = target, .aim = aim, .rate = one_pole_rate(time), .exponential = 1.f, .hold = 0.f, .next = next};
 }
-/// A linear segment to @p target in @p length samples, entering @p next.
+/// A linear segment to @p target in @p length samples (at least 1), entering @p next.
 [[nodiscard]] inline Segment<f32> linear_segment(f32 target, f32 length, f32 next) {
-	return {.target = target, .aim = target, .rate = length, .exponential = 0.f, .hold = 0.f, .next = next};
+	return {.target = target,
+	        .aim = target,
+	        .rate = length < 1.f ? 1.f : length,
+	        .exponential = 0.f,
+	        .hold = 0.f,
+	        .next = next};
 }
 /// A stage that stays at @p level until a gate-off.
 [[nodiscard]] inline Segment<f32> hold_segment(f32 level) {
@@ -82,7 +98,7 @@ namespace detail {
 
 /// @brief Attack, decay, sustain, release: an exponential attack aiming at 1.2 and ending at 1, an exponential decay to
 /// @p sustain, a hold there, an exponential release to 0.
-/// @param attack Attack time constant, in samples (> 0).
+/// @param attack Attack time constant, in samples (below 1 counts as 1).
 /// @param decay Decay time constant, in samples (> 0).
 /// @param sustain The held level.
 /// @param release Release time constant, in samples (> 0).
@@ -212,15 +228,16 @@ struct Envelope {
 			s.slope = g.rate;
 		}
 		else if (!hold) {
-			s.slope = (g.target - s.value) / g.rate;
+			s.slope = (g.target - s.value) / (g.rate < 1.f ? 1.f : g.rate); // a length under a sample is one
 		}
 	}
 
 	/// @brief Starts segment 0 from the current value: a retrigger never jumps.
 	static void gate_on(const Coefficients& c, State& s) { enter(c, s, 0.f, false); }
-	/// @brief Enters the release segment from the current value; a program without one ignores it.
+	/// @brief Enters the release segment from the current value; a program without one, or an envelope at rest,
+	/// ignores it.
 	static void gate_off(const Coefficients& c, State& s) {
-		if (c.release >= 0.f) {
+		if (c.release >= 0.f && s.index >= 0.f) {
 			enter(c, s, c.release, false);
 		}
 	}

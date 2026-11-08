@@ -79,6 +79,17 @@ using Env = Mono<fp::Envelope>;
 	return std::bit_cast<uint32_t>(x);
 }
 
+/// A stage's role in the divergence scenario's programs: 0 attack (or a rise), 1 decay, 2 hold, 3 release; -1 at rest.
+[[nodiscard]] int role(std::size_t lane, int index) {
+	if (index < 0) {
+		return -1;
+	}
+	if (lane == 3) { // four_segment: three rises, a hold, the release, a hold at L4
+		return index <= 2 ? 0 : (index == 3 ? 2 : 3);
+	}
+	return index;
+}
+
 constexpr std::size_t kBlock = 37;
 constexpr std::size_t kBlocks = 12;
 
@@ -124,18 +135,24 @@ void expect_divergent_lanes_equal_mono(auto& self) {
 	}
 	std::array<std::vector<f32>, N> out{}, ref{};
 	std::set<std::size_t> transition_offsets;
-	std::set<int> stages_at_once;
 	std::array<std::set<int>, N> stages_visited{};
-	bool retriggered_in_release = false;
+	std::size_t most_roles = 0;
+	std::set<int> busiest;
+	int gate_off_stage = -2, retrigger_stage = -2; // lane 1's stage at its first gate-off and its retrigger
 	for (std::size_t b = 0; b < kBlocks; ++b) {
 		for (std::size_t l = 0; l < N; ++l) {
 			const int e = divergence_event(l, b);
 			if (e > 0) {
-				retriggered_in_release = retriggered_in_release || (b > 0 && mono[l].state().index == 3.f);
+				if (l == 1 && b == 6) {
+					retrigger_stage = static_cast<int>(mono[l].state().index);
+				}
 				poly.template on<&fp::Envelope::gate_on>(l);
 				mono[l].template on<&fp::Envelope::gate_on>();
 			}
 			else if (e < 0) {
+				if (l == 1 && b == 3) {
+					gate_off_stage = static_cast<int>(mono[l].state().index);
+				}
 				poly.template on<&fp::Envelope::gate_off>(l);
 				mono[l].template on<&fp::Envelope::gate_off>();
 			}
@@ -162,15 +179,16 @@ void expect_divergent_lanes_equal_mono(auto& self) {
 				stage[l] = static_cast<int>(after);
 				stages_visited[l].insert(stage[l]);
 			}
-			// Distinct stages across the lanes that are running (not at rest) at this sample.
-			std::set<int> running;
-			for (const int st : stage) {
-				if (st >= 0) {
-					running.insert(st);
+			// The roles the running lanes hold at this sample; keep the busiest.
+			std::set<int> roles;
+			for (std::size_t l = 0; l < N; ++l) {
+				if (role(l, stage[l]) >= 0) {
+					roles.insert(role(l, stage[l]));
 				}
 			}
-			if (running.size() >= std::min<std::size_t>(N, 3)) {
-				stages_at_once.insert(static_cast<int>(running.size()));
+			if (roles.size() > most_roles) {
+				most_roles = roles.size();
+				busiest = roles;
 			}
 		}
 	}
@@ -187,8 +205,14 @@ void expect_divergent_lanes_equal_mono(auto& self) {
 	// The scenario really diverges: transitions fall on several offsets within a block, lanes sit in different
 	// stages together, a lane retriggers during its release, and a lane that was gated on reaches rest.
 	expect(transition_offsets.size() >= 4).to_be_true();
-	expect(stages_at_once.empty()).to_be_false();
-	expect(retriggered_in_release).to_be_true();
+	if constexpr (N == 4) {
+		expect(busiest).to_equal(std::set<int>{0, 1, 2, 3}); // attack, decay, hold and release at once
+	}
+	else {
+		expect(most_roles >= 2).to_be_true();
+	}
+	expect(gate_off_stage).to_equal(1);  // lane 1's gate-off lands mid-decay
+	expect(retrigger_stage).to_equal(3); // and its retrigger mid-release
 	expect(mono[0].state().index).to_equal(-1.f);
 	if constexpr (N >= 2) {
 		expect(stages_visited[0].contains(0)).to_be_true();
@@ -240,6 +264,50 @@ describe float_envelope_spec("float envelope", ${
 			const f32 step = (1.f - std::exp(-1.f / attack)) * 1.2f;
 			expect(next > rel.back()).to_be_true();
 			expect(next - rel.back() < step).to_be_true();
+		});
+	});
+	context("gate events", _ {
+		it("ignores a gate-off at rest", _ {
+			for (const fp::Program& program : {fp::adsr(10.f, 20.f, 0.5f, 30.f), fp::asr(10.f, 30.f),
+			                                   fp::four_segment({0.8f, 0.3f, 0.6f, 0.1f}, {5.f, 4.f, 3.f, 6.f})}) {
+				Env env = make(program);
+				env.on<&fp::Envelope::gate_off>();
+				expect(std::ranges::all_of(run(env, 50), [](f32 y) { return y == 0.f; })).to_be_true();
+				expect(env.state().index).to_equal(-1.f);
+			}
+			Env env = make(fp::adsr(2.f, 3.f, 0.5f, 4.f)); // through to OFF, then a gate-off
+			env.on<&fp::Envelope::gate_on>();
+			static_cast<void>(run(env, 200));
+			env.on<&fp::Envelope::gate_off>();
+			static_cast<void>(run(env, 400));
+			env.on<&fp::Envelope::gate_off>();
+			expect(std::ranges::all_of(run(env, 50), [](f32 y) { return y == 0.f; })).to_be_true();
+		});
+		it("re-enters the release from the current value on a gate-off during release", _ {
+			Env env = make(fp::adsr(10.f, 20.f, 0.5f, 100.f));
+			env.on<&fp::Envelope::gate_on>();
+			static_cast<void>(run(env, 1000));
+			env.on<&fp::Envelope::gate_off>();
+			const f32 last = run(env, 50).back();
+			env.on<&fp::Envelope::gate_off>();
+			const f32 next = env.render();
+			expect(std::fabs(next - (last * (1.f - (1.f - std::exp(-1.f / 100.f))))) < 1e-6f).to_be_true();
+		});
+		it("finishes a segment of zero time in one sample and stays finite", _ {
+			Env loop = make(fp::looping(0.2f, 0.9f, 0.f));
+			loop.on<&fp::Envelope::gate_on>();
+			const auto out = run(loop, 20);
+			expect(out.front()).to_equal(0.9f);
+			expect(std::ranges::all_of(out, [](f32 y) { return std::isfinite(y); })).to_be_true();
+			Env env = make(fp::adsr(0.f, 0.f, 0.5f, 0.f));
+			env.on<&fp::Envelope::gate_on>();
+			expect(std::ranges::all_of(run(env, 50), [](f32 y) { return std::isfinite(y); })).to_be_true();
+		});
+		it("computes a one-pole rate without the library, within 1e-14 of it", _ {
+			for (double time = 1.0; time < 1e5; time *= 1.37) {
+				const double want = 1.0 - std::exp(-1.0 / time);
+				expect(std::fabs((1.0 - fp::detail::exp_negative(1.0 / time)) - want) < 1e-14).to_be_true();
+			}
 		});
 	});
 	context("AD and ASR", _ {
