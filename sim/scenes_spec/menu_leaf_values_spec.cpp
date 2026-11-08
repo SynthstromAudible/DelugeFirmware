@@ -40,10 +40,11 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
-#include "modulation/patch/patch_cable.h"
 #include "modulation/sync.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
+#include "synth/modulation/cable.h"
+#include "synth/modulation/patch_source.h"
 
 #include "support/forwarding_facts.h"
 #include "support/song_fixture.h"
@@ -53,8 +54,10 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -155,6 +158,28 @@ int32_t list_cursor() {
 
 int decimal_pos() {
 	return menu_scene().state().decimal_pos;
+}
+
+/// @brief Every node the tree numbers, once each.
+std::vector<const Node*> every_node() {
+	std::vector<const Node*> out;
+	const uint16_t count = menu::assign_node_ids(nodes::kAllRoots);
+	for (uint16_t id = 1; id <= count; id++) {
+		if (const Node* n = menu::node_by_id(id); n != nullptr) {
+			out.push_back(n);
+		}
+	}
+	return out;
+}
+
+/// @brief How many nodes answer @p has.
+template <typename F>
+size_t count_where(F has) {
+	size_t n = 0;
+	for (const Node* node : every_node()) {
+		n += has(*node) ? 1 : 0;
+	}
+	return n;
 }
 
 } // namespace
@@ -511,4 +536,94 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns, leaf_texts, leaf_sync_names)
+// clang-format off
+describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
+	it("gives its own turn to exactly the items whose legacy selectEncoderAction is their own", _ {
+		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::turn_follow_channel; })).to_equal(size_t(19));
+		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::stutter_rate_turn; })).to_equal(size_t(1));
+		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::swing_interval_turn; })).to_equal(size_t(2));
+		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::midi_preset_turn; })).to_equal(size_t(3));
+		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(25));
+	});
+
+	it("starts every Decimal's cursor on 2 but the six legacy overrides to 1", _ {
+		expect(count_where([](const Node& n) { return n.kind == menu::Kind::Decimal && n.bind.default_edit_pos == 1; }))
+		    .to_equal(size_t(6));
+		expect(count_where([](const Node& n) {
+			return n.kind == menu::Kind::Decimal && n.bind.default_edit_pos != 1 && n.bind.default_edit_pos != 2;
+		})).to_equal(size_t(0));
+	});
+
+	it("names special values on exactly the Decimals main draws a word for", _ {
+		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::cv_volts_word; })).to_equal(size_t(1));
+		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::retrigger_phase_text; })).to_equal(size_t(4));
+		expect(count_where([](const Node& n) { return n.bind.decimal_word != nullptr; })).to_equal(size_t(5));
+		expect(count_where([](const Node& n) { return n.bind.decimal_restart_from_negative; })).to_equal(size_t(4));
+	});
+
+	it("draws its own full-screen text on exactly the items whose legacy draw is their own", _ {
+		expect(count_where([](const Node& n) { return n.bind.leaf_text != nullptr; })).to_equal(size_t(21));
+		expect(count_where([](const Node& n) { return n.bind.leaf_draw != nullptr; })).to_equal(size_t(19));
+		expect(count_where([](const Node& n) { return !n.bind.style.unit.empty(); })).to_equal(size_t(1));
+		expect(count_where([](const Node& n) { return n.bind.style.label_in_digits; })).to_equal(size_t(1));
+		expect(count_where([](const Node& n) { return n.bind.sync_name_magnitude != nullptr; })).to_equal(size_t(2));
+		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(2));
+		expect(count_where([](const Node& n) { return n.bind.reverse_in_horizontal != nullptr; })).to_equal(size_t(5));
+	});
+
+	it("clamps every plain integer and sync level at its top, and turns it five steps under shift", _ {
+		// `Integer::selectEncoderAction` and `Enumeration::selectEncoderAction` add and clamp; `SoundEditor` hands
+		// either five times the offset while SHIFT is held. Only the items with a turn of their own differ.
+		size_t walked = 0;
+		for (const Node* n : every_node()) {
+			if ((n->kind != menu::Kind::Int && n->kind != menu::Kind::SyncLevel) || n->bind.turn != nullptr ||
+			    n->bind.leaf_draw != nullptr) {
+				continue;
+			}
+			Rig r;
+			const menu::IntRange range = menu::bindings::range(*n, r.ctx);
+			menu::bindings::write(*n, r.ctx, range.max);
+			if (menu::bindings::read(*n, r.ctx) != range.max) {
+				continue;
+			}
+			r.open(*n);
+			if (menu_scene().state().edit_int != range.max) {
+				continue;
+			}
+			deluge::ui::test::Rig48 up;
+			up.input.turn = 1;
+			draw(up, 0);
+			expect(menu_scene().state().edit_int).to_equal(range.max);
+			deluge::ui::test::Rig48 down;
+			down.input.turn = -1;
+			down.input.shift = true;
+			draw(down, 10);
+			const int32_t step = n->kind == menu::Kind::Int && range.step != 0 ? range.step : 1;
+			expect(menu_scene().state().edit_int).to_equal(std::max(range.min, range.max - 5 * step));
+			walked++;
+		}
+		expect(walked).to_equal(size_t(137));
+	});
+
+	it("starts each Decimal's cursor where main does, whichever way it is opened", _ {
+		size_t walked = 0;
+		for (const Node* n : every_node()) {
+			if (n->kind != menu::Kind::Decimal) {
+				continue;
+			}
+			Rig r;
+			r.open(*n);
+			// `cv::Volts`, `gate::OffTime` and the four `osc::RetriggerPhase`s override it to 1.
+			const bool overridden =
+			    n == &nodes::cv_volts || n == &nodes::gate_off_time || n == &nodes::osc0_phase ||
+			    n == &nodes::osc1_phase || n == &nodes::modulator0_phase_node || n == &nodes::modulator1_phase_node;
+			expect(decimal_pos()).to_equal(overridden ? 1 : 2);
+			walked++;
+		}
+		expect(walked).to_equal(size_t(18));
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, tree_rules, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns, leaf_texts,
+            leaf_sync_names)
