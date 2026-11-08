@@ -218,10 +218,12 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 ///
 /// Sticky, as legacy's member is. `shellShortcutPadAction` writes it with the guest closed, on every press it is
 /// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
-/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). The shortcut presses read it, as
-/// legacy's `get_basic_shortcut_action` and the `setup()` after it do, so which item a kit's shortcut opens depends on
-/// what was pressed since the last close. The other opens edit what the clip's affect-entire says now (DIFFERENCES
-/// D130).
+/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). It is read live, never copied: by the
+/// shortcut presses with the guest closed (`shellShortcutPadAction`), by the open menu's own Shift + pad, SHIFT overlay
+/// and horizontal-menu chain on a kit's row (`wireShellKitGlobalShortcuts`), and by the automation view
+/// (`soundMenuKitGlobalFx`), as legacy's `get_basic_shortcut_action`, `setup()`, `renderMainShortcutsOnly` and
+/// `getCurrentHorizontalMenusChain` read `setupKitGlobalFXMenu`. The other opens edit what the clip's affect-entire
+/// says now (DIFFERENCES D130).
 bool shellKitGlobalFx();
 
 /// @brief Clear the latch `shellKitGlobalFx` reads, as legacy's `exitCompletely` and `enterDrumCreator` clear
@@ -230,10 +232,13 @@ void clearShellKitGlobalFx();
 
 /// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's
 ///        claim, the marker editor's shortcut jump): a kit clip with affect-entire on, with SHIFT held and no audition,
-///        sets the latch `shellKitGlobalFx` reads. An open menu on the kit's row then takes the kit's own effects for
-///        its next shortcut press (`MenuScene::set_kit_global_shortcut_context`), as legacy's open editor reads the
-///        member at its next press.
+///        sets the latch `shellKitGlobalFx` reads.
 void latchShellKitGlobalFxOnReentry();
+
+/// @brief Point the ported menu at the latch, its one source for every shortcut-layer decision on a kit's row (the
+///        Shift + pad item, the SHIFT overlay, the horizontal-menu chain), and at the host's halves: the adopt when a
+///        press moves the menu onto the kit's own effects, and the re-entry write after the marker editor's jump.
+void wireShellKitGlobalShortcuts();
 
 /// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the
 ///        guest open, which re-roots itself whichever menu the setting now selects.

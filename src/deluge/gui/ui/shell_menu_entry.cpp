@@ -48,6 +48,7 @@
 #include "shell/scene.h"
 
 #include <cstddef>
+#include <optional>
 #include <span>
 
 /// @file
@@ -210,6 +211,22 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 	return openUI(&shellHostUI);
 }
 
+/// @brief `MenuScene::KitGlobalShortcutFn`: while the latch is set, the kit's own effects resolved now, as legacy's
+///        `setup()` resolves them from `setupKitGlobalFXMenu`; `nullopt` while it is clear.
+std::optional<menu::MenuContext> kitGlobalShortcutContext(const menu::MenuContext& open) {
+	if (!kitGlobalFxLatch || currentSong == nullptr) {
+		return std::nullopt;
+	}
+	const bool clipMinder = rootUIIsClipMinderScreen();
+	const menu::MenuContext kitGlobal =
+	    resolveContext(clipMinder ? getCurrentClip() : nullptr, open.source_index, getRootUI() == &performanceView,
+	                   !clipMinder, getRootUI() == &sessionView, /*kitGlobalFx=*/true);
+	if (!kitGlobal.resolved || !kitGlobal.is_kit_global_fx) {
+		return std::nullopt;
+	}
+	return kitGlobal;
+}
+
 } // namespace
 
 bool shellMenuEnabled() {
@@ -228,22 +245,12 @@ void latchShellKitGlobalFxOnReentry() {
 	kitGlobalFxLatch = kitGlobalFxLatch
 	                   || (currentSong != nullptr && kitAffectEntireNow(getCurrentClip())
 	                       && Buttons::isShiftButtonPressed() && !isUIModeActive(UI_MODE_AUDITIONING));
-	// Legacy's editor stays open through this write and reads it at its next shortcut press: the open menu, if it
-	// edits a kit's row, is handed the kit's own effects for that press.
-	if (!kitGlobalFxLatch || !isUIOpen(&shellHostUI) || currentSong == nullptr) {
-		return;
-	}
-	const menu::MenuContext& open = deluge::scenes::menu_scene().menu_context();
-	if (!open.is_kit || open.is_kit_global_fx) {
-		return;
-	}
-	const bool clipMinder = rootUIIsClipMinderScreen();
-	const menu::MenuContext kitGlobal =
-	    resolveContext(clipMinder ? getCurrentClip() : nullptr, open.source_index, getRootUI() == &performanceView,
-	                   !clipMinder, getRootUI() == &sessionView, /*kitGlobalFx=*/true);
-	if (kitGlobal.resolved && kitGlobal.is_kit_global_fx) {
-		deluge::scenes::menu_scene().set_kit_global_shortcut_context(kitGlobal);
-	}
+}
+
+void wireShellKitGlobalShortcuts() {
+	deluge::scenes::menu_scene().set_kit_global_shortcut_source(&kitGlobalShortcutContext);
+	deluge::scenes::menu_scene().set_context_adopted_hook(&adoptShellMenuContext);
+	deluge::scenes::menu_scene().set_reentry_hook(&latchShellKitGlobalFxOnReentry);
 }
 
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,

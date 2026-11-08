@@ -30,11 +30,16 @@
 #include "gui/ui/shell_guest_services.h" // the shell* arms
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "util/shell_menu_entry.h"
 
 namespace deluge::gui::ui {
 
 bool soundMenuOpen() {
 	return (getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu()) || shellSoundMenuOpen();
+}
+
+bool soundMenuKitGlobalFx() {
+	return shellSoundMenuOpen() ? shellKitGlobalFx() : soundEditor.setupKitGlobalFXMenu;
 }
 
 bool soundMenuCurrent() {

@@ -24,10 +24,12 @@ namespace deluge::scenes::menu {
 inline constexpr uint32_t kNavButtonDebounceMs = 140;
 
 /// @brief One of the six buttons pressed on a horizontal page (`gui/menu_item/horizontal_menu.cpp:70-107`).
+/// @param chain_root The root whose chain SHIFT + CROSS_SCREEN/SCALE steps through (`MenuWalk::switch_chained_page`).
 /// @return The result when the press was the page's, else nullopt.
 std::optional<deluge::ui::shell::Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSession& session,
                                                             const deluge::ui::shell::UiEvent& event,
-                                                            const deluge::ui::shell::UiContext& ui);
+                                                            const deluge::ui::shell::UiContext& ui,
+                                                            MenuContext::Root chain_root);
 
 /// @brief Declare the six buttons' LEDs: lit over the focused column and with more than one page, off elsewhere.
 void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::LedFrame& f);

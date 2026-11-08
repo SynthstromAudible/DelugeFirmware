@@ -60,7 +60,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <utility>
 
 namespace deluge::scenes::menu {
 
@@ -229,19 +228,24 @@ public:
 	/// @brief The HorizontalMenus community feature changed under the open menu (`MenuContext::horizontal_menus`):
 	///        legacy reads it on every draw, so a page entered after the write lays out as it now says.
 	void set_horizontal_menus(bool on) { ctx_.horizontal_menus = on; }
-	/// @brief The host's `setupKitGlobalFXMenu` went true while this menu, opened on a kit's row, is open: @p ctx is
-	///        the kit's own effects. The next shortcut press reads its table and resolves its target there, as
-	///        legacy's next `potentialShortcutPadAction` reads both from that member; a press that jumps installs it as
-	///        the menu's context (`take_context_replaced`). Any open drops it.
-	/// @param ctx The context the host resolved for the kit's own effects.
-	void set_kit_global_shortcut_context(const MenuContext& ctx) { kit_global_shortcut_ctx_ = ctx; }
+	/// @brief The host's answer to "is a shortcut press on a kit's row now the kit's own effects", and the context
+	///        that press resolves against: legacy's `setupKitGlobalFXMenu`, which `potentialShortcutPadAction`'s table
+	///        (`get_basic_shortcut_action(editingKitAffectEntire())`), the `setup()` after it, the SHIFT overlay and
+	///        the horizontal-menu chain all read live. Asked afresh at each of those, never stored.
+	/// @param open The menu's context now.
+	/// @return The kit's own effects while the host's latch is set, or `nullopt`.
+	using KitGlobalShortcutFn = std::optional<MenuContext> (*)(const MenuContext& open);
+	/// @brief Install the host's `KitGlobalShortcutFn`; null answers `nullopt` always.
+	void set_kit_global_shortcut_source(KitGlobalShortcutFn source) { kit_global_shortcut_source_ = source; }
+	/// @brief Run @p hook when a shortcut press moves the menu onto the kit's own effects, before anything else of the
+	///        tick reads the editor's context: legacy's `setup()` re-points its editor there at once.
+	/// @param hook The host's adopt, or null for none.
+	void set_context_adopted_hook(void (*hook)()) { context_adopted_hook_ = hook; }
 	/// @brief Run @p hook after a shortcut jump from a scene over the menu (`shortcut_jump`, the marker editor's):
 	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`, whose write to
 	///        `setupKitGlobalFXMenu` is the host's to make.
 	/// @param hook The host's write, or null for none.
 	void set_reentry_hook(void (*hook)()) { reentry_hook_ = hook; }
-	/// @brief Whether a shortcut press installed a new context since the last call, for the host to adopt.
-	bool take_context_replaced() { return std::exchange(context_replaced_, false); }
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;
@@ -594,8 +598,16 @@ private:
 	                                       const deluge::ui::shell::UiContext& ctx);
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
-	/// @brief Make `kit_global_shortcut_ctx_` the menu's context, for the host to adopt.
-	void install_kit_global_shortcut_context();
+	/// @brief The kit's own effects for a shortcut press on a kit's row, from the host
+	/// (`set_kit_global_shortcut_source`),
+	///        or `nullopt` off a kit row or while the host's latch is clear. The note editors and Settings take no
+	///        shortcut press, as `SoundEditor::padAction` skips them.
+	std::optional<MenuContext> kit_global_shortcut_context() const;
+	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while
+	///        `kit_global_shortcut_context` answers, else the menu's.
+	MenuContext::Root shortcut_root() const;
+	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`).
+	void install_context(const MenuContext& ctx);
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
 	bool on_horizontal_page() const { return menu::on_horizontal_page(ctx_, st_); }
@@ -640,13 +652,12 @@ private:
 	/// The renders, and the storage a horizontal page draws from.
 	MenuView view_;
 	MenuContext ctx_{};
-	/// @brief The kit's own effects, for the shortcut presses after the host's latch went true
-	///        (`set_kit_global_shortcut_context`).
-	std::optional<MenuContext> kit_global_shortcut_ctx_;
+	/// @brief The host's live kit-global answer (`set_kit_global_shortcut_source`).
+	KitGlobalShortcutFn kit_global_shortcut_source_ = nullptr;
+	/// @brief The host's adopt after a press moves the menu (`set_context_adopted_hook`).
+	void (*context_adopted_hook_)() = nullptr;
 	/// @brief The host's write after a jump from a scene over the menu (`set_reentry_hook`).
 	void (*reentry_hook_)() = nullptr;
-	/// @brief A shortcut press installed `kit_global_shortcut_ctx_` (`take_context_replaced`).
-	bool context_replaced_ = false;
 	/// @brief The host's UI-mode gates (`set_host_mode_gates`); unset, the menu's own learn mode alone gates.
 	std::optional<HostModeGates> host_gates_;
 	/// @brief The cause an event of this tick noted, and the value node it found (`take_transition`).

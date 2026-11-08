@@ -412,7 +412,7 @@ bool guestKnobsSeeAutomationEditor() {
 void wireShellGuestServices() {
 	GuestServices& services = guestServices();
 	ShellHostUI::setCloseHook(&handOffGuestOverlays);
-	deluge::scenes::menu_scene().set_reentry_hook(&latchShellKitGlobalFxOnReentry);
+	wireShellKitGlobalShortcuts();
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
 	// `scenes-currentSong` row) and which all three services resolve against

@@ -114,9 +114,11 @@ public:
 	void enter_horizontal_item(MenuCore core, ValueSession& session, const Node& child);
 	/// @brief SHIFT + CROSS_SCREEN/SCALE at depth 0: replace the page with the next (or previous) menu of the root's
 	///        chain that has columns, landing on its first page -- mod FX's second -- as `switchHorizontalMenu` does.
-	/// @param direction +1 or -1.
+	/// @param direction  +1 or -1.
+	/// @param chain_root The root whose chain is stepped: the kit's own while the host's latch is set, as legacy's
+	///                   `editingKitAffectEntire()` picks `horizontalMenusChainForKit`.
 	/// @return Whether the page changed.
-	bool switch_chained_page(MenuCore core, ValueSession& session, int32_t direction);
+	bool switch_chained_page(MenuCore core, ValueSession& session, int32_t direction, MenuContext::Root chain_root);
 
 	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
 	///        was walked with, since reading which children show runs their relevance tests.

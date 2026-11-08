@@ -30,6 +30,7 @@
 #include "processing/sound/sound_drum.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -312,6 +313,34 @@ void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, SoundDrum& drum, S
 	range->sampleHolder.waveformViewZoom = 0;
 	range->sampleHolder.waveformViewScroll = 0;
 	deluge::bridge::recordLoadedSound(drum, *f.song);
+}
+
+/// @brief A kit clip with affect-entire on, one sound drum selected, and the latch set by a clip-view edit pad pressed
+///        with the menu closed, as legacy's first statement sets `setupKitGlobalFXMenu`.
+struct LatchedKit {
+	deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+	SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(f);
+	LatchedKit() {
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&instrumentClipView);
+		deluge::gui::ui::clearShellKitGlobalFx();
+		(void)instrumentClipView.padAction(0, 0, 64);
+		(void)instrumentClipView.padAction(0, 0, 0);
+		// An audition selects the drum's row again; the audition column never reaches the shortcut entry.
+		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
+	}
+};
+
+/// @brief SHIFT held for the guest and for legacy, and a Shift + (@p x, @p y) press and release the guest takes.
+void guest_shortcut(int32_t x, int32_t y) {
+	(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+	(void)shellHostUI.padAction(x, y, 64);
+	for (int i = 0; i < 3; i++) {
+		(void)shellHostUI.timerCallback();
+	}
+	(void)shellHostUI.padAction(x, y, 0);
+	(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+	(void)shellHostUI.timerCallback();
 }
 
 struct DrumRowStack {
@@ -1446,6 +1475,102 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(ctx.is_drum).to_be_true();
 		(void)shellHostUI.exitUI();
 		expect(entry::shellKitGlobalFx()).to_be_false();
+	});
+
+	it("a Shift + pad on the drum menu SELECT opened takes the kit's own item while the latch is set", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		LatchedKit k;
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		k.f.clip->affectEntire = false; // D130: SELECT then opens the drum's own menu
+		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		HeldShift shift;
+		guest_shortcut(8, 7);
+		// `get_basic_shortcut_action(x, y, editingKitAffectEntire())` reads the latch: the kit's own LPF.
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		closeGuest();
+	});
+
+	it("the note editor opened after edit pads takes no shortcut press, as legacy's padAction skips it there", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		LatchedKit k;
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteEditor))
+		    .to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		HeldShift shift;
+		guest_shortcut(8, 7);
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_false();
+		expect(deluge::scenes::menu_scene().focused_value() != &nodes::global_lpf_freq).to_be_true();
+		closeGuest();
+	});
+
+	it("the automation view reads the latch under the drum menu, and the kit's context before it follows a jump", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		LatchedKit k;
+		k.f.clip->affectEntire = false;
+		setRootUILowLevel(&automationView);
+		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		// `getAffectEntire` reads `setupKitGlobalFXMenu` under the sound menu, which the latch is.
+		expect(automationView.getAffectEntire()).to_be_true();
+		HeldShift shift;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)shellHostUI.padAction(8, 7, 64);
+		// One tick: the press, then the drains that hand the move to the automation view. The editor is on the kit's
+		// own effects by then, as legacy's `setup()` re-points it before the view refreshes.
+		(void)shellHostUI.timerCallback();
+		expect(soundEditor.currentModControllable == k.f.instrument->toModControllable()).to_be_true();
+		expect(automationView.getAffectEntire()).to_be_true();
+		(void)shellHostUI.padAction(8, 7, 0);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		closeGuest();
+	});
+
+	it("SHIFT + CROSS SCREEN on a drum page steps the kit's own chain while the latch is set", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::FeatureSetting horizontal{RuntimeFeatureSettingType::HorizontalMenus,
+		                                                util::to_underlying(RuntimeFeatureStateToggle::On)};
+		LatchedKit k;
+		k.f.clip->affectEntire = false;
+		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		const menu::MenuContext drum_ctx = deluge::scenes::menu_scene().menu_context();
+		deluge::scenes::menu_scene().reroot_at(*menu::MenuScene::roots()[static_cast<size_t>(drum_ctx.root)],
+		                                       drum_ctx, menu::node_id(nodes::filters_group), nullptr);
+		(void)shellHostUI.timerCallback();
+		expect(deluge::scenes::menu_scene().state().path[0] == &nodes::filters_group).to_be_true();
+		// Past the page buttons' 140 ms debounce, which runs on the guest's clock.
+		AudioEngine::audioSampleTimer += 44'100;
+		HeldShift shift;
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)shellHostUI.buttonAction(deluge::hid::button::CROSS_SCREEN_EDIT, true);
+		(void)shellHostUI.timerCallback();
+		(void)shellHostUI.buttonAction(deluge::hid::button::CROSS_SCREEN_EDIT, false);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		(void)shellHostUI.timerCallback();
+		const menu::Node* const page = deluge::scenes::menu_scene().state().path[0];
+		const std::span<const menu::Node* const> kit_chain = menu::chain_for(menu::MenuContext::Root::KitGlobalFx);
+		const std::span<const menu::Node* const> sound_chain = menu::chain_for(menu::MenuContext::Root::Drum);
+		expect(std::ranges::find(kit_chain, page) != kit_chain.end()).to_be_true();
+		expect(std::ranges::find(sound_chain, page) == sound_chain.end()).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		closeGuest();
 	});
 
 	it("opens the drum creator on the new drum, whatever a pad left the fact at", _ {

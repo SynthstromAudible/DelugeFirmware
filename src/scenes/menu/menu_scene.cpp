@@ -97,7 +97,6 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	cable_edge_until_ms_ = 0;
 	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	holding_affect_entire_ = false;
-	kit_global_shortcut_ctx_.reset();
 	pads_.forget_landing();
 	retarget(root);
 }
@@ -304,8 +303,9 @@ void MenuScene::on_resume() {
 }
 
 std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
-	// The kit's own effects once the host's latch went true, as for a press on the menu itself.
-	const MenuContext& press = kit_global_shortcut_ctx_.has_value() ? *kit_global_shortcut_ctx_ : ctx_;
+	// The kit's own effects while the host's latch is set, as for a press on the menu itself.
+	const std::optional<MenuContext> kit_global = kit_global_shortcut_context();
+	const MenuContext& press = kit_global.has_value() ? *kit_global : ctx_;
 	// A `comingSoonMenu` cell pops its message and goes nowhere (`potentialShortcutPadAction`).
 	if (shortcut_coming_soon(press.root, x, y)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
@@ -323,8 +323,8 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 			return std::nullopt;
 		}
 	}
-	if (kit_global_shortcut_ctx_.has_value()) {
-		install_kit_global_shortcut_context();
+	if (kit_global.has_value()) {
+		install_context(*kit_global);
 	}
 	const uint16_t id = arm_shortcut_landing(*target);
 	if (id == 0) {
@@ -338,10 +338,29 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	return SceneId{SceneKind::FirstApp, id};
 }
 
-void MenuScene::install_kit_global_shortcut_context() {
-	ctx_ = *kit_global_shortcut_ctx_;
-	kit_global_shortcut_ctx_.reset();
-	context_replaced_ = true;
+std::optional<MenuContext> MenuScene::kit_global_shortcut_context() const {
+	if (kit_global_shortcut_source_ == nullptr || !ctx_.is_kit || ctx_.is_kit_global_fx) {
+		return std::nullopt;
+	}
+	switch (ctx_.root) {
+	case MenuContext::Root::Drum:
+	case MenuContext::Root::MidiDrum:
+	case MenuContext::Root::GateDrum:
+		return kit_global_shortcut_source_(ctx_);
+	default:
+		return std::nullopt;
+	}
+}
+
+MenuContext::Root MenuScene::shortcut_root() const {
+	return kit_global_shortcut_context().has_value() ? MenuContext::Root::KitGlobalFx : ctx_.root;
+}
+
+void MenuScene::install_context(const MenuContext& ctx) {
+	ctx_ = ctx;
+	if (context_adopted_hook_ != nullptr) {
+		context_adopted_hook_();
+	}
 }
 
 void MenuScene::dx_column_press(int32_t op) {
@@ -445,7 +464,7 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 	// nowhere falls back to the page that does (the audio clip's sample page). Legacy answers `nullptr` when no menu
 	// lists the item, and its caller then does nothing -- which is this `false`.
 	const Node* page = nullptr;
-	for (const Node* candidate : chain_for(ctx_.root)) {
+	for (const Node* candidate : chain_for(shortcut_root())) {
 		if (candidate != nullptr && page_lists(*candidate, item)) {
 			page = candidate;
 			break;
@@ -676,7 +695,8 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (!f.covered) {
 		visit_.shift_held = f.shift();
 		if (overlay_up()) {
-			render_overlay(f, ctx_, st_, focused_value());
+			const std::optional<MenuContext> kit_global = kit_global_shortcut_context();
+			render_overlay(f, kit_global.has_value() ? *kit_global : ctx_, st_, focused_value());
 		}
 	}
 	// The blinks flash over the overlay: the control surface plays them over whatever the pads hold.
@@ -1216,18 +1236,31 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// The six page buttons on a horizontal page, ahead of the shortcut-pad jump, as legacy's `buttonAction` override
 	// is reached before `SoundEditor::buttonAction`'s own switch.
-	if (std::optional<Result> r = handle_page_button(core(), walk_, visit_.session, event, ctx)) {
+	// SHIFT + CROSS_SCREEN/SCALE at depth 0 steps the kit's own chain while the host's latch is set
+	// (`horizontalMenusChainForKit` under `editingKitAffectEntire()`), and a step lands the menu on the kit's effects.
+	const bool chain_step = event.kind == UiEvent::Kind::Button && ctx.shift && st_.depth == 0
+	                        && (event.button == ButtonId::CrossScreen || event.button == ButtonId::Scale);
+	if (std::optional<MenuContext> kit_global = chain_step ? kit_global_shortcut_context() : std::nullopt) {
+		const Node* const before = st_.path[0];
+		if (std::optional<Result> r = handle_page_button(MenuCore{*kit_global, st_}, walk_, visit_.session, event, ctx,
+		                                                 MenuContext::Root::KitGlobalFx)) {
+			if (st_.path[0] != before) {
+				install_context(*kit_global);
+			}
+			return *r;
+		}
+	}
+	else if (std::optional<Result> r = handle_page_button(core(), walk_, visit_.session, event, ctx, ctx_.root)) {
 		return *r;
 	}
 
 	// A shortcut press after the host's latch went true reads the kit's own effects, and a jump moves the menu there.
 	const bool shortcut_press =
 	    event.kind == UiEvent::Kind::Pad && event.on && (ctx.shift || event.shortcut_without_shift);
-	if (kit_global_shortcut_ctx_.has_value() && shortcut_press) {
-		MenuContext kit_global = *kit_global_shortcut_ctx_;
-		if (std::optional<Result> r = pads_.handle_pad(MenuCore{kit_global, st_}, walk_, visit_.session, event, ctx)) {
+	if (std::optional<MenuContext> kit_global = shortcut_press ? kit_global_shortcut_context() : std::nullopt) {
+		if (std::optional<Result> r = pads_.handle_pad(MenuCore{*kit_global, st_}, walk_, visit_.session, event, ctx)) {
 			if (std::ranges::any_of(r->actions, [](const Action& a) { return a.kind == Action::Kind::Replace; })) {
-				install_kit_global_shortcut_context();
+				install_context(*kit_global);
 			}
 			return *r;
 		}
