@@ -23,6 +23,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/poly.h"
 #include "dsp-next/float/envelope/envelope.h"
+#include "dsp-next/float/filter/ladder.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
 #include "dsp-next/float/osc/blep_oscillator.h"
@@ -52,6 +53,7 @@ namespace {
 using VcaEnv = fp::Vca<fp::Envelope>;
 using BlepVoice = Chain<fp::BlepOscillator, fp::Svf, VcaEnv>;
 using TableVoice = Chain<fp::TableOscillator, fp::Svf, VcaEnv>;
+using LadderVoice = Chain<fp::BlepOscillator, fp::Ladder, VcaEnv>;
 /// A chain whose first part declares a `prepare`: its packed prepare runs once per block, as Mono's does.
 using Smoothed = Chain<fp::Smoother, fp::Svf>;
 
@@ -156,6 +158,27 @@ template <class T, std::size_t K>
 	const fp::BlepOscillator::Settings o{
 	    .frequency = frequency(lane), .width = 0.3f + (0.1f * static_cast<f32>(lane)), .mode = osc};
 	return BlepVoice::Settings{o, svf_settings(lane, svf), vca_settings(lane)};
+}
+
+/// Lane @p lane's ladder: its own cutoff, resonance and response (morphing towards the next), in @p flavour.
+[[nodiscard]] fp::Ladder::Settings ladder_settings(std::size_t lane, fp::Ladder::Mode flavour) {
+	using Response = fp::Ladder::Response;
+	constexpr std::array kResponses{Response::LP24, Response::BP, Response::LP12, Response::HP};
+	return {.cutoff = 0.03f + (0.04f * static_cast<f32>(lane)),
+	        .resonance = 1.f + static_cast<f32>(lane),
+	        .drive = 1.5f + static_cast<f32>(lane),
+	        .compensate = true,
+	        .response = kResponses[lane % 4],
+	        .morph_to = kResponses[(lane + 1) % 4],
+	        .morph = 0.2f * static_cast<f32>(lane),
+	        .mode = flavour};
+}
+
+[[nodiscard]] LadderVoice::Settings ladder_voice_settings(std::size_t lane, fp::BlepOscillator::Mode osc,
+                                                          fp::Ladder::Mode flavour) {
+	const fp::BlepOscillator::Settings o{
+	    .frequency = frequency(lane), .width = 0.3f + (0.1f * static_cast<f32>(lane)), .mode = osc};
+	return LadderVoice::Settings{o, ladder_settings(lane, flavour), vca_settings(lane)};
 }
 
 [[nodiscard]] TableVoice::Settings table_settings(std::size_t lane, fp::Svf::Mode svf) {
@@ -317,6 +340,9 @@ int osc_mode(const fp::BlepOscillator::Coefficients& c, fp::BlepOscillator::Stat
 auto blep(BlepOscillator::Mode osc, Svf::Mode svf) {
 	return [=](std::size_t l) { return blep_settings(l, osc, svf); };
 }
+auto ladder(BlepOscillator::Mode osc, fp::Ladder::Mode flavour) {
+	return [=](std::size_t l) { return ladder_voice_settings(l, osc, flavour); };
+}
 auto table(Svf::Mode svf) {
 	return [=](std::size_t l) { return table_settings(l, svf); };
 }
@@ -356,6 +382,13 @@ describe float_voice_spec("float voice", ${
 		});
 		it("runs four Table voices, each lane bit for bit its Mono", _ {
 			expect_voice_lanes_equal_mono<TableVoice, 4>(self, table(Svf::Mode::BAND_PASS));
+		});
+		it("runs two ladder voices, each lane bit for bit its Mono", _ {
+			expect_voice_lanes_equal_mono<LadderVoice, 2>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
+		});
+		it("runs four ladder voices in each flavour, each lane bit for bit its Mono", _ {
+			expect_voice_lanes_equal_mono<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::SAW, fp::Ladder::Mode::CLEAN));
+			expect_voice_lanes_equal_mono<LadderVoice, 4>(self, ladder(BlepOscillator::Mode::PULSE, fp::Ladder::Mode::DRIVE));
 		});
 		it("prepares a chain's packed lanes once per block, each lane bit for bit its Mono", _ {
 			expect_prepared_lanes_equal_mono<2>(self);
@@ -411,6 +444,8 @@ describe float_voice_spec("float voice", ${
 			expect(record<BlepVoice>(blep_settings(0, BlepOscillator::Mode::SAW, Svf::Mode::LOW_PASS)))
 			    .to_equal(records::kBlepVoice);
 			expect(record<TableVoice>(table_settings(0, Svf::Mode::LOW_PASS))).to_equal(records::kTableVoice);
+			expect(record<LadderVoice>(ladder_voice_settings(0, BlepOscillator::Mode::SAW, fp::Ladder::Mode::DRIVE)))
+			    .to_equal(records::kLadderVoice);
 		});
 	});
 });

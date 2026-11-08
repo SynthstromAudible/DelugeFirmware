@@ -20,10 +20,13 @@
 // morph between presets, and its stability at every setting.
 
 #include "dsp-next/core/flush_to_zero.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/float/filter/ladder.h"
 #include "dsp-next/float/math/detail.h"
+
+#include "float_kernel_records.h"
 
 #include <array>
 #include <bit>
@@ -34,6 +37,7 @@
 #include <limits>
 #include <numbers>
 #include <random>
+#include <span>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -81,6 +85,15 @@ constexpr std::size_t kBlock = 128;
 	return 20.F * std::log10(ratio);
 }
 
+/// FNV-1a over the output's bits: the digest a record pins.
+[[nodiscard]] uint32_t digest(std::span<const f32> out) {
+	uint32_t h = 2166136261U;
+	for (const f32 x : out) {
+		h = (h ^ std::bit_cast<uint32_t>(x)) * 16777619U;
+	}
+	return h;
+}
+
 /// Seeded noise over ±1.
 [[nodiscard]] std::vector<f32> noise(std::size_t n, uint32_t seed) {
 	std::mt19937 rng{seed};
@@ -90,6 +103,17 @@ constexpr std::size_t kBlock = 128;
 		x = d(rng);
 	}
 	return v;
+}
+
+/// The digest of 8 blocks of seeded noise through a ladder configured with @p settings, in one render.
+[[nodiscard]] uint32_t record(const Ladder::Settings& settings) {
+	fp::FlushToZero ftz;
+	Mono<Ladder> ladder;
+	ladder.configure(settings);
+	const auto in = noise(kBlock * 8, 5);
+	std::vector<f32> out(in.size());
+	ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+	return digest(out);
 }
 
 } // namespace
@@ -343,6 +367,46 @@ describe float_ladder_spec("the float ladder", ${
 				}
 			}
 			expect(std::fabs(out[half] - out[half - 1]) <= 2.F * largest).to_be_true();
+		});
+	});
+	context("Linked", _ {
+		it("runs each lane exactly as Mono, in both flavours", _ {
+			for (const auto mode : {Ladder::Mode::CLEAN, Ladder::Mode::DRIVE}) {
+				fp::FlushToZero ftz;
+				Linked<Ladder, 2, Frame<f32, 2>> two;
+				Mono<Ladder> one, other;
+				const Ladder::Settings set{.cutoff = 0.04F, .resonance = 3.F, .drive = 2.F, .response = Response::BP,
+				                           .mode = mode};
+				two.configure(set);
+				one.configure(set);
+				other.configure(set);
+				const auto in = noise(kBlock * 2, 3);
+				std::vector<Frame<f32, 2>> frames(kBlock), framed_out(kBlock);
+				std::vector<f32> left(kBlock), left_out(kBlock), right(kBlock), right_out(kBlock);
+				for (std::size_t i = 0; i < kBlock; ++i) {
+					frames[i].lane[0] = in[2 * i];
+					frames[i].lane[1] = in[(2 * i) + 1];
+					left[i] = in[2 * i];
+					right[i] = in[(2 * i) + 1];
+				}
+				two.render_block(std::span<const Frame<f32, 2>>{frames}, std::span<Frame<f32, 2>>{framed_out});
+				one.render_block(fp::Signal{left}, fp::Buffer{left_out});
+				other.render_block(fp::Signal{right}, fp::Buffer{right_out});
+				for (std::size_t i = 0; i < kBlock; ++i) {
+					expect(bits(framed_out[i].lane[0])).to_equal(bits(left_out[i]));
+					expect(bits(framed_out[i].lane[1])).to_equal(bits(right_out[i]));
+				}
+			}
+		});
+	});
+	context("records", _ {
+		it("matches its records", _ {
+			expect(record({.cutoff = 0.05F, .resonance = 3.F, .drive = 2.F})).to_equal(records::kLadderLp24Clean);
+			expect(record({.cutoff = 0.05F, .resonance = 3.F, .drive = 2.F, .mode = Ladder::Mode::DRIVE}))
+			    .to_equal(records::kLadderLp24Drive);
+			expect(record({.cutoff = 0.1F, .resonance = 2.F, .response = Response::HP, .morph_to = Response::BP,
+			               .morph = 0.3F}))
+			    .to_equal(records::kLadderMorphHpBp);
 		});
 	});
 });

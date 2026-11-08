@@ -7,6 +7,7 @@
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/poly.h"
+#include "dsp-next/float/filter/ladder.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
@@ -328,6 +329,27 @@ void poly_specs(auto& self) {
 					                             .q = 0.6f + static_cast<f32>((l * 3 + seed) % 9), .mode = mode};
 				    },
 				    seed);
+			}
+		}
+	});
+	it("steps each Ladder lane exactly as Mono with its own response, morph, cutoff and resonance, in both flavours", _ {
+		using Response = fp::Ladder::Response;
+		constexpr std::array kResponses{Response::LP24, Response::LP12, Response::HP, Response::BP};
+		for (const auto mode : {fp::Ladder::Mode::CLEAN, fp::Ladder::Mode::DRIVE}) {
+			for (uint32_t seed = 0; seed < 8; ++seed) {
+				expect_lanes_equal_mono<fp::Ladder, N>(self,
+				    [seed, mode, &kResponses](std::size_t l) {
+					    return fp::Ladder::Settings{
+					        .cutoff = 0.002f + (0.06f * static_cast<f32>((l + seed) % 5)),
+					        .resonance = 0.5f * static_cast<f32>((l * 3 + seed) % 10),
+					        .drive = 1.f + static_cast<f32>((l + (2 * seed)) % 4),
+					        .compensate = ((l + seed) % 2) == 0,
+					        .response = kResponses[(l + seed) % 4],
+					        .morph_to = kResponses[(l + seed + 1) % 4],
+					        .morph = 0.25f * static_cast<f32>((l + seed) % 5),
+					        .mode = mode};
+				    },
+				    seed, 37);
 			}
 		}
 	});
