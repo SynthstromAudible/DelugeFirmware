@@ -162,4 +162,27 @@ describe leaf_cursor("scenes::menu full-screen Decimal cursor", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor)
+// clang-format off
+describe leaf_horizontal("scenes::menu full-screen Decimal horizontal turn", $ {
+	it("keeps a transpose's horizontal turn for its cursor: a Decimal is not a param's number screen", _ {
+		// `Transpose` takes `Decimal::horizontalEncoderAction`; only `Param::horizontalEncoderAction` passes the
+		// turn to the root.
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		for (const Node* n : {&nodes::source0_transpose, &nodes::modulator0_transpose, &nodes::master_transpose,
+		                      &nodes::audio_clip_transpose}) {
+			Rig r;
+			r.open(*n);
+			expect(menu_scene().route_horizontal_turn(-1, false, 10) == HorizontalTurn::Menu).to_be_true();
+		}
+	});
+
+	it("still passes a param's own number screen's turn to the root", _ {
+		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
+		Rig r;
+		r.open(nodes::lpf_freq);
+		expect(menu_scene().route_horizontal_turn(-1, false, 10) == HorizontalTurn::Root).to_be_true();
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal)

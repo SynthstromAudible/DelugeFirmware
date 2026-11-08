@@ -595,7 +595,11 @@ MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool 
 		}
 		return xenc_held ? HorizontalTurn::Neither : HorizontalTurn::Menu;
 	}
-	if (node->kind != Kind::Submenu && node->custom == nullptr && node->bind.param.valid()) {
+	// `Param::horizontalEncoderAction` hands a param's number screen's turn to the root. A `Decimal` keeps it whatever
+	// it learns: `Transpose` is a `Decimal` first, and its learn-only param leaves the cursor to
+	// `Decimal::horizontalEncoderAction`.
+	if (node->kind != Kind::Submenu && node->kind != Kind::Decimal && node->custom == nullptr
+	    && node->bind.param.valid()) {
 		return HorizontalTurn::Root;
 	}
 	return HorizontalTurn::Menu;
