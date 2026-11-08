@@ -65,6 +65,18 @@ constexpr std::size_t kBlock = 128;
 	return peak / amplitude;
 }
 
+/// Magnitude of the DFT bin at @p freq (fraction of fs) over @p x, normalised so a unit sine reads 1.
+[[nodiscard]] f32 bin(const std::vector<f32>& x, f32 freq) {
+	double re = 0.0;
+	double im = 0.0;
+	for (std::size_t i = 0; i < x.size(); ++i) {
+		const double w = 2.0 * std::numbers::pi * static_cast<double>(freq) * static_cast<double>(i);
+		re += static_cast<double>(x[i]) * std::cos(w);
+		im -= static_cast<double>(x[i]) * std::sin(w);
+	}
+	return static_cast<f32>(2.0 * std::hypot(re, im) / static_cast<double>(x.size()));
+}
+
 [[nodiscard]] f32 db(f32 ratio) {
 	return 20.F * std::log10(ratio);
 }
@@ -278,6 +290,59 @@ describe float_ladder_spec("the float ladder", ${
 					expect(std::isfinite(y) && std::fabs(y) <= 64.F).to_be_true();
 				}
 			}
+		});
+	});
+	context("Ladder, DRIVE", _ {
+		fp::FlushToZero ftz;
+		it("matches CLEAN at small signals and drive 1", _ {
+			const auto in = noise(kBlock * 4, 11);
+			std::vector<f32> scaled(in.size()), clean(in.size()), drive(in.size());
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				scaled[i] = 0.01F * in[i];
+			}
+			Mono<Ladder> a, b;
+			a.configure({.cutoff = 0.02F, .resonance = 2.F});
+			b.configure({.cutoff = 0.02F, .resonance = 2.F, .mode = Ladder::Mode::DRIVE});
+			a.render_block(fp::Signal{scaled}, fp::Buffer{clean});
+			b.render_block(fp::Signal{scaled}, fp::Buffer{drive});
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				expect(std::fabs(clean[i] - drive[i]) < 1e-4F).to_be_true();
+			}
+		});
+		it("adds odd harmonics at high drive", _ {
+			// 0.5-amplitude sine at fc/4, 100-sample cycles so the DFT bins hold whole cycles.
+			constexpr f32 kF0 = 0.01F;
+			Mono<Ladder> ladder;
+			ladder.configure({.cutoff = 4 * kF0, .resonance = 1.F, .drive = 8.F, .mode = Ladder::Mode::DRIVE});
+			std::vector<f32> in(100 * 96), out(in.size());
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				in[i] = 0.5F * std::sin(2.F * std::numbers::pi_v<f32> * kF0 * static_cast<f32>(i));
+			}
+			ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+			const std::vector<f32> settled(out.begin() + 100 * 32, out.end());
+			const f32 fundamental = bin(settled, kF0);
+			expect(db(bin(settled, 3 * kF0) / fundamental) > -40.F).to_be_true();
+			expect(db(bin(settled, 2 * kF0) / fundamental) < -80.F).to_be_true();
+		});
+		it("keeps its state across a flavour switch", _ {
+			const auto in = noise(kBlock * 16, 13);
+			std::vector<f32> scaled(in.size()), out(in.size());
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				scaled[i] = 0.01F * in[i];
+			}
+			Mono<Ladder> ladder;
+			ladder.configure({.cutoff = 0.02F, .resonance = 1.F});
+			const std::size_t half = kBlock * 8;
+			ladder.render_block(fp::Signal{scaled}.first(half), fp::Buffer{out}.first(half));
+			ladder.configure({.cutoff = 0.02F, .resonance = 1.F, .mode = Ladder::Mode::DRIVE});
+			ladder.render_block(fp::Signal{scaled}.subspan(half), fp::Buffer{out}.subspan(half));
+			f32 largest = 0.F;
+			for (std::size_t i = 1; i < out.size(); ++i) {
+				if (i != half) {
+					largest = std::max(largest, std::fabs(out[i] - out[i - 1]));
+				}
+			}
+			expect(std::fabs(out[half] - out[half - 1]) <= 2.F * largest).to_be_true();
 		});
 	});
 });

@@ -45,7 +45,10 @@ namespace deluge::dsp::fp {
 /// lanes of one Poly may run different responses, and a response can morph between two presets.
 ///
 /// **Flavour.** The mode: CLEAN saturates the resolved input once (@ref detail::soft_clip), so drive and resonance
-/// compress rather than grow without bound.
+/// compress rather than grow without bound. DRIVE saturates every stage's input; its loop has no closed form, so the
+/// linear solution predicts u, a trial pass through the saturating stages (state untouched) gives the loop's error
+/// f = u − in_gain·x + k·y₄, and one step u ← u − f·r corrects it with the linear loop's slope — no division, a fixed
+/// cost — before the committed pass. Both flavours share the State, so a switch between blocks keeps it.
 struct Ladder {
 	using value_type = f32; ///< A sample, normalised to ±1.
 	using step_type = f32;  ///< One step per sample.
@@ -53,8 +56,9 @@ struct Ladder {
 	/// @brief How the ladder saturates.
 	enum class Mode : uint8_t {
 		CLEAN, ///< One saturator on the resolved input.
+		DRIVE, ///< A saturator on every stage's input, the loop corrected by one fixed-slope step.
 	};
-	using Modes = ModeList<Mode::CLEAN>;
+	using Modes = ModeList<Mode::CLEAN, Mode::DRIVE>;
 
 	/// @brief A named response: its tap weights are @ref weights.
 	enum class Response : uint8_t {
@@ -177,6 +181,23 @@ struct Ladder {
 		return taps;
 	}
 
+	/// @brief Steps the four stages from @p u with each stage's input saturated, committing @p s: returns the taps.
+	template <class V>
+	[[nodiscard]] [[gnu::always_inline]] static std::array<V, 5> saturated_stages(const CoefficientsT<V>& c,
+	                                                                              StateT<V>& s, V u) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		std::array<V, 5> taps{u, u, u, u, u};
+		V in = u;
+		for (std::size_t i = 0; i < 4; ++i) {
+			const V v = (detail::soft_clip(in) - s.s[i]) * c.G;
+			const V y = v + s.s[i];
+			s.s[i] = y + v;
+			taps[i + 1] = y;
+			in = y;
+		}
+		return taps;
+	}
+
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/, StateT<V>& s,
@@ -184,8 +205,18 @@ struct Ladder {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		// S = β·(G³s₁ + G²s₂ + G·s₃ + s₄), in Horner form over G.
 		const V feedback = c.beta * mul_add(s.s[3], c.G, mul_add(s.s[2], c.G, mul_add(s.s[1], c.G, s.s[0])));
-		const V u = ((c.in_gain * x) - (c.k * feedback)) * c.r;
-		return mix(stages(c, s, detail::soft_clip(u)), c.w);
+		const V driven = c.in_gain * x;
+		const V u = (driven - (c.k * feedback)) * c.r;
+		if constexpr (M == Mode::CLEAN) {
+			return mix(stages(c, s, detail::soft_clip(u)), c.w);
+		}
+		else {
+			StateT<V> trial = s;
+			const V y4 = saturated_stages(c, trial, u)[4];
+			const V error = mul_add(u - driven, c.k, y4);
+			const V corrected = u - (error * c.r);
+			return mix(saturated_stages(c, s, corrected), c.w);
+		}
 	}
 
 private:
