@@ -817,17 +817,18 @@ The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float os
 fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes through
 one configuration). Every case is a generator, run under flush-to-zero in the device's `-funsafe-math-optimizations`
 build, over 128-sample blocks. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a low-pass
-at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases (`fp_envelope_mono`, `fp_envelope_poly4`, `fp_voice_blep_{mono,
-poly2,poly4,linked2}`, `fp_voice_table_poly4`) are gated: lane l gets a gate-on once in 8 blocks and a gate-off 4 blocks
-later, 2·l blocks behind lane 0, and the lane programs differ (ADSR, four-segment, ASR), so the lanes sit in different
-stages. The gate cycle is 8 blocks (1024 samples at n = 128) with the gate-off 4 blocks after the gate-on, and the programs'
-stage times are 15 to 93 samples (time constants for the exponential stages, lengths for the linear ones); the gate
-events are inside the timed region. The
-**sustain** cases (`fp_envelope_sustain_poly4`, `fp_voice_blep_sustain_{mono,poly4}`) gate every lane on once at setup,
-render 8192 samples so that every stage before the sustain has finished, and time blocks with no gate event and no stage
-change. A held note is in steady state between its stage changes, so the two regimes bound the cost: the sustain figures are
-the steady state, the transition-heavy ones a stage change on every lane in turn. Medians of three runs of one
-image on the rig (2026-11-08), n = 128, cycles per channel-sample; the three runs agree to within 0.1 on every case.
+at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases
+(`fp_envelope_mono`, `fp_envelope_poly4`, `fp_voice_blep_{mono,poly2,poly4,linked2}`, `fp_voice_table_poly4`) are
+gated: lane l gets a gate-on once in 8 blocks and a gate-off 4 blocks later, 2·l blocks behind lane 0, and the lane
+programs differ (ADSR, four-segment, ASR), so the lanes sit in different stages. The gate cycle is 8 blocks (1024
+samples at n = 128) with the gate-off 4 blocks after the gate-on, and the programs' stage times are 15 to 93 samples
+(time constants for the exponential stages, lengths for the linear ones); the gate events are inside the timed region.
+The **sustain** cases (`fp_envelope_sustain_poly4`, `fp_voice_blep_sustain_{mono,poly4}`) gate every lane on once at
+setup, render 8192 samples so that every stage before the sustain has finished, and time blocks with no gate event and
+no stage change. A held note is in steady state between its stage changes, so the two regimes bound the cost: the
+sustain figures are the steady state, the transition-heavy ones a stage change on every lane in turn. Medians of three
+runs of one image on the rig (2026-11-08), n = 128, cycles per channel-sample; the three runs agree to within 0.1 on
+every case.
 
 | case | regime | cycles per channel-sample | Poly over Mono |
 |---|---|---:|---:|
@@ -854,8 +855,8 @@ Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay
 **Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
 only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.58x. **Envelope.** In
 the transition-heavy regime it gains 1.22x at four lanes, and the held envelope costs 25.83 against 30.05, 14% less. The
-transition-heavy figure depends on the block size more than the others do (Poly at four lanes: 47.21 at n = 32, 35.51
-at 64, 30.05 at 128), consistent with work that costs a fixed amount per block; the gate events (each an out-of-line call
+transition-heavy figure depends on the block size more than the others do (Poly at four lanes: 47.21 at n = 32, 35.51 at
+64, 30.05 at 128), consistent with work that costs a fixed amount per block; the gate events (each an out-of-line call
 into one lane) and the scalar stage handler are the candidates, and the list does not separate them.
 
 **Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the held BLEP voice 1.88x
@@ -868,13 +869,13 @@ against 110.07).
 
 **Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.12 against 52.15). Under Poly at four
 lanes it is 56% dearer (30.49 against 19.55), and a transition-heavy table voice at four lanes costs 69.76 against 62.61
-for the BLEP voice, 11% more. The table's read is a gather: each lane loads its own two neighbouring samples from its own
-band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 6 more instructions per
-sample than the BLEP saw (13.73 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM) also share the 32 KB
-data cache with the voice's own state: per frame, the table voice at four lanes counts 0.07 L1D refills and 2.62
-data-cache stall cycles, the BLEP voice none, and the table saw alone 0.01 and 0.40. (A first image of the same list
-measured the table voice at 73.25; the second, with the same code for the voice, at 69.76. The table cases are the ones
-that moved, so read them to a few percent.)
+for the BLEP voice, 11% more. The table's read is a gather: each lane loads its own two neighbouring samples from its
+own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 6 more
+instructions per sample than the BLEP saw (13.73 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
+also share the 32 KB data cache with the voice's own state: per frame, the table voice at four lanes counts 0.07 L1D
+refills and 2.62 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.01 and 0.40. (A first image of
+the same list measured the table voice at 73.25; the second, with the same code for the voice, at 69.76. The table cases
+are the ones that moved, so read them to a few percent.)
 
 **Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes four frames a
 group; its per-frame body is 85 instructions, of which 24 are vadd/vsub, 10 vmul, 13 vld1 and 4 vst1 of state and
@@ -891,9 +892,9 @@ its four stores, spread over four frames, and the stage handler where it runs.
 **Placement and build.** The saw-band set is 90,156 bytes of storage written once by `build_saw_bands()`. In the
 device's on-chip SRAM the `float_voice` image does not link (`.sdram_init_pack` overlaps `.rtt_cached_reserve`); the
 storage is `PLACE_SDRAM_BSS`, in SDRAM, where it is all-zero at boot as the section requires. With it there the image's
-SRAM heap starts at 0x20285d40 against 0x20275610 for the `float_filters` image (67 KB more code for the list), 414 KB of heap left. The one build
-takes 71.7 million cycles on the device with cold caches, about 0.18 s at the A9's 400 MHz, and belongs off the audio
-tier at boot.
+SRAM heap starts at 0x20283fe0 against 0x20276590 for the `float_filters` image from the same tree (56 KB more for the
+list), 422 KB of heap left. The one build takes 71.7 million cycles on the device with cold caches, about 0.18 s at the
+A9's 400 MHz, and belongs off the audio tier at boot.
 
 ## Open questions
 

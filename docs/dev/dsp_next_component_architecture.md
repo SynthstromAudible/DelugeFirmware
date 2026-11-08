@@ -1477,9 +1477,11 @@ with one compare and subtract, since the increment is below 1.
 **`fp::BlepOscillator`** is a saw or a pulse (`Mode::SAW`, `Mode::PULSE`) made from the naive waveform less a two-sample
 PolyBLEP residual at each discontinuity. A pulse is the saw less the saw `width` later, so each edge carries its own
 residual. `frequency` is f0/fs, clamped to [1e-6, 0.45]; `width` is clamped to [0.02, 0.98]. `coefficients` computes
-`1/inc` once, so the residual's two multiplies per edge need no divide in the step. The mode is the one shared member of
-the coefficients, dispatched once per block. The residual is a polynomial correction, not a band limit, and its response droops
-harmonic k by sinc²(k·f0), a treble roll-off that grows with pitch; the table below has no such droop.
+`1/inc` once, so the residual multiplies by `inv_inc` where it would divide by `inc`. The mode is the one shared member
+of the coefficients, dispatched once per block. The residual is a polynomial correction, not a band limit, and its
+response droops harmonic k by sinc²(k·f0), a treble roll-off that grows with pitch. The table below droops as linear
+interpolation does, about sinc²(h/2048) at harmonic h: the same at every pitch, and large only in the two richest bands
+(below about 47 Hz).
 
 **`fp::TableOscillator`** reads a band-limited saw from the band set, the band chosen for the pitch, the position
 linearly interpolated, and has no mode. Under `Poly` each lane reads its own band at its own position, so the two reads
@@ -1540,8 +1542,8 @@ generator kernel with no modes and no `prepare`; the Vca `static_assert`s it, si
 
 A `Chain` whose parts are all `poly_kernel`s is itself one (see [`Chain` and `Pinned`](#chain-and-pinned-corechainh)):
 its Coefficients and State are built from the parts' `CoefficientsT<V>` and `StateT<V>`, so `Poly<Chain<…>, N>` steps
-the whole voice once per frame on a `Pack`, and `set_lane` and `get_lane` move one lane part by part. A moded part's mode
-sits beside the parts, shared by every lane.
+the whole voice once per frame on a `Pack`, and `set_lane` and `get_lane` move one lane part by part. A moded part's
+mode sits beside the parts, shared by every lane.
 
 A part's event is reached through `part_event<I, Event>`: `Event(get<I>(c), get<I>(s), args…)`, or on the State alone.
 For the voice, `poly.on<part_event<2, &Vca<fp::Envelope>::gate_on>>(lane)` starts voice `lane`'s envelope. `Copies`
