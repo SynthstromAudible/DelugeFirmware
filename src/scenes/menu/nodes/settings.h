@@ -920,8 +920,9 @@ inline constexpr Node default_key =
 /// @}
 
 inline constexpr Node default_swing_interval =
-    sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
-                    get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange);
+    with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
+                              get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange),
+              swing_interval_turn);
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);

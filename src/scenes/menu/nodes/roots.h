@@ -539,8 +539,13 @@ inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT
 /// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:30`) rather than
 /// `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
 inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
-inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval,
-                                                       set_swing_interval, kSwingIntervalRange);
+/// `swing::Interval::selectEncoderAction` (`wrapSwingIntervalSyncLevel`): a turn wraps within the even levels and
+/// never lands on 0, OFF. `defaults::SwingInterval` inherits it.
+std::optional<int32_t> swing_interval_turn(const MenuContext& ctx, int32_t value, int32_t offset);
+inline constexpr Node swing_interval =
+    with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval, set_swing_interval,
+                              kSwingIntervalRange),
+              swing_interval_turn);
 
 inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`

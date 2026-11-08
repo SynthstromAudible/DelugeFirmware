@@ -483,15 +483,17 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 
 	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
 	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`
-	// just above -- the SELECT ENCODER moves the value here, clamped rather than wrapped
-	// (`Enumeration::selectEncoderAction`, `enumeration.cpp:19-31`, `wrapAround()` unoverridden by
-	// `SyncLevel`). The gold knobs are left unclaimed, same as legacy leaves them alone for any
-	// `Enumeration`.
+	// just above -- the SELECT ENCODER moves the value here: clamped, as `Enumeration::selectEncoderAction`
+	// does, unless the node's `turn` says otherwise. The gold knobs are left unclaimed, same as legacy
+	// leaves them alone for any `Enumeration`.
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
 		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
 		const int32_t offset = f.shift() ? d * 5 : d;
-		const int32_t next = std::clamp<int32_t>(st.edit_int + offset, r.min, r.max);
+		// A `Binding::turn` is the item's own `selectEncoderAction` (`swing::Interval` wraps).
+		const std::optional<int32_t> turned =
+		    node.bind.turn != nullptr ? node.bind.turn(ctx, st.edit_int, offset) : std::nullopt;
+		const int32_t next = std::clamp<int32_t>(turned.value_or(st.edit_int + offset), r.min, r.max);
 		if (next != st.edit_int) {
 			st.edit_int = next;
 			st.tick.render_resp.changed = true;

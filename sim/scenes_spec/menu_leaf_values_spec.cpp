@@ -37,6 +37,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "modulation/sync.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
 
@@ -231,6 +232,45 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 		rig.input.shift = true;
 		draw(rig, 0);
 		expect(menu_scene().state().edit_int).to_equal(6);
+	});
+
+	it("wraps the song's swing interval within 1..N-1 and never reaches OFF", _ {
+		Rig r;
+		constexpr int32_t kTop = static_cast<int32_t>(NUM_SWING_INTERVALS) - 1;
+		menu::bindings::write(nodes::swing_interval, r.ctx, kTop);
+		r.open(nodes::swing_interval);
+		deluge::ui::test::Rig48 up;
+		up.input.turn = 1;
+		draw(up, 0);
+		expect(menu_scene().state().edit_int).to_equal(1);
+		deluge::ui::test::Rig48 down;
+		down.input.turn = -1;
+		draw(down, 10);
+		expect(menu_scene().state().edit_int).to_equal(kTop);
+	});
+
+	it("wraps the default swing interval the same way", _ {
+		Rig r;
+		const uint8_t saved = FlashStorage::defaultSwingInterval;
+		FlashStorage::defaultSwingInterval = 1;
+		r.open(nodes::default_swing_interval);
+		deluge::ui::test::Rig48 down;
+		down.input.turn = -1;
+		draw(down, 0);
+		expect(menu_scene().state().edit_int).to_equal(static_cast<int32_t>(NUM_SWING_INTERVALS) - 1);
+		FlashStorage::defaultSwingInterval = saved;
+	});
+
+	it("wraps a shift turn of the swing interval as the five-step offset", _ {
+		Rig r;
+		constexpr int32_t kTop = static_cast<int32_t>(NUM_SWING_INTERVALS) - 1;
+		menu::bindings::write(nodes::swing_interval, r.ctx, kTop);
+		r.open(nodes::swing_interval);
+		deluge::ui::test::Rig48 up;
+		up.input.turn = 1;
+		up.input.shift = true;
+		draw(up, 0);
+		expect(menu_scene().state().edit_int).to_equal(wrapSwingIntervalSyncLevel(kTop + 5));
 	});
 });
 // clang-format on
