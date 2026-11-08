@@ -2901,9 +2901,9 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
 	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
-	// storing (`defaults/pad_brightness.h:32-36`, `ShiftIsSticky::writeCurrentValue`, `flash/status.h:27-31`,
-	// `colour.h:44-47`; highlighting is read live by every renderer, `horizontal_menu.cpp:268`). Each is `hid/` or the
-	// guest's shell, so the setter files it for `dispatchShellActions`.
+	// storing (`PadBrightness`'s and `Colour`'s write, `ShiftIsSticky::writeCurrentValue`, `flash::Status`'s write;
+	// highlighting is read live by every renderer, `HorizontalMenu`'s rendering). Each is `hid/` or the guest's shell,
+	// so the setter files it for `dispatchShellActions`.
 	it("each setter files its action, and only on legacy's own condition", _ {
 		const menu::MenuContext ctx{};
 		const auto filed = [] {
