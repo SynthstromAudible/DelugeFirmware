@@ -1745,9 +1745,8 @@ void View::displayAutomation() {
 	if (pendingParamAutomationUpdatesModLevels) {
 		setKnobIndicatorLevels();
 	}
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
-	}
+	// The open menu may show the value the automation, a gold knob or a MIDI CC just moved.
+	deluge::gui::ui::readSoundMenuValueAgain();
 }
 
 /// if you've toggled showing the VU meter, and the mod encoders are controllable (e.g. affect entire on)

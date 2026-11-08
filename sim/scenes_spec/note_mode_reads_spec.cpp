@@ -55,6 +55,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
+#include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
@@ -84,6 +85,7 @@ using namespace deluge::scenes;
 using deluge::gui::ui::NoteModeKind;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
+using deluge::scenes::spec::FeatureSetting;
 using deluge::scenes::spec::GlobalGuestGuard;
 using deluge::scenes::spec::open_note_mode_over_clip_view;
 using deluge::scenes::spec::SongFixture;
@@ -157,18 +159,6 @@ struct ActiveClipSeed {
 	~ActiveClipSeed() { OutputPeek::active_clip(output) = saved; }
 	ActiveClipSeed(const ActiveClipSeed&) = delete;
 	ActiveClipSeed& operator=(const ActiveClipSeed&) = delete;
-};
-
-/// @brief Set one runtime feature setting for an example, and put it back.
-struct FeatureSetting {
-	RuntimeFeatureSettingType type;
-	uint32_t saved;
-	FeatureSetting(RuntimeFeatureSettingType t, uint32_t value) : type(t), saved(runtimeFeatureSettings.get(t)) {
-		runtimeFeatureSettings.set(type, value);
-	}
-	~FeatureSetting() { runtimeFeatureSettings.set(type, saved); }
-	FeatureSetting(const FeatureSetting&) = delete;
-	FeatureSetting& operator=(const FeatureSetting&) = delete;
 };
 
 /// @brief Every piece of legacy view state these examples borrow, seeded and given back.

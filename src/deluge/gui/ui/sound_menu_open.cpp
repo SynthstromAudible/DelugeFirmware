@@ -25,7 +25,7 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/shell_guest_services.h" // shellSoundMenuOpen, shellMenuReadValueAgain
+#include "gui/ui/shell_guest_services.h" // shellSoundMenuOpen, shellMenuFrontmost, shellMenuReadValueAgain
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 
@@ -47,7 +47,7 @@ void readSoundMenuValueAgain() {
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->readValueAgain();
 	}
-	else if (shellSoundMenuOpen()) {
+	else if (shellMenuFrontmost()) {
 		shellMenuReadValueAgain();
 	}
 }

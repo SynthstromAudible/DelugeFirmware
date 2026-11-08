@@ -42,7 +42,7 @@ bool soundMenuCurrent();
 bool menuCurrent();
 
 /// @brief The open menu re-reads its value: legacy's `getCurrentMenuItem()->readValueAgain()` when `soundEditor` is
-///        current, or the ported menu's.
+///        current, or the ported menu's when it is frontmost, whatever its root (both of `DISPLAY_AUTOMATION`'s arms).
 void readSoundMenuValueAgain();
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu`,
