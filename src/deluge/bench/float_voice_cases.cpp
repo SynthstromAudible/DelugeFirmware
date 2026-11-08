@@ -71,6 +71,7 @@ constexpr std::size_t kSustainSamples = 8192;
 /// @param render Renders one block.
 template <class Render>
 void settle(std::size_t n, Render&& render) {
+	[[maybe_unused]] const auto flush = FloatBenchFlush::scope();
 	for (std::size_t done = 0; done < kSustainSamples; done += n) {
 		render();
 	}

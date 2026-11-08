@@ -25,7 +25,7 @@ namespace deluge::dsp::fp {
 
 namespace detail {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): written once, by build_saw_bands().
-// The 90 KB set lives in SDRAM in every image: on-chip it did not fit the bench image's link. It is all-zero until
+// The 90 KB set lives in SDRAM on the device: on-chip it did not fit the bench image's link. It is all-zero until
 // build_saw_bands() fills it at run time, so placing it in the zeroed .sdram_bss section is legal.
 PLACE_SDRAM_BSS std::array<f32, kSawBands*(kSawBandSize + 1)> saw_band_storage;
 bool saw_bands_built = false;

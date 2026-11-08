@@ -2226,9 +2226,10 @@ struct FloatBlepVoiceSustainSettings : FloatBlepVoiceSettings {
 /// @brief `Mono<K>` of a float generator (oscillator, envelope or voice) into one f32 stream.
 /// @details **Timed state:** the kernel renders from rest at setup under flush-to-zero (FloatBenchFlush), its state
 /// carrying from block to block. A gated kernel gets float_gate_at(0, block)'s event at the start of every block,
-/// inside the timed region: its lanes change stage every few dozen samples, so the cases are transition-heavy. A held
-/// kernel (kHeld) is gated on at setup and rendered until it sits in sustain, and gets no event while timed: the steady
-/// state a held note spends most of its time in.
+/// inside the timed region: the gate cycle is 8 blocks with the gate-off 4 blocks after the gate-on and the programs'
+/// stages are 15 to 93 samples long, so the cases are transition-heavy. A held kernel (kHeld) is gated on at setup and
+/// rendered until it sits in sustain, and gets no event while timed: the steady state a held note is in between its
+/// stage changes.
 /// @tparam S The kernel's settings: FloatBlepSettings, FloatTableSettings, FloatEnvelopeSettings or a voice's.
 template <class S>
 class FloatSourceMonoCase {

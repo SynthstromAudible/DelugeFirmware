@@ -817,14 +817,16 @@ The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float os
 fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes through
 one configuration). Every case is a generator, run under flush-to-zero in the device's `-funsafe-math-optimizations`
 build, over 128-sample blocks. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a low-pass
-at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases (`fp_envelope_*`, `fp_voice_blep_{mono,
+at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases (`fp_envelope_mono`, `fp_envelope_poly4`, `fp_voice_blep_{mono,
 poly2,poly4,linked2}`, `fp_voice_table_poly4`) are gated: lane l gets a gate-on once in 8 blocks and a gate-off 4 blocks
 later, 2·l blocks behind lane 0, and the lane programs differ (ADSR, four-segment, ASR), so the lanes sit in different
-stages and a lane changes stage every 30 to 100 samples, with the gate events inside the timed region. The
+stages. The gate cycle is 8 blocks (1024 samples at n = 128) with the gate-off 4 blocks after the gate-on, and the programs'
+stage times are 15 to 93 samples (time constants for the exponential stages, lengths for the linear ones); the gate
+events are inside the timed region. The
 **sustain** cases (`fp_envelope_sustain_poly4`, `fp_voice_blep_sustain_{mono,poly4}`) gate every lane on once at setup,
 render 8192 samples so that every stage before the sustain has finished, and time blocks with no gate event and no stage
-change. A real note spends most of its time in the steady state, so the sustain figures are the ones to read for a held
-note, and the transition-heavy figures bound the cost of a stage change on every lane. Medians of three runs of one
+change. A held note is in steady state between its stage changes, so the two regimes bound the cost: the sustain figures are
+the steady state, the transition-heavy ones a stage change on every lane in turn. Medians of three runs of one
 image on the rig (2026-11-08), n = 128, cycles per channel-sample; the three runs agree to within 0.1 on every case.
 
 | case | regime | cycles per channel-sample | Poly over Mono |
