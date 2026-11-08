@@ -9,6 +9,7 @@
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
+#include "dsp-next/float/osc/blep_oscillator.h"
 
 #include <algorithm>
 #include <array>
@@ -92,6 +93,41 @@ void expect_lanes_equal_mono(auto& self, SettingsFor settings_for, uint32_t seed
 			    .to_be_true();
 			continue;
 		}
+		for (std::size_t i = 0; i < out[l].size(); ++i) {
+			expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
+		}
+		const auto ps = poly.state(l);
+		const auto ms = mono[l].state();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
+		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
+		    .to_be_true();
+	}
+}
+
+/// Runs @p blocks blocks of a generator through a Poly and N Monos configured by @p settings_for, and expects every
+/// lane's output, and its state, to equal its Mono's bit for bit.
+template <class K, std::size_t N, class SettingsFor>
+void expect_generator_lanes_equal_mono(auto& self, SettingsFor settings_for, std::size_t block = 128) {
+	constexpr std::size_t kBlocks = 3;
+	fp::FlushToZero ftz;
+	Poly<K, N> poly;
+	std::array<Mono<K>, N> mono{};
+	std::array<std::vector<f32>, N> out{}, ref{};
+	for (std::size_t l = 0; l < N; ++l) {
+		poly.configure(l, settings_for(l));
+		mono[l].configure(settings_for(l));
+		out[l].resize(block * kBlocks);
+		ref[l].resize(block * kBlocks);
+	}
+	for (std::size_t b = 0; b < kBlocks; ++b) {
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			os[l] = fp::Buffer{out[l]}.subspan(b * block, block);
+			mono[l].render_block(fp::Buffer{ref[l]}.subspan(b * block, block));
+		}
+		poly.render_block(os);
+	}
+	for (std::size_t l = 0; l < N; ++l) {
 		for (std::size_t i = 0; i < out[l].size(); ++i) {
 			expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
 		}
@@ -284,6 +320,27 @@ void poly_specs(auto& self) {
 				                                  .mode = fp::Smoother::Mode::LINEAR};
 			    },
 			    11, block);
+		}
+	});
+	it("steps each BlepOscillator saw lane exactly as Mono at its own pitch, block by block", _ {
+		for (const std::size_t block : {128uz, 125uz, 7uz}) {
+			expect_generator_lanes_equal_mono<fp::BlepOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::BlepOscillator::Settings{.frequency = 0.013f + (0.11f * static_cast<f32>(l)),
+				                                        .mode = fp::BlepOscillator::Mode::SAW};
+			    },
+			    block);
+		}
+	});
+	it("steps each BlepOscillator pulse lane exactly as Mono at its own pitch and width", _ {
+		for (const std::size_t block : {128uz, 125uz}) {
+			expect_generator_lanes_equal_mono<fp::BlepOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::BlepOscillator::Settings{.frequency = 0.021f + (0.09f * static_cast<f32>(l)),
+				                                        .width = 0.1f + (0.2f * static_cast<f32>(l)),
+				                                        .mode = fp::BlepOscillator::Mode::PULSE};
+			    },
+			    block);
 		}
 	});
 	it("leaves the other lanes unchanged when one is parked", _ {

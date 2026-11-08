@@ -30,7 +30,11 @@ inline constexpr uint32_t kSmootherExponential = 957903478U;
 inline constexpr uint32_t kSvfLowPass = 3003083457U;
 inline constexpr uint32_t kSvfNotch = 1315717876U;
 inline constexpr uint32_t kSvfHighPass = 1567773475U;
+inline constexpr uint32_t kBlepSaw = 262873454U;
+inline constexpr uint32_t kBlepPulse = 2717416499U;
 #else
+inline constexpr uint32_t kBlepSaw = 262873454U;
+inline constexpr uint32_t kBlepPulse = 2717416499U;
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 1153755580U;
@@ -39,4 +43,7 @@ inline constexpr uint32_t kSvfLowPass = 857356867U;
 inline constexpr uint32_t kSvfNotch = 3338462520U;
 inline constexpr uint32_t kSvfHighPass = 4274204595U;
 #endif
+/// The PolyBLEP saw's aliased energy (the 0.39 fs bin of a 0.09 fs saw) over its fundamental's: measured (4.4e-4),
+/// rounded up to one significant digit.
+inline constexpr float kBlepAliasBound = 5e-4f;
 } // namespace records

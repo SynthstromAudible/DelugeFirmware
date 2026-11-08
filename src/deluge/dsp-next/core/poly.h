@@ -29,7 +29,8 @@
 #include <cstdint>
 
 /// @file
-/// @brief Poly<K, N>: N copies of a float kernel, one per NEON lane, each with its own settings and its own signal.
+/// @brief Poly<K, N>: N copies of a float kernel (processor or generator), one per NEON lane, each with its own
+/// settings and its own signal.
 namespace deluge::dsp {
 
 /// @brief N copies of @p K stepped as one: each frame, lane l carries copy l's sample, and one step over
@@ -45,7 +46,8 @@ namespace deluge::dsp {
 /// Configure and set_mode set the mode; configure asserts it matches once any lane has been configured, and that
 /// never clears, so the mode stays the last one set, even once every lane is parked. **Empty blocks.** A block with
 /// every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono does on an empty
-/// block.
+/// block. **Generators.** A generator has no input: its `render_block` takes the outputs alone, and a parked lane's
+/// state is stepped with the rest and reset after the block.
 template <poly_kernel K, std::size_t N>
 requires(N == 2 || N == 4)
 class Poly : public detail::Copies<K, N> {
@@ -80,7 +82,9 @@ public:
 
 	/// @brief One block: lane l reads @p in[l] and writes @p out[l]. Every unparked lane's spans have the same length;
 	/// a parked lane's may be empty.
-	void render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out) {
+	void render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out)
+	requires processor_kernel<K>
+	{
 		std::size_t n = 0;
 		bool first = true;
 		for (std::size_t l = 0; l < N; ++l) {
@@ -93,6 +97,26 @@ public:
 			}
 		}
 		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out, n); });
+	}
+
+	/// @brief One block of a generator: lane l writes @p out[l]. Every unparked lane's span has the same length; a
+	/// parked lane's may be empty.
+	void render_block(std::array<fp::Buffer, N> out)
+	requires generator_kernel<K>
+	{
+		std::size_t n = 0;
+		bool first = true;
+		for (std::size_t l = 0; l < N; ++l) {
+			if (!parked(l)) {
+				if (first) {
+					n = out[l].size();
+					first = false;
+				}
+				assert(out[l].size() == n);
+			}
+		}
+		const std::array<fp::Signal, N> no_input{};
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(no_input, out, n); });
 	}
 
 private:
@@ -142,12 +166,19 @@ private:
 	                                               PackedState& s, LaneMask parked, const LanePointers& p,
 	                                               std::size_t i) {
 		std::array<V, N> frames{};
-		for (std::size_t l = 0; l < N; ++l) {
-			frames[l] = (parked & bit(l)) != 0 ? V{0.f} : V::load(p.in[l] + i);
+		if constexpr (processor_kernel<K>) {
+			for (std::size_t l = 0; l < N; ++l) {
+				frames[l] = (parked & bit(l)) != 0 ? V{0.f} : V::load(p.in[l] + i);
+			}
+			transpose(frames); // frames[t] lane l = copy l's sample i + t
 		}
-		transpose(frames); // frames[t] lane l = copy l's sample i + t
 		for (std::size_t t = 0; t < N; ++t) {
-			frames[t] = K::template step<M>(c, block, s, frames[t]);
+			if constexpr (processor_kernel<K>) {
+				frames[t] = K::template step<M>(c, block, s, frames[t]);
+			}
+			else {
+				frames[t] = K::template step<M>(c, block, s);
+			}
 		}
 		transpose(frames); // frames[l] = copy l's samples i … i + N − 1
 		for (std::size_t l = 0; l < N; ++l) {
@@ -162,13 +193,19 @@ private:
 	[[gnu::always_inline]] static void step_frame(const PackedCoefficients& c, const kernel_block_t<K>& block,
 	                                              PackedState& s, LaneMask parked, const LanePointers& p,
 	                                              std::size_t i) {
-		V x{0.f};
-		for (std::size_t l = 0; l < N; ++l) {
-			if ((parked & bit(l)) == 0) {
-				x.set(l, p.in[l][i]);
+		V y{};
+		if constexpr (processor_kernel<K>) {
+			V x{0.f};
+			for (std::size_t l = 0; l < N; ++l) {
+				if ((parked & bit(l)) == 0) {
+					x.set(l, p.in[l][i]);
+				}
 			}
+			y = K::template step<M>(c, block, s, x);
 		}
-		const V y = K::template step<M>(c, block, s, x);
+		else {
+			y = K::template step<M>(c, block, s);
+		}
 		for (std::size_t l = 0; l < N; ++l) {
 			if ((parked & bit(l)) == 0) {
 				p.out[l][i] = y.get(l);
