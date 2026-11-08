@@ -60,8 +60,8 @@
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
+#include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_slot.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -3951,15 +3951,15 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	// through the algorithm and the remaining comparisons run against a moved-from value.
 	//
 	// `ActiveVoice` is a `unique_ptr`, so "overwritten" means MOVED: that path can recycle a
-	// `VoiceSlot` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
-	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `VoiceSlot*`
+	// `SoundVoice` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
+	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `SoundVoice*`
 	// copied out first removes the aliasing entirely, so the predicate is stable no matter how
 	// `remove` rearranges the container.
 	//
 	// Single-threaded UB, not a race — it needs only repeated culling, which is why it surfaces
 	// under a cull storm rather than under concurrency. Distinct from the cross-tier race on
 	// voices_ (see the containment note in Sound::Sound()), which remains open.
-	VoiceSlot* const target = voice.get();
+	SoundVoice* const target = voice.get();
 	voice->set_as_unassigned(modelStack);
 	if (erase) {
 		eraseVoicesIf([target](const ActiveVoice& v) { return v.get() == target; });
@@ -3978,8 +3978,8 @@ void Sound::killAllVoices() {
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {
-	// Compare by voice priority (VoiceSlot::operator<=> on priority_rating()), NOT by the unique_ptr's
-	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<VoiceSlot>, whose default ordering is by
+	// Compare by voice priority (SoundVoice::operator<=> on priority_rating()), NOT by the unique_ptr's
+	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<SoundVoice>, whose default ordering is by
 	// address — so a bare max_element(voices_) selects the highest-addressed voice, which is both
 	// semantically wrong (culls an arbitrary voice, not the lowest-priority one) and heap-layout-dependent
 	// (it made the offline golden render depend on allocation addresses — see docs/dev/overread_hunt.md).
@@ -3994,8 +3994,8 @@ const Sound::ActiveVoice& Sound::stealOneActiveVoice() {
 
 	/// Reconstruct the voice
 	this->freeActiveVoice(voice, nullptr, false);
-	voice->~VoiceSlot();
-	new (voice.get()) VoiceSlot(*this);
+	voice->~SoundVoice();
+	new (voice.get()) SoundVoice(*this);
 
 	return voice;
 }

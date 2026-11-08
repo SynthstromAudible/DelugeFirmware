@@ -57,7 +57,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "model/voice/voice_slot.h"
+#include "model/voice/sound_voice.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"

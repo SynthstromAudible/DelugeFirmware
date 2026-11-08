@@ -18,7 +18,7 @@
 #include "model/voice/voice_setup.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/voice/voice_slot.h"
+#include "model/voice/sound_voice.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -31,7 +31,7 @@ using deluge::synth::NoteSetup;
 using deluge::synth::ReleaseInfo;
 using deluge::synth::SourceSetup;
 
-NoteSetup note_setup_for(VoiceSlot& voice, Sound& sound, ParamManagerForTimeline* paramManager,
+NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimeline* paramManager,
                          ModelStackWithSoundFlags& flags, int32_t noteAfterArpeggiation, uint32_t sampleSyncLength,
                          int32_t ticksLate, bool forNoteChange) {
 	NoteSetup setup;

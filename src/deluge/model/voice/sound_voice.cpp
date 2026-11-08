@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/voice_slot.h"
+#include "model/voice/sound_voice.h"
 #include "io/debug/log.h"
 #include "memory/stack_guard.h"
 #include "model/model_stack.h"
@@ -45,7 +45,7 @@ VoiceClock engineClock() {
 }
 } // namespace
 
-VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
+SoundVoice::SoundVoice(Sound& sound) : sound{sound} {
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			// The slots belong to the Sound, whose oscillators hold the histories: they outlive every slot bound here
@@ -57,14 +57,14 @@ VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
 	}
 }
 
-uint32_t VoiceSlot::priority_rating() const {
+uint32_t SoundVoice::priority_rating() const {
 	return kernel.priority_rating(sound.snapshot().voice_priority, sound.numActiveVoices());
 }
 
 // Returns false if fail and we need to unassign again
-bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& event, uint32_t sample_sync_length,
-                        int32_t ticks_late) {
-	checkStack("VoiceSlot::note_on");
+bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& event, uint32_t sample_sync_length,
+                         int32_t ticks_late) {
+	checkStack("SoundVoice::note_on");
 	order_sounded = lastSoundOrder++;
 
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
@@ -88,20 +88,20 @@ bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& even
 	return started;
 }
 
-void VoiceSlot::change_note(ModelStackWithSoundFlags& flags, int32_t note_before_arp, int32_t note_after_arp,
-                            int32_t midi_channel, std::span<const int16_t, kNumExpressionDimensions> mpe) {
+void SoundVoice::change_note(ModelStackWithSoundFlags& flags, int32_t note_before_arp, int32_t note_after_arp,
+                             int32_t midi_channel, std::span<const int16_t, kNumExpressionDimensions> mpe) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	kernel.change_note(note_setup_for(*this, sound, paramManager, flags, note_after_arp, 0, 0, true), sound.snapshot(),
 	                   note_before_arp, note_after_arp, midi_channel, mpe);
 }
 
-void VoiceSlot::calculate_phase_increments(ModelStackWithSoundFlags& flags) {
+void SoundVoice::calculate_phase_increments(ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	kernel.calculate_phase_increments(note_setup_for(*this, sound, paramManager, flags, kernel.note_code(), 0, 0, true),
 	                                  sound.snapshot());
 }
 
-void VoiceSlot::note_off(ParamManagerForTimeline* paramManager, bool note_tails_allowed, bool allow_release_stage) {
+void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails_allowed, bool allow_release_stage) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		guides[s].noteOffReceived = true;
 	}
@@ -116,30 +116,30 @@ void VoiceSlot::note_off(ParamManagerForTimeline* paramManager, bool note_tails_
 	}
 }
 
-void VoiceSlot::randomize_osc_phases() {
+void SoundVoice::randomize_osc_phases() {
 	kernel.randomize_osc_phases(sound.snapshot(), deluge::synth_noise);
 }
 
-void VoiceSlot::expression_event_immediate(int32_t voice_level_value, int32_t s) {
+void SoundVoice::expression_event_immediate(int32_t voice_level_value, int32_t s) {
 	kernel.expression_event_immediate(sound.monophonicExpressionValues[s - util::to_underlying(PatchSource::X)],
 	                                  voice_level_value, s);
 }
 
-bool VoiceSlot::render(const deluge::synth::matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
-                       const deluge::synth::VoiceRenderArgs& args) {
+bool SoundVoice::render(const deluge::synth::matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+                        const deluge::synth::VoiceRenderArgs& args) {
 	if (!just_created) {
 		just_created = true;
 		return true;
 	}
-	checkStack("VoiceSlot::render");
+	checkStack("SoundVoice::render");
 	const bool keep = kernel.render(control_block, cfg, block(), args);
 	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
 	dump_sources(control_block, cfg);
 	return keep;
 }
 
-void VoiceSlot::dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
-                             const deluge::synth::VoiceConfig& cfg) const {
+void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
+                              const deluge::synth::VoiceConfig& cfg) const {
 #if defined(DELUGE_PARAM_DUMP)
 	std::array<deluge::param_dump::SourceState, kMaxNumVoicesUnison * kNumSources> states{};
 	size_t n = 0;
@@ -162,7 +162,7 @@ void VoiceSlot::dump_sources(const deluge::synth::matrix::MatrixBlock& control_b
 #endif
 }
 
-deluge::synth::VoiceBlock VoiceSlot::block() const {
+deluge::synth::VoiceBlock SoundVoice::block() const {
 	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = engineClock()};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		AudioFileHolder* holder = guides[s].audioFileHolder;
@@ -181,21 +181,21 @@ deluge::synth::VoiceBlock VoiceSlot::block() const {
 	return block;
 }
 
-bool VoiceSlot::do_fast_release(uint32_t release_increment) {
+bool SoundVoice::do_fast_release(uint32_t release_increment) {
 	return kernel.do_fast_release(release_increment, engineClock());
 }
 
-bool VoiceSlot::speed_up_release() {
+bool SoundVoice::speed_up_release() {
 	return kernel.speed_up_release(engineClock());
 }
 
-bool VoiceSlot::do_immediate_release() {
+bool SoundVoice::do_immediate_release() {
 	return kernel.do_immediate_release(engineClock());
 }
 
 // Unusually, flags may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
 // You'll normally want to call audioDriver.voiceUnassigned() after this.
-void VoiceSlot::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deleting_song) {
+void SoundVoice::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deleting_song) {
 	unassign_stuff(deleting_song);
 	delete_this_voice_ = true;
 	if (!deleting_song) {
@@ -203,7 +203,7 @@ void VoiceSlot::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deleting
 	}
 }
 
-void VoiceSlot::unassign_stuff(bool deleting_song) {
+void SoundVoice::unassign_stuff(bool deleting_song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
 			kernel.unison_parts[u].slots[s].unassign(deleting_song);
@@ -212,7 +212,7 @@ void VoiceSlot::unassign_stuff(bool deleting_song) {
 }
 
 // Returns false if voice needs unassigning now
-bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, MarkerType markerType) {
+bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, MarkerType markerType) {
 	ModelStackWithSoundFlags* modelStack = &flags;
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;

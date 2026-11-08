@@ -41,14 +41,14 @@ struct UnisonPartPorts {
 /// @brief A sound's voice as the app holds it: one synth::Voice with the ports its sources play through, the playback
 /// guides of the files its note plays, and the sound it belongs to. Builds what the kernel's lifecycle reads from the
 /// sound (voice_setup.h) and hands it over.
-class VoiceSlot final {
+class SoundVoice final {
 public:
-	explicit VoiceSlot(Sound& sound);
-	VoiceSlot(const VoiceSlot&) = delete;
-	VoiceSlot& operator=(const VoiceSlot&) = delete;
-	VoiceSlot(VoiceSlot&&) = delete;
-	VoiceSlot& operator=(VoiceSlot&&) = delete;
-	~VoiceSlot() { set_as_unassigned(nullptr); }
+	explicit SoundVoice(Sound& sound);
+	SoundVoice(const SoundVoice&) = delete;
+	SoundVoice& operator=(const SoundVoice&) = delete;
+	SoundVoice(SoundVoice&&) = delete;
+	SoundVoice& operator=(SoundVoice&&) = delete;
+	~SoundVoice() { set_as_unassigned(nullptr); }
 
 private:
 	// Declared before the kernel, whose sources point into it, so it outlives them.
@@ -69,7 +69,7 @@ public:
 
 	/// The voice's rating in the cull order (higher is culled sooner), for its sound as it is now.
 	[[nodiscard]] uint32_t priority_rating() const;
-	[[nodiscard]] std::strong_ordering operator<=>(const VoiceSlot& other) const {
+	[[nodiscard]] std::strong_ordering operator<=>(const SoundVoice& other) const {
 		return priority_rating() <=> other.priority_rating();
 	}
 

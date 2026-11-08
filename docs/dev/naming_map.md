@@ -23,3 +23,11 @@ for routing edges and summing buffers.
 | `GlobalEffectableForClip::renderOutput` | `TrackChannel::render` | done | |
 | `Kit::renderGlobalEffectableForClip`, `AudioOutput::renderGlobalEffectableForClip` | `renderContent` | done | the content a track's channel renders around |
 | `getThingWithMostReverb` | `Output::reverbCandidate` | done | |
+
+## Slot
+
+A **slot** is a named position in a fixed layout: source A or B of a voice (`SourceSlot`), the filter set's low-pass
+and high-pass positions (`LowPassSlot`, `HighPassSlot`), the instrument a track or kit row plays (`SlotAddress`,
+`InstrumentSlot`), a menu position (`SlotPosition`), a one-entry mailbox (the stream channel's `AnswerSlot`). A slot
+is never one of N parallel copies (that is a lane of `Poly`, `Bank` or `Linked`) and never a deduplicated read (the
+matrix's source reads).

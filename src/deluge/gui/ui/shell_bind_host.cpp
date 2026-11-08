@@ -2,8 +2,8 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
+#include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_slot.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
@@ -395,7 +395,7 @@ public:
 			}
 			auto* range =
 			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
-			VoiceSlot* newest = nullptr;
+			SoundVoice* newest = nullptr;
 			for (const Sound::ActiveVoice& voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
 				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {

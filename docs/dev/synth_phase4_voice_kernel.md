@@ -1,6 +1,6 @@
 # Phase 4 — the L2 voice kernel
 
-> Status: **done.** The kernel is `deluge::synth::Voice` in `src/synth/voice/`, held by the app's `VoiceSlot`;
+> Status: **done.** The kernel is `deluge::synth::Voice` in `src/synth/voice/`, held by the app's `SoundVoice`;
 > `synth_voice_lift.md` describes it as it is. Expands Phase 4 of `synth_untangling_plan.md`; builds on
 > `synth_l1_engine_architecture.md` (the engines the kernel composes, and the next arc) and the Phase-2 data plane
 > (`ControlBlock`, `VoiceParams`).
@@ -118,7 +118,7 @@ e. ✅ **DONE — source dispatch and ports.** `renderSourceComponent` is `Sound
    Subtractive/FM `friend`-couplings are dissolved: **`Voice` has no `friend`s.** The engines still take `Voice&`.
 f. ✅ **DONE — Lift to `synth::Voice`.** Note-on, note change and note-off read a `NoteSetup` / `ReleaseInfo` the
    sound builds; the render reads its `VoiceConfig`, a per-voice `VoiceBlock` and its render arguments; the sources
-   play through injected ports; `VoiceSlot` holds the kernel; the kernel moved into `src/synth/voice/` with a host
+   play through injected ports; `SoundVoice` holds the kernel; the kernel moved into `src/synth/voice/` with a host
    spec. See `synth_voice_lift.md`.
 
 ## What stays app-side (out of the kernel)
