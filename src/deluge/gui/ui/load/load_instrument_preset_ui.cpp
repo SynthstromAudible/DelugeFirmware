@@ -17,10 +17,12 @@
 
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
+#include "deluge.h"
 #include "extern.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -63,6 +65,8 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 }
 
 bool LoadInstrumentPresetUI::opened() {
+	cancelPendingPreview();
+	clearFailedPresetNavigation();
 
 	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
 	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
@@ -290,20 +294,77 @@ void LoadInstrumentPresetUI::folderContentsReady(int32_t entryDirection) {
 	currentFileChanged(0);
 }
 
+namespace {
+constexpr int32_t kPresetPreviewDelayMs = 150;
+}
+
+void LoadInstrumentPresetUI::startPresetLoadingIndicator() {
+	if (!loadingIndicatorActive) {
+		display->displayLoadingAnimationText("Loading", false, true);
+		loadingIndicatorActive = true;
+		if (display->haveOLED()) {
+			// Show the card immediately; start its motion when the selection
+			// settling delay expires rather than using the usual 350 ms lead-in.
+			uiTimerManager.setTimer(TimerName::LOADING_ANIMATION, kPresetPreviewDelayMs);
+		}
+	}
+}
+
+void LoadInstrumentPresetUI::stopPresetLoadingIndicator() {
+	if (loadingIndicatorActive) {
+		display->removeLoadingAnimation();
+		loadingIndicatorActive = false;
+	}
+}
+
+void LoadInstrumentPresetUI::cancelPendingPreview() {
+	stopPresetLoadingIndicator();
+	previewPending = false;
+	uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW);
+}
+
+void LoadInstrumentPresetUI::focusRegained() {
+	LoadUI::focusRegained();
+	if (previewPending) {
+		startPresetLoadingIndicator();
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
+	}
+}
+
 void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
-	// FileItem* currentFileItem = getCurrentFileItem();
+	cancelPendingPreview();
+	currentInstrumentLoadError = Error::NONE;
+	FileItem* item = getCurrentFileItem();
+	if (item && !item->isFolder) {
+		previewPending = true;
+		startPresetLoadingIndicator();
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
+	}
+}
 
-	// if (currentFileItem->instrument != instrumentToReplace) {
+void LoadInstrumentPresetUI::previewTimerCallback() {
+	if (!previewPending || getCurrentUI() != this) {
+		stopPresetLoadingIndicator();
+		return;
+	}
+	// File parsing services UI timers too. Never start a nested load, or disturb
+	// a long press/context menu. Give queued navigation a chance to run first.
+	if (sdRoutineLock || currentUIMode != UI_MODE_NONE || encoders::select.pending()) {
+		if (currentUIMode != UI_MODE_NONE) {
+			stopPresetLoadingIndicator();
+		}
+		uiTimerManager.setTimer(TimerName::INSTRUMENT_PREVIEW, kPresetPreviewDelayMs);
+		return;
+	}
+	loadPendingPreview();
+}
 
+void LoadInstrumentPresetUI::loadPendingPreview() {
+	previewPending = false;
+	uiTimerManager.unsetTimer(TimerName::INSTRUMENT_PREVIEW);
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	if (loadingSynthToKitRow) {
-		currentInstrumentLoadError = performLoadSynthToKit();
-	}
-	else {
-		currentInstrumentLoadError = performLoad();
-	}
+	currentInstrumentLoadError = loadingSynthToKitRow ? performLoadSynthToKit() : performLoad();
 	currentUIMode = UI_MODE_NONE;
-	//}
 }
 
 void LoadInstrumentPresetUI::enterKeyPress() {
@@ -327,7 +388,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 	else {
 
-		if (currentInstrumentLoadError != Error::NONE) {
+		if (previewPending || currentInstrumentLoadError != Error::NONE) {
+			cancelPendingPreview();
 			if (loadingSynthToKitRow) {
 				currentInstrumentLoadError = performLoadSynthToKit();
 			}
@@ -438,6 +500,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
+			stopPresetLoadingIndicator();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -859,6 +922,7 @@ addNumber:
 
 // I thiiink you're supposed to check currentFileExists before calling this?
 Error LoadInstrumentPresetUI::performLoad(bool doClone) {
+	LoadingIndicatorGuard indicatorGuard{*this};
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
@@ -875,6 +939,8 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 	}
 
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
+
+	startPresetLoadingIndicator();
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -955,10 +1021,10 @@ giveUsedError:
 			newInstrument->editedByUser = true;
 		}
 	}
-	display->displayLoadingAnimationText("Loading", false, true);
+	startPresetLoadingIndicator();
 	Error error = newInstrument->loadAllAudioFiles(true);
 
-	display->removeLoadingAnimation();
+	stopPresetLoadingIndicator();
 
 	// If error, most likely because user interrupted sample loading process...
 	if (error != Error::NONE) {
@@ -1035,7 +1101,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-	display->removeWorkingAnimation();
+	stopPresetLoadingIndicator();
 
 	// for the instrument we just loaded, let's check if there's any midi labels we should load
 	if (newInstrument->type == OutputType::MIDI_OUT) {
@@ -1054,6 +1120,7 @@ giveUsedError:
 }
 
 Error LoadInstrumentPresetUI::performLoadSynthToKit() {
+	LoadingIndicatorGuard indicatorGuard{*this};
 	FileItem* currentFileItem = getCurrentFileItem();
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
@@ -1072,6 +1139,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::FILE_NOT_SAVED;
 	}
 
+	startPresetLoadingIndicator();
 	SoundDrum* oldDrum = soundDrumToReplace;
 	SoundDrum* newDrum = nullptr;
 	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &newDrum,
@@ -1082,7 +1150,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// The old drum stays in the kit, and alive, until every NoteRow has been moved off it - loading samples can run
 	// the audio routine, and NoteRows in any Clip of this Kit may still be played or rendered in the meantime.
-	display->displayLoadingAnimationText("Loading", false, true);
+	startPresetLoadingIndicator();
 	newDrum->loadAllSamples(true);
 
 	newDrum->drumName = enteredText.get();
@@ -1095,7 +1163,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
 		delugeDealloc(toDealloc);
-		display->removeLoadingAnimation();
+		stopPresetLoadingIndicator();
 		return Error::FILE_CORRUPTED;
 	}
 
@@ -1148,11 +1216,12 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	// browser is open go straight to it
 	view.setActiveModControllableTimelineCounter(instrumentClipToLoadFor);
 
-	display->removeLoadingAnimation();
+	stopPresetLoadingIndicator();
 	return Error::NONE;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
+	cancelPendingPreview();
 	revertToInitialPreset();
 	LoadUI::exitAction();
 }
@@ -1163,6 +1232,12 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 	if (x == kDisplayWidth + 1) {
 		if (!showingAuditionPads()) {
 			goto potentiallyExit;
+		}
+		if (on && previewPending) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			loadPendingPreview();
 		}
 		if (currentInstrumentLoadError != Error::NONE) {
 			if (on) {
@@ -1459,13 +1534,38 @@ needToGrabLeftmostButHaveToReadFirst:
 	return (FileItem*)fileItems.getElementAddress(0);
 }
 
+void LoadInstrumentPresetUI::clearFailedPresetNavigation() {
+	failedPresetNavigation.instrument = nullptr;
+	failedPresetNavigation.filename.clear();
+	failedPresetNavigation.sourceName.clear();
+	failedPresetNavigation.dir.clear();
+}
+
+void LoadInstrumentPresetUI::rememberFailedPresetNavigation(Instrument* origin, FileItem* failedItem) {
+	clearFailedPresetNavigation();
+	if (failedPresetNavigation.filename.set(failedItem->displayName) != Error::NONE) {
+		clearFailedPresetNavigation();
+		return;
+	}
+	failedPresetNavigation.sourceName.set(&origin->name);
+	failedPresetNavigation.dir.set(&origin->dirPath);
+	failedPresetNavigation.instrument = origin;
+	failedPresetNavigation.song = currentSong;
+	failedPresetNavigation.clip = getCurrentClip();
+	failedPresetNavigation.ui = getCurrentUI();
+}
+
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink,
                                                                   Clip* displayClip) {
 
+	LoadingIndicatorGuard indicatorGuard{*this};
 	AudioEngine::logAction("doPresetNavigation");
+	// This is encoder navigation, not a QWERTY prediction. A keyboard abort
+	// left over from a previous browser visit must not abort every new load.
+	predictionInterrupted = false;
 
 	currentDir.set(&oldInstrument->dirPath);
 	OutputType outputType = oldInstrument->type;
@@ -1475,8 +1575,22 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	String oldNameString; // We only might use this later for temporary storage
 	String newName;
 
-	oldNameString.set(&oldInstrument->name);
-	toReturn.error = oldNameString.concatenate(".XML");
+	// Keep the loaded sound intact on failure, but move from the failed file on
+	// the next tick. Own the filename: the catalog is freed before returning.
+	bool resumeAfterFailure =
+	    failedPresetNavigation.instrument == oldInstrument && failedPresetNavigation.song == currentSong
+	    && failedPresetNavigation.clip == getCurrentClip() && failedPresetNavigation.ui == getCurrentUI()
+	    && !strcmp(failedPresetNavigation.sourceName.get(), oldInstrument->name.get())
+	    && !strcmp(failedPresetNavigation.dir.get(), oldInstrument->dirPath.get());
+	if (resumeAfterFailure) {
+		oldNameString.set(&failedPresetNavigation.filename);
+		toReturn.error = Error::NONE;
+	}
+	else {
+		oldNameString.set(&oldInstrument->name);
+		toReturn.error = oldNameString.concatenate(".XML");
+	}
+	clearFailedPresetNavigation();
 	if (toReturn.error != Error::NONE) {
 		return toReturn;
 	}
@@ -1597,6 +1711,7 @@ searchFromOneEnd:
 	}
 
 doneMoving:
+	stopPresetLoadingIndicator();
 	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
@@ -1610,6 +1725,11 @@ doneMoving:
 
 	if (toReturn.fileItem->instrument) {
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink, displayClip);
+		// Reversing away from a failed preset can select the still-loaded sound.
+		// Nothing needs replacing (or detaching from the clip) in that case.
+		if (toReturn.fileItem->instrument == oldInstrument) {
+			goto noErrorButGetOut;
+		}
 	}
 	else {
 		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
@@ -1625,8 +1745,20 @@ doneMoving:
 		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink, displayClip);
 	}
 
+	if (!toReturn.fileItem->instrument) {
+		startPresetLoadingIndicator();
+	}
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
+	}
+
+	// Direct preset navigation (clip/session view) does not use the browser's
+	// preview timer. Wait cooperatively before reading a new preset, so turns
+	// arriving during the pause can move the displayed selection instead.
+	// The SD guard keeps input handlers from changing the clip while this call
+	// owns its model stack; audio, clocks and the display continue to run.
+	if (!toReturn.fileItem->instrument) {
+		yieldingRoutineWithTimeoutForSD([]() { return encoders::select.pending(); }, kPresetPreviewDelayMs / 1000.0);
 	}
 
 	if (encoders::select.pending()) {
@@ -1647,10 +1779,19 @@ doPendingPresetNavigation:
 	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
+		int32_t oldUIMode = currentUIMode;
+		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 		toReturn.error = StorageManager::loadInstrumentFromFile(
 		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
 		    &newName, &Browser::currentDir);
+		currentUIMode = oldUIMode;
+		if (toReturn.error == Error::ABORTED_BY_USER && encoders::select.pending()) {
+			// StorageManager has already disposed of the partial instrument.
+			toReturn.error = Error::NONE;
+			goto doPendingPresetNavigation;
+		}
 		if (toReturn.error != Error::NONE) {
+			rememberFailedPresetNavigation(oldInstrument, toReturn.fileItem);
 			emptyFileItems();
 			return toReturn;
 		}
@@ -1665,7 +1806,7 @@ doPendingPresetNavigation:
 
 	// view.displayOutputName(toReturn.fileItem->instrument);
 
-	display->displayLoadingAnimationText("Loading", false, true);
+	startPresetLoadingIndicator();
 	int32_t oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	toReturn.fileItem->instrument->loadAllAudioFiles(true);

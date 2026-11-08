@@ -32,6 +32,8 @@ class LoadInstrumentPresetUI final : public LoadUI {
 public:
 	LoadInstrumentPresetUI() = default;
 	bool opened() override;
+	void focusRegained() override;
+	void previewTimerCallback();
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -86,6 +88,27 @@ protected:
 	void currentFileChanged(int32_t movementDirection) override;
 
 private:
+	void cancelPendingPreview();
+	void startPresetLoadingIndicator();
+	void stopPresetLoadingIndicator();
+	bool loadingIndicatorActive = false;
+	struct LoadingIndicatorGuard {
+		LoadInstrumentPresetUI& ui;
+		~LoadingIndicatorGuard() { ui.stopPresetLoadingIndicator(); }
+	};
+	void clearFailedPresetNavigation();
+	void rememberFailedPresetNavigation(Instrument* origin, FileItem* failedItem);
+	struct {
+		Song* song = nullptr;
+		Instrument* instrument = nullptr;
+		Clip* clip = nullptr;
+		UI* ui = nullptr;
+		String sourceName;
+		String dir;
+		String filename;
+	} failedPresetNavigation;
+	void loadPendingPreview();
+	bool previewPending = false;
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);

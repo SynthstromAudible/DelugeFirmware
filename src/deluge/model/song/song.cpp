@@ -4950,6 +4950,8 @@ removeWorkingAnimationAndGetOut:
 			return output;
 		}
 		else if (results.error != Error::NONE) {
+			// Failed navigation leaves this output unchanged, including its name.
+			view.displayOutputName(oldInstrument, true, displayClip);
 			display->displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}

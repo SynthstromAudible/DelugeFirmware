@@ -18,6 +18,7 @@
 #include "gui/ui_timer_manager.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -150,6 +151,10 @@ void UITimerManager::routine() {
 
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
+					break;
+
+				case TimerName::INSTRUMENT_PREVIEW:
+					loadInstrumentPresetUI.previewTimerCallback();
 					break;
 
 				case TimerName::UI_SPECIFIC: {
