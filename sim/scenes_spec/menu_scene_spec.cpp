@@ -1577,6 +1577,35 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_PARAMETER_NOT_APPLICABLE)});
 	});
 
+	it("a coming-soon pad inside the menu says Feature not (yet?) implemented and stays put", _ {
+		// `potentialShortcutPadAction`: a `comingSoonMenu` cell pops STRING_FOR_UNIMPLEMENTED and opens nothing.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(menu::shortcut_coming_soon(menu_scene().menu_context().root, 4, 2)).to_be_true();
+		r.button(kShiftX, kShiftY, true, 10);
+		r.pad(4, 2, 64, 20);
+		r.shell.tick(30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(r.shell.notices().last_popup_text())
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
+	});
+
+	it("a coming-soon pad from the scene over the menu says so and jumps nowhere", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(menu_scene().shortcut_jump(5, 3).has_value()).to_be_false();
+		r.shell.tick(10);
+		expect(r.shell.notices().last_popup_text())
+		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
+	});
+
 	it("a range-dependent jump on a multisampled source lands, after the range pick, on the page", _ {
 		// `setup()` puts the picker first (MUST_SELECT_RANGE); the picker's select answers the item, and
 		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it

@@ -303,6 +303,11 @@ void MenuScene::on_resume() {
 }
 
 std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
+	// A `comingSoonMenu` cell pops its message and goes nowhere (`potentialShortcutPadAction`).
+	if (shortcut_coming_soon(ctx_.root, x, y)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+		return std::nullopt;
+	}
 	const Node* target = shortcut_node(ctx_.root, false, x, y);
 	if (target == nullptr || (ctx_.root_is_automation && !is_automation_item(*target))) {
 		return std::nullopt;

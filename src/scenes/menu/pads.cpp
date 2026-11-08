@@ -235,6 +235,13 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		}
 
 		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
+		// A `comingSoonMenu` cell pops its message ahead of every other check (`potentialShortcutPadAction`).
+		if (target == nullptr && shortcut_coming_soon(ctx.root, event.x, event.y)) {
+			deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		// Over the automation view only a param's shortcut is taken; any other is swallowed
 		// (`potentialShortcutPadAction`'s `getParamKind() == Kind::NONE` refusal, ahead of `setup()`'s).
 		if (target != nullptr && ctx.root_is_automation && !is_automation_item(*target)) {
