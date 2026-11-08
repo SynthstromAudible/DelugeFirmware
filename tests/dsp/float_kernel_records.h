@@ -24,9 +24,13 @@
 namespace records {
 #if defined(__ARM_FEATURE_FMA) || defined(__FMA__)
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
+inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
+inline constexpr uint32_t kSmootherLinear = 2508712197U;
 inline constexpr uint32_t kSmootherExponential = 957903478U;
 #else
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
+inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
+inline constexpr uint32_t kSmootherLinear = 1153755580U;
 inline constexpr uint32_t kSmootherExponential = 1232577157U;
 #endif
 } // namespace records

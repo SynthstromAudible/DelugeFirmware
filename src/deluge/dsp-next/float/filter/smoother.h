@@ -33,10 +33,11 @@
 namespace deluge::dsp::fp {
 
 /// @brief Moves y toward a per-block target. EXPONENTIAL: y ← y + a·(target − y), a = 1 − exp(−1/time).
-/// LINEAR: y ← y + step, the step set each block so y lands exactly on the target at the block's end.
+/// LINEAR: a ramp from the block's start value that reaches the target at the block's last sample.
 /// @details A processor kernel whose input is ignored (it is the cursor a Mono block needs), so it runs in Mono and
-/// Poly as any processor does. LINEAR's last sample is the target itself, not an accumulated sum, so rounding never
-/// leaves it short.
+/// Poly as any processor does. LINEAR's sample t (counting from 1) is the target itself once t reaches the block
+/// length, and a rounded ramp value before it, so the block's last sample is exactly the target and no earlier one is,
+/// for any block length. EXPONENTIAL with `time` ≤ 0 sets y to the target exactly.
 struct Smoother {
 	using value_type = f32; ///< The smoothed value.
 	using step_type = f32;  ///< One value per sample.
@@ -51,7 +52,7 @@ struct Smoother {
 	/// @brief What the owner sets each block.
 	struct Settings {
 		f32 target = 0.f;              ///< Where y goes.
-		f32 time = 0.f;                ///< EXPONENTIAL: the time constant, in samples; 0 jumps.
+		f32 time = 0.f;                ///< EXPONENTIAL: the time constant, in samples; 0 or less jumps to the target.
 		f32 block = 128.f;             ///< LINEAR: the block's length, in samples.
 		Mode mode = Mode::EXPONENTIAL; ///< How y moves.
 	};
@@ -60,10 +61,11 @@ struct Smoother {
 	template <class V>
 	struct CoefficientsT {
 		V target{};                    ///< Where y goes.
-		V rate{};                      ///< EXPONENTIAL: a. LINEAR: 1/block.
+		V rate{};                      ///< EXPONENTIAL: a, and y is the target where a ≥ 1. LINEAR: 1/block.
+		V length{};                    ///< LINEAR: the block's length in samples, at least 1.
 		Mode mode = Mode::EXPONENTIAL; ///< Shared by every lane.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
-		static constexpr auto fields = std::tuple{&CoefficientsT::target, &CoefficientsT::rate};
+		static constexpr auto fields = std::tuple{&CoefficientsT::target, &CoefficientsT::rate, &CoefficientsT::length};
 	};
 	using Coefficients = CoefficientsT<f32>;
 
@@ -82,13 +84,15 @@ struct Smoother {
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
 #pragma clang fp contract(off) reassociate(off)
 		f32 rate = 1.f;
+		f32 length = 1.f;
 		if (settings.mode == Mode::LINEAR) {
-			rate = 1.f / std::max(settings.block, 1.f);
+			length = std::max(settings.block, 1.f);
+			rate = 1.f / length;
 		}
 		else if (settings.time > 0.f) {
 			rate = 1.f - std::exp(-1.f / settings.time);
 		}
-		return {.target = settings.target, .rate = rate, .mode = settings.mode};
+		return {.target = settings.target, .rate = rate, .length = length, .mode = settings.mode};
 	}
 
 	/// @brief Starts a block's ramp at the current value, over V. Runs every block, in either mode.
@@ -105,13 +109,12 @@ struct Smoother {
 	                                                   StateT<V>& st, std::type_identity_t<V> /*x*/) {
 #pragma clang fp contract(off) reassociate(off)
 		if constexpr (M == Mode::EXPONENTIAL) {
-			st.y = mul_add(st.y, c.rate, c.target - st.y);
+			st.y = select(c.rate >= V{1.f}, c.target, mul_add(st.y, c.rate, c.target - st.y));
 		}
 		else {
 			st.t = st.t + V{1.f};
-			const V frac = st.t * c.rate;
-			// Where frac has reached 1 the sample is the target itself, so the ramp ends exactly on it.
-			st.y = select(frac >= V{1.f}, c.target, mul_add(st.start, frac, c.target - st.start));
+			// Where t has reached the block's length the sample is the target itself, so the ramp ends exactly on it.
+			st.y = select(st.t >= c.length, c.target, mul_add(st.start, st.t * c.rate, c.target - st.start));
 		}
 		return st.y;
 	}

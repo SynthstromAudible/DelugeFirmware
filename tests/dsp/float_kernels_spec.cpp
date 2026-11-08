@@ -22,11 +22,13 @@
 #include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/poly_kernel.h"
+#include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 
 #include "float_kernel_records.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
@@ -34,6 +36,8 @@
 #include <cstdint>
 #include <numbers>
 #include <random>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
 using namespace deluge::dsp;
@@ -77,9 +81,73 @@ template <class M>
 	return peak;
 }
 
+/// A scalar struct over f32 whose fields are distinct values derived from @p seed.
+template <class S>
+[[nodiscard]] S distinct(f32 seed) {
+	S s{};
+	std::apply(
+	    [&](auto... m) {
+		    f32 k = seed;
+		    ((s.*m = (k += 1.5f)), ...);
+	    },
+	    S::fields);
+	return s;
+}
+
+/// Whether @p a and @p b hold the same bits in every field.
+template <class S>
+[[nodiscard]] bool same_fields(const S& a, const S& b) {
+	bool same = true;
+	std::apply(
+	    [&](auto... m) { ((same = same && std::bit_cast<uint32_t>(a.*m) == std::bit_cast<uint32_t>(b.*m)), ...); },
+	    S::fields);
+	return same;
+}
+
+/// Sets distinct scalars into lanes 0..N-1 of @p packed one at a time; true when after each set the lanes set so far
+/// read back bit-equal and the lanes not yet set still read zero.
+template <class S, std::size_t N, class P>
+[[nodiscard]] bool lanes_round_trip(P packed) {
+	for (std::size_t k = 0; k < N; ++k) {
+		set_lane<S>(packed, k, distinct<S>(static_cast<f32>(k) * 10.f));
+		for (std::size_t l = 0; l < N; ++l) {
+			const S expected = l <= k ? distinct<S>(static_cast<f32>(l) * 10.f) : S{};
+			if (!same_fields(get_lane<S>(packed, l), expected)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+/// A float processor kernel that names no `fields`.
+struct NoFields {
+	using value_type = f32;
+	using step_type = f32;
+	struct Settings {};
+	template <class V>
+	struct CoefficientsT {
+		V a{};
+	};
+	using Coefficients = CoefficientsT<f32>;
+	template <class V>
+	struct StateT {
+		V s{};
+	};
+	using State = StateT<f32>;
+	[[nodiscard]] static Coefficients coefficients(const Settings& /*settings*/) { return {}; }
+	template <class V>
+	[[nodiscard]] static V step(const CoefficientsT<V>& /*c*/, const EmptyBlock& /*b*/, StateT<V>& /*st*/,
+	                            std::type_identity_t<V> x) {
+		return x;
+	}
+};
+
 } // namespace
 
 static_assert(poly_kernel<fp::OnePole> && poly_kernel<fp::Smoother>);
+static_assert(processor_kernel<NoFields> && !poly_kernel<NoFields>);
+static_assert(!poly_kernel<fixed::OnePole>);
 
 // clang-format off
 describe float_kernels_spec("float kernels", ${
@@ -116,8 +184,28 @@ describe float_kernels_spec("float kernels", ${
 			lp.render_block(fp::Signal{in}, fp::Buffer{out});
 			expect(digest(out)).to_equal(records::kOnePoleLowPass);
 		});
+	it("matches its high-pass record", _ {
+		fp::FlushToZero ftz;
+		Mono<fp::OnePole> hp;
+		hp.configure({.cutoff = 0.02f, .mode = fp::OnePole::Mode::HIGH_PASS});
+		const auto in = noise(kBlock * 4, 4);
+		std::vector<f32> out(in.size());
+		hp.render_block(fp::Signal{in}, fp::Buffer{out});
+		expect(digest(out)).to_equal(records::kOnePoleHighPass);
 	});
-	context("Smoother", _ {
+	it("clamps its cutoff: zero, negative and above Nyquist stay finite", _ {
+		fp::FlushToZero ftz;
+		const auto in = noise(kBlock, 5);
+		for (const f32 cutoff : {0.f, -0.3f, 0.9f}) {
+			Mono<fp::OnePole> lp;
+			lp.configure({.cutoff = cutoff, .mode = fp::OnePole::Mode::LOW_PASS});
+			std::vector<f32> out(kBlock);
+			lp.render_block(fp::Signal{in}, fp::Buffer{out});
+			expect(std::ranges::all_of(out, [](f32 x) { return std::isfinite(x) && std::fabs(x) <= 4.f; })).to_be_true();
+		}
+	});
+});
+context("Smoother", _ {
 		it("lands exactly on the target at the block's end, LINEAR", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Smoother> s;
@@ -146,28 +234,111 @@ describe float_kernels_spec("float kernels", ${
 			}
 			expect(digest(out)).to_equal(records::kSmootherExponential);
 		});
+	it("lands exactly on the target at the last sample of any block length, LINEAR", _ {
+		fp::FlushToZero ftz;
+		for (const std::size_t n : {100UZ, 37UZ, 1UZ, 128UZ}) {
+			Mono<fp::Smoother> s;
+			s.configure({.target = 0.75f, .time = 0.f, .block = static_cast<f32>(n), .mode = fp::Smoother::Mode::LINEAR});
+			std::vector<f32> unused(n, 0.f), out(n);
+			s.render_block(fp::Signal{unused}, fp::Buffer{out});
+			expect(std::bit_cast<uint32_t>(out.back())).to_equal(std::bit_cast<uint32_t>(0.75f));
+			bool before_is_between = true;
+			for (std::size_t i = 0; i + 1 < n; ++i) {
+				before_is_between = before_is_between && out[i] > 0.f && out[i] < 0.75f;
+			}
+			expect(before_is_between).to_be_true();
+		}
 	});
-	context("Linked", _ {
+	it("starts each LINEAR block from the last value and lands on the new target", _ {
+		fp::FlushToZero ftz;
+		Mono<fp::Smoother> s;
+		std::vector<f32> unused(64, 0.f), first(64), second(64);
+		s.configure({.target = 0.5f, .time = 0.f, .block = 64.f, .mode = fp::Smoother::Mode::LINEAR});
+		s.render_block(fp::Signal{unused}, fp::Buffer{first});
+		s.configure({.target = -0.25f, .time = 0.f, .block = 64.f, .mode = fp::Smoother::Mode::LINEAR});
+		s.render_block(fp::Signal{unused}, fp::Buffer{second});
+		expect(std::bit_cast<uint32_t>(first.back())).to_equal(std::bit_cast<uint32_t>(0.5f));
+		expect(second.front() < 0.5f && second.front() > 0.5f - 0.75f / 32.f).to_be_true();
+		expect(std::bit_cast<uint32_t>(second.back())).to_equal(std::bit_cast<uint32_t>(-0.25f));
+	});
+	it("jumps to the target exactly when its time is zero or less, EXPONENTIAL", _ {
+		fp::FlushToZero ftz;
+		for (const f32 time : {0.f, -5.f}) {
+			Mono<fp::Smoother> s;
+			s.configure({.target = 0.3f, .time = time, .block = 16.f, .mode = fp::Smoother::Mode::EXPONENTIAL});
+			std::vector<f32> unused(16, 0.f), out(16);
+			s.render_block(fp::Signal{unused}, fp::Buffer{out});
+			bool all_target = true;
+			for (const f32 x : out) {
+				all_target = all_target && std::bit_cast<uint32_t>(x) == std::bit_cast<uint32_t>(0.3f);
+			}
+			expect(all_target).to_be_true();
+		}
+	});
+	it("matches its linear record", _ {
+		fp::FlushToZero ftz;
+		Mono<fp::Smoother> s;
+		std::vector<f32> unused(kBlock, 0.f), out(kBlock * 4);
+		for (std::size_t b = 0; b < 4; ++b) {
+			s.configure({.target = (b % 2 == 0) ? 0.9f : -0.3f, .time = 0.f, .block = static_cast<f32>(kBlock),
+			             .mode = fp::Smoother::Mode::LINEAR});
+			s.render_block(fp::Signal{unused}, fp::Buffer{out}.subspan(b * kBlock, kBlock));
+		}
+		expect(digest(out)).to_equal(records::kSmootherLinear);
+	});
+});
+context("Linked", _ {
 		it("runs each lane exactly as Mono", _ {
 			fp::FlushToZero ftz;
 			Linked<fp::OnePole, 2, Frame<f32, 2>> two;
-			Mono<fp::OnePole> one;
+			Mono<fp::OnePole> one, other;
 			const fp::OnePole::Settings set{.cutoff = 0.03f, .mode = fp::OnePole::Mode::LOW_PASS};
 			two.configure(set);
 			one.configure(set);
+			other.configure(set);
 			const auto in = noise(kBlock * 2, 3);
 			std::vector<Frame<f32, 2>> frames(kBlock), framed_out(kBlock);
-			std::vector<f32> left(kBlock), left_out(kBlock);
+			std::vector<f32> left(kBlock), left_out(kBlock), right(kBlock), right_out(kBlock);
 			for (std::size_t i = 0; i < kBlock; ++i) {
 				frames[i].lane[0] = in[2 * i];
 				frames[i].lane[1] = in[(2 * i) + 1];
 				left[i] = in[2 * i];
+				right[i] = in[(2 * i) + 1];
 			}
 			two.render_block(std::span<const Frame<f32, 2>>{frames}, std::span<Frame<f32, 2>>{framed_out});
 			one.render_block(fp::Signal{left}, fp::Buffer{left_out});
+			other.render_block(fp::Signal{right}, fp::Buffer{right_out});
 			for (std::size_t i = 0; i < kBlock; ++i) {
 				expect(std::bit_cast<uint32_t>(framed_out[i].lane[0])).to_equal(std::bit_cast<uint32_t>(left_out[i]));
+				expect(std::bit_cast<uint32_t>(framed_out[i].lane[1])).to_equal(std::bit_cast<uint32_t>(right_out[i]));
 			}
+		});
+	});
+	context("set_lane and get_lane", _ {
+		it("round-trip every lane of OnePole's coefficients and state, at N = 2 and 4", _ {
+			using C4 = fp::OnePole::CoefficientsT<Pack<f32, 4>>;
+			using C2 = fp::OnePole::CoefficientsT<Pack<f32, 2>>;
+			expect((lanes_round_trip<fp::OnePole::Coefficients, 4>(C4{}))).to_be_true();
+			expect((lanes_round_trip<fp::OnePole::Coefficients, 2>(C2{}))).to_be_true();
+			expect((lanes_round_trip<fp::OnePole::State, 4>(fp::OnePole::StateT<Pack<f32, 4>>{}))).to_be_true();
+			expect((lanes_round_trip<fp::OnePole::State, 2>(fp::OnePole::StateT<Pack<f32, 2>>{}))).to_be_true();
+		});
+		it("round-trip every lane of Smoother's coefficients and state, at N = 2 and 4", _ {
+			using C4 = fp::Smoother::CoefficientsT<Pack<f32, 4>>;
+			using C2 = fp::Smoother::CoefficientsT<Pack<f32, 2>>;
+			expect((lanes_round_trip<fp::Smoother::Coefficients, 4>(C4{}))).to_be_true();
+			expect((lanes_round_trip<fp::Smoother::Coefficients, 2>(C2{}))).to_be_true();
+			expect((lanes_round_trip<fp::Smoother::State, 4>(fp::Smoother::StateT<Pack<f32, 4>>{}))).to_be_true();
+			expect((lanes_round_trip<fp::Smoother::State, 2>(fp::Smoother::StateT<Pack<f32, 2>>{}))).to_be_true();
+		});
+		it("leave the packed mode alone", _ {
+			fp::OnePole::CoefficientsT<Pack<f32, 4>> packed{};
+			packed.mode = fp::OnePole::Mode::HIGH_PASS;
+			set_lane<fp::OnePole::Coefficients>(
+			    packed, 1, fp::OnePole::Coefficients{.G = 0.25f, .mode = fp::OnePole::Mode::LOW_PASS});
+			expect(packed.mode == fp::OnePole::Mode::HIGH_PASS).to_be_true();
+			expect(get_lane<fp::OnePole::Coefficients>(packed, 1).G).to_equal(0.25f);
+			expect(get_lane<fp::OnePole::Coefficients>(packed, 1).mode == fp::OnePole::Mode::LOW_PASS).to_be_true();
 		});
 	});
 });

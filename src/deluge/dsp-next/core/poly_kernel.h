@@ -56,11 +56,15 @@ concept poly_kernel =
 namespace detail {
 template <class S, class P, std::size_t... I>
 void set_lane_at(P& packed, std::size_t lane, const S& scalar, std::index_sequence<I...> /*fields*/) {
+	static_assert(std::tuple_size_v<decltype(S::fields)> == std::tuple_size_v<decltype(P::fields)>,
+	              "the scalar and packed structs name the same fields");
 	((packed.*std::get<I>(P::fields)).set(lane, scalar.*std::get<I>(S::fields)), ...);
 }
 
 template <class S, class P, std::size_t... I>
 void get_lane_at(const P& packed, std::size_t lane, S& scalar, std::index_sequence<I...> /*fields*/) {
+	static_assert(std::tuple_size_v<decltype(S::fields)> == std::tuple_size_v<decltype(P::fields)>,
+	              "the scalar and packed structs name the same fields");
 	((scalar.*std::get<I>(S::fields) = (packed.*std::get<I>(P::fields)).get(lane)), ...);
 }
 } // namespace detail
