@@ -523,6 +523,12 @@ void set_default_automation_no_audition(const MenuContext&, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Defaults: the rest
 
+int32_t default_resolution_magnitude(const MenuContext&) {
+	return FlashStorage::defaultMagnitude;
+}
+int32_t relative_to_song_magnitude(const MenuContext&) {
+	return 1;
+}
 int32_t get_default_swing_interval(const MenuContext&) {
 	return FlashStorage::defaultSwingInterval; // `defaults/swing_interval.h:28 readCurrentValue`
 }

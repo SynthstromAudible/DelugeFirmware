@@ -24,12 +24,10 @@
 
 #include "scenes/menu/bindings.h"
 
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
 #include "gui/l10n/strings.h"
-#include "modulation/sync.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/columns.h"
 #include "ui/oled/values.h"
@@ -522,19 +520,9 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
 	                                   deluge::ui::oled::text_height_for(kFont)};
 
-	// Centred text, not digits: legacy draws the literal "OFF" at zero, else `syncValueToString`
-	// against the song's *input* tick magnitude (`sync_level.cpp:26-28`), never the raw menu-option
-	// integer this node's binding actually stores.
-	etl::string<30> buffer;
-	std::string_view text_val;
-	if (st.edit_int != 0) {
-		syncValueToString(static_cast<uint32_t>(st.edit_int), buffer, input_tick_magnitude(ctx));
-		text_val = std::string_view{buffer.data(), buffer.size()};
-	}
-	else {
-		TextScratch off_scratch;
-		text_val = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	}
+	// Centred text, not digits: OFF at zero, else the note length (`sync_level_name`), never the raw menu option.
+	char name_buf[32];
+	const std::string_view text_val = sync_level_name(node, ctx, st.edit_int, name_buf);
 	deluge::ui::oled::text(f, band, text_val, {.font = kFont, .align = deluge::ui::oled::Align::Centre});
 
 	// The select press leaves the item, same as every other leaf's arm.

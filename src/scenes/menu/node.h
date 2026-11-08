@@ -280,6 +280,10 @@ using NotificationSuffixFn = size_t (*)(const MenuContext& ctx, std::span<char> 
 /// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
 using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
+/// @brief `Binding::sync_name_magnitude`'s hook: the tick magnitude a `Kind::SyncLevel` value's note length is named
+///        against.
+using TickMagnitudeFn = int32_t (*)(const MenuContext& ctx);
+
 /// @brief `Binding::leaf_draw`'s hook: legacy's `drawInteger` override that draws an `Int` item's whole screen below
 ///        its title, given the value after this tick's edit and the screen's side-scroll state.
 using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
@@ -478,6 +482,11 @@ struct Binding {
 	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`:
 	///        2 (the units of a two-place value) unless the item overrides it. A detent moves the value `10^place`.
 	int8_t default_edit_pos = 2;
+
+	/// @brief Legacy's `getNoteLengthName` override (`defaults::SwingInterval`, `sync_level::RelativeToSong`): the tick
+	///        magnitude a `Kind::SyncLevel` leaf's screen and notification name its value against. Null: the song's
+	///        input tick magnitude, `SyncLevel::getNoteLengthName`'s. The column label always reads the song's.
+	TickMagnitudeFn sync_name_magnitude = nullptr;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
 	///        (`MenuItem::wrapAround` answering true on a horizontal page).
@@ -1251,6 +1260,12 @@ constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
 /// @brief `n` with @p suffix after its notification text (`Binding::notification_suffix`).
 constexpr Node with_notification_suffix(Node n, NotificationSuffixFn suffix) {
 	n.bind.notification_suffix = suffix;
+	return n;
+}
+
+/// @brief `n` naming its sync levels against @p magnitude's answer (`Binding::sync_name_magnitude`).
+constexpr Node with_sync_name_magnitude(Node n, TickMagnitudeFn magnitude) {
+	n.bind.sync_name_magnitude = magnitude;
 	return n;
 }
 

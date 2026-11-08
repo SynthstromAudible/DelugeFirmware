@@ -245,6 +245,11 @@ int32_t get_default_automation_no_audition(const MenuContext& ctx);
 void set_default_automation_no_audition(const MenuContext& ctx, int32_t value);
 
 int32_t get_default_swing_interval(const MenuContext& ctx);
+/// `defaults::SwingInterval::getNoteLengthName`: the default resolution, `FlashStorage::defaultMagnitude`.
+int32_t default_resolution_magnitude(const MenuContext& ctx);
+/// `sync_level::RelativeToSong::getNoteLengthName` names value v as magnitude 3 - v; `syncValueToString` at tick
+/// magnitude 1 is that name.
+int32_t relative_to_song_magnitude(const MenuContext& ctx);
 void set_default_swing_interval(const MenuContext& ctx, int32_t value);
 int32_t get_default_scale(const MenuContext& ctx);
 void set_default_scale(const MenuContext& ctx, int32_t value);
@@ -918,10 +923,11 @@ inline constexpr Node default_key =
                set_default_key_lower, &kDefaultKeySpec, kDefaultKeyRange);
 /// @}
 
-inline constexpr Node default_swing_interval =
+inline constexpr Node default_swing_interval = with_sync_name_magnitude(
     with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
                               get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange),
-              swing_interval_turn);
+              swing_interval_turn),
+    default_resolution_magnitude);
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
@@ -1111,9 +1117,10 @@ inline constexpr Node record_count_in = with_value_style(
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
 /// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`record/quantize.h:23`).
-inline constexpr Node record_quantize =
+inline constexpr Node record_quantize = with_sync_name_magnitude(
     sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,
-                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1});
+                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1}),
+    relative_to_song_magnitude);
 inline constexpr Node record_margins =
     toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);
 

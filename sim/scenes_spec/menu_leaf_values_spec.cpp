@@ -139,6 +139,16 @@ std::string screen_text(const Node& n, const MenuContext& ctx, int32_t value) {
 	return vt.fallback ? std::string{} : std::string{buf, vt.length};
 }
 
+void set_song_magnitude(Rig& r, int32_t magnitude) {
+	r.song.song->project.transport.inside_world_tick_magnitude = magnitude;
+	r.song.song->project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
+}
+
+std::string name_of(const Node& n, const MenuContext& ctx, int32_t value) {
+	char buf[32];
+	return std::string{menu::sync_level_name(n, ctx, value, buf)};
+}
+
 int32_t list_cursor() {
 	return menu_scene().state().list[menu_scene().state().depth].cursor;
 }
@@ -450,4 +460,55 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns, leaf_texts)
+// clang-format off
+describe leaf_sync_names("scenes::menu sync-level names", $ {
+	it("names the song's swing interval against the song", _ {
+		Rig r;
+		set_song_magnitude(r, 3);
+		expect(name_of(nodes::swing_interval, r.ctx, 5)).to_equal(std::string{"16th-notes"});
+	});
+
+	it("names the default swing interval against the default resolution", _ {
+		Rig r;
+		set_song_magnitude(r, 3);
+		const auto saved = FlashStorage::defaultMagnitude;
+		FlashStorage::defaultMagnitude = 1;
+		expect(name_of(nodes::default_swing_interval, r.ctx, 5)).to_equal(std::string{"4th-notes"});
+		FlashStorage::defaultMagnitude = saved;
+	});
+
+	it("names record quantize as RelativeToSong does, 3 - value, whatever the song", _ {
+		Rig r;
+		set_song_magnitude(r, 3);
+		expect(name_of(nodes::record_quantize, r.ctx, 7)).to_equal(std::string{"16th-notes"});
+		expect(name_of(nodes::record_quantize, r.ctx, 3)).to_equal(std::string{"1-bar"});
+		expect(name_of(nodes::record_quantize, r.ctx, 1)).to_equal(std::string{"4-bar"});
+		expect(name_of(nodes::record_quantize, r.ctx, 0)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_OFF)});
+	});
+
+	it("draws record quantize's screen the same whatever the song's tick magnitude", _ {
+		Rig r;
+		const auto saved = FlashStorage::recordQuantizeLevel;
+		FlashStorage::recordQuantizeLevel = 7;
+		set_song_magnitude(r, 1);
+		r.open(nodes::record_quantize);
+		deluge::ui::test::Rig48 at1;
+		draw(at1, 0);
+		set_song_magnitude(r, 3);
+		deluge::ui::test::Rig48 at3;
+		draw(at3, 10);
+		expect(at3.pbm()).to_equal(at1.pbm());
+		FlashStorage::recordQuantizeLevel = saved;
+	});
+
+	it("notifies a sync level by the same name", _ {
+		Rig r;
+		set_song_magnitude(r, 3);
+		char buf[32];
+		expect(std::string{menu::column_notification(nodes::record_quantize, r.ctx, 7, buf)})
+		    .to_equal(std::string{"16th-notes"});
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns, leaf_texts, leaf_sync_names)
