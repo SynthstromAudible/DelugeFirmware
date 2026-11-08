@@ -736,9 +736,8 @@ private:
 /// @brief Event @p Event of part @p I, run as an event of a chain: `Event(get<I>(c), get<I>(s), args…)`, or
 /// `Event(get<I>(s), args…)` for an event taking the State alone.
 /// @details A wrapper runs it through `on` as any event of the chain: `mono.on<part_event<2, &Vca<E>::gate_on>>()`,
-/// or on one lane of a Poly or Bank, `poly.on<part_event<2, &Vca<E>::gate_on>>(lane)`. Part @c I's Coefficients
-/// carry no mode of their own in a chain (the chain's `mode` is the one dispatched on), so an event reading its
-/// part's `mode` reads the default.
+/// or on one lane of a Poly or Bank, `poly.on<part_event<2, &Vca<E>::gate_on>>(lane)`. The event sees part @c I's
+/// Coefficients as `coefficients(settings)` built them, its own `mode` included, on a Mono and on a lane alike.
 template <std::size_t I, auto Event>
 struct PartEvent {
 	/// @brief @p Event on part @p I's Coefficients and State.

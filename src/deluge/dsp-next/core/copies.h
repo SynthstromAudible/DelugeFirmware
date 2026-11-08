@@ -56,7 +56,9 @@ template <class K, auto M, class... Args>
 /// @brief N lanes of @p K's packed coefficients and state, with the lane-wise configure, reset and state access.
 /// @details Configure and set_mode set the one mode every lane runs; configure asserts that a lane's mode matches it
 /// once any lane is configured. Poly re-declares configure to un-park the lane. `configured_` is never cleared, so the
-/// mode stays the last one set.
+/// mode stays the last one set. The members of K's Coefficients that are not fields (its mode; a chain's mode and each
+/// part's) are shared by every lane: they are kept from the last configure, so an event on a lane sees them as a
+/// Mono configured alike does.
 template <poly_kernel K, std::size_t N>
 class Copies {
 public:
@@ -69,13 +71,16 @@ public:
 			coefficients_.mode = c.mode;
 		}
 		set_lane(coefficients_, lane, c);
+		shared_ = c;
 		configured_ = true;
 	}
-	/// @brief Every lane's mode, from the next block. A moded kernel only.
+	/// @brief Every lane's mode, from the next block. A moded kernel only. For a chain this is the mode it dispatches
+	/// on; each part's own mode, which only an event reads, stays the last configured.
 	void set_mode(const auto& mode)
 	requires has_modes<K>
 	{
 		coefficients_.mode = mode;
+		shared_.mode = mode;
 	}
 	/// @brief Lane @p lane's state to K's reset state.
 	void reset(std::size_t lane) {
@@ -84,7 +89,8 @@ public:
 	}
 
 	/// @brief Runs the event @p Event on lane @p lane alone: that lane's scalar state (and coefficients, when the event
-	/// takes them) are read out, the event runs on them as it does on a Mono, and the state is written back.
+	/// takes them) are read out, the event runs on them as it does on a Mono, and the state is written back. The
+	/// coefficients are the lane's fields over the shared members that are not fields, every mode included.
 	/// @tparam Event A function as Mono::on accepts.
 	/// @param lane The lane the event addresses.
 	/// @param args The event's own arguments.
@@ -93,10 +99,7 @@ public:
 	decltype(auto) on(std::size_t lane, A&&... args) {
 		assert(lane < N);
 		typename K::State s = get_lane<typename K::State>(this->packed_state(), lane);
-		typename K::Coefficients c = get_lane<typename K::Coefficients>(this->coefficients(), lane);
-		if constexpr (detail::has_modes<K>) {
-			c.mode = this->coefficients().mode;
-		}
+		const typename K::Coefficients c = get_lane(this->coefficients(), lane, shared_);
 		using Result = decltype(detail::run_event<K, Event>(c, s, std::forward<A>(args)...));
 		PackedState packed = this->packed_state();
 		if constexpr (std::is_void_v<Result>) {
@@ -131,7 +134,10 @@ protected:
 private:
 	PackedCoefficients coefficients_{}; ///< Every lane's coefficients; the shared mode.
 	PackedState state_{};               ///< Every lane's state.
-	bool configured_ = false;           ///< Whether any lane has been configured since construction.
+	/// @brief The last configured lane's scalar coefficients, with the mode set_mode set: their members that are not
+	/// fields are every lane's. Their fields are not read.
+	K::Coefficients shared_{};
+	bool configured_ = false; ///< Whether any lane has been configured since construction.
 };
 
 } // namespace deluge::dsp::detail

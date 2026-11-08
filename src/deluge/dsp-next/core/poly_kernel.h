@@ -57,9 +57,11 @@ concept poly_kernel =
 template <class S, class P>
 void set_lane(P& packed, std::size_t lane, const S& scalar);
 template <class S, class P>
-[[nodiscard]] S get_lane(const P& packed, std::size_t lane);
+[[nodiscard]] S get_lane(const P& packed, std::size_t lane, S scalar = S{});
 
 namespace detail {
+template <class S, class P, std::size_t... I>
+void get_lane_at(const P& packed, std::size_t lane, S& scalar, std::index_sequence<I...> /*fields*/);
 template <class S, class P>
 requires declares_fields<S> && declares_fields<P>
 void set_field(P& packed, std::size_t lane, const S& scalar);
@@ -102,11 +104,11 @@ void get_field(const std::array<P, K>& packed, std::size_t lane, std::array<S, K
 		get_field(packed[k], lane, scalar[k]);
 	}
 }
-/// A struct declaring its own fields: recurse.
+/// A struct declaring its own fields: recurse, in place, so its members that are not fields keep their values.
 template <class S, class P>
 requires declares_fields<S> && declares_fields<P>
 void get_field(const P& packed, std::size_t lane, S& scalar) {
-	scalar = get_lane<S>(packed, lane);
+	get_lane_at(packed, lane, scalar, std::make_index_sequence<std::tuple_size_v<decltype(S::fields)>>{});
 }
 
 template <class S, class P, std::size_t... I>
@@ -132,11 +134,10 @@ void set_lane(P& packed, std::size_t lane, const S& scalar) {
 	detail::set_lane_at(packed, lane, scalar, std::make_index_sequence<std::tuple_size_v<decltype(S::fields)>>{});
 }
 
-/// @brief Lane @p lane of @p packed's fields, as the scalar struct @p S; members that are not fields are
-/// value-initialised.
+/// @brief Lane @p lane of @p packed's fields, written over @p scalar: the fields, at every depth, are the lane's; the
+/// members that are not fields (the modes) are @p scalar's, value-initialised by default.
 template <class S, class P>
-[[nodiscard]] S get_lane(const P& packed, std::size_t lane) {
-	S scalar{};
+[[nodiscard]] S get_lane(const P& packed, std::size_t lane, S scalar) {
 	detail::get_lane_at(packed, lane, scalar, std::make_index_sequence<std::tuple_size_v<decltype(S::fields)>>{});
 	return scalar;
 }

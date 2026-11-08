@@ -305,6 +305,15 @@ template <class Voice>
 using fp::BlepOscillator;
 using fp::Svf;
 
+/// A test event reading its part's own mode, as a number.
+int svf_mode(const fp::Svf::Coefficients& c, fp::Svf::State& /*s*/) {
+	return static_cast<int>(c.mode);
+}
+/// A test event reading its part's own mode, as a number.
+int osc_mode(const fp::BlepOscillator::Coefficients& c, fp::BlepOscillator::State& /*s*/) {
+	return static_cast<int>(c.mode);
+}
+
 auto blep(BlepOscillator::Mode osc, Svf::Mode svf) {
 	return [=](std::size_t l) { return blep_settings(l, osc, svf); };
 }
@@ -355,6 +364,21 @@ describe float_voice_spec("float voice", ${
 	});
 
 	context("lanes", _ {
+		it("shows an event its part's own mode on a lane as on Mono", _ {
+			const auto settings = blep(BlepOscillator::Mode::PULSE, Svf::Mode::NOTCH);
+			Poly<BlepVoice, 4> poly;
+			Mono<BlepVoice> mono;
+			mono.configure(settings(2));
+			for (std::size_t l = 0; l < 4; ++l) {
+				poly.configure(l, settings(l));
+			}
+			const int mono_svf = mono.on<part_event<1, &svf_mode>>();
+			const int mono_osc = mono.on<part_event<0, &osc_mode>>();
+			expect(mono_svf).to_equal(static_cast<int>(Svf::Mode::NOTCH));
+			expect(mono_osc).to_equal(static_cast<int>(BlepOscillator::Mode::PULSE));
+			expect(poly.on<part_event<1, &svf_mode>>(2)).to_equal(mono_svf);
+			expect(poly.on<part_event<0, &osc_mode>>(2)).to_equal(mono_osc);
+		});
 		it("moves a lane of a voice's coefficients and state, the envelope's arrays included", _ {
 			fp::FlushToZero ftz;
 			BlepVoice::CoefficientsT<Pack<f32, 4>> packed_c{};
