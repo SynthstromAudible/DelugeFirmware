@@ -129,6 +129,16 @@ void collect_nested_pages(const menu::Node& node, std::set<const menu::Node*>& s
 	}
 }
 
+/// Every node under @p node, itself included.
+void collect_descendants(const menu::Node& node, std::set<const menu::Node*>& seen) {
+	if (!seen.insert(&node).second) {
+		return;
+	}
+	for (const menu::Node* child : node.children) {
+		collect_descendants(*child, seen);
+	}
+}
+
 /// @brief @p node on screen at the root, its list cursor and its column focus both at @p at.
 menu::MenuState on(const menu::Node& node, int16_t at = 0) {
 	menu::MenuState st{};
@@ -326,9 +336,9 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		}
 		expect(nested.empty()).to_be_false();
 		bool all_values = true;
-		for (const menu::Node* page : nested) {
-			expect(page->dynamic_children == nullptr).to_be_true();
-			for (const menu::Node* column : page->children) {
+		for (const menu::Node* nested_page : nested) {
+			expect(nested_page->dynamic_children == nullptr).to_be_true();
+			for (const menu::Node* column : nested_page->children) {
 				all_values = all_values && menu::select_turn_edits_instrument(ctx, on(*column));
 			}
 		}
@@ -363,6 +373,19 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		fx.instrument->editedByUser = false;
 		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
+	});
+
+	it("has no knob to unlearn under the Settings root: main's sink skips the mark there, and ours has no such gate", _ {
+		// Legacy marks only outside the Settings menu (`!inSettingsMenu()`). The sink marks on any unlearn, and the menu
+		// unlearns only a param's knob, so no Settings node may bind a param; one that did would need the gate.
+		std::set<const menu::Node*> seen;
+		collect_descendants(nodes::root_settings, seen);
+		expect(seen.size() > 1).to_be_true();
+		bool any_param = false;
+		for (const menu::Node* node : seen) {
+			any_param = any_param || node->bind.param.valid();
+		}
+		expect(any_param).to_be_false();
 	});
 });
 // clang-format on

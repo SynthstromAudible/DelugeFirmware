@@ -45,6 +45,7 @@
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
 
+#include "support/fake_note_bridge.h"
 #include "support/forwarding_facts.h"
 #include "support/song_fixture.h"
 
@@ -107,6 +108,17 @@ struct Rig {
 		menu_scene().open(leaf, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(leaf)});
 	}
+};
+
+/// @brief Put back, on scope exit, what @p ref held when this was made: a failed `expect` ends an example early.
+template <typename T>
+struct Restored {
+	T& ref;
+	T saved;
+	explicit Restored(T& r) : ref(r), saved(r) {}
+	Restored(const Restored&) = delete;
+	Restored& operator=(const Restored&) = delete;
+	~Restored() { ref = saved; }
 };
 
 /// @brief Draw the open menu once into @p rig at @p now_ms with the input @p rig holds, then clear that input.
@@ -213,6 +225,15 @@ describe leaf_cursor("scenes::menu full-screen Decimal cursor", $ {
 		expect(menu_scene().state().edit_int).to_equal(100);
 	});
 
+	it("moves gate off time ten steps a detent: its cursor starts on the units of its one decimal place, not the tenths", _ {
+		Rig r;
+		menu::bindings::write(nodes::gate_off_time, r.ctx, 50);
+		r.open(nodes::gate_off_time);
+		deluge::ui::test::Rig48 rig;
+		rig.input.turn = 1;
+		draw(rig, 0);
+		expect(menu_scene().state().edit_int).to_equal(60);
+	});
 });
 // clang-format on
 
@@ -304,14 +325,13 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 
 	it("wraps the default swing interval the same way", _ {
 		Rig r;
-		const uint8_t saved = FlashStorage::defaultSwingInterval;
+		const Restored restore{FlashStorage::defaultSwingInterval};
 		FlashStorage::defaultSwingInterval = 1;
 		r.open(nodes::default_swing_interval);
 		deluge::ui::test::Rig48 down;
 		down.input.turn = -1;
 		draw(down, 0);
 		expect(menu_scene().state().edit_int).to_equal(static_cast<int32_t>(NUM_SWING_INTERVALS) - 1);
-		FlashStorage::defaultSwingInterval = saved;
 	});
 
 	it("wraps a shift turn of the swing interval as the five-step offset", _ {
@@ -399,9 +419,10 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as main's rhythm screen does", _ {
 		Rig r;
-		std::string want = std::to_string(3) + ": " + arpRhythmPatternNames[3];
-		want = want.substr(0, 11); // its 12-byte buffer
-		expect(screen_text(nodes::arp_rhythm, r.ctx, 3)).to_equal(want);
+		for (int32_t i = 0; i <= kMaxPresetArpRhythm; i++) {
+			const std::string want = (std::to_string(i) + ": " + arpRhythmPatternNames[i]).substr(0, 11); // its buffer
+			expect(screen_text(nodes::arp_rhythm, r.ctx, i)).to_equal(want);
+		}
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
 	});
 
@@ -414,8 +435,9 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("spells the hold time in milliseconds, and its top as 1 SEC", _ {
 		Rig r;
-		expect(screen_text(nodes::default_hold_time, r.ctx, 1)).to_equal(std::string{"50 MS"});
-		expect(screen_text(nodes::default_hold_time, r.ctx, 19)).to_equal(std::string{"950 MS"});
+		for (int32_t v = 1; v < 20; v++) {
+			expect(screen_text(nodes::default_hold_time, r.ctx, v)).to_equal(std::to_string(v * 50) + " MS");
+		}
 		expect(screen_text(nodes::default_hold_time, r.ctx, 20)).to_equal(std::string{"1 SEC"});
 	});
 
@@ -462,7 +484,9 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("names a MIDI or CV arpeggiator's rhythm by its pattern", _ {
 		Rig r;
-		expect(screen_text(nodes::arp_rhythm_midi, r.ctx, 3)).to_equal(std::string{arpRhythmPatternNames[3]});
+		for (int32_t i = 0; i <= kMaxPresetArpRhythm; i++) {
+			expect(screen_text(nodes::arp_rhythm_midi, r.ctx, i)).to_equal(std::string{arpRhythmPatternNames[i]});
+		}
 	});
 
 	it("spells a note's probability with (L) when it latches, its fill and its iterance, on both editors", _ {
@@ -479,6 +503,19 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		for (const Node* n : {&nodes::note_iterance, &nodes::note_row_iterance}) {
 			expect(screen_text(*n, r.ctx, kDefaultIterancePreset)).to_equal(std::string{"OFF"});
 			expect(screen_text(*n, r.ctx, kCustomIterancePreset)).to_equal(std::string{"CUSTOM"});
+		}
+	});
+
+	it("spells every iterance preset on the full screen as the long 'n of m' label, from the bridge", _ {
+		Rig r;
+		spec::FakeNoteBridgeGuard bridge;
+		bridge.fake.iterance_preset_label_text = "3 of 4";
+		for (const Node* n : {&nodes::note_iterance, &nodes::note_row_iterance}) {
+			for (int32_t preset = kDefaultIterancePreset + 1; preset < kCustomIterancePreset; preset++) {
+				expect(screen_text(*n, r.ctx, preset)).to_equal(std::string{"3 of 4"});
+				expect(bridge.fake.iterance_preset_label_last_preset).to_equal(preset);
+				expect(bridge.fake.iterance_preset_label_last_compact).to_be_false();
+			}
 		}
 	});
 });
@@ -522,6 +559,7 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 		deluge::ui::test::Rig48 at3;
 		draw(at3, 10);
 		expect(at3.pbm()).to_equal(at1.pbm());
+		expect(name_of(nodes::record_quantize, r.ctx, 7)).to_equal(std::string{"16th-notes"});
 		FlashStorage::recordQuantizeLevel = saved;
 	});
 

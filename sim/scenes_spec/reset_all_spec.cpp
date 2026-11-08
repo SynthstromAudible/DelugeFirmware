@@ -9,6 +9,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/display/screensaver.h"
+#include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
@@ -22,6 +23,11 @@
 #include "cppspec.hpp"
 
 #include "spec/support/spec_main.h"
+
+namespace PadLEDs {
+/// The pad dimmer's live level (`hid/led/pad_leds.cpp`), which `pad_leds.h` does not declare.
+extern int32_t dimmerInterval;
+} // namespace PadLEDs
 
 namespace {
 namespace spec = deluge::scenes::spec;
@@ -44,6 +50,8 @@ describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 		menu_scene().set_horizontal_menus(false);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, RuntimeFeatureStateToggle::Off);
 		deluge::gui::ui::pushShellRoundedCorners();
+		constexpr int32_t kDimmed = 5;
+		PadLEDs::setDimmerInterval(kDimmed);
 
 		(void)deluge::scenes::context_menu::descriptor(DescriptorId::ResetAll).accept(ctx, 0);
 
@@ -58,6 +66,8 @@ describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners)).to_be_true(); // the default
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
+		// Pad brightness is stale too: the stored default is reset, the dimmer keeps its level until the next boot.
+		expect(PadLEDs::dimmerInterval).to_equal(kDimmed);
 	});
 });
 // clang-format on

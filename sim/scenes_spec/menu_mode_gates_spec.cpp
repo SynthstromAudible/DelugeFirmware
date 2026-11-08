@@ -9,6 +9,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/shell_automation_glue.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -17,6 +19,7 @@
 #include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
 
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -64,19 +67,24 @@ bool open_lpf_page_over(RootUI* root, InstrumentClip* clip) {
 	return true;
 }
 
-/// @brief The MIDI follow CHANNEL list (Settings) on the guest over the clip view: a vertical list at depth 0 whose
-///        first row, CHANNEL A, opens a leaf that allows learn (`select_turn_gate_spec.cpp`'s page).
-bool open_follow_list(spec::SongFixture& fx) {
+/// @brief The Settings node @p node on the guest over the clip view, ticked once.
+bool open_settings_node(spec::SongFixture& fx, const menu::Node& node) {
 	setRootUILowLevel(&instrumentClipView);
 	(void)menu::assign_node_ids(nodes::kAllRoots);
-	menu_scene().open(nodes::midi_follow_channel, spec::menu_context_at(fx, menu::MenuContext::Root::Settings));
+	menu_scene().open(node, spec::menu_context_at(fx, menu::MenuContext::Root::Settings));
 	shellHostUI.setInitialScene(
-	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(nodes::midi_follow_channel)});
+	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
 	if (!openUI(&shellHostUI)) {
 		return false;
 	}
 	(void)shellHostUI.timerCallback();
 	return true;
+}
+
+/// @brief The MIDI follow CHANNEL list (Settings) on the guest over the clip view: a vertical list at depth 0 whose
+///        first row, CHANNEL A, opens a leaf that allows learn (`select_turn_gate_spec.cpp`'s page).
+bool open_follow_list(spec::SongFixture& fx) {
+	return open_settings_node(fx, nodes::midi_follow_channel);
 }
 
 /// @brief A press and release of @p b through the guest, and the ticks that act on them.
@@ -117,6 +125,11 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 		currentUIMode = UI_MODE_AUDITIONING;
 		(void)shellHostUI.horizontalEncoderAction(1);
 		expect(keyboard_scroll(fx.clip)).to_equal(61);
+		// The forward answers with the keyboard's own result, so the guest returns it and does not feed the menu.
+		const std::optional<ActionResult> taken = deluge::gui::ui::forwardMenuHorizontal(1, 0);
+		expect(taken.has_value()).to_be_true();
+		expect(taken.value_or(ActionResult::NOT_DEALT_WITH) == ActionResult::DEALT_WITH).to_be_true();
+		expect(keyboard_scroll(fx.clip)).to_equal(62);
 	});
 
 	it("with no note held, the turn stays with the menu", _ {
@@ -160,6 +173,55 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 		currentUIMode = UI_MODE_AUDITIONING;
 		(void)shellHostUI.horizontalEncoderAction(1);
 		expect(keyboard_scroll(fx.clip)).to_equal(60);
+	});
+});
+
+describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction -- a Decimal keeps its horizontal turn", $ {
+	it("moves a transpose's cursor a place a detent, clamped at both ends, and a select turn then steps by that place", _ {
+		// `Transpose` takes `Decimal::horizontalEncoderAction`; only `Param::horizontalEncoderAction` hands the turn to
+		// the root, so the guest feeds this one to the menu.
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::source0_transpose, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+		shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
+		                                                       menu::node_id(nodes::source0_transpose)});
+		expect(openUI(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		const auto pos = [] { return menu_scene().state().decimal_pos; };
+		const auto edit = [] { return menu_scene().state().edit_int; };
+		const auto horizontal = [](int32_t detents) {
+			(void)shellHostUI.horizontalEncoderAction(detents);
+			(void)shellHostUI.timerCallback();
+		};
+		for (int i = 0; i < 4; i++) {
+			horizontal(1); // right, towards the units: places go down, and stop at 0
+		}
+		expect(static_cast<int>(pos())).to_equal(0);
+		const int32_t before = edit();
+		shellHostUI.selectEncoderAction(1);
+		(void)shellHostUI.timerCallback();
+		expect(edit()).to_equal(before + 1);
+
+		int32_t top = 0; // the highest place the range reaches: 10^(place + 1) must not pass its top
+		int32_t step = 1;
+		const int32_t max = menu::bindings::range(nodes::source0_transpose, menu_scene().menu_context()).max;
+		while (step * 10 <= max) {
+			step *= 10;
+			top++;
+		}
+		for (int i = 0; i < top + 3; i++) {
+			horizontal(-1); // left, away from the units, and stop at the top
+		}
+		expect(static_cast<int>(pos())).to_equal(top);
+		const int32_t at_top = edit();
+		shellHostUI.selectEncoderAction(1);
+		(void)shellHostUI.timerCallback();
+		expect(edit()).to_equal(at_top + step);
 	});
 });
 
@@ -329,6 +391,27 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 		(void)shellHostUI.timerCallback();
 	});
 
+	it("a BACK the mode refuses is not the menu's below the root: it owns no BACK, and tapping it goes nowhere", _ {
+		// `owned_input` drops the BACK claim in a refused mode, so the press reaches `handle()` (which swallows it) and
+		// not a render that would go up; with the mode clear the same BACK is claimed.
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_follow_list(fx)).to_be_true();
+		tap(deluge::hid::button::SELECT_ENC);
+		expect(depth()).to_equal(uint8_t{1});
+		const auto back = deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button,
+		                                             .on = true,
+		                                             .button = deluge::ui::shell::ButtonId::Back};
+		currentUIMode = UI_MODE_NONE;
+		deluge::gui::ui::refreshMenuModeGates();
+		expect(menu_scene().owns(back)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING | UI_MODE_NOTES_PRESSED;
+		deluge::gui::ui::refreshMenuModeGates();
+		expect(menu_scene().owns(back)).to_be_false();
+	});
+
 	it("a select turn still moves the list in a mode that refuses SELECT's press", _ {
 		// The turn's gate is `selectEncoderUIModes`, a range test: auditioning with notes pressed passes it.
 		spec::GlobalGuestGuard guest_guard;
@@ -346,4 +429,4 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 });
 // clang-format on
 
-DELUGE_SPEC(menu_mode_gates_spec, menu_mode_gates_horizontal, menu_mode_gates_buttons)
+DELUGE_SPEC(menu_mode_gates_spec, menu_mode_gates_horizontal, menu_mode_gates_decimal, menu_mode_gates_buttons)

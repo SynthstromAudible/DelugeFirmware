@@ -700,6 +700,30 @@ describe values_w("ui::oled::values", $ {
 		expect(entered.entered).to_be_true();
 	});
 
+	it("turns five options a click while SHIFT is held, and wraps by the scaled offset", _ {
+		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
+		uitest::Rig48 r;
+		ListState st;
+		ScrollText sc;
+		r.input.shift = true;
+
+		// Five options up from 4 is 9, which wraps to 3; five down from 1 is -4, which wraps to 2.
+		int32_t index = 4;
+		r.input.turn = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
+		expect(index).to_equal(3);
+		r.input.turn = -1;
+		index = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
+		expect(index).to_equal(2);
+
+		// Without wrapping the scaled offset clamps instead.
+		index = 4;
+		r.input.turn = 1;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(5);
+	});
+
 	it("keeps a long list off the stack", _ {
 		// Only the visible window is materialised, so a list far longer than kMaxWindowRows
 		// renders (and windows) exactly as a short one does.
