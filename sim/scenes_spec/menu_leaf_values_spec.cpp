@@ -17,8 +17,7 @@
 
 /// @file
 /// @brief A value leaf opened full-screen: where its cursor starts, how a turn moves it, and what it draws -- each
-///        legacy `Decimal::getDefaultEditPos`, `selectEncoderAction` and `drawPixelsForOled`/`drawInteger`
-///        override, pinned against `main`'s own numbers.
+///        of main's value rules, pinned against `main`'s own numbers.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
@@ -186,7 +185,7 @@ size_t count_where(F has) {
 
 // clang-format off
 describe leaf_cursor("scenes::menu full-screen Decimal cursor", $ {
-	it("starts on Decimal::getDefaultEditPos: the units of a two-place value", _ {
+	it("starts on main's default edit place: the units of a two-place value", _ {
 		for (const Node* n : {&nodes::source0_transpose, &nodes::master_transpose, &nodes::cv_transpose,
 		                      &nodes::audio_clip_transpose}) {
 			Rig r;
@@ -328,7 +327,7 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 	});
 
 	it("turns a quantized stutter rate five options a click while shift is held, then clamps", _ {
-		// `stutter::Rate::selectEncoderAction` clamps `idx + offset` on the scaled offset: 37 is option 3 of 0..4.
+		// Main's stutter rate clamps `idx + offset` on the scaled offset: 37 is option 3 of 0..4.
 		Rig r;
 		menu::nodes::set_stutter_direction(r.ctx, 1); // the sound's own stutter
 		menu::nodes::set_stutter_quantize(r.ctx, 1);
@@ -342,7 +341,7 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 	});
 
 	it("turns the patch cable list five rows a click while shift is held", _ {
-		// `PatchCables::selectEncoderAction` clamps `currentValue + offset` on the scaled offset.
+		// Main's patch cable list clamps `currentValue + offset` on the scaled offset.
 		Rig r;
 		deluge::scenes::bind::CableList cables;
 		for (const PatchSource source :
@@ -362,7 +361,7 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 	});
 
 	it("turns the source list five rows a click while shift is held", _ {
-		// `SourceSelection::selectEncoderAction` steps `offset` times over the allowed sources.
+		// Main's source list steps `offset` times over the allowed sources.
 		Rig r;
 		r.open(nodes::source_selection_regular);
 		deluge::ui::test::Rig48 rig;
@@ -398,7 +397,7 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		}
 	});
 
-	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as Rhythm::drawInteger does", _ {
+	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as main's rhythm screen does", _ {
 		Rig r;
 		std::string want = std::to_string(3) + ": " + arpRhythmPatternNames[3];
 		want = want.substr(0, 11); // its 12-byte buffer
@@ -406,7 +405,7 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
 	});
 
-	it("names a sound's MIDI output channel 0 Off, from l10n as OutputMidiChannel::drawInteger does", _ {
+	it("names a sound's MIDI output channel 0 Off, from l10n as main's channel screen does", _ {
 		Rig r;
 		expect(screen_text(nodes::output_midi_channel, r.ctx, 0))
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_OFF)});
@@ -538,15 +537,21 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 
 // clang-format off
 describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
-	it("gives its own turn to exactly the items whose legacy selectEncoderAction is their own", _ {
+	it("gives its own turn to exactly the items whose turn is not main's add-and-clamp", _ {
+		// The 19 follow channels, the stutter rate, both swing intervals (song and default) and the three MIDI
+		// preset parts. Every other value item adds and clamps.
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::turn_follow_channel; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::stutter_rate_turn; })).to_equal(size_t(1));
+		expect(nodes::stutter_rate.bind.turn == &nodes::stutter_rate_turn).to_be_true();
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::swing_interval_turn; })).to_equal(size_t(2));
+		expect(nodes::swing_interval.bind.turn == &nodes::swing_interval_turn).to_be_true();
+		expect(nodes::default_swing_interval.bind.turn == &nodes::swing_interval_turn).to_be_true();
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::midi_preset_turn; })).to_equal(size_t(3));
 		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(25));
 	});
 
-	it("starts every Decimal's cursor on 2 but the six legacy overrides to 1", _ {
+	it("starts every Decimal's cursor on 2 but the six overrides, which start on 1", _ {
+		// CV volts, gate off time, the two oscillator phases and the two modulator phases are the six.
 		expect(count_where([](const Node& n) { return n.kind == menu::Kind::Decimal && n.bind.default_edit_pos == 1; }))
 		    .to_equal(size_t(6));
 		expect(count_where([](const Node& n) {
@@ -555,25 +560,51 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 	});
 
 	it("names special values on exactly the Decimals main draws a word for", _ {
+		// CV volts names 0 as Hz/V; the four retrigger phases name a value below 0 as OFF and restart a turn up
+		// from it.
 		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::cv_volts_word; })).to_equal(size_t(1));
+		expect(nodes::cv_volts.bind.decimal_word == &nodes::cv_volts_word).to_be_true();
 		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::retrigger_phase_text; })).to_equal(size_t(4));
 		expect(count_where([](const Node& n) { return n.bind.decimal_word != nullptr; })).to_equal(size_t(5));
 		expect(count_where([](const Node& n) { return n.bind.decimal_restart_from_negative; })).to_equal(size_t(4));
 	});
 
-	it("draws its own full-screen text on exactly the items whose legacy draw is their own", _ {
+	it("draws its own full-screen text on exactly the items whose full screen is not main's plain digits", _ {
+		// leaf_text: the stutter rate, five compressor values, the output MIDI channel, the hold time, the reverb
+		// sidechain volume, the default magnitude, both arp rhythms, three MIDI preset parts and six note-editor
+		// items. leaf_draw: the 19 follow channels.
 		expect(count_where([](const Node& n) { return n.bind.leaf_text != nullptr; })).to_equal(size_t(21));
 		expect(count_where([](const Node& n) { return n.bind.leaf_draw != nullptr; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return !n.bind.style.unit.empty(); })).to_equal(size_t(1));
+		expect(!nodes::screensaver_timeout.bind.style.unit.empty()).to_be_true();
 		expect(count_where([](const Node& n) { return n.bind.style.label_in_digits; })).to_equal(size_t(1));
+		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
+	});
+
+	it("names a sync level against the song's own magnitude but for the two items main overrides", _ {
+		// The default swing interval and the record quantize level.
 		expect(count_where([](const Node& n) { return n.bind.sync_name_magnitude != nullptr; })).to_equal(size_t(2));
+		expect(nodes::default_swing_interval.bind.sync_name_magnitude != nullptr).to_be_true();
+		expect(nodes::record_quantize.bind.sync_name_magnitude != nullptr).to_be_true();
+	});
+
+	it("wraps a horizontal-page turn on the two oscillator types and turns five columns the other way", _ {
+		// The oscillator types wrap (behaviour: menu_horizontal_controls_spec). Reversed: the two HPF morphs, the
+		// audio clip's reverse and both samples' reverse.
 		expect(count_where([](const Node& n) { return n.bind.wrap_in_horizontal; })).to_equal(size_t(2));
+		for (const Node* n : {&nodes::osc0_type, &nodes::osc1_type}) {
+			expect(n->bind.wrap_in_horizontal).to_be_true();
+		}
 		expect(count_where([](const Node& n) { return n.bind.reverse_in_horizontal != nullptr; })).to_equal(size_t(5));
+		for (const Node* n : {&nodes::hpf_morph, &nodes::global_hpf_morph, &nodes::audio_clip_reverse,
+		                      &nodes::sample0_reverse, &nodes::sample1_reverse}) {
+			expect(n->bind.reverse_in_horizontal != nullptr).to_be_true();
+		}
 	});
 
 	it("clamps every plain integer and sync level at its top, and turns it five steps under shift", _ {
-		// `Integer::selectEncoderAction` and `Enumeration::selectEncoderAction` add and clamp; `SoundEditor` hands
-		// either five times the offset while SHIFT is held. Only the items with a turn of their own differ.
+		// Main's rule: a plain integer or sync level adds the offset and clamps, and holding SHIFT multiplies the
+		// offset by five. Only the items with a turn of their own differ.
 		size_t walked = 0;
 		for (const Node* n : every_node()) {
 			if ((n->kind != menu::Kind::Int && n->kind != menu::Kind::SyncLevel) || n->bind.turn != nullptr ||
