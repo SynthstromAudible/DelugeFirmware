@@ -82,6 +82,7 @@ bool forwardAutomationSelectTurn(int8_t offset);
 
 /// @brief A horizontal turn under the menu that legacy's current item hands to the root UI
 ///        (`MenuScene::route_horizontal_turn`): to the automation view or the keyboard screen.
+///        With only a keyboard note held over the keyboard screen, the turn is the keyboard's, whatever the menu shows.
 /// @param offset The turn's detents.
 /// @param now_ms The guest's clock, for a cable page's edge delay.
 /// @return `DEALT_WITH` when the turn went to the root or nowhere; nullopt to feed it to the menu.
