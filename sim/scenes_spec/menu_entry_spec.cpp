@@ -1759,6 +1759,56 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		closeGuest();
 	});
 
+	it("a browser claim made without SHIFT while the fact is latched leaves the page the file selector was pressed on",
+	   _ {
+		   (void)quiet_audio();
+		   ToggleGuard on{RuntimeFeatureStateToggle::On};
+		   RootUIGuard root_guard;
+		   deluge::scenes::spec::UiModeGuard mode;
+		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		   (void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		   f.clip->affectEntire = true;
+		   setRootUILowLevel(&instrumentClipView);
+		   deluge::scenes::spec::FeatureSetting horizontal{RuntimeFeatureSettingType::HorizontalMenus,
+		                                                   util::to_underlying(RuntimeFeatureStateToggle::On)};
+		   entry::clearShellKitGlobalFx();
+		   expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                               entry::ShellMenuNode::Osc0FileSelector))
+		       .to_be_true();
+		   (void)shellHostUI.timerCallback();
+		   {
+			   HeldShift shift;
+			   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+			   entry::shellSampleClaimDone(true);
+			   (void)shellHostUI.shell().stack().remove(deluge::scenes::browser::kBrowserSceneKind);
+			   for (int i = 0; i < 3; i++) {
+				   (void)shellHostUI.timerCallback();
+			   }
+			   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		   }
+		   expect(entry::shellKitGlobalFx()).to_be_true();
+		   const menu::Node* const group = deluge::scenes::menu_scene().focused();
+		   expect(is_horizontal_page(group)).to_be_true();
+		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::file0_selector).to_be_true();
+		   const size_t depth = deluge::scenes::menu_scene().state().depth;
+		   // SELECT on the file selector opens the browser; a second claim, SHIFT up, goes back up one level.
+		   (void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		   (void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		   for (int i = 0; i < 3; i++) {
+			   (void)shellHostUI.timerCallback();
+		   }
+		   expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
+		       .to_be_true();
+		   entry::shellSampleClaimDone(true);
+		   (void)shellHostUI.shell().stack().remove(deluge::scenes::browser::kBrowserSceneKind);
+		   for (int i = 0; i < 3; i++) {
+			   (void)shellHostUI.timerCallback();
+		   }
+		   expect(deluge::scenes::menu_scene().focused() == group).to_be_true();
+		   expect(deluge::scenes::menu_scene().state().depth == depth).to_be_true();
+		   closeGuest();
+	   });
+
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;

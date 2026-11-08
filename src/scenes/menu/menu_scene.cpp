@@ -465,8 +465,9 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 	}
 	// `maybeGetParentMenu`'s search: the first menu of the root's chain that lists the item, which for an oscillator's
 	// file selector is the whole `source_group`, paged across its five members. A root whose chain lists the item
-	// nowhere falls back to the page that does (the audio clip's sample page). Legacy answers `nullptr` when no menu
-	// lists the item, and its caller then does nothing -- which is this `false`.
+	// nowhere falls back to the page that does (the audio clip's sample page), except under the kit-global latch: its
+	// kit chain never lists a drum's file selector, and legacy then sets no pair, so the claim goes up one level.
+	// Legacy answers `nullptr` when no menu lists the item, and its caller then does nothing -- which is this `false`.
 	const Node* page = nullptr;
 	for (const Node* candidate : chain_for(shortcut_root())) {
 		if (candidate != nullptr && page_lists(*candidate, item)) {
@@ -474,7 +475,7 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 			break;
 		}
 	}
-	if (page == nullptr) {
+	if (page == nullptr && !kit_global_shortcut_context().has_value()) {
 		page = horizontal_page_listing(*r[i], item);
 	}
 	if (page == nullptr) {
