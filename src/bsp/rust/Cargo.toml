@@ -37,9 +37,11 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
 # Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's,
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
-# `fault-blink` handler.
+# `fault-blink` handler. `zero-init-below-image` puts `.bss` and the MMU table below the image, so the
+# `__sram_heap_base` in linker/sdram_sections.x can hand the image's boot-only tail to the heap.
 deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", default-features = false, features = [
     "flash",
+    "zero-init-below-image",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
 usb-classes = { package = "deluge-usb-classes", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = [

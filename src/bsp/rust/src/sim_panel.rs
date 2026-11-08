@@ -75,8 +75,6 @@ pub fn render_block(render: impl FnOnce(&mut [Sample; BLOCK_FRAMES])) -> bool {
 }
 
 fn exchange(ends: &mut BrainEnds, render: impl FnOnce(&mut [Sample; BLOCK_FRAMES])) -> bool {
-    use deluge_simulator::link::audio::{Consumer, Observer, Producer};
-
     if ends.out.vacant_len() < BLOCK_FRAMES {
         return false;
     }
@@ -367,8 +365,6 @@ mod tests {
 
     #[test]
     fn a_block_renders_its_input_into_the_output_while_the_output_has_room() {
-        use deluge_simulator::link::audio::{Consumer, Observer, Producer};
-
         let (mut brain, mut gui) = deluge_simulator::link::audio::new_bridge();
         // Half a block of input: the rest of the block reads as silence.
         for n in 0..BLOCK_FRAMES / 2 {
