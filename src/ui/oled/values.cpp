@@ -187,13 +187,14 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		f.claim_horizontal();
 		f.claim_turn();
 		const int8_t horizontal = f.horizontal();
+		// `cv::Volts` and `RetriggerPhase::horizontalEncoderAction`: a value the item names has no cursor to move,
+		// judged on the value before this tick's select edit.
+		std::array<char, 24> named_buf{};
+		const bool named = !label_of(style, value, named_buf).empty();
 		// A tick still restarts the blink lit even when blocked by either bound below (matches
 		// the legacy ordering, where the moving-cursor flag is set unconditionally after the
 		// position update).
-		// `cv::Volts` and `RetriggerPhase::horizontalEncoderAction`: a value the item names has no cursor to move.
-		std::array<char, 24> named_buf{};
-		const bool named = !label_of(style, value, named_buf).empty();
-		horizontal_ticked = horizontal != 0;
+		horizontal_ticked = horizontal != 0 && !named;
 		if (!named && horizontal > 0 && edit_pos > 0) {
 			edit_pos--;
 		}

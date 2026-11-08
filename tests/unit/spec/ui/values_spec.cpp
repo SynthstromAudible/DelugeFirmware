@@ -1,5 +1,6 @@
 #include "../gfx/support/golden.h"
 #include "support/frames.h"
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/core/state.h"
 #include "ui/core/style.h"
@@ -539,6 +540,31 @@ describe values_w("ui::oled::values", $ {
 		decimal_value(moved.frame, moved.frame.bounds(), five, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
 		              ValueStyle{.label = hz_per_volt});
 		expect(int(edit_pos)).to_equal(2);     // a value the label does not name has its cursor
+	});
+
+	it("does not light the blink for a tick on a named value, even when the same frame's turn unnames it", _ {
+		// Main: `Volts::horizontalEncoderAction` does nothing at 0 (no movingCursor); the select turn that follows
+		// restarts the blink dark. A tick on a named value is not a cursor move.
+		const auto hz_per_volt = [](int32_t v, const void*, std::span<char> out) -> std::string_view {
+			if (v != 0) {
+				return {};
+			}
+			constexpr std::string_view kWord = "Hz/V";
+			std::copy(kWord.begin(), kWord.end(), out.begin());
+			return {out.data(), kWord.size()};
+		};
+		uitest::Rig48 r;
+		int32_t value = 0;
+		int8_t edit_pos = 1;
+		Blink blink;
+		r.input.now_ms = 5000;
+		r.input.horizontal = -1;
+		r.input.turn = 1;
+		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 200}, 2, edit_pos, blink, true,
+		              ValueStyle{.label = hz_per_volt});
+		expect(value).to_equal(10);
+		expect(int(edit_pos)).to_equal(1);
+		expect(blink_lit(blink, 5000)).to_be_false();
 	});
 
 	it("restarts a turn up from below zero at minus one step, so the first detent lands on 0", _ {
