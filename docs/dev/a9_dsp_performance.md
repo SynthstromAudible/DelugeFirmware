@@ -810,6 +810,73 @@ At n = 128 the controls sit above the earlier tables in this file (analog chain 
 11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
 how much the image moved the rest, so read the float figures with that margin.
 
+## Float voice slice
+
+The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float oscillators (`fp::BlepOscillator` and
+`fp::TableOscillator`, both sawtooth), `fp::Envelope`, and a whole voice, `Chain<oscillator, fp::Svf,
+fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes through
+one configuration). Every case is a generator, run under flush-to-zero in the device's `-funsafe-math-optimizations`
+build, over 128-sample blocks. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a low-pass
+at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope cases and the voices are gated: lane l gets a gate-on once in 8 blocks
+and a gate-off 4 blocks later, 2·l blocks behind lane 0, and lane programs differ (ADSR, four-segment, ASR), so the lanes
+sit in different stages and stage changes fall inside the timed region, with the gate events themselves. Medians of
+three runs of one image on the rig (2026-11-08), n = 128, cycles per channel-sample. The three runs agree to within
+0.1 on every case.
+
+| case | cycles per channel-sample | Poly over Mono |
+|---|---:|---:|
+| fp_blep_saw_mono | 52.13 | |
+| fp_blep_saw_poly2 | 24.38 | 2.14x |
+| fp_blep_saw_poly4 | 19.59 | 2.66x |
+| fp_table_saw_mono | 48.13 | |
+| fp_table_saw_poly2 | 36.91 | 1.30x |
+| fp_table_saw_poly4 | 30.83 | 1.56x |
+| fp_envelope_mono | 36.72 | |
+| fp_envelope_poly4 | 29.92 | 1.23x |
+| fp_voice_blep_mono | 110.19 | |
+| fp_voice_blep_poly2 | 94.54 | 1.17x |
+| fp_voice_blep_poly4 | 62.54 | 1.76x |
+| fp_voice_blep_linked2 | 107.94 | 1.02x (Linked) |
+| fp_voice_table_poly4 | 73.25 | |
+
+Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.36
+(the same as the filters' list: 32.03, 165.89, 12.41).
+
+**Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.66x at four: its step is arithmetic
+only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.56x. **Envelope.** It
+gains 1.23x at four lanes. Its step is a few operations, so the per-block work that is not the step counts: the gate
+events (each an out-of-line call into one lane) and the scalar handler that runs when any lane reaches the end of its
+stage. The figure also depends on the block size more than the others do (Poly at four lanes: 46.81 at n = 32, 35.30 at
+64, 29.92 at 128), because that work is a fixed cost per block that the larger block spreads.
+
+**Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the BLEP voice 1.76x
+faster than Mono per channel-sample, and at two lanes 1.17x. Its cost at four lanes, 62.54, is the sum of its parts at
+four lanes (oscillator 19.59, SVF 12.49 from the filters' list, envelope 29.92: 62.00), so the chain adds nothing, but
+the envelope is 48% of the voice and gains the least. In Mono the voice, 110.19, is also the sum of its parts (52.13 +
+26.17 + 36.72 = 115.02, 4% less). `Linked` at two lanes, which steps each lane's scalar chain one after the other, is
+level with Mono (107.94 against 110.19).
+
+**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.13 against 52.13). Under Poly at four
+lanes it is 57% dearer (30.83 against 19.59), and a table voice at four lanes costs 73.25 against 62.54 for the BLEP
+voice, 17% more. The table's read is a gather: each lane loads its own two neighbouring samples from its own band, and a
+NEON register cannot do that in one instruction. The table saw at four lanes executes 6 more instructions per sample
+than the BLEP saw. In the voice the four bands (8 KB each in the 90 KB set, in SDRAM) also compete with the voice's own
+state for the 32 KB data cache: the table voice at four lanes counts 0.11 L1D refills and 4.11 data-cache stall cycles
+per sample, the BLEP voice none. The oscillator alone at four lanes counts 0.01 and 0.50.
+
+**Codegen.** The `fp_voice_blep_poly4` loop (the SAW and LOW_PASS mode of the chain's `run`) has no call on its common
+path: its one call, to the envelope's scalar stage handler, is taken only when a lane has reached the end of a stage.
+It uses no `vfma`, `vmla` or reciprocal estimate, so the arithmetic is the source's, in the source's order. The loop
+keeps its coefficients and states in memory, loading about a dozen q registers and storing five per frame; the packed
+temporaries stay in registers. Every frame reloads three pointers from the stack.
+
+**Placement and build.** The saw-band set is 90,156 bytes of storage written once by `build_saw_bands()`. In the
+device's on-chip SRAM the `float_voice` image does not link (`.sdram_init_pack` overlaps `.rtt_cached_reserve`); the
+storage is `PLACE_SDRAM_BSS`, in SDRAM, where it is all-zero at boot as the section requires. With it there the image's
+SRAM heap starts at 0x202825d0 against 0x20275610 for the `float_filters` image, 428 KB of heap left. The one build
+takes 71.7 million cycles on the device with cold caches, about 0.18 s at the A9's 400 MHz, and belongs off the audio
+tier at boot.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

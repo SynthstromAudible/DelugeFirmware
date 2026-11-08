@@ -121,3 +121,9 @@ The `float_filters` list times the float kernels (`fp::OnePole`, `fp::Smoother`,
 host it is held one block at a time. Cycles are per channel-sample for Poly and Linked and per input sample for the
 Bank. The figures are in
 `docs/dev/a9_dsp_performance.md`.
+
+The `float_voice` list times the float oscillators (BLEP and table saws), the envelope and a whole voice (oscillator,
+SVF, envelope amplifier) in `Mono`, `Poly` at 2 and 4 lanes and `Linked` at 2 lanes, with the same controls and the same
+flush-to-zero rule. The envelope and voice cases get gate events at the start of each block, inside the timed region.
+The image prints one extra line before the cases, `BENCH-INFO build_saw_bands_cycles`: the cycles of the one build of
+the 90 KB saw-band set, caches cold. The figures are in `docs/dev/a9_dsp_performance.md`.

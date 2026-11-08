@@ -16,6 +16,8 @@
  */
 #include "dsp-next/float/osc/saw_bands.h"
 
+#include "board_config.h"
+
 #include <array>
 #include <numbers>
 
@@ -23,7 +25,7 @@ namespace deluge::dsp::fp {
 
 namespace detail {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): written once, by build_saw_bands().
-std::array<f32, kSawBands*(kSawBandSize + 1)> saw_band_storage;
+PLACE_SDRAM_BSS std::array<f32, kSawBands*(kSawBandSize + 1)> saw_band_storage;
 bool saw_bands_built = false;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 } // namespace detail
