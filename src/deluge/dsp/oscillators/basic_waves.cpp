@@ -167,12 +167,9 @@ uint32_t renderCrudeSawWaveWithoutAmplitude(int32_t* thisSample, int32_t* buffer
 	return phaseNowNow;
 }
 
-/**
- * @brief Get a table number and size, depending on the increment
- *
- * @return table_number, table_size
- */
-std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement) {
+namespace {
+/// The original compare chain that getTableNumber replaced. Just kept for reference
+constexpr std::pair<int32_t, int32_t> getTableNumberReference(uint32_t phaseIncrement) {
 	if (phaseIncrement <= 1247086) {
 		return {0, 13};
 	}
@@ -234,6 +231,25 @@ std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement) {
 		return {19, 9};
 	}
 }
+} // namespace
+
+// I don't know where the magic numbers above came from, so we're really just testing that the new version is the same
+static_assert([] {
+	auto matches = [](uint32_t phaseIncrement) {
+		return getTableNumber(phaseIncrement) == getTableNumberReference(phaseIncrement);
+	};
+	for (uint32_t bound : detail::kTableNumberBounds) {
+		if (!matches(bound - 1) || !matches(bound) || !matches(bound + 1)) {
+			return false;
+		}
+	}
+	for (int32_t bit = 0; bit < 32; bit++) {
+		if (!matches((1u << bit) - 1) || !matches(1u << bit)) {
+			return false;
+		}
+	}
+	return true;
+}());
 
 const int16_t* sawTables[20] = {NULL,       NULL,       NULL,      NULL,      NULL,      NULL,      sawWave215,
                                 sawWave153, sawWave109, sawWave76, sawWave53, sawWave39, sawWave27, sawWave19,

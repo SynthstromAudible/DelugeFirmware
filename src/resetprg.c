@@ -81,7 +81,10 @@ extern void __libc_init_array(void);
 
 extern uint32_t __reloc_sections_start__;
 extern uint32_t __reloc_sections_end__;
-extern uint32_t __heap_start;
+extern uint32_t __sdram_text_load;
+extern uint32_t __sdram_data_load;
+extern uint32_t __sdram_rodata_load;
+extern uint32_t __reloc_sections_load;
 extern uint32_t __frunk_bss_start;
 extern uint32_t __frunk_bss_end;
 extern uint32_t __sdram_bss_start;
@@ -111,8 +114,9 @@ static void emptySection(uint32_t* start, uint32_t* end) {
 	}
 }
 
-static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
-	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
+static void relocateSDRAMSection(uint32_t* start, uint32_t* end, uint32_t* src) {
+	// Use each section's load address: SDRAM alignment can introduce gaps
+	// that are absent from the packed boot image in internal RAM.
 	uint32_t* dst = start;
 	while (dst < end) {
 		*dst = *src; // Copy to SDRAM
@@ -193,10 +197,16 @@ void resetprg(void) {
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
 
-	relocateSDRAMSection(&__reloc_sections_start__, &__reloc_sections_end__);
-	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
-	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
-	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);
+	relocateSDRAMSection(&__reloc_sections_start__, &__reloc_sections_end__, &__reloc_sections_load);
+	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end, &__sdram_text_load);
+	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end, &__sdram_data_load);
+	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end, &__sdram_rodata_load);
+
+	// Relocated instructions were written through the data cache. Make them
+	// visible to instruction fetch before constructors can call UI methods.
+	L1_D_CacheWritebackAll();
+	L2CacheFlushAll();
+	L1_I_CacheFlushAll();
 
 	__libc_init_array();
 	// located in OSLikeStuff/main.c

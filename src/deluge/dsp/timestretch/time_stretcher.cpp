@@ -52,6 +52,8 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		percCacheClustersNearby[l] = nullptr;
 	}
 
+	percCacheFillDirection = 0;
+
 	playHeadStillActive[PLAY_HEAD_OLDER] = true;
 	playHeadStillActive[PLAY_HEAD_NEWER] = true;
 

@@ -140,9 +140,9 @@ SECTIONS
 	{
 		 _bss = .;
 		 PROVIDE(__bss_start__ = .);
-		 *(.bss)
-		 *(.bss.**)
-		 *(COMMON)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) .bss)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) .bss.**)
+		 *(EXCLUDE_FILE (*src/deluge/gui/*.obj) COMMON)
 		 . = ALIGN(0x4);
 		 PROVIDE(__bss_end__ = .);
 		 _ebss = .;
@@ -177,6 +177,22 @@ SECTIONS
 
     } > RAM012L
 
+	/* GUI sources are compiled without LTO so their object paths survive.
+	 * Select their code before the internal .text wildcard. The filename '*'
+	 * also matches nested directories, so new GUI compilation units need no
+	 * linker changes. Shared COMDAT helpers follow the retained object copy.
+	 * resetprg relocates this section and synchronizes caches before constructors.
+	 */
+	.sdram_text : AT(__sdram_text_load)
+	{
+		. = ALIGN(4);
+		PROVIDE(__sdram_text_start = .);
+		*(.sdram_text .sdram_text*)
+		*src/deluge/gui/*.obj(.text .text.* .gnu.linkonce.t.*)
+		. = ALIGN(4);
+		PROVIDE(__sdram_text_end = .);
+	} > SDRAM
+
     .text : ALIGN(0x4) {
 		_stext = .;
 		
@@ -188,6 +204,21 @@ SECTIONS
         PROVIDE(program_code_end = .);
 
 	} > RAM012L
+
+    .sdram_rodata : AT(__sdram_rodata_load)
+    {
+        . = ALIGN(0x4);
+        PROVIDE(__sdram_rodata_start = .);
+        /* GUI constants, fonts, option tables and vtables are selected before
+         * internal .rodata/.data. Match paths so new GUI sources follow suit.
+         */
+        *src/deluge/gui/*.obj(.rodata .rodata.* .data.rel.ro .data.rel.ro.* .gnu.linkonce.r.*)
+        INPUT_SECTION_FLAGS(SHF_STRINGS) *(.rodata*) /* there's a bunch of different patterns for string constant sections */
+        *(.sdram_rodata)
+        *(.sdram_rodata*)
+        . = ALIGN(0x4);
+        PROVIDE(__sdram_rodata_end = .);
+    } > SDRAM
 
 	.rodata :
 	{
@@ -210,8 +241,8 @@ SECTIONS
 		address_start_data_ROM = .;
 		_data = .;
 		_sdata = .;
-		*(.data)
-		*(.data*)
+		*(EXCLUDE_FILE (*src/deluge/gui/*.obj) .data)
+		*(EXCLUDE_FILE (*src/deluge/gui/*.obj) .data*)
 		*(.igot.plt)
 		*(.got.plt) 
 		*(.got)
@@ -273,37 +304,20 @@ SECTIONS
 		PROVIDE(_nl_heap_end = .);
 	} > RAM012L
 
-	/* This worked in isolated testing, for example with init_crc_table but I had problems with bigger stuff, maybe timing? */
-	.sdram_text : AT(ADDR(.heap))
-	{
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_start = .);
-        *(.sdram_text .sdram_text*)
-        . = ALIGN(4);
-		KEEP(*(.sdram_text))
-        PROVIDE(__sdram_text_end = .);
-	} > SDRAM
+	/* Resolve the forward load address after internal sections are laid out. */
+	__sdram_text_load = ADDR(.heap);
 
 	.sdram_data : AT(ADDR(.heap) + SIZEOF(.sdram_text))
 	{
         . = ALIGN(4);
         PROVIDE(__sdram_data_start = .);
         *(.sdram_data .sdram_data*)
+        /* Initialized GUI objects and pointer arrays must be copied, not zeroed. */
+        *src/deluge/gui/*.obj(.data .data.* .gnu.linkonce.d.*)
         . = ALIGN(4);
 		KEEP(*(.sdram_data))
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
-
-    .sdram_rodata :AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data))
-    {
-        . = ALIGN(0x4);
-        PROVIDE(__sdram_rodata_start = .);
-        INPUT_SECTION_FLAGS(SHF_STRINGS) *(.rodata*) /* there's a bunch of different patterns for string constant sections */
-        *(.sdram_rodata)
-        *(.sdram_rodata*)
-        PROVIDE(__sdram_rodata_end = .);
-        . = ALIGN(0x4);
-    } > SDRAM
 
     .exceptions : AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata)) {
         PROVIDE(__reloc_sections_start__ = .);
@@ -315,6 +329,14 @@ SECTIONS
         PROVIDE_HIDDEN(__exidx_end = .);
         PROVIDE(__reloc_sections_end__ = .);
     } > SDRAM
+
+	__sdram_data_load = LOADADDR(.sdram_data);
+	/* Keep the boot image packed in text/data/rodata order even though
+	 * rodata is selected earlier and has a different SDRAM placement order.
+	 * resetprg uses each section's load address rather than a shared offset.
+	 */
+	__sdram_rodata_load = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data);
+	__reloc_sections_load = LOADADDR(.exceptions);
 
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
 	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata) + SIZEOF(.exceptions);
@@ -334,6 +356,8 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_bss_start = .);
         *(.sdram_bss .sdram_bss*)
+        /* GUI storage excluded from internal BSS above; cleared before constructors. */
+        *src/deluge/gui/*.obj(.bss .bss.* .gnu.linkonce.b.* COMMON)
         . = ALIGN(4);
 		KEEP(*(.sdram_bss))
         PROVIDE(__sdram_bss_end = .);
@@ -359,21 +383,3 @@ SECTIONS
   }
 
 }
-
-
-/*
-	// In order to attempt to move init functions in the SDRAM you need to move sdram_text before the .text sections
-	// so _Z41__static_initialization_and_destruction_0ii is not yet consumed by the wildcard, that works with the following block
-	// Problem was that seemingly the functions were copied to SDRAM but not executed as part of the init routine
-	.sdram_text : AT(__heap_start)
-	{
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_start = .);
-		*(.text._Z41__static_initialization_and_destruction_0ii)
-        *(.sdram_text .sdram_text*)
-        . = ALIGN(4);
-        PROVIDE(__sdram_text_end = .);
-	} > SDRAM
-
-*/
-

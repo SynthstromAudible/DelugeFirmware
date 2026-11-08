@@ -28,8 +28,11 @@ jobs:
         with:
           run_id: ${{ github.event.workflow_run.id }}
           path: artifacts
+          # Website-only PRs skip the tests, so there's nothing to publish
+          if_no_artifact_found: ignore
 
       - name: Publish Test Results
+        if: hashFiles('artifacts/**/*.xml') != ''
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           commit: ${{ github.event.workflow_run.head_sha }}

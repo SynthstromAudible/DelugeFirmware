@@ -230,12 +230,6 @@ void UITimerManager::routine() {
 					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 
-				case TimerName::OLED_LOW_LEVEL:
-					if (deluge::hid::display::have_oled_screen) {
-						oledLowLevelTimerCallback();
-					}
-					break;
-
 				case TimerName::OLED_CONSOLE:
 					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);

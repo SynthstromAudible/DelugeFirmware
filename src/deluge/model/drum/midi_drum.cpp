@@ -131,7 +131,7 @@ std::string MIDIDrum::getDrumName() {
 		buffer.append(": ");
 		buffer.append(deluge::string::fromInt(note));
 		buffer.append(" (");
-		char noteLabel[5];
+		char noteLabel[kNoteCodeStringBufferSize];
 		noteCodeToString(note, noteLabel);
 		buffer.append(noteLabel);
 		buffer.append(")");

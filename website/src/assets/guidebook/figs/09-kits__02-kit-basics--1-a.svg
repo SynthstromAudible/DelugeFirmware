@@ -1,0 +1,29 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 117.1 82.6">
+<defs>
+<clipPath id="09-kits__02-kit-basics--1-a-clip_1">
+<path transform="matrix(1,0,0,-1,-98.8,584.1)" d="M98.8 501.5H216V584.1H98.8Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="09-kits__02-kit-basics--1-a-clip_2">
+<path transform="matrix(1,0,0,-1,-98.8,584.1)" d="M105.0 504.8H209.9V578.0H105.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="09-kits__02-kit-basics--1-a-mask_3">
+<g transform="matrix(.072,0,0,.07199999,5.9,5.9)">
+<image id="09-kits__02-kit-basics--1-a-image_4" width="1460" height="981" xlink:href="/guidebook/img/09-kits__02-kit-basics--1-a-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#09-kits__02-kit-basics--1-a-clip_1)">
+<path transform="matrix(1,0,0,-1,-98.8,584.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M380.4 503.4V458.3"/>
+<g clip-path="url(#09-kits__02-kit-basics--1-a-clip_2)">
+<g mask="url(#09-kits__02-kit-basics--1-a-mask_3)">
+<g transform="matrix(.072,0,0,.07199999,5.9,5.9)">
+<image class="gb-ink" id="09-kits__02-kit-basics--1-a-image_5" width="1460" height="981" xlink:href="/guidebook/img/09-kits__02-kit-basics--1-a-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-98.8,584.1)" d="M163.2 543.0C166.3 543.0 168.8 540.6 168.8 537.5 168.8 534.4 166.3 531.9 163.2 531.9 160.1 531.9 157.6 534.4 157.6 537.5 157.6 540.6 160.1 543.0 163.2 543.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-98.8,584.1)" d="M163.2 543.0C166.3 543.0 168.8 540.6 168.8 537.5 168.8 534.4 166.3 531.9 163.2 531.9 160.1 531.9 157.6 534.4 157.6 537.5 157.6 540.6 160.1 543.0 163.2 543.0ZM163.2 542.6C160.4 542.6 158.1 540.3 158.1 537.5 158.1 534.7 160.4 532.4 163.2 532.4 166.0 532.4 168.3 534.7 168.3 537.5 168.3 540.3 166.0 542.6 163.2 542.6Z" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

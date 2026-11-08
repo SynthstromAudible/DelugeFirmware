@@ -1,0 +1,44 @@
+name: Detect changes
+
+# Tells firmware workflows whether a PR touches anything outside the website.
+# Firmware checks are required, so callers skip jobs (which count as passing)
+# rather than filtering the whole workflow on paths (which leaves them pending).
+# Pushes, merge queue runs and manual runs always count as firmware changes.
+
+on:
+  workflow_call:
+    outputs:
+      firmware:
+        description: "'true' if the change touches anything outside the website"
+        value: ${{ jobs.changes.outputs.firmware }}
+
+permissions: {}
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      firmware: ${{ steps.filter.outputs.firmware }}
+    steps:
+      - name: Check changed paths
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "firmware=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          echo "$files"
+          website='^(website/|\.github/workflows/(pr-build-website|deploy-website|format-website)\.yml$)'
+          if grep -qvE "$website" <<< "$files"; then
+            echo "firmware=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only website files changed, skipping firmware jobs"
+            echo "firmware=false" >> "$GITHUB_OUTPUT"
+          fi

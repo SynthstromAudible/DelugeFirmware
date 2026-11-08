@@ -54,9 +54,11 @@ jobs:
               echo "tag-name must look like v1.3.0 or v1.3.0-rc1 to publish"; exit 1
             fi
           fi
-          echo "release-type=$type" >> "$GITHUB_OUTPUT"
-          echo "publish=$publish" >> "$GITHUB_OUTPUT"
-          echo "tag-name=$tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "release-type=$type"
+            echo "publish=$publish"
+            echo "tag-name=$tag"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -96,7 +98,7 @@ jobs:
           https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide
           END
           sed -i "s/\$TAG/$TAG/; s/\$GITHUB_SHA/$GITHUB_SHA/" README.txt
-          zip -j "./$TAG.zip" README.txt *.bin *.elf
+          zip -j "./$TAG.zip" README.txt ./*.bin ./*.elf
       - name: Create draft release or attach to existing one
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

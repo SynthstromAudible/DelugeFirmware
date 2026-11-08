@@ -1,0 +1,23 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 97.2 54.5">
+<defs>
+<clipPath id="12-session-view__02-session-view-basics--1-a-clip_1">
+<path transform="matrix(1,0,0,-1,-191.5,609.7)" d="M191.5 555.1H288.7V609.7H191.5Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-session-view__02-session-view-basics--1-a-mask_2">
+<g transform="matrix(.088593,0,0,.088593009,5.9,6.0)">
+<image id="12-session-view__02-session-view-basics--1-a-image_3" width="962" height="480" xlink:href="/guidebook/img/12-session-view__02-session-view-basics--1-a-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-session-view__02-session-view-basics--1-a-clip_1)">
+<g mask="url(#12-session-view__02-session-view-basics--1-a-mask_2)">
+<g transform="matrix(.088593,0,0,.088593009,5.9,6.0)">
+<image class="gb-ink" id="12-session-view__02-session-view-basics--1-a-image_4" width="962" height="480" xlink:href="/guidebook/img/12-session-view__02-session-view-basics--1-a-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-191.5,609.7)" d="M254.6 600.8C258.2 600.8 261.1 597.9 261.1 594.3 261.1 590.8 258.2 587.9 254.6 587.9 251.0 587.9 248.1 590.8 248.1 594.3 248.1 597.9 251.0 600.8 254.6 600.8Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-191.5,609.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+</g>
+</g>
+</svg>

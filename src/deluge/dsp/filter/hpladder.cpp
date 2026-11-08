@@ -66,43 +66,97 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	return filterGain;
 }
+// Performance notes for doFilter()/doFilterStereo(). Same approach as LpLadderFilter, see the notes in lpladder.cpp.
+//
+// Design: the per-sample loops are doFilterT()/doFilterStereoT(), templated on two loop-invariant conditions picked
+// once per buffer by dispatch():
+//  - kSaturation: 2 for the antialiased tanh (hpfProcessedResonance > 900000000), 1 for the plain tanh (> 750000000),
+//    0 for none. The thresholds are the ones the per-sample branch used to check.
+//  - kMorph: false when morph_ == 0. smmlar(fc, x, 0) is exactly fc, so the per-sample cutoff modulation goes and the
+//    cutoff is just max(fc, lower_limit).
+// The loops work on local copies of the coefficients and the filter state, written back once per buffer. Stores
+// through the q31_t* sample buffer could otherwise alias the q31_t members, so GCC reloaded all of them and stored the
+// state back on every sample. hpfLastWorkingValue is still worked out every sample in the non-antialiased variants
+// (now without a store), so a later buffer that crosses into the antialiased variant starts from the same value as
+// before. Only the last sample's value matters there, so it could be worked out once per buffer instead; not done.
+//
+// Alternatives considered:
+//  - Only the locals, keeping the saturation branch inside the loop. Most of the gain is the loads and stores, but the
+//    branch is loop invariant and both tanh paths make the loop bigger than it needs to be.
+//  - Templating on morph sign as well, or folding the 6 variants down to fewer to save code size. Not done: only one
+//    variant is hot per voice.
+//  - Interleaving left and right (or two voices) to hide smmulr latency, as for the LP ladder. Not done here either.
+template <typename F>
+[[gnu::always_inline]] inline void HpLadderFilter::dispatch(F&& f) {
+	bool morph = morph_ != 0;
+	if (hpfProcessedResonance > 900000000) { // 890551738
+		morph ? f.template operator()<2, true>() : f.template operator()<2, false>();
+	}
+	else if (hpfProcessedResonance > 750000000) { // 400551738
+		morph ? f.template operator()<1, true>() : f.template operator()<1, false>();
+	}
+	else {
+		morph ? f.template operator()<0, true>() : f.template operator()<0, false>();
+	}
+}
 [[gnu::hot]] void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
-	q31_t* currentSample = startSample;
-	do {
-		*currentSample = doHPF(*currentSample, l);
-		currentSample += sampleIncrement;
-	} while (currentSample < endSample);
+	dispatch([&]<int kSaturation, bool kMorph>() {
+		doFilterT<kSaturation, kMorph>(startSample, endSample, sampleIncrement);
+	});
 }
 // filter an interleaved stereo buffer
 [[gnu::hot]] void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+	dispatch([&]<int kSaturation, bool kMorph>() { doFilterStereoT<kSaturation, kMorph>(startSample, endSample); });
+}
+template <int kSaturation, bool kMorph>
+[[gnu::hot]] void HpLadderFilter::doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	const Coeffs c = getCoeffs();
+	HPLadderState s = l;
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, l);
-		currentSample += 1;
-		*currentSample = doHPF(*currentSample, r);
-		currentSample += 1;
+		*currentSample = doHPF<kSaturation, kMorph>(*currentSample, s, c);
+		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
+	l = s;
 }
-[[gnu::always_inline]] inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
+template <int kSaturation, bool kMorph>
+[[gnu::hot]] void HpLadderFilter::doFilterStereoT(q31_t* startSample, q31_t* endSample) {
+	const Coeffs c = getCoeffs();
+	HPLadderState sl = l;
+	HPLadderState sr = r;
+	q31_t* currentSample = startSample;
+	do {
+		currentSample[0] = doHPF<kSaturation, kMorph>(currentSample[0], sl, c);
+		currentSample[1] = doHPF<kSaturation, kMorph>(currentSample[1], sr, c);
+		currentSample += 2;
+	} while (currentSample < endSample);
+	l = sl;
+	r = sr;
+}
+template <int kSaturation, bool kMorph>
+[[gnu::always_inline]] inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state, const Coeffs& c) {
 	// inputs are only 16 bit so this is pretty small
 	// this limit was found experimentally as about the lowest fc can get without sounding broken
 	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
-	q31_t temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc, input << 4, morph_), lower_limit);
+	// With morph 0 the multiply-accumulate adds exactly 0, so this is fc
+	q31_t temp_fc = kMorph
+	                    ? std::max(multiply_accumulate_32x32_rshift32_rounded(c.fc, input << 4, c.morph), lower_limit)
+	                    : std::max(c.fc, lower_limit);
 
 	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, temp_fc);
 
 	q31_t feedbacksValue =
-	    state.hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
+	    state.hpfHPF3.getFeedbackOutput(c.hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(c.hpfLPF1Feedback);
 
-	q31_t a = multiply_32x32_rshift32_rounded(divideByTotalMoveability, firstHPFOutput + feedbacksValue) << (4 + 1);
+	q31_t a = multiply_32x32_rshift32_rounded(c.divideByTotalMoveability, firstHPFOutput + feedbacksValue) << (4 + 1);
 
 	// Only saturate / anti-alias if lots of resonance
-	if (hpfProcessedResonance > 900000000) { // 890551738
+	if constexpr (kSaturation == 2) {
 		a = getTanHAntialiased(a, &state.hpfLastWorkingValue, 1);
 	}
 	else {
 		state.hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
-		if (hpfProcessedResonance > 750000000) { // 400551738
+		if constexpr (kSaturation == 1) {
 			a = getTanHUnknown(a, 2);
 		}
 	}
@@ -110,7 +164,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, temp_fc), temp_fc);
 
 	// Normalization
-	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1);
+	a = multiply_32x32_rshift32_rounded(a, c.hpfDivideByProcessedResonance) << (8 - 1);
 
 	return a;
 }

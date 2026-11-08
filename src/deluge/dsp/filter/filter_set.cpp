@@ -17,6 +17,8 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
+#include "model/global_effectable/output_stage_gain.h"
+#include "processing/engines/audio_engine.h"
 
 namespace deluge::dsp::filter {
 
@@ -135,13 +137,29 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
                              q31_t hpfFrequency, q31_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph,
                              q31_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance,
                              q31_t* overallOscAmplitude) {
+	// Insanely, having changes happen in the small bytes too often causes rustling
+	hpfResonance = (hpfResonance >> 21) << 21;
+
+	ConfigArgs args{lpfFrequency,
+	                lpfResonance,
+	                lpfMorph,
+	                hpfFrequency,
+	                hpfResonance,
+	                hpfMorph,
+	                filterGain,
+	                lpfmode,
+	                hpfmode,
+	                routing,
+	                lpfmode == FilterMode::TRANSISTOR_24DB_DRIVE && AudioEngine::cpuDireness < 14};
+	if (configValid_ && args == lastConfig_) {
+		return lastFilterGain_;
+	}
+
 	LPFOn = lpfmode != FilterMode::OFF;
 	HPFOn = hpfmode != FilterMode::OFF;
 	lpfMode_ = lpfmode;
 	hpfMode_ = hpfmode;
 	routing_ = routing;
-	// Insanely, having changes happen in the small bytes too often causes rustling
-	hpfResonance = (hpfResonance >> 21) << 21;
 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
@@ -163,7 +181,7 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June
 	// 2017
-	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
+	filterGain = multiply_32x32_rshift32(filterGain, kFilterSetGainAdjust) << 1;
 
 	// HPF
 	if (HPFOn) {
@@ -188,6 +206,9 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		lastHPFMode_ = FilterMode::OFF;
 	}
 
+	lastConfig_ = args;
+	lastFilterGain_ = filterGain;
+	configValid_ = true;
 	return filterGain;
 }
 

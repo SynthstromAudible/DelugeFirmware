@@ -1,0 +1,121 @@
+/* The LFO shapes (LfoFigure.astro), in the style of the book's LFO figures (6.3-2 to 6.3-4):
+   a grey level axis and dashed centre line, small AMPLITUDE / TIME labels, a thin accent trace. */
+.gb-lfo {
+  max-width: 640px;
+  color: var(--sl-color-white);
+}
+
+.gb-figure.gb-lfo {
+  margin-inline: auto;
+}
+
+.gb-lfo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1.1rem 1.25rem;
+}
+
+.gb-lfo-tile {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.gb-lfo-name,
+.gb-lfo-about {
+  margin: 0;
+}
+
+.gb-lfo-name {
+  font-size: 12px;
+}
+
+/* centred under the plot area (right of the 16 px level axis, like TIME) */
+.gb-lfo-about {
+  padding-left: 12px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.3;
+  color: color-mix(in srgb, currentColor 55%, var(--gb-paper));
+}
+
+.gb-lfo-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gb-lfo-plot line,
+.gb-lfo-plot path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gb-lfo-plot .gb-lfo-curve {
+  stroke: var(--gb-accent);
+  stroke-width: 1;
+}
+
+.gb-lfo-plot .gb-lfo-axis {
+  stroke: color-mix(in srgb, currentColor 40%, var(--gb-paper));
+  stroke-width: 1;
+}
+
+.gb-lfo-plot .gb-lfo-centre {
+  stroke: color-mix(in srgb, currentColor 40%, var(--gb-paper));
+  stroke-width: 0.73;
+  stroke-dasharray: 2.1 2.1;
+  stroke-linecap: butt;
+}
+
+.gb-lfo-plot text {
+  fill: currentColor;
+  font-size: 8px;
+}
+
+.gb-lfo-plot .gb-lfo-scale {
+  fill: color-mix(in srgb, currentColor 40%, var(--gb-paper));
+}
+
+/* Pause / Play: shown only when JavaScript runs. */
+.gb-lfo-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.gb-lfo-actions[hidden] {
+  display: none;
+}
+
+.gb-lfo-pause {
+  padding: 0.3rem 1rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.gb-lfo-pause:hover,
+.gb-lfo-pause[aria-pressed="true"] {
+  border-color: var(--sl-color-accent);
+}
+
+@media print {
+  .gb-lfo-actions {
+    display: none;
+  }
+
+  .gb-lfo {
+    color: #000;
+  }
+}
+
+/* The oscillator shapes (OscFigure.astro): two columns, as the book lays them out (4.9). */
+.gb-osc .gb-lfo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

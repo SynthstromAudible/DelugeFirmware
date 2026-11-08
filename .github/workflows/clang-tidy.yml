@@ -1,11 +1,52 @@
 name: Clang Tidy
 on:
   pull_request: # Required to post comments on PR from forks
+  # Runs on main only populate the apt cache; PR caches aren't visible to other PRs.
+  push:
+    branches:
+      - "main"
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+    permissions:
+      pull-requests: read
+
+  warm-apt-cache:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang-tidy
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: clang-tidy
+          packages: clang-19 clang-tidy-19
+
   clang-tidy-review:
     runs-on: ubuntu-latest
-    if: startsWith(github.event_name, 'pull_request') # Posting a review only makes sense on PRs
+    timeout-minutes: 30
+    needs: changes
+    # Posting a review only makes sense on PRs
+    if: startsWith(github.event_name, 'pull_request') && needs.changes.outputs.firmware == 'true'
     steps:
+      # The merge ref has the apt-install action even when the PR head predates it.
+      - name: Checkout CI actions
+        uses: actions/checkout@v7
+
+      - name: Remove preinstalled clang-tidy
+        run: sudo apt-get remove -y ^clang-tidy
+
+      - name: Install clang-tidy
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: clang-tidy
+          packages: clang-19 clang-tidy-19
+
+      - name: Select clang-tidy 19
+        run: |
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
+
       # Repo config for pull_request_target
       - uses: actions/checkout@v7
         with:
@@ -13,34 +54,34 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           submodules: recursive
 
-      - name: Install clang-tidy
-        run: |
-          sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db        
-          sudo apt-get update
-          sudo apt-get remove -y ^clang-tidy
-          sudo apt-get install -y clang-19 clang-tidy-19
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100
-
       - name: Generate compilation database
         run: |
-          cd ${{ github.workspace }}
+          cd "$GITHUB_WORKSPACE" || exit 1
           ./dbt configure
+          # Supply native C commands for the handshake tests and their headers.
+          cmake -S tests/oled_handshake -B build/tidy-handshake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s 'add' build/compile_commands.json build/tidy-handshake/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
           sed -i 's/-mthumb-interwork//g' build/compile_commands.json
           sed -i 's/-fdevirtualize-at-ltrans//g' build/compile_commands.json
           sed -i 's/-fuse-linker-plugin//g' build/compile_commands.json
+          # The firmware database has no host tests. Without their own entries,
+          # clang-tidy guesses C++/firmware flags for the C hardware test harness.
+          cmake -S tests/hardware -B build/tidy-hardware -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -s 'add' build/compile_commands.json build/tidy-hardware/compile_commands.json > build/compile_commands.merged.json
+          mv build/compile_commands.merged.json build/compile_commands.json
 
       - name: Extract system includes from GCC
         id: extract_system_includes
         run: |
-          ${{ github.workspace }}/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
+          "$GITHUB_WORKSPACE"/toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++ -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -E -x c++ - -v < /dev/null 2>&1           \
             | sed -n '/^#include <...> search starts here:$/,/^End of search list.$/p' \
             | tail -n +2 \
             | head -n -1 \
             | sed 's/^\s*//g' \
             | sed 's/^\(.*\)$/--extra-arg-before=-isystem\1/g' \
             | tr '\n' ' ' > system_includes.txt
-          echo "system_includes=$(cat system_includes.txt)" >> $GITHUB_OUTPUT
+          echo "system_includes=$(cat system_includes.txt)" >> "$GITHUB_OUTPUT"
           echo "Extracted system includes:"
           cat system_includes.txt
 

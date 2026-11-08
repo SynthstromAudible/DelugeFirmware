@@ -1374,9 +1374,13 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
                    // work.
 
         /* Enable Not Ready Interrupt */
-        hw_usb_set_nrdyenb(USB_NULL,
-            pipe); // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in
-                   // usb_cstd_chg_curpipe_rohan_fast()...)
+        // Only as a host, which handles NRDY (the device NAKing, stalling or going away - see usb_hstd_nrdy_pipe()).
+        // As a peripheral, usb_pstd_interrupt_handler() just clears and drops it - and with this left on, every IN
+        // token the host polls an empty pipe with is an interrupt: tens of thousands a second at high speed.
+        if (ptr)
+        {
+            hw_usb_set_nrdyenb(USB_NULL, pipe);
+        }
     }
 
     if (false)

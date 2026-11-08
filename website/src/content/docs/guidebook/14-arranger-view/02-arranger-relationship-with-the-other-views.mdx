@@ -1,0 +1,88 @@
+---
+title: "14.2 Arranger relationship with the other views"
+description: "Arranger consists of a group of linearly arranged instrument and audio clip instances of which reference the section colours from those in song view."
+sidebar:
+  order: 1
+banner:
+  content: "Based on the Deluge Manual – Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "14.2"
+  chapter: 14
+  pdfPages: [187]
+  printedPages: [181]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_14_2_1 from "../../../../assets/guidebook/figs/14-arranger-view__02-arranger-relationship-with-the-other-views--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Arranger consists of a group of linearly arranged instrument and audio clip instances of which reference the section colours from those in session view. Think of arranger view as an extension of session view rather than a stand-alone function. Understanding the relationship with clip, song and arranger is important.
+
+## Relationship Between Views
+
+{/* aside fig-14.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-14.2-1"
+  src={fig_fig_14_2_1}
+  alt={
+    "Diagram: Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound The entire clip consisting of all…"
+  }
+  page={181}
+/>
+
+<div>
+
+#### Clip View - [CLIP]
+
+Rows: discrete synth note pitch or kit sounds.
+
+Mute / launch: mute’s sounds or notes.
+
+Audition / section: auditions notes / sounds.
+
+Clip is the entire grid. 5 types of clips exist; synth, kit, MIDI, CV and audio. A clip contains sequencing or audio for each discrete clip element.
+
+#### Song List View - [SONG]
+
+Rows: single instrument or audio clip compressed to a representative 1 row each.
+
+Mute / launch: launches clips. Used for looping control and commands.
+
+Audition / section: sections & section launch by colour. Used for looping control and commands.
+
+Clips are arranged into single rows where they can be triggered individually or together in groups managed as coloured sections.
+
+#### Session Grid View - [SONG] + turn Select
+
+Columns: single instrument compressed to 1 column each.
+
+Mute / Launch: sections & section launch by colour.
+
+Audition / section: controls for changing between "launch" and "edit" modes for interacting with clips.
+
+Clips are arraged as single pads where they can be triggered individually or together in groups managed by their section row.
+
+{/* TODO(kate): Session Grid View text — written by hand. The figure's grid panel shows sections as rows, instruments as columns, the two clips from the row view in section 1, and the Launch / Edit mode pads. */}
+
+#### Arranger View - [SONG] [SONG]
+
+Rows: individual instrument, MIDI, CV, audio per row.
+
+Mute / launch: mutes / unmutes the ‘track’ row.
+
+Audition / section: auditions a clip by one of its sounds.
+
+Clip instances, arranged in a linear sequencer, handled on an instrument by instrument basis, covers audio clips and includes variations, gaps and parts to be assembled together.
+
+</div>
+
+</div>
+
+{/* /aside fig-14.2-1 */}

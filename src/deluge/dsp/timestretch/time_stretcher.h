@@ -99,6 +99,13 @@ public:
 	Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed
 	                                     // Clusters, basically
 
+	// Where the last call to Sample::fillPercCache() started, and where it left the perc cache zone ending, so we can
+	// skip calling it (and its walk through the Sample's metadata, which lives in SDRAM) until the lookahead has moved
+	// on a bit
+	int32_t percCacheFillStartPos;
+	int32_t percCacheFillEndPos;
+	int8_t percCacheFillDirection;
+
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,
 	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);

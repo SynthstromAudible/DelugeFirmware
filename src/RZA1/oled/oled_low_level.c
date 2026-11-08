@@ -30,6 +30,17 @@
 #include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "deluge/util/cfunctions.h"
 
+// Keep the drain reservation through CV preemption: otherwise pad producers could
+// refill the UART each time CV temporarily cancels SELECT.
+static volatile bool oled_waiting_for_pic_tx_drain = false;
+
+bool oledIsWaitingForPicTxDrain()
+{
+    return oled_waiting_for_pic_tx_drain;
+}
+
+static bool cancelUnsentOledSelect();
+
 void setupSPIInterrupts()
 {
     setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
@@ -43,6 +54,7 @@ volatile uint32_t cvPriorityData = 0;
 
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
+static void finishOledSettling();
 
 void enqueueCVMessage(int channel, uint32_t message)
 {
@@ -52,7 +64,7 @@ void enqueueCVMessage(int channel, uint32_t message)
     cvPriorityPending = true;
     // If the bus is idle, kick it off now; otherwise it gets drained at the next inter-transfer
     // boundary, ahead of any queued OLED frames.
-    if (!spiBusCurrentlySending)
+    if (cancelUnsentOledSelect() || !spiBusCurrentlySending)
     {
         spiBusCurrentlySending = true;
         sendPriorityCVIfPending();
@@ -71,32 +83,93 @@ bool oledDmaWatchdogArmed = false;
 bool oled_sending = false;
 bool cv_sending   = false;
 
+static bool oled_settling = false;
+static uint16_t oled_settle_time;
+
 static void armOledDmaWatchdog()
 {
     oledDmaWatchdogArmed = true;
     oledDmaWatchdogTime  = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
 }
 
+// Keep the existing PIC settling interval, but measure it with the hardware clock
+// rather than waiting for the low-priority UI timer task (and its audio render clock).
+void oledAcknowledgementReceived(uint8_t message)
+{
+    if (message != oledWaitingForMessage || oled_settling)
+    {
+        return;
+    }
+    oled_settling    = true;
+    oled_settle_time = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(3);
+}
+
+static void serviceOledAcknowledgement()
+{
+    // Reclaim DMA space even while idle, retaining panel input in its own queue.
+    uint8_t message = oledWaitingForMessage == OLED_MESSAGE_NONE ? OLED_MESSAGE_ACK_CONSUMED : oledWaitingForMessage;
+    bool received   = uartReplacePendingByte(UART_ITEM_PIC, message, OLED_MESSAGE_ACK_CONSUMED);
+    if (oledWaitingForMessage != OLED_MESSAGE_NONE)
+    {
+        if (received)
+        {
+            oledAcknowledgementReceived(message);
+        }
+        if (oled_settling && (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oled_settle_time) >= 0)
+        {
+            finishOledSettling();
+        }
+    }
+}
+
 // Call this before you routinely call uartFlushIfNotSending().
 void oledRoutine()
 {
+    serviceOledAcknowledgement();
+
+    // Staging backpressure only applies before SELECT is committed. DESELECT
+    // and retries must proceed so deferred panel input cannot hold CV hostage.
+    if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && uartGetRxBufferSpace(UART_ITEM_PIC) < 8)
+    {
+        // An unsent SELECT does not own the physical bus. Keep CV moving
+        // while panel input is deferred; CV completion will retry the frame.
+        ENTER_CRITICAL_SECTION();
+        if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && sendPriorityCVIfPending())
+        {
+            oledPendingMessageToSend = 0;
+            oled_sending             = false;
+        }
+        EXIT_CRITICAL_SECTION();
+        return;
+    }
+
     if (oledPendingMessageToSend)
     {
+        // Keep SELECT cancellable while pad bytes drain. DESELECT must not be
+        // postponed: CV is already blocked until that handshake completes.
+        if (oledPendingMessageToSend == OLED_MESSAGE_SELECT && uartGetTxBufferFullnessByItem(UART_ITEM_PIC))
+        {
+            return;
+        }
+        // Error recovery may abandon a settling wait. A fresh request needs
+        // its own acknowledgement and a new settling deadline.
+        oled_settling            = false;
         oledWaitingForMessage    = oledPendingMessageToSend; // We'll wait to hear back from the PIC.
         oledPendingMessageToSend = 0;
-sendMessageToPIC:
-        last_message_sent      = oledWaitingForMessage;
-        oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+        last_message_sent        = oledWaitingForMessage;
+        oledMessageTimeoutTime   = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
+        // Discard acknowledgements left from an earlier transaction before sending
+        // this request. Deferred UI input may have kept them in the receive ring.
+        uartReplacePendingByte(UART_ITEM_PIC, oledWaitingForMessage, OLED_MESSAGE_ACK_CONSUMED);
         bufferPICUart(oledWaitingForMessage);
+        oled_waiting_for_pic_tx_drain = false;
     }
 
     else if (oledWaitingForMessage != OLED_MESSAGE_NONE)
     {
-        int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
-        if (howLate >= 0)
+        int16_t how_late = (int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime);
+        if (!oled_settling && how_late >= 0)
         {
-            // oledLowLevelTimerCallback(); // No need to actually set the delay timer - we've already waited for ages -
-            // any further delay would be pointless.
             oledMessageTimeoutTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(50);
             last_message_sent      = oledWaitingForMessage;
             bufferPICUart(oledWaitingForMessage);
@@ -210,7 +283,8 @@ void initiateSelectingOled()
         FREEZE_WITH_ERROR("OLED message already pending");
     }
 #endif
-    oledPendingMessageToSend = OLED_MESSAGE_SELECT;
+    oledPendingMessageToSend      = OLED_MESSAGE_SELECT;
+    oled_waiting_for_pic_tx_drain = true;
 
     // Actual queue position gets moved along in oledSelectingComplete() when that gets called.
 }
@@ -234,6 +308,19 @@ void sendSPITransferFromQueue()
     // The queue only ever holds OLED frames now.
     oled_sending = true;
     initiateSelectingOled();
+}
+
+// Called under the CV enqueue critical section. Cancelling SELECT keeps its
+// frame queued, so it resumes after CV without touching the CV queue format.
+static bool cancelUnsentOledSelect()
+{
+    if (oledPendingMessageToSend != OLED_MESSAGE_SELECT || oledWaitingForMessage != OLED_MESSAGE_NONE || cv_sending)
+    {
+        return false;
+    }
+    oledPendingMessageToSend = 0;
+    oled_sending             = false;
+    return true;
 }
 
 void oledTransferComplete(uint32_t int_sense)
@@ -309,10 +396,15 @@ void oledDeselectionComplete()
     }
 }
 
-void oledLowLevelTimerCallback()
+static void finishOledSettling()
 {
+    oled_settling = false;
     if (oledWaitingForMessage == OLED_MESSAGE_SELECT)
+    {
         oledSelectingComplete();
-    else
+    }
+    else if (oledWaitingForMessage == OLED_MESSAGE_DESELECT)
+    {
         oledDeselectionComplete();
+    }
 }

@@ -17,25 +17,60 @@
 #include "dsp/filter/svf.h"
 
 namespace deluge::dsp::filter {
-[[gnu::hot]] void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt) {
-	q31_t* currentSample = startSample;
-	do {
-		q31_t outs = doSVF(*currentSample, l);
-		*currentSample = outs;
-
-		currentSample += sampleIncrememt;
-	} while (currentSample < endSample);
+// Performance notes for doFilter()/doFilterStereo(). Same approach as LpLadderFilter, see the notes in lpladder.cpp.
+//
+// Design: the per-sample loops are doFilterT()/doFilterStereoT(), templated on band_mode (whether the band output is
+// mixed in), picked once per buffer here. They work on local copies of the coefficients and the filter state, written
+// back once per buffer. Stores through the q31_t* sample buffer could otherwise alias the q31_t members, so GCC
+// reloaded all of them and stored the state back on every sample.
+//
+// The gain is smaller than for the ladders: the two tanh table lookups and 7 multiplies per sample are most of the
+// cost, and they're the algorithm, so can't go without changing the sound.
+//
+// Alternatives considered:
+//  - Skipping the c_high multiply-accumulate when morph is 0 (c_high == 0 adds exactly 0 with smmlar). Bit-exact, but
+//    one instruction per sample for another set of variants; not done.
+//  - One tanh per sample instead of two. Changes the sound; not done.
+[[gnu::hot]] void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	if (band_mode) {
+		doFilterT<true>(startSample, endSample, sampleIncrement);
+	}
+	else {
+		doFilterT<false>(startSample, endSample, sampleIncrement);
+	}
 }
 [[gnu::hot]] void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+	if (band_mode) {
+		doFilterStereoT<true>(startSample, endSample);
+	}
+	else {
+		doFilterStereoT<false>(startSample, endSample);
+	}
+}
+template <bool kBand>
+[[gnu::hot]] void SVFilter::doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	const Coeffs c = getCoeffs();
+	SVFState s = l;
 	q31_t* currentSample = startSample;
 	do {
-		q31_t outs = doSVF(*currentSample, l);
-
-		*currentSample = outs;
-		q31_t outs2 = doSVF(*(currentSample + 1), r);
-		*(currentSample + 1) = outs2;
+		*currentSample = doSVF<kBand>(*currentSample, s, c);
+		currentSample += sampleIncrement;
+	} while (currentSample < endSample);
+	l = s;
+}
+template <bool kBand>
+[[gnu::hot]] void SVFilter::doFilterStereoT(q31_t* startSample, q31_t* endSample) {
+	const Coeffs c = getCoeffs();
+	SVFState sl = l;
+	SVFState sr = r;
+	q31_t* currentSample = startSample;
+	do {
+		currentSample[0] = doSVF<kBand>(currentSample[0], sl, c);
+		currentSample[1] = doSVF<kBand>(currentSample[1], sr, c);
 		currentSample += 2;
 	} while (currentSample < endSample);
+	l = sl;
+	r = sr;
 }
 
 q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
@@ -79,7 +114,8 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	return filterGain;
 }
 
-[[gnu::always_inline]] inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
+template <bool kBand>
+[[gnu::always_inline]] inline q31_t SVFilter::doSVF(int32_t input, SVFState& state, const Coeffs& c) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
@@ -88,12 +124,12 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	q31_t low = state.low;
 	q31_t band = state.band;
 
-	input = multiply_32x32_rshift32(in, input);
+	input = multiply_32x32_rshift32(c.in, input);
 
-	low = low + 2 * multiply_32x32_rshift32(band, fc);
+	low = low + 2 * multiply_32x32_rshift32(band, c.fc);
 	high = input - low;
-	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, fc) + band;
+	high = high - 2 * multiply_32x32_rshift32(band, c.q);
+	band = 2 * multiply_32x32_rshift32(high, c.fc) + band;
 	// notch = high + low;
 
 	// saturate band feedback
@@ -103,20 +139,20 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	highi = high;
 	bandi = band;
 	// double sample to increase the cutoff frequency
-	low = low + 2 * multiply_32x32_rshift32(band, fc);
+	low = low + 2 * multiply_32x32_rshift32(band, c.fc);
 	high = input - low;
-	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, fc) + band;
+	high = high - 2 * multiply_32x32_rshift32(band, c.q);
+	band = 2 * multiply_32x32_rshift32(high, c.fc) + band;
 
 	// notch = high + low;
 	lowi = lowi + low;
 	highi = highi + high;
 	bandi = bandi + band;
 
-	q31_t result = multiply_32x32_rshift32_rounded(lowi, c_low);
-	result = multiply_accumulate_32x32_rshift32_rounded(result, highi, c_high);
-	if (band_mode) {
-		result = multiply_accumulate_32x32_rshift32_rounded(result, bandi, c_band);
+	q31_t result = multiply_32x32_rshift32_rounded(lowi, c.c_low);
+	result = multiply_accumulate_32x32_rshift32_rounded(result, highi, c.c_high);
+	if constexpr (kBand) {
+		result = multiply_accumulate_32x32_rshift32_rounded(result, bandi, c.c_band);
 	}
 
 	// saturate band feedback

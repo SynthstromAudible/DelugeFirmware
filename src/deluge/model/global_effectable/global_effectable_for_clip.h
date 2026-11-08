@@ -71,4 +71,16 @@ protected:
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
 	bool renderedLastTime = false;
+
+private:
+	// Render skipping once nothing renders and the FX tails have died away, renderOutput()
+	// skips the FX chain only asking renderGlobalEffectableForClip() whether it has anything yet
+	bool skippingRendering = false;
+	uint32_t startSkippingRenderingAtTime = 0; // Valid when not 0: when to start skipping, after mod FX / comp tails
+	uint32_t timeStartedSkippingRendering = 0;
+	void reassessRenderSkippingStatus(ParamManager* paramManager, SampleRecorder* recorder);
+	void startSkippingRendering();
+	void stopSkippingRendering(ParamManager* paramManager);
+	void tickParamAutomation(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
+	                         size_t numSamples, bool isClipActive);
 };

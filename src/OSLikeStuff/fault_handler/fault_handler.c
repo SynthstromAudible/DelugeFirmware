@@ -65,6 +65,8 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 extern uint32_t program_code_start;
 extern uint32_t program_code_end;
+extern uint32_t __sdram_text_start;
+extern uint32_t __sdram_text_end;
 
 [[gnu::always_inline]] inline void sendToPIC(uint8_t msg) {
 	intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos;
@@ -123,6 +125,10 @@ extern uint32_t program_code_end;
 
 [[gnu::always_inline]] inline bool isCodePointer(uint32_t value) {
 	if (value >= (uint32_t)&program_code_start && value < (uint32_t)&program_code_end) {
+		return true;
+	}
+	// GUI code lives in SDRAM. Include it for both faulting instructions and stack return addresses.
+	if (value >= (uint32_t)&__sdram_text_start && value < (uint32_t)&__sdram_text_end) {
 		return true;
 	}
 

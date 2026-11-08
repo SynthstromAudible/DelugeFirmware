@@ -43,8 +43,8 @@ public:
 	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
 	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
-	void recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
-	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
+	Action* recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+	                                   FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	void closeAction(ActionType actionType);
 	void closeActionUnlessCreatedJustNow(ActionType actionType);
 	void deleteAllLogs();
@@ -60,6 +60,7 @@ public:
 	Action* firstAction[2];
 
 private:
+	ActionType getParameterChangeActionType() const;
 	void revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time);
 	void deleteLastActionIfEmpty();
 	void deleteLastAction();

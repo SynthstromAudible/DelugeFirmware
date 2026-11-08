@@ -1,0 +1,37 @@
+---
+title: "18.14 MIDI MPE Output"
+description: "Connecting MIDI with USB or MIDI DIN Output connections allows Deluge to control MIDI devices such as MPE compatible synths."
+sidebar:
+  order: 13
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "18.14"
+  chapter: 18
+  pdfPages: [299]
+  printedPages: [293]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Connecting MIDI with USB or MIDI DIN Output connections allows Deluge to control MIDI devices such as MPE compatible synths. The MPE MIDI outputs are set up in the same way as inputs within the configuration menu.
+
+MIDI Clips that have recorded MPE MIDI from an external controller retain the expression values and therefore can play these back to the external MPE synth from the Deluge MIDI out.
+
+Remember that MPE devices should be configured to match using the ‘Upper’ and ‘Lower’ Zones. Deluge sends MCM messages when changing the output zone or when powering up to a MPE compatible connected device. Standard MIDI channels will not be used when in this configuration.
+
+## Handling of MPE expression
+
+Handling of MPE expression when collapsed to a single MIDI channel operates slightly differently in the community firmware as opposed to the original Synthstrom firmware. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths.
+
+## MPE collapse <Badge text="C1.1" variant="tip" />
+
+{/* TODO(kate): community_features: 3.2; CHANGELOG.mdx: L719, L860, L884, L886, L888, L914 */}
+
+<Unwritten>See [MPE](/features/community_features#32---mpe).</Unwritten>

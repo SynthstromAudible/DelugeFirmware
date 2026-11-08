@@ -20,6 +20,9 @@
 
 #include "RZA1/system/r_typedefs.h"
 
+// Pad producers must let the PIC UART drain until SELECT has been queued.
+bool oledIsWaitingForPicTxDrain();
+
 void oledSelectingComplete();
 void oledTransferComplete(uint32_t int_sense);
 void oledDeselectionComplete();
@@ -27,13 +30,14 @@ void enqueueCVMessage(int channel, uint32_t message);
 void cvSPITransferComplete(uint32_t sense);
 void setupSPIInterrupts();
 void sendSPITransferFromQueue();
-void oledLowLevelTimerCallback();
 void oledRoutine();
+void oledAcknowledgementReceived(uint8_t message);
 
 enum OLED_MESSAGE {
-    OLED_MESSAGE_NONE     = 256,
-    OLED_MESSAGE_SELECT   = 248,
-    OLED_MESSAGE_DESELECT = 249,
+    OLED_MESSAGE_NONE         = 256,
+    OLED_MESSAGE_ACK_CONSUMED = 255, // Ignored by the panel-input dispatcher.
+    OLED_MESSAGE_SELECT       = 248,
+    OLED_MESSAGE_DESELECT     = 249,
 };
 
 extern int oledWaitingForMessage;

@@ -203,14 +203,15 @@ void Browser::cullSomeFileItems() {
 	}
 
 	// If we already know what side we want to be deleting on...
-	if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+	if (catalogSearchDirection == CATALOG_SEARCH_LEFT || catalogSearchDirection == CATALOG_SEARCH_LEFT_INCLUSIVE) {
 deleteFromLeftSide:
 		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
 		firstFileItemRemaining.set(((FileItem*)fileItems.getElementAddress(numFileItemsDeletingNow))->displayName);
 	}
-	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
+	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT
+	         || catalogSearchDirection == CATALOG_SEARCH_RIGHT_INCLUSIVE) {
 deleteFromRightSide:
 		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
 		stopAt = fileItems.getNumElements();
@@ -1004,6 +1005,7 @@ nonNumeric:
 
 	int32_t newCatalogSearchDirection;
 	Error error;
+	String filenameBeforeReload;
 
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
@@ -1012,8 +1014,20 @@ nonNumeric:
 
 tryReadingItems:
 			D_PRINTLN("reloading");
-			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
-			                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+			// Use the actual sort key (including the extension), and own it before the old cache is freed.
+			// A balanced window can lose every neighbour on one side during duplicate/boundary cleanup,
+			// causing repeated turns to rebuild the same window and clamp back to the same song.
+			// A failed reload may have emptied the cache while leaving the previous selection index intact.
+			error = filenameBeforeReload.set(fileIndexSelected >= 0 && fileIndexSelected < fileItems.getNumElements()
+			                                     ? getCurrentFileItem()->displayName
+			                                     : enteredText.get());
+			if (error != Error::NONE) {
+				goto gotErrorAfterAllocating;
+			}
+			newCatalogSearchDirection = offset > 0 ? CATALOG_SEARCH_RIGHT_INCLUSIVE : CATALOG_SEARCH_LEFT_INCLUSIVE;
+			error =
+			    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameBeforeReload.get(),
+			                                     NULL, true, Availability::ANY, newCatalogSearchDirection);
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
@@ -1022,7 +1036,7 @@ gotErrorAfterAllocating:
 				// TODO - need to close UI or something?
 			}
 
-			newFileIndex = fileItems.search(enteredText.get()) + offset;
+			newFileIndex = fileItems.search(filenameBeforeReload.get()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
@@ -1867,7 +1881,32 @@ void Browser::sortFileItems() {
 	// direction.
 	if (filenameToStartSearchAt && *filenameToStartSearchAt) {
 
-		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+		if (catalogSearchDirection == CATALOG_SEARCH_LEFT_INCLUSIVE) {
+			int32_t end = fileItems.search(filenameToStartSearchAt);
+			// Keep all equal keys until folder/instrument duplicate cleanup has run.
+			while (end < fileItems.getNumElements()
+			       && !strcmpspecial(((FileItem*)fileItems.getElementAddress(end))->displayName,
+			                         filenameToStartSearchAt)) {
+				end++;
+			}
+			if (end < fileItems.getNumElements()) {
+				numFileItemsDeletedAtEnd += fileItems.getNumElements() - end;
+				deleteSomeFileItems(end, fileItems.getNumElements());
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT_INCLUSIVE) {
+			int32_t start = fileItems.search(filenameToStartSearchAt);
+			while (start > 0
+			       && !strcmpspecial(((FileItem*)fileItems.getElementAddress(start - 1))->displayName,
+			                         filenameToStartSearchAt)) {
+				start--;
+			}
+			if (start > 0) {
+				numFileItemsDeletedAtStart += start;
+				deleteSomeFileItems(0, start);
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
 			bool foundExact;
 			int32_t searchIndex = fileItems.search(filenameToStartSearchAt, &foundExact);
 			// Check for duplicates.

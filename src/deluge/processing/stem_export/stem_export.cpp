@@ -1142,7 +1142,7 @@ bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	int32_t tempo = std::round(playbackHandler.calculateBPMForDisplay());
 
 	// get song root note
-	char noteName[5];
+	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 

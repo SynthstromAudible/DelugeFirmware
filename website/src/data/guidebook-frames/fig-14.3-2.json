@@ -1,0 +1,28 @@
+{
+  "figure": "fig-14.3-2",
+  "source": "hand",
+  "window": "navigation",
+  "steps": [
+    {
+      "note": "Song view: SONG lit blue",
+      "leds": {
+        "Song": "blue"
+      }
+    },
+    {
+      "note": "Arranger view: SONG flashes blue",
+      "leds": {
+        "Song": {
+          "colour": "blue",
+          "blink": true
+        }
+      }
+    },
+    {
+      "note": "Back in song view: SONG lit blue",
+      "leds": {
+        "Song": "blue"
+      }
+    }
+  ]
+}

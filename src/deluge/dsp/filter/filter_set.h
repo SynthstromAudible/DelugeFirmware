@@ -81,5 +81,25 @@ private:
 
 	bool LPFOn;
 	bool HPFOn;
+
+	// What setConfig() was last given, and returned. The filters only need configuring again when that changes, and
+	// reset() zeroes configValid_, so the first setConfig() after it always configures.
+	struct ConfigArgs {
+		q31_t lpfFrequency;
+		q31_t lpfResonance;
+		q31_t lpfMorph;
+		q31_t hpfFrequency;
+		q31_t hpfResonance;
+		q31_t hpfMorph;
+		q31_t filterGain;
+		FilterMode lpfMode;
+		FilterMode hpfMode;
+		FilterRoute routing;
+		bool driveMayOversample; // The hot ladder's oversampling also depends on AudioEngine::cpuDireness
+		bool operator==(const ConfigArgs&) const = default;
+	};
+	ConfigArgs lastConfig_;
+	q31_t lastFilterGain_;
+	bool configValid_;
 };
 } // namespace deluge::dsp::filter

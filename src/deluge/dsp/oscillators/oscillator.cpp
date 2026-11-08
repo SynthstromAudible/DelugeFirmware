@@ -29,7 +29,23 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
                       uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
                       int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-                      int sourceWaveIndexLastTime, WaveTable* waveTable) {
+                      int sourceWaveIndexLastTime, WaveTable* waveTable, Supersaw::SidePhases* supersawPhases) {
+
+	// The supersaw does its own thing. Pulse width sets the number of saws, and there's no osc sync
+	if (type == OscType::SUPERSAW) {
+		// Same CPU-dire fallback as the plain saw: skip the band limiting for lower notes
+		bool bandLimit = dsp::getTableNumber(phaseIncrement).first >= AudioEngine::cpuDireness + 6;
+		int32_t spread = sourceWaveIndexLastTime + waveIndexIncrement * numSamples;
+		int32_t* renderBuffer = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
+		Supersaw::render(renderBuffer, numSamples, phaseIncrement, spread, Supersaw::numSawsFromPulseWidth(pulseWidth),
+		                 *startPhase, *supersawPhases, bandLimit);
+		if (applyAmplitude) {
+			// Supersaw comes out at a quarter of a saw's level
+			applyAmplitudeVectorToBuffer(amplitude << 2, numSamples, amplitudeIncrement << 2, bufferStart,
+			                             oscSyncRenderingBuffer);
+		}
+		return;
+	}
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
 	// incrementing the startPhase once
@@ -136,11 +152,12 @@ Oscillator::renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int
 	if (doOscSync) [[unlikely]] {
 doOscSyncSetup:
 
-		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
-		    (uint32_t)2147483648u
-		    / (uint16_t)((resetterPhaseIncrement + 65535)
-		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny
-		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		// Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny bit smaller, so things
+		// multiplied by it don't get a bit too big and overflow.
+		uint16_t divisor = (resetterPhaseIncrement + 65535) >> 16;
+		// You should >> 47 if multiplying by this. 2^31 / divisor in double is exact (when it isn't a whole number it's
+		// at least 2^-16 from one, way more than the rounding), and much quicker than the library's integer divide
+		resetterDivideByPhaseIncrement = static_cast<uint32_t>(2147483648.0 / divisor);
 	}
 
 skipPastOscSyncStuff:

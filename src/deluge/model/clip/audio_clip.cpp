@@ -329,7 +329,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
 	// also play it if we're auto extending and we just did that
-	if (!lastProcessedPos || lastProcessedPos == nextSampleRestartPos) {
+	if (!lastProcessedPos || (getCurrentlyRecordingLinearly() && lastProcessedPos == nextSampleRestartPos)) {
 		// original length is only 0 when recording into arranger, in which case we don't want to loop
 		if (getCurrentlyRecordingLinearly() && originalLength != 0) {
 			nextSampleRestartPos = lastProcessedPos + originalLength;
@@ -569,6 +569,12 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
+	// The Sample is in SDRAM and always cold by the next render, so start fetching the parts of it that rendering uses
+	// before the setup below
+	__builtin_prefetch(sample);
+	__builtin_prefetch((char*)sample + 32);
+	__builtin_prefetch((char*)sample + 64);
+
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
 	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
@@ -804,12 +810,21 @@ void AudioClip::prefetchClustersAhead(Sample* sample) {
 	Cluster* furthestCluster = nullptr;
 	for (Cluster* cluster : voiceSample->clusters) {
 		if (cluster != nullptr) {
-			audioFileManager.claimPrefetch(cluster);
 			furthestCluster = cluster;
 		}
 	}
 	if (furthestCluster == nullptr) {
 		return;
+	}
+	if (furthestCluster == prefetchedAheadOf && audioFileManager.getPrefetchGeneration() == prefetchGenerationSeen) {
+		return;
+	}
+	prefetchedAheadOf = nullptr;
+
+	for (Cluster* cluster : voiceSample->clusters) {
+		if (cluster != nullptr) {
+			audioFileManager.claimPrefetch(cluster);
+		}
 	}
 
 	// While recording, Clusters past what's been written aren't on the card yet
@@ -826,8 +841,12 @@ void AudioClip::prefetchClustersAhead(Sample* sample) {
 		    || clusterIndex >= sample->clusters.getNumElements()) {
 			break;
 		}
-		audioFileManager.prefetchCluster(sample, clusterIndex);
+		if (!audioFileManager.prefetchCluster(sample, clusterIndex)) {
+			return; // Try again next time
+		}
 	}
+	prefetchedAheadOf = furthestCluster;
+	prefetchGenerationSeen = audioFileManager.getPrefetchGeneration();
 }
 
 int32_t AudioClip::getClusterPriority() const {

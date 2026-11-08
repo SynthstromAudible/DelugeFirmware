@@ -23,6 +23,7 @@
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "processing/engines/audio_engine.h"
 #include <limits>
 #include <string.h>
@@ -57,8 +58,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
-	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
+	int32_t volumeAdjustment = conversions.volume(unpatchedParams->getValue(params::UNPATCHED_VOLUME), [](int32_t v) {
+		return getFinalParameterValueVolume(134217728, cableToLinearParamShortcut(v)) >> kClipVolumeAdjustmentShift;
+	});
 
 	int32_t volumePostFX = volumeAdjustment;
 
@@ -66,15 +68,44 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
 	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> 2);
+	                                                  : (volumeAdjustment >> kKitPostFXBaselineShift);
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
-	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	    conversions.pitchAdjust(unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST),
+	                            [](int32_t v) { return getFinalParameterValueExp(kMaxSampleValue, v >> 3); });
 
+	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
+	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
+	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
+
+	// Render actual Drums / AudioClip. Nothing below affects this, so it comes first, to know whether we can skip the
+	// rest: their own render skipping makes it cheap when there's nothing to play.
+	bool renderedNow = renderGlobalEffectableForClip(
+	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
+	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+
+	bool resumed = false;
+	// check if we should still skip, then return early if so
+	if (skippingRendering) {
+		bool recording = recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
+		if (!renderedNow && !recording) {
+			// we're still skipping rendering so just clear stuff, tick params, get out
+			renderedLastTime = false;
+			compressor.reset();
+			compressor.gainReduction = 0;
+			tickParamAutomation(modelStack, paramManagerForClip, output.size(), isClipActive);
+			return;
+		}
+		stopSkippingRendering(paramManagerForClip);
+		resumed = true;
+	}
+
+	// The delay takes in sound from this render
 	Delay::State delayWorkingState =
-	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedNow);
+	renderedLastTime = renderedNow;
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
 	}
@@ -104,18 +135,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		// This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
 		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
 	}
+	if (resumed) {
+		postReverbVolumeLastTime = postReverbVolume; // Its last value is from before skipping: don't ramp from it
+	}
 
 	const q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.setThreshold(compThreshold);
-
-	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
-	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
-	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
-
-	// Render actual Drums / AudioClip
-	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
-	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
 	if (clippingAmount != 0u) {
@@ -158,6 +183,14 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	postReverbVolumeLastTime = postReverbVolume;
 
+	tickParamAutomation(modelStack, paramManagerForClip, output.size(), isClipActive);
+
+	reassessRenderSkippingStatus(paramManagerForClip, recorder);
+}
+
+void GlobalEffectableForClip::tickParamAutomation(ModelStackWithTimelineCounter* modelStack,
+                                                  ParamManager* paramManagerForClip, size_t numSamples,
+                                                  bool isClipActive) {
 	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
 		auto& interpolating_params = paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating;
 		const bool result = (params::kMaxNumUnpatchedParams > 32)
@@ -166,9 +199,67 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
-			paramManagerForClip->toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings);
+			paramManagerForClip->toForTimeline()->tickSamples(numSamples, modelStackWithThreeMainThings);
 		}
 	}
+}
+
+// skip once nothing rendered, nothing's
+// stuttering or recording this, all tails done
+void GlobalEffectableForClip::reassessRenderSkippingStatus(ParamManager* paramManager, SampleRecorder* recorder) {
+	bool recording = recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
+	bool skippingStatusNow =
+	    !renderedLastTime && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this) && !recording;
+
+	if (!skippingStatusNow) {
+		startSkippingRenderingAtTime = 0;
+		return;
+	}
+
+	int32_t waitSamples = getSamplesUntilFXTailsEnd(getActiveModFXType(paramManager));
+	if (waitSamples == 0) {
+		startSkippingRenderingAtTime = 0;
+		startSkippingRendering();
+		return;
+	}
+
+	// If we didn't start the wait-time yet, start it now
+	if (!startSkippingRenderingAtTime) {
+		startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
+	}
+
+	// Or if already waiting, see if the wait is over yet
+	else if ((int32_t)(AudioEngine::audioSampleTimer - startSkippingRenderingAtTime) >= 0) {
+		startSkippingRenderingAtTime = 0;
+		startSkippingRendering();
+	}
+}
+
+void GlobalEffectableForClip::startSkippingRendering() {
+	timeStartedSkippingRendering = AudioEngine::audioSampleTimer;
+	skippingRendering = true;
+	if (grainFX != nullptr) {
+		grainFX->startSkippingRendering();
+	}
+}
+
+// Catch up what would have moved on while skipping, as Sound::stopSkippingRendering() does
+void GlobalEffectableForClip::stopSkippingRendering(ParamManager* paramManager) {
+	uint32_t timeOff = AudioEngine::audioSampleTimer - timeStartedSkippingRendering;
+	if (timeOff != 0u) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t modFXRate = getFinalParameterValueExp(
+		    paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
+		    cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE)));
+		modfx.tickLFO(timeOff, modFXRate);
+
+		if (AudioEngine::sizeLastSideChainHit != 0) {
+			sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
+			                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
+		}
+	}
+	startSkippingRenderingAtTime = 0;
+	skippingRendering = false;
 }
 
 int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager) {

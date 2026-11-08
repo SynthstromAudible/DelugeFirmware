@@ -32,6 +32,12 @@ constexpr int32_t volumeParamToGainPos(int32_t volumeParam) {
 	return (volumeParam >> 2) + kVolumeParamUnityPos;
 }
 
+/// Combine two gains in the pos domain: the result's linear gain is the product of theirs. Saturates at INT32_MAX.
+constexpr int32_t multiplyGainPos(int32_t a, int32_t b) {
+	int64_t product = (static_cast<int64_t>(a) * static_cast<int64_t>(b)) >> 29;
+	return static_cast<int32_t>(std::min<int64_t>(product, std::numeric_limits<int32_t>::max()));
+}
+
 /// Scale `volumeParam`'s linear gain by `gainPos`, a gain in the pos domain where kVolumeParamUnityPos is unity.
 /// A `gainPos` of 0 - a fully attenuated source - yields INT32_MIN, i.e. silence.
 constexpr VolumeParamGain applyGainToVolumeParam(int32_t volumeParam, int32_t gainPos) {

@@ -49,22 +49,48 @@ jobs:
               "conflict_resolution": "draft_commit_conflicts"
             }
       # draft_commit_conflicts opens conflicted backports as drafts and the job still
-      # succeeds, so mark those PRs here.
+      # succeeds, so mark those PRs here. The action also commits the conflicted
+      # cherry-pick as "BACKPORT-CONFLICT"; reword it to the original commit message.
       - name: Flag conflicted backport PRs
         if: steps.backport.outputs.created_pull_numbers != ''
         env:
           GH_TOKEN: ${{ github.token }}
           CREATED: ${{ steps.backport.outputs.created_pull_numbers }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Squash merges carry the PR title and commit list; fall back to the PR
+          # title for merge commits.
+          if [ "$(git rev-list --parents -n 1 "$MERGE_SHA" | wc -w)" -eq 2 ]; then
+            git log -1 --format=%B "$MERGE_SHA" > "$RUNNER_TEMP/msg"
+          else
+            printf '%s (#%s)\n' "$PR_TITLE" "$PR_NUMBER" > "$RUNNER_TEMP/msg"
+          fi
+          printf '\n(cherry picked from commit %s)\n\nConflicts committed with markers; resolve before merging.\n' \
+            "$MERGE_SHA" >> "$RUNNER_TEMP/msg"
+
           for number in $CREATED; do
             if [ "$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true ]; then
               gh pr edit "$number" --repo "$GITHUB_REPOSITORY" --add-label "backport: conflict"
+
+              branch="$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json headRefName --jq .headRefName)"
+              git fetch origin "$branch"
+              if [ "$(git log -1 --format=%s FETCH_HEAD | sed 's/^ *//')" = BACKPORT-CONFLICT ]; then
+                git checkout --detach FETCH_HEAD
+                git commit --amend --no-verify -F "$RUNNER_TEMP/msg"
+                git push --force-with-lease="$branch:$(git rev-parse FETCH_HEAD)" origin "HEAD:$branch"
+              fi
             fi
           done
       - name: Flag failed backports
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh pr edit ${{ github.event.pull_request.number }} \
+          gh pr edit "$PR_NUMBER" \
             --repo "$GITHUB_REPOSITORY" --add-label "backport: conflict"

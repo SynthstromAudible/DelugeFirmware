@@ -1,0 +1,58 @@
+name: Cached apt install
+description: >
+  Install apt packages, reusing .debs cached by earlier runs so a throttled
+  Ubuntu mirror only costs us on a cache miss. Caches saved on main are
+  visible to PR and merge-queue runs; PR-scoped caches are not shared.
+
+inputs:
+  packages:
+    description: Space-separated list of packages to install
+    required: true
+  cache-name:
+    description: Short name distinguishing this package set's cache
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The key rolls monthly so cached packages track noble-updates, and on any
+    # change to the package list; restore-keys seeds from the previous cache.
+    - name: Compute apt cache key
+      id: key
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        CACHE_NAME: ${{ inputs.cache-name }}
+      run: |
+        # ImageOS is set by the runner, e.g. ubuntu24
+        prefix="apt-$CACHE_NAME-${ImageOS:?}-"
+        hash=$(echo "$PACKAGES" | sha256sum | cut -c1-16)
+        {
+          echo "prefix=$prefix"
+          echo "key=$prefix$hash-$(date +%Y-%m)"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Cache apt packages
+      uses: actions/cache@v6
+      with:
+        path: ~/apt-cache
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+
+    - name: Install packages
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        sudo debconf-communicate <<< "set man-db/auto-update false"
+        sudo dpkg-reconfigure man-db
+        mkdir -p ~/apt-cache
+        sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+        read -ra package_list <<< "$PACKAGES"
+        sudo apt-get update
+        sudo apt-get install -y \
+          -o APT::Keep-Downloaded-Packages=true \
+          -o Acquire::Retries=3 \
+          -o Acquire::http::Timeout=30 \
+          "${package_list[@]}"
+        cp /var/cache/apt/archives/*.deb ~/apt-cache/

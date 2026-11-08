@@ -11,6 +11,16 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
 
+# Preserve GUI compilation-unit paths for the SDRAM linker rule. LTO otherwise
+# combines these files with internal code into anonymous temporary objects.
+# CONFIGURE_DEPENDS above picks up new GUI sources automatically; include
+# generated strings explicitly for clean builds where they do not exist yet.
+set(deluge_gui_SOURCES ${deluge_SOURCES} ${deluge_strings_SOURCES})
+list(FILTER deluge_gui_SOURCES INCLUDE REGEX "/gui/")
+list(REMOVE_DUPLICATES deluge_gui_SOURCES)
+set_property(SOURCE ${deluge_gui_SOURCES} TARGET_DIRECTORY deluge
+    APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
+
 add_dependencies(deluge deluge_strings deluge_version)
 
 # Filter out DSP sources as those are built as part of the deluge_dsp library

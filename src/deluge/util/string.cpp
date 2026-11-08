@@ -66,9 +66,14 @@ std::string fromSlot(int32_t slot, int32_t subSlot, size_t minNumDigits) {
 }
 
 std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool appendOctaveNo) {
-	std::string output; // Guaranteed to be 4 characters or less
-	int32_t octave = (noteCode) / 12 - 2;
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	std::string output;
+	// Floor division / positive modulo so negative note codes land in the right octave
+	int32_t noteCodeWithinOctave = noteCode % 12;
+	int32_t octave = noteCode / 12 - 2;
+	if (noteCodeWithinOctave < 0) {
+		noteCodeWithinOctave += 12;
+		octave--;
+	}
 
 	output += noteCodeToNoteLetter[noteCodeWithinOctave];
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {

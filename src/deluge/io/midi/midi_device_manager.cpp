@@ -689,7 +689,7 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
 	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
 		// TODO: show some error message
 		return;
 	}

@@ -365,6 +365,10 @@ void ParamSet::backUpParamToAction(int32_t p, Action* action, ModelStackWithPara
 }
 
 ModelStackWithAutoParam* ParamSet::getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation) {
+	// An ID meant for another kind of collection (or a stale one) mustn't index past params - return "no param"
+	if (modelStack->paramId < 0 || modelStack->paramId >= numParams_) {
+		return modelStack->addAutoParam(nullptr);
+	}
 	return modelStack->addAutoParam(&params[modelStack->paramId]);
 }
 

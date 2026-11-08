@@ -33,10 +33,10 @@ public:
 
 	void renderMenuItems(std::span<MenuItem*> items, const MenuItem* currentItem) override {
 		// Get the values in 0-50 range
-		const int32_t attack = static_cast<Segment*>(items[0])->getValue();
-		const int32_t decay = static_cast<Segment*>(items[1])->getValue();
-		const int32_t sustain = static_cast<Segment*>(items[2])->getValue();
-		const int32_t release = static_cast<Segment*>(items[3])->getValue();
+		const int32_t attack = static_cast<Segment&>(*items[0]).getValue();
+		const int32_t decay = static_cast<Segment&>(*items[1]).getValue();
+		const int32_t sustain = static_cast<Segment&>(*items[2]).getValue();
+		const int32_t release = static_cast<Segment&>(*items[3]).getValue();
 
 		// Constants
 		constexpr int32_t padding_x = 4;

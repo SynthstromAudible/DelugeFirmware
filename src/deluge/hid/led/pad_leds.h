@@ -88,6 +88,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
                             int32_t outerImageTotalWidth);
 
 namespace horizontal {
+bool isSidebarScrolling();
 void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
                  int32_t numSquaresToScroll = kDisplayWidth);
 void renderScroll();

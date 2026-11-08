@@ -1,0 +1,31 @@
+---
+import DefaultSocialIcons from "@astrojs/starlight/components/SocialIcons.astro"
+import coffeeIcon from "../assets/buy-me-a-coffee.svg?raw"
+---
+
+<DefaultSocialIcons />
+<a
+  href="https://buymeacoffee.com/delugecommunity"
+  class="sl-flex"
+  title="Buy Me a Coffee"
+>
+  <span class="sr-only">Buy Me a Coffee</span>
+  <Fragment set:html={coffeeIcon} />
+</a>
+
+<style>
+  a {
+    color: var(--sl-color-text-accent);
+    padding: 0.5em;
+    margin: -0.5em;
+  }
+
+  a:hover {
+    opacity: 0.66;
+  }
+
+  a :global(svg) {
+    width: 1em;
+    height: 1em;
+  }
+</style>

@@ -171,105 +171,86 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	return filterGain;
 }
 
+// Performance notes for doFilter()/doFilterStereo()
+//
+// Design: the per-sample loops are doFilterT()/doFilterStereoT(), templated on two loop-invariant conditions picked
+// once per buffer here:
+//  - kSaturate: morph > 0 || processedResonance > 510000000 (the tanh on the scaled input)
+//  - kFeedback: false only when processedResonance == 0 and divideByTotalMoveabilityAndProcessedResonance == 1 << 30,
+//    which is what setConfig() gives with the resonance knob at minimum. The feedback term is then exactly 0 and the
+//    input scaling is exactly a round to a multiple of 4, so the 5 multiplies can go. The divisor is checked as well
+//    as the resonance, so this stays exact whatever setConfig() computes.
+// The loops work on local copies of the coefficients, the ladder state and the noise seed (jcong), written back once
+// per buffer. Stores through the q31_t* sample buffer could otherwise alias the q31_t members and the global seed, so
+// GCC reloaded all of them and stored the state back on every sample.
+//
+// Alternatives considered:
+//  - __restrict__ on the buffer pointers alone. GCC then keeps most state in registers and unswitches
+//    the saturation branch by itself, but it still does the feedback multiplies at resonance 0, and the result
+//    depends on GCC honouring restrict (I also assume this worked when rohan wrote it and is no longer true)
+//  - A runtime branch inside the loop instead of templates. That's what the old code did for kSaturate. It keeps code
+//    small, but the compiler can't drop the feedback path. Branch prediction makes the cost small but the cache is
+//    still penalized
+//  - Folding the 3 template variants down to 2 by letting <true, true> use the <false, true> loop with a runtime
+//    saturation branch, to save code size. Not done: only one variant is hot per voice, keeping the whole thing
+//    in cache is worth a lot
+//  - NEON for stereo, running left and right in one 2-lane vector. vqrdmulh is not bit-exact against smmulr;
+//    vmull.s32 followed by vrshrn.i64 #32 is. Not done: dunno how much it'll actually help and can't test automatically
+//  - Interleaving two voices per loop to hide the latency of the 4-stage smmulr chain, which flat-CPI emulation can't
+//    see but hardware will. Way bigger change, leave to next
+//  - A stride-1 specialisation to free a register for the resonant 24dB loop, which still spills. Not done.
+//  - Caching setConfig() (two double divides) when frequency and resonance haven't changed. It's about 2% of render
+//    instructions after this change; left for a separate change.
 [[gnu::hot]] void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
-
-	// Half ladder
-	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, l);
-			currentSample += sampleIncrement;
-		} while (currentSample < endSample);
+	if (morph > 0 || processedResonance > 510000000) {
+		doFilterT<true, true>(startSample, endSample, sampleIncrement);
 	}
-
-	// Full ladder (regular)
-	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-
-		q31_t* currentSample = startSample;
-		do {
-			*currentSample = do24dBLPFOnSample(*currentSample, l);
-
-			currentSample += sampleIncrement;
-		} while (currentSample < endSample);
+	else if (processedResonance != 0 || divideByTotalMoveabilityAndProcessedResonance != (1 << 30)) {
+		doFilterT<false, true>(startSample, endSample, sampleIncrement);
 	}
-
-	// Full ladder (drive)
-	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
-		constexpr int32_t extraSaturationDrive = 1;
-		if (doOversampling) {
-			q31_t* currentSample = startSample;
-			do {
-				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
-				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
-				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
-				// amplitude. Now, if we immediately downsampled that again with no filtering, no problem, because those
-				// new really high harmonics that make it triangular are still there. But after running it through the
-				// ladder filter, those get doubly filtered out, leaving just the reduced-amplitude (fundamental) sine
-				// waves where our old ones were. So instead, we need to do just a little bit more and take one extra,
-				// previous sample into account in our interpolation. This is enough to make the HF loss inaudible
-				// - although we can still see it on the spectrum analysis.
-
-				// Insanely just doubling up our input values to oversample works better than fancy 3-sample
-				// interpolation. And even, making our "interpolated" sample just a 0 and doubling the amplitude of the
-				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
-				// fed in.
-
-				doDriveLPFOnSample(*currentSample, l);
-
-				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
-				// ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
-
-				// Only perform the final saturation stage on this one sample, which we want to keep
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += sampleIncrement;
-			} while (currentSample < endSample);
-		}
-
-		else {
-			q31_t* currentSample = startSample;
-			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += sampleIncrement;
-			} while (currentSample < endSample);
-		}
+	else {
+		doFilterT<false, false>(startSample, endSample, sampleIncrement);
 	}
 }
+
 [[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+	if (morph > 0 || processedResonance > 510000000) {
+		doFilterStereoT<true, true>(startSample, endSample);
+	}
+	else if (processedResonance != 0 || divideByTotalMoveabilityAndProcessedResonance != (1 << 30)) {
+		doFilterStereoT<false, true>(startSample, endSample);
+	}
+	else {
+		doFilterStereoT<false, false>(startSample, endSample);
+	}
+}
+
+template <bool kSaturate, bool kFeedback>
+[[gnu::hot]] void LpLadderFilter::doFilterT(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+	const Coeffs c = getCoeffs();
+	LpLadderState s = l;
+	uint32_t seed = jcong;
+	q31_t* currentSample = startSample;
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
-
-		q31_t* currentSample = startSample;
 		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, l);
-			currentSample += 1;
-			*currentSample = do12dBLPFOnSample(*currentSample, r);
-			currentSample += 1;
+			*currentSample = do12dBLPFOnSample<kSaturate, kFeedback>(*currentSample, s, c, seed);
+			currentSample += sampleIncrement;
 		} while (currentSample < endSample);
 	}
 
 	// Full ladder (regular)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
-		q31_t* currentSample = startSample;
 		do {
-			*currentSample = do24dBLPFOnSample(*currentSample, l);
-
-			currentSample += 1;
-			*currentSample = do24dBLPFOnSample(*currentSample, r);
-
-			currentSample += 1;
+			*currentSample = do24dBLPFOnSample<kSaturate, kFeedback>(*currentSample, s, c, seed);
+			currentSample += sampleIncrement;
 		} while (currentSample < endSample);
 	}
 
 	// Full ladder (drive)
 	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		if (doOversampling) {
-			q31_t* currentSample = startSample;
 			do {
 				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
 				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
@@ -285,89 +266,142 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 				// interpolation. And even, making our "interpolated" sample just a 0 and doubling the amplitude of the
 				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
 				// fed in.
-
-				doDriveLPFOnSample(*currentSample, l);
+				q31_t input = *currentSample;
+				doDriveLPFOnSample<kSaturate, kFeedback>(input, s, c, seed);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
 				// ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+				q31_t outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(input, s, c, seed);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
 				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
 
-				currentSample += 1;
-				doDriveLPFOnSample(*currentSample, r);
-
-				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
-				// ladder LPF filter takes care of lots of those high harmonics!
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
-
-				// Only perform the final saturation stage on this one sample, which we want to keep
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += 1;
+				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
 		}
 
 		else {
-			q31_t* currentSample = startSample;
 			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
+				q31_t outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(*currentSample, s, c, seed);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += 1;
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
-				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
-
-				currentSample += 1;
+				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
 		}
 	}
+	else {
+		return;
+	}
+	l = s;
+	jcong = seed;
 }
-[[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
-	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
-	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
-	                     + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
-	q31_t x = scaleInput(input, feedbacksSum);
+template <bool kSaturate, bool kFeedback>
+[[gnu::hot]] void LpLadderFilter::doFilterStereoT(q31_t* startSample, q31_t* endSample) {
+	const Coeffs c = getCoeffs();
+	LpLadderState sl = l;
+	LpLadderState sr = r;
+	uint32_t seed = jcong;
+	q31_t* currentSample = startSample;
 
-	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near
-	// the point of feedback if (processedResonance > 510000000) { // Re-check this? 	x = getTanHUnknown(x, 1); //
-	// Saturation
-	// }
+	// Half ladder
+	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
+		do {
+			currentSample[0] = do12dBLPFOnSample<kSaturate, kFeedback>(currentSample[0], sl, c, seed);
+			currentSample[1] = do12dBLPFOnSample<kSaturate, kFeedback>(currentSample[1], sr, c, seed);
+			currentSample += 2;
+		} while (currentSample < endSample);
+	}
+
+	// Full ladder (regular)
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
+		do {
+			currentSample[0] = do24dBLPFOnSample<kSaturate, kFeedback>(currentSample[0], sl, c, seed);
+			currentSample[1] = do24dBLPFOnSample<kSaturate, kFeedback>(currentSample[1], sr, c, seed);
+			currentSample += 2;
+		} while (currentSample < endSample);
+	}
+
+	// Full ladder (drive)
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
+		if (doOversampling) {
+			do {
+				// See doFilterT() for notes on this crude 2x oversampling
+				q31_t input = currentSample[0];
+				doDriveLPFOnSample<kSaturate, kFeedback>(input, sl, c, seed);
+				q31_t outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(input, sl, c, seed);
+				currentSample[0] = getTanHUnknown(outputSampleToKeep, 4);
+
+				input = currentSample[1];
+				doDriveLPFOnSample<kSaturate, kFeedback>(input, sr, c, seed);
+				outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(input, sr, c, seed);
+				currentSample[1] = getTanHUnknown(outputSampleToKeep, 4);
+
+				currentSample += 2;
+			} while (currentSample < endSample);
+		}
+
+		else {
+			do {
+				q31_t outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(currentSample[0], sl, c, seed);
+				currentSample[0] = getTanHUnknown(outputSampleToKeep, 4);
+				outputSampleToKeep = doDriveLPFOnSample<kSaturate, kFeedback>(currentSample[1], sr, c, seed);
+				currentSample[1] = getTanHUnknown(outputSampleToKeep, 4);
+				currentSample += 2;
+			} while (currentSample < endSample);
+		}
+	}
+	else {
+		return;
+	}
+	l = sl;
+	r = sr;
+	jcong = seed;
+}
+
+// For the analog-ness, the cutoff gets some heavily lowpassed noise. Same LCG as getNoise(), on a local copy of the
+// seed.
+[[gnu::always_inline]] static inline q31_t noisyMoveability(q31_t moveability, q31_t& noiseLastValue, uint32_t& seed) {
+	seed = 69069 * seed + 1234567;
+	q31_t noise = (int32_t)seed >> 2;
+	q31_t distanceToGo = noise - noiseLastValue;
+	noiseLastValue += distanceToGo >> 7;
+	return moveability + multiply_32x32_rshift32(moveability, noiseLastValue);
+}
+
+template <bool kSaturate, bool kFeedback>
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state,
+                                                                      const Coeffs& c, uint32_t& seed) {
+	q31_t noisy_m = noisyMoveability(c.moveability, state.noiseLastValue, seed);
+
+	q31_t feedbacksSum = 0;
+	if constexpr (kFeedback) {
+		feedbacksSum = state.lpfLPF1.getFeedbackOutput(c.lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(c.lpf2Feedback)
+		               + state.lpfLPF3.getFeedbackOutput(c.lpf4Feedback);
+	}
+	q31_t x = scaleInput<kSaturate, kFeedback>(input, feedbacksSum, c);
 
 	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
 }
-[[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
-	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
-	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
+template <bool kSaturate, bool kFeedback>
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state,
+                                                                      const Coeffs& c, uint32_t& seed) {
+	q31_t noisy_m = noisyMoveability(c.moveability, state.noiseLastValue, seed);
 
-	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	                     << 2;
+	q31_t feedbacksSum = 0;
+	if constexpr (kFeedback) {
+		feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(c.lpf1Feedback)
+		                + state.lpfLPF2.getFeedbackOutputWithoutLshift(c.lpf2Feedback)
+		                + state.lpfLPF3.getFeedbackOutputWithoutLshift(c.lpf3Feedback)
+		                + state.lpfLPF4.getFeedbackOutputWithoutLshift(c.lpf4Feedback))
+		               << 2;
+		// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the
+		// 1=1073741824 range. But it doesn't sound as good. Primarily it stops us getting to full resonance. But even
+		// if we allow further resonance increase, the sound just doesn't quite compare. Lucky I discovered this by
+		// mistake
+	}
 
-	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
-	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
-	// resonance increase, the sound just doesn't quite compare. Lucky I discovered this by mistake
-
-	q31_t x = scaleInput(input, feedbacksSum);
-
-	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near
-	// the point of feedback
-
-	// if (processedResonance > 900000000) {
-	// 	x = getTanHUnknown(x, 1);
-	// }
+	q31_t x = scaleInput<kSaturate, kFeedback>(input, feedbacksSum, c);
 
 	return state.lpfLPF4.doFilter(
 	           state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
@@ -375,38 +409,29 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	       << 1;
 }
 
-[[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
+template <bool kSaturate, bool kFeedback>
+[[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state,
+                                                                       const Coeffs& c, uint32_t& seed) {
+	q31_t noisy_m = noisyMoveability(c.moveability, state.noiseLastValue, seed);
 
-	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
-	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
-
-	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	                     << 2;
-
-	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
-	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
-	// resonance increase, the sound just doesn't quite compare. Lucky I discovered this by mistake
-
-	// Saturate feedback
-	feedbacksSum = getTanHUnknown(feedbacksSum, 7);
+	q31_t feedbacksSum = 0;
+	if constexpr (kFeedback) {
+		feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(c.lpf1Feedback)
+		                + state.lpfLPF2.getFeedbackOutputWithoutLshift(c.lpf2Feedback)
+		                + state.lpfLPF3.getFeedbackOutputWithoutLshift(c.lpf3Feedback)
+		                + state.lpfLPF4.getFeedbackOutputWithoutLshift(c.lpf4Feedback))
+		               << 2;
+		// Saturate feedback
+		feedbacksSum = getTanHUnknown(feedbacksSum, 7);
+	}
 
 	// We don't saturate the input anymore, because that's the place where we'd get the most aliasing!
-	q31_t x = scaleInput(input, feedbacksSum);
+	q31_t x = scaleInput<kSaturate, kFeedback>(input, feedbacksSum, c);
 
 	q31_t a = state.lpfLPF1.doFilter(x, noisy_m);
-
 	q31_t b = state.lpfLPF2.doFilter(a, noisy_m);
-
-	q31_t c = state.lpfLPF3.doFilter(b, noisy_m);
-
-	q31_t d = state.lpfLPF4.doFilter(c, noisy_m) << 1;
-
+	q31_t cc = state.lpfLPF3.doFilter(b, noisy_m);
+	q31_t d = state.lpfLPF4.doFilter(cc, noisy_m) << 1;
 	return d;
 }
 } // namespace deluge::dsp::filter

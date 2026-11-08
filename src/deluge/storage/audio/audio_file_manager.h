@@ -116,7 +116,13 @@ public:
 	///
 	/// @param sample The Sample to load from.
 	/// @param clusterIndex Which of its Clusters to load. Must be a valid index into sample->clusters.
-	void prefetchCluster(Sample* sample, int32_t clusterIndex);
+	/// @return Whether the Cluster is now held (or never needs to be, as the Sample is unloadable). False means it's
+	/// worth asking again later.
+	bool prefetchCluster(Sample* sample, int32_t clusterIndex);
+
+	/// @brief Changes whenever a Cluster is added to or released from the prefetch list. While it and what a caller
+	/// would ask for are unchanged, asking again won't do anything.
+	[[nodiscard]] uint32_t getPrefetchGeneration() const { return prefetchGeneration_; }
 
 	/// @brief Lets go of a prefetched Cluster, now that something that's going to play it holds its own reason on it.
 	///
@@ -231,6 +237,7 @@ private:
 	/// Oldest first
 	std::array<Prefetch, kMaxPrefetches> prefetches_;
 	size_t numPrefetches_ = 0;
+	uint32_t prefetchGeneration_ = 0;
 
 	/// @brief Removes the reasons prefetches_[i] holds, and removes it from prefetches_, keeping the order.
 	void releasePrefetch(size_t i);

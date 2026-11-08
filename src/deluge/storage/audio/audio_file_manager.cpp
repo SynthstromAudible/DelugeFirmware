@@ -1556,9 +1556,9 @@ void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* err
 	}
 }
 
-void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
+bool AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
 	if (sample->unloadable) {
-		return;
+		return true;
 	}
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
@@ -1566,7 +1566,7 @@ void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
 	if (existing != nullptr
 	    && std::ranges::any_of(prefetches_.begin(), prefetches_.begin() + numPrefetches_,
 	                           [existing](const Prefetch& prefetch) { return prefetch.cluster == existing; })) {
-		return;
+		return true;
 	}
 
 	// If we're full, make room by letting go of the oldest one that's loaded. It just goes back to being cached, so
@@ -1577,7 +1577,7 @@ void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
 		auto oldestLoaded =
 		    std::ranges::find_if(prefetches_, [](const Prefetch& prefetch) { return prefetch.cluster->loaded; });
 		if (oldestLoaded == prefetches_.end()) {
-			return;
+			return false;
 		}
 		releasePrefetch(oldestLoaded - prefetches_.begin());
 	}
@@ -1590,17 +1590,20 @@ void AudioFileManager::prefetchCluster(Sample* sample, int32_t clusterIndex) {
 	// Nothing's waiting on it yet, so if we can't get it now, playback will just ask again when it gets there
 	if (error != Error::NONE || cluster == nullptr) {
 		D_PRINTLN("prefetch failed for index:  %d  error:  %d", clusterIndex, util::to_underlying(error));
-		return;
+		return false;
 	}
 
 	sample->addReason();
 	prefetches_[numPrefetches_++] = {cluster, sample};
+	prefetchGeneration_++;
+	return true;
 }
 
 void AudioFileManager::releasePrefetch(size_t i) {
 	Prefetch prefetch = prefetches_[i];
 	std::move(prefetches_.begin() + i + 1, prefetches_.begin() + numPrefetches_, prefetches_.begin() + i);
 	numPrefetches_--;
+	prefetchGeneration_++;
 
 	removeReasonFromCluster(*prefetch.cluster, "4461");
 	prefetch.sample->removeReason("4461");
