@@ -371,6 +371,24 @@ describe float_ladder_spec("the float ladder", ${
 				expect(std::fabs(m[i] - 0.5F * (a[i] + b[i])) < 1e-6F).to_be_true();
 			}
 		});
+		it("rejects DC in its high-pass, driven hard in CLEAN and at small signals in DRIVE", _ {
+			fp::FlushToZero ftz;
+			// The steady output of a constant @p level through a compensated HP at drive @p drive.
+			const auto settled = [](Ladder::Mode mode, f32 drive, f32 level) {
+				Mono<Ladder> ladder;
+				ladder.configure({.cutoff = 0.05F, .resonance = 2.F, .drive = drive, .compensate = true,
+				                  .response = Response::HP, .mode = mode});
+				const std::vector<f32> in(kBlock * 32, level);
+				std::vector<f32> out(in.size());
+				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
+				return out.back();
+			};
+			expect(std::fabs(settled(Ladder::Mode::CLEAN, 8.F, 0.5F)) < 1e-3F).to_be_true();
+			expect(std::fabs(settled(Ladder::Mode::DRIVE, 1.F, 1e-3F)) < 1e-5F).to_be_true();
+			// Driven hard, DRIVE's stages each compress their own input, so the taps no longer cancel exactly; the
+			// leak stays within the saturated taps' scale (measured −0.287), not the drive's.
+			expect(std::fabs(settled(Ladder::Mode::DRIVE, 8.F, 0.5F)) < 0.5F).to_be_true();
+		});
 		it("stays finite and bounded at every setting", _ {
 			const auto in = noise(kBlock, 7);
 			std::vector<f32> out(kBlock);
@@ -380,7 +398,8 @@ describe float_ladder_spec("the float ladder", ${
 				                   .resonance = -1.F + 6.F * static_cast<f32>(i / 20) / 20.F,
 				                   .drive = 1.F + static_cast<f32>(i % 7),
 				                   .compensate = (i % 2) == 0,
-				                   .response = static_cast<Response>(i % 4)};
+				                   .response = static_cast<Response>(i % 4),
+				                   .mode = static_cast<Ladder::Mode>((i / 7) % 2)};
 				if (i % 50 == 0) {
 					s.cutoff = kNan;
 				}

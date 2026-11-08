@@ -1511,7 +1511,7 @@ the loop `u = in_gain·x − k·y₄` resolves to `u = (in_gain·x − k·S)·r`
 feedback, so the ladder stays in tune and stable as the cutoff moves block to block, and no division in the step.
 Resonance `k` runs over [0, 4.5]: at 4 the loop gain at the cutoff is exactly 1 and an impulse rings on; above it an
 oscillation grows until the saturator holds it. `drive` (clamped to [1, 8]) scales the input into the saturator, and
-`compensate` scales it by `1 + k` so the low-pass DC gain stays 1. Every setting clamps, NaN to the lower bound.
+`compensate` scales it by `1 + k` so the low-pass DC gain stays at `drive` (1 at drive 1). Every setting clamps, NaN to the lower bound.
 `coefficients` computes `tan_pi`, `G`, `G⁴`, `r` and the gain in double, libm-free, and rounds each once.
 
 - **The response is five tap weights, not a mode.** The output is `w₀·u + w₁·y₁ + w₂·y₂ + w₃·y₃ + w₄·y₄`, summed left
@@ -1525,7 +1525,9 @@ oscillation grows until the saturator holds it. `drive` (clamped to [1, 8]) scal
   input; that loop has no closed form, so the linear solution predicts `u`, a trial pass through the saturating
   stages on a copy of the state gives the loop's error `f = u − in_gain·x + k·y₄`, one step `u ← u − f·r` corrects it
   with the linear loop's slope (a fixed cost, no division), and the committed pass runs on the corrected `u`. On the
-  A9 DRIVE costs about 4 times CLEAN.
+  A9 DRIVE costs about 4 times CLEAN. The tap mixes assume each stage filters the one before, and DRIVE's stages
+  each saturate their own input, so its HP and BP are exact at small signals and leak a little of what they reject
+  when driven hard (a compensated HP at drive 8 and resonance 2 settles at −0.29 on a DC input of 0.5).
 - **The saturator** `fp::detail::soft_clip` (`float/math/detail.h`, over V) is the odd quintic
   `x − 2x³/(3L²) + x⁵/(5L⁴)` on its input clamped to ±L, L = 15/8, ±1 beyond. Its slope `(1 − x²/L²)²` is 1 at 0,
   never negative, and reaches 0 with zero curvature at ±L, so the curve enters the clamp with no corner. It is defined
@@ -1543,7 +1545,7 @@ once per block, not a kernel. Each `next()` draws a uniform value in [−1, 1] f
 through `mul_add`); `value()` reads the last result. `Settings` are `time_blocks` (at least 1) and `seed` (0 taken as
 1); `reseed` restarts the stream. It is libm-free and deterministic, so a seed gives the same stream on every target.
 The owner applies the value through `configure`, linearised: a cutoff `fc·(1 + d·depth)`, a pitch increment
-`inc·(1 + d·cents·ln2/1200)` (within 0.01 cent at ±10 cents). Reconfiguring a whole voice chain each block recomputes
+`inc·(1 + d·cents·ln2/1200)` (within 0.03 cent at ±10 cents). Reconfiguring a whole voice chain each block recomputes
 every part's coefficients; the bench's drifting ladder voice measures that cost.
 
 ### `Envelope` (`float/envelope/envelope.h`)

@@ -931,7 +931,7 @@ channel-sample; the runs agree to within 0.1 on every case.
 list). Its step is one dependent chain (the feedback sum, the resolved input, the saturator, four stages in series), so
 Mono spends more cycles waiting than issuing: 72.3 instructions and 108.2 issue-empty cycles per sample. Four lanes
 hide part of that, 2.58x, in line with the SVF's 2.10x. DRIVE runs the four stages twice and saturates every stage's
-input, five saturators against one: 3.85 times CLEAN in Mono (695.26) and 4.30 times at four lanes (300.81), above the
+input, eight saturators (four in each of two passes) against one: 3.85 times CLEAN in Mono (695.26) and 4.30 times at four lanes (300.81), above the
 2 to 3 times the design estimated. At four lanes one DRIVE voice is about 13 million cycles a second at 44.1 kHz,
 3.3% of the A9's 400 MHz; one CLEAN voice is 0.8%.
 

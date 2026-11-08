@@ -48,7 +48,9 @@ namespace deluge::dsp::fp {
 /// compress rather than grow without bound. DRIVE saturates every stage's input; its loop has no closed form, so the
 /// linear solution predicts u, a trial pass through the saturating stages (state untouched) gives the loop's error
 /// f = u − in_gain·x + k·y₄, and one step u ← u − f·r corrects it with the linear loop's slope — no division, a fixed
-/// cost — before the committed pass. Both flavours share the State, so a switch between blocks keeps it.
+/// cost — before the committed pass. Both flavours share the State, so a switch between blocks keeps it. The tap
+/// mixes assume each stage filters the one before; DRIVE's stages each saturate their own input, so its HP and BP
+/// mixes are exact at small signals and leak a little of what they reject when driven hard.
 struct Ladder {
 	using value_type = f32; ///< A sample, normalised to ±1.
 	using step_type = f32;  ///< One step per sample.
@@ -88,7 +90,7 @@ struct Ladder {
 		f32 cutoff = 0.1F;                  ///< fc/fs, clamped to [1/48000, 0.49]; NaN takes the lower bound.
 		f32 resonance = 0.F;                ///< k, clamped to [0, 4.5]; above 4 it self-oscillates; NaN takes 0.
 		f32 drive = 1.F;                    ///< Input gain into the saturator, clamped to [1, 8]; NaN takes 1.
-		bool compensate = false;            ///< Scale the input by 1 + k, so the low-pass DC gain stays 1.
+		bool compensate = false;            ///< Scale the input by 1 + k, so the low-pass DC gain stays at drive.
 		Response response = Response::LP24; ///< The response at morph 0.
 		Response morph_to = Response::LP24; ///< The response at morph 1.
 		f32 morph = 0.F;                    ///< Between the two, clamped to [0, 1]; NaN takes 0.
@@ -181,15 +183,17 @@ struct Ladder {
 		return taps;
 	}
 
-	/// @brief Steps the four stages from @p u with each stage's input saturated, committing @p s: returns the taps.
+	/// @brief Steps the four stages from @p u with each stage's input saturated, committing @p s: returns the taps,
+	/// the first the saturated u that stage 1 takes, so the taps' mix cancels as the linear stages' does.
 	template <class V>
 	[[nodiscard]] [[gnu::always_inline]] static std::array<V, 5> saturated_stages(const CoefficientsT<V>& c,
 	                                                                              StateT<V>& s, V u) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		std::array<V, 5> taps{u, u, u, u, u};
-		V in = u;
+		const V clipped = detail::soft_clip(u);
+		std::array<V, 5> taps{clipped, clipped, clipped, clipped, clipped};
+		V in = clipped;
 		for (std::size_t i = 0; i < 4; ++i) {
-			const V v = (detail::soft_clip(in) - s.s[i]) * c.G;
+			const V v = ((i == 0 ? in : detail::soft_clip(in)) - s.s[i]) * c.G;
 			const V y = v + s.s[i];
 			s.s[i] = y + v;
 			taps[i + 1] = y;
