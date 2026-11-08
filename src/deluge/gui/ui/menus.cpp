@@ -192,6 +192,7 @@
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/sequencer/mutes.h"
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/attack.h"
 #include "gui/menu_item/sidechain/release.h"
@@ -245,6 +246,19 @@ namespace params = deluge::modulation::params;
 #include "gui/menu_item/audio_clip/specific_output_source_selector.h"
 #include "gui/menu_item/generate/g_menus.inc"
 #include "gui/menu_item/midi/y_axis_to_cc1.h"
+
+// Sequencer ---------------------------------------------------------------------------------
+PLACE_SDRAM_BSS sequencer::MuteSteps sequencerMuteStepsMenu{STRING_FOR_STEPS, STRING_FOR_STEPS};
+PLACE_SDRAM_BSS sequencer::MuteCount sequencerMuteCountMenu{STRING_FOR_MUTES, STRING_FOR_MUTES};
+PLACE_SDRAM_BSS sequencer::MuteOffset sequencerMuteOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_OFFSET};
+
+PLACE_SDRAM_BSS HorizontalMenu sequencerMutesMenu{
+    STRING_FOR_MUTES,
+    STRING_FOR_SEQUENCER_MUTES_MENU_TITLE,
+    {&sequencerMuteStepsMenu, &sequencerMuteCountMenu, &sequencerMuteOffsetMenu},
+    HorizontalMenu::Layout::FIXED};
+
+PLACE_SDRAM_BSS Submenu sequencerMenu{STRING_FOR_SEQUENCER, {&sequencerMutesMenu}};
 
 // Arp --------------------------------------------------------------------------------------
 PLACE_SDRAM_BSS arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
@@ -1532,6 +1546,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
     {
         &soundEditorRootActionsMenu,
         &soundMasterMenu,
+        &sequencerMenu,
         &arpMenu,
         &randomizerMenu,
         &audioCompMenu,
@@ -1711,6 +1726,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &soundEditorRootActionsMenuMIDIOrCV,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
+        &sequencerMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
         &bendMenu,
@@ -1896,6 +1912,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     {
         &kitGlobalFXActionsMenu,
         &kitClipMasterMenu,
+        &sequencerMenu,
         &kitArpMenu,
         &audioCompMenu,
         &globalFiltersMenu,

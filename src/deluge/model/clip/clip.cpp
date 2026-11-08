@@ -495,6 +495,7 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 	// Deliberately leave lastProcessedPos as a pos potentially far beyond the length of the original Clip. setPos()
 	// will see this and wrap the position itself - including for individual NoteRows with independent length.
 	originalClip->setPos(modelStackOriginal, lastProcessedPos, true);
+	originalClip->continuePlaybackStateFrom(*this);
 
 	transferVoicesToOriginalClipFromThisClone(modelStackOriginal, modelStackClone);
 
@@ -1152,6 +1153,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				newPlayPos += repeatCount * loopLength;
 			}
 			newClip->setPos(modelStack, newPlayPos, true);
+			newClip->continuePlaybackStateFrom(*this);
 			newClip->resumePlayback(modelStack, false); // Don't sound
 
 			if (type == ClipType::AUDIO) {

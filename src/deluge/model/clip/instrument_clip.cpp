@@ -149,6 +149,13 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	}
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
+	muteSequencer.copySettingsFrom(otherInstrumentClip->muteSequencer);
+}
+
+void InstrumentClip::continuePlaybackStateFrom(Clip const& otherClip) {
+	if (otherClip.type == ClipType::INSTRUMENT) {
+		muteSequencer.continueFrom(static_cast<InstrumentClip const&>(otherClip).muteSequencer);
+	}
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -381,6 +388,7 @@ void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t n
 	Clip::setPos(modelStack, newPos, useActualPosForParamManagers); // This will also call our own virtual expectEvent()
 
 	noteRowsNumTicksBehindClip = 0;
+	muteSequencer.restart();
 
 	Clip::setPosForParamManagers(
 	    modelStack,
@@ -804,6 +812,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 
 skipDoingSumTo100:
 
+		// Whether each pending note-on passed its probability, iterance and fill conditions
+		bool conditionsPassed[kMaxNumNoteOnsPending];
+		bool anyConditionPassed = false;
+
 		// Go through each pending note-on
 		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
@@ -892,14 +904,19 @@ doNewProbability:
 						conditionPassed = false;
 					}
 				}
+			}
 
-				// probability, iterance and fill conditions have passed
-				if (conditionPassed) {
-					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
-				}
-				else {
-					pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
-				}
+			conditionsPassed[i] = conditionPassed;
+			anyConditionPassed |= conditionPassed;
+		}
+
+		// Everything starting at this position is one step of the mute sequencer, so a chord is muted as a whole.
+		// Steps where nothing would have sounded anyway don't count.
+		bool stepMuted = anyConditionPassed && muteSequencer.advance();
+
+		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
+			if (conditionsPassed[i] && !stepMuted) {
+				sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 			}
 			else {
 				pendingNoteOnList.pendingNoteOns[i].noteRow->sequenced = false;
@@ -2411,6 +2428,14 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.closeTag();
 
+	if (muteSequencer.isEnabled()) {
+		writer.writeOpeningTagBeginning("sequencer");
+		writer.writeAttribute("muteSteps", muteSequencer.getSteps());
+		writer.writeAttribute("muteCount", muteSequencer.getMutes());
+		writer.writeAttribute("muteOffset", muteSequencer.getOffset());
+		writer.closeTag();
+	}
+
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
@@ -2687,6 +2712,31 @@ someError:
 				}
 			}
 			reader.match('}'); // End arpeggiator value object.
+		}
+
+		else if (!strcmp(tagName, "sequencer")) {
+			int32_t muteSteps = 0;
+			int32_t muteCount = 0;
+			int32_t muteOffset = 0;
+			reader.match('{');
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "muteSteps")) {
+					muteSteps = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "muteCount")) {
+					muteCount = reader.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, "muteOffset")) {
+					muteOffset = reader.readTagOrAttributeValueInt();
+				}
+				reader.exitTag(tagName);
+			}
+			reader.match('}'); // End sequencer value object.
+
+			// Steps first, as it sets the range of the other two
+			muteSequencer.setSteps(muteSteps);
+			muteSequencer.setMutes(muteCount);
+			muteSequencer.setOffset(muteOffset);
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.
