@@ -30,24 +30,14 @@ follow channel.
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
 `DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it ShellMenu on with Horizontal Menus on
-(`.superpowers/emu-card/shellmenu`: the page) and off (`.superpowers/emu-card/shellmenu-vertical`: the full screen, the
-ShellMenu card plus `enableHorizontalMenus` 0), and with ShellMenu off on `card.img` (`--sd`).
+(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen), and
+with ShellMenu off on `card.img` (`--sd`).
 
-The `shellmenu-vertical` card is the ShellMenu card with Horizontal Menus switched off. Build it from the
-`shellmenu` directory, `--card` takes a directory:
-
-```sh
-cp -r .superpowers/emu-card/shellmenu .superpowers/emu-card/shellmenu-vertical
-printf '<?xml version="1.0" encoding="UTF-8"?>\n<runtimeFeatureSettings>\n\t<setting name="enableHorizontalMenus" value="0" />\n</runtimeFeatureSettings>\n' \
-  > .superpowers/emu-card/shellmenu-vertical/SETTINGS/CommunityFeatures.XML
-```
-
-For a ready-made image such as `card.img`, copy the same file in with mtools instead:
+`sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical` (the ShellMenu card with
+HorizontalMenus off; `--sd` takes the directory), where a shortcut opens its item alone: a transpose's cursor, step and
+Horizontal move, the coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the
+press. For a ready-made image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools:
 `mcopy -i card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
-
-`sm33-full-screen-values` runs on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus off), where
-a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the coming-soon popup inside the menu,
-and retrigger phase's cursor. Its popup is read 100 ms after the press.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders

@@ -18,6 +18,6 @@
 4000  cc 1 21 64
 4200  button Learn up
 4600  cc 1 21 110
-5300  snapshot follows_cc
+5400  snapshot follows_cc
 5600  encoder GoldUpper +2
 6300  snapshot follows_knob_again
