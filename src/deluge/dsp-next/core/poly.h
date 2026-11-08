@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/lane_set.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
@@ -40,36 +41,29 @@ namespace deluge::dsp {
 /// **Parking.** A parked lane is fed zero, its output is not written, and its state is held at rest after every
 /// block; lanes share nothing, so it perturbs no other. **Blocks.** Every input and output span has the block's
 /// length (a parked lane's spans may be empty); frames go in and out N at a time through a transpose, the last n mod N
-/// frames lane by lane. **Mode.** The first configure fixes the mode and `configured_` is never cleared, so it stays
-/// the last one configured until set_mode changes it, even once every lane is parked. **Empty blocks.** A block with
-/// every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono does on an empty
-/// block.
+/// frames lane by lane. **Mode.** Configure and set_mode set the mode; configure asserts it matches once any lane has
+/// been configured, and that never clears, so the mode stays the last one set, even once every lane is parked. **Empty
+/// blocks.** A block with every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono
+/// does on an empty block.
 template <poly_kernel K, std::size_t N>
 requires(N == 2 || N == 4)
-class Poly {
+class Poly : public detail::LaneSet<K, N> {
+	using Lanes = detail::LaneSet<K, N>;
 	using V = Pack<f32, N>;
-	using PackedCoefficients = K::template CoefficientsT<V>;
-	using PackedState = K::template StateT<V>;
 	using Mode = K::Mode;
+	using typename Lanes::PackedCoefficients;
+	using typename Lanes::PackedState;
 
 public:
+	using Lanes::reset;
+	using Lanes::set_mode;
+	using Lanes::state;
+
 	/// @brief Sets lane @p lane from @p settings, and un-parks it. Its mode must be the bank's mode once any lane is
 	/// configured.
 	void configure(std::size_t lane, const K::Settings& settings) {
-		assert(lane < N);
-		const typename K::Coefficients c = K::coefficients(settings);
-		assert(!configured_.any() || c.mode == coefficients_.mode);
-		coefficients_.mode = c.mode;
-		set_lane(coefficients_, lane, c);
-		configured_.set(lane);
+		Lanes::configure(lane, settings);
 		parked_.reset(lane);
-	}
-	/// @brief Every lane's mode, from the next block.
-	void set_mode(Mode mode) { coefficients_.mode = mode; }
-	/// @brief Lane @p lane's state to K's reset state.
-	void reset(std::size_t lane) {
-		assert(lane < N);
-		set_lane(state_, lane, typename K::State{});
 	}
 	/// @brief Lane @p lane at rest, fed zero, its output unwritten, until it is configured again.
 	void park(std::size_t lane) {
@@ -78,11 +72,6 @@ public:
 	}
 	/// @brief Whether lane @p lane is parked.
 	[[nodiscard]] bool parked(std::size_t lane) const { return parked_.test(lane); }
-	/// @brief Lane @p lane's state.
-	[[nodiscard]] K::State state(std::size_t lane) const {
-		assert(lane < N);
-		return get_lane<typename K::State>(state_, lane);
-	}
 
 	/// @brief One block: lane l reads @p in[l] and writes @p out[l]. Every unparked lane's spans have the same length;
 	/// a parked lane's may be empty.
@@ -98,14 +87,14 @@ public:
 				assert(in[l].size() == n && out[l].size() == n);
 			}
 		}
-		with_mode<typename K::Modes>(coefficients_.mode, [&]<Mode M> { run<M>(in, out, n); });
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out, n); });
 	}
 
 private:
 	template <Mode M>
 	void run(const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t n) {
-		const PackedCoefficients c = coefficients_;
-		PackedState s = state_;
+		const PackedCoefficients c = this->coefficients();
+		PackedState s = this->packed_state();
 		kernel_block_t<K> block{};
 		if constexpr (detail::declares_prepare<K>) {
 			block = K::prepare(c, s, n);
@@ -122,7 +111,7 @@ private:
 				set_lane(s, l, typename K::State{});
 			}
 		}
-		state_ = s;
+		this->set_packed_state(s);
 	}
 
 	/// N frames, i … i + N − 1, through a transpose in and out.
@@ -163,10 +152,7 @@ private:
 		}
 	}
 
-	PackedCoefficients coefficients_{}; ///< Every lane's coefficients; the mode every lane runs.
-	PackedState state_{};               ///< Every lane's state.
-	std::bitset<N> configured_{};       ///< The lanes configured since construction.
-	std::bitset<N> parked_{};           ///< The lanes held at rest.
+	std::bitset<N> parked_{}; ///< The lanes held at rest.
 };
 
 } // namespace deluge::dsp
