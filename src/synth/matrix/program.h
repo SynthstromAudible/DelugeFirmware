@@ -47,14 +47,14 @@ struct Destination {
 
 /// One scope's tables, pointing into the program's block.
 struct ScopeView {
-	const uint8_t* slot_source{};        ///< per polarity slot: the source it converts
-	const Conversion* slot_conversion{}; ///< per polarity slot: how
-	const uint8_t* cable_slot{};         ///< per cable: its polarity slot
+	const uint8_t* read_source{};        ///< per source read: the source it converts
+	const Conversion* read_conversion{}; ///< per source read: how it converts the source
+	const uint8_t* cable_read{};         ///< per cable: its source read
 	const uint8_t* cable_depth{};        ///< per cable: its index into the per-block depths (routing order)
 	const uint8_t* cable_range{};        ///< per cable: the depth result scaling it, or kNoRange
 	const DepthMode* cable_mode{};       ///< per cable: its depth's shape
 	const Destination* destinations{};   ///< depth destinations first, in routing order; then param destinations
-	uint8_t num_slots{};
+	uint8_t num_reads{};
 	uint8_t num_cables{};
 	uint8_t num_depth_destinations{};
 	uint8_t num_destinations{};

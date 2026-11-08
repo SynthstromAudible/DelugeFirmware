@@ -51,7 +51,7 @@ namespace deluge::project {
 struct ArpRecord;
 }
 
-class VoiceSlot;
+class SoundVoice;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -119,7 +119,7 @@ public:
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
-	///       member's destructor recycles each voice, and ~VoiceSlot unassigns it back into this Sound, whose
+	///       member's destructor recycles each voice, and ~SoundVoice unassigns it back into this Sound, whose
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();

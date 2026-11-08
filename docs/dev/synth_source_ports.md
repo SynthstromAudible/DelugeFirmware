@@ -120,7 +120,7 @@ this design as follows — and the headline is: **Engines need no ports of their
    `SampleSource` depends on `synth::SamplePlaybackPort` and lives in `synth/sources/`. `SamplePlaybackAdapter` (`model/voice/`) wraps
    `VoiceSample`. **5 of 5 sources now library-resident.**
 5. **Kernel relocation** (`Voice` → `synth::Voice`) — done (`synth_voice_lift.md`). The adapters live in the app's
-   `VoiceSlot` (`UnisonPartPorts`); each unison part's sources hold the ports they are bound to.
+   `SoundVoice` (`UnisonPartPorts`); each unison part's sources hold the ports they are bound to.
 
 Per port: interface in `synth/` → source depends on it (bit-exact, impl unchanged behind the adapter) → relocate
 the App-free source into `synth/` (each step golden-bit-exact + `check_synth_boundary`-gated).

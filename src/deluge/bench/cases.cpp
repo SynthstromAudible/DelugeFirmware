@@ -886,10 +886,34 @@ std::span<const Case> pitch_shift_list(CaseSet& s) {
 	return pitch_shift;
 }
 
+/// @brief The float filters list.
+std::span<const Case> float_filters_list(CaseSet& s) {
+	static const std::array float_filters{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fp_one_pole_mono", s.fp_one_pole_mono),
+	    make_case("fp_one_pole_poly2", s.fp_one_pole_poly2),
+	    make_case("fp_one_pole_poly4", s.fp_one_pole_poly4),
+	    make_case("fp_one_pole_linked2", s.fp_one_pole_linked2),
+	    make_case("fp_smoother_mono", s.fp_smoother_mono),
+	    make_case("fp_smoother_poly4", s.fp_smoother_poly4),
+	    make_case("fp_svf_mono", s.fp_svf_mono),
+	    make_case("fp_svf_poly2", s.fp_svf_poly2),
+	    make_case("fp_svf_poly4", s.fp_svf_poly4),
+	    make_case("fp_svf_linked2", s.fp_svf_linked2),
+	    make_case("fp_svf_bank4_sum", s.fp_svf_bank4_sum),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return float_filters;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::PITCH_SHIFT) {
+	if constexpr (L == CaseList::FLOAT_FILTERS) {
+		return float_filters_list(s);
+	}
+	else if constexpr (L == CaseList::PITCH_SHIFT) {
 		return pitch_shift_list(s);
 	}
 	else if constexpr (L == CaseList::VA_SHAPES) {
@@ -984,6 +1008,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::FFT_INVERSE>(s);
 	case CaseList::VA_SHAPES:
 		return list_cases<CaseList::VA_SHAPES>(s);
+	case CaseList::FLOAT_FILTERS:
+		return list_cases<CaseList::FLOAT_FILTERS>(s);
 	case CaseList::KERNELS:
 		break;
 	}

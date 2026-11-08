@@ -42,7 +42,7 @@ class Instrument;
 class Sound;
 class ParamManagerForTimeline;
 class SampleRecorder;
-class VoiceSlot;
+class SoundVoice;
 class VoiceSample;
 class TimeStretcher;
 #include <string>
@@ -143,7 +143,7 @@ struct ReverbSettings;
 namespace AudioEngine {
 #define logAction(string) logAudioAction(string, __FILE__, __LINE__)
 
-using VoicePool = deluge::memory::ObjectPool<VoiceSlot, deluge::memory::fast_allocator>;
+using VoicePool = deluge::memory::ObjectPool<SoundVoice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 uint32_t routine();

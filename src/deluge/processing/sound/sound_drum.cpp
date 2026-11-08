@@ -27,7 +27,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
-#include "model/voice/voice_slot.h"
+#include "model/voice/sound_voice.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"

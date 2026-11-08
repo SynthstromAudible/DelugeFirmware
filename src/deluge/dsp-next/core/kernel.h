@@ -17,8 +17,8 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/lane_pack.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/pack.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/vector_step.h"
@@ -36,8 +36,8 @@
 /// vector of them), `Settings` (what the owner sets), `Coefficients` and `State` (plain value structs; `State{}` is
 /// the reset state), and optionally `Block`, `Mode` and `Modes`. It provides a pure `coefficients(settings)`, an
 /// optional once-per-block `prepare`, and either a `step` at one of three arities, or, for block-staged arithmetic,
-/// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Lanes`, with `Stereo` as
-/// `Lanes<K, 2>`, and `Control`) are the only loops; a kernel holds no data of its own. A wrapper calls a kernel only
+/// a `process`, or, for a block-rate control signal, an `advance`. The wrappers (`Mono`, `Linked`, with `Stereo` as
+/// `Linked<K, 2>`, and `Control`) are the only loops; a kernel holds no data of its own. A wrapper calls a kernel only
 /// through @ref kernel_ops, which passes the coefficients as a const reference so that the call resolves to the form's
 /// own signature; a composed kernel calls its parts through the same functions.
 ///
@@ -57,7 +57,7 @@
 /// never sees it, and a staged or control kernel may not declare one.
 ///
 /// **Checked at one mode.** A moded kernel's `step` (or `process`) is checked at the first mode of its `Modes` only.
-/// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Lanes`
+/// A step that is ill-formed at another mode is reported where the wrapper instantiates it, when `Mono` or `Linked`
 /// (`Stereo` among them) is built for the kernel. A control kernel's `advance` is checked at every listed mode: its
 /// exact signature is checked by taking its address, which costs nothing per mode.
 namespace deluge::dsp {
@@ -427,7 +427,7 @@ concept prepare_well_formed =
 template <typename K>
 concept reset_well_formed = !declares_reset<K> || resets_exactly<K>;
 
-/// @brief Whether `Mono` and `Lanes` step K's member loop state in place rather than on a local copy.
+/// @brief Whether `Mono` and `Linked` step K's member loop state in place rather than on a local copy.
 /// @details False unless K declares `static constexpr bool kStateInPlace` true. The wrappers normally copy the loop
 /// state to locals for the block and write it back, so a scalar loop state stays in registers across the loop.
 /// Declare the trait when the loop state cannot live in registers (an array or a ring of hundreds of bytes): the copy
@@ -613,7 +613,7 @@ namespace detail {
 
 /// @brief The lane pack the opt-in is detected at: two lanes of K's value type.
 template <typename K>
-using ProbePack = LanePack<typename K::value_type, 2>;
+using ProbePack = Pack<typename K::value_type, 2>;
 
 /// @brief Whether K declares `static constexpr bool kLanePackable = true`.
 template <typename K>
@@ -657,19 +657,19 @@ concept steps_packed =
 } // namespace detail
 
 /// @brief Whether K opts in to the op-major step: written once over its value type, it steps every lane of a frame
-/// as one @ref LanePack.
+/// as one @ref Pack.
 /// @details K declares:
 /// - `static constexpr bool kLanePackable = true`;
 /// - `template <class V> struct StateT`, every member a V, with `using State = StateT<value_type>`;
 /// - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&, …)` (without the
-///   mode when K has none), its arithmetic written so it resolves for its value type and for a LanePack of it:
+///   mode when K has none), its arithmetic written so it resolves for its value type and for a Pack of it:
 ///   fixed_point.h's operations, which fixed_point_lanes.h applies lane by lane.
 ///
 /// The coefficients stay scalar: every lane shares them, and a pack's operations broadcast a scalar operand. K is a
 /// generator, processor or mixer kernel stepping one Q<F> sample. The op-major step is not offered to a
 /// kernel that declares a `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk,
 /// which acts on one State, nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of
-/// registers: `Lanes` steps those lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed
+/// registers: `Linked` steps those lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed
 /// step would draw for every lane at once.
 template <typename K>
 concept lane_packable =
@@ -684,7 +684,7 @@ namespace detail {
 /// @brief Whether K's op-major opt-in, if it declares one, is met: K is @ref lane_packable, or it declares a `prepare`,
 /// a `reset` quirk, `kLoopState` or `kStateInPlace`, which keep it lane by lane by design.
 /// @details False exactly for a kernel that declares `kLanePackable = true` but whose StateT or step is not written
-/// over its value type. `Lanes` rejects such a kernel rather than step it lane by lane unannounced.
+/// over its value type. `Linked` rejects such a kernel rather than step it lane by lane unannounced.
 template <typename K>
 concept lane_pack_opt_in_met = !declares_lane_packable<K> || declares_prepare<K> || declares_reset<K>
                                || declares_loop_state<K> || state_in_place_v<K> || lane_packable<K>;
@@ -717,7 +717,7 @@ inline constexpr bool unsupported_event_v = false;
 /// @brief Run the event @p Event on @p state: with @p coefficients when it takes them, else without.
 /// @tparam K The kernel whose State the event changes.
 /// @tparam Event A function taking K's State by non-const reference, and optionally K's Coefficients first: the two
-/// shapes `Control::on`, `Mono::on` and `Lanes::on` accept. Any other shape fails to compile.
+/// shapes `Control::on`, `Mono::on` and `Linked::on` accept. Any other shape fails to compile.
 /// @param args The event's own arguments, after the coefficients and state.
 /// @return What @p Event returns, a reference included.
 template <typename K, auto Event, typename... A>
@@ -736,7 +736,7 @@ template <typename K, auto Event, typename... A>
 }
 
 /// @brief Set @p s to K's reset State: K's `static void reset(State&)` quirk when it declares one, else `State{}`.
-/// @details The one reset rule: `Control::reset`, `Mono::reset`, lane-by-lane `Lanes::reset`, and a chain's `reset`
+/// @details The one reset rule: `Control::reset`, `Mono::reset`, lane-by-lane `Linked::reset`, and a chain's `reset`
 /// and `reset_part` all call it, so they agree under every wrapper by construction.
 template <typename K>
 [[gnu::always_inline]] inline void reset_state(typename K::State& s) {
@@ -751,9 +751,9 @@ template <typename K>
 } // namespace detail
 
 /// @brief The calls a wrapper makes on a kernel, public so that a composed kernel makes the same calls on its parts.
-/// @details `Mono`, `Lanes` (`Stereo` is `Lanes<K, 2>`) and `Control` call a kernel through these alone: @ref
+/// @details `Mono`, `Linked` (`Stereo` is `Linked<K, 2>`) and `Control` call a kernel through these alone: @ref
 /// prepare_block, @ref dispatch_mode, then @ref step_at (on @ref loop_state of the State), @ref process_at or @ref
-/// advance_at for the kernel's form; for a @ref lane_packable kernel, which `Lanes` steps op-major, @ref dispatch_mode
+/// advance_at for the kernel's form; for a @ref lane_packable kernel, which `Linked` steps op-major, @ref dispatch_mode
 /// then @ref step_packed_at. A kernel built from smaller kernels prepares each part with @ref prepare_block and steps
 /// each part with @ref step_at, so it never has to know whether a part declares `prepare` or has modes. Everything here
 /// runs per block or per step and is `[[gnu::always_inline]]`.

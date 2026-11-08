@@ -57,7 +57,7 @@ These numbers explain the cost of a streaming q31 loop:
    sample ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
-3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
+3. **Interleaving independent streams (`Linked<K, N>`) is for recursive kernels.** A filter or envelope whose next
    sample depends on its last is latency-bound. N independent streams interleaved hide the latency when N is at least
    the recurrence latency divided by the whole per-lane issue cost: N ≥ latency ÷ (the lane's instructions ÷ about
    1.5, counting 2 cycles per multiply). The divisor is everything a lane issues, not the critical operation's issue
@@ -114,7 +114,7 @@ shared blocks padded off 1 KB multiples:
 
 ## Lanes
 
-Cycles per channel-sample on the device for `Lanes<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
+Cycles per channel-sample on the device for `Linked<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
 from the same image. The bench ran on 5c4df244f (2026-10-09), `DELUGE_DSP_BENCH_CASES=lanes`; the `kernels` list from
 the same tree gives the same `Mono` figures to within 0.01.
 
@@ -135,9 +135,9 @@ the same tree gives the same `Mono` figures to within 0.01.
   `lanes=` field gives `stereo_gain` per frame, twice the figure here.
 - **"Op-major" names the form the source asks for, not a different loop.** Over interleaved frames clang compiles the
   op-major and lane-by-lane forms to the same instructions at the shipping flags (`OnePole` at N = 2 and 4,
-  `ShiftTracker` at N = 4), so these are the figures of `Lanes` at each N, whichever form a kernel takes. Opting in is
+  `ShiftTracker` at N = 4), so these are the figures of `Linked` at each N, whichever form a kernel takes. Opting in is
   a shape and test guarantee, not a speed-up; another kernel opts in only when a probe shows its op-major loop beating
-  lane by lane, or a `LanePack` specialisation lane by lane cannot reach.
+  lane by lane, or a `Pack` specialisation lane by lane cannot reach.
 - **`OnePole` at N = 2 is issue-bound.** The loop is 12 instructions per frame (two `smmulr`, `ldrd`/`strd`, no calls,
   no `muls`), and the PTM trace gives 12 cycles per iteration in 95% of them: one instruction per cycle, with the two
   multiplies' latency hidden. What remains is issue: a loop of the same 12 instructions per frame has measured 11.1
@@ -241,7 +241,7 @@ the in-place digital chain.
   two `ldr`s rather than one `ldrd`, 9 instructions per tap-frame against 8. A chain cannot express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
   parts. It is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
 - **The in-place loop's remedy class.** Where a bench shows the in-place stall matters, the remedy is a one-frame
-  software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
+  software pipeline in the `Linked`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
   never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
   in-place cost is register allocation around its tap loops (above), which the pipeline would not remove.
 - **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags
@@ -766,6 +766,49 @@ throughout.
   follower stepped through `kernel_ops::step_at`, and the shifter is level with the legacy.
 - Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
   to +24%): the head's interpolator window is 64 bytes.
+
+## Float kernels across lanes
+
+The `float_filters` list (`DELUGE_DSP_BENCH_CASES=float_filters`) times the float kernels in `Mono`, `Poly` (2 and 4
+independent streams, one per NEON lane), `Linked` (2 lanes through one configuration) and an SVF `Bank` (one input
+into four band-pass copies, summed). Every case runs under flush-to-zero, as the float instrument will, in the
+device's `-funsafe-math-optimizations` build, over 128-sample blocks of seeded noise scaled to ±1. The smoother is
+configured again every block (the target alternates ±0.5), inside the timed region. Medians of three runs of one image
+on the rig (2026-11-08), n = 128, cycles per channel-sample; the bank is per input sample, and does four filters' work
+on each. At n = 128 the three runs agree exactly on every case.
+
+| case | cycles per channel-sample | Poly over Mono |
+|---|---:|---:|
+| fp_one_pole_mono | 19.03 | |
+| fp_one_pole_poly2 | 12.47 | 1.53x |
+| fp_one_pole_poly4 | 8.38 | 2.27x |
+| fp_one_pole_linked2 | 11.06 | 1.72x (Linked) |
+| fp_smoother_mono | 15.18 | |
+| fp_smoother_poly4 | 9.01 | 1.68x |
+| fp_svf_mono | 26.17 | |
+| fp_svf_poly2 | 16.50 | 1.59x |
+| fp_svf_poly4 | 12.49 | 2.10x |
+| fp_svf_linked2 | 15.65 | 1.67x (Linked) |
+| fp_svf_bank4_sum (per input sample) | 34.02 | 3.08x (four Monos) |
+
+Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.41.
+
+Poly at four lanes runs the one-pole 2.27x and the SVF 2.10x faster than Mono per channel-sample, and at two lanes
+1.53x and 1.59x. The smoother gains 1.68x at four lanes, where Poly also pays four configures per block inside the
+timed region. Linked at two lanes, whose frames are interleaved in memory and need no transpose, is a little cheaper
+than Poly at two lanes on the one-pole (11.06 against 12.47) and the SVF (15.65 against 16.50). The four-band bank
+costs 1.3 Mono SVFs per input sample, 3.08x less than four Monos.
+
+What Poly and Bank pay for, read from the image's disassembly: Poly's loop tests each lane's parked bit before its
+load and its store (a mask held in a register or a stack slot, a branch per lane per N frames), and the transpose's
+half-swaps are two `vext.64` each; the SVF at four lanes spills a few q registers to the stack. Bank steps four samples,
+transposes their four packs and adds them as packs, one `vst1.32` per four samples; its tail mixes a sample at a time.
+The arithmetic is the source's, in the source's order: the Bank and Poly SVF loops compute
+`v1 = a1·ic1 + a2·v3`, `v2 = ic2 + a2·ic1 + a3·v3` and `(v1 + v1) − ic1` as written.
+
+At n = 128 the controls sit above the earlier tables in this file (analog chain 162.86 to 165.89, +1.9%; digital
+11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
+how much the image moved the rest, so read the float figures with that margin.
 
 ## Open questions
 

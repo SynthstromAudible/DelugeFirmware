@@ -18,7 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/lane_pack.h"
+#include "dsp-next/core/pack.h"
 
 #include <concepts>
 #include <cstddef>
@@ -32,10 +32,10 @@
 /// `mul_doubling_sat`, `mul_doubling_r_sat`), the reformats (`as_*`, `mul_as_*`) and the scales (`scale_*`, `halve_*`).
 /// Not lifted, as no lane kernel uses them yet: the 64-bit narrows and `widen`, the Q16 and Q16x2 forms (`mul_top`,
 /// `mul_bottom`, `dot*`, `to_q16_sat`, `from_q16`), the float conversions, `reinterpret_bits` and the run-time
-/// `clamp_bits(x, n)`. The comparisons are LanePack's own (lane_pack.h). @ref from_raw and @ref to_raw convert a raw
+/// `clamp_bits(x, n)`. The comparisons are Pack's own (pack.h). @ref from_raw and @ref to_raw convert a raw
 /// scalar or pack and a typed one, for raw words meeting a lane step: the specs' and the codegen probes' references.
 ///
-/// A kernel's step written once over its value type V runs on a `Q<F>` for one stream and on `LanePack<Q<F>, N>` for N
+/// A kernel's step written once over its value type V runs on a `Q<F>` for one stream and on `Pack<Q<F>, N>` for N
 /// streams. The lanes are scalar, so `mul` on two lanes is two `smmul`: independent instructions the A9 overlaps, not
 /// NEON. A scalar operand broadcasts, as a coefficient every lane shares does. The result's format is the scalar
 /// operation's, and an operation exists for a pack only where its scalar operation exists for the lane types. A pack
@@ -52,12 +52,12 @@ inline constexpr bool kIsFixed<Fixed<S, F>> = true;
 template <class T>
 inline constexpr bool kIsFixedPack = false;
 template <class T, std::size_t N>
-inline constexpr bool kIsFixedPack<LanePack<T, N>> = kIsFixed<T>;
+inline constexpr bool kIsFixedPack<Pack<T, N>> = kIsFixed<T>;
 
 template <class T>
 inline constexpr std::size_t kPackWidth = 0;
 template <class T, std::size_t N>
-inline constexpr std::size_t kPackWidth<LanePack<T, N>> = N;
+inline constexpr std::size_t kPackWidth<Pack<T, N>> = N;
 
 // Every width is 0 (a scalar) or the one pack width, so OR-ing them gives that width; lanewise_operands checks it.
 template <class... Xs>
@@ -89,7 +89,7 @@ template <class Op, class... Xs>
 [[gnu::always_inline, nodiscard]] constexpr auto lanewise(Op op, const Xs&... xs) noexcept {
 	constexpr std::size_t kN = kWidest<Xs...>;
 	using R = decltype(op(lane_at(xs, 0)...));
-	LanePack<R, kN> r;
+	Pack<R, kN> r;
 	for (std::size_t i = 0; i < kN; ++i) {
 		r.lane[i] = op(lane_at(xs, i)...);
 	}
@@ -481,17 +481,17 @@ requires detail::lanewise_operands<A> && requires(detail::lane_t<A> x) { scale_s
 /// @details One call converts either form, so a reference written over a raw scalar and a raw pack converts once.
 /// @tparam T The format, a `Fixed`.
 /// @param v A raw value of @p T's storage type, or a pack of them.
-/// @return @p T, or `LanePack<T, N>`, holding @p v's bits.
+/// @return @p T, or `Pack<T, N>`, holding @p v's bits.
 template <class T, class V>
 requires detail::kIsFixed<T>
          && (std::same_as<V, typename T::storage_type>
-             || std::same_as<V, LanePack<typename T::storage_type, detail::kPackWidth<V>>>)
+             || std::same_as<V, Pack<typename T::storage_type, detail::kPackWidth<V>>>)
 [[gnu::always_inline, nodiscard]] constexpr auto from_raw(V v) noexcept {
 	if constexpr (std::same_as<V, typename T::storage_type>) {
 		return T::from_raw(v);
 	}
 	else {
-		LanePack<T, detail::kPackWidth<V>> r;
+		Pack<T, detail::kPackWidth<V>> r;
 		for (std::size_t i = 0; i < detail::kPackWidth<V>; ++i) {
 			r.lane[i] = T::from_raw(v.lane[i]);
 		}
@@ -502,7 +502,7 @@ requires detail::kIsFixed<T>
 /// @brief @p v's bits as its storage type: a `Fixed` to its raw value, or a pack of them to a pack of raw lanes. The
 /// reverse of @ref from_raw.
 /// @param v A `Fixed`, or a pack of them.
-/// @return The storage type, or `LanePack<storage, N>`, holding @p v's bits.
+/// @return The storage type, or `Pack<storage, N>`, holding @p v's bits.
 template <class V>
 requires detail::kIsFixed<V> || detail::kIsFixedPack<V>
 [[gnu::always_inline, nodiscard]] constexpr auto to_raw(V v) noexcept {
@@ -511,7 +511,7 @@ requires detail::kIsFixed<V> || detail::kIsFixedPack<V>
 	}
 	else {
 		using S = detail::lane_t<V>::storage_type;
-		LanePack<S, detail::kPackWidth<V>> r;
+		Pack<S, detail::kPackWidth<V>> r;
 		for (std::size_t i = 0; i < detail::kPackWidth<V>; ++i) {
 			r.lane[i] = v.lane[i].raw();
 		}

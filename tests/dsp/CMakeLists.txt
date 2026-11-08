@@ -22,12 +22,38 @@ set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
 # the raw word helpers' inline arithmetic (dsp-next/core/detail/raw_ops.h).
 set(kernel_spec_DEPS)
-# The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
-# writes generically are header-only too.
+# The frame and pack specs need no sources: Frame and Pack are header-only, and the kernels the pack spec writes
+# generically are header-only too.
 set(frame_spec_DEPS)
-set(lane_pack_spec_DEPS)
-# The Lanes spec needs no sources: Lanes, its reference kernels and the kernels it runs against Mono are header-only.
-set(lanes_spec_DEPS)
+set(pack_spec_DEPS)
+# The float pack and kernels are header-only. Their fused twins build with -mfma on the x86 host (the policy an FMA
+# target runs); the A9 has no fused multiply-add and an arm64 host rejects -mfma, so only an x86 host builds them.
+set(pack_f32_spec_DEPS)
+set(pack_f32_fused_spec_DEPS)
+set(pack_f32_fused_spec_OPTIONS -mfma)
+set(_fused_specs pack_f32_fused_spec)
+# The Poly spec needs no sources: Poly and the float kernels it runs against Mono are header-only.
+set(poly_spec_DEPS)
+set(bank_spec_DEPS)
+set(float_kernels_spec_DEPS)
+set(float_kernels_fused_spec_DEPS)
+set(float_kernels_fused_spec_OPTIONS -mfma)
+list(APPEND _fused_specs float_kernels_fused_spec)
+set(float_fusion_tolerance_spec_DEPS)
+set(float_fusion_tolerance_spec_OPTIONS -mfma)
+list(APPEND _fused_specs float_fusion_tolerance_spec)
+# The float pack, the kernels, Poly and Bank again under the firmware's float flags: the headers pin their own
+# arithmetic, so every lane must still equal its scalar reference bit for bit.
+foreach(_unsafe_spec pack_f32_unsafe_math_spec float_kernels_unsafe_math_spec poly_unsafe_math_spec
+                     bank_unsafe_math_spec)
+  set(${_unsafe_spec}_DEPS)
+  set(${_unsafe_spec}_OPTIONS -O2 -funsafe-math-optimizations)
+endforeach()
+if(NOT DSP_SPEC_ARM AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-6]86")
+  set(_host_is_x86 TRUE)
+endif()
+# The Linked spec needs no sources: Linked, its reference kernels and the kernels it runs against Mono are header-only.
+set(linked_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
 # The fixed-point spec needs no sources: fixed_point.h is header-only.
@@ -360,6 +386,9 @@ file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
   if(NOT DSP_SPEC_ARM AND _name IN_LIST _arm_only_specs)
+    continue()
+  endif()
+  if(NOT _host_is_x86 AND _name IN_LIST _fused_specs)
     continue()
   endif()
 

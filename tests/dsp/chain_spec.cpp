@@ -22,7 +22,7 @@
 #include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo.h"
@@ -461,7 +461,7 @@ Filtered::Settings filtered_settings(OnePole::Mode mode) {
 	                          Remove::Settings{.mode = Tracker::Mode::TRACK}};
 }
 
-/// What one `Lanes<Filtered, N>` run gave, and what its N `Mono<Filtered>`s gave.
+/// What one `Linked<Filtered, N>` run gave, and what its N `Mono<Filtered>`s gave.
 struct LanesRun {
 	std::vector<std::vector<int32_t>> got;               ///< Each block's lanes, out of place then in place.
 	std::vector<std::vector<int32_t>> want;              ///< The Monos' blocks, once for each.
@@ -469,14 +469,14 @@ struct LanesRun {
 	std::vector<std::vector<unsigned char>> want_states; ///< The Monos' part States, once for each.
 };
 
-/// Run `Lanes<Filtered, N>`, in place and out of place, against N `Mono<Filtered>`s over every length 1 to 9,
+/// Run `Linked<Filtered, N>`, in place and out of place, against N `Mono<Filtered>`s over every length 1 to 9,
 /// cycling the filter's modes block by block.
 template <std::size_t N>
 LanesRun run_lanes_and_monos() {
 	LanesRun run;
 	for (std::size_t n = 1; n <= kMaxLength; ++n) {
-		Lanes<Filtered, N> out_of_place;
-		Lanes<Filtered, N> in_place;
+		Linked<Filtered, N> out_of_place;
+		Linked<Filtered, N> in_place;
 		std::array<Mono<Filtered>, N> monos{};
 		for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
 			const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
@@ -980,7 +980,7 @@ describe chain("Chain", ${
 		}
 	});
 
-	it("runs under Lanes as N Monos, in place and out of place, for N = 2, 3 and 4", _ {
+	it("runs under Linked as N Monos, in place and out of place, for N = 2, 3 and 4", _ {
 		for (const LanesRun& run : {run_lanes_and_monos<2>(), run_lanes_and_monos<3>(), run_lanes_and_monos<4>()}) {
 			expect(run.got).to_equal(run.want);
 			expect(run.got_states).to_equal(run.want_states);

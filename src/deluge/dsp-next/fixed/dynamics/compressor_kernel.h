@@ -71,7 +71,7 @@ struct CompressorKnobs {
 /// level, in log space, of the block before it. Rendered in place as `Mono<Compressor>::render_block(block, block)`.
 /// @details Levels and gains in the envelopes are in nepers (natural-log units).
 ///
-/// Not composable into a Chain or Lanes, or rendered through `Mono::render(x)`, unless the owner calls @ref
+/// Not composable into a Chain or Linked, or rendered through `Mono::render(x)`, unless the owner calls @ref
 /// finish_level after each block: the last frame's measurement and the level the next block follows are made there.
 ///
 /// **Per block** (@ref prepare, from the levels the owner last set with @ref set_levels): the makeup envelope moves

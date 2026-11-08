@@ -294,7 +294,7 @@ set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
 # it runs every DSP case once at boot, before the app starts, and prints its BENCH lines over RTT; without it the
 # benchmark is not compiled into the app, and its boot hook is empty. src/deluge/CMakeLists.txt applies it.
 option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
-# Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Lanes cases beside their mono
+# Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Linked cases beside their mono
 # kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
 # fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
 # and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or

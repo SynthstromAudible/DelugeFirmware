@@ -10,6 +10,7 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/bench/delay_cases.cpp
     ${_src}/bench/filter_cases.cpp
     ${_src}/bench/compressor_cases.cpp
+    ${_src}/bench/float_filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mod_fx_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/granular_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stutter_cases_host.cpp

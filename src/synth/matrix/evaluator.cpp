@@ -27,10 +27,10 @@ namespace {
 
 namespace params = modulation::params;
 
-/// One pass's working values: each polarity slot's source as its cables read it, and each depth destination's result.
+/// One pass's working values: each source read's source as its cables read it, and each depth destination's result.
 template <class B>
 struct Working {
-	std::array<typename B::Source, kMaxCables> slots;
+	std::array<typename B::Source, kMaxCables> reads;
 	std::array<typename B::Combination, kMaxCables> depth_results;
 };
 
@@ -72,10 +72,10 @@ inline constexpr std::array<ScopeRuns, 2> kRuns = [] {
 }();
 
 template <class B>
-void convert_slots(const ScopeView& scope, const ScopePass& pass, Working<B>& w) {
-	for (int32_t s = 0; s < scope.num_slots; ++s) {
+void convert_reads(const ScopeView& scope, const ScopePass& pass, Working<B>& w) {
+	for (int32_t s = 0; s < scope.num_reads; ++s) {
 		// The source values are Q31 words
-		w.slots[s] = B::convert(scope.slot_conversion[s], B::Source::from_raw(pass.sources[scope.slot_source[s]]));
+		w.reads[s] = B::convert(scope.read_conversion[s], B::Source::from_raw(pass.sources[scope.read_source[s]]));
 	}
 }
 
@@ -86,7 +86,7 @@ B::Combination depth_result(const ScopeView& scope, const MatrixBlock& block, co
 	typename B::Combination total = B::kOne;
 	for (int32_t c = d.first_cable; c < d.first_cable + d.num_cables; ++c) {
 		total =
-		    B::multiply_step(total, B::depth_product(w.slots[scope.cable_slot[c]], block.depths[scope.cable_depth[c]]));
+		    B::multiply_step(total, B::depth_product(w.reads[scope.cable_read[c]], block.depths[scope.cable_depth[c]]));
 	}
 	return B::depth_result(sub_wrap(total, B::kOne));
 }
@@ -101,7 +101,7 @@ void depth_results(const ScopeView& scope, const MatrixBlock& block, Working<B>&
 	}
 }
 
-/// Cable @p c's term: its slot's value scaled by its depth (shaped on an add chain), then by its depth result.
+/// Cable @p c's term: its read's value scaled by its depth (shaped on an add chain), then by its depth result.
 template <class B>
 [[gnu::always_inline]] inline B::Combination term_of(const ScopeView& scope, const MatrixBlock& block,
                                                      const Working<B>& w, int32_t c, bool add_chain) {
@@ -110,7 +110,7 @@ template <class B>
 		depth = B::depth(scope.cable_mode[c], depth);
 	}
 	const uint8_t r = scope.cable_range[c];
-	return B::product(w.slots[scope.cable_slot[c]], depth, r == kNoRange ? B::kOne : w.depth_results[r]);
+	return B::product(w.reads[scope.cable_read[c]], depth, r == kNoRange ? B::kOne : w.depth_results[r]);
 }
 
 /// A param destination's final value: a multiply chain takes the preset, then each cable's term; an add chain sums
@@ -213,7 +213,7 @@ void Evaluator<B>::run(const ScopePass& pass, const MatrixBlock& block, uint32_t
 		return;
 	}
 	Working<B> w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
-	convert_slots<B>(scope, pass, w);
+	convert_reads<B>(scope, pass, w);
 	// Depth destinations first: the cables they control read their results
 	depth_results<B>(scope, block, w);
 	const int32_t first = first_param_of(pass.scope);
@@ -233,7 +233,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 		return;
 	}
 	Working<B> w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
-	convert_slots<B>(*scope, pass, w);
+	convert_reads<B>(*scope, pass, w);
 	depth_results<B>(*scope, block, w);
 	const int32_t first = first_param_of(pass.scope);
 	for (int32_t k = scope->num_depth_destinations; k < scope->num_destinations; ++k) {

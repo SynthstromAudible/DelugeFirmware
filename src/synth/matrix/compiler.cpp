@@ -43,7 +43,7 @@ namespace params = modulation::params;
 
 [[nodiscard]] std::size_t scope_size(std::size_t num_destinations, std::size_t num_cables) {
 	return align_up(num_destinations * sizeof(Destination), alignof(Destination)) // destinations
-	       + (2 * num_cables)                                                     // slots (at most one per cable)
+	       + (2 * num_cables)                                                     // reads (at most one per cable)
 	       + (4 * num_cables);                                                    // the four cable tables
 }
 
@@ -70,20 +70,20 @@ private:
 
 /// The cable tables of one scope, being filled.
 struct CableTables {
-	uint8_t* slot;
+	uint8_t* read;
 	uint8_t* depth;
 	uint8_t* range;
 	DepthMode* mode;
 };
 
 /// Fills the tables for @p routed's cables from index @p cable on. @return the next free index.
-template <class SlotFor>
+template <class ReadFor>
 uint8_t compile_cables(const RoutingBuild& routing, const RoutedDestination& routed, const Destination& dest,
-                       bool depth, int32_t param, uint8_t cable, const CableTables& tables, SlotFor& slot_for) {
+                       bool depth, int32_t param, uint8_t cable, const CableTables& tables, ReadFor& read_for) {
 	for (int32_t c = routed.first_cable; c < routed.end_cable; ++c, ++cable) {
 		const RoutedCable& routed_cable = routing.cables[c];
-		tables.slot[cable] =
-		    slot_for(routed_cable.source, conversion_of(routed_cable.source, routed_cable.polarity, depth));
+		tables.read[cable] =
+		    read_for(routed_cable.source, conversion_of(routed_cable.source, routed_cable.polarity, depth));
 		tables.depth[cable] = static_cast<uint8_t>(c);
 		tables.range[cable] =
 		    (depth || routed_cable.range_index < 0) ? kNoRange : static_cast<uint8_t>(routed_cable.range_index);
@@ -98,10 +98,10 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 	const std::size_t num_cables = num_routed_cables(routing, g);
 
 	auto* destinations = carve.take<Destination>(num_destinations);
-	auto* slot_source = carve.take<uint8_t>(num_cables);
-	auto* slot_conversion = carve.take<Conversion>(num_cables);
+	auto* read_source = carve.take<uint8_t>(num_cables);
+	auto* read_conversion = carve.take<Conversion>(num_cables);
 	const CableTables tables{
-	    .slot = carve.take<uint8_t>(num_cables),
+	    .read = carve.take<uint8_t>(num_cables),
 	    .depth = carve.take<uint8_t>(num_cables),
 	    .range = carve.take<uint8_t>(num_cables),
 	    .mode = carve.take<DepthMode>(num_cables),
@@ -110,16 +110,16 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 	const int32_t first_param = g == 0 ? 0 : int32_t{params::FIRST_GLOBAL};
 	out.sources_patched = routing.sources_patched[g];
 
-	uint8_t num_slots = 0;
-	auto slot_for = [&](PatchSource source, Conversion conversion) {
-		for (uint8_t s = 0; s < num_slots; ++s) {
-			if (slot_source[s] == std::to_underlying(source) && slot_conversion[s] == conversion) {
+	uint8_t num_reads = 0;
+	auto read_for = [&](PatchSource source, Conversion conversion) {
+		for (uint8_t s = 0; s < num_reads; ++s) {
+			if (read_source[s] == std::to_underlying(source) && read_conversion[s] == conversion) {
 				return s;
 			}
 		}
-		slot_source[num_slots] = std::to_underlying(source);
-		slot_conversion[num_slots] = conversion;
-		return num_slots++;
+		read_source[num_reads] = std::to_underlying(source);
+		read_conversion[num_reads] = conversion;
+		return num_reads++;
 	};
 
 	uint8_t cable = 0;
@@ -140,16 +140,16 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 			const auto bit = static_cast<uint32_t>(param - first_param);
 			out.cabled |= bit < 64 ? uint64_t{1} << bit : 0;
 		}
-		cable = compile_cables(routing, routed, dest, depth, param, cable, tables, slot_for);
+		cable = compile_cables(routing, routed, dest, depth, param, cable, tables, read_for);
 	}
-	out.slot_source = slot_source;
-	out.slot_conversion = slot_conversion;
-	out.cable_slot = tables.slot;
+	out.read_source = read_source;
+	out.read_conversion = read_conversion;
+	out.cable_read = tables.read;
 	out.cable_depth = tables.depth;
 	out.cable_range = tables.range;
 	out.cable_mode = tables.mode;
 	out.destinations = destinations;
-	out.num_slots = num_slots;
+	out.num_reads = num_reads;
 	out.num_depth_destinations = num_depth;
 	out.num_destinations = static_cast<uint8_t>(num_destinations);
 }
@@ -184,9 +184,9 @@ const MatrixProgram* copy_program(const MatrixProgram& from, std::span<std::byte
 		pointer = reinterpret_cast<const T*>(new_base + (reinterpret_cast<const std::byte*>(pointer) - old_base));
 	};
 	for (ScopeView& scope : program->scopes) {
-		rebase(scope.slot_source);
-		rebase(scope.slot_conversion);
-		rebase(scope.cable_slot);
+		rebase(scope.read_source);
+		rebase(scope.read_conversion);
+		rebase(scope.cable_read);
 		rebase(scope.cable_depth);
 		rebase(scope.cable_range);
 		rebase(scope.cable_mode);

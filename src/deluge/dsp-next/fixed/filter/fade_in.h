@@ -39,7 +39,7 @@ namespace deluge::dsp::fixed {
 ///
 /// **Two steps per frame.** The level steps once per channel-sample: left blends at one level, steps, right blends
 /// at the next, steps again. So a stereo fade ends in half the frames of a mono one, and its channels sit one step
-/// apart. That is why this is a StereoSample kernel under `Mono`, not a q31 kernel under `Stereo`: `Stereo` (Lanes)
+/// apart. That is why this is a StereoSample kernel under `Mono`, not a q31 kernel under `Stereo`: `Stereo` (Linked)
 /// gives each channel its own State, so the two channels would each step their own level once per frame. Here the
 /// one level is stepped twice per frame, left then right. @ref FadeInMono is the mono form, one step per sample,
 /// sharing this State and these events.

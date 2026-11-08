@@ -75,9 +75,9 @@ int32_t mismatches(const Compiled& c) {
 				const int32_t at = dest.first_cable + k;
 				const int32_t c_index = routed.first_cable + k;
 				const RoutedCable& cable = routing.cables[c_index];
-				const uint8_t slot = scope.cable_slot[at];
-				bad += scope.slot_source[slot] != std::to_underlying(cable.source) ? 1 : 0;
-				bad += scope.slot_conversion[slot] != conversion_of(cable.source, cable.polarity, depth) ? 1 : 0;
+				const uint8_t read = scope.cable_read[at];
+				bad += scope.read_source[read] != std::to_underlying(cable.source) ? 1 : 0;
+				bad += scope.read_conversion[read] != conversion_of(cable.source, cable.polarity, depth) ? 1 : 0;
 				bad += scope.cable_depth[at] != c_index ? 1 : 0;
 				const uint8_t range =
 				    (depth || cable.range_index < 0) ? kNoRange : static_cast<uint8_t>(cable.range_index);
@@ -89,11 +89,11 @@ int32_t mismatches(const Compiled& c) {
 			}
 		}
 		bad += cabled != scope.cabled ? 1 : 0;
-		// The slots are distinct
-		for (int32_t a = 0; a < scope.num_slots; ++a) {
-			for (int32_t b = a + 1; b < scope.num_slots; ++b) {
-				bad += (scope.slot_source[a] == scope.slot_source[b]
-				        && scope.slot_conversion[a] == scope.slot_conversion[b])
+		// The reads are distinct
+		for (int32_t a = 0; a < scope.num_reads; ++a) {
+			for (int32_t b = a + 1; b < scope.num_reads; ++b) {
+				bad += (scope.read_source[a] == scope.read_source[b]
+				        && scope.read_conversion[a] == scope.read_conversion[b])
 				           ? 1
 				           : 0;
 			}

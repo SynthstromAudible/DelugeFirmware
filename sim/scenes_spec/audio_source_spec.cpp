@@ -60,8 +60,8 @@
 
 #include "spec/support/spec_main.h"
 
-/// `model/song/song.cpp:4898`. Both sides write it (`AudioInputSelector::selectEncoderAction`), so an example
-/// that drives either half has to put it back.
+/// `defaultAudioOutputInputChannel`, defined in `model/song/song.cpp`. Both sides write it
+/// (`AudioInputSelector::selectEncoderAction`), so an example that drives either half has to put it back.
 extern AudioInputChannel defaultAudioOutputInputChannel;
 
 using namespace deluge::scenes;

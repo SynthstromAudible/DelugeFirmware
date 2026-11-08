@@ -19,7 +19,7 @@
 
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lane_pack.h"
+#include "dsp-next/core/pack.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 
@@ -29,7 +29,7 @@
 #include <utility>
 
 /// @file
-/// @brief Lanes<K, N>: one kernel run on N independent streams, interleaved as frames.
+/// @brief Linked<K, N>: one kernel run on N independent streams, interleaved as frames.
 namespace deluge::dsp {
 
 namespace detail {
@@ -68,18 +68,18 @@ struct frame_lanes<StereoSample, Lane> {
 	}
 };
 
-/// @brief The state an op-major `Lanes<K, N>` holds: K's state over a pack of N lanes. `void` for a kernel stepped
+/// @brief The state an op-major `Linked<K, N>` holds: K's state over a pack of N lanes. `void` for a kernel stepped
 /// lane by lane, which holds one State per lane instead.
 template <typename K, std::size_t N>
 struct packed_state {
 	using type = void; ///< No packed state.
 };
 
-/// @brief K's state over `LanePack<value_type, N>`: lane i of each member is lane i's State.
+/// @brief K's state over `Pack<value_type, N>`: lane i of each member is lane i's State.
 template <lane_packable K, std::size_t N>
 struct packed_state<K, N> {
 	/// Every lane's State, member by member.
-	using type = K::template StateT<LanePack<typename K::value_type, N>>;
+	using type = K::template StateT<Pack<typename K::value_type, N>>;
 	static_assert(sizeof(type) == N * sizeof(typename K::State) && std::is_trivially_copyable_v<type>,
 	              "a packed state is N States, member by member, each member N 32-bit lanes");
 };
@@ -121,7 +121,7 @@ struct packed_state<K, N> {
 /// dispatch and loop, which costs several `std::span` constructions per call. It is a convenience for tests and for
 /// control-rate values, not for per-frame use in shipping code.
 ///
-/// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<value_type, N>` and steps each
+/// **Op-major.** When K is @ref lane_packable, `Linked` holds K's state over a `Pack<value_type, N>` and steps each
 /// frame with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
 /// Cortex-A9 overlaps. Each pack operation is its scalar operation lane by lane, so the result is bit for bit the
 /// lane-by-lane one. Such a K has no `prepare` and no Block, and its step draws no noise, so the order rules above hold
@@ -146,7 +146,7 @@ struct packed_state<K, N> {
 /// States and Blocks are arrays in a struct, whose copy constructs nothing.
 template <kernel K, std::size_t N, class F = Frame<typename K::value_type, N>>
 requires(N >= 1 && !staged_kernel<K> && !control_kernel<K>)
-class Lanes {
+class Linked {
 	using Coefficients = typename K::Coefficients; ///< K's coefficients, computed on configure, shared by every lane.
 	using State = typename K::State;               ///< K's state, one per lane, carried from block to block.
 	using LoopState = loop_state_t<K>;             ///< The part of K's State the loop steps, one per lane.
@@ -156,8 +156,8 @@ class Lanes {
 	using Context = detail::context_of<K>::type; ///< K's per-block context, shared by the lanes.
 	using Access = detail::frame_lanes<F, typename K::value_type>; ///< How F holds its lanes.
 	using LaneFrame = Frame<typename Access::lane_type, N>;        ///< The lanes the loop steps.
-	static constexpr bool kOpMajor = lane_packable<K>;             ///< Whether each frame is one step over a LanePack.
-	using Pack = LanePack<typename K::value_type, N>; ///< A frame's lanes as one value, for the op-major step.
+	static constexpr bool kOpMajor = lane_packable<K>;             ///< Whether each frame is one step over a Pack.
+	using Pack = Pack<typename K::value_type, N>; ///< A frame's lanes as one value, for the op-major step.
 	using PackedState = typename detail::packed_state<K, N>::type; ///< Every lane's State in one, when op-major.
 
 	/// @brief One State per lane, lane 0 first.
@@ -180,7 +180,7 @@ class Lanes {
 	};
 
 	static_assert(std::same_as<typename K::step_type, typename K::value_type>,
-	              "Lanes steps one sample per lane: K's step type is its value type");
+	              "Linked steps one sample per lane: K's step type is its value type");
 	static_assert(std::same_as<typename Access::lane_type, typename K::value_type> && Access::kLanes == N,
 	              "the frame type holds N samples of K's value type");
 	static_assert(detail::lane_pack_opt_in_met<K>,
@@ -190,12 +190,11 @@ public:
 	using value_type = F; ///< A block's frame: one sample per lane.
 
 	/// @brief Value-initialised Coefficients and State{} in every lane.
-	[[gnu::always_inline]] Lanes() = default;
+	[[gnu::always_inline]] Linked() = default;
 
 	/// @brief Configured from @p settings, with State{} in every lane.
 	/// @param settings The kernel's settings, turned into Coefficients once.
-	[[gnu::always_inline]] explicit Lanes(const typename K::Settings& settings)
-	    : coefficients_{K::coefficients(settings)} {}
+	[[gnu::always_inline]] explicit Linked(const K::Settings& settings) : coefficients_{K::coefficients(settings)} {}
 
 	/// @brief Store the coefficients for @p settings, computed once for every lane; they apply from the next block,
 	/// every State untouched.
@@ -613,7 +612,7 @@ private:
 
 	/// @brief @p n frames of the input blocks @p src (none, one or two) into @p dst, one op-major step per frame.
 	/// @details As @ref loop: each frame's inputs are loaded whole before the step, and the frame is stored after it.
-	/// @tparam S The packed state: PackedState, a template parameter so that a lane-by-lane Lanes never forms it.
+	/// @tparam S The packed state: PackedState, a template parameter so that a lane-by-lane Linked never forms it.
 	template <auto M, typename S, typename... Src>
 	[[gnu::always_inline]] static void packed_loop(const Coefficients& c, S& s, value_type* dst, std::ptrdiff_t n,
 	                                               const Src*... src) {

@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// LanePack<T, N>: every operation is its scalar counterpart applied lane by lane: LanePack's own on raw int32_t lanes,
-// and fixed_point_lanes.h's Q31 arithmetic on LanePack<Q<31>, N> against the raw Q31 functions. Each is pinned against
+// Pack<T, N>: every operation is its scalar counterpart applied lane by lane: Pack's own on raw int32_t lanes,
+// and fixed_point_lanes.h's Q31 arithmetic on Pack<Q<31>, N> against the raw Q31 functions. Each is pinned against
 // that counterpart at N = 1, 2, 3, 4 and 8, over every pairing (and, for the accumulate, every triple) of Q31's
 // extremes, with each lane given a different pairing, and over full-scale seeded noise. The extremes include the pairs
 // whose sum or difference leaves Q31, and the products at INT32_MIN. Then one generic expression each of OnePole's
 // step and ShiftTracker's step, written once over V, compiles for Q<31> and for the pack, and AntialiasedTanh's clamp
 // does for a raw word and for the pack of them, each lane given the scalar result.
 
-#include "dsp-next/core/lane_pack.h"
+#include "dsp-next/core/pack.h"
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_lanes.h"
@@ -89,10 +89,10 @@ using deluge::dsp::fixed::OnePole;
 using deluge::dsp::fixed::SeededNoise;
 namespace probe = deluge::dsp::fixed::lane_pack_probe;
 
-static_assert(std::is_trivially_copyable_v<LanePack<Q<31>, 1>>);
-static_assert(std::is_trivially_copyable_v<LanePack<Q<31>, 8>>);
-static_assert(sizeof(LanePack<Q<31>, 4>) == 4 * sizeof(Q<31>));
-static_assert(sizeof(LanePack<Q<31>, 2>) == sizeof(Frame<Q<31>, 2>));
+static_assert(std::is_trivially_copyable_v<Pack<Q<31>, 1>>);
+static_assert(std::is_trivially_copyable_v<Pack<Q<31>, 8>>);
+static_assert(sizeof(Pack<Q<31>, 4>) == 4 * sizeof(Q<31>));
+static_assert(sizeof(Pack<Q<31>, 2>) == sizeof(Frame<Q<31>, 2>));
 
 // A lane holds what the scalar operation gives, so + and - exist only where that is a T: a narrower T promotes to int.
 template <typename P>
@@ -103,13 +103,12 @@ template <typename P>
 concept subtracts = requires(P a, P b) {
 	{ a - b } -> std::same_as<P>;
 };
-static_assert(adds<LanePack<int32_t, 2>> && subtracts<LanePack<int32_t, 2>>);
-static_assert(adds<LanePack<float, 2>> && subtracts<LanePack<float, 2>>);
-static_assert(!adds<LanePack<int16_t, 2>> && !subtracts<LanePack<int16_t, 2>>);
-static_assert(!adds<LanePack<uint8_t, 2>> && !subtracts<LanePack<uint8_t, 2>>);
-static_assert(!adds<LanePack<bool, 2>> && !subtracts<LanePack<bool, 2>>);
-static_assert(!adds<LanePack<Q<31>, 2>> && !subtracts<LanePack<Q<31>, 2>>,
-              "a pack of Fixed adds as a Fixed does, by name");
+static_assert(adds<Pack<int32_t, 2>> && subtracts<Pack<int32_t, 2>>);
+static_assert(adds<Pack<float, 2>> && subtracts<Pack<float, 2>>);
+static_assert(!adds<Pack<int16_t, 2>> && !subtracts<Pack<int16_t, 2>>);
+static_assert(!adds<Pack<uint8_t, 2>> && !subtracts<Pack<uint8_t, 2>>);
+static_assert(!adds<Pack<bool, 2>> && !subtracts<Pack<bool, 2>>);
+static_assert(!adds<Pack<Q<31>, 2>> && !subtracts<Pack<Q<31>, 2>>, "a pack of Fixed adds as a Fixed does, by name");
 
 constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
@@ -124,9 +123,9 @@ constexpr uint32_t kSeed = 0x1A4E'5EED;
 /// Three packs an operation takes: a and b for a binary operation, c as the accumulate's sum or a select's sign.
 template <std::size_t N>
 struct Trial {
-	LanePack<int32_t, N> a;
-	LanePack<int32_t, N> b;
-	LanePack<int32_t, N> c;
+	Pack<int32_t, N> a;
+	Pack<int32_t, N> b;
+	Pack<int32_t, N> c;
 };
 
 /// Every triple of extremes, lane i offset by i in each operand so the lanes of one trial differ; then full-scale
@@ -215,7 +214,7 @@ bool in_range(int32_t a, int32_t b, bool subtract) {
 
 /// Whether every lane of @p a op @p b stays inside Q31, for the unwrapped + and -, whose overflow is undefined.
 template <std::size_t N>
-bool lanes_in_range(const LanePack<int32_t, N>& a, const LanePack<int32_t, N>& b, bool subtract) {
+bool lanes_in_range(const Pack<int32_t, N>& a, const Pack<int32_t, N>& b, bool subtract) {
 	for (std::size_t i = 0; i < N; ++i) {
 		if (!in_range(a.lane[i], b.lane[i], subtract)) {
 			return false;
@@ -230,19 +229,19 @@ constexpr std::size_t kLanesPerWidthSum = (kExtremes.size() * kExtremes.size() *
 } // namespace
 
 // clang-format off
-describe lane_pack_spec("LanePack", ${
+describe pack_spec("Pack", ${
 	it("broadcasts a scalar to every lane, and loads and stores a frame lane for lane", _ {
-		const LanePack<int32_t, 3> b = LanePack<int32_t, 3>::broadcast(kMin);
+		const Pack<int32_t, 3> b = Pack<int32_t, 3>::broadcast(kMin);
 		for (const int32_t x : b.lane) {
 			expect(x).to_equal(kMin);
 		}
-		const LanePack<int32_t, 3> implicit = int32_t{-9};
+		const Pack<int32_t, 3> implicit = int32_t{-9};
 		for (const int32_t x : implicit.lane) {
 			expect(x).to_equal(int32_t{-9});
 		}
 
 		const Frame<int32_t, 3> f{{kMin, 0, kMax}};
-		const LanePack<int32_t, 3> p = LanePack<int32_t, 3>::load(f);
+		const Pack<int32_t, 3> p = Pack<int32_t, 3>::load(f);
 		expect(p.lane[0]).to_equal(kMin);
 		expect(p.lane[1]).to_equal(int32_t{0});
 		expect(p.lane[2]).to_equal(kMax);
@@ -253,7 +252,7 @@ describe lane_pack_spec("LanePack", ${
 		expect(out[1]).to_equal(int32_t{0});
 		expect(out[2]).to_equal(kMax >> 1);
 
-		const LanePack<int32_t, 2> zero{};
+		const Pack<int32_t, 2> zero{};
 		expect(zero.lane[0]).to_equal(int32_t{0});
 		expect(zero.lane[1]).to_equal(int32_t{0});
 	});
@@ -290,10 +289,10 @@ describe lane_pack_spec("LanePack", ${
 		expect(t.compared).to_equal(2 * kLanesPerWidthSum);
 
 		// The pairs that leave Q31 are among them, and wrap.
-		const auto top = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{kMax, kMin}}));
-		const auto one = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{1, 1}}));
-		const LanePack<Q<31>, 2> sum = add_wrap(top, one);
-		const LanePack<Q<31>, 2> difference = sub_wrap(top, one);
+		const auto top = from_raw<Q<31>>(Pack<int32_t, 2>::load(Frame<int32_t, 2>{{kMax, kMin}}));
+		const auto one = from_raw<Q<31>>(Pack<int32_t, 2>::load(Frame<int32_t, 2>{{1, 1}}));
+		const Pack<Q<31>, 2> sum = add_wrap(top, one);
+		const Pack<Q<31>, 2> difference = sub_wrap(top, one);
 		expect(sum.lane[0].raw()).to_equal(kMin);
 		expect(difference.lane[1].raw()).to_equal(kMax);
 	});
@@ -347,9 +346,9 @@ describe lane_pack_spec("LanePack", ${
 
 		// The rounding is there: 3 × 2^31 is 1.5 × 2^32, which the truncating multiply takes to 1 and this to 2. At
 		// INT32_MIN squared, 2^62, neither saturates: the high word is 2^30.
-		const auto a = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{3, kMin}}));
-		const auto b = from_raw<Q<31>>(LanePack<int32_t, 2>::load(Frame<int32_t, 2>{{int32_t{1} << 30, kMin}}));
-		const LanePack<Q<30>, 2> doubled = mul_r(scale_shl_wrap<1>(a), b);
+		const auto a = from_raw<Q<31>>(Pack<int32_t, 2>::load(Frame<int32_t, 2>{{3, kMin}}));
+		const auto b = from_raw<Q<31>>(Pack<int32_t, 2>::load(Frame<int32_t, 2>{{int32_t{1} << 30, kMin}}));
+		const Pack<Q<30>, 2> doubled = mul_r(scale_shl_wrap<1>(a), b);
 		expect(doubled.lane[0].raw()).to_equal(int32_t{2});
 		expect(mul(scale_shl_wrap<1>(a), b).lane[0].raw()).to_equal(int32_t{1});
 		expect(mul_r(a, b).lane[1].raw()).to_equal(int32_t{1} << 30);
@@ -426,9 +425,9 @@ describe lane_pack_spec("LanePack", ${
 			for (const int32_t m_raw : {int32_t{0}, int32_t{1} << 24, kOneQ31 / 3, kMax}) {
 				const Q<31> m = Q<31>::from_raw(m_raw);
 				std::array<Q<31>, N> z{};
-				LanePack<Q<31>, N> zp{};
+				Pack<Q<31>, N> zp{};
 				for (const Trial<N>& x : trials<N>()) {
-					const LanePack<Q<31>, N> got = probe::one_pole_step(m, zp, from_raw<Q<31>>(x.a));
+					const Pack<Q<31>, N> got = probe::one_pole_step(m, zp, from_raw<Q<31>>(x.a));
 					for (std::size_t i = 0; i < N; ++i) {
 						OnePole::State st{.z = z[i]};
 						const Q<31> kernel = OnePole::step<OnePole::Mode::ALL_PASS>({.m = m}, {}, st, Q<31>::from_raw(x.a.lane[i]));
@@ -450,9 +449,9 @@ describe lane_pack_spec("LanePack", ${
 		const Tally t = over_widths([]<std::size_t N>() {
 			Tally s;
 			std::array<Q<31>, N> y{};
-			LanePack<Q<31>, N> yp{};
+			Pack<Q<31>, N> yp{};
 			for (const Trial<N>& x : trials<N>()) {
-				const LanePack<Q<31>, N> got = probe::shift_tracker_step(yp, from_raw<Q<31>>(x.a));
+				const Pack<Q<31>, N> got = probe::shift_tracker_step(yp, from_raw<Q<31>>(x.a));
 				for (std::size_t i = 0; i < N; ++i) {
 					Blocker::State st{.y = y[i]};
 					const Q<31> kernel = Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, st, Q<31>::from_raw(x.a.lane[i]));
@@ -485,7 +484,7 @@ describe lane_pack_spec("LanePack", ${
 				              ternaries);
 				s += tally<N>(
 				    [&](const Trial<N>& x) {
-					    LanePack<int32_t, N> scalar{};
+					    Pack<int32_t, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
 						    scalar.lane[i] = probe::clamp(x.a.lane[i], floor, ceiling);
 					    }
@@ -494,7 +493,7 @@ describe lane_pack_spec("LanePack", ${
 				    ternaries);
 				s += tally<N>(
 				    [&](const Trial<N>& x) {
-					    LanePack<int32_t, N> scalar{};
+					    Pack<int32_t, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
 						    scalar.lane[i] = probe::clamp_by_select(x.a.lane[i], floor, ceiling);
 					    }
@@ -510,4 +509,4 @@ describe lane_pack_spec("LanePack", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(lane_pack_spec);
+CPPSPEC_MAIN(pack_spec);

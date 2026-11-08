@@ -36,15 +36,15 @@ Q16x2<15> pair(std::uint32_t v) {
 	return Q16x2<15>::from_raw(v);
 }
 template <class T>
-[[gnu::always_inline]] inline LanePack<T, 2> pack(const std::int32_t* v) {
-	LanePack<T, 2> p;
+[[gnu::always_inline]] inline Pack<T, 2> pack(const std::int32_t* v) {
+	Pack<T, 2> p;
 	for (std::size_t i = 0; i < 2; ++i) {
 		p.lane[i] = T::from_raw(v[i]);
 	}
 	return p;
 }
 template <class T>
-[[gnu::always_inline]] inline void unpack(LanePack<T, 2> p, std::int32_t* out) {
+[[gnu::always_inline]] inline void unpack(Pack<T, 2> p, std::int32_t* out) {
 	for (std::size_t i = 0; i < 2; ++i) {
 		out[i] = p.lane[i].raw();
 	}
@@ -365,7 +365,7 @@ void probe_lanes2_scale_shl_sat_1(const std::int32_t* a, std::int32_t* out) {
 }
 // A raw pack converted to a typed one and back: the conversions are the bits alone, no instruction of their own.
 void probe_lanes2_round_trip(const std::int32_t* a, std::int32_t* out) {
-	LanePack<std::int32_t, 2> raw;
+	Pack<std::int32_t, 2> raw;
 	raw.lane[0] = a[0];
 	raw.lane[1] = a[1];
 	const auto back = to_raw(from_raw<Q<31>>(raw));
@@ -373,8 +373,8 @@ void probe_lanes2_round_trip(const std::int32_t* a, std::int32_t* out) {
 	out[1] = back.lane[1];
 }
 void probe_lanes2_raw_mul_r(const std::int32_t* a, const std::int32_t* b, std::int32_t* out) {
-	LanePack<std::int32_t, 2> x;
-	LanePack<std::int32_t, 2> y;
+	Pack<std::int32_t, 2> x;
+	Pack<std::int32_t, 2> y;
 	for (std::size_t i = 0; i < 2; ++i) {
 		x.lane[i] = a[i];
 		y.lane[i] = b[i];

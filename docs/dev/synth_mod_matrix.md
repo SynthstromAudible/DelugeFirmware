@@ -23,9 +23,9 @@ gathers a `MatrixBlock`; `Sound::matrixPass` and `Voice::matrix_pass` name what 
 
 Each scope's `ScopeView` points into the program's block:
 
-- **Polarity slots** (`slot_source`, `slot_conversion`): each distinct pair of a source and the way a cable reads it
-  (as is, unipolar, aftertouch bipolar, aftertouch as a depth). Cables that read a source the same way share a slot.
-- **Cable tables**, one entry per cable, in the routing's order: `cable_slot`, `cable_depth` (the cable's index into
+- **Source reads** (`read_source`, `read_conversion`): each distinct pair of a source and the way a cable reads it
+  (as is, unipolar, aftertouch bipolar, aftertouch as a depth). Cables that read a source the same way share a read.
+- **Cable tables**, one entry per cable, in the routing's order: `cable_read`, `cable_depth` (the cable's index into
   the block's depths), `cable_range` (the depth result that scales it, or `kNoRange`), `cable_mode` (its depth shape:
   plain, or one of the squared shapes some add-chain params give their cables; on the master pitch the shape also
   depends on whether the source is velocity).
@@ -38,10 +38,10 @@ Each scope's `ScopeView` points into the program's block:
 `Evaluator<B>::run(pass, block, sources_changed)` runs each block:
 
 1. Return at once if no patched source changed.
-2. Convert each polarity slot's source once.
+2. Convert each source read's source once.
 3. Every depth destination: its cables' terms multiplied, through the linear curve, into the pass's own depth
    results.
-4. Each param destination one of whose sources changed: its cables in order, each term the slot's value scaled by
+4. Each param destination one of whose sources changed: its cables in order, each term the read's value scaled by
    the cable's depth (shaped on an add chain), then by its depth result; a multiply chain starts from the preset and
    multiplies each term in, an add chain sums the terms, doubles them for a wavetable index and adds the preset.
    The curve for the param's kind gives the final value.
@@ -93,14 +93,17 @@ in either. The sound's pass runs once a block with the cache cold, so its gather
 program the pass reads next rather than from the routing: one structure to bring in, not two.
 
 The cable products stay scalar. A cable-major form that multiplied four cables at a time with NEON was measured
-about 11 % slower: at a dozen cables, gathering each group's slots, depths and ranges into lanes and moving values
+about 11 % slower: at a dozen cables, gathering each group's reads, depths and ranges into lanes and moving values
 between the core and NEON registers cost more than the multiplies saved.
 
 ## The numeric core's contract
 
 `Evaluator<B>` is a template over its numeric core; `evaluator.cpp` instantiates it for `MatrixFixed` alone. A core
 provides `kOne`, `convert`, `depth`, `product`, `depth_product`, `multiply_step`, `add_step`, `preset_term`,
-`double_saturating`, `depth_result` and `curve`, and for the uncabled bulk a `Lanes` type with `preset_terms`,
-`uncabled_multiply`, `curve_square`, `curve_linear` and `curve_bipolar`. A float core (planned, for the float
+`double_saturating`, `depth_result` and `curve`, and for the uncabled bulk three lane types, `SourceLanes`,
+`DepthLanes` and `CombinationLanes` (`QVec<31>`, `QVec<30>` and `QVec<29>` in `MatrixFixed`), with `load_words`,
+`store_words`, `load_ranges`, `preset_terms` (source and depth lanes in, combination lanes out), `uncabled_multiply`
+(combination lanes) and `curve_square`, `curve_linear` and `curve_bipolar` (source and combination lanes in, source
+lanes out). A float core (planned, for the float
 instrument plugin in `TODO.md`) would provide the same over `float` and `Argon<float>` and add its own explicit
 instantiation; the program, the compiler and the pass order would stay as they are.

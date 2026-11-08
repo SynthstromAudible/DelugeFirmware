@@ -48,7 +48,7 @@ namespace deluge::synth {
 
 /// @brief One voice of a synth sound: its sources in each unison part, envelopes, local LFOs, modulation and filters,
 /// played from what it is handed — the sound's snapshot and per-block config, a NoteSetup at each note, and the
-/// sources' ports. The app's VoiceSlot owns one, with the ports and the playback guides.
+/// sources' ports. The app's SoundVoice owns one, with the ports and the playback guides.
 class Voice final {
 public:
 	Voice();

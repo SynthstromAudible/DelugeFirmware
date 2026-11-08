@@ -24,9 +24,9 @@
 #include <type_traits>
 
 /// @file
-/// @brief LanePack: N lanes as one value, whose operations apply their scalar counterparts lane by lane.
+/// @brief Pack: N lanes as one value, whose operations apply their scalar counterparts lane by lane.
 ///
-/// A kernel's step written once over its value type V runs on Q<31> for one stream and on `LanePack<Q<31>, N>` for N
+/// A kernel's step written once over its value type V runs on Q<31> for one stream and on `Pack<Q<31>, N>` for N
 /// streams at once, each operation across every lane before the next. The same expression resolves for both: the
 /// pack's operations are hidden friends, found by argument-dependent lookup on a pack and invisible otherwise, so they
 /// never hide the scalar functions a kernel reaches by ordinary lookup (fixed_point.h's `add_wrap`, `mul_r`, ...;
@@ -47,29 +47,29 @@ namespace deluge::dsp {
 /// @tparam N The number of lanes. At least 1.
 template <class T, std::size_t N>
 requires(N >= 1)
-struct LanePack {
+struct Pack {
 	// A built-in array, not std::array: the layout is the N lanes alone, as a frame's is.
 	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 	T lane[N]; ///< The lanes, lane 0 first.
 
-	LanePack() = default;
+	Pack() = default;
 
 	/// @brief @p x in every lane: a scalar operand or initialiser broadcasts, as it does in a step written over V.
 	template <std::same_as<T> U>
 	// A scalar converts implicitly, so that one expression compiles for a scalar and for a pack.
-	// NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
-	[[gnu::always_inline]] constexpr LanePack(U x) {
+	// NOLINTNEXTLINE(google-explicit-constructor,cppcoreguidelines-explicit-constructor,hicpp-explicit-conversions)
+	[[gnu::always_inline]] constexpr Pack(U x) {
 		for (std::size_t i = 0; i < N; ++i) {
 			lane[i] = x;
 		}
 	}
 
 	/// @brief @p x in every lane.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr LanePack broadcast(T x) { return LanePack{x}; }
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Pack broadcast(T x) { return Pack{x}; }
 
 	/// @brief The lanes of @p f, lane for lane.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr LanePack load(const Frame<T, N>& f) {
-		LanePack r;
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Pack load(const Frame<T, N>& f) {
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = f.lane[i];
 		}
@@ -85,10 +85,10 @@ struct LanePack {
 
 	/// @brief @p a + @p b in each lane. As for a scalar, a sum that leaves T's range is undefined.
 	/// @details Only for a T whose scalar sum is a T: a narrower T promotes to int, which a lane could not hold.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator+(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack operator+(Pack a, Pack b)
 	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} + T{}), T>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] + b.lane[i];
 		}
@@ -97,10 +97,10 @@ struct LanePack {
 
 	/// @brief @p a − @p b in each lane. As for a scalar, a difference that leaves T's range is undefined.
 	/// @details Only for a T whose scalar difference is a T: a narrower T promotes to int, which a lane could not hold.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator-(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack operator-(Pack a, Pack b)
 	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} - T{}), T>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] - b.lane[i];
 		}
@@ -108,10 +108,10 @@ struct LanePack {
 	}
 
 	/// @brief @p a >> @p shift in each lane: arithmetic, rounding toward minus infinity. @p shift is 0 to 31.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator>>(LanePack a, int shift)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack operator>>(Pack a, int shift)
 	requires(std::is_integral_v<T> && !std::same_as<T, bool>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = static_cast<T>(a.lane[i] >> shift);
 		}
@@ -119,10 +119,10 @@ struct LanePack {
 	}
 
 	/// @brief @p a << @p shift in each lane, wrapping modulo 2^32 as a scalar shift does. @p shift is 0 to 31.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator<<(LanePack a, int shift)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack operator<<(Pack a, int shift)
 	requires(std::is_integral_v<T> && !std::same_as<T, bool>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = static_cast<T>(a.lane[i] << shift);
 		}
@@ -133,10 +133,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator<(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator<(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] < b.lane[i];
 		}
@@ -147,10 +147,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator>(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator>(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] > b.lane[i];
 		}
@@ -161,10 +161,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator<=(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator<=(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] <= b.lane[i];
 		}
@@ -175,10 +175,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator>=(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator>=(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] >= b.lane[i];
 		}
@@ -189,10 +189,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator==(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator==(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] == b.lane[i];
 		}
@@ -203,10 +203,10 @@ struct LanePack {
 	/// either side: `pack < ceiling`.
 	/// @param a,b The operands.
 	/// @return Each lane's comparison, which @ref select reads.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator!=(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack<bool, N> operator!=(Pack a, Pack b)
 	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
-		LanePack<bool, N> r;
+		Pack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] != b.lane[i];
 		}
@@ -214,9 +214,8 @@ struct LanePack {
 	}
 
 	/// @brief @p a where @p mask is set and @p b where it is clear, in each lane: the ternary `mask ? a : b`.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack select(LanePack<bool, N> mask, LanePack a,
-	                                                                      LanePack b) {
-		LanePack r;
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack select(Pack<bool, N> mask, Pack a, Pack b) {
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = mask.lane[i] ? a.lane[i] : b.lane[i];
 		}
@@ -224,10 +223,10 @@ struct LanePack {
 	}
 
 	/// @brief The larger of @p a and @p b in each lane, as `a < b ? b : a`: a clamp to a floor.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack max(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack max(Pack a, Pack b)
 	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] < b.lane[i] ? b.lane[i] : a.lane[i];
 		}
@@ -235,10 +234,10 @@ struct LanePack {
 	}
 
 	/// @brief The smaller of @p a and @p b in each lane, as `a > b ? b : a`: a clamp to a ceiling.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack min(LanePack a, LanePack b)
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr Pack min(Pack a, Pack b)
 	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
 	{
-		LanePack r;
+		Pack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] > b.lane[i] ? b.lane[i] : a.lane[i];
 		}
