@@ -324,46 +324,58 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
+		// Work in locals, which the compiler would otherwise have to reload after every store to the buffer
+		uint32_t lowPos = lowSampleRatePos;
+		uint32_t highPos = highSampleRatePos;
+		StereoSample last = lastSample;
+		StereoSample grabbed = grabbedSample;
+		StereoSample lastGrabbed = lastGrabbedSample;
+
 		for (StereoSample& sample : buffer) {
 			// Convert down.
 			// If time to "grab" another sample for down-conversion...
-			if (lowSampleRatePos < 4194304) {
-				int32_t strength2 = lowSampleRatePos;
+			if (lowPos < 4194304) {
+				int32_t strength2 = lowPos;
 				int32_t strength1 = 4194303 - strength2;
 
-				lastGrabbedSample = grabbedSample; // What was current is now last
-				grabbedSample.l = multiply_32x32_rshift32_rounded(lastSample.l, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
-				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
-				grabbedSample.l &= bitCrushMaskForSRR;
-				grabbedSample.r &= bitCrushMaskForSRR;
+				lastGrabbed = grabbed; // What was current is now last
+				grabbed.l = multiply_32x32_rshift32_rounded(last.l, strength1 << 9)
+				            + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
+				grabbed.r = multiply_32x32_rshift32_rounded(last.r, strength1 << 9)
+				            + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
+				grabbed.l &= bitCrushMaskForSRR;
+				grabbed.r &= bitCrushMaskForSRR;
 
 				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				lowSampleRatePos += lowSampleRateIncrement;
+				lowPos += lowSampleRateIncrement;
 
 				// "Re-sync" the up-conversion spinner.
 				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
 				// better. Ah, writing the massive explanation would take ages.
-				highSampleRatePos =
-				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
+				highPos = multiply_32x32_rshift32_rounded(lowPos & 4194303, highSampleRateIncrement << 8) << 2;
 			}
-			lowSampleRatePos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			lastSample = sample;
+			lowPos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
+			last = sample;
 
 			// Convert up
 			// Would only overshoot if we raised the sample rate during playback
-			int32_t strength2 = std::min(highSampleRatePos, (uint32_t)4194303);
+			int32_t strength2 = std::min(highPos, (uint32_t)4194303);
 			int32_t strength1 = 4194303 - strength2;
-			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
+			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbed.l, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbed.l, strength2 << 9))
 			           << 2;
-			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
+			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbed.r, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbed.r, strength2 << 9))
 			           << 2;
 
-			highSampleRatePos += highSampleRateIncrement;
+			highPos += highSampleRateIncrement;
 		}
+
+		lowSampleRatePos = lowPos;
+		highSampleRatePos = highPos;
+		lastSample = last;
+		grabbedSample = grabbed;
+		lastGrabbedSample = lastGrabbed;
 	}
 	else {
 		sampleRateReductionOnLastTime = false;
