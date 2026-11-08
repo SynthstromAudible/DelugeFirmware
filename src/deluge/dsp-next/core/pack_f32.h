@@ -90,9 +90,12 @@ inline constexpr bool kFusedMulAdd = detail::has_fused_mul_add();
 	return x;
 }
 
-/// @brief ⌊@p x⌋: the scalar form of a pack's floor, which a step written over V calls.
-[[nodiscard]] [[gnu::always_inline]] inline f32 floor(f32 x) {
-	return std::floor(x);
+/// @brief The integer part of @p x, which must be in [0, 2^23): the scalar form of a pack's trunc_nonnegative, which a
+/// step written over V calls. It equals ⌊x⌋ there, and is a float-to-int-to-float round trip rather than a library
+/// call.
+[[nodiscard]] [[gnu::always_inline]] inline f32 trunc_nonnegative(f32 x) {
+	assert(x >= 0.f && x < 8388608.f);
+	return static_cast<f32>(static_cast<int32_t>(x));
 }
 
 /// @brief @p base[@p index]: the scalar form of a pack's gather.
@@ -115,6 +118,9 @@ using F32Lanes = f32 __attribute__((vector_size(N * sizeof(f32))));
 /// The same lanes' bits.
 template <std::size_t N>
 using U32Lanes = uint32_t __attribute__((vector_size(N * sizeof(uint32_t))));
+/// N int32 lanes, the same width as F32Lanes<N>.
+template <std::size_t N>
+using I32Lanes = int32_t __attribute__((vector_size(N * sizeof(int32_t))));
 } // namespace detail
 
 /// @brief The per-lane result of a comparison of two Pack<f32, N>, which @ref select reads.
@@ -197,8 +203,15 @@ struct Pack<f32, N> {
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>(Pack a, Pack b) { return {a.v > b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator<=(Pack a, Pack b) { return {a.v <= b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>=(Pack a, Pack b) { return {a.v >= b.v}; }
-	/// @brief ⌊@p a⌋ in each lane, as std::floor. Exact: no rounding policy is involved.
-	[[nodiscard]] [[gnu::always_inline]] friend Pack floor(Pack a) { return Pack{__builtin_elementwise_floor(a.v)}; }
+	/// @brief The integer part of each lane of @p a, which must be in [0, 2^23): ⌊a⌋ there. Exact: a convert to int32
+	/// and back, so the Cortex-A9 (no vrndm) needs no per-lane library call.
+	[[nodiscard]] [[gnu::always_inline]] friend Pack trunc_nonnegative(Pack a) {
+		using Ints = detail::I32Lanes<N>;
+		for (std::size_t i = 0; i < N; ++i) {
+			assert(a.v[i] >= 0.f && a.v[i] < 8388608.f);
+		}
+		return Pack{__builtin_convertvector(__builtin_convertvector(a.v, Ints), Lanes)};
+	}
 	/// @brief @p a where @p m holds, @p b elsewhere.
 	[[nodiscard]] [[gnu::always_inline]] friend Pack select(Mask<N> m, Pack a, Pack b) {
 		return Pack{m.bits ? a.v : b.v};

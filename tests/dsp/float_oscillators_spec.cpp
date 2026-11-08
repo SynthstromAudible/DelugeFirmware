@@ -149,6 +149,7 @@ describe float_oscillators_spec("float oscillators", ${
 		});
 	});
 	context("TableOscillator", _ {
+		fp::build_saw_bands();
 		it("picks the richest band whose top harmonic stays below half the sample rate", _ {
 			for (std::size_t b = 0; b + 1 < fp::kSawBands; ++b) {
 				// Band b's top harmonic is 2^(10 - b); it reaches 0.5 at inc = 2^(b - 11), which band b excludes.
@@ -192,8 +193,47 @@ describe float_oscillators_spec("float oscillators", ${
 				phase = phase + kFrequency;
 				phase = phase >= 1.f ? phase - 1.f : phase;
 			}
-			expect(worst <= 1.1 * bound).to_be_true();
-			expect(worst >= 0.1 * bound).to_be_true(); // the bound is tight to a factor, not slack by orders
+			expect(worst <= 1.02 * bound).to_be_true();
+			expect(worst >= 0.5 * bound).to_be_true(); // guards against a vacuous bound
+		});
+		it("holds the naive saw away from its jump, within the partial sum's tail", _ {
+			// Band 0 sums 1024 harmonics. At a distance d (cycles) from the jump the tail beyond harmonic H is at most
+			// (2/pi) / ((H + 1) sin(pi d)) (Abel summation: the partial sums of sin(h theta) stay below 1/sin(theta/2)),
+			// plus the f32 rounding.
+			const f32* band = fp::saw_bands();
+			constexpr double kHarmonics = 1024.0;
+			for (std::size_t i = 0; i < fp::kSawBandSize; ++i) {
+				const double x = static_cast<double>(i) / static_cast<double>(fp::kSawBandSize);
+				const double d = std::min(x, 1.0 - x);
+				if (d < 0.05) {
+					continue;
+				}
+				const double tolerance = (2.0 / std::numbers::pi) / ((kHarmonics + 1.0) * std::sin(std::numbers::pi * d)) + 1e-6;
+				expect(std::fabs(static_cast<double>(band[i]) - ((2.0 * x) - 1.0)) <= tolerance).to_be_true();
+			}
+		});
+		it("rises across the interior of band 0's cycle", _ {
+			const f32* band = fp::saw_bands();
+			constexpr std::size_t kStep = fp::kSawBandSize / 16;
+			for (std::size_t i = fp::kSawBandSize / 5; i + kStep <= fp::kSawBandSize * 4 / 5; i += kStep) {
+				expect(band[i + kStep] > band[i]).to_be_true();
+			}
+		});
+		it("holds each band's samples at the independently summed harmonics", _ {
+			for (std::size_t b = 0; b < fp::kSawBands; ++b) {
+				const std::size_t top = std::size_t{1} << (fp::kSawBands - 1 - b);
+				for (const std::size_t i : {1uz, 300uz, 777uz, 1500uz, 2047uz}) {
+					double sum = 0.0;
+					for (std::size_t h = 1; h <= top; ++h) {
+						sum += std::sin(2.0 * std::numbers::pi * static_cast<double>((h * i) % fp::kSawBandSize)
+						                / static_cast<double>(fp::kSawBandSize))
+						       / static_cast<double>(h);
+					}
+					const double want = -2.0 / std::numbers::pi * sum;
+					expect(std::fabs(static_cast<double>(fp::saw_bands()[(b * (fp::kSawBandSize + 1)) + i]) - want) < 1e-6)
+					    .to_be_true();
+				}
+			}
 		});
 		it("matches its record", _ {
 			Mono<fp::TableOscillator> osc;

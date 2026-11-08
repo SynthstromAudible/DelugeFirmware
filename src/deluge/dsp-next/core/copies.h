@@ -16,15 +16,40 @@
  */
 #pragma once
 
+#include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
 
 #include <cassert>
 #include <cstddef>
+#include <utility>
 
 /// @file
 /// @brief detail::Copies<K, N>: the per-lane coefficients, state and mode that Poly and Bank share.
 namespace deluge::dsp::detail {
+
+/// @brief Calls @p body.template operator()<M>() once, at the mode of @p c for a moded K, else at NoMode::NONE.
+/// @param c K's packed coefficients, whose `mode` a moded kernel dispatches on.
+template <class K, class C, class Body>
+[[gnu::always_inline]] inline void dispatch_lane_mode([[maybe_unused]] const C& c, Body&& body) {
+	if constexpr (has_modes<K>) {
+		with_mode<typename K::Modes>(c.mode, std::forward<Body>(body));
+	}
+	else {
+		std::forward<Body>(body).template operator()<kernel_ops::NoMode::NONE>();
+	}
+}
+
+/// @brief One `step` of K over packed coefficients and state: `K::step<M>` for a moded K, else K's `step`.
+template <class K, auto M, class... Args>
+[[gnu::always_inline]] inline auto lane_step(Args&&... args) {
+	if constexpr (has_modes<K>) {
+		return K::template step<M>(std::forward<Args>(args)...);
+	}
+	else {
+		return K::step(std::forward<Args>(args)...);
+	}
+}
 
 /// @brief N lanes of @p K's packed coefficients and state, with the lane-wise configure, reset and state access.
 /// @details Configure and set_mode set the one mode every lane runs; configure asserts that a lane's mode matches it
@@ -37,13 +62,19 @@ public:
 	void configure(std::size_t lane, const K::Settings& settings) {
 		assert(lane < N);
 		const typename K::Coefficients c = K::coefficients(settings);
-		assert(!configured_ || c.mode == coefficients_.mode);
-		coefficients_.mode = c.mode;
+		if constexpr (has_modes<K>) {
+			assert(!configured_ || c.mode == coefficients_.mode);
+			coefficients_.mode = c.mode;
+		}
 		set_lane(coefficients_, lane, c);
 		configured_ = true;
 	}
-	/// @brief Every lane's mode, from the next block.
-	void set_mode(K::Mode mode) { coefficients_.mode = mode; }
+	/// @brief Every lane's mode, from the next block. A moded kernel only.
+	void set_mode(const auto& mode)
+	requires has_modes<K>
+	{
+		coefficients_.mode = mode;
+	}
 	/// @brief Lane @p lane's state to K's reset state.
 	void reset(std::size_t lane) {
 		assert(lane < N);

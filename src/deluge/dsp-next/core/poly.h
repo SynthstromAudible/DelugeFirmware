@@ -37,8 +37,9 @@ namespace deluge::dsp {
 /// Pack<f32, N> steps them all.
 /// @details **Settings per lane.** `configure(lane, settings)` runs K's scalar `coefficients` and writes the result
 /// into that lane, so each lane's arithmetic is the scalar kernel's, bit for bit (the step pins its order).
-/// **One mode.** Every lane runs one mode, dispatched once per block. **Per block.** A K that declares `prepare` has
-/// it called once, on the packed coefficients and state, before the block's frames, as Mono does for one copy.
+/// **One mode.** Every lane runs one mode, dispatched once per block; a kernel without modes steps without dispatch.
+/// **Per block.** A K that declares `prepare` has it called once, on the packed coefficients and state, before the
+/// block's frames, as Mono does for one copy.
 /// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
 /// is not written, and its state is reset to State{} after every block; lanes share nothing, so it perturbs no
 /// other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
@@ -53,7 +54,6 @@ requires(N == 2 || N == 4)
 class Poly : public detail::Copies<K, N> {
 	using Base = detail::Copies<K, N>;
 	using V = Pack<f32, N>;
-	using Mode = K::Mode;
 	using typename Base::PackedCoefficients;
 	using typename Base::PackedState;
 
@@ -87,7 +87,7 @@ public:
 	{
 		const std::size_t n = block_length(in);
 		assert(block_length(out) == n);
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out, n); });
+		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(in, out, n); });
 	}
 
 	/// @brief One block of a generator: lane l writes @p out[l]. Every unparked lane's span has the same length; a
@@ -97,7 +97,7 @@ public:
 	{
 		const std::size_t n = block_length(out);
 		const std::array<fp::Signal, N> no_input{};
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(no_input, out, n); });
+		detail::dispatch_lane_mode<K>(this->coefficients(), [&]<auto M> { run<M>(no_input, out, n); });
 	}
 
 private:
@@ -129,7 +129,7 @@ private:
 		std::array<f32*, N> out;
 	};
 
-	template <Mode M>
+	template <auto M>
 	void run(const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t n) {
 		const PackedCoefficients c = this->coefficients();
 		PackedState s = this->packed_state();
@@ -159,7 +159,7 @@ private:
 	}
 
 	/// N frames, i … i + N − 1, through a transpose in and out.
-	template <Mode M>
+	template <auto M>
 	[[gnu::always_inline]] static void step_frames(const PackedCoefficients& c, const kernel_block_t<K>& block,
 	                                               PackedState& s, LaneMask parked, const LanePointers& p,
 	                                               std::size_t i) {
@@ -172,10 +172,10 @@ private:
 		}
 		for (std::size_t t = 0; t < N; ++t) {
 			if constexpr (processor_kernel<K>) {
-				frames[t] = K::template step<M>(c, block, s, frames[t]);
+				frames[t] = detail::lane_step<K, M>(c, block, s, frames[t]);
 			}
 			else {
-				frames[t] = K::template step<M>(c, block, s);
+				frames[t] = detail::lane_step<K, M>(c, block, s);
 			}
 		}
 		transpose(frames); // frames[l] = copy l's samples i … i + N − 1
@@ -187,7 +187,7 @@ private:
 	}
 
 	/// One frame, i, lane by lane.
-	template <Mode M>
+	template <auto M>
 	[[gnu::always_inline]] static void step_frame(const PackedCoefficients& c, const kernel_block_t<K>& block,
 	                                              PackedState& s, LaneMask parked, const LanePointers& p,
 	                                              std::size_t i) {
@@ -199,10 +199,10 @@ private:
 					x.set(l, p.in[l][i]);
 				}
 			}
-			y = K::template step<M>(c, block, s, x);
+			y = detail::lane_step<K, M>(c, block, s, x);
 		}
 		else {
-			y = K::template step<M>(c, block, s);
+			y = detail::lane_step<K, M>(c, block, s);
 		}
 		for (std::size_t l = 0; l < N; ++l) {
 			if ((parked & bit(l)) == 0) {

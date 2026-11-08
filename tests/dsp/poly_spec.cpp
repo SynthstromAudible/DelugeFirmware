@@ -344,7 +344,8 @@ void poly_specs(auto& self) {
 			    block);
 		}
 	});
-	it("steps each TableOscillator lane exactly as Mono, each in its own band", _ {
+	it("steps each TableOscillator lane, a kernel without modes, exactly as Mono, each in its own band", _ {
+		fp::build_saw_bands();
 		for (const std::size_t block : {128uz, 125uz, 7uz}) {
 			expect_generator_lanes_equal_mono<fp::TableOscillator, N>(self,
 			    [](std::size_t l) {

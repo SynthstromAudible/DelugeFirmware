@@ -99,9 +99,20 @@ void pack_specs(auto& self) {
 		expect_lanewise<N>(self, [](auto a, auto b, auto c) { return select(a < b, c, a); },
 		                   [](f32 a, f32 b, f32 c) { return select(a < b, c, a); });
 	});
-	it("floors lane by lane as the scalar floor does", _ {
-		expect_lanewise<N>(self, [](auto a, auto, auto) { return floor(a); },
-		                   [](f32 a, f32, f32) { return deluge::dsp::floor(a); });
+	it("truncates non-negative values lane by lane as the scalar form does, and to the floor", _ {
+		std::mt19937 rng{3};
+		std::uniform_real_distribution<f32> d{0.f, 2100.f};
+		for (int round = 0; round < 64; ++round) {
+			Pack<f32, N> x{};
+			for (std::size_t i = 0; i < N; ++i) {
+				x.set(i, round < 2 ? (round == 0 ? 0.f : 8388607.f) : (round % 3 == 0 ? std::floor(d(rng)) : d(rng)));
+			}
+			const Pack<f32, N> got = trunc_nonnegative(x);
+			for (std::size_t i = 0; i < N; ++i) {
+				expect(bits(got.get(i))).to_equal(bits(trunc_nonnegative(x.get(i))));
+				expect(bits(got.get(i))).to_equal(bits(std::floor(x.get(i))));
+			}
+		}
 	});
 	it("sums its lanes in lane order", _ {
 		const auto [a, b, c] = operands<N>(7);

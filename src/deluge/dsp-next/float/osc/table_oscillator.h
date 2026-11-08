@@ -17,7 +17,6 @@
 #pragma once
 
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/sample.h"
@@ -25,7 +24,6 @@
 #include "dsp-next/float/osc/saw_bands.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <tuple>
 
 /// @file
@@ -34,17 +32,11 @@
 namespace deluge::dsp::fp {
 
 /// @brief A band-limited saw read from @ref saw_bands: the band for the pitch, the position linearly interpolated.
-/// @details Written once over its value type; under Poly each lane's band and position differ, so the two reads per
-/// sample are gathers.
+/// @details Call build_saw_bands() once before rendering. Written once over its value type; under Poly each lane's band
+/// and position differ, so the two reads per sample are gathers.
 struct TableOscillator {
 	using value_type = f32; ///< A sample, about ±1 (the band's Gibbs overshoot rides above).
 	using step_type = f32;  ///< One step per sample.
-
-	/// @brief The one waveform: Poly and Bank take a mode from every kernel.
-	enum class Mode : uint8_t {
-		SAW, ///< The band-limited saw.
-	};
-	using Modes = ModeList<Mode::SAW>;
 
 	/// @brief What the owner sets.
 	struct Settings {
@@ -54,9 +46,8 @@ struct TableOscillator {
 	/// @brief The phase increment and the band's offset, over V.
 	template <class V>
 	struct CoefficientsT {
-		V inc{};               ///< f0/fs.
-		V offset{};            ///< The band's first sample index in saw_bands(), as f32.
-		Mode mode = Mode::SAW; ///< Shared by every lane.
+		V inc{};    ///< f0/fs.
+		V offset{}; ///< The band's first sample index in saw_bands(), as f32.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
 		static constexpr auto fields = std::tuple{&CoefficientsT::inc, &CoefficientsT::offset};
 	};
@@ -79,15 +70,15 @@ struct TableOscillator {
 	}
 
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
-	template <Mode M, class V>
+	template <class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
 	                                                   StateT<V>& st) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		const V position = st.phase * V{static_cast<f32>(kSawBandSize)};
-		const V whole = floor(position);
+		const V whole = trunc_nonnegative(position);
 		const V frac = position - whole;
 		const V index = c.offset + whole;
-		const f32* table = saw_bands();
+		const f32* table = saw_bands(); // one read per step; no call
 		const V a = gather(table, index);
 		const V b = gather(table, index + V{1.f});
 		step_phase(st.phase, c.inc);

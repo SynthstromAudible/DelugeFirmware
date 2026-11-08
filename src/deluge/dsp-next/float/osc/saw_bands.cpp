@@ -17,43 +17,77 @@
 #include "dsp-next/float/osc/saw_bands.h"
 
 #include <array>
-#include <cmath>
 #include <numbers>
 
 namespace deluge::dsp::fp {
 
+namespace detail {
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables): written once, by build_saw_bands().
+std::array<f32, kSawBands*(kSawBandSize + 1)> saw_band_storage;
+bool saw_bands_built = false;
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+} // namespace detail
+
 namespace {
 
 constexpr std::size_t kBandStride = kSawBandSize + 1;
+constexpr std::size_t kQuarter = kSawBandSize / 4;
 
-/// The set, filled once by build() on first use rather than at static initialisation, which a boot would pay for.
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): written once, by build().
-std::array<f32, kSawBands * kBandStride> storage;
+/// cos and sin of 2π/kSawBandSize, as the nearest doubles.
+constexpr double kStepCos = 0.9999952938095762;
+constexpr double kStepSin = 0.003067956762965976;
 
-bool build() {
-	for (std::size_t band = 0; band < kSawBands; ++band) {
-		const std::size_t top = std::size_t{1} << (kSawBands - 1 - band);
-		for (std::size_t i = 0; i < kBandStride; ++i) {
-			// The last sample is the first's cycle position again: i = kSawBandSize wraps to 0.
-			const std::size_t at = i % kSawBandSize;
-			double sum = 0.0;
-			for (std::size_t h = 1; h <= top; ++h) {
-				// (h · at) mod kSawBandSize keeps the sine's argument exact for the large harmonics.
-				const double cycles = static_cast<double>((h * at) % kSawBandSize) / static_cast<double>(kSawBandSize);
-				sum += std::sin(2.0 * std::numbers::pi * cycles) / static_cast<double>(h);
-			}
-			storage[(band * kBandStride) + i] = static_cast<f32>(-(2.0 / std::numbers::pi) * sum);
+/// sin(2π k / kSawBandSize) for k = 0 … kSawBandSize / 4, from basic double arithmetic only.
+/// Rotating (cos, sin) by the step angle k times accumulates a rounding error of about k · 1e-16, so every entry is
+/// within 1e-13 of the true sine; the top entry is set to its exact value, 1.
+struct QuarterSine {
+	std::array<double, kQuarter + 1> value{};
+
+	QuarterSine() {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		double c = 1.0;
+		double s = 0.0;
+		for (std::size_t k = 1; k < kQuarter; ++k) {
+			const double next_c = (c * kStepCos) - (s * kStepSin);
+			const double next_s = (s * kStepCos) + (c * kStepSin);
+			c = next_c;
+			s = next_s;
+			value[k] = s;
 		}
+		value[kQuarter] = 1.0;
 	}
-	return true;
-}
+
+	/// sin(2π k / kSawBandSize) for any k below kSawBandSize, by the sine's symmetries.
+	[[nodiscard]] double at(std::size_t k) const {
+		if (k >= kSawBandSize / 2) {
+			return -at(k - (kSawBandSize / 2));
+		}
+		return value[k <= kQuarter ? k : (kSawBandSize / 2) - k];
+	}
+};
 
 } // namespace
 
-const f32* saw_bands() {
-	static const bool built = build();
-	(void)built;
-	return storage.data();
+void build_saw_bands() {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+	if (detail::saw_bands_built) {
+		return;
+	}
+	static const QuarterSine sine;
+	const double scale = -2.0 / std::numbers::pi;
+	for (std::size_t i = 0; i < kBandStride; ++i) {
+		// Band 10 holds harmonic 1; band b adds the harmonics above 2^(9 − b) up to 2^(10 − b).
+		double sum = 0.0;
+		std::size_t h = 1;
+		for (std::size_t band = kSawBands; band-- > 0;) {
+			const std::size_t top = std::size_t{1} << (kSawBands - 1 - band);
+			for (; h <= top; ++h) {
+				sum += sine.at((h * i) % kSawBandSize) / static_cast<double>(h);
+			}
+			detail::saw_band_storage[(band * kBandStride) + i] = static_cast<f32>(scale * sum);
+		}
+	}
+	detail::saw_bands_built = true;
 }
 
 std::size_t saw_band_for(f32 inc) {
