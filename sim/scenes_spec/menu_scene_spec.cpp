@@ -1594,6 +1594,40 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
 	});
 
+	it("says Feature not (yet?) implemented only on the roots and cells main's table marks, and only with Shift", _ {
+		select_language();
+		const std::string unimplemented{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)};
+		struct Case {
+			MenuContext::Root root;
+			uint8_t x, y;
+			bool shift;
+			bool says;
+		};
+		const Case cases[] = {
+		    {MenuContext::Root::Settings, 4, 2, true, false},    // a sound cell, but not on this root
+		    {MenuContext::Root::NoteEditor, 4, 2, true, false},  // likewise
+		    {MenuContext::Root::AudioClip, 4, 2, true, false},   // the audio clip's table has only (7,7)
+		    {MenuContext::Root::AudioClip, 7, 7, true, true},    // the control: its own cell
+		    {MenuContext::Root::Sound, 4, 2, false, false},      // the cell, but not a shortcut without Shift
+		    {MenuContext::Root::Sound, 4, 2, true, true},        // the control: the cell, with Shift
+		};
+		for (const Case& c : cases) {
+			deluge::notify::dirty().drain();
+			Rig r;
+			MenuContext ctx = r.open(settings_root);
+			ctx.root = c.root;
+			menu_scene().open(settings_root, ctx);
+			r.shell.tick(0);
+			if (c.shift) {
+				r.button(kShiftX, kShiftY, true, 10);
+			}
+			r.pad(c.x, c.y, 64, 20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect(r.shell.notices().last_popup_text() == unimplemented).to_equal(c.says);
+		}
+	});
+
 	it("a coming-soon pad from the scene over the menu says so and jumps nowhere", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1982,6 +2016,39 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			menu_up = menu_up || scene == &menu_scene();
 		}
 		expect(menu_up).to_be_true();
+	});
+
+	it("leaves an edited edge alone when the host's UI mode refuses BACK, and cancels it once the mode allows", _ {
+		// The picker reads BACK from its own frame, so only the menu's claim keeps a refused press from reaching it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.insertMultiRange(i);
+		}
+		sound->sources[0].ranges.getElement(0)->topNote = 40;
+		sound->sources[0].ranges.getElement(1)->topNote = 60;
+		sound->sources[0].ranges.getElement(2)->topNote = 32767;
+		deluge::edits::recordRanges(*sound, 0);
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(nodes::multi_range, ctx);
+		r.shell.tick(0);
+		r.edges(1, -2, 10);
+		r.shell.tick(15);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+
+		menu_scene().set_host_mode_gates({.learn = true, .select_and_back = false});
+		r.button(7, 1, true, 20); // BACK, refused
+		r.button(7, 1, false, 20);
+		r.shell.tick(25);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+
+		menu_scene().set_host_mode_gates({.learn = true, .select_and_back = true});
+		r.button(7, 1, true, 30);
+		r.button(7, 1, false, 30);
+		r.shell.tick(35);
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
 	});
 
 	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
