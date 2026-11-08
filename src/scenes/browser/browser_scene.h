@@ -459,6 +459,9 @@ public:
 	/// @brief Whether the next `on_enter` is the drum creator's: `InstrumentClipView::enterDrumCreator` opens the
 	///        browser with no `SoundEditor::beginScreen` after it, so only the browser's own blink runs.
 	void set_drum_creator_next(bool from_creator) { drum_creator_next_ = from_creator; }
+	/// @brief Whether the last `on_enter` refused (an id past the table, or a descriptor the context cannot open): the
+	///        `openUI(&sampleBrowser)` that failed, after which legacy's drum creator opens the editor instead.
+	[[nodiscard]] bool last_enter_refused() const { return last_enter_refused_; }
 	/// @brief Which descriptor the last `on_enter` selected.
 	BrowserId browser_id() const { return id_; }
 	/// @brief Whether a MIDI device-definition browser opened since the last call, and clear it. That browser is a
@@ -811,6 +814,8 @@ private:
 	bool spare_blink_from_preview_ = false;
 	/// The next `on_enter` is the drum creator's (`set_drum_creator_next`).
 	bool drum_creator_next_ = false;
+	/// Whether the last `on_enter` refused; see `last_enter_refused`.
+	bool last_enter_refused_ = false;
 
 	deluge::ui::oled::TextEditState edit_{};
 	deluge::ui::grid::TextKeyboardState kb_{};

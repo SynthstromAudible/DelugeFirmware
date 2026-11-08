@@ -23,6 +23,7 @@
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -449,55 +450,35 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 	});
 
-	it("site 14's legacy fallback opens the guest on the file selector, never the legacy editor", _ {
-		// Reached with ShellMenu on only when the guest's own open refused and legacy's `setup()` did not. A boot
-		// numbers every node, so the only way there is an id missing: numbered over the file selector alone, the
-		// recorder item has none and `openShellDrumRecorder` refuses; legacy's `openUI(&audioRecorder)` then refuses a
-		// take already running.
+	it("site 14 with ShellMenu on never falls back to the legacy recorder or browser: a refused guest says setup()'s refusal", _ {
+		// A boot numbers every node, so the only way to a refused guest is an id missing: numbered over the song root
+		// alone, neither the recorder item nor the file selector has one.
 		(void)quiet_audio();
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
-		deluge::hid::display::OLED oled_display;
-		deluge::hid::Display* const saved_display = display;
-		display = &oled_display;
 		RootUIGuard root_guard;
-		const auto drum_take = [&](deluge::scenes::spec::SongFixture& f) {
-			NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.insertNoteRowAtIndex(0);
-			expect(row != nullptr).to_be_true();
-			if (row == nullptr) {
-				return;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		for (const bool take : {true, false}) {
+			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+			setRootUILowLevel(&instrumentClipView);
+			DrumRowStack row{f};
+			expect(row.stack != nullptr).to_be_true();
+			if (row.stack == nullptr) {
+				break;
 			}
-			alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithNoteRow* stack =
-			    setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip)->addNoteRow(0, row);
-			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
-			instrumentClipView.enterDrumCreator(stack, /*doRecording=*/true);
-			AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
-		};
-
-		{
-			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
-			setRootUILowLevel(&instrumentClipView);
-			const menu::Node* const just_the_selector[] = {&nodes::file0_selector};
-			(void)menu::assign_node_ids(just_the_selector);
-			drum_take(f);
-			expect(getCurrentUI() == &shellHostUI).to_be_true();
-			expect(isUIOpen(&soundEditor)).to_be_false();
-			expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
-			closeGuest();
-		}
-		{
-			// Neither node numbered: the guest cannot open either, and the legacy editor still does not.
-			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
-			setRootUILowLevel(&instrumentClipView);
 			const menu::Node* const neither[] = {&nodes::root_song};
 			(void)menu::assign_node_ids(neither);
-			drum_take(f);
+			spy.last_error.reset();
+			instrumentClipView.enterDrumCreator(row.stack, take);
+			(void)menu::assign_node_ids(nodes::kAllRoots);
 			expect(isUIOpen(&shellHostUI)).to_be_false();
+			expect(isUIOpen(&audioRecorder)).to_be_false();
+			expect(isUIOpen(&sampleBrowser)).to_be_false();
 			expect(isUIOpen(&soundEditor)).to_be_false();
+			expect(spy.last_error == Error::UNSPECIFIED).to_be_true();
 			nullifyUIs();
 		}
-		(void)menu::assign_node_ids(nodes::kAllRoots);
-		display = saved_display;
 	});
 
 	it("cancels the popup legacy's display holds as it opens, as setup() does", _ {
@@ -1180,6 +1161,43 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_STEM_EXPORT});
+	});
+
+	it("ends the mode after a refused take, where legacy falls back to its editor on the file selector", _ {
+		// A take already running: the recorder refuses, and the menu lands on the file selector, whose hook pushes the
+		// browser, as legacy's `openUI(&soundEditor)` does. That is an editor visit now: its exit is `exitCompletely`.
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		setRootUILowLevel(&instrumentClipView);
+		DrumRowStack row{kit};
+		expect(row.stack != nullptr).to_be_true();
+		if (row.stack == nullptr) {
+			return;
+		}
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+		instrumentClipView.enterDrumCreator(row.stack, /*doRecording=*/true);
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback(); // the recorder refuses; the menu lands on the file selector
+		(void)shellHostUI.timerCallback(); // whose hook pushes the browser
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		expect(deluge::scenes::menu_scene().pushed_scene_refused()).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+
+		while (isUIOpen(&shellHostUI) && shellHostUI.shell().stack().has_input_scene()
+		       && shellHostUI.shell().stack().input_top().kind() != shell::SceneKind::FirstApp) {
+			(void)shellHostUI.exitUI(); // the browser goes
+		}
+		for (int32_t i = 0; i < 3 && isUIOpen(&shellHostUI); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		if (isUIOpen(&shellHostUI)) {
+			(void)shellHostUI.exitUI(); // the editor, on the file selector, if its resume kept it
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
 	});
 
 	it("leaves the mode alone when the drum creator's browser ends the visit: legacy opened no editor there", _ {

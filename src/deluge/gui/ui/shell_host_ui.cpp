@@ -546,6 +546,12 @@ ActionResult ShellHostUI::timerCallback() {
 	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.
 	pollShellSlicer();
 
+	// A drum creator's browser or take that refused: legacy opens its editor in their place, whose exit ends the UI
+	// mode, so this visit's close must too. Read before the close check below, which may close on this tick.
+	if (visitWithoutEditor_ && shellVisitFellBackToEditor()) {
+		visitWithoutEditor_ = false;
+	}
+
 	// What the audio tier reads to decide whether the sample preview sounds, after this tick moved the stack.
 	refreshShellSamplePreviewSounds();
 	refreshShellRangeDisplay(); // the root's range highlight follows the picker

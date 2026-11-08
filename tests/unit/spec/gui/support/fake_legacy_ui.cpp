@@ -516,6 +516,9 @@ void dispatchShellChoices() {
 // slicer: a spec says whether a slice is out, and the release records where in the close it ran.
 void pollShellSlicer() {
 }
+bool shellVisitFellBackToEditor() {
+	return false;
+}
 bool shellSlicerBusy() {
 	return false;
 }

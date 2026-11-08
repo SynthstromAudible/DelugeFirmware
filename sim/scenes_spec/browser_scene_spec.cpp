@@ -1047,6 +1047,24 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
 	});
 
+	it("says its enter was not refused once it opens", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(browser_scene().last_enter_refused()).to_be_false();
+	});
+
+	it("says its enter was refused for an id past the table, which the menu that pushed it reads", _ {
+		CleanBrowser clean;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		browser_scene().open(context_of(f));
+		expect(browser_scene().on_enter(SceneId{kBrowserSceneKind, static_cast<uint16_t>(BrowserId::Count)}))
+		    .to_be_false();
+		expect(browser_scene().last_enter_refused()).to_be_true();
+	});
+
 	it("opens the MIDI browser on its own folder and extension", _ {
 		CleanBrowser clean;
 		ScratchCard card;

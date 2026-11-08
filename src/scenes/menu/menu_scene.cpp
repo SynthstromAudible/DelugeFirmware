@@ -85,6 +85,8 @@ int64_t pow10_of(int32_t exponent) {
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	refused_recorder_landing_ = nullptr;
+	pushed_kind_ = SceneKind::Null;
+	pushed_scene_refused_ = false;
 	const DxState dx = st_.dx;
 	st_ = MenuState{};
 	st_.dx = dx;
@@ -272,6 +274,13 @@ void MenuScene::on_resume() {
 	// of the step up (`MenuWalkState::resume_landing`); the re-root's `retarget` spends the step up with the walk.
 	if (const Node* landing = std::exchange(st_.walk.resume_landing, nullptr); landing != nullptr) {
 		(void)reroot_to_page_listing(*landing);
+	}
+	// The resume a push brings, refused or not (`SceneStack::push` resumes the scene beneath a refused enter): which
+	// scene it was, and whether it refused.
+	if (const SceneKind pushed = std::exchange(pushed_kind_, SceneKind::Null); pushed != SceneKind::Null) {
+		const bool refused = (pushed == recorder::kRecorderSceneKind && recorder::recorder_scene().last_enter_refused())
+		                     || (pushed == browser::kBrowserSceneKind && browser::browser_scene().last_enter_refused());
+		pushed_scene_refused_ = pushed_scene_refused_ || refused;
 	}
 	if (st_.walk.go_up_on_resume) {
 		st_.walk.go_up_on_resume = false;
@@ -1024,6 +1033,7 @@ Result MenuScene::after_render_navigation() {
 		visit_.shift_held = false; // the pushed scene is the one SHIFT now reaches
 
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
+		pushed_kind_ = st_.walk.pending_scene.kind;
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
 		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and

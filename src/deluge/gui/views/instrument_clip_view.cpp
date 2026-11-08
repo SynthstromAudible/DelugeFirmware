@@ -5677,13 +5677,15 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	soundEditor.setupKitGlobalFXMenu = false;
 
 	// Under the shell menu the ported browser, or for a take the ported recorder, opens on the new drum
-	// (`gui/ui/shell_drum_creator.h`).
+	// (`gui/ui/shell_drum_creator.h`). A guest that refuses to open says `setup()`'s refusal below, and nothing legacy
+	// opens; the new drum stays in the kit as an ordinary empty drum.
 	if (deluge::gui::ui::shellMenuEnabled()) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
-		                : deluge::gui::ui::openShellDrumCreator(clip, newDrum)) {
-			return;
+		if (!(doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
+		                  : deluge::gui::ui::openShellDrumCreator(clip, newDrum))) {
+			display->displayError(Error::UNSPECIFIED);
 		}
+		return;
 	}
 
 	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
@@ -5707,18 +5709,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	if (!success) {
 		// The recorder or the browser refused: `main` opens the editor on the file selector, whose own session opens
-		// the browser again (`FileSelector::beginSession`). Under the shell menu this runs only when the guest's own
-		// open above refused, and the legacy editor must not open: the guest is tried once more, on the file
-		// selector, and its refusal is said as `setup()`'s is.
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			if (!deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
-			                                    /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
-			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
-			                                    deluge::gui::ui::ShellMenuNode::Osc0FileSelector)) {
-				display->displayError(Error::UNSPECIFIED);
-			}
-			return;
-		}
+		// the browser again (`FileSelector::beginSession`).
 		openUI(&soundEditor);
 	}
 }

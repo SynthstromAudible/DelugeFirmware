@@ -565,4 +565,8 @@ void dispatchShellChoices() {
 	dispatchScroll();
 }
 
+bool shellVisitFellBackToEditor() {
+	return deluge::scenes::menu_scene().pushed_scene_refused();
+}
+
 } // namespace deluge::gui::ui

@@ -403,6 +403,7 @@ void BrowserScene::open(const menu::MenuContext& ctx) {
 bool BrowserScene::on_enter(const SceneId& id) {
 	load_blink_pending_ = false;
 	const bool from_creator = std::exchange(drum_creator_next_, false);
+	last_enter_refused_ = true; // until the enter has succeeded
 	if (id.arg >= static_cast<uint16_t>(BrowserId::Count)) {
 		return false;
 	}
@@ -471,6 +472,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	// `LoadUI::focusRegained`, the last step of a definition browser's successful `opened`.
 	load_blink_pending_ = id_ == BrowserId::MidiDeviceDefinition;
 	request_open();
+	last_enter_refused_ = false;
 	return true;
 }
 

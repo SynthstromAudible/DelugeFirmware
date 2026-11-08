@@ -205,6 +205,9 @@ public:
 	///        entry that reaches the menu while it is up. The move is a `Replace` at the next tick, as a shortcut's
 	///        jump is.
 	void reroot_at(const Node& root, const MenuContext& ctx, uint16_t arg, const Node* shortcut);
+	/// @brief Whether, this visit, a scene the menu pushed for an item refused its enter (the browser or the recorder):
+	///        legacy's failed `openUI(...)`, after which the drum creator opens the editor. Reset by `open`.
+	[[nodiscard]] bool pushed_scene_refused() const { return pushed_scene_refused_; }
 	/// @brief Whether AFFECT ENTIRE is this menu's hold rather than the clip's toggle: a kit row's menu
 	///        (`editingKitRow()`) on an item that uses it (`menu::uses_affect_entire`).
 	bool takes_affect_entire() const;
@@ -630,6 +633,10 @@ private:
 	bool land_dx_cartridge_ = false;
 	/// `arm_refused_recorder_landing`'s node, until the next resume from a push spends it.
 	const Node* refused_recorder_landing_ = nullptr;
+	/// The kind of the scene the last `pending_scene` drain pushed, until the resume that follows it.
+	deluge::ui::shell::SceneKind pushed_kind_ = deluge::ui::shell::SceneKind::Null;
+	/// `pushed_scene_refused`'s answer.
+	bool pushed_scene_refused_ = false;
 	/// A node the next `after_render` re-targets the menu to with a `Replace` (`dx_column_press`), or 0 for none.
 	uint16_t pending_retarget_ = 0;
 	/// The host's hold mode (`set_affect_entire_hold`): survives a shortcut's `Replace`, as legacy's UI mode does.

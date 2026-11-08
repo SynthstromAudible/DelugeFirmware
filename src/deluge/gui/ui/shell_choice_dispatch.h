@@ -241,4 +241,8 @@ void setShellBrowserFromDrumCreator(bool fromCreator);
 /// fails the build, and a `default:` would absorb it silently.
 void dispatchShellChoices();
 
+/// @brief Whether the visit open now pushed a scene that refused: the drum creator's browser or take, after which
+///        legacy opens its editor on the file selector (`enterDrumCreator`'s `openUI(&soundEditor)`).
+bool shellVisitFellBackToEditor();
+
 } // namespace deluge::gui::ui
