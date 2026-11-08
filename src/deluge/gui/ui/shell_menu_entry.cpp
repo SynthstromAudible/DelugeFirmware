@@ -224,6 +224,12 @@ void clearShellKitGlobalFx() {
 	kitGlobalFxLatch = false;
 }
 
+void latchShellKitGlobalFxOnReentry() {
+	kitGlobalFxLatch = kitGlobalFxLatch
+	                   || (currentSong != nullptr && kitAffectEntireNow(getCurrentClip())
+	                       && Buttons::isShiftButtonPressed() && !isUIModeActive(UI_MODE_AUDITIONING));
+}
+
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node, NoteMode noteMode) {
 	// The site's own write comes before its `setup()`, and stays should `setup()` refuse.

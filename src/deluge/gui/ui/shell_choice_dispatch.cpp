@@ -383,7 +383,11 @@ void shellSampleClaimDone(bool success) {
 	uiNeedsRendering(&audioClipView);
 	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
 	// opened the ported browser, so a claim with no recorded opener came from elsewhere.
-	(void)deluge::scenes::menu_scene().reroot_to_scene_opener_page();
+	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
+		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
+		// write to `setupKitGlobalFXMenu` the latch takes.
+		latchShellKitGlobalFxOnReentry();
+	}
 }
 
 void shellLongPressClaimDone(bool success) {

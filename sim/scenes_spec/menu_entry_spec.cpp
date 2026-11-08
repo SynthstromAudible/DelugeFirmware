@@ -1416,6 +1416,35 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		closeGuest();
 	});
 
+	it("sets the fact on the browser's return to the menu only with SHIFT held and no audition, as legacy's re-entry",
+	   _ {
+		   ToggleGuard on{RuntimeFeatureStateToggle::On};
+		   deluge::scenes::spec::UiModeGuard mode;
+		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		   (void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		   f.clip->affectEntire = true;
+		   entry::clearShellKitGlobalFx();
+		   entry::latchShellKitGlobalFxOnReentry();
+		   expect(entry::shellKitGlobalFx()).to_be_false(); // no SHIFT
+		   {
+			   HeldShift shift;
+			   currentUIMode = UI_MODE_AUDITIONING;
+			   entry::latchShellKitGlobalFxOnReentry();
+			   expect(entry::shellKitGlobalFx()).to_be_false(); // an audition
+			   currentUIMode = UI_MODE_NONE;
+			   f.clip->affectEntire = false;
+			   entry::latchShellKitGlobalFxOnReentry();
+			   expect(entry::shellKitGlobalFx()).to_be_false(); // affect-entire off
+			   f.clip->affectEntire = true;
+			   entry::latchShellKitGlobalFxOnReentry();
+			   expect(entry::shellKitGlobalFx()).to_be_true();
+		   }
+		   // It only ever sets: what was set stays.
+		   entry::latchShellKitGlobalFxOnReentry();
+		   expect(entry::shellKitGlobalFx()).to_be_true();
+		   entry::clearShellKitGlobalFx();
+	   });
+
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;

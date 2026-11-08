@@ -225,6 +225,10 @@ bool shellKitGlobalFx();
 ///        `setupKitGlobalFXMenu`.
 void clearShellKitGlobalFx();
 
+/// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered after the browser's claim: a kit
+///        clip with affect-entire on, with SHIFT held and no audition, sets the latch `shellKitGlobalFx` reads.
+void latchShellKitGlobalFxOnReentry();
+
 /// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the
 ///        guest open, which re-roots itself whichever menu the setting now selects.
 bool shellOwnsShortcutPads();
