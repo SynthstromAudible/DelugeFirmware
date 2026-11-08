@@ -35,12 +35,16 @@ inline constexpr uint32_t kBlepPulse = 2717416499U;
 inline constexpr uint32_t kTableSaw = 4229038149U;
 inline constexpr uint32_t kEnvAdsr = 3510208178U;
 inline constexpr uint32_t kEnvFourSegment = 4163814850U;
+inline constexpr uint32_t kBlepVoice = 768591211U;
+inline constexpr uint32_t kTableVoice = 4278655398U;
 #else
 inline constexpr uint32_t kBlepSaw = 262873454U;
 inline constexpr uint32_t kBlepPulse = 2717416499U;
 inline constexpr uint32_t kTableSaw = 811564572U;
 inline constexpr uint32_t kEnvAdsr = 1674674664U;
 inline constexpr uint32_t kEnvFourSegment = 4163814850U;
+inline constexpr uint32_t kBlepVoice = 1800510562U;
+inline constexpr uint32_t kTableVoice = 3588553519U;
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 1153755580U;

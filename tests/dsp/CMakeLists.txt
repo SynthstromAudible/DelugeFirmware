@@ -45,18 +45,25 @@ set(float_envelope_spec_DEPS)
 set(float_envelope_fused_spec_DEPS)
 set(float_envelope_fused_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_envelope_fused_spec)
+set(float_voice_spec_DEPS ${_saw_bands_DEPS})
+set(float_voice_fused_spec_DEPS ${_saw_bands_DEPS})
+set(float_voice_fused_spec_OPTIONS -mfma)
+list(APPEND _fused_specs float_voice_fused_spec)
 set(float_kernels_fused_spec_DEPS)
 set(float_kernels_fused_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_kernels_fused_spec)
 set(float_fusion_tolerance_spec_DEPS)
 set(float_fusion_tolerance_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_fusion_tolerance_spec)
+# The unsafe-math twins of the specs that read the saw bands.
+set(_saw_bands_specs poly_unsafe_math_spec float_oscillators_unsafe_math_spec float_voice_unsafe_math_spec)
 # The float pack, the kernels, Poly and Bank again under the firmware's float flags: the headers pin their own
 # arithmetic, so every lane must still equal its scalar reference bit for bit.
 foreach(_unsafe_spec pack_f32_unsafe_math_spec float_kernels_unsafe_math_spec poly_unsafe_math_spec
-                     bank_unsafe_math_spec float_oscillators_unsafe_math_spec float_envelope_unsafe_math_spec)
+                     bank_unsafe_math_spec float_oscillators_unsafe_math_spec float_envelope_unsafe_math_spec
+                     float_voice_unsafe_math_spec)
   set(${_unsafe_spec}_DEPS)
-  if(_unsafe_spec STREQUAL "poly_unsafe_math_spec" OR _unsafe_spec STREQUAL "float_oscillators_unsafe_math_spec")
+  if(_unsafe_spec IN_LIST _saw_bands_specs)
     set(${_unsafe_spec}_DEPS ${_saw_bands_DEPS})
   endif()
   set(${_unsafe_spec}_OPTIONS -O2 -funsafe-math-optimizations)
