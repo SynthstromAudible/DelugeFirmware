@@ -101,8 +101,8 @@ constexpr NoteModeLegacyCalls kRealCalls{
 const NoteModeLegacyCalls* installed = &kRealCalls;
 
 /// @brief The mode a menu root names -- `inNoteEditor()` / `inNoteRowEditor()`'s comparison of
-///        `menuItemNavigationRecord[0]` against the two root items (`gui/ui/sound_editor.cpp:1914-1920`),
-///        in the port's representation of "which root is open".
+///        `menuItemNavigationRecord[0]` against the two root items (`SoundEditor::inNoteEditor` in
+///        `gui/ui/sound_editor.cpp`), in the port's representation of "which root is open".
 NoteModeKind modeForRoot(MenuContext::Root root) {
 	switch (root) {
 	case MenuContext::Root::NoteEditor:
@@ -206,7 +206,8 @@ std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
 std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 	switch (activeNoteMode()) {
 	case NoteModeKind::NoteEditor:
-		return noteModeLegacyCalls().noteEditorVertical(offset); // `gui/ui/sound_editor.cpp:1593-1595`
+		return noteModeLegacyCalls().noteEditorVertical(
+		    offset); // `SoundEditor::potentialShortcutPadAction`, `gui/ui/sound_editor.cpp`
 	case NoteModeKind::NoteRowEditor:
 		return noteModeLegacyCalls().noteRowEditorVertical(offset); // `:1596-1598`
 	case NoteModeKind::None:
@@ -238,7 +239,7 @@ void exitNoteModeBeforeClose() {
 	//   * A song swap resets the root to `Settings` (`MenuScene::on_model_changed`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
-		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`
+		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::buttonAction`, `gui/ui/sound_editor.cpp`
 		// `:751-752`, "refresh grid to potentially unhighlight edited notes": `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- with ShellMenu on, this guest.
 		// It queues every main row against the guest's place in the hierarchy (`gui/ui/ui.cpp:309-333`),
@@ -247,7 +248,7 @@ void exitNoteModeBeforeClose() {
 		uiNeedsRendering(&shellHostUI, 0xFFFFFFFF, 0);
 		break;
 	case NoteModeKind::NoteRowEditor:
-		noteModeLegacyCalls().exitNoteRowEditor(); // `gui/ui/sound_editor.cpp:754-755`, no repaint
+		noteModeLegacyCalls().exitNoteRowEditor(); // `SoundEditor::buttonAction`, `gui/ui/sound_editor.cpp`, no repaint
 		break;
 	case NoteModeKind::None:
 		break;

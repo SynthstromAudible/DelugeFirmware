@@ -1545,9 +1545,33 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 });
+
+describe menu_entry_legacy_closed("with ShellMenu on the legacy editor cannot open", $ {
+	it("refuses SoundEditor's open and leaves the hierarchy as it was; with ShellMenu off it opens", _ {
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		{
+			ToggleGuard on{RuntimeFeatureStateToggle::On};
+			expect(soundEditor.setup(f.clip)).to_be_true();
+			expect(openUI(&soundEditor)).to_be_false();
+			expect(isUIOpen(&soundEditor)).to_be_false();
+			expect(getCurrentUI() == &instrumentClipView).to_be_true();
+		}
+		{
+			ToggleGuard off{RuntimeFeatureStateToggle::Off};
+			expect(soundEditor.setup(f.clip)).to_be_true();
+			expect(openUI(&soundEditor)).to_be_true();
+			expect(getCurrentUI() == &soundEditor).to_be_true();
+			soundEditor.exitCompletely();
+		}
+		nullifyUIs();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
             menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
-            menu_entry_shortcut_whole)
+            menu_entry_shortcut_whole, menu_entry_legacy_closed)

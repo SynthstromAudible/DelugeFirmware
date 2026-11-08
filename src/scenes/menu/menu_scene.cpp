@@ -250,8 +250,8 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 void MenuScene::on_resume() {
 	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
 	visit_.learn.cancel();
-	visit_.blink_restart =
-	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
+	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
+	                             // (`SoundEditor::focusRegained` in `sound_editor.cpp`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
@@ -1127,7 +1127,8 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
 	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
-		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`SoundEditor::buttonAction` in
+		                             // `sound_editor.cpp`, the learn-button release)
 	}
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn && event.on) {
 		read_learned_value_again(); // SHIFT + LEARN's unlearn

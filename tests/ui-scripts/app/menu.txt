@@ -374,7 +374,7 @@
 24120  button SelectEnc up
 24400  snapshot note-row-editor-open
 
-# 7. A short BACK closes it through `exitNoteRowEditor()` (`gui/ui/sound_editor.cpp:754-756`). Then
+# 7. A short BACK closes it through `exitNoteRowEditor()` (`SoundEditor::buttonAction` in `gui/ui/sound_editor.cpp`). Then
 # release the audition pad.
 24800  button Back down
 24820  button Back up

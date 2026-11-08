@@ -330,8 +330,8 @@ struct Layers {
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
 /// * `NoteEditor` / `NoteRowEditor` -- nothing either: `padAction`'s own gate
-///   (`sound_editor.cpp:1467`) skips `potentialShortcutPadAction` on both, exactly as it does for
-///   `Settings`, so neither root's blink or press table is ever consulted.
+///   (`SoundEditor::padAction` in `sound_editor.cpp`) skips `potentialShortcutPadAction` on both, exactly as it does
+///   for `Settings`, so neither root's blink or press table is ever consulted.
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
 constexpr Layers kByRootV3[static_cast<size_t>(MenuContext::Root::Count)] = {

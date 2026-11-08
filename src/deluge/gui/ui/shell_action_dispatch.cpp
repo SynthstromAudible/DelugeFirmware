@@ -343,8 +343,8 @@ void dispatchShellActions() {
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
 		// relies on the item being reachable only under the audio-clip root, which
-		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1773`'s
-		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1811-1813`).
+		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp`'s
+		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip`).
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in

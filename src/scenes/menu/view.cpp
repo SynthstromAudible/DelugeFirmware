@@ -151,7 +151,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 
 	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
 	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
-	// `SoundEditor::selectEncoderAction` hands it the raw offset (`gui/ui/sound_editor.cpp:1122`) --
+	// `SoundEditor::selectEncoderAction` hands it the raw offset --
 	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). The edit is the
 	// offset times `calcNextKnobSpeed` (`:326`, `:630-633`, `kHorizontalMenuAcceleration`), truncated
 	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
@@ -347,7 +347,7 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		st.tick.value_node = &node;
 	}
 	// `int_value` owns the select encoder -- legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
+	// (`SoundEditor::selectEncoderAction` in `sound_editor.cpp`), and so does this port
 	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
 	// claim -- `int_value` never reads `select_pressed()`.

@@ -4,7 +4,7 @@
 ///
 /// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and
 /// `None` on a settings root -- the port of `SoundEditor::padAction`'s gate at
-/// `gui/ui/sound_editor.cpp:1467` -- and that a scene which never overrides the virtual (the
+/// `gui/ui/sound_editor.cpp` (`SoundEditor::padAction`) -- and that a scene which never overrides the virtual (the
 /// context menu, stood in for every scene that does not override it) answers the safe default, `All`.
 ///
 /// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
@@ -47,9 +47,9 @@ MenuContext sound_context(spec::SongFixture& fx) {
 
 // clang-format off
 describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's gate at "
-                         "`gui/ui/sound_editor.cpp:1467`, declared", $ {
+                         "`gui/ui/sound_editor.cpp`, declared", $ {
 	it("answers ShortcutsOnly on a sound root", _ {
-		// `:1467`'s three predicates are all false on a sound root, so `:1468`'s
+		// `padAction`'s three predicates are all false on a sound root, so the
 		// `potentialShortcutPadAction` runs and claims -- the shortcut-only half of the port.
 		spec::SongFixture fx = spec::make_synth_song();
 		auto& scene = menu_scene();
@@ -59,7 +59,7 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	});
 
 	it("answers None on a settings root", _ {
-		// `SoundEditor::inSettingsMenu()` (`:1912-1914`) is one of `:1467`'s three predicates, so
+		// `SoundEditor::inSettingsMenu()` is one of `padAction`'s three predicates, so
 		// legacy skips the shortcut arm entirely here and every pad falls through.
 		spec::SongFixture fx = spec::make_synth_song();
 		auto& scene = menu_scene();
@@ -70,7 +70,7 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	});
 
 	it("answers None on the note editor and the note-row editor roots", _ {
-		// `:1467`'s other two predicates, `!inNoteEditor()` and `!inNoteRowEditor()`, are the
+		// `padAction`'s other two predicates, `!inNoteEditor()` and `!inNoteRowEditor()`, are the
 		// other half of the same gate `Root::Settings` above pins -- both roots skip the shortcut
 		// arm exactly as the settings root does.
 		spec::SongFixture fx = spec::make_synth_song();

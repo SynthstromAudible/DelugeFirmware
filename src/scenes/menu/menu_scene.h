@@ -139,7 +139,7 @@ public:
 	}
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
-	/// @brief `SoundEditor::padAction`'s gate at `gui/ui/sound_editor.cpp:1467`, as a declaration.
+	/// @brief `SoundEditor::padAction`'s gate in `gui/ui/sound_editor.cpp`, as a declaration.
 	///
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
 	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --

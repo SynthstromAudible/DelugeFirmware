@@ -94,10 +94,9 @@
 ///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
 ///     item, so it is not a thing a user can do wrong with ShellMenu on. It is noted in
 ///     `src/scenes/README.md`'s boot-wiring section.
-///  5. **One of the fifteen entry points still opens the legacy `SoundEditor`**: site 10, the legacy browser's own
-///     claim, which ShellMenu on reaches only through site 9's legacy fallback -- see `shell_menu_entry.cpp`'s table.
-///     A wrong node is worse than a legacy menu, so with ShellMenu on the firmware has *both* menus, reachable by
-///     different gestures.
+///  5. **No entry point opens the legacy `SoundEditor`.** With ShellMenu on `SoundEditor::opened` refuses, so the
+///     legacy editor, and the legacy browser, recorder, marker editor and slicer only it opens, belong to the
+///     ShellMenu-off leg; site 10, the one row `shell_menu_entry.cpp`'s table does not gate, is that browser's own.
 
 #include "definitions_cxx.hpp" // ActionResult
 
