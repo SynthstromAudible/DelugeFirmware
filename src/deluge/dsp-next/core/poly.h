@@ -39,7 +39,11 @@ namespace deluge::dsp {
 /// it called once, on the packed coefficients and state, before the block's frames, as Mono does for one copy.
 /// **Parking.** A parked lane is fed zero, its output is not written, and its state is held at rest after every
 /// block; lanes share nothing, so it perturbs no other. **Blocks.** Every input and output span has the block's
-/// length; frames go in and out N at a time through a transpose, the last n mod N frames lane by lane.
+/// length (a parked lane's spans may be empty); frames go in and out N at a time through a transpose, the last n mod N
+/// frames lane by lane. **Mode.** The first configure fixes the mode and `configured_` is never cleared, so it stays
+/// the last one configured until set_mode changes it, even once every lane is parked. **Empty blocks.** A block with
+/// every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono does on an empty
+/// block.
 template <poly_kernel K, std::size_t N>
 requires(N == 2 || N == 4)
 class Poly {
@@ -84,10 +88,14 @@ public:
 	/// a parked lane's may be empty.
 	void render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out) {
 		std::size_t n = 0;
+		bool first = true;
 		for (std::size_t l = 0; l < N; ++l) {
 			if (!parked_.test(l)) {
-				n = in[l].size();
-				assert(out[l].size() == n);
+				if (first) {
+					n = in[l].size();
+					first = false;
+				}
+				assert(in[l].size() == n && out[l].size() == n);
 			}
 		}
 		with_mode<typename K::Modes>(coefficients_.mode, [&]<Mode M> { run<M>(in, out, n); });

@@ -11,6 +11,7 @@
 #include <array>
 #include <bit>
 #include <cppspec.hpp>
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -74,6 +75,72 @@ void expect_lanes_equal_mono(auto& self, SettingsFor settings_for, uint32_t seed
 	}
 }
 
+/// Whether two states, plain structs of floats, are bit-identical.
+template <class S>
+bool same_bits(const S& a, const S& b) {
+	return std::memcmp(&a, &b, sizeof(S)) == 0;
+}
+
+constexpr uint32_t kSentinel = 0x7fc12345U; ///< The bit pattern parked lanes' outputs are prefilled with.
+
+/// Five blocks of @p block samples with every lane reconfigured from @p settings_for(lane, block) before each block,
+/// lane @p parked_lane parked before block @p park_block and un-parked (by its configure) before block
+/// @p unpark_block. Unparked lanes' outputs and states must equal their Monos' bit for bit; a parked lane's state is
+/// State{} and its output span is left unwritten, or empty when @p empty_when_parked.
+template <class K, std::size_t N, class SettingsFor>
+void expect_scenario_equals_mono(auto& self, SettingsFor settings_for, std::size_t block, std::size_t parked_lane,
+                                 std::size_t park_block, std::size_t unpark_block, bool empty_when_parked) {
+	constexpr std::size_t kBlocks = 5;
+	fp::FlushToZero ftz;
+	Poly<K, N> poly;
+	std::array<Mono<K>, N> mono{};
+	std::mt19937 rng{park_block * 31 + block};
+	std::uniform_real_distribution<f32> d{-1.f, 1.f};
+	for (std::size_t b = 0; b < kBlocks; ++b) {
+		std::array<std::vector<f32>, N> in{}, out{}, ref{};
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		for (std::size_t l = 0; l < N; ++l) {
+			if (b == park_block && l == parked_lane) {
+				poly.park(l);
+				mono[l].reset();
+				expect(same_bits(poly.state(l), typename K::State{})).to_be_true();
+			}
+			if (!(l == parked_lane && b >= park_block && b < unpark_block)) {
+				poly.configure(l, settings_for(l, b));
+				mono[l].configure(settings_for(l, b));
+			}
+			in[l].resize(block);
+			for (f32& x : in[l]) {
+				x = d(rng);
+			}
+			out[l].assign(block, std::bit_cast<f32>(kSentinel));
+			ref[l].resize(block);
+			is[l] = fp::Signal{in[l]};
+			os[l] = fp::Buffer{out[l]};
+			if (poly.parked(l) && empty_when_parked) {
+				is[l] = {};
+				os[l] = {};
+			}
+		}
+		poly.render_block(is, os);
+		for (std::size_t l = 0; l < N; ++l) {
+			if (poly.parked(l)) {
+				expect(same_bits(poly.state(l), typename K::State{})).to_be_true();
+				for (const f32 x : out[l]) {
+					expect(std::bit_cast<uint32_t>(x)).to_equal(kSentinel);
+				}
+				continue;
+			}
+			mono[l].render_block(fp::Signal{in[l]}, fp::Buffer{ref[l]});
+			for (std::size_t i = 0; i < block; ++i) {
+				expect(std::bit_cast<uint32_t>(out[l][i])).to_equal(std::bit_cast<uint32_t>(ref[l][i]));
+			}
+			expect(same_bits(poly.state(l), mono[l].state())).to_be_true();
+		}
+	}
+}
+
 template <std::size_t N>
 void poly_specs(auto& self) {
 	// clang-format off
@@ -124,6 +191,53 @@ void poly_specs(auto& self) {
 			                                  .mode = fp::Smoother::Mode::LINEAR};
 		    },
 		    4, 125, 0);
+	});
+	it("takes a lane parked mid-stream to rest and leaves the others equal to Mono", _ {
+		for (const bool empty : {false, true}) {
+			for (const std::size_t block : {128uz, 126uz}) {
+				expect_scenario_equals_mono<fp::OnePole, N>(
+				    self,
+				    [](std::size_t l, std::size_t /*b*/) {
+					    return fp::OnePole::Settings{.cutoff = 0.03f * static_cast<f32>(l + 1)};
+				    },
+				    block, N - 1, 2, 5, empty);
+				expect_scenario_equals_mono<fp::Smoother, N>(
+				    self,
+				    [block](std::size_t l, std::size_t /*b*/) {
+					    return fp::Smoother::Settings{.target = 0.3f * static_cast<f32>(l + 1), .block = static_cast<f32>(block),
+					                                  .mode = fp::Smoother::Mode::LINEAR};
+				    },
+				    block, 0, 2, 5, empty);
+			}
+		}
+	});
+	it("runs a lane that is configured again after parking exactly as Mono from rest", _ {
+		for (const bool empty : {false, true}) {
+			expect_scenario_equals_mono<fp::OnePole, N>(
+			    self,
+			    [](std::size_t l, std::size_t /*b*/) {
+				    return fp::OnePole::Settings{.cutoff = 0.02f * static_cast<f32>(l + 2)};
+			    },
+			    126, 1, 1, 3, empty);
+			expect_scenario_equals_mono<fp::Smoother, N>(
+			    self,
+			    [](std::size_t l, std::size_t b) {
+				    return fp::Smoother::Settings{.target = 0.2f * static_cast<f32>(l) - 0.1f * static_cast<f32>(b),
+				                                  .block = 126.f, .mode = fp::Smoother::Mode::LINEAR};
+			    },
+			    126, 1, 1, 3, empty);
+		}
+	});
+	it("applies a Smoother configure made between blocks at the next block, in both modes", _ {
+		for (const auto mode : {fp::Smoother::Mode::EXPONENTIAL, fp::Smoother::Mode::LINEAR}) {
+			expect_scenario_equals_mono<fp::Smoother, N>(
+			    self,
+			    [mode](std::size_t l, std::size_t b) {
+				    return fp::Smoother::Settings{.target = 0.25f * static_cast<f32>(b) - 0.2f * static_cast<f32>(l),
+				                                  .time = 10.f + static_cast<f32>(3 * b + l), .block = 126.f, .mode = mode};
+			    },
+			    126, N, 5, 5, false);
+		}
 	});
 	it("un-parks a lane when it is configured", _ {
 		Poly<fp::OnePole, N> poly;
