@@ -46,7 +46,9 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForPercLookahead[l] = nullptr;
+		clustersForHopBack[l] = nullptr;
 	}
+	clusterForHopRetry = nullptr;
 
 	for (int32_t l = 0; l < 2; l++) {
 		percCacheClustersNearby[l] = nullptr;
@@ -139,6 +141,9 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 		crossfadeProgress = kMaxSampleValue;
 		crossfadeIncrement = 0;
+
+		updateClustersForHopBack(sample, getSamplePos(playDirection), timeStretchRatio, phaseIncrement, playDirection,
+		                         priorityRating);
 	}
 
 	AudioEngine::logAction("---/");
@@ -171,6 +176,8 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercLookahead();
 	unassignAllReasonsForPercCacheClusters();
+	unassignAllReasonsForHopBack();
+	keepClusterForHopRetry(nullptr);
 	// we might sometimes want to dealloc the clusters but I'm not sure
 	olderPartReader.unassignAllReasons(false);
 	if (buffer) {
@@ -194,6 +201,29 @@ void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 			percCacheClustersNearby[l] = nullptr;
 		}
 	}
+}
+
+void TimeStretcher::unassignAllReasonsForHopBack() {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		if (clustersForHopBack[l]) {
+			audioFileManager.removeReasonFromCluster(*clustersForHopBack[l], "E460");
+			clustersForHopBack[l] = nullptr;
+		}
+	}
+}
+
+// Swaps the reason we hold for a failed hop's Cluster to this one (or none, if nullptr)
+void TimeStretcher::keepClusterForHopRetry(Cluster* cluster) {
+	if (cluster == clusterForHopRetry) {
+		return;
+	}
+	if (cluster) {
+		cluster->addReason();
+	}
+	if (clusterForHopRetry) {
+		audioFileManager.removeReasonFromCluster(*clusterForHopRetry, "E461");
+	}
+	clusterForHopRetry = cluster;
 }
 
 const int16_t minHopSizeCoarse[] = {2500, 3000, 3000, 600, 300};
@@ -239,6 +269,70 @@ const int16_t lookaheadFine[] = {
         0 // +12
 };
 */
+
+namespace {
+// How long hops can be and how they crossfade, depending on the time-stretch speed
+struct HopParams {
+	int32_t minBeamWidth; // Not pixellated
+	int32_t maxBeamWidth; // Not pixellated
+	int32_t crossfadeProportional;
+	int32_t crossfadeAbsolute;
+	int32_t randomElement;
+};
+
+HopParams getHopParams(int32_t timeStretchRatio) {
+	int32_t speedLog = quickLog(timeStretchRatio);
+
+	HopParams params;
+
+	// int32_t beamWidthIncrement = (uint32_t)phaseIncrement
+
+	// Neutral is (832 << 20). Each octave is a (32 << 20)
+
+	// If within +/- 1 octave...
+	if (speedLog >= (800 << 20) && speedLog < (864 << 20)) {
+		int32_t position = speedLog - (800 << 20);
+
+		params.minBeamWidth = interpolateTableSigned(position, 26, minHopSizeFine, 4) >> 16;
+		params.maxBeamWidth = interpolateTableSigned(position, 26, maxHopSizeFine, 4) >> 16;
+		params.crossfadeProportional = interpolateTableSigned(position, 26, crossfadeProportionalFine, 4) << 8;
+		params.crossfadeAbsolute = interpolateTableSigned(position, 26, crossfadeAbsoluteFine, 4) >> 16;
+		params.randomElement = interpolateTableSigned(position, 26, randomFine, 4);
+		// lookahead = interpolateTableSigned(position, 26, lookaheadFine, 4) >> 16;
+	}
+
+	// Or if outside of that...
+	else {
+		if (speedLog > (896 << 20)) {
+			speedLog = (896 << 20);
+		}
+		else if (speedLog < (768 << 20)) {
+			speedLog = (768 << 20);
+		}
+
+		int32_t position = speedLog - (768 << 20);
+
+		// interpolateTableSigned reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
+		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
+		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
+		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
+		// resolves to the last table entry, matching the intended ceiling.
+		if (position >= (128 << 20)) {
+			position = (128 << 20) - 1;
+		}
+
+		params.minBeamWidth = interpolateTableSigned(position, 27, minHopSizeCoarse, 2) >> 16;
+		params.maxBeamWidth = interpolateTableSigned(position, 27, maxHopSizeCoarse, 2) >> 16;
+		params.crossfadeProportional = interpolateTableSigned(position, 27, crossfadeProportionalCoarse, 2) << 8;
+		params.crossfadeAbsolute = interpolateTableSigned(position, 27, crossfadeAbsoluteCoarse, 2) >> 16;
+		params.randomElement = interpolateTableSigned(position, 27, randomCoarse, 2);
+		// lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
+	}
+
+	return params;
+}
+
+} // namespace
 
 // Returns false if sound needs to cut due to a load error or similar
 bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int32_t numChannels,
@@ -317,57 +411,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplePos = getSamplePos(playDirection);
 	}
 
-	int32_t speedLog = quickLog(timeStretchRatio);
-
-	int32_t minBeamWidth; // Not pixellated
-	int32_t maxBeamWidth; // Not pixellated
-	int32_t crossfadeProportional;
-	int32_t crossfadeAbsolute;
-	int32_t randomElement;
-
-	// int32_t beamWidthIncrement = (uint32_t)phaseIncrement
-
-	// Neutral is (832 << 20). Each octave is a (32 << 20)
-
-	// If within +/- 1 octave...
-	if (speedLog >= (800 << 20) && speedLog < (864 << 20)) {
-		int32_t position = speedLog - (800 << 20);
-
-		minBeamWidth = interpolateTableSigned(position, 26, minHopSizeFine, 4) >> 16;
-		maxBeamWidth = interpolateTableSigned(position, 26, maxHopSizeFine, 4) >> 16;
-		crossfadeProportional = interpolateTableSigned(position, 26, crossfadeProportionalFine, 4) << 8;
-		crossfadeAbsolute = interpolateTableSigned(position, 26, crossfadeAbsoluteFine, 4) >> 16;
-		randomElement = interpolateTableSigned(position, 26, randomFine, 4);
-		// lookahead = interpolateTableSigned(position, 26, lookaheadFine, 4) >> 16;
-	}
-
-	// Or if outside of that...
-	else {
-		if (speedLog > (896 << 20)) {
-			speedLog = (896 << 20);
-		}
-		else if (speedLog < (768 << 20)) {
-			speedLog = (768 << 20);
-		}
-
-		int32_t position = speedLog - (768 << 20);
-
-		// interpolateTableSigned reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
-		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
-		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
-		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
-		// resolves to the last table entry, matching the intended ceiling.
-		if (position >= (128 << 20)) {
-			position = (128 << 20) - 1;
-		}
-
-		minBeamWidth = interpolateTableSigned(position, 27, minHopSizeCoarse, 2) >> 16;
-		maxBeamWidth = interpolateTableSigned(position, 27, maxHopSizeCoarse, 2) >> 16;
-		crossfadeProportional = interpolateTableSigned(position, 27, crossfadeProportionalCoarse, 2) << 8;
-		crossfadeAbsolute = interpolateTableSigned(position, 27, crossfadeAbsoluteCoarse, 2) >> 16;
-		randomElement = interpolateTableSigned(position, 27, randomCoarse, 2);
-		// lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
-	}
+	auto [minBeamWidth, maxBeamWidth, crossfadeProportional, crossfadeAbsolute, randomElement] =
+	    getHopParams(timeStretchRatio);
 
 	//	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
@@ -389,6 +434,17 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	uint32_t crossfadeLengthSamples;
 
 	int32_t additionalOscPos = 0;
+
+	// A hop can reach back before the start marker. Nothing but clustersForHopBack loads the audio there, so if that
+	// hasn't happened in time, start the new play-head at the marker instead, rather than failing to start it at all
+	auto clampToStartIfNotLoaded = [&]() {
+		if ((int32_t)(newHeadBytePos - guide->startPlaybackAtByte) * playDirection < 0) {
+			Cluster* cluster = sample->clusters.getElement(newHeadBytePos >> Cluster::size_magnitude)->cluster;
+			if (!cluster || !cluster->loaded) {
+				newHeadBytePos = guide->startPlaybackAtByte;
+			}
+		}
+	};
 
 	int32_t waveformStartByte = sample->audioDataStartPosBytes;
 	if (playDirection != 1) {
@@ -603,6 +659,9 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		newHeadBytePos = sample->audioDataStartPosBytes + beamBackEdge * bytesPerSample;
+
+		// Before the phase search, so that searches around wherever we really start
+		clampToStartIfNotLoaded();
 	}
 
 skipPercStuff:
@@ -871,6 +930,9 @@ stopSearch:
 			D_PRINTLN("avoided going before 0: %i", newHeadBytePos - waveformStartByte);
 			newHeadBytePos = waveformStartByte;
 		}
+
+		// The search may have moved us back over the start marker a little
+		clampToStartIfNotLoaded();
 	}
 
 skipSearch:
@@ -943,6 +1005,12 @@ optForDirectReading:
 
 			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
+			// If that was because the Cluster to start in isn't loaded yet, it's now in the loading queue. Hold a
+			// reason on it, so letting go of the new play-head's reasons below doesn't take it back out of the queue,
+			// and it can be loaded by the time we try again (rather than being enqueued and dropped again on every try)
+			Cluster* wanted = voiceSample->clusters[0];
+			keepClusterForHopRetry((wanted && !wanted->loaded) ? wanted : nullptr);
+
 			// Restore ONLY the SampleLowLevelReader base state from olderPartReader (stealing its cluster reasons
 			// back). Assigning to the whole VoiceSample - `*voiceSample = SampleLowLevelReader(...)` - does NOT bind
 			// the base operator=: VoiceSample declares its own operator= (hiding the base one), so this routes through
@@ -956,6 +1024,9 @@ optForDirectReading:
 
 			crossfadeIncrement = 0;
 			samplesTilHopEnd = 500; // Come back in a while and try again
+		}
+		else {
+			keepClusterForHopRetry(nullptr); // The new play-head holds its own reasons now
 		}
 
 #if TIME_STRETCH_ENABLE_BUFFER
@@ -978,6 +1049,8 @@ optForDirectReading:
 	}
 
 #endif
+
+	updateClustersForHopBack(sample, samplePos, timeStretchRatio, phaseIncrement, playDirection, priorityRating);
 
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1149,6 +1222,60 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 			}
 			nextClusterIndex += playDirection;
 		}
+	}
+}
+
+// Works out the earliest the next hop could start the new play-head, and holds reasons for the Clusters from there on,
+// up to the one samplePos is in, so they're enqueued now and have time to load before the hop. samplePos only moves on
+// before that hop, so working this out from it now errs on the early side.
+void TimeStretcher::updateClustersForHopBack(Sample* sample, int64_t samplePos, int32_t timeStretchRatio,
+                                             int32_t phaseIncrement, int32_t playDirection, int32_t priorityRating) {
+	HopParams params = getHopParams(timeStretchRatio);
+
+	// The widest beam hopEnd() can pick. Its random element can make minBeamWidth nearly twice as big
+	int32_t widestBeam = std::max(params.maxBeamWidth, params.minBeamWidth << 1);
+	widestBeam = ((uint64_t)(uint32_t)widestBeam * (uint32_t)phaseIncrement) >> 24;
+
+	// When time is slowed down, the beam's back edge is behind samplePos by half the beam times how much slower. Then
+	// the phase search can move it back by up to half its search limit, and one more sample for sub-sample alignment
+	int64_t samplesBack = ((sample->sampleRate / 45) >> 1) + 1;
+	if (timeStretchRatio < kMaxSampleValue) {
+		samplesBack += ((int64_t)widestBeam * (kMaxSampleValue - timeStretchRatio)) >> 25;
+	}
+
+	int64_t lastSample = sample->lengthInSamples - 1;
+	int64_t earliestSample = std::clamp<int64_t>(samplePos - samplesBack * playDirection, 0, lastSample);
+	int64_t latestSample = std::clamp<int64_t>(samplePos, 0, lastSample);
+
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t firstClusterIndex =
+	    (sample->audioDataStartPosBytes + earliestSample * bytesPerSample) >> Cluster::size_magnitude;
+	int32_t lastClusterIndex =
+	    (sample->audioDataStartPosBytes + latestSample * bytesPerSample) >> Cluster::size_magnitude;
+
+	if (clustersForHopBack[0] && clustersForHopBack[0]->clusterIndex == firstClusterIndex) {
+		return;
+	}
+
+	Cluster* newClusters[kNumClustersLoadedAhead] = {};
+	int32_t clusterIndex = firstClusterIndex;
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		if (clusterIndex < sample->getFirstClusterIndexWithAudioData()
+		    || clusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) {
+			break;
+		}
+		newClusters[l] = sample->clusters.getElement(clusterIndex)
+		                     ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
+		if (!newClusters[l] || clusterIndex == lastClusterIndex) {
+			break;
+		}
+		clusterIndex += playDirection;
+	}
+
+	// Only let go of the old ones now, so any we still want which are waiting to load don't drop out of the queue
+	unassignAllReasonsForHopBack();
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
+		clustersForHopBack[l] = newClusters[l];
 	}
 }
 
