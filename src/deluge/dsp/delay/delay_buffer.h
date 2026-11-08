@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <span>
 
 class StereoSample;
 
@@ -84,6 +85,10 @@ public:
 		current_->r = 0;
 		return moveOn();
 	}
+
+	/// clearAndMoveOn() and read the new current() into each sample of output, keeping the position in a register
+	/// rather than storing it after every sample. Returns whether it wrapped
+	bool clearAndReadNative(std::span<StereoSample> output);
 
 	inline bool moveOn() {
 		++current_;
