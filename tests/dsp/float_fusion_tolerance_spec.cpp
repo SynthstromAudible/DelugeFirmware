@@ -16,7 +16,9 @@
  */
 // The fused policy against the unfused one: fp::Svf and fp::Smoother built with -mfma (mul_add fused) against
 // test-local twins of their steps with every mul_add written unfused. The A9 runs the unfused form, an FMA target
-// the fused one; their difference stays within the bounds here.
+// the fused one; their difference stays within the bounds here. The SVF case bounds the LOW_PASS output: every mode
+// shares the state update, which holds all of the step's mul_adds, and the HIGH_PASS and NOTCH output expressions use
+// none, so one mode bounds them all.
 
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"

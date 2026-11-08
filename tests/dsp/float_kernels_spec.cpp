@@ -349,6 +349,10 @@ describe float_kernels_spec("float kernels", ${
 			f.configure({.cutoff = 0.03f, .q = 3.f, .mode = fp::Svf::Mode::NOTCH});
 			f.render_block(fp::Signal{in}, fp::Buffer{out});
 			expect(digest(out)).to_equal(records::kSvfNotch);
+			f.reset();
+			f.configure({.cutoff = 0.03f, .q = 3.f, .mode = fp::Svf::Mode::HIGH_PASS});
+			f.render_block(fp::Signal{in}, fp::Buffer{out});
+			expect(digest(out)).to_equal(records::kSvfHighPass);
 		});
 	});
 	context("Linked", _ {

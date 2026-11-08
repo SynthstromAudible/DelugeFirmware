@@ -45,7 +45,7 @@ struct Svf {
 	/// @brief What a step returns.
 	enum class Mode : uint8_t {
 		LOW_PASS,  ///< v2.
-		BAND_PASS, ///< v1.
+		BAND_PASS, ///< v1: gain Q at fc (k·v1 is the unity-gain band-pass).
 		HIGH_PASS, ///< x − k·v1 − v2.
 		NOTCH,     ///< x − k·v1.
 	};
