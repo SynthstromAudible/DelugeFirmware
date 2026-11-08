@@ -328,30 +328,39 @@ inline constexpr Node midi_device_definition =
     submenu(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION), kMidiDeviceDefinitionChildren, Layout::Vertical,
             relevance::is_midi_out);
 
-// `midi::Preset::selectEncoderAction` wraps at 129 and draws 128 as "NONE" (`midi/preset.h:34-49`),
-// so the editable range is 0..128 and `getMaxValue()` says 128 (`:22`).
+// `midi::Preset`: 0..127, and 128 for none (`getMaxValue`); `midi_preset_turn` wraps round it and
+// `midi_preset_text` names its top.
 inline constexpr IntRange kMidiPresetRange{0, 128, 1};
-inline constexpr Node midi_bank = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiBank",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_BANK)),
-                    midi_preset_art));
-inline constexpr Node midi_sub_bank = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiSub",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_SUB_BANK)),
-                    midi_preset_art));
-inline constexpr Node midi_pgm = without_notification(
-    with_column_art(with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "midiPGM",
-                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                               sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE)),
-                    midi_preset_art));
+inline constexpr Node midi_bank =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiBank",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_BANK)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
+inline constexpr Node midi_sub_bank =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiSub",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_SUB_BANK)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
+inline constexpr Node midi_pgm =
+    with_leaf_text(with_turn(without_notification(with_column_art(
+                                 with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
+                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                          .path = "midiPGM",
+                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                                            sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE)),
+                                 midi_preset_art)),
+                             midi_preset_turn),
+                   midi_preset_text);
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
 /// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
 /// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout

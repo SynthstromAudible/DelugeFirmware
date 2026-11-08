@@ -274,6 +274,18 @@ std::optional<ArtColumn> midi_preset_art(const MenuContext&, int32_t value) {
 	return ArtColumn{.text = deluge::l10n::getView(String::STRING_FOR_NONE)};
 }
 
+std::optional<int32_t> midi_preset_turn(const MenuContext&, int32_t value, int32_t offset) {
+	const int32_t span = kMidiPresetRange.max - kMidiPresetRange.min + 1;
+	return kMidiPresetRange.min + (((value + offset - kMidiPresetRange.min) % span) + span) % span;
+}
+
+ValueText midi_preset_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column || value != kMidiPresetRange.max) {
+		return kValueTextFallback;
+	}
+	return put_string(String::STRING_FOR_NONE, out);
+}
+
 ValueText off_at_zero_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label || value != 0) {
 		return use == ValueTextUse::Notification ? put_int(value, out) : kValueTextFallback;

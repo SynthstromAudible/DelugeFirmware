@@ -51,6 +51,10 @@ std::optional<deluge::ui::oled::ArtColumn> arp_rhythm_midi_art(const MenuContext
 std::optional<deluge::ui::oled::ArtColumn> unison_count_art(const MenuContext& ctx, int32_t value);
 /// `midi::Preset::renderInHorizontalMenu` (`midi/preset.h:62-79`): NONE at 128, else the number.
 std::optional<deluge::ui::oled::ArtColumn> midi_preset_art(const MenuContext& ctx, int32_t value);
+/// `midi::Preset::selectEncoderAction` (`midi/preset.h`): a turn wraps round `kMidiPresetRange`, 128 being none.
+std::optional<int32_t> midi_preset_turn(const MenuContext& ctx, int32_t value, int32_t offset);
+/// `midi::Preset::drawInteger`: NONE at 128 on the full screen.
+ValueText midi_preset_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// @}
 
 /// @name Column texts (`Binding::value_text`)

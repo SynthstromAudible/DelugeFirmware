@@ -128,6 +128,16 @@ bool rows_match(const R& rig, int y0, int y1) {
 	return true;
 }
 
+/// @brief What @p n's full screen names @p value (`Binding::leaf_text`), or empty for its digits.
+std::string screen_text(const Node& n, const MenuContext& ctx, int32_t value) {
+	if (n.bind.leaf_text == nullptr) {
+		return {};
+	}
+	char buf[32];
+	const menu::ValueText vt = n.bind.leaf_text(ctx, value, menu::ValueTextUse::Column, buf);
+	return vt.fallback ? std::string{} : std::string{buf, vt.length};
+}
+
 int32_t list_cursor() {
 	return menu_scene().state().list[menu_scene().state().depth].cursor;
 }
@@ -325,7 +335,33 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 		draw(rig, 0);
 		expect(list_cursor()).to_equal(5);
 	});
+
+	it("wraps a MIDI bank, sub-bank and program round 0..128, 128 being none", _ {
+		for (const Node* n : {&nodes::midi_bank, &nodes::midi_sub_bank, &nodes::midi_pgm}) {
+			expect(n->bind.turn != nullptr).to_be_true();
+			if (n->bind.turn == nullptr) {
+				continue;
+			}
+			Rig r;
+			expect(n->bind.turn(r.ctx, 128, 1).value_or(-99)).to_equal(0);
+			expect(n->bind.turn(r.ctx, 0, -1).value_or(-99)).to_equal(128);
+			expect(n->bind.turn(r.ctx, 126, 5).value_or(-99)).to_equal(2);
+			expect(n->bind.turn(r.ctx, 40, 1).value_or(-99)).to_equal(41);
+		}
+	});
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns)
+// clang-format off
+describe leaf_texts("scenes::menu full-screen value texts", $ {
+	it("names a MIDI preset's 128 NONE on the full screen, and leaves the rest as digits", _ {
+		Rig r;
+		for (const Node* n : {&nodes::midi_bank, &nodes::midi_sub_bank, &nodes::midi_pgm}) {
+			expect(screen_text(*n, r.ctx, 128)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_NONE)});
+			expect(screen_text(*n, r.ctx, 7)).to_equal(std::string{});
+		}
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns, leaf_texts)
