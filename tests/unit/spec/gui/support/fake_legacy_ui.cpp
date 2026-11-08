@@ -313,6 +313,9 @@ void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
 
+// `gui/ui/ui.cpp`'s, which `ShellHostUI::closeGuest` ends as `SoundEditor::exitCompletely` does.
+uint32_t currentUIMode = 0;
+
 // `gui/ui/sound_editor.cpp`'s list and `ui.cpp`'s check, which `ShellHostUI::selectEncoderAction` gates the menu's
 // turns on. This suite never sets a UI mode, and with none on every list admits it.
 const uint32_t selectEncoderUIModes[] = {0};

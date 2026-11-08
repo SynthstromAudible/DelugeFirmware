@@ -26,6 +26,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -68,6 +69,7 @@
 
 #include "support/card_access.h"
 #include "support/song_fixture.h"
+#include "support/ui_mode_guard.h"
 
 #include "cppspec.hpp"
 
@@ -213,6 +215,18 @@ struct RootUIGuard {
 	}
 	RootUIGuard(const RootUIGuard&) = delete;
 	RootUIGuard& operator=(const RootUIGuard&) = delete;
+};
+
+/// @brief A kit clip with a fresh note row at index 0, and the model stack `enterDrumCreator` takes for it.
+struct DrumRowStack {
+	alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* stack = nullptr;
+	explicit DrumRowStack(deluge::scenes::spec::SongFixture& f) {
+		NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.insertNoteRowAtIndex(0);
+		if (row != nullptr) {
+			stack = setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip)->addNoteRow(0, row);
+		}
+	}
 };
 
 /// @brief Whether @p node is a horizontal page.
@@ -1062,8 +1076,124 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 		}
 	});
 });
+
+describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was left under, as exitCompletely does", $ {
+	it("clears AFFECT ENTIRE held on a kit row's menu when the long-press exit closes it", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenuAtShortcut(kit.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(deluge::scenes::menu_scene().takes_affect_entire()).to_be_true();
+		expect(entry::forwardMenuAffectEntire(deluge::hid::button::AFFECT_ENTIRE, true).has_value()).to_be_true();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR});
+
+		expect(shellHostUI.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("clears it when a short BACK at the menu's root closes it, which legacy accepts with AFFECT ENTIRE held", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenuAtShortcut(kit.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().depth)).to_equal(0);
+		expect(entry::forwardMenuAffectEntire(deluge::hid::button::AFFECT_ENTIRE, true).has_value()).to_be_true();
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, true);
+		(void)shellHostUI.timerCallback();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("clears the non-exclusive modes too: an audition the menu was opened under", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("keeps a stem export the menu started, and only its mode: legacy resets first and the export engages after", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		// What `startStemExport` leaves before the tick's close: the export engaged over a latched audition.
+		currentUIMode = UI_MODE_STEM_EXPORT | UI_MODE_AUDITIONING;
+
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_STEM_EXPORT});
+	});
+
+	it("leaves the mode alone when the drum creator's browser ends the visit: legacy opened no editor there", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		setRootUILowLevel(&instrumentClipView);
+		DrumRowStack row{kit};
+		expect(row.stack != nullptr).to_be_true();
+		if (row.stack == nullptr) {
+			return;
+		}
+		instrumentClipView.enterDrumCreator(row.stack, /*doRecording=*/false);
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback(); // the file selector's hook pushes the browser
+		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
+		    .to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING; // an audition pad held over the browser
+
+		(void)shellHostUI.exitUI(); // the browser goes; the menu goes up from its root on the resume
+		for (int32_t i = 0; i < 3 && isUIOpen(&shellHostUI); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_AUDITIONING});
+	});
+
+	it("forgets that mark when the visit is torn down without its close: the next visit's close resets", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		setRootUILowLevel(&instrumentClipView);
+		DrumRowStack row{kit};
+		expect(row.stack != nullptr).to_be_true();
+		if (row.stack == nullptr) {
+			return;
+		}
+		instrumentClipView.enterDrumCreator(row.stack, /*doRecording=*/false);
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		nullifyUIs(); // a song load takes every UI down with no close
+
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		(void)shellHostUI.exitUI();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn, menu_entry_automation_notes)
+            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode)

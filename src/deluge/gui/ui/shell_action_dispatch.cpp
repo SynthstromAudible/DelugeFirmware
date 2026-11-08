@@ -243,21 +243,10 @@ namespace {
 /// export queued, guest closed, export runs. The divergence is real only on the cooperative BSPs,
 /// where no stem export is driven from a ported menu.
 ///
-/// One more of `exitCompletely`'s tail has no counterpart on the guest's close path and is left
-/// unpaid here: `currentUIMode = UI_MODE_NONE` (`gui/ui/sound_editor.cpp:770`). **The export's own
-/// mode engages either way, and that is the whole of what is safe to claim.**
-/// `UI_MODE_STEM_EXPORT` is `64` (`gui/ui/ui.h:78`), which is not `> EXCLUSIVE_UI_MODES_MASK` (`255`,
-/// `:81`), so `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`)
-/// takes `enterUIMode`'s else branch, `currentUIMode = (currentUIMode & ~255) | 64`
-/// (`gui/ui/ui.cpp:488-489`) -- it never refuses.
-///
-/// But that clears only the **exclusive** bits. The five non-exclusive modes (`gui/ui/ui.h:85-89`:
-/// `QUANTIZE`, `STUTTERING`, `HORIZONTAL_SCROLL`, `AUDITIONING`,
-/// `HOLDING_HORIZONTAL_ENCODER_BUTTON`, all bits 27-31) survive it, where legacy's
-/// `UI_MODE_NONE` is `0` and clears every bit. So a menu entered with, say,
-/// `UI_MODE_AUDITIONING` latched leaves that flag set through the whole export under the guest and
-/// not under legacy. The residue is specifically those five flags; it belongs to the guest's close
-/// path rather than to this arm, and is reported rather than fixed from here.
+/// `exitCompletely`'s last statement, `currentUIMode = UI_MODE_NONE`, is the guest's close's
+/// (`ShellHostUI::closeGuest`), which runs after this arm has started the export. The close keeps the export's own
+/// `UI_MODE_STEM_EXPORT` and drops every other bit, which is the value legacy's order (reset, then
+/// `enterUIMode(UI_MODE_STEM_EXPORT)`, which keeps only the non-exclusive bits the reset already cleared) leaves.
 void startStemExport() {
 	// `start.h:32` -- first, exactly as legacy has it.
 	closePortedMenu();

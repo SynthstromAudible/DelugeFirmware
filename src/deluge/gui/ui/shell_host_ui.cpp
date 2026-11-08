@@ -46,6 +46,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 namespace deluge::gui::ui {
 
@@ -99,6 +100,8 @@ bool ShellHostUI::opened() {
 	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
 	fedPads_ = deluge::ui::PadMask{};
 	shell_.lowering().forget_held_pads();
+	// A visit is the editor's until its opener says otherwise (`markVisitWithoutEditor`).
+	visitWithoutEditor_ = false;
 
 	// Start from an empty stack rather than pushing onto whatever the last session left. This is
 	// not tidiness: `SceneStack` holds one `Scene*` per kind, so pushing a kind that is already
@@ -1326,6 +1329,16 @@ void ShellHostUI::closeGuest() {
 	// line later or, worse, deliver this guest's `timerCallback` to that UI -- `UITimerManager::routine` dispatches to
 	// `getCurrentUI()`.
 	close();
+
+	// `exitCompletely`'s last statement, after its `close()`: the modes the menu was left under end with it (a held
+	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep legacy's value instead.
+	// A stem export a menu item started has engaged its own mode before this close, where legacy resets first and
+	// engages after, so that mode is what is left. A visit legacy runs with no editor open (`markVisitWithoutEditor`)
+	// ends as the legacy browser's and recorder's exits do, with the mode untouched.
+	if (!std::exchange(visitWithoutEditor_, false)) {
+		currentUIMode =
+		    (currentUIMode & EXCLUSIVE_UI_MODES_MASK) == UI_MODE_STEM_EXPORT ? UI_MODE_STEM_EXPORT : UI_MODE_NONE;
+	}
 }
 
 // -- MIDI learn ---------------------------------------------------------------------

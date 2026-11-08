@@ -359,6 +359,12 @@ public:
 	///        the root on the same call and so cannot leave the close to the next tick (`forwardMenuViewButton`'s
 	///        SESSION). The same hand-back as the guest's own two close paths (`closeGuest`).
 	void closeNow() { closeGuest(); }
+
+	/// @brief Mark this visit as one legacy runs with no editor open: the drum creator's browser or take, opened
+	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as the legacy browser's and
+	///        recorder's own exits do; every other close ends the mode, as `SoundEditor::exitCompletely` does. Call it
+	///        after the open succeeded; the next `opened()` forgets it.
+	void markVisitWithoutEditor() { visitWithoutEditor_ = true; }
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;
@@ -517,6 +523,8 @@ private:
 	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
 	///        too, claimed or not.
 	deluge::ui::PadMask fedPads_{};
+	/// Whether the visit now open is one legacy runs with no editor (`markVisitWithoutEditor`).
+	bool visitWithoutEditor_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.
