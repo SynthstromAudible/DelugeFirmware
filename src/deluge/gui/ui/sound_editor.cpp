@@ -2411,6 +2411,7 @@ void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
 	// the new type applies to by it. Left unwritten, a stale index from an earlier legacy session would select the
 	// wrong range.
 	currentMultiRangeIndex = resolved.rangeIndex;
-	// The automation view reads it while the menu is open, to tell a kit row's params from the kit's own.
+	// Legacy's member, mirrored for any legacy reader while the ported menu is open; the automation view reads the
+	// ported menu's latch itself (`soundMenuKitGlobalFx`).
 	setupKitGlobalFXMenu = resolved.kitGlobalFx;
 }
