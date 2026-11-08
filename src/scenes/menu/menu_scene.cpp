@@ -399,7 +399,7 @@ void MenuScene::set_affect_entire_hold(bool on) {
 
 void MenuScene::reroot(const Node& root, const MenuContext& ctx, const Node& column) {
 	open(root, ctx);
-	pending_retarget_ = pads_.arm_landing_on(root, column);
+	pending_retarget_ = arm_page_landing(root, column);
 	deluge::notify::raise(deluge::notify::Dirty::Oled); // the host's press, between the guest's ticks
 }
 

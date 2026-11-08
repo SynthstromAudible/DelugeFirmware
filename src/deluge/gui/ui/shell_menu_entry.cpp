@@ -189,7 +189,12 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		// `setup()` on the open editor, then `enterOrUpdateSoundEditor`'s already-open arm, `beginScreen`: the open
 		// menu re-roots in place. A Shift + pad the Settings root forwards to the keyboard screen or the performance
 		// view arrives here; `openUI` would push the guest over itself.
-		deluge::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
+		if (pageColumn != nullptr) {
+			deluge::scenes::menu_scene().reroot(root, ctx, *pageColumn);
+		}
+		else {
+			deluge::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
+		}
 		adoptShellMenuContext();
 		shellHostUI.refreshRootFacts();
 		display->cancelPopup();
@@ -470,13 +475,7 @@ bool openShellNoteRowEditor(Clip* clip, bool onPlayDirection) {
 	}
 	clearKitAffectEntireForNoteMode(ctx, clip);
 	// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `setup()`: on the open editor, or opening it.
-	if (!guestOpen) {
-		return openGuest(*root, ctx, 0, nullptr, &menu::nodes::sequence_direction);
-	}
-	deluge::scenes::menu_scene().reroot(*root, ctx, menu::nodes::sequence_direction);
-	adoptShellMenuContext();
-	shellHostUI.refreshRootFacts();
-	return true;
+	return openGuest(*root, ctx, 0, nullptr, &menu::nodes::sequence_direction);
 }
 
 void landShellMenuOnFileSelectorIfRecorderRefuses() {

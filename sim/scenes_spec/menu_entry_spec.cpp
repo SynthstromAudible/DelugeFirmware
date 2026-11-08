@@ -243,13 +243,14 @@ struct RootUIGuard {
 struct PopupSpy final : deluge::hid::Display {
 	std::string last_popup;
 	std::optional<Error> last_error;
+	int32_t cancels = 0;
 
 	using deluge::hid::Display::displayPopup;
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override { last_popup = text; }
 	void popupText(char const*, PopupType) override {}
 	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
+	void cancelPopup() override { cancels++; }
 	void freezeWithError(char const*) override {}
 	void displayError(Error error) override { last_error = error; }
 	void removeWorkingAnimation() override {}
@@ -1966,6 +1967,40 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 
 		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		closeGuest();
+	});
+
+	it("re-roots the open note-row editor on PLAY DIRECTION's page and takes the popup down, as setup() does", _ {
+		// `enterNoteRowEditor` with the sound editor open: `focusChild(&sequenceDirectionMenu)`, then `setup()`, which
+		// ends with `display->cancelPopup()`.
+		deluge::gui::ui::wireShellNoteBridge();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		PopupSpy spy;
+		DisplayGuard shown{spy};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		HeldAudition audition{2};
+
+		expect(instrumentClipView.enterNoteRowEditor()).to_be_true();
+		const menu::MenuContext ctx = deluge::scenes::menu_scene().menu_context();
+		deluge::scenes::menu_scene().reroot(*menu::MenuScene::roots()[static_cast<size_t>(ctx.root)], ctx,
+		                                    nodes::note_row_probability);
+		for (int32_t i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::note_row_probability).to_be_true();
+
+		const int32_t cancels = spy.cancels;
+		expect(entry::openShellNoteRowEditor(f.clip, true)).to_be_true();
+		for (int32_t i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(spy.cancels > cancels).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		expect(deluge::scenes::menu_scene().focused() != &nodes::sequence_direction).to_be_true();
 		closeGuest();
 	});
 
