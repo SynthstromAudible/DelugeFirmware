@@ -174,9 +174,10 @@ bool shellMenuEnabled();
 /// @param performanceView        `setup()`'s `currentUI == &performanceView && !shift`.
 /// @param sessionOrArrangerRoot  `setup()`'s `!rootUIIsClipMinderScreen()`.
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
-/// @param kitGlobalFx            True where the site sets `setupKitGlobalFXMenu` before its `setup()`: the clip
-///                               views' SELECT on a kit with affect-entire on. It sets the latch
-///                               (`shellKitGlobalFx`); false leaves it as it is. Either way the open reads the latch.
+/// @param kitGlobalFx            True to edit a kit's own effects: the clip views' SELECT on a kit with
+///                               affect-entire on, which also sets `setupKitGlobalFXMenu` before its `setup()`. True
+///                               sets the latch (`shellKitGlobalFx`) for the shortcut presses that follow; false
+///                               leaves it as it is. The open reads this argument, never the latch.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
 /// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
 ///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
@@ -217,8 +218,10 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 ///
 /// Sticky, as legacy's member is. `shellShortcutPadAction` writes it with the guest closed, on every press it is
 /// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
-/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). Every open reads it, so which menu a
-/// kit opens depends on what was pressed since the last close.
+/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). The shortcut presses read it, as
+/// legacy's `get_basic_shortcut_action` and the `setup()` after it do, so which item a kit's shortcut opens depends on
+/// what was pressed since the last close. The other opens edit what the clip's affect-entire says now (DIFFERENCES
+/// D130).
 bool shellKitGlobalFx();
 
 /// @brief Clear the latch `shellKitGlobalFx` reads, as legacy's `exitCompletely` and `enterDrumCreator` clear

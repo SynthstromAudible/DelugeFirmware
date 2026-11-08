@@ -446,10 +446,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 			// `SoundEditor`'s state, cleared on its exit (`SoundEditor::exitCompletely`), and setting it on a path that
 			// never opens the legacy editor would leave it latched for whoever opens one next.
 			if (deluge::gui::ui::shellMenuEnabled()) {
-				// The same write to the ported menu's own latch (`shellKitGlobalFx`), which the open then reads. The
-				// root is then one of six, and `context_for` runs the same six tests in the same order; the two
-				// UI-mode roots legacy could otherwise pick are unreachable because this arm is
-				// `currentUIMode == UI_MODE_NONE`.
+				// The same write to the ported menu's own latch (`shellKitGlobalFx`), which the shortcut presses
+				// then read; the open edits what the clip's affect-entire says now. The root is then one of six, and
+				// `context_for` runs the same six tests in the same order; the two UI-mode roots legacy could otherwise
+				// pick are unreachable because this arm is `currentUIMode == UI_MODE_NONE`.
 				const bool kitGlobalFx = SoundEditor::shouldEditKitAffectEntire();
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
 				                                    /*performanceView=*/false,

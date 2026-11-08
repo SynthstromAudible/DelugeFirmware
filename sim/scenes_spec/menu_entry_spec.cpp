@@ -1369,13 +1369,13 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)shellHostUI.exitUI();
 	});
 
-	it("opens a kit's own effects from an entry that does not set the fact, once a pad has set it", _ {
+	it("SELECT opens the drum's own menu once affect-entire is off, whatever a pad left the fact at", _ {
 		(void)quiet_audio();
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
-		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		SoundDrum* const drum = deluge::scenes::spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		setRootUILowLevel(&instrumentClipView);
 		entry::clearShellKitGlobalFx();
@@ -1383,8 +1383,16 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)instrumentClipView.padAction(0, 0, 64);
 		(void)instrumentClipView.padAction(0, 0, 0);
 		expect(entry::shellKitGlobalFx()).to_be_true();
-		expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::KitGlobalFx).to_be_true();
+		f.clip->affectEntire = false; // AFFECT ENTIRE turned off, which writes nothing
+		// An audition selects the drum's row again; the audition column never reaches the shortcut entry.
+		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
+		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+		expect(ctx.root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(ctx.is_kit_global_fx).to_be_false();
+		expect(ctx.is_drum).to_be_true();
 		(void)shellHostUI.exitUI();
 		expect(entry::shellKitGlobalFx()).to_be_false();
 	});

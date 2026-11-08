@@ -155,7 +155,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 	                                      .sourceIndex = menuCtx.source_index,
 	                                      .source = nullptr,
 	                                      .sampleControls = nullptr,
-	                                      .kitGlobalFx = shellKitGlobalFx()};
+	                                      .kitGlobalFx = menuCtx.is_kit_global_fx};
 	if (currentSong == nullptr) {
 		return resolved;
 	}
