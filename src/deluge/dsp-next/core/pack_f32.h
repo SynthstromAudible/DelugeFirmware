@@ -56,7 +56,9 @@ static_assert(!kFusedMulAdd, "the scalar and the pack must fuse together");
 	}
 }
 
-/// @brief |@p x|: the scalar form of a pack's abs.
+/// @brief |@p x|: the scalar form of a pack's abs, which a step written over V calls.
+/// @note Inside namespace deluge::dsp this hides the global integer ::abs for unqualified calls; an integer absolute
+/// value there is std::abs.
 [[nodiscard]] [[gnu::always_inline]] inline f32 abs(f32 x) {
 	return std::fabs(x);
 }

@@ -44,8 +44,8 @@ private:
 #ifdef __aarch64__
 	static constexpr uint64_t kBits = uint64_t{1} << 24; ///< FPCR.FZ
 	using Word = uint64_t;
-	static Word read() { return __builtin_aarch64_get_fpcr64(); }
-	static void write(Word w) { __builtin_aarch64_set_fpcr64(w); }
+	static Word read() { return __builtin_arm_rsr64("fpcr"); }
+	static void write(Word w) { __builtin_arm_wsr64("fpcr", w); }
 #elifdef __arm__
 	static constexpr uint32_t kBits = uint32_t{1} << 24; ///< FPSCR.FZ
 	using Word = uint32_t;

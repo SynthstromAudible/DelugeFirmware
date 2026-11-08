@@ -36,16 +36,18 @@ namespace {
 	return std::bit_cast<uint32_t>(x);
 }
 
+/// The corner values, which the operands and the corner-pair trials draw from.
+constexpr std::array<f32, 8> kCorners{0.f, -0.f, 1e-40f, -1e-40f, 1.f, -1.f, 3.0e38f, -3.0e38f};
+
 /// Operands: signed zeros, denormals (which flush), ±1, near-overflow and seeded noise over ±4.
 template <std::size_t N>
 [[nodiscard]] std::array<Pack<f32, N>, 3> operands(uint32_t seed) {
 	std::mt19937 rng{seed};
 	std::uniform_real_distribution<f32> d{-4.f, 4.f};
-	constexpr std::array<f32, 8> corners{0.f, -0.f, 1e-40f, -1e-40f, 1.f, -1.f, 3.0e38f, -3.0e38f};
 	std::array<Pack<f32, N>, 3> r{};
 	for (std::size_t k = 0; k < 3; ++k) {
 		for (std::size_t i = 0; i < N; ++i) {
-			r[k].set(i, (seed % 2 == 0) ? corners[(seed + k * 3 + i) % corners.size()] : d(rng));
+			r[k].set(i, (seed % 2 == 0) ? kCorners[(seed + k * 3 + i) % kCorners.size()] : d(rng));
 		}
 	}
 	return r;
@@ -58,6 +60,18 @@ void expect_lanewise(auto& self, Op op, Scalar scalar) {
 		const Pack<f32, N> r = op(a, b, c);
 		for (std::size_t i = 0; i < N; ++i) {
 			expect(bits(r.get(i))).to_equal(bits(scalar(a.get(i), b.get(i), c.get(i))));
+		}
+	}
+	// Every ordered triple of corners in every lane, so the ties (+0, -0), (-0, +0), a denormal against the other
+	// sign's and against zero meet whatever the operands' stride.
+	for (const f32 x : kCorners) {
+		for (const f32 y : kCorners) {
+			for (const f32 z : kCorners) {
+				const Pack<f32, N> r = op(Pack<f32, N>{x}, Pack<f32, N>{y}, Pack<f32, N>{z});
+				for (std::size_t i = 0; i < N; ++i) {
+					expect(bits(r.get(i))).to_equal(bits(scalar(x, y, z)));
+				}
+			}
 		}
 	}
 }
@@ -126,6 +140,20 @@ describe pack_f32_spec("Pack<f32, N>", ${
 		const f32 b = 1.0f + 0x1p-23f;
 		const f32 a = -(1.0f + 0x1p-22f);
 		expect(bits(mul_add(a, b, b))).to_equal(bits(kFusedMulAdd ? std::fma(b, b, a) : a + (b * b)));
+	});
+	it("fuses a pack's mul_add exactly when kFusedMulAdd, in every lane", _ {
+		const f32 b = 1.0f + 0x1p-23f;
+		const f32 a = -(1.0f + 0x1p-22f);
+		volatile f32 product = b * b;
+		const f32 want = kFusedMulAdd ? std::fma(b, b, a) : a + product;
+		const Pack<f32, 2> r2 = mul_add(Pack<f32, 2>{a}, Pack<f32, 2>{b}, Pack<f32, 2>{b});
+		const Pack<f32, 4> r4 = mul_add(Pack<f32, 4>{a}, Pack<f32, 4>{b}, Pack<f32, 4>{b});
+		for (std::size_t i = 0; i < 2; ++i) {
+			expect(bits(r2.get(i))).to_equal(bits(want));
+		}
+		for (std::size_t i = 0; i < 4; ++i) {
+			expect(bits(r4.get(i))).to_equal(bits(want));
+		}
 	});
 	context("at N = 2", _ { pack_specs<2>(self); });
 	context("at N = 4", _ { pack_specs<4>(self); });
