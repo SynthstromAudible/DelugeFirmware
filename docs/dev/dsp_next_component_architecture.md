@@ -1461,6 +1461,93 @@ delay). Nothing is implemented. The design is one `StereoSample` kernel template
 - It needs two `Pack` additions: a gather load, and a strided lane sum.
 - It is built with its first effect (TODO.md).
 
+## The float voice (`float/osc/`, `float/envelope/`, `float/vca/`)
+
+A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
+`Poly<Chain<oscillator, fp::Svf, fp::Vca<fp::Envelope>>, N>`. `Poly` runs generators (a source has no input signal to
+transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
+naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
+bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
+
+### Oscillators
+
+Both oscillators share `step_phase` (`float/osc/phase.h`): the phase advances by the increment and wraps into [0, 1)
+with one compare and subtract, since the increment is below 1.
+
+**`fp::BlepOscillator`** is a saw or a pulse (`Mode::SAW`, `Mode::PULSE`) made from the naive waveform less a two-sample
+PolyBLEP residual at each discontinuity. A pulse is the saw less the saw `width` later, so each edge carries its own
+residual. `frequency` is f0/fs, clamped to [1e-6, 0.45]; `width` is clamped to [0.02, 0.98]. `coefficients` computes
+`1/inc` once, so the residual's two multiplies per edge need no divide in the step. The mode is the one shared member of
+the coefficients, dispatched once per block. The residual is a polynomial correction, not a band limit, and its response droops
+harmonic k by sinc²(k·f0), a treble roll-off that grows with pitch; the table below has no such droop.
+
+**`fp::TableOscillator`** reads a band-limited saw from the band set, the band chosen for the pitch, the position
+linearly interpolated, and has no mode. Under `Poly` each lane reads its own band at its own position, so the two reads
+per sample are `gather(table, index)`: the index pack is built from `trunc_nonnegative(position)` (the whole part of a
+non-negative value below 2^23, a NEON convert), and the gather loads one `f32` per lane. A lane's `offset`, the band's
+first sample in the set, is a coefficient field. The scalar `gather` and `trunc_nonnegative` overloads in
+`core/pack_f32.h` make the same reads for `Mono`.
+
+**The band set** (`float/osc/saw_bands.h`) is 11 bands of 2048 samples plus a repeated first sample, so an
+interpolation at the top of the cycle reads inside the band. Band b holds harmonics 1 … 2^(10 − b): band 0 is the
+richest and band 10 a sine. `saw_band_for(inc)` picks the smallest b whose top harmonic h has h · inc < 0.5, so a band
+never aliases at its pitch. The set is 11 · 2049 · 4 = about 90 KB of `f32`.
+
+The set is built by an explicit `fp::build_saw_bands()`, called once before the first render and off the audio tier (a
+second call does nothing; `saw_bands()` asserts it ran). The build uses no library function, so it is the same on every
+target: the sines come from a table made by a rotation recurrence in double, and each sample sums in double from the
+sparsest band to the richest, each band adding its new harmonics to the band before, then stores as `f32`. The
+storage is a global in SDRAM on the device, all-zero until built; the build takes about 0.18 s on the A9, which is why
+it is explicit and not a static constructor. The Gibbs overshoot of a truncated series rides above ±1.
+
+### `Envelope` (`float/envelope/envelope.h`)
+
+`fp::Envelope` runs a program of up to 8 segments. A `Segment` holds `target` (where it ends: the value lands on it
+exactly), `aim` (where an exponential segment heads, beyond the target for an analog-curve attack), `rate` (the
+one-pole coefficient, or a linear segment's length in samples), an exponential flag, a `hold` flag (stay until a
+gate-off, never reached) and `next` (the segment entered on reaching the target, or `kOff`). A `Program` is its
+segments, the first entered by a gate-on, and a `release` index a gate-off enters, or `kOff` to ignore gate-off. The
+flags and indices are 0/1 or whole numbers held in V, so a segment is a plain value like any coefficient.
+
+The State holds the current segment unpacked: value, target, aim, slope, flags, next, direction and an end tolerance.
+**The common path** is one step and one end-compare per sample on every lane at once: a one-pole step
+`value + slope · (aim − value)` or a linear one `value + slope`, selected per lane, then one test of whether any lane
+reached its target (in its direction, within 1e-5 for an exponential aiming at its own target, which only approaches
+it). **Transitions are rare and run scalar**: when `any(reached)`, each lane that did extracts its own scalar State and
+Coefficients, runs `enter` on its next segment and stores the result. Lanes reach on different samples, so the common
+path never branches per lane.
+
+- **Events.** `gate_on` enters segment 0 from the current value, so a retrigger never jumps. `gate_off` enters the
+  program's release from the current value, and is ignored by a program with none and by an envelope at rest.
+  `kOff` as a `next` rests at exactly 0.
+- **Clamps.** A time under one sample counts as one, for an exponential time constant and a linear length alike. The
+  builders compute the one-pole rate `1 − e^(−1/t)` libm-free (a Taylor series in double), and so the program is the
+  same on every target.
+- **The five programs.** `adsr` (exponential attack aiming at 1.2 and ending at 1, decay to the sustain, a hold, an
+  exponential release), `ad` (attack then decay to 0, ignoring gate-off), `asr` (attack, hold at 1, release),
+  `four_segment` (DX7-shaped: three linear rises, a hold, a gate-off fall to a fourth level and a hold) and
+  `looping` (two linear segments, forever).
+
+### `Vca<E>` (`float/vca/vca.h`)
+
+`fp::Vca<E>` is a processor: `y = (x · e) · gain`, in that order, where `e` is the next level of an envelope part `E`.
+`E`'s Settings, Coefficients and State nest in the Vca's, so a lane carries its own program, stage and gain, and the
+envelope steps once per sample whatever the signal. `gate_on` and `gate_off` forward to `E`, so
+`on<&Vca<E>::gate_on>` reaches the envelope of a `Mono` or of one lane of a `Poly` or `Bank`. `E` must be a float
+generator kernel with no modes and no `prepare`; the Vca `static_assert`s it, since a Vca adds neither.
+
+### Chain over V, and `part_event`
+
+A `Chain` whose parts are all `poly_kernel`s is itself one (see [`Chain` and `Pinned`](#chain-and-pinned-corechainh)):
+its Coefficients and State are built from the parts' `CoefficientsT<V>` and `StateT<V>`, so `Poly<Chain<…>, N>` steps
+the whole voice once per frame on a `Pack`, and `set_lane` and `get_lane` move one lane part by part. A moded part's mode
+sits beside the parts, shared by every lane.
+
+A part's event is reached through `part_event<I, Event>`: `Event(get<I>(c), get<I>(s), args…)`, or on the State alone.
+For the voice, `poly.on<part_event<2, &Vca<fp::Envelope>::gate_on>>(lane)` starts voice `lane`'s envelope. `Copies`
+keeps the shared members of the coefficients that are not fields (every part's mode among them) from the last
+`configure`, so an event on one lane sees the coefficients as `Mono` does.
+
 ## Layer 3: oscillator components
 
 Each oscillator is a **stateful generator** that owns its phase:
