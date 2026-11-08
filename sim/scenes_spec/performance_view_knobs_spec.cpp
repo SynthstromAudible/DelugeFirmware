@@ -47,6 +47,13 @@ extern uint32_t whichMainRowsNeedRendering;
 
 namespace {
 
+/// @brief A UI over the performance view that claims nothing: a covering UI, as a context menu is.
+class CoverUI final : public UI {
+public:
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
+	UIType getUIType() override { return UIType::NONE; }
+};
+
 /// The default layout's stutter column.
 constexpr int32_t kStutterColumn = 15;
 
@@ -154,6 +161,24 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 		whichMainRowsNeedRendering = 0;
 		PerformanceViewKnobsProbe::deliverUnreadableDefaults();
 		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
+	});
+
+	it("sets its layout's LEDs when its defaults arrive while it is the current UI", _ {
+		PerformanceRig rig;
+		indicator_leds::setLedState(IndicatorLED::LOAD, true);
+		PerformanceViewKnobsProbe::deliverAbsentDefaults();
+		// `updateLayoutChangeStatus`, as `focusRegained` runs it after the read: LOAD off.
+		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::LOAD)]).to_be_false();
+	});
+
+	it("leaves the LOAD LED to a UI that covers it when its defaults arrive", _ {
+		PerformanceRig rig;
+		static CoverUI cover;
+		expect(openUI(&cover)).to_be_true();
+		indicator_leds::setLedState(IndicatorLED::LOAD, true);
+		PerformanceViewKnobsProbe::deliverAbsentDefaults();
+		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::LOAD)]).to_be_true();
+		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	});
 
 	it("leaves the LOAD LED alone when its defaults arrive after it was left", _ {

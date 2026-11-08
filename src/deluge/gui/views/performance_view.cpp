@@ -1964,9 +1964,12 @@ void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::Settin
 		self->loadDefaultLayout();
 	}
 	// The view drew its pads when it opened, before the layout arrived: what focusRegained did after the read, it
-	// does again now, while the view is still open.
+	// does again now. The pads are asked for while the view is open (uiNeedsRendering draws them only where they show);
+	// the SAVE and LOAD LEDs are its own only while it is the current UI, as when focusRegained ran.
 	if (isUIOpen(self)) {
-		self->updateLayoutChangeStatus();
+		if (getCurrentUI() == self) {
+			self->updateLayoutChangeStatus();
+		}
 		uiNeedsRendering(self, 0xFFFFFFFF, 0); // refresh main pads only
 	}
 }
