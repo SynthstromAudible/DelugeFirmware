@@ -442,6 +442,61 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		legacy.pressed.push_back({1, 0});
 		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 	});
+
+	it("a velocity turn on the full-screen velocity item shows the item's new value and no popup -- adjustVelocity's "
+	   "noteVelocityMenu arm", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues); // velocity 80
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		menu_scene().enter_submenu(nodes::note_velocity);
+		expect(menu_scene().state().edit_int).to_equal(int32_t{80});
+		deluge::hid::display::OLED::removePopup();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_false();
+		expect(menu_scene().state().edit_int).to_equal(int32_t{85});
+	});
+
+	it("with horizontal menus on, the note editor's root shows velocity as a column: no popup", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		deluge::hid::display::OLED::removePopup();
+		(void)deluge::notify::dirty().drain();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_false();
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
+	});
+
+	it("with horizontal menus off, the root is a list without velocity: the popup shows, as main's", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		FeatureSetting horizontal(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		legacy.add_square_note(0, 0, kNumProbabilityValues);
+		legacy.press(0, 0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		deluge::hid::display::OLED::removePopup();
+
+		instrumentClipView.adjustVelocity(5);
+
+		expect(display->hasPopup()).to_be_true();
+	});
 });
 
 describe note_mode_reads_note_row_editor("the note-row editor's handlers' own menu calls, ported", $ {

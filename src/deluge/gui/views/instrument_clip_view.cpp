@@ -2759,8 +2759,12 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange, bool display_val
 		bool velocity_menu_displayed = false; // default is to show velocity change as a popup
 
 		// check if we're currently in the sound editor
-		// The shell's note menus expose no velocity item to ask about, so this reads the legacy editor only.
-		if (currentUI == &soundEditor) {
+		if (deluge::gui::ui::noteModeVelocityShown()) {
+			// See `gui/ui/shell_note_mode.h`
+			velocity_menu_displayed = true;
+			deluge::gui::ui::noteModeReadValueAgain();
+		}
+		else if (currentUI == &soundEditor) {
 			// check if we're in the note editor menu or note velocity menu
 
 			// get the current menu item

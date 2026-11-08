@@ -22,6 +22,7 @@
 #include "gui/ui/shell_note_mode.h"
 
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
+#include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
 #include "gui/ui/sound_editor.h"          // soundEditor
 #include "gui/ui/ui.h"                    // uiNeedsRendering
@@ -29,6 +30,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "util/note_editor_open.h"
 
+#include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -295,6 +297,18 @@ void noteModeReadValueAgain() {
 	// `MenuScene::read_value_again` is `MenuItem::readValueAgain`'s port, the one
 	// `services::ModKnobs` already calls for `View`'s own `readValueAgain()`.
 	deluge::scenes::menu_scene().read_value_again();
+}
+
+bool noteModeVelocityShown() {
+	// `noteVelocityMenu`, or `noteEditorRootMenu` with `renderingStyle() == HORIZONTAL`.
+	if (!shellMenuFrontmost()) {
+		return false;
+	}
+	const deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	const Node* const focused = menu.focused();
+	return focused == &nodes::note_velocity
+	       || (focused == &nodes::note_editor_root
+	           && deluge::scenes::menu::renders_horizontal(nodes::note_editor_root, menu.menu_context()));
 }
 
 bool portedMenuOnAuditionedRowDirection() {

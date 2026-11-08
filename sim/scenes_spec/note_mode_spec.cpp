@@ -7,12 +7,13 @@
 ///
 /// **Through a recording seam, mostly, and why.** The legacy handlers these functions forward into
 /// dereference `soundEditor.getCurrentMenuItem()` -- `menuItemNavigationRecord[navigationDepth]`,
-/// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3700`,
-/// `:3905`, `:3946`, `:3982-3984`), `goUpOneLevel` (`:3720-3721`) and `toggleNoteEditorParamMenu`
-/// (`:3894`). Each has an `activeNoteMode()` arm ahead of it, and `note_mode_reads_spec.cpp`
-/// drives those; no example here takes a handler down one of those paths with the ported menu
-/// open. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that
-/// answers a settable `ActionResult`, and the routing is pinned through it.
+/// null under the guest -- on most of their paths: `readValueAgain` (in `handleNoteEditorEditPadAction`,
+/// `handleNoteRowEditorMainPadAction`, `handleNoteRowEditorAuditionPadAction` and
+/// `handleNoteRowEditorVerticalEncoderAction`), `goUpOneLevel` (in `deselectNoteAndGoUpOneLevel`) and
+/// `toggleNoteEditorParamMenu` (in `handleNoteRowEditorMainPadAction`). Each has an `activeNoteMode()` arm ahead of it,
+/// and `note_mode_reads_spec.cpp` drives those; no example here takes a handler down one of those paths with the ported
+/// menu open. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that answers a settable
+/// `ActionResult`, and the routing is pinned through it.
 ///
 /// **Driven for real, and why each is safe:** the two button handlers on the paths that touch no
 /// navigation record -- AFFECT_ENTIRE in both modes (`handleNoteEditorButtonAction`'s fall-through,
