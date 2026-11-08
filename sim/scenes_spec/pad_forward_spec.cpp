@@ -430,7 +430,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("keeps the note arms inside the clip view's case: another root takes its own arm", _ {
-		// `sound_editor.cpp:1479` comes before the note arms, and `:1520` is a separate root: the note arms are nested in
+		// `SoundEditor::potentialShortcutPadAction`'s `ignoreAction` gate comes before the note arms, and its tail is a separate root: the note arms are nested in
 		// `rootUI == &instrumentClipView`, so a note root over another root view changes nothing.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

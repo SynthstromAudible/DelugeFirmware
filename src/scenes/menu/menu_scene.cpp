@@ -154,10 +154,10 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// **The allocation legacy's permission check performs before it opens a named item.**
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs
 		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
-		// (`gui/ui/sound_editor.cpp:1841-1846`), and for every range-dependent item that lands in
+		// (`SoundEditor::setup`'s item arm), and for every range-dependent item that lands in
 		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
-		// statement** is `source->getOrCreateFirstRange()` (`:1993`) -- a *create*, not a read,
-		// which fails only with `INSUFFICIENT_RAM` (`:1994-1997`).
+		// statement** is `source->getOrCreateFirstRange()` -- a *create*, not a read,
+		// which fails only with `INSUFFICIENT_RAM`.
 		//
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of

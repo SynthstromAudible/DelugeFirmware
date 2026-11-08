@@ -61,7 +61,7 @@
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
 /// |---|---|---|---|
-/// | 1 | `gui/views/view.cpp:444-456` `View::buttonAction` | `soundEditor.setup()` with SHIFT held, so `setup()`'s three view tests (`sound_editor.cpp:2060`, `:2063`) are all false and the root is `settingsRootMenu` (`:2064`) | `MenuContext::Root::Settings`, i.e. all four UI arguments false. The same reading, for the same arm, that `services::GlobalControls::handle_settings_menu` already made (`services::GlobalControls::handle_settings_menu`) |
+/// | 1 | `gui/views/view.cpp:444-456` `View::buttonAction` | `soundEditor.setup()` with SHIFT held, so `setup()`'s three view tests (in `SoundEditor::setup`) are all false and the root is `settingsRootMenu` | `MenuContext::Root::Settings`, i.e. all four UI arguments false. The same reading, for the same arm, that `services::GlobalControls::handle_settings_menu` already made (`services::GlobalControls::handle_settings_menu`) |
 /// | 2 | `gui/views/session_view.cpp:539-554` `SessionView::buttonAction` | `soundEditor.setup()` with no shift from the session view -> `soundEditorRootMenuSongView` (`SoundEditor::setup`) | `Root::Song`; `sessionViewRoot` true, which is the *only* thing two items in that root read (`MenuContext::is_session_view`) |
 /// | 3 | `gui/views/arranger_view.cpp:337-350` `ArrangerView::buttonAction` | the same call from the arranger -> the same `soundEditorRootMenuSongView` | `Root::Song`, `sessionViewRoot` **false** |
 /// | 4 | `gui/views/performance_view.cpp:896-912` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view`. Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
@@ -258,12 +258,12 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// either: the source keeps it (`Source::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
-	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`sound_editor.cpp:2226`)
-	// belongs to whoever *opens* a range-dependent item, and this function does not: it hands the
-	// node id to `MenuScene::on_enter` through `SceneId::arg`, which is where the open happens and
-	// where it belongs. Site 8 -- the only site here that names a leaf -- is the one this shows up
-	// on: without the allocation the ported file selector's browser refuses to open on a synth whose
-	// source has no ranges yet, while the ShellMenu-off leg opens it.
+	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check
+	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) belongs to whoever *opens* a range-dependent
+	// item, and this function does not: it hands the node id to `MenuScene::on_enter` through `SceneId::arg`, which is
+	// where the open happens and where it belongs. Site 8 -- the only site here that names a leaf -- is the one this
+	// shows up on: without the allocation the ported file selector's browser refuses to open on a synth whose source
+	// has no ranges yet, while the ShellMenu-off leg opens it.
 	//
 	// **A named note root must not wipe either.** `InstrumentClipView::enterNoteEditor` and
 	// `InstrumentClipView::enterNoteRowEditor` call `soundEditor.setup(clip, &noteEditorRootMenu)` /

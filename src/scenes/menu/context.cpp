@@ -45,7 +45,7 @@
 ///   * `:1839-1843` remembering the previously selected `MultiRange` across sessions, and dropping
 ///     it when the UI or the source index changed. `MenuContext::range_index` is the field it feeds,
 ///     from the scenes' view state; see `permission_for`'s already-selected arm.
-///   * `:1993` `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
+///   * `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.
 ///
@@ -104,8 +104,8 @@ bool ensure_first_range(MenuContext& ctx) {
 		return true; // no sound: nothing is being edited that could want a range
 	}
 	if (range_count(ctx) == 0) {
-		// `:1993`, as a request: the first range, which the app makes and the record holds. A refusal is
-		// `:1994-1997`'s INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
+		// `Source::getOrCreateFirstRange()`, as a request: the first range, which the app makes and the record holds. A
+		// refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
 		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
 		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
 		if (ctx.sink == nullptr

@@ -178,12 +178,11 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 ///
 /// **The site-8 example really opens the ported browser**, because
 /// `MenuScene::on_enter` now performs the `Source::getOrCreateFirstRange()` legacy's permission
-/// check performs (`gui/ui/sound_editor.cpp:1987`) -- so `browser::sample_can` stops refusing and
-/// the scene reads `SAMPLES/` off the fixture card, which holds a file. The
-/// next `openUI(&shellHostUI)` resets the stack, `BrowserScene::on_exit` calls
-/// `FileCatalogue::emptyFileItems`, and that pumps `AudioEngine::routineWithClusterLoading()`
-/// between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults** in a spec process,
-/// because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
+/// check performs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) -- so `browser::sample_can` stops
+/// refusing and the scene reads `SAMPLES/` off the fixture card, which holds a file. The next `openUI(&shellHostUI)`
+/// resets the stack, `BrowserScene::on_exit` calls `FileCatalogue::emptyFileItems`, and that pumps
+/// `AudioEngine::routineWithClusterLoading()` between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults**
+/// in a spec process, because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
 /// (`AudioEngine::inputRingPos`; `support/card_access.h` has the whole diagnosis).
 /// Measured: with the fix and without this latch, `menu_entry_spec` dies with SIGSEGV in
 /// `fillInputRing`; with either one absent it passes.
@@ -776,7 +775,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
-		// `sound_editor.cpp:1767` is inside `if (item) ... else if (clip)`, so the wipe follows the
+		// In `SoundEditor::setup` the undo-log wipe sits inside `if (item) ... else if (clip)`, so the wipe follows the
 		// clip and not the open. the "Not owned by this file" note in `scenes/menu/context.cpp` records it as owed to
 		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:

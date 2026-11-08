@@ -2003,7 +2003,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
-		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1987`), so a
+		// first statement is `source->getOrCreateFirstRange()`, so a
 		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
 		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
@@ -2039,10 +2039,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// for a *descent*; a deep link does not descend, it re-roots -- `on_enter` resolves
 		// `node_by_id(id.arg)` and hands it to `retarget`. Legacy makes no such distinction:
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs the named item's own
-		// `checkPermissionToBeginSession` (`sound_editor.cpp:1841-1846`) whichever way the item was
+		// `checkPermissionToBeginSession` (`SoundEditor::setup`'s item arm) whichever way the item was
 		// asked for, and for a range-dependent one that is
 		// `checkPermissionToBeginSessionForRangeSpecificParam`, whose first statement creates the
-		// range (`:1993`).
+		// range.
 		//
 		// Two callers arrive this way and both were affected: site 8 of
 		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
