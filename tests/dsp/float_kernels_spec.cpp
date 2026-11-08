@@ -157,6 +157,10 @@ static_assert(!poly_kernel<fixed::OnePole>);
 // clang-format off
 describe float_kernels_spec("float kernels", ${
 	context("OnePole", _ {
+		it("clamps a NaN cutoff to a valid one: finite coefficients", _ {
+			const auto c = fp::OnePole::coefficients({.cutoff = std::nanf(""), .mode = fp::OnePole::Mode::LOW_PASS});
+			expect(std::isfinite(c.G)).to_be_true();
+		});
 		it("low-passes to -3 dB at its cutoff and passes DC", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::OnePole> lp;
@@ -303,6 +307,12 @@ describe float_kernels_spec("float kernels", ${
 		});
 	});
 	context("Svf", _ {
+		it("clamps a NaN cutoff to a valid one: finite coefficients", _ {
+			const auto c = fp::Svf::coefficients({.cutoff = std::nanf(""), .q = 1.f, .mode = fp::Svf::Mode::LOW_PASS});
+			for (const f32 v : {c.k, c.a1, c.a2, c.a3}) {
+				expect(std::isfinite(v)).to_be_true();
+			}
+		});
 		it("low-passes: unity at DC, -3 dB at fc for Q = 1/sqrt 2, -12 dB per octave above", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Svf> f;

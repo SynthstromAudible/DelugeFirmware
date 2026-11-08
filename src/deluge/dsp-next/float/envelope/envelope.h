@@ -27,6 +27,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <tuple>
 
 /// @file
@@ -40,6 +41,9 @@ inline constexpr std::size_t kMaxSegments = 8;
 /// @brief A segment's `next` (and a program's `release`) when there is none: the envelope ends at 0 (or ignores
 /// gate-off).
 inline constexpr f32 kOff = -1.f;
+
+/// @brief The threshold of a stage that never ends by itself.
+inline constexpr f32 kNever = std::numeric_limits<f32>::infinity();
 
 /// @brief One stage of a program, over V; the flags and the index are 0/1 or whole numbers held in V.
 template <class V>
@@ -161,22 +165,24 @@ struct Envelope {
 	using Coefficients = CoefficientsT<f32>;
 
 	/// @brief The current stage and the level, over V. StateT{} rests at 0.
+	/// @details The step reads and writes `value`, `a`, `b`, `threshold` and `direction` only: every stage is the
+	/// affine map `value = b + value·a`, ended when `(value - threshold)·direction >= 0`. The rest is for a stage
+	/// change and the events.
 	template <class V>
 	struct StateT {
-		V value{};       ///< The level.
-		V target{};      ///< Where the stage ends.
-		V aim{};         ///< Where an EXPONENTIAL stage heads.
-		V slope{};       ///< EXPONENTIAL: the coefficient. LINEAR: the step per sample.
-		V exponential{}; ///< 1 while in an EXPONENTIAL stage.
-		V hold{1.f};     ///< 1 while the stage never ends by itself (a hold, or at rest).
-		V next{kOff};    ///< The stage entered at the end of this one.
-		V direction{};   ///< +1 when the stage rises to its target, -1 when it falls.
-		V epsilon{};     ///< How far short of the target counts as reached.
-		V index{kOff};   ///< The stage's segment index, or kOff at rest.
+		V value{}; ///< The level.
+		V a{1.f};  ///< The map's slope: 1 - rate for an EXPONENTIAL stage, 1 for a LINEAR one, a hold or rest.
+		V b{};     ///< The map's offset: rate·aim for an EXPONENTIAL stage, the step for a LINEAR one, 0 else.
+		V threshold{kNever}; ///< The level that ends the stage: just short of the target for an EXPONENTIAL stage
+		                     ///< aiming at it; +infinity for a hold or at rest, which never end by themselves.
+		V direction{1.f};    ///< +1 when the stage rises to its threshold, -1 when it falls; +1 for a hold or rest.
+		V target{};          ///< Where the stage ends: the value lands on it exactly.
+		V next{kOff};        ///< The stage entered at the end of this one.
+		V index{kOff};       ///< The stage's segment index, or kOff at rest.
 		// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name poly_kernel requires.
 		static constexpr auto fields =
-		    std::tuple{&StateT::value, &StateT::target, &StateT::aim,       &StateT::slope,   &StateT::exponential,
-		               &StateT::hold,  &StateT::next,   &StateT::direction, &StateT::epsilon, &StateT::index};
+		    std::tuple{&StateT::value,     &StateT::a,      &StateT::b,    &StateT::threshold,
+		               &StateT::direction, &StateT::target, &StateT::next, &StateT::index};
 	};
 	using State = StateT<f32>;
 
@@ -205,22 +211,29 @@ struct Envelope {
 		const auto k = static_cast<std::size_t>(i);
 		assert(k < kMaxSegments);
 		const Segment<f32>& g = c.segments[k];
-		const bool exponential = g.exponential > 0.5f;
 		const bool hold = g.hold > 0.5f;
+		const bool exponential = g.exponential > 0.5f && !hold;
 		s.target = g.target;
-		s.aim = g.aim;
-		s.exponential = exponential && !hold ? 1.f : 0.f;
-		s.hold = g.hold;
 		s.next = g.next;
 		s.index = i;
-		s.direction = g.target >= s.value ? 1.f : -1.f;
-		s.epsilon = exponential && g.aim == g.target ? 1e-5f : 0.f;
-		s.slope = 0.f; // a hold stays where it is
-		if (exponential && !hold) {
-			s.slope = g.rate;
+		if (hold) { // stays where it is, and never reaches
+			s.a = 1.f;
+			s.b = 0.f;
+			s.direction = 1.f;
+			s.threshold = kNever;
+			return;
 		}
-		else if (!hold) {
-			s.slope = (g.target - s.value) / (g.rate < 1.f ? 1.f : g.rate); // a length under a sample is one
+		s.direction = g.target >= s.value ? 1.f : -1.f;
+		// An exponential stage aiming at its target only approaches it, so it ends within epsilon.
+		const f32 epsilon = exponential && g.aim == g.target ? 1e-5f : 0.f;
+		s.threshold = g.target - (s.direction * epsilon);
+		if (exponential) {
+			s.a = 1.f - g.rate;
+			s.b = g.rate * g.aim;
+		}
+		else {
+			s.a = 1.f;
+			s.b = (g.target - s.value) / (g.rate < 1.f ? 1.f : g.rate); // a length under a sample is one
 		}
 	}
 
@@ -243,12 +256,8 @@ struct Envelope {
 	[[nodiscard]] [[gnu::always_inline]] static V step(const CoefficientsT<V>& c, const EmptyBlock& /*b*/,
 	                                                   StateT<V>& s) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		const V exp_next = mul_add(s.value, s.slope, s.aim - s.value);
-		const V lin_next = s.value + s.slope;
-		s.value = select(s.exponential > V{0.5f}, exp_next, lin_next);
-		// Reached: at or past the target in the stage's direction, within epsilon (1e-5 for an exponential whose aim is
-		// its target, which only approaches it; 0 otherwise). A hold never reaches.
-		const auto reached = (((s.value - s.target) * s.direction) >= (V{0.f} - s.epsilon)) & (s.hold < V{0.5f});
+		s.value = mul_add(s.b, s.value, s.a);
+		const auto reached = ((s.value - s.threshold) * s.direction) >= V{0.f};
 		if (any(reached)) {
 			advance(c, s, reached);
 		}
