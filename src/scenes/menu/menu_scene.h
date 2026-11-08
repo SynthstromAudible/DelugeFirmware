@@ -248,16 +248,9 @@ public:
 
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
-	/// The port of the one call legacy makes to it from outside the menu:
-	/// `View::modEncoderButtonAction_changeModControllable`'s
-	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1392-1394`), run
-	/// after a gold-knob **push** has changed a `ModControllable` param behind the menu's back. The
-	/// edit storage this scene keeps (`MenuState::edit_int`, `enum_index`, …) is loaded on focus,
-	/// so without this the menu would keep showing the value it read on the way in.
-	///
-	/// Spelled as `enter_leaf(node, FocusCause::NoRowPress)` because that is exactly what
-	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
-	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
+	/// The value is re-read and the cursor kept (`ValueSession::read_again`). Callers: the gold-knob push
+	/// (`services::ModKnobs`), the note modes' re-reads, `View::displayAutomation` and the MPE refresh
+	/// (`util/sound_menu_open.h`). A no-op when nothing is focused.
 	void read_value_again();
 	/// @brief The param a knob learn binds to on the learn node (`MenuLearn::node`): the row, column or item under the
 	///        cursor.

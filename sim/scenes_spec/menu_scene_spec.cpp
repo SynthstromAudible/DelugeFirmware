@@ -315,7 +315,7 @@ constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), s
 /// target has to have been given a node id or `handle()` refuses to offer the jump at all.
 constexpr const Node* kRoots[] = {&settings_root,      &nodes::sound_root, &nodes::filters_group, &nodes::source_group,
                                   &nodes::voice_group, &nodes::env_group,  &nodes::lfo_group,     &nodes::reverb_group,
-                                  &nodes::arp_group,   &flip_list};
+                                  &nodes::arp_group,   &flip_list,         &nodes::default_tempo};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
 ///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
@@ -2535,6 +2535,73 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			expect(r.shell.notices().last_popup_text() != deleted).to_be_true(); // not an automation item
 		}
 		currentSong = saved_song;
+	});
+
+	it("a re-read of a Decimal takes the value again and leaves the cursor where the user put it", _ {
+		// `Value::readValueAgain` is `readCurrentValue()` and a render (`gui/menu_item/value.h`): `Decimal`'s edit
+		// position is untouched.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::master_transpose);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 1;
+		menu_scene().state_for_spec().edit_int = 12345;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(1);
+		expect(menu_scene().state().edit_int)
+		    .to_equal(menu::bindings::read(nodes::master_transpose, menu_scene().menu_context()));
+	});
+
+	it("a re-read of an Enum takes the value again and keeps the list's scroll", _ {
+		select_language();
+		Rig r;
+		(void)r.open(nodes::lpf_mode);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().enum_list.scroll = 1;
+		menu_scene().state_for_spec().enum_index = 99;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().enum_list.scroll)).to_equal(1);
+		expect(menu_scene().state().enum_index)
+		    .to_equal(menu::bindings::read(nodes::lpf_mode, menu_scene().menu_context()));
+	});
+
+	it("a re-read of a Range takes both ends again and keeps the edge being edited", _ {
+		// `IntegerRange` has no `readValueAgain` of its own: `editingRangeEdge` survives it.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::default_tempo);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().edit_edge = deluge::ui::oled::RangeEdge::Right;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().edit_edge))
+		    .to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
+		expect(menu_scene().state().edit_int)
+		    .to_equal(menu::bindings::read(nodes::default_tempo, menu_scene().menu_context()));
+	});
+
+	it("a re-read of a patch-cable strength keeps its cursor, which the page's own read would put back on the "
+	   "hundredths", _ {
+		// `PatchCableStrength` is a `Decimal`: `Value::readValueAgain` leaves `numberEditPos` alone, while the port's
+		// item read (`PatchCableStrengthItem::on_focus`) is `beginSession`'s, which sets `getDefaultEditPos()`.
+		select_language();
+		Rig r;
+		(void)r.open(nodes::vibrato);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().decimal_pos = 0;
+		menu_scene().read_value_again();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
+	});
+
+	it("a re-read on a horizontal page writes no edit storage: Submenu::readValueAgain only redraws", _ {
+		select_language();
+		Rig r;
+		(void)r.open(nodes::lpf);
+		r.shell.tick(0);
+		menu_scene().state_for_spec().edit_int = 777;
+		(void)deluge::notify::dirty().drain();
+		menu_scene().read_value_again();
+		expect(menu_scene().state().edit_int).to_equal(777);
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_true();
 	});
 });
 
