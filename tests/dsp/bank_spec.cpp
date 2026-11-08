@@ -1,8 +1,8 @@
 // Bank<K, N, Mix>: one input into N copies, each with its own settings, mixed: Sum equals the Mono outputs summed in
 // lane order, Weighted the same with each lane's gain, StereoPair the even lanes to left and the odd to right, bit for
-// bit, at N = 2 and 4; a Smoother bank (which prepares each block) equals the summed Monos, and so do OnePole and Svf
-// banks decaying from an impulse through the flush-to-zero range; reset and state act on one lane; configure between
-// blocks takes effect at the next block.
+// bit, at N = 2 and 4, over whole groups of N samples and a tail; a Smoother bank (which prepares each block) equals
+// the summed Monos, and so do OnePole and Svf banks decaying from an impulse through the flush-to-zero range; reset
+// and state act on one lane; configure between blocks takes effect at the next block.
 
 #include "dsp-next/core/bank.h"
 #include "dsp-next/core/flush_to_zero.h"
@@ -112,45 +112,49 @@ f32 expect_sum_equals_monos(auto& self, SettingsFor settings_for, const std::vec
 template <std::size_t N>
 void bank_specs(auto& self) {
 	// clang-format off
-	it("sums the lanes in lane order", _ {
+	it("sums the lanes in lane order, in groups of N and in a tail", _ {
 		fp::FlushToZero ftz;
-		const auto in = input();
-		const auto ref = mono_outputs<N>(in);
-		Bank<fp::Svf, N, mix::Sum> bank;
-		for (std::size_t l = 0; l < N; ++l) {
-			bank.configure(l, band(l));
-		}
-		std::vector<f32> out(in.size());
-		bank.render_block(fp::Signal{in}, fp::Buffer{out});
-		for (std::size_t i = 0; i < in.size(); ++i) {
-			f32 expected = ref[0][i];
-			for (std::size_t l = 1; l < N; ++l) {
-				expected = expected + ref[l][i];
+		for (const std::size_t n : {kBlock * 2, kBlock - 1}) {
+			const auto in = input(n);
+			const auto ref = mono_outputs<N>(in);
+			Bank<fp::Svf, N, mix::Sum> bank;
+			for (std::size_t l = 0; l < N; ++l) {
+				bank.configure(l, band(l));
 			}
-			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+			std::vector<f32> out(in.size());
+			bank.render_block(fp::Signal{in}, fp::Buffer{out});
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				f32 expected = ref[0][i];
+				for (std::size_t l = 1; l < N; ++l) {
+					expected = expected + ref[l][i];
+				}
+				expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+			}
 		}
 	});
-	it("weights each lane by its gain, multiplying then adding unfused", _ {
+	it("weights each lane by its gain, multiplying then adding unfused, in groups of N and in a tail", _ {
 		fp::FlushToZero ftz;
-		const auto in = input();
-		const auto ref = mono_outputs<N>(in);
-		Bank<fp::Svf, N, mix::Weighted> bank;
-		constexpr std::array<f32, 4> gains{1.f, 0.5f, 0.25f, 2.f};
-		for (std::size_t l = 0; l < N; ++l) {
-			bank.configure(l, band(l));
-			bank.set_gain(l, gains[l]);
-		}
-		std::vector<f32> out(in.size());
-		bank.render_block(fp::Signal{in}, fp::Buffer{out});
-		for (std::size_t i = 0; i < in.size(); ++i) {
-			// The bank's order: y * gains, then the lane sum. Written with explicit temporaries so no multiply-add
-			// is formed here either.
-			f32 expected = ref[0][i] * gains[0];
-			for (std::size_t l = 1; l < N; ++l) {
-				const f32 term = ref[l][i] * gains[l];
-				expected = expected + term;
+		for (const std::size_t n : {kBlock * 2, kBlock - 1}) {
+			const auto in = input(n);
+			const auto ref = mono_outputs<N>(in);
+			Bank<fp::Svf, N, mix::Weighted> bank;
+			constexpr std::array<f32, 4> gains{1.f, 0.5f, 0.25f, 2.f};
+			for (std::size_t l = 0; l < N; ++l) {
+				bank.configure(l, band(l));
+				bank.set_gain(l, gains[l]);
 			}
-			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+			std::vector<f32> out(in.size());
+			bank.render_block(fp::Signal{in}, fp::Buffer{out});
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				// The bank's order: y * gains, then the lane sum. Written with explicit temporaries so no multiply-add
+				// is formed here either.
+				f32 expected = ref[0][i] * gains[0];
+				for (std::size_t l = 1; l < N; ++l) {
+					const f32 term = ref[l][i] * gains[l];
+					expected = expected + term;
+				}
+				expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
+			}
 		}
 	});
 	it("mixes a Weighted lane whose gain was never set at gain 1", _ {
@@ -173,21 +177,23 @@ void bank_specs(auto& self) {
 			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(expected));
 		}
 	});
-	it("sends even lanes left and odd lanes right", _ {
+	it("sends even lanes left and odd lanes right, in groups of N and in a tail", _ {
 		fp::FlushToZero ftz;
-		const auto in = input();
-		const auto ref = mono_outputs<N>(in);
-		Bank<fp::Svf, N, mix::StereoPair> bank;
-		for (std::size_t l = 0; l < N; ++l) {
-			bank.configure(l, band(l));
-		}
-		std::vector<f32> left(in.size()), right(in.size());
-		bank.render_block(fp::Signal{in}, fp::Buffer{left}, fp::Buffer{right});
-		for (std::size_t i = 0; i < in.size(); ++i) {
-			const f32 el = N == 4 ? ref[0][i] + ref[N - 2][i] : ref[0][i];
-			const f32 er = N == 4 ? ref[1][i] + ref[N - 1][i] : ref[1][i];
-			expect(std::bit_cast<uint32_t>(left[i])).to_equal(std::bit_cast<uint32_t>(el));
-			expect(std::bit_cast<uint32_t>(right[i])).to_equal(std::bit_cast<uint32_t>(er));
+		for (const std::size_t n : {kBlock * 2, kBlock - 1}) {
+			const auto in = input(n);
+			const auto ref = mono_outputs<N>(in);
+			Bank<fp::Svf, N, mix::StereoPair> bank;
+			for (std::size_t l = 0; l < N; ++l) {
+				bank.configure(l, band(l));
+			}
+			std::vector<f32> left(in.size()), right(in.size());
+			bank.render_block(fp::Signal{in}, fp::Buffer{left}, fp::Buffer{right});
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				const f32 el = N == 4 ? ref[0][i] + ref[N - 2][i] : ref[0][i];
+				const f32 er = N == 4 ? ref[1][i] + ref[N - 1][i] : ref[1][i];
+				expect(std::bit_cast<uint32_t>(left[i])).to_equal(std::bit_cast<uint32_t>(el));
+				expect(std::bit_cast<uint32_t>(right[i])).to_equal(std::bit_cast<uint32_t>(er));
+			}
 		}
 	});
 	it("steps a Smoother bank, which prepares each block, as the summed Monos in both modes", _ {

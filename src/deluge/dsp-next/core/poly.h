@@ -24,9 +24,9 @@
 #include "dsp-next/core/sample.h"
 
 #include <array>
-#include <bitset>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 
 /// @file
 /// @brief Poly<K, N>: N copies of a float kernel, one per NEON lane, each with its own settings and its own signal.
@@ -38,13 +38,14 @@ namespace deluge::dsp {
 /// into that lane, so each lane's arithmetic is the scalar kernel's, bit for bit (the step pins its order).
 /// **One mode.** Every lane runs one mode, dispatched once per block. **Per block.** A K that declares `prepare` has
 /// it called once, on the packed coefficients and state, before the block's frames, as Mono does for one copy.
-/// **Parking.** A parked lane is fed zero, its output is not written, and its state is held at rest after every
-/// block; lanes share nothing, so it perturbs no other. **Blocks.** Every input and output span has the block's
-/// length (a parked lane's spans may be empty); frames go in and out N at a time through a transpose, the last n mod N
-/// frames lane by lane. **Mode.** Configure and set_mode set the mode; configure asserts it matches once any lane has
-/// been configured, and that never clears, so the mode stays the last one set, even once every lane is parked. **Empty
-/// blocks.** A block with every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono
-/// does on an empty block.
+/// **Parking.** A fresh Poly has every lane parked; `configure` un-parks a lane. A parked lane is fed zero, its output
+/// is not written, and its state is reset to State{} after every block; lanes share nothing, so it perturbs no
+/// other. **Blocks.** Every unparked lane's input and output spans have the block's length (a parked lane's may be
+/// empty); frames go in and out N at a time through a transpose, the last n mod N frames lane by lane. **Mode.**
+/// Configure and set_mode set the mode; configure asserts it matches once any lane has been configured, and that
+/// never clears, so the mode stays the last one set, even once every lane is parked. **Empty blocks.** A block with
+/// every lane parked, or of length 0, steps nothing but still runs `prepare` with n = 0, as Mono does on an empty
+/// block.
 template <poly_kernel K, std::size_t N>
 requires(N == 2 || N == 4)
 class Poly : public detail::Copies<K, N> {
@@ -54,24 +55,28 @@ class Poly : public detail::Copies<K, N> {
 	using typename Base::PackedCoefficients;
 	using typename Base::PackedState;
 
+	/// One bit per lane, lane l at bit l.
+	using LaneMask = uint32_t;
+	static constexpr LaneMask kEveryLane = (LaneMask{1} << N) - 1;
+
 public:
 	using Base::reset;
 	using Base::set_mode;
 	using Base::state;
 
-	/// @brief Sets lane @p lane from @p settings, and un-parks it. Its mode must be the bank's mode once any lane is
+	/// @brief Sets lane @p lane from @p settings, and un-parks it. Its mode must be the lanes' mode once any lane is
 	/// configured.
 	void configure(std::size_t lane, const K::Settings& settings) {
 		Base::configure(lane, settings);
-		parked_.reset(lane);
+		parked_ &= ~bit(lane);
 	}
 	/// @brief Lane @p lane at rest, fed zero, its output unwritten, until it is configured again.
 	void park(std::size_t lane) {
 		reset(lane);
-		parked_.set(lane);
+		parked_ |= bit(lane);
 	}
 	/// @brief Whether lane @p lane is parked.
-	[[nodiscard]] bool parked(std::size_t lane) const { return parked_.test(lane); }
+	[[nodiscard]] bool parked(std::size_t lane) const { return (parked_ & bit(lane)) != 0; }
 
 	/// @brief One block: lane l reads @p in[l] and writes @p out[l]. Every unparked lane's spans have the same length;
 	/// a parked lane's may be empty.
@@ -79,7 +84,7 @@ public:
 		std::size_t n = 0;
 		bool first = true;
 		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked_.test(l)) {
+			if (!parked(l)) {
 				if (first) {
 					n = in[l].size();
 					first = false;
@@ -91,23 +96,40 @@ public:
 	}
 
 private:
+	[[nodiscard]] static constexpr LaneMask bit(std::size_t lane) {
+		assert(lane < N);
+		return LaneMask{1} << lane;
+	}
+
+	/// Every lane's input and output, as pointers held in the loop's registers.
+	struct LanePointers {
+		std::array<const f32*, N> in;
+		std::array<f32*, N> out;
+	};
+
 	template <Mode M>
 	void run(const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t n) {
 		const PackedCoefficients c = this->coefficients();
 		PackedState s = this->packed_state();
+		const LaneMask parked = parked_;
+		LanePointers p{};
+		for (std::size_t l = 0; l < N; ++l) {
+			p.in[l] = in[l].data();
+			p.out[l] = out[l].data();
+		}
 		kernel_block_t<K> block{};
 		if constexpr (detail::declares_prepare<K>) {
 			block = K::prepare(c, s, n);
 		}
 		std::size_t i = 0;
 		for (; i + N <= n; i += N) {
-			step_frames<M>(c, block, s, in, out, i);
+			step_frames<M>(c, block, s, parked, p, i);
 		}
 		for (; i < n; ++i) {
-			step_frame<M>(c, block, s, in, out, i);
+			step_frame<M>(c, block, s, parked, p, i);
 		}
 		for (std::size_t l = 0; l < N; ++l) {
-			if (parked_.test(l)) {
+			if ((parked & bit(l)) != 0) {
 				set_lane(s, l, typename K::State{});
 			}
 		}
@@ -116,11 +138,12 @@ private:
 
 	/// N frames, i … i + N − 1, through a transpose in and out.
 	template <Mode M>
-	void step_frames(const PackedCoefficients& c, const kernel_block_t<K>& block, PackedState& s,
-	                 const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t i) const {
+	[[gnu::always_inline]] static void step_frames(const PackedCoefficients& c, const kernel_block_t<K>& block,
+	                                               PackedState& s, LaneMask parked, const LanePointers& p,
+	                                               std::size_t i) {
 		std::array<V, N> frames{};
 		for (std::size_t l = 0; l < N; ++l) {
-			frames[l] = parked_.test(l) ? V{0.f} : V::load(&in[l][i]);
+			frames[l] = (parked & bit(l)) != 0 ? V{0.f} : V::load(p.in[l] + i);
 		}
 		transpose(frames); // frames[t] lane l = copy l's sample i + t
 		for (std::size_t t = 0; t < N; ++t) {
@@ -128,31 +151,32 @@ private:
 		}
 		transpose(frames); // frames[l] = copy l's samples i … i + N − 1
 		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked_.test(l)) {
-				frames[l].store(&out[l][i]);
+			if ((parked & bit(l)) == 0) {
+				frames[l].store(p.out[l] + i);
 			}
 		}
 	}
 
 	/// One frame, i, lane by lane.
 	template <Mode M>
-	void step_frame(const PackedCoefficients& c, const kernel_block_t<K>& block, PackedState& s,
-	                const std::array<fp::Signal, N>& in, const std::array<fp::Buffer, N>& out, std::size_t i) const {
+	[[gnu::always_inline]] static void step_frame(const PackedCoefficients& c, const kernel_block_t<K>& block,
+	                                              PackedState& s, LaneMask parked, const LanePointers& p,
+	                                              std::size_t i) {
 		V x{0.f};
 		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked_.test(l)) {
-				x.set(l, in[l][i]);
+			if ((parked & bit(l)) == 0) {
+				x.set(l, p.in[l][i]);
 			}
 		}
 		const V y = K::template step<M>(c, block, s, x);
 		for (std::size_t l = 0; l < N; ++l) {
-			if (!parked_.test(l)) {
-				out[l][i] = y.get(l);
+			if ((parked & bit(l)) == 0) {
+				p.out[l][i] = y.get(l);
 			}
 		}
 	}
 
-	std::bitset<N> parked_{}; ///< The lanes held at rest.
+	LaneMask parked_ = kEveryLane; ///< The lanes held at rest, lane l at bit l: every lane until it is configured.
 };
 
 } // namespace deluge::dsp

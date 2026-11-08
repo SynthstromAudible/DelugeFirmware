@@ -23,6 +23,7 @@
 #include "dsp-next/core/poly_kernel.h"
 #include "dsp-next/core/sample.h"
 
+#include <array>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
@@ -47,7 +48,8 @@ struct StereoPair {};
 /// on the packed coefficients and state, as Poly does. Each copy is bit for bit Mono<K> with its settings; the mix
 /// adds the lanes in lane order, unfused (a lane's gain multiplies, then the sum adds), so the output is the Mono
 /// outputs' sum in that order. N = 4 StereoPair: left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2: left =
-/// lane 0, right = lane 1.
+/// lane 0, right = lane 1. The mix takes N samples at a time: their N packs transpose into one pack per lane, which
+/// add as packs in lane order and store as one vector; the last n mod N samples mix one at a time.
 template <poly_kernel K, std::size_t N, class Mix>
 requires(N == 2 || N == 4)
 class Bank : public detail::Copies<K, N> {
@@ -76,15 +78,7 @@ public:
 	requires(!std::same_as<Mix, mix::StereoPair>)
 	{
 		assert(out.size() == in.size());
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
-			run<M>(in, [&](std::size_t i, V y) {
-#pragma clang fp contract(off) reassociate(off) reciprocal(off)
-				if constexpr (std::same_as<Mix, mix::Weighted>) {
-					y = y * gains_;
-				}
-				out[i] = sum(y);
-			});
-		});
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, out.data(), nullptr); });
 	}
 
 	/// @brief One block into left and right; the mode is dispatched once per block.
@@ -92,34 +86,85 @@ public:
 	requires std::same_as<Mix, mix::StereoPair>
 	{
 		assert(left.size() == in.size() && right.size() == in.size());
-		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> {
-			run<M>(in, [&](std::size_t i, V y) {
-#pragma clang fp contract(off) reassociate(off) reciprocal(off)
-				if constexpr (N == 4) {
-					left[i] = y.get(0) + y.get(2);
-					right[i] = y.get(1) + y.get(3);
-				}
-				else {
-					left[i] = y.get(0);
-					right[i] = y.get(1);
-				}
-			});
-		});
+		with_mode<typename K::Modes>(this->coefficients().mode, [&]<Mode M> { run<M>(in, left.data(), right.data()); });
 	}
 
 private:
-	template <Mode M, class Write>
-	void run(fp::Signal in, const Write& write) {
+	/// N samples' outputs: element t is every lane's output for the t-th of them.
+	using Frames = std::array<V, N>;
+
+	/// One block into @p first (the output, or left) and @p second (right, for StereoPair): N samples at a time, the
+	/// last n mod N one at a time.
+	template <Mode M>
+	void run(fp::Signal in, f32* first, f32* second) {
 		const PackedCoefficients c = this->coefficients();
 		PackedState s = this->packed_state();
+		const V gains = gains_;
 		kernel_block_t<K> block{};
 		if constexpr (detail::declares_prepare<K>) {
 			block = K::prepare(c, s, in.size());
 		}
-		for (std::size_t i = 0; i < in.size(); ++i) {
-			write(i, K::template step<M>(c, block, s, V{in[i]}));
+		std::size_t i = 0;
+		for (; i + N <= in.size(); i += N) {
+			Frames y;
+			for (std::size_t t = 0; t < N; ++t) {
+				y[t] = K::template step<M>(c, block, s, V{in[i + t]});
+			}
+			mix_frames(y, gains, first, second, i);
+		}
+		for (; i < in.size(); ++i) {
+			mix_one(K::template step<M>(c, block, s, V{in[i]}), gains, first, second, i);
 		}
 		this->set_packed_state(s);
+	}
+
+	/// Mixes the outputs @p y of samples @p i … i + N − 1 into @p first (and @p second): the N packs transpose into
+	/// one per lane, which add as packs in lane order.
+	[[gnu::always_inline]] static void mix_frames(Frames y, V gains, f32* first, f32* second, std::size_t i) {
+		if constexpr (std::same_as<Mix, mix::Weighted>) {
+			for (V& frame : y) {
+				frame = frame * gains;
+			}
+		}
+		transpose(y); // y[l] = lane l's outputs for the N samples
+		if constexpr (std::same_as<Mix, mix::StereoPair>) {
+			if constexpr (N == 4) {
+				(y[0] + y[2]).store(first + i);
+				(y[1] + y[3]).store(second + i);
+			}
+			else {
+				y[0].store(first + i);
+				y[1].store(second + i);
+			}
+		}
+		else {
+			V total = y[0];
+			for (std::size_t l = 1; l < N; ++l) {
+				total = total + y[l];
+			}
+			total.store(first + i);
+		}
+	}
+
+	/// Mixes the outputs @p y of sample @p i into @p first (and @p second), as @ref mix_frames does each sample.
+	[[gnu::always_inline]] static void mix_one(V y, V gains, f32* first, f32* second, std::size_t i) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		if constexpr (std::same_as<Mix, mix::Weighted>) {
+			y = y * gains;
+		}
+		if constexpr (std::same_as<Mix, mix::StereoPair>) {
+			if constexpr (N == 4) {
+				first[i] = y.get(0) + y.get(2);
+				second[i] = y.get(1) + y.get(3);
+			}
+			else {
+				first[i] = y.get(0);
+				second[i] = y.get(1);
+			}
+		}
+		else {
+			first[i] = sum(y);
+		}
 	}
 
 	V gains_{1.f}; ///< Weighted: each lane's gain; 1 until set_gain.

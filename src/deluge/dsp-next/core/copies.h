@@ -19,7 +19,6 @@
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/poly_kernel.h"
 
-#include <bitset>
 #include <cassert>
 #include <cstddef>
 
@@ -38,10 +37,10 @@ public:
 	void configure(std::size_t lane, const K::Settings& settings) {
 		assert(lane < N);
 		const typename K::Coefficients c = K::coefficients(settings);
-		assert(!configured_.any() || c.mode == coefficients_.mode);
+		assert(!configured_ || c.mode == coefficients_.mode);
 		coefficients_.mode = c.mode;
 		set_lane(coefficients_, lane, c);
-		configured_.set(lane);
+		configured_ = true;
 	}
 	/// @brief Every lane's mode, from the next block.
 	void set_mode(K::Mode mode) { coefficients_.mode = mode; }
@@ -70,7 +69,7 @@ protected:
 private:
 	PackedCoefficients coefficients_{}; ///< Every lane's coefficients; the shared mode.
 	PackedState state_{};               ///< Every lane's state.
-	std::bitset<N> configured_{};       ///< The lanes configured since construction.
+	bool configured_ = false;           ///< Whether any lane has been configured since construction.
 };
 
 } // namespace deluge::dsp::detail

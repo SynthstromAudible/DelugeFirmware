@@ -1,6 +1,7 @@
 // Poly<K, N>: every lane, configured with its own settings, equals Mono<K> with those settings, bit for bit, at
-// N = 2 and 4, for OnePole, Svf and Smoother (both modes), on noise and on an impulse decaying through the
-// flush-to-zero range; a parked lane changes no other; configure mid-stream takes effect at the next block.
+// N = 2 and 4, for OnePole, Svf (every mode) and Smoother (both modes), on noise and on an impulse decaying through the
+// flush-to-zero range; a fresh Poly has every lane parked; a parked lane changes no other; configure mid-stream takes
+// effect at the next block.
 
 #include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/mono.h"
@@ -203,15 +204,17 @@ void poly_specs(auto& self) {
 			    seed);
 		}
 	});
-	it("steps each Svf lane exactly as Mono with its own cutoff and Q", _ {
-		for (uint32_t seed = 0; seed < 8; ++seed) {
-			expect_lanes_equal_mono<fp::Svf, N>(self,
-			    [seed](std::size_t l) {
-				    return fp::Svf::Settings{.cutoff = 0.002f + (0.06f * static_cast<f32>((l + seed) % 5)),
-				                             .q = 0.6f + static_cast<f32>((l * 3 + seed) % 9),
-				                             .mode = fp::Svf::Mode::BAND_PASS};
-			    },
-			    seed);
+	it("steps each Svf lane exactly as Mono with its own cutoff and Q, in every mode", _ {
+		for (const auto mode : {fp::Svf::Mode::LOW_PASS, fp::Svf::Mode::BAND_PASS, fp::Svf::Mode::HIGH_PASS,
+		                        fp::Svf::Mode::NOTCH}) {
+			for (uint32_t seed = 0; seed < 8; ++seed) {
+				expect_lanes_equal_mono<fp::Svf, N>(self,
+				    [seed, mode](std::size_t l) {
+					    return fp::Svf::Settings{.cutoff = 0.002f + (0.06f * static_cast<f32>((l + seed) % 5)),
+					                             .q = 0.6f + static_cast<f32>((l * 3 + seed) % 9), .mode = mode};
+				    },
+				    seed);
+			}
 		}
 	});
 	it("decays each lane from an impulse through the flush-to-zero range exactly as Mono", _ {
@@ -318,6 +321,34 @@ void poly_specs(auto& self) {
 				                                  .time = 10.f + static_cast<f32>(3 * b + l), .mode = mode};
 			    },
 			    126, N, 5, 5, false);
+		}
+	});
+	it("starts with every lane parked, so a lane never configured is never rendered", _ {
+		fp::FlushToZero ftz;
+		Poly<fp::OnePole, N> poly;
+		for (std::size_t l = 0; l < N; ++l) {
+			expect(poly.parked(l)).to_be_true();
+		}
+		Mono<fp::OnePole> mono;
+		poly.configure(0, {.cutoff = 0.07f});
+		mono.configure({.cutoff = 0.07f});
+		std::vector<f32> in(125), out(125), ref(125);
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			in[i] = std::sin(0.1f * static_cast<f32>(i));
+		}
+		std::array<fp::Signal, N> is{};
+		std::array<fp::Buffer, N> os{};
+		is[0] = fp::Signal{in};
+		os[0] = fp::Buffer{out};
+		poly.render_block(is, os);
+		mono.render_block(fp::Signal{in}, fp::Buffer{ref});
+		for (std::size_t i = 0; i < in.size(); ++i) {
+			expect(std::bit_cast<uint32_t>(out[i])).to_equal(std::bit_cast<uint32_t>(ref[i]));
+		}
+		expect(poly.parked(0)).to_be_false();
+		for (std::size_t l = 1; l < N; ++l) {
+			expect(poly.parked(l)).to_be_true();
+			expect(same_bits(poly.state(l), fp::OnePole::State{})).to_be_true();
 		}
 	});
 	it("un-parks a lane when it is configured", _ {
