@@ -795,6 +795,12 @@ void set_rounded_corners(const MenuContext&, int32_t value) {
 	menu_scene().request_action(MenuActionRequest{.action = MenuAction::RoundedCornersChanged});
 }
 
+void set_horizontal_menus(const MenuContext&, int32_t value) {
+	// `HorizontalMenu::renderingStyle()` reads the setting live; the open menu's context holds the copy it lays out by.
+	runtime_feature_set(RuntimeFeatureSettingType::HorizontalMenus, value);
+	menu_scene().set_horizontal_menus(value != 0);
+}
+
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
 	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; the guest's shift machine and legacy's
 	// latch are `MenuAction::ShiftStickyChanged`.

@@ -225,6 +225,9 @@ public:
 	/// @brief The clip's affect-entire changed under the open menu (the clip minder's toggle):
 	/// `MenuContext::affect_entire`.
 	void set_clip_affect_entire(bool on) { ctx_.affect_entire = on; }
+	/// @brief The HorizontalMenus community feature changed under the open menu (`MenuContext::horizontal_menus`):
+	///        legacy reads it on every draw, so a page entered after the write lays out as it now says.
+	void set_horizontal_menus(bool on) { ctx_.horizontal_menus = on; }
 
 	/// @brief The automation view's identity of the param `focused_value()` edits, or nullopt where it edits none.
 	std::optional<AutomationParam> focused_automation_param() const;

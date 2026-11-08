@@ -318,6 +318,9 @@ void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 /// the
 ///        canvas flag and the guest's panels.
 void set_rounded_corners(const MenuContext& ctx, int32_t value);
+/// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
+///        `HorizontalMenu::renderingStyle()` reads it live.
+void set_horizontal_menus(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes (`menu_item/usb/audio.h`).
@@ -1159,7 +1162,6 @@ DELUGE_RUNTIME_TOGGLE(feature_alt_playback_start, 15,
                       STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR);
 DELUGE_RUNTIME_TOGGLE(feature_grid_loop_pads, 16, STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS);
 DELUGE_RUNTIME_TOGGLE(feature_alt_tap_tempo, 17, STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR);
-DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 18, STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS);
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
 DELUGE_RUNTIME_TOGGLE(feature_legacy_menu, 23, STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU);
@@ -1183,6 +1185,9 @@ inline constexpr Node feature_sticky_shift =
 /// `RoundedCorners` (index 21) restyles main's canvas and the guest's panels as it is written.
 inline constexpr Node feature_rounded_corners = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS),
                                                             get_runtime_feature<21>, set_rounded_corners);
+/// `HorizontalMenus` (index 18) reaches the open menu as it is written.
+inline constexpr Node feature_horizontal_menus = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS),
+                                                             get_runtime_feature<18>, set_horizontal_menus);
 /// `SyncScalingAction` (index 6) -- two literal options, not l10n ids.
 inline constexpr Node feature_sync_scaling =
     dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), sync_scaling_action_names,

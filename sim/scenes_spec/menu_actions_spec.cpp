@@ -50,6 +50,7 @@
 #include "scenes/menu/nodes/actions.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h" // menu::shortcuts_version -- the port half of the setting
+#include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -2998,6 +2999,23 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
 		deluge::gui::ui::pushShellRoundedCorners();
+	});
+
+	it("a horizontal-menus write reaches the open menu, so the voice usage page lays out as it now says", _ {
+		// `HorizontalMenu::renderingStyle()` reads the setting on every draw; the port's context holds a copy.
+		select_language();
+		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		Rig r;
+		(void)r.open(nodes::root_settings);
+		r.shell.tick(5);
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_true();
+		menu::bindings::write(nodes::feature_horizontal_menus, scene().menu_context(), 0);
+		expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)).to_be_false();
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_false();
+		menu::bindings::write(nodes::feature_horizontal_menus, scene().menu_context(), 1);
+		expect(menu::is_horizontal(scene().menu_context(), nodes::voice_usage)).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, saved);
 	});
 
 	it("a sticky-shift write reaches the guest's own shift machine, and turning it off releases both latches", _ {
