@@ -6,9 +6,7 @@ with `--sd` on an image of such a card (the songs these load are on Kate's backu
 ShellMenu is on by default: the ShellMenu content images still say `shellMenu=1`, which the firmware ignores, and the
 legacy ones (`sweep-off.img`, `dx-off.img`) say `legacyMenu=1`, the Legacy Menu community feature.
 
-A script meant for the ported UI (the ShellMenu card) must start from the clip view the boot leaves: a CLIP press there
-switches to the automation view, where Shift+pad opens legacy's sample browser even with ShellMenu on. Check which UI a
-script reaches before trusting a MATCH from it.
+Check which UI a script reaches before trusting a MATCH from it.
 
 `c16-marker-synth` and `c17-marker-mute-exit` reach the sample marker editor with Shift + pad (0,7) after c10's BASIC
 load: a marker is held by pressing its own column (the start marker is column 0 there), and a second pad tapped while
