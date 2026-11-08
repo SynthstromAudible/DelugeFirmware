@@ -56,6 +56,7 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
 #include <atomic>
@@ -138,6 +139,7 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	// The menu's kit context goes with it (`adoptShellMenuContext` wrote it at open), as legacy's `exitCompletely`
 	// clears it; a legacy menu opened afterwards sets it only when it means it.
 	soundEditor.setupKitGlobalFXMenu = false;
+	clearShellKitGlobalFx();
 	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
 	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {
 		display->displayNotification(shown->name, shown->value);

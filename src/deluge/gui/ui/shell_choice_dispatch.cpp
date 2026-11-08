@@ -52,6 +52,7 @@
 #include "scenes/registry.h"
 #include "storage/byte_channel.h"
 #include "util/notify.h"
+#include "util/shell_menu_entry.h"
 
 #include <cstring>
 #include <optional>
@@ -154,7 +155,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 	                                      .sourceIndex = menuCtx.source_index,
 	                                      .source = nullptr,
 	                                      .sampleControls = nullptr,
-	                                      .kitGlobalFx = menuCtx.is_kit_global_fx};
+	                                      .kitGlobalFx = shellKitGlobalFx()};
 	if (currentSong == nullptr) {
 		return resolved;
 	}

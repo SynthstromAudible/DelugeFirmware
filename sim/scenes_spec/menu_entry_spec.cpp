@@ -121,9 +121,11 @@ struct ToggleGuard {
 ///
 /// `closeUI` would index `uiNavigationHierarchy[-1]` when the guest is the only entry
 /// (`gui/ui/ui.cpp:213-223`, whose loop stops at `u >= 1`), so this is `nullifyUIs()`, which is what
-/// legacy itself calls when it tears the hierarchy down (`gui/ui/ui.cpp:287-291`).
+/// legacy itself calls when it tears the hierarchy down (`nullifyUIs`). That skips the close, so the kit-global-FX
+/// latch the close would clear is cleared here: the next example starts with no history.
 void closeGuest() {
 	nullifyUIs();
+	entry::clearShellKitGlobalFx();
 }
 
 /// @brief The `SceneId` the guest was told to open on.
@@ -1291,6 +1293,8 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		setRootUILowLevel(&keyboardScreen);
+		// The history: the last menu closed, and no pad pressed since -- legacy's `setupKitGlobalFXMenu` is false.
+		entry::clearShellKitGlobalFx();
 		// The Settings menu over a kit clip with affect-entire on: it was opened with the fact false.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_false();
@@ -1304,6 +1308,112 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(ctx.is_drum).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		(void)shellHostUI.exitUI();
+	});
+
+	it("edits the kit's own effects when a pad was played since the last close, as legacy's sticky fact does", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&keyboardScreen);
+		entry::clearShellKitGlobalFx();
+		// A pad played on the keyboard screen with the menu closed: the shortcut entry is its first statement.
+		(void)keyboardScreen.padAction(0, 0, 64);
+		(void)keyboardScreen.padAction(0, 0, 0);
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		// Shift + SELECT's Settings leaves the fact alone, and the forwarded Shift + pad reads it.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		{
+			HeldShift shift;
+			(void)shellHostUI.padAction(8, 7, 64);
+		}
+		(void)shellHostUI.timerCallback();
+		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+		expect(ctx.root == menu::MenuContext::Root::KitGlobalFx).to_be_true();
+		expect(ctx.is_kit_global_fx).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		(void)shellHostUI.exitUI();
+	});
+
+	it("edits the selected drum when the menu closed after that pad: the close clears the fact", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&keyboardScreen);
+		(void)keyboardScreen.padAction(0, 0, 64);
+		(void)keyboardScreen.padAction(0, 0, 0);
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		// A menu opened and exited after the pad.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(entry::shellKitGlobalFx()).to_be_false();
+		// Then the same Settings and Shift + pad.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		{
+			HeldShift shift;
+			(void)shellHostUI.padAction(8, 7, 64);
+		}
+		(void)shellHostUI.timerCallback();
+		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+		expect(ctx.is_kit_global_fx).to_be_false();
+		expect(ctx.is_drum).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		(void)shellHostUI.exitUI();
+	});
+
+	it("opens a kit's own effects from an entry that does not set the fact, once a pad has set it", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = true;
+		setRootUILowLevel(&instrumentClipView);
+		entry::clearShellKitGlobalFx();
+		// A clip-view edit pad with the menu closed and no SHIFT: not a shortcut, but legacy's write runs first.
+		(void)instrumentClipView.padAction(0, 0, 64);
+		(void)instrumentClipView.padAction(0, 0, 0);
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::KitGlobalFx).to_be_true();
+		(void)shellHostUI.exitUI();
+		expect(entry::shellKitGlobalFx()).to_be_false();
+	});
+
+	it("opens the drum creator on the new drum, whatever a pad left the fact at", _ {
+		(void)quiet_audio();
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		kit.clip->affectEntire = true;
+		setRootUILowLevel(&keyboardScreen);
+		(void)keyboardScreen.padAction(0, 0, 64);
+		(void)keyboardScreen.padAction(0, 0, 0);
+		expect(entry::shellKitGlobalFx()).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		DrumRowStack row{kit};
+		expect(row.stack != nullptr).to_be_true();
+		if (row.stack == nullptr) {
+			return;
+		}
+		instrumentClipView.enterDrumCreator(row.stack, /*doRecording=*/false);
+		expect(isUIOpen(&shellHostUI)).to_be_true();
+		expect(entry::shellKitGlobalFx()).to_be_false();
+		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
+		expect(ctx.is_kit_global_fx).to_be_false();
+		expect(ctx.is_drum).to_be_true();
+		closeGuest();
 	});
 
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {

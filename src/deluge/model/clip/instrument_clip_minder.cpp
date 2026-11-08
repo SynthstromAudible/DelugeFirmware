@@ -441,18 +441,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the
-			// legacy three statements unchanged -- including the `setupKitGlobalFXMenu` write, which
-			// is deliberately inside it: that member is `SoundEditor`'s state, cleared on menu exit
-			// (`gui/ui/sound_editor.cpp:189`, `:768`), and setting it on a path that never opens the
-			// legacy editor would leave it latched for whoever opens one next.
+			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the legacy three statements unchanged --
+			// including the `setupKitGlobalFXMenu` write, which is deliberately inside it: that member is
+			// `SoundEditor`'s state, cleared on its exit (`SoundEditor::exitCompletely`), and setting it on a path that
+			// never opens the legacy editor would leave it latched for whoever opens one next.
 			if (deluge::gui::ui::shellMenuEnabled()) {
-				// The same fact legacy puts in `setupKitGlobalFXMenu`, passed as an argument instead
-				// (`scenes/menu/context.h`'s `kit_global_fx`, whose doc names this very line as one
-				// of its two writers). The root is then one of six, and `context_for` runs the same
-				// six tests in the same order (`scenes/menu/context.cpp:339-358`); the two UI-mode
-				// roots legacy could otherwise pick are unreachable here because this arm is
-				// `currentUIMode == UI_MODE_NONE` (`:443`).
+				// The same write to the ported menu's own latch (`shellKitGlobalFx`), which the open then reads. The
+				// root is then one of six, and `context_for` runs the same six tests in the same order; the two
+				// UI-mode roots legacy could otherwise pick are unreachable because this arm is
+				// `currentUIMode == UI_MODE_NONE`.
 				const bool kitGlobalFx = SoundEditor::shouldEditKitAffectEntire();
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
 				                                    /*performanceView=*/false,

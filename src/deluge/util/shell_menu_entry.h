@@ -174,7 +174,9 @@ bool shellMenuEnabled();
 /// @param performanceView        `setup()`'s `currentUI == &performanceView && !shift`.
 /// @param sessionOrArrangerRoot  `setup()`'s `!rootUIIsClipMinderScreen()`.
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
-/// @param kitGlobalFx            `setup()`'s `setupKitGlobalFXMenu` member.
+/// @param kitGlobalFx            True where the site sets `setupKitGlobalFXMenu` before its `setup()`: the clip
+///                               views' SELECT on a kit with affect-entire on. It sets the latch
+///                               (`shellKitGlobalFx`); false leaves it as it is. Either way the open reads the latch.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
 /// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
 ///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
@@ -202,13 +204,26 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 /// @param performanceView        As `openShellMenu`'s.
 /// @param sessionOrArrangerRoot  As `openShellMenu`'s.
 /// @param sessionViewRoot        As `openShellMenu`'s.
-/// @param kitGlobalFx            `SoundEditor::setupKitGlobalFXMenu`.
+/// @param kitGlobalFx            As `openShellMenu`'s: true sets the latch, and the open reads it.
 /// @return Whether the menu is now open on the pad's node; with the guest already open the open menu re-roots in
 ///         place, as legacy's setup() re-sets the open editor. False, with nothing opened, when the context does not
 ///         resolve, the pad names no numbered node, or the node does not apply and has no DX7 fallback; the last says
 ///         "PARAMETER NOT APPLICABLE", as `setup()` does.
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
+
+/// @brief `SoundEditor::setupKitGlobalFXMenu` for the ported menu: whether an open, and a shortcut press re-rooting
+///        the open guest, edit a kit's own effects rather than its selected row.
+///
+/// Sticky, as legacy's member is. `shellShortcutPadAction` writes it with the guest closed, on every press it is
+/// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
+/// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). Every open reads it, so which menu a
+/// kit opens depends on what was pressed since the last close.
+bool shellKitGlobalFx();
+
+/// @brief Clear the latch `shellKitGlobalFx` reads, as legacy's `exitCompletely` and `enterDrumCreator` clear
+///        `setupKitGlobalFXMenu`.
+void clearShellKitGlobalFx();
 
 /// @brief Whether a shortcut pad a legacy view is asked about is the ported menu's to answer: ShellMenu on, or the
 ///        guest open, which re-roots itself whichever menu the setting now selects.
