@@ -832,62 +832,69 @@ every case.
 
 | case | regime | cycles per channel-sample | Poly over Mono |
 |---|---|---:|---:|
-| fp_blep_saw_mono | | 52.15 | |
+| fp_blep_saw_mono | | 52.14 | |
 | fp_blep_saw_poly2 | | 24.38 | 2.14x |
 | fp_blep_saw_poly4 | | 19.55 | 2.67x |
-| fp_table_saw_mono | | 48.12 | |
+| fp_table_saw_mono | | 48.11 | |
 | fp_table_saw_poly2 | | 36.91 | 1.30x |
-| fp_table_saw_poly4 | | 30.49 | 1.58x |
-| fp_envelope_mono | transition-heavy | 36.73 | |
-| fp_envelope_poly4 | transition-heavy | 30.05 | 1.22x |
-| fp_envelope_sustain_poly4 | sustain | 25.83 | |
-| fp_voice_blep_mono | transition-heavy | 110.07 | |
-| fp_voice_blep_poly2 | transition-heavy | 94.53 | 1.16x |
-| fp_voice_blep_poly4 | transition-heavy | 62.61 | 1.76x |
-| fp_voice_blep_linked2 | transition-heavy | 107.94 | 1.02x (Linked) |
-| fp_voice_blep_sustain_mono | sustain | 108.57 | |
-| fp_voice_blep_sustain_poly4 | sustain | 57.82 | 1.88x |
-| fp_voice_table_poly4 | transition-heavy | 69.76 | |
+| fp_table_saw_poly4 | | 31.58 | 1.52x |
+| fp_envelope_mono | transition-heavy | 26.48 | |
+| fp_envelope_poly4 | transition-heavy | 27.39 | 0.97x |
+| fp_envelope_sustain_poly4 | sustain | 23.36 | |
+| fp_voice_blep_mono | transition-heavy | 95.99 | |
+| fp_voice_blep_poly2 | transition-heavy | 70.11 | 1.37x |
+| fp_voice_blep_poly4 | transition-heavy | 55.38 | 1.73x |
+| fp_voice_blep_linked2 | transition-heavy | 96.35 | 1.00x (Linked) |
+| fp_voice_blep_sustain_mono | sustain | 95.51 | |
+| fp_voice_blep_sustain_poly4 | sustain | 50.78 | 1.88x |
+| fp_voice_table_poly4 | transition-heavy | 69.08 | |
 
-Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.39
+Controls: `calibration_loop` 32.02, `delay_feedback_chain_analog` 165.90, `delay_feedback_chain_digital` 12.35
 (the filters' list: 32.03, 165.89, 12.41).
 
+The envelope advances by one affine map per stage and ends a stage on a threshold test, and the lanes' end test is one
+NEON reduction and one move to a core register. Against the select-and-flag envelope and its 13-instruction mask
+test, the same cases measured, in cycles per channel-sample: envelope Mono 36.73 to 26.48, Poly at four lanes
+30.05 to 27.39 (held 25.83 to 23.36); voice Mono 110.07 to 95.99 (held 108.57 to 95.51), Poly at four lanes 62.61 to
+55.38 (held 57.82 to 50.78), Poly at two lanes 94.53 to 70.11. The oscillators did not change (the BLEP saw at 52.14
+and 19.55 is the same figure), and the table voice at four lanes, 69.76 to 69.08, moved least.
+
 **Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
-only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.58x. **Envelope.** In
-the transition-heavy regime it gains 1.22x at four lanes, and the held envelope costs 25.83 against 30.05, 14% less. The
-transition-heavy figure depends on the block size more than the others do (Poly at four lanes: 47.21 at n = 32, 35.51 at
-64, 30.05 at 128), consistent with work that costs a fixed amount per block; the gate events (each an out-of-line call
-into one lane) and the scalar stage handler are the candidates, and the list does not separate them.
+only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.52x. **Envelope.** In
+the transition-heavy regime Poly at four lanes costs 27.39 against Mono's 26.48, so the lanes buy nothing there: the
+stage-end handler is scalar and runs once per lane that ends a stage, and the gate events are out-of-line calls into
+one lane. The held envelope costs 23.36 against 27.39, 15% less. The transition-heavy figure depends on the block size
+more than the others do (Poly at four lanes: 43.53 at n = 32, 32.53 at 64, 27.39 at 128), consistent with work that
+costs a fixed amount per block; the list does not separate the gate events from the handler.
 
 **Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the held BLEP voice 1.88x
-faster than its Mono, and the transition-heavy voice 1.76x faster than its Mono; at two lanes the transition-heavy voice
-gains 1.16x. The held voice at four lanes, 57.82, is the sum of its parts at four lanes (oscillator 19.55, SVF 12.49
-from the filters' list, held envelope 25.83: 57.87), so the chain adds nothing, but the envelope is 45% of the voice and
-gains least. In Mono the transition-heavy voice, 110.07, is 4% below the sum of its parts (52.15 + 26.17 + 36.73 =
-115.05). `Linked` at two lanes, which steps each lane's scalar chain one after the other, is level with Mono (107.94
-against 110.07).
+faster than its Mono, and the transition-heavy voice 1.73x faster than its Mono; at two lanes the transition-heavy voice
+gains 1.37x. The held voice at four lanes, 50.78, is 8% below the sum of its parts at four lanes (oscillator 19.55, SVF
+12.49 from the filters' list, held envelope 23.36: 55.40), and the envelope is 46% of the voice. In Mono the
+transition-heavy voice, 95.99, is 8% below the sum of its parts (52.14 + 26.17 + 26.48 = 104.79). `Linked` at two
+lanes, which steps each lane's scalar chain one after the other, is level with Mono (96.35 against 95.99).
 
-**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.12 against 52.15). Under Poly at four
-lanes it is 56% dearer (30.49 against 19.55), and a transition-heavy table voice at four lanes costs 69.76 against 62.61
-for the BLEP voice, 11% more. The table's read is a gather: each lane loads its own two neighbouring samples from its
-own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 6 more
-instructions per sample than the BLEP saw (13.73 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
-also share the 32 KB data cache with the voice's own state: per frame, the table voice at four lanes counts 0.07 L1D
-refills and 2.62 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.01 and 0.40. (A first image of
-the same list measured the table voice at 73.25; the second, with the same code for the voice, at 69.76. The table cases
-are the ones that moved, so read them to a few percent.)
+**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.11 against 52.14). Under Poly at four
+lanes it is 62% dearer (31.58 against 19.55), and a transition-heavy table voice at four lanes costs 69.08 against 55.38
+for the BLEP voice, 25% more. The table's read is a gather: each lane loads its own two neighbouring samples from its
+own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 5.99 more
+instructions per sample than the BLEP saw (13.74 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
+also share the 32 KB data cache with the voice's own state: per channel-sample, the table voice at four lanes counts
+0.13 L1D refills and 4.45 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.03 and 1.19. The
+table cases move by a few percent between images of the same list, so read them to a few percent.
 
-**Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes four frames a
-group; its per-frame body is 85 instructions, of which 24 are vadd/vsub, 10 vmul, 13 vld1 and 4 vst1 of state and
-coefficient quadwords, and 3 reload a pointer from the stack. There is no `vfma`, `vmla` or reciprocal estimate anywhere
-in the function, so the arithmetic is the source's, in the source's order. The body has no call on its common path: its
-one call, to the envelope's scalar stage handler, is taken only when a lane has reached the end of a stage. Each frame
-also tests for that: a `vmovn` and four `vmov.u16` move the lanes' end flags from NEON to core registers, followed by
-`and`/`orr` and a test, 13 instructions in all, which is part of the per-frame cost of the voice even when no lane
-reaches a stage end. The executed instruction counts per frame (four channel-samples): 150.8 for the transition-heavy
-voice, 128.0 for the held voice. Against the 85-instruction body, 66 instructions per frame (44%) execute outside it in
-the transition-heavy case and 43 (34%) in the held case; those include each group's prologue and the 4x4 transpose with
-its four stores, spread over four frames, and the stage handler where it runs.
+**Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes one frame per
+iteration in 73 instructions, loop control included: 23 vadd/vsub, 12 vmul, 11 vld1 and 5 vst1 (four of state
+quadwords, one of the voice's output), and 3 reload a pointer from the stack. There is no `vfma`, `vmla` or reciprocal
+estimate anywhere in the function, so the arithmetic is the source's, in the source's order. The loop has no call on
+its common path: its one call, to the envelope's scalar stage handler, is taken only when a lane has reached the end
+of a stage. Each frame tests for that with a `vcge` against the threshold, a `vorr` of the two halves, a `vpmax.u32`,
+one `vmov` to a core register, then `cmp` and `beq`: six instructions, one NEON-to-core move, which is part of the
+per-frame cost of the voice even when no lane reaches a stage end. The executed instruction counts per frame (four
+channel-samples): 128.8 for the transition-heavy voice, 107.0 for the held voice. Against the 73-instruction loop, 56
+instructions per frame (43%) execute outside it in the transition-heavy case and 34 (32%) in the held case; those
+include each group's prologue and the 4x4 transpose with its four stores, spread over four frames, and the stage
+handler where it runs.
 
 **Placement and build.** The saw-band set is 90,156 bytes of storage written once by `build_saw_bands()`. In the
 device's on-chip SRAM the `float_voice` image does not link (`.sdram_init_pack` overlaps `.rtt_cached_reserve`); the
