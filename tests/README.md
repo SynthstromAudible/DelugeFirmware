@@ -146,9 +146,6 @@ built once for the whole run (`./dbt test --prebuilt`), so a test in them builds
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format parser and its corpus differential, the sample fill/reader/source/stream crates | pr | unit | ~3m first build, ~20s after |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its rza1-alloc pin fails here instead of being rewritten. | pr | unit | ~4m first build, ~30s after |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles | pr | storage | ~1m |
-| embedded-fatfs | unit | cargo | unit | gate | the vendored embedded-fatfs's own tests: directory, file and allocation operations on FAT12/16/32 images | pr | storage | ~1m |
-| block-device-adapters | unit | cargo | unit | gate | the block-device adapters: buffered and stream views over a block device must read and write the bytes the device holds | pr | storage | ~30s |
-| block-device-driver | unit | cargo | unit | gate | the block-device driver trait's tests | pr | storage | ~30s |
 | param-projection | integration | scenario | unit | gate | the param/automation DOM leaf must agree with the engine it replaces: every DocAutoParam/DocParamSet kernel (projection to and from AutoParam, node edits, region homogenize, nudge, delete, copy/paste, the patch-cable and MIDI-CC collections, param backup, backed params) is run against the real AutoParam/ParamSet as its oracle and must produce the same nodes, values and serialized bytes (param_projection.cpp, self-checking) | pr | model | ~1s |
 | param-table-check | integration | scenario | unit | gate | the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the provisional global-effectable table has the runtime's file name, scope, bipolarity and default (what the engine's own init gives a fresh instance) for its runtime index, the boundary map gives that index the row's id, and every runtime param has a row | pr | model | ~1s |
 | param-target-check | integration | scenario | unit | gate | the host names params by target: every runtime param of the instrument and of the global effectable maps to a target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params by target gives cell by cell the runtime param its recorded characterisation holds | pr | model | ~1s |
@@ -214,7 +211,7 @@ Placement follows coupling to the BSP source tree, not language or purpose.
 
   One of these, `fs_differential`, also uses the BSP: its `tests/efatfs_core.rs` drives the BSP
   library's storage-generic `storage::efatfs::portable` over the harness's host filesystem. It stays
-  here because its subject is the vendored `embedded-fatfs` stack in `crates/`, not the BSP.
+  here because its subject is the `embedded-fatfs` stack (deluge-sdk's published fork), not the BSP.
 - **`tests/component/stress/`, `tests/component/dsp-diff/`** — standalone C++ rigs with their own `run.sh`, deliberately
   not ctest-driven.
 - **`src/bsp/rust/harness/`** — harnesses built on the BSP library. `golden_vt_render` runs the

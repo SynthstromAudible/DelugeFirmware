@@ -2223,50 +2223,6 @@ tier = "pr"
 group = "storage"
 runtime = "~1m"
 
-# --lib --tests: the crate's doc example copies resources/fat16.img into a tmp/ directory that exists only in the
-# upstream repository, so it fails here for want of the directory, not for anything it tests.
-[[harness]]
-name = "embedded-fatfs"
-path = "crates/embedded-fatfs"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the vendored embedded-fatfs's own tests: directory, file and allocation operations on FAT12/16/32 images"
-run = ["cargo", "test", "--lib", "--tests"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~1m"
-
-[[harness]]
-name = "block-device-adapters"
-path = "crates/block-device-adapters"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the block-device adapters: buffered and stream views over a block device must read and write the bytes the device holds"
-run = ["cargo", "test"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~30s"
-
-[[harness]]
-name = "block-device-driver"
-path = "crates/block-device-driver"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the block-device driver trait's tests"
-run = ["cargo", "test"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~30s"
-
 # The host drivers (tests/integration/scenarios/drivers/): whole-program checks of the project model, each run as a
 # golden_vt_render scenario on the booted app from the state its process once started in (driver.h). The corpus ones
 # are driven by their runner in tests/golden, through tests/integration/checks/host_driver.py.

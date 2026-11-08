@@ -54,7 +54,8 @@ rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a
 # The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
 # use 0.6; both versions are in the graph).
-embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
+# deluge-sdk's fork, published on crates.io; the import name stays `embedded_fatfs`.
+embedded-fatfs = { package = "deluge-embedded-fatfs", version = "0.2", default-features = false, features = ["lfn", "alloc"] }
 embedded-io-async = "0.7.0"
 
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
@@ -63,8 +64,8 @@ embedded-io-async = "0.7.0"
 rza1-alloc = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243" }
 
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
-block-device-driver = { path = "../../../crates/block-device-driver" }
-block-device-adapters = { path = "../../../crates/block-device-adapters" }
+block-device-driver = "0.2"
+block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3" }
 aligned = "0.4"
 # The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs.
 # Renamed on import, as before (deluge-sdk's allocator is `rza1-alloc` now, so the names no longer
@@ -104,8 +105,8 @@ deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional
 
 # The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
 # no `fs_alloc` is needed.
-block-device-driver = { path = "../../../crates/block-device-driver", optional = true }
-block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
+block-device-driver = { version = "0.2", optional = true }
+block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
 deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "2a0733cf9c01182408ce4826d2fb08168d5c2243", optional = true }

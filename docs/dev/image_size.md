@@ -353,7 +353,7 @@ unless marked measured.
      facade, but bench them.
 8. **Async efatfs, ~25 KB.** Storage and channel code is 110 KB, and generic duplication is not the cause. Each
    await costs about 100–115 B of state-machine boilerplate.
-   - The vendored `crates/embedded-fatfs` (de)serializes its boot sector, BPB, FSInfo and directory entries one
+   - `embedded-fatfs` (deluge-sdk's `deluge-embedded-fatfs`) (de)serializes its boot sector, BPB, FSInfo and directory entries one
      awaited field at a time: 15.2 KB. Reading the sector or entry once and parsing it synchronously saves 10–12 KB,
      and makes directory walks faster.
    - Eleven checkout → `with_fs` → commit functions in `efatfs/device.rs` each repeat about 600 B of wrapper. One
