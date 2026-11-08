@@ -33,7 +33,8 @@
   color: var(--sl-color-white);
 }
 
-.starlight-sidebar-topics a.starlight-sidebar-topics-current {
+/* `li` outranks the plugin's light-theme current-topic colour rule. */
+.starlight-sidebar-topics li a.starlight-sidebar-topics-current {
   background-color: var(--topic-background-color-current);
   border-color: var(--sl-color-hairline-light);
   color: var(--sl-color-white);
@@ -43,7 +44,9 @@
   border: none;
 }
 
-.starlight-sidebar-topics a .starlight-sidebar-topics-icon {
+/* `li` outranks the plugin's own current/hover icon rule, which has the same
+   specificity without it and would otherwise win or lose on bundle order. */
+.starlight-sidebar-topics li a .starlight-sidebar-topics-icon {
   background-color: inherit;
   color: var(--sl-color-gray-3);
 }

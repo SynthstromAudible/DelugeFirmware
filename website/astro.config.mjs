@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url"
 import { remarkCrossLinks } from "./src/markdown-directives/remark-cross-links/remark-cross-links.ts"
 import { allTerms } from "./src/markdown-directives/remark-cross-links/terms.ts"
 import { remarkPanelSteps } from "./src/markdown-directives/remark-panel-steps/remark-panel-steps.ts"
+import { rehypeLegacyHeadingIds } from "./src/markdown-directives/rehype-legacy-heading-ids.ts"
 
 const readJson = (/** @type {string} */ path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"))
@@ -35,6 +36,10 @@ const config = defineConfig({
   site: process.env.SITE_URL,
   base: siteBasePath,
   trailingSlash: "never",
+  // Astro 7 defaults to "jsx" whitespace rules, which drop the space between
+  // inline elements on separate lines (e.g. `<Badge />` then `<strong>`).
+  // `true` is the lossless compression Astro 5 used.
+  compressHTML: true,
   // CI runners occasionally miss Sharp native bindings during image generation.
   // Use passthrough in CI to keep builds deterministic.
   image: isCI ? { service: passthroughImageService() } : undefined,
@@ -55,11 +60,23 @@ const config = defineConfig({
         dark: "./src/assets/banner.png",
         replacesTitle: true,
       },
-      social: {
-        github: "https://github.com/SynthstromAudible/DelugeFirmware",
-        discord: "https://discord.gg/s2MnkFqZgj",
-        patreon: "https://patreon.com/Synthstrom",
-      },
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/SynthstromAudible/DelugeFirmware",
+        },
+        {
+          icon: "discord",
+          label: "Discord",
+          href: "https://discord.gg/s2MnkFqZgj",
+        },
+        {
+          icon: "patreon",
+          label: "Patreon",
+          href: "https://patreon.com/Synthstrom",
+        },
+      ],
       editLink: {
         baseUrl:
           "https://github.dev/SynthstromAudible/DelugeFirmware/blob/main/website",
@@ -81,6 +98,8 @@ const config = defineConfig({
             // Menu item anchors live in FirmwareMenuSection's HTML, which this validator can't see;
             // scripts/check-cross-links.mjs checks them against the built pages instead.
             "/reference/menu_hierarchies#menu-*",
+            // Page links get the base path from RemarkLinkRewrite (below).
+            `${siteBasePath}/reference/menu_hierarchies#menu-*`,
           ],
         }),
         starlightSidebarTopics([
@@ -103,35 +122,45 @@ const config = defineConfig({
               },
               {
                 label: "Features",
-                autogenerate: { directory: "features" },
+                items: [{ autogenerate: { directory: "features" } }],
               },
               {
                 label: "Manual",
                 items: [
                   {
                     label: "Introduction",
-                    autogenerate: { directory: "manual/introduction" },
+                    items: [
+                      { autogenerate: { directory: "manual/introduction" } },
+                    ],
                   },
                   {
                     label: "Device Overview",
                     collapsed: true,
-                    autogenerate: { directory: "manual/device_overview" },
+                    items: [
+                      {
+                        autogenerate: { directory: "manual/device_overview" },
+                      },
+                    ],
                   },
                   {
                     label: "User Interfaces",
                     collapsed: true,
-                    autogenerate: { directory: "manual/user_interfaces" },
+                    items: [
+                      {
+                        autogenerate: { directory: "manual/user_interfaces" },
+                      },
+                    ],
                   },
                   {
                     label: "Engines",
                     collapsed: true,
-                    autogenerate: { directory: "manual/engines" },
+                    items: [{ autogenerate: { directory: "manual/engines" } }],
                   },
                 ],
               },
               {
                 label: "Reference",
-                autogenerate: { directory: "reference" },
+                items: [{ autogenerate: { directory: "reference" } }],
               },
             ],
           },
@@ -148,12 +177,18 @@ const config = defineConfig({
                   {
                     label: "1 Overview",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/01-overview" },
+                    items: [
+                      {
+                        autogenerate: { directory: "guidebook/01-overview" },
+                      },
+                    ],
                   },
                   {
                     label: "2 Basics",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/02-basics" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/02-basics" } },
+                    ],
                   },
                 ],
               },
@@ -163,22 +198,42 @@ const config = defineConfig({
                   {
                     label: "3 Clips",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/03-clips" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/03-clips" } },
+                    ],
                   },
                   {
                     label: "4 Sequencing",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/04-sequencing" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/04-sequencing",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "5 Keyboard Views",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/05-keyboard-views" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/05-keyboard-views",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "6 Automation",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/06-automation" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/06-automation",
+                        },
+                      },
+                    ],
                   },
                 ],
               },
@@ -188,27 +243,49 @@ const config = defineConfig({
                   {
                     label: "7 Synthesizers",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/07-synthesizers" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/07-synthesizers",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "8 Arpeggiator",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/08-arpeggiator" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/08-arpeggiator",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "9 Kits",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/09-kits" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/09-kits" } },
+                    ],
                   },
                   {
                     label: "10 Modulation",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/10-modulation" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/10-modulation",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "11 Effects",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/11-effects" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/11-effects" } },
+                    ],
                   },
                 ],
               },
@@ -218,24 +295,46 @@ const config = defineConfig({
                   {
                     label: "12 Session View",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/12-session-view" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/12-session-view",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "13 Performance View",
                     collapsed: true,
-                    autogenerate: {
-                      directory: "guidebook/13-performance-view",
-                    },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/13-performance-view",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "14 Arranger View",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/14-arranger-view" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/14-arranger-view",
+                        },
+                      },
+                    ],
                   },
                   {
                     label: "15 Songs & Files",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/15-songs-and-files" },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/15-songs-and-files",
+                        },
+                      },
+                    ],
                   },
                 ],
               },
@@ -245,12 +344,16 @@ const config = defineConfig({
                   {
                     label: "16 Audio",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/16-audio" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/16-audio" } },
+                    ],
                   },
                   {
                     label: "17 Looping",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/17-looping" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/17-looping" } },
+                    ],
                   },
                 ],
               },
@@ -260,17 +363,23 @@ const config = defineConfig({
                   {
                     label: "18 MIDI",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/18-midi" },
+                    items: [
+                      { autogenerate: { directory: "guidebook/18-midi" } },
+                    ],
                   },
                   {
                     label: "19 CV",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/19-cv" },
+                    items: [{ autogenerate: { directory: "guidebook/19-cv" } }],
                   },
                   {
                     label: "20 USB Host",
                     collapsed: true,
-                    autogenerate: { directory: "guidebook/20-usb-host" },
+                    items: [
+                      {
+                        autogenerate: { directory: "guidebook/20-usb-host" },
+                      },
+                    ],
                   },
                 ],
               },
@@ -280,16 +389,20 @@ const config = defineConfig({
                   {
                     label: "21 Settings & System",
                     collapsed: true,
-                    autogenerate: {
-                      directory: "guidebook/21-settings-and-system",
-                    },
+                    items: [
+                      {
+                        autogenerate: {
+                          directory: "guidebook/21-settings-and-system",
+                        },
+                      },
+                    ],
                   },
                 ],
               },
               {
                 label: "Appendices",
                 collapsed: true,
-                autogenerate: { directory: "guidebook/appendix" },
+                items: [{ autogenerate: { directory: "guidebook/appendix" } }],
               },
             ],
           },
@@ -300,15 +413,19 @@ const config = defineConfig({
             items: [
               {
                 label: "Community Presets",
-                autogenerate: { directory: "resources/presets" },
+                items: [{ autogenerate: { directory: "resources/presets" } }],
               },
               {
                 label: "Community Applications",
-                autogenerate: { directory: "resources/applications" },
+                items: [
+                  { autogenerate: { directory: "resources/applications" } },
+                ],
               },
               {
                 label: "MIDI Devices",
-                autogenerate: { directory: "resources/midi_devices" },
+                items: [
+                  { autogenerate: { directory: "resources/midi_devices" } },
+                ],
               },
               {
                 label: "Tutorials",
@@ -324,7 +441,7 @@ const config = defineConfig({
               { label: "All Posts", link: "/blog" },
               {
                 label: "Posts",
-                autogenerate: { directory: "blog" },
+                items: [{ autogenerate: { directory: "blog" } }],
               },
             ],
           },
@@ -335,12 +452,12 @@ const config = defineConfig({
             items: [
               {
                 label: "Deluge Development",
-                autogenerate: { directory: "development/deluge" },
+                items: [{ autogenerate: { directory: "development/deluge" } }],
               },
               { label: "Doxygen Generated Docs", link: "/doxygen" },
               {
                 label: "Website Development",
-                autogenerate: { directory: "development/website" },
+                items: [{ autogenerate: { directory: "development/website" } }],
               },
             ],
           },
@@ -392,7 +509,10 @@ const config = defineConfig({
         },
       ],
     ],
-    rehypePlugins: [[rehypeMermaid, { strategy: "pre-mermaid" }]],
+    rehypePlugins: [
+      [rehypeMermaid, { strategy: "pre-mermaid" }],
+      rehypeLegacyHeadingIds,
+    ],
   },
   vite: {
     plugins: [tailwindcss()],
