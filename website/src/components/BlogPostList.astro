@@ -12,28 +12,26 @@ const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "long" })
 const posts = (await getBlogPosts()).slice(0, Astro.props.limit)
 ---
 
-{
-  posts.length === 0 ? (
-    <p>No posts yet.</p>
-  ) : (
-    <ul class="blog-post-list">
-      {posts.map((post) => (
-        <li>
-          <a href={withBase(`/${post.id}`)}>{post.data.title}</a>
-          <p class="blog-post-list__meta">
-            {post.data.date && (
-              <time datetime={post.data.date.toISOString()}>
-                {dateFormat.format(post.data.date)}
-              </time>
-            )}
-            {post.data.authors && ` · ${post.data.authors.join(", ")}`}
-          </p>
-          {post.data.description && <p>{post.data.description}</p>}
-        </li>
-      ))}
-    </ul>
-  )
-}
+{posts.length === 0 ? (
+  <p>No posts yet.</p>
+) : (
+  <ul class="blog-post-list">
+    {posts.map((post) => (
+      <li>
+        <a href={withBase(`/${post.id}`)}>{post.data.title}</a>
+        <p class="blog-post-list__meta">
+          {post.data.date && (
+            <time datetime={post.data.date.toISOString()}>
+              {dateFormat.format(post.data.date)}
+            </time>
+          )}
+          {post.data.authors && ` · ${post.data.authors.join(", ")}`}
+        </p>
+        {post.data.description && <p>{post.data.description}</p>}
+      </li>
+    ))}
+  </ul>
+)}
 
 <style>
   .blog-post-list {

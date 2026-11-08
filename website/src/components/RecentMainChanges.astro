@@ -18,14 +18,15 @@ const generatedDate = new Intl.DateTimeFormat("en", {
         />
       </h2>
       <p class="recent-changes__meta">
-        Generated from the first-parent history at <a
+        Generated from the first-parent history at{" "}
+        <a
           href={`https://github.com/SynthstromAudible/DelugeFirmware/commit/${data.head}`}
-          >{data.head.slice(0, 8)}</a
-        > on {generatedDate}.
-        {
-          data.detectedRevertCount > 0 &&
-            ` Excludes ${data.detectedRevertCount} detected reverted ${data.detectedRevertCount === 1 ? "change" : "changes"}.`
-        }
+        >
+          {data.head.slice(0, 8)}
+        </a>{" "}
+        on {generatedDate}.
+        {data.detectedRevertCount > 0 &&
+          ` Excludes ${data.detectedRevertCount} detected reverted ${data.detectedRevertCount === 1 ? "change" : "changes"}.`}
         Manual or partial reversals may not be detected.
       </p>
     </div>
@@ -34,25 +35,23 @@ const generatedDate = new Intl.DateTimeFormat("en", {
   <p class="recent-changes__summary">{data.summary}</p>
 
   <div class="recent-changes__groups">
-    {
-      data.categories.map((group) => (
-        <div class="recent-changes__group">
-          <h3>{group.name}</h3>
-          <ul>
-            {group.commits.map((commit) => (
-              <li>
-                <a href={commit.url}>{commit.title}</a>
-                <span class="recent-changes__reference">
-                  {commit.pullRequest
-                    ? `#${commit.pullRequest}`
-                    : commit.shortHash}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))
-    }
+    {data.categories.map((group) => (
+      <div class="recent-changes__group">
+        <h3>{group.name}</h3>
+        <ul>
+          {group.commits.map((commit) => (
+            <li>
+              <a href={commit.url}>{commit.title}</a>
+              <span class="recent-changes__reference">
+                {commit.pullRequest
+                  ? `#${commit.pullRequest}`
+                  : commit.shortHash}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
   </div>
 </section>
 

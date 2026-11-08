@@ -54,15 +54,13 @@ const blogLink = withBase(hasBlogPosts ? `/${blogPosts[0].id}` : "/blog")
   }}
 >
   <Background />
-  {
-    hasBlogPosts && (
-      <section aria-labelledby="latest-blog-posts">
-        <h2 id="latest-blog-posts">From the blog</h2>
-        <BlogPostList limit={3} />
-        <p>
-          <a href={withBase("/blog")}>All posts →</a>
-        </p>
-      </section>
-    )
-  }
+  {hasBlogPosts && (
+    <section aria-labelledby="latest-blog-posts">
+      <h2 id="latest-blog-posts">From the blog</h2>
+      <BlogPostList limit={3} />
+      <p>
+        <a href={withBase("/blog")}>All posts →</a>
+      </p>
+    </section>
+  )}
 </StarlightPage>

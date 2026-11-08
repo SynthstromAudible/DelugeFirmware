@@ -50,22 +50,18 @@ const siteNameText =
 
 <div class="sl-link-card !mr-2 inline-flex max-w-[21.5rem] align-text-top">
   <span class="sl-flex stack w-full">
-    {
-      image && showImage && (
-        <img src={image} alt={title} class="aspect-video w-full rounded-md" />
-      )
-    }
+    {image && showImage && (
+      <img src={image} alt={title} class="aspect-video w-full rounded-md" />
+    )}
     <a href={url} rel="noopener noreferrer">
       <span class="title">{titleProp || title}</span>
     </a>
     {showSiteName && <span class="description">{siteNameText}</span>}
-    {
-      descriptionText && (
-        <span class="description w-full overflow-hidden text-ellipsis">
-          {descriptionText}
-        </span>
-      )
-    }
+    {descriptionText && (
+      <span class="description w-full overflow-hidden text-ellipsis">
+        {descriptionText}
+      </span>
+    )}
   </span>
 </div>
 
@@ -73,8 +69,8 @@ const siteNameText =
   /* Styles from Starlight LinkCard */
   .sl-link-card {
     /* display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 0.5rem; */
+  		grid-template-columns: 1fr auto;
+  		gap: 0.5rem; */
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
     padding: 1rem;

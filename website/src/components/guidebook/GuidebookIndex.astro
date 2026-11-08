@@ -49,82 +49,80 @@ const index = buildIndex(pages, vocabJson as IndexVocab)
       />
     </label>
     <nav class="gb-index-letters" aria-label="Index letters">
-      {
-        index.map((g) => (
-          <a href={`#index-${g.letter.toLowerCase()}`}>{g.letter}</a>
-        ))
-      }
+      {index.map((g) => (
+        <a href={`#index-${g.letter.toLowerCase()}`}>{g.letter}</a>
+      ))}
     </nav>
   </div>
-  <p class="gb-index-none" hidden>Nothing in the index matches.</p>
-  {
-    index.map((g) => (
-      <section class="gb-index-group" id={`index-${g.letter.toLowerCase()}`}>
-        <h2>{g.letter}</h2>
-        <ul class="gb-index-entries">
-          {g.entries.map((e) => (
-            <li
-              class="gb-index-entry"
-              id={`index-${e.head.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-            >
-              <span class="gb-index-head">{e.head}</span>
-              {e.see && (
-                <span class="gb-index-see">
-                  {" "}
-                  → see{" "}
-                  <span class="gb-index-list">
-                    {e.see.map((s) => (
-                      <span>
-                        <a
-                          href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                          set:text={s}
-                        />
-                      </span>
-                    ))}
-                  </span>
-                </span>
-              )}
-              {e.external && (
-                <span class="gb-index-see">
-                  {" "}
-                  → <a href={withBase(e.external.href)}>{e.external.label}</a>
-                </span>
-              )}
-              {e.subs.length > 0 && (
-                <ul class="gb-index-subs">
-                  {e.subs.map((s) => (
-                    <li>
-                      <span class="gb-index-label">{s.label}</span>
-                      <span class="gb-index-links">
-                        {s.links.map((l) => (
-                          <a href={withBase(l.href)}>{l.text}</a>
-                        ))}
-                      </span>
-                    </li>
+  <p class="gb-index-none" hidden>
+    Nothing in the index matches.
+  </p>
+  {index.map((g) => (
+    <section class="gb-index-group" id={`index-${g.letter.toLowerCase()}`}>
+      <h2>{g.letter}</h2>
+      <ul class="gb-index-entries">
+        {g.entries.map((e) => (
+          <li
+            class="gb-index-entry"
+            id={`index-${e.head.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+          >
+            <span class="gb-index-head">{e.head}</span>
+            {e.see && (
+              <span class="gb-index-see">
+                {" "}
+                → see{" "}
+                <span class="gb-index-list">
+                  {e.see.map((s) => (
+                    <span>
+                      <a
+                        href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        set:text={s}
+                      />
+                    </span>
                   ))}
-                </ul>
-              )}
-              {e.also && (
-                <p class="gb-index-also">
-                  See also{" "}
-                  <span class="gb-index-list">
-                    {e.also.map((s) => (
-                      <span>
-                        <a
-                          href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                          set:text={s}
-                        />
-                      </span>
-                    ))}
-                  </span>
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    ))
-  }
+                </span>
+              </span>
+            )}
+            {e.external && (
+              <span class="gb-index-see">
+                {" "}
+                → <a href={withBase(e.external.href)}>{e.external.label}</a>
+              </span>
+            )}
+            {e.subs.length > 0 && (
+              <ul class="gb-index-subs">
+                {e.subs.map((s) => (
+                  <li>
+                    <span class="gb-index-label">{s.label}</span>
+                    <span class="gb-index-links">
+                      {s.links.map((l) => (
+                        <a href={withBase(l.href)}>{l.text}</a>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {e.also && (
+              <p class="gb-index-also">
+                See also{" "}
+                <span class="gb-index-list">
+                  {e.also.map((s) => (
+                    <span>
+                      <a
+                        href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        set:text={s}
+                      />
+                    </span>
+                  ))}
+                </span>
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
 </div>
 
 <script>
