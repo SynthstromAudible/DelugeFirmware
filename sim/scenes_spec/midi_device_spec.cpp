@@ -31,6 +31,10 @@
 ///       `tables_*_spec.cpp` here runs under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "hid/button.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -74,7 +78,9 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/sound_menu_open.h"
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -365,6 +371,37 @@ bool title_band_blank(const std::string& pbm) {
 		}
 	}
 	return false;
+}
+
+/// @brief The per-device page on the GLOBAL guest over the clip view, as the device list opens it for @p ctx's cable.
+bool open_device_page_on_guest(Fixture& f, const MenuContext& ctx) {
+	install_legacy(ctx.midi_cable, f.song.song);
+	setRootUILowLevel(&instrumentClipView);
+	(void)menu::assign_node_ids(nodes::kAllRoots);
+	menu_scene().open(nodes::midi_device, ctx);
+	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::midi_device)});
+	if (!openUI(&shellHostUI)) {
+		return false;
+	}
+	(void)shellHostUI.timerCallback();
+	return true;
+}
+
+/// @brief One SELECT press through the guest, and the ticks that act on its release.
+void guest_select() {
+	(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+	(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
+	(void)shellHostUI.timerCallback();
+	(void)shellHostUI.timerCallback();
+}
+
+/// @brief What the member-channel page reads for @p ctx at (@p direction, @p zone), off the scene.
+int32_t member_channels(const MenuContext& ctx, uint8_t direction, uint8_t zone) {
+	menu::MenuState st{};
+	st.walk.mpe_direction = direction;
+	st.walk.mpe_zone = zone;
+	nodes::kMpeZoneChannelsItem.on_focus(ctx, st);
+	return st.edit_int;
 }
 
 } // namespace
@@ -913,6 +950,52 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		expect(zones.size()).to_equal(size_t(2));
 		expect(std::string{zones[0]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_LOWER_ZONE)));
 		expect(std::string{zones[1]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_UPPER_ZONE)));
+	});
+
+	it("the member-channel page re-reads after an MPE configuration message, as mpeZonesPotentiallyUpdated re-reads "
+	   "zoneNumMemberChannelsMenu", _ {
+		select_language();
+		Fixture& f = fixture();
+		baseline(*f.a, *f.b);
+		MenuContext ctx = f.ctx;
+		ctx.midi_cable = f.a.get();
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		expect(open_device_page_on_guest(f, ctx)).to_be_true();
+		guest_select(); // into the direction (IN)
+		guest_select(); // into the zone (LOWER)
+		guest_select(); // into the member channels
+		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		const int32_t before = member_channels(ctx, MIDI_DIRECTION_INPUT_TO_DELUGE, MPE_ZONE_LOWER_NUMBERED_FROM_0);
+		expect(menu_scene().state().edit_int).to_equal(before);
+
+		f.a->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = 7;
+		const int32_t after = member_channels(ctx, MIDI_DIRECTION_INPUT_TO_DELUGE, MPE_ZONE_LOWER_NUMBERED_FROM_0);
+		expect(after != before).to_be_true();
+		deluge::gui::ui::mpeZonesPotentiallyUpdated();
+		expect(menu_scene().state().edit_int).to_equal(after);
+	});
+
+	it("leaves every other page alone: the zone page is neither re-read nor moved off the zone the user turned to", _ {
+		// `mpeZonesPotentiallyUpdated` re-reads only `zoneNumMemberChannelsMenu`; a re-read of any other page would
+		// raise a redraw.
+		select_language();
+		Fixture& f = fixture();
+		baseline(*f.a, *f.b);
+		MenuContext ctx = f.ctx;
+		ctx.midi_cable = f.a.get();
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		expect(open_device_page_on_guest(f, ctx)).to_be_true();
+		guest_select(); // into the direction
+		guest_select(); // into the zone
+		shellHostUI.selectEncoderAction(1); // UPPER ZONE
+		(void)shellHostUI.timerCallback();
+		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
+		(void)deluge::notify::dirty().drain();
+		deluge::gui::ui::mpeZonesPotentiallyUpdated();
+		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
 	});
 });
 

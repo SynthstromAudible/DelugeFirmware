@@ -141,6 +141,10 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 /// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
 void shellMenuReadValueAgain();
 
+/// @brief The guest's half of `mpeZonesPotentiallyUpdated`: the ported menu frontmost on the member-channel page
+///        re-reads it, as `SoundEditor::mpeZonesPotentiallyUpdated` re-reads `zoneNumMemberChannelsMenu`.
+void shellMpeZonesPotentiallyUpdated();
+
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
 

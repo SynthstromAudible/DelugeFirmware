@@ -45,6 +45,10 @@ bool menuCurrent();
 ///        current, or the ported menu's when it is frontmost, whatever its root (both of `DISPLAY_AUTOMATION`'s arms).
 void readSoundMenuValueAgain();
 
+/// @brief An MPE zone may have changed (an MPE configuration message, a device file read): legacy's
+///        `SoundEditor::mpeZonesPotentiallyUpdated`, and the ported member-channel page re-read when it is frontmost.
+void mpeZonesPotentiallyUpdated();
+
 /// @brief Legacy's `getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu`,
 ///        or the ported menu frontmost on the note-range picker.
 bool rangePickerOpen();

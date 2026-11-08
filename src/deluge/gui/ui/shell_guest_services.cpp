@@ -45,6 +45,7 @@
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/midi_device.h"
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -350,6 +351,13 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 
 void shellMenuReadValueAgain() {
 	deluge::scenes::menu_scene().read_value_again();
+}
+
+void shellMpeZonesPotentiallyUpdated() {
+	if (shellMenuFrontmost()
+	    && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::mpe_zone_num_member_channels) {
+		deluge::scenes::menu_scene().read_value_again();
+	}
 }
 
 bool guestKnobsSeeAutomationEditor() {
