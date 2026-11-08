@@ -36,6 +36,7 @@
     "remark-github": "^12.0.0",
     "remark-link-rewrite": "^1.0.7",
     "sharp": "^0.32.6",
+    "starlight-blog": "^0.30.2",
     "starlight-links-validator": "^0.27.0",
     "starlight-sidebar-topics": "^0.9.0",
     "tailwindcss": "^4.1.17",
