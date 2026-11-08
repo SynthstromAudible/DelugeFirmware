@@ -201,7 +201,7 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
 	(void)deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE);
-	unknownSettings.empty();
+	unknownSettings.clear();
 	startupSong.clear();
 	init();
 	readSettingsFromFile();
