@@ -1461,10 +1461,10 @@ delay). Nothing is implemented. The design is one `StereoSample` kernel template
 - It needs two `Pack` additions: a gather load, and a strided lane sum.
 - It is built with its first effect (TODO.md).
 
-## The float voice (`float/osc/`, `float/envelope/`, `float/vca/`)
+## The float voice (`float/osc/`, `float/filter/`, `float/envelope/`, `float/vca/`, `float/mod/`)
 
 A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
-`Poly<Chain<oscillator, fp::Svf, fp::Vca<fp::Envelope>>, N>`. `Poly` runs generators (a source has no input signal to
+`Poly<Chain<oscillator, filter, fp::Vca<fp::Envelope>>, N>`, the filter `fp::Svf` or `fp::Ladder`. `Poly` runs generators (a source has no input signal to
 transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
 naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
 bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
@@ -1501,6 +1501,52 @@ target: the sines come from a table made by a rotation recurrence in double, and
 sparsest band to the richest, each band adding its new harmonics to the band before, then stores as `f32`. The
 storage is a global in SDRAM on the device, all-zero until built; the build takes about 0.18 s on the A9, which is why
 it is explicit and not a static constructor. The Gibbs overshoot of a truncated series rides above ±1.
+
+### `Ladder` (`float/filter/ladder.h`)
+
+`fp::Ladder` is a four-pole ladder of its own design (not the q31 ladder's sound): four topology-preserving one-pole
+stages, `y = G·x + β·s` with `G = g/(1 + g)`, `β = 1 − G` and `g = tan(π·fc)`, under a feedback loop solved in closed
+form. With the stage memories `s₁…s₄`, the last stage's output is `G⁴·u + S`, `S = β·(G³s₁ + G²s₂ + G·s₃ + s₄)`, so
+the loop `u = in_gain·x − k·y₄` resolves to `u = (in_gain·x − k·S)·r` with `r = 1/(1 + k·G⁴)`: no delay in the
+feedback, so the ladder stays in tune and stable as the cutoff moves block to block, and no division in the step.
+Resonance `k` runs over [0, 4.5]: at 4 the loop gain at the cutoff is exactly 1 and an impulse rings on; above it an
+oscillation grows until the saturator holds it. `drive` (clamped to [1, 8]) scales the input into the saturator, and
+`compensate` scales it by `1 + k` so the low-pass DC gain stays at `drive` (1 at drive 1). Every setting clamps, NaN to the lower bound.
+`coefficients` computes `tan_pi`, `G`, `G⁴`, `r` and the gain in double, libm-free, and rounds each once.
+
+- **The response is five tap weights, not a mode.** The output is `w₀·u + w₁·y₁ + w₂·y₂ + w₃·y₃ + w₄·y₄`, summed left
+  to right. The presets (`Response`): LP24 (0, 0, 0, 0, 1), LP12 (0, 0, 1, 0, 0), HP (1, −4, 6, −4, 1), which is
+  `(1 − H)⁴` expanded over the taps, and BP (0, 0, 2, −4, 2), `2H²(1 − H)²`. `Settings` names a `response`, a
+  `morph_to` and a `morph` in [0, 1]; the weights are the two presets' interpolated in double at `configure`. The
+  weights are coefficient fields, so lanes of one `Poly` run different responses and morphs; the state never depends
+  on them, so the output is linear in them.
+- **The flavour is the one mode** (`Mode::CLEAN`, `Mode::DRIVE`), and both share the State, so switching between
+  blocks keeps it. CLEAN saturates the resolved input once and runs the linear stages. DRIVE saturates every stage's
+  input; that loop has no closed form, so the linear solution predicts `u`, a trial pass through the saturating
+  stages on a copy of the state gives the loop's error `f = u − in_gain·x + k·y₄`, one step `u ← u − f·r` corrects it
+  with the linear loop's slope (a fixed cost, no division), and the committed pass runs on the corrected `u`. On the
+  A9 DRIVE costs about 4 times CLEAN. The tap mixes assume each stage filters the one before, and DRIVE's stages
+  each saturate their own input, so its HP and BP are exact at small signals and leak a little of what they reject
+  when driven hard (a compensated HP at drive 8 and resonance 2 settles at −0.29 on a DC input of 0.5).
+- **The saturator** `fp::detail::soft_clip` (`float/math/detail.h`, over V) is the odd quintic
+  `x − 2x³/(3L²) + x⁵/(5L⁴)` on its input clamped to ±L, L = 15/8, ±1 beyond. Its slope `(1 − x²/L²)²` is 1 at 0,
+  never negative, and reaches 0 with zero curvature at ±L, so the curve enters the clamp with no corner. It is defined
+  by these properties, not as an approximation of tanh: a polynomial that meets the clamp cannot also follow tanh
+  closely. No division, as ARMv7 NEON has no vector divide.
+
+The ladder has no oversampling: on high notes its saturators fold harmonics back into the band (a host measure in
+`float_ladder_spec`; the figures are in [a9_dsp_performance.md](a9_dsp_performance.md#ladder-and-drift)).
+
+### `Drift` (`float/mod/drift.h`)
+
+`fp::Drift` is per-voice slow noise for wandering a voice's pitch and cutoff: a scalar object, one per voice, stepped
+once per block, not a kernel. Each `next()` draws a uniform value in [−1, 1] from a 32-bit xorshift (shifts 13, 17,
+5) and moves the value a fraction `a = 1 − e^(−1/time_blocks)` of the way towards it (a one-pole on white noise,
+through `mul_add`); `value()` reads the last result. `Settings` are `time_blocks` (at least 1) and `seed` (0 taken as
+1); `reseed` restarts the stream. It is libm-free and deterministic, so a seed gives the same stream on every target.
+The owner applies the value through `configure`, linearised: a cutoff `fc·(1 + d·depth)`, a pitch increment
+`inc·(1 + d·cents·ln2/1200)` (within 0.03 cent at ±10 cents). Reconfiguring a whole voice chain each block recomputes
+every part's coefficients; the bench's drifting ladder voice measures that cost.
 
 ### `Envelope` (`float/envelope/envelope.h`)
 

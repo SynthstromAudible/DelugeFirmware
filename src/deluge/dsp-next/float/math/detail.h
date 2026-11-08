@@ -20,6 +20,9 @@
 /// @brief Library-free coefficient math for the float kernels: plain double arithmetic in a fixed order, so every
 /// target computes the same bits (a library exp or tan may differ between libms).
 
+#include "dsp-next/core/pack_f32.h"
+#include "dsp-next/core/sample.h"
+
 #include <bit>
 #include <cassert>
 #include <cstdint>
@@ -79,6 +82,37 @@ namespace deluge::dsp::fp::detail {
 	}
 	sine = sine * x;
 	return upper ? cosine / sine : sine / cosine;
+}
+
+/// The soft clip's knee: inputs at or beyond ±kSoftClipLimit give ±1.
+inline constexpr f32 kSoftClipLimit = 1.875F;
+
+/// @brief The odd quintic saturator p(x) = x − 2x³/(3L²) + x⁵/(5L⁴) on x clamped to ±L, L = 15/8; ±1 beyond.
+/// @details Its slope is (1 − x²/L²)²: 1 at 0, so small signals pass unchanged; never negative, so it is monotone; and
+/// at ±L the value is ±1 with zero first and second derivatives, so it enters the clamp with no corner in slope or
+/// curvature. A polynomial, so it needs no divide (ARMv7 NEON has none). Written once over V (f32 or Pack<f32, N>).
+template <class V>
+[[nodiscard]] [[gnu::always_inline]] inline V soft_clip(V x) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+	constexpr double kL2 = static_cast<double>(kSoftClipLimit) * static_cast<double>(kSoftClipLimit);
+	constexpr auto kCubic = static_cast<f32>(-2.0 / (3.0 * kL2));
+	constexpr auto kQuintic = static_cast<f32>(1.0 / (5.0 * kL2 * kL2));
+	const V c = min(max(x, V{-kSoftClipLimit}), V{kSoftClipLimit});
+	const V c2 = c * c;
+	const V p = c * mul_add(V{1.F}, c2, mul_add(V{kCubic}, c2, V{kQuintic}));
+	// The ends land on ±1 exactly, and rounding near them never leaves [−1, 1].
+	const V bounded = min(max(p, V{-1.F}), V{1.F});
+	return select(abs(x) >= V{kSoftClipLimit}, select(x > V{0.F}, V{1.F}, V{-1.F}), bounded);
+}
+
+/// @brief @ref soft_clip's slope at @p x: (1 − x²/L²)² inside ±L, 0 beyond.
+template <class V>
+[[nodiscard]] [[gnu::always_inline]] inline V soft_clip_slope(V x) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+	constexpr auto kInvL2 =
+	    static_cast<f32>(1.0 / (static_cast<double>(kSoftClipLimit) * static_cast<double>(kSoftClipLimit)));
+	const V t = V{1.F} - (x * x) * V{kInvL2};
+	return select(abs(x) < V{kSoftClipLimit}, t * t, V{0.F});
 }
 
 } // namespace deluge::dsp::fp::detail

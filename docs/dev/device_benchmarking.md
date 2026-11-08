@@ -127,4 +127,6 @@ SVF, envelope amplifier) in `Mono`, `Poly` at 2 and 4 lanes and `Linked` at 2 la
 flush-to-zero rule. The transition-heavy envelope and voice cases get gate events at the start of each block, inside the
 timed region; the `sustain` cases are gated on once at setup and timed with no event. The image prints one extra line
 before the cases, `BENCH-INFO build_saw_bands_cycles`: the cycles of the one build of the 90 KB saw-band set, caches
-cold. The figures are in `docs/dev/a9_dsp_performance.md`.
+cold. The list also times `fp::Ladder` in both flavours as a processor over the filters' input, and a ladder voice in
+which every lane's `fp::Drift` reconfigures its whole chain at the start of each block, inside the timed region. The
+figures are in `docs/dev/a9_dsp_performance.md`.

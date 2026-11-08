@@ -905,6 +905,55 @@ SRAM heap starts at 0x20283fe0 against 0x20276590 for the `float_filters` image 
 list), 422 KB of heap left. The one build takes 71.7 million cycles on the device with cold caches, about 0.18 s at the
 A9's 400 MHz, and belongs off the audio tier at boot.
 
+### Ladder and drift
+
+The same list times `fp::Ladder` alone, as a processor over the filters' noise input (`fp_ladder_{clean,drive}_{mono,
+poly4}`: lane l on LP24, LP12, HP and BP in turn, cutoff 0.02 + 0.03·l, resonance 2, drive 2, compensated), and the
+ladder voice `Chain<fp::BlepOscillator, fp::Ladder, fp::Vca<fp::Envelope>>` (`fp_voice_ladder_{mono,poly4}`: the BLEP
+voice's saws, programs, gains and gate schedule through a CLEAN LP24 ladder at cutoff 0.03 + 0.05·l, resonance 2). In
+the voice cases every lane has its own `fp::Drift` (time 32 blocks), stepped once per block and applied as a voice's
+owner would, the pitch by up to 3 cents and the cutoff by up to 5%: each lane's whole chain is configured again at the
+start of every block, inside the timed region. Medians of three runs of one image on the rig (2026-11-08), cycles per
+channel-sample; the runs agree to within 0.1 on every case.
+
+| case | n = 32 | n = 64 | n = 128 | Poly over Mono (128) |
+|---|---:|---:|---:|---:|
+| fp_ladder_clean_mono | 181.46 | 180.72 | 180.36 | |
+| fp_ladder_clean_poly4 | 71.73 | 70.55 | 69.97 | 2.58x |
+| fp_ladder_drive_mono | 696.20 | 695.22 | 695.26 | |
+| fp_ladder_drive_poly4 | 302.60 | 301.37 | 300.81 | 2.31x |
+| fp_voice_ladder_mono | 374.47 | 311.26 | 279.84 | |
+| fp_voice_ladder_poly4 | 241.87 | 175.31 | 142.48 | 1.96x |
+| fp_voice_blep_mono (SVF, no drift) | 105.25 | 99.17 | 96.20 | |
+| fp_voice_blep_poly4 (SVF, no drift) | 74.71 | 61.54 | 55.36 | 1.74x |
+
+**The ladder.** CLEAN costs 180.36 in Mono and 69.97 at four lanes, 5.6 times the SVF's 12.49 at four lanes (filters'
+list). Its step is one dependent chain (the feedback sum, the resolved input, the saturator, four stages in series), so
+Mono spends more cycles waiting than issuing: 72.3 instructions and 108.2 issue-empty cycles per sample. Four lanes
+hide part of that, 2.58x, in line with the SVF's 2.10x. DRIVE runs the four stages twice and saturates every stage's
+input, eight saturators (four in each of two passes) against one: 3.85 times CLEAN in Mono (695.26) and 4.30 times at four lanes (300.81), above the
+2 to 3 times the design estimated. At four lanes one DRIVE voice is about 13 million cycles a second at 44.1 kHz,
+3.3% of the A9's 400 MHz; one CLEAN voice is 0.8%.
+
+**The ladder voice.** At four lanes and n = 128 the drifting ladder voice costs 142.48, 2.57 times the SVF voice
+(55.36); in Mono 279.84, 2.91 times. Its parts at four lanes (BLEP saw 19.55, CLEAN ladder 69.97, transition-heavy
+envelope 27.39) sum to 116.91, 25.6 below the voice. The voice depends on the block size far more than its parts:
+fitting cost = c + K/n to n = 32 and 128 gives K of about 4,240 cycles per lane per block at four lanes (4,040 in
+Mono), against about 820 (390) for the SVF voice, which is gated on the same schedule but configured once. The
+difference, about 3,400 cycles per lane per block, is the inferred cost of reconfiguring the whole chain every block
+(the coefficients in double: the oscillator's increment, the ladder's tan_pi and loop terms, and the envelope's
+program), not a separate measurement. At n = 128 that is about 27 cycles per channel-sample, a fifth of the voice.
+
+**Aliasing (host).** A measure in `float_ladder_spec` (`aliasing`) drives an additive saw, alias-free, through the
+ladder and reports the energy more than 8 bins from every harmonic over the fundamental's, under a four-term
+Blackman-Harris window over 65,536 samples (the saw alone reads −96 dB). Into LP24 at cutoff 0.2: at f0 = 0.0213
+(about 1 kHz), CLEAN at resonance 0 −42.7 dB, CLEAN at resonance 3.5 −25.9 dB, DRIVE at resonance 3.5 and drive 8
+−27.1 dB; at f0 = 0.005 (about 240 Hz) all three are at −91 to −93 dB. The saturators fold their harmonics back into
+the band on high notes in both flavours, CLEAN's at resonance as much as DRIVE's; at resonance 3.5 the figure may also
+include any non-periodic response of the loop, which the measure does not separate. The PolyBLEP saw itself, by the
+same measure, reads −29.8 dB at f0 = 0.0213 and −66.8 dB at 0.005, so a BLEP voice's high notes carry the oscillator's aliasing as well as
+the ladder's.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

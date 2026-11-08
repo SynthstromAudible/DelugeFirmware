@@ -65,9 +65,11 @@
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
 #include "dsp-next/float/envelope/envelope.h"
+#include "dsp-next/float/filter/ladder.h"
 #include "dsp-next/float/filter/one_pole.h"
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
+#include "dsp-next/float/mod/drift.h"
 #include "dsp-next/float/osc/blep_oscillator.h"
 #include "dsp-next/float/osc/saw_bands.h"
 #include "dsp-next/float/osc/table_oscillator.h"
@@ -76,9 +78,11 @@
 #include <algorithm>
 #include <argon.hpp>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 #include <optional>
 #include <span>
 
@@ -1950,6 +1954,27 @@ struct FloatSvfSettings {
 	}
 };
 
+/// @brief The ladder's bench settings in flavour @p M; see FloatOnePoleSettings.
+template <dsp::fp::Ladder::Mode M>
+struct FloatLadderSettings {
+	using Kernel = dsp::fp::Ladder;           ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Lane @p lane's response LP24, LP12, HP and BP in turn, cutoff 0.02 + 0.03 per lane, resonance 2,
+	/// drive 2, compensated, flavour M.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		using Response = Kernel::Response;
+		constexpr std::array kResponses{Response::LP24, Response::LP12, Response::HP, Response::BP};
+		return {.cutoff = 0.02f + (0.03f * static_cast<dsp::f32>(lane)),
+		        .resonance = 2.f,
+		        .drive = 2.f,
+		        .compensate = true,
+		        .response = kResponses[lane % 4],
+		        .mode = M};
+	}
+};
+using FloatLadderCleanSettings = FloatLadderSettings<dsp::fp::Ladder::Mode::CLEAN>; ///< The CLEAN flavour.
+using FloatLadderDriveSettings = FloatLadderSettings<dsp::fp::Ladder::Mode::DRIVE>; ///< The DRIVE flavour.
+
 /// @brief The SVF bank's bench settings; see FloatOnePoleSettings.
 struct FloatSvfBandSettings {
 	using Kernel = dsp::fp::Svf;              ///< The kernel timed.
@@ -2210,6 +2235,40 @@ struct FloatTableVoiceSettings {
 	}
 };
 
+/// @brief The ladder voice: FloatBlepVoiceSettings' saw and amplifier through a CLEAN LP24 ladder, every lane drifting.
+/// @details Each lane has its own fp::Drift (time 32 blocks, seeded by lane), stepped once per block and applied as its
+/// owner would: the pitch by 3 cents and the cutoff by 5% at full deflection, linearised (inc·(1 + d·depth)).
+struct FloatLadderVoiceSettings {
+	using Kernel = dsp::Chain<dsp::fp::BlepOscillator, dsp::fp::Ladder, FloatVoiceVca>; ///< The kernel timed.
+	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = true;     ///< Gate events run at each block.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
+	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
+	static constexpr dsp::f32 kDriftTime = 32.f; ///< The drift's time constant, in blocks.
+	static constexpr dsp::f32 kPitchDepth = static_cast<dsp::f32>(3.0 * std::numbers::ln2 / 1200.0); ///< 3 cents.
+	static constexpr dsp::f32 kCutoffDepth = 0.05f;                                                  ///< 5%.
+	/// @return Lane @p lane's voice: its own pitch, cutoff 0.03 + 0.05 per lane, resonance 2, program and gain.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) { return drifted(lane, 0.f); }
+	/// @return Lane @p lane's voice with its pitch and cutoff moved by the drift value @p d ∈ [−1, 1].
+	[[nodiscard]] static Kernel::Settings drifted(std::size_t lane, dsp::f32 d) {
+		const auto t = static_cast<dsp::f32>(lane);
+		auto osc = FloatBlepSettings::settings(lane);
+		osc.frequency = osc.frequency * (1.f + (d * kPitchDepth));
+		return Kernel::Settings{
+		    osc,
+		    dsp::fp::Ladder::Settings{
+		        .cutoff = (0.03f + (0.05f * t)) * (1.f + (d * kCutoffDepth)), .resonance = 2.f, .compensate = true},
+		    FloatVoiceVca::Settings{.envelope = {.program = float_voice_program(lane)}, .gain = 0.3f + (0.2f * t)}};
+	}
+};
+
+/// @brief A float generator's settings that drift: each lane is configured again every block from its fp::Drift.
+template <class S>
+concept drifting_source = requires(std::size_t lane, dsp::f32 d) {
+	{ S::drifted(lane, d) } -> std::same_as<typename S::Kernel::Settings>;
+};
+
 /// @brief The envelope held in sustain: FloatEnvelopeSettings' programs, gated on once at setup and rendered until
 /// every stage before the sustain has finished, with no gate event in the timed region.
 struct FloatEnvelopeSustainSettings : FloatEnvelopeSettings {
@@ -2229,7 +2288,8 @@ struct FloatBlepVoiceSustainSettings : FloatBlepVoiceSettings {
 /// inside the timed region: the gate cycle is 8 blocks with the gate-off 4 blocks after the gate-on and the programs'
 /// stages are 15 to 93 samples long, so the cases are transition-heavy. A held kernel (kHeld) is gated on at setup and
 /// rendered until it sits in sustain, and gets no event while timed: the steady state a held note is in between its
-/// stage changes.
+/// stage changes. A drifting kernel (drifting_source) steps its lane's fp::Drift and is configured again from it at the
+/// start of every block, inside the timed region, as a voice's owner does.
 /// @tparam S The kernel's settings: FloatBlepSettings, FloatTableSettings, FloatEnvelopeSettings or a voice's.
 template <class S>
 class FloatSourceMonoCase {
@@ -2250,6 +2310,7 @@ private:
 	FloatBenchFlush flush_;
 	dsp::fp::Buffer out_;
 	std::size_t block_ = 0;
+	dsp::fp::Drift drift_; ///< Stepped only for a drifting_source.
 };
 
 /// @brief `Poly<K, N>` of a float generator: N independent streams, one per NEON lane, each with its own settings.
@@ -2277,6 +2338,7 @@ private:
 	FloatBenchFlush flush_;
 	std::array<dsp::fp::Buffer, N> out_;
 	std::size_t block_ = 0;
+	std::array<dsp::fp::Drift, N> drift_; ///< Stepped only for a drifting_source.
 };
 
 /// @brief `Linked<K, N, Frame<f32, N>>` of a float generator: N streams as interleaved f32 frames through one kernel
@@ -2469,6 +2531,12 @@ struct CaseSet {
 	    fp_voice_blep_sustain_poly4;                                              ///< `fp_voice_blep_sustain_poly4`
 	FloatSourceLinkedCase<FloatBlepVoiceSettings, 2> fp_voice_blep_linked2;       ///< `fp_voice_blep_linked2`
 	FloatSourcePolyCase<FloatTableVoiceSettings, 4> fp_voice_table_poly4;         ///< `fp_voice_table_poly4`
+	FloatMonoCase<FloatLadderCleanSettings> fp_ladder_clean_mono;                 ///< `fp_ladder_clean_mono`
+	FloatPolyCase<FloatLadderCleanSettings, 4> fp_ladder_clean_poly4;             ///< `fp_ladder_clean_poly4`
+	FloatMonoCase<FloatLadderDriveSettings> fp_ladder_drive_mono;                 ///< `fp_ladder_drive_mono`
+	FloatPolyCase<FloatLadderDriveSettings, 4> fp_ladder_drive_poly4;             ///< `fp_ladder_drive_poly4`
+	FloatSourceMonoCase<FloatLadderVoiceSettings> fp_voice_ladder_mono;           ///< `fp_voice_ladder_mono`
+	FloatSourcePolyCase<FloatLadderVoiceSettings, 4> fp_voice_ladder_poly4;       ///< `fp_voice_ladder_poly4`
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
 	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
 	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
