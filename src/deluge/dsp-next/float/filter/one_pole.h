@@ -20,11 +20,11 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/pack_f32.h"
 #include "dsp-next/core/sample.h"
+#include "dsp-next/float/math/detail.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 #include <tuple>
 #include <type_traits>
 
@@ -75,8 +75,12 @@ struct OnePole {
 	/// @brief G for @p settings' cutoff.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
-		const f32 fc = std::clamp(settings.cutoff, 1.f / 48000.f, 0.49f);
-		const f32 g = std::tan(std::numbers::pi_v<f32> * fc);
+		// A NaN cutoff takes the lower bound, so tan_pi only ever sees a valid frequency.
+		constexpr f32 kLowest = 1.f / 48000.f;
+		constexpr f32 kHighest = 0.49f;
+		const f32 requested = settings.cutoff;
+		const f32 fc = std::clamp(requested >= kLowest ? requested : kLowest, kLowest, kHighest);
+		const f32 g = static_cast<f32>(detail::tan_pi(static_cast<double>(fc)));
 		return {.G = g / (1.f + g), .mode = settings.mode};
 	}
 

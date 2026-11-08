@@ -41,6 +41,7 @@ set(float_oscillators_spec_DEPS ${_saw_bands_DEPS})
 set(float_oscillators_fused_spec_DEPS ${_saw_bands_DEPS})
 set(float_oscillators_fused_spec_OPTIONS -mfma)
 list(APPEND _fused_specs float_oscillators_fused_spec)
+set(float_math_spec_DEPS)
 set(float_envelope_spec_DEPS)
 set(float_envelope_fused_spec_DEPS)
 set(float_envelope_fused_spec_OPTIONS -mfma)
@@ -61,7 +62,7 @@ set(_saw_bands_specs poly_unsafe_math_spec float_oscillators_unsafe_math_spec fl
 # arithmetic, so every lane must still equal its scalar reference bit for bit.
 foreach(_unsafe_spec pack_f32_unsafe_math_spec float_kernels_unsafe_math_spec poly_unsafe_math_spec
                      bank_unsafe_math_spec float_oscillators_unsafe_math_spec float_envelope_unsafe_math_spec
-                     float_voice_unsafe_math_spec)
+                     float_math_unsafe_math_spec float_voice_unsafe_math_spec)
   set(${_unsafe_spec}_DEPS)
   if(_unsafe_spec IN_LIST _saw_bands_specs)
     set(${_unsafe_spec}_DEPS ${_saw_bands_DEPS})

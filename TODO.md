@@ -39,3 +39,4 @@
   edit of the source clip's sample, its markers or its attack between the spare and the take's loop end leaves the next
   take as the source was. Remake it on any change to the source clip (or clone at the job after the loop end and give
   the take a gap-free handover).
+- [] the float instrument's init calls fp::build_saw_bands() once, from a stack with ~4 KB free (the boot stack or a task with room), before any TableOscillator renders; saw_bands() asserts it in debug only.
