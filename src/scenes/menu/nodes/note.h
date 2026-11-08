@@ -102,6 +102,12 @@ bool permitted_row(const MenuContext& ctx);
 ValueText value_text_probability(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText value_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText value_text_fill(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `Probability::drawPixelsForOled` (both editors): the percentage, then " (L)" when it latches.
+ValueText leaf_text_probability(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `Fill::drawPixelsForOled` (both editors): `InstrumentClipView::getFillString`, the notification's text.
+ValueText leaf_text_fill(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `IterancePreset::drawPixelsForOled` (both editors): "N of M" with the long labels, the notification's text.
+ValueText leaf_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// @}
 
 // -------------------------------------------------------------------------------------------
@@ -212,20 +218,23 @@ inline constexpr Node note_velocity =
                                adjust_note_velocity),
                    permitted_note);
 
-inline constexpr Node note_editor_probability =
+inline constexpr Node note_editor_probability = with_leaf_text(
     with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_PROBABILITY),
                                                         get_note_probability, nullptr,
                                                         IntRange{1, kNumProbabilityValues | 127, 1}, Hint::None),
                                                adjust_note_probability),
                                    value_text_probability),
-                   permitted_note);
+                   permitted_note),
+    leaf_text_probability);
 
-inline constexpr Node note_fill = with_permitted(
-    with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill, nullptr,
-                                         IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                adjust_note_fill),
-                    value_text_fill),
-    permitted_note);
+inline constexpr Node note_fill = with_leaf_text(
+    with_permitted(
+        with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill,
+                                             nullptr, IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
+                                    adjust_note_fill),
+                        value_text_fill),
+        permitted_note),
+    leaf_text_fill);
 
 /// `IterancePreset::selectButtonPress()` (`note/iterance_preset.h:59-67`): only `kCustomIterancePreset`
 /// opens anything; every other value ascends. Defined here, not the `.cpp` -- see the file-level note.
@@ -237,14 +246,16 @@ inline const Node* chain_note_iterance(const MenuContext& ctx, const MenuState&)
 	return &note_custom_iterance_root;
 }
 
-inline constexpr Node note_iterance = with_select_chain(
-    with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_ITERANCE),
-                                                        get_note_iterance, nullptr,
-                                                        IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
-                                               adjust_note_iterance),
-                                   value_text_iterance),
-                   permitted_note),
-    chain_note_iterance, kNoteIteranceChain);
+inline constexpr Node note_iterance = with_leaf_text(
+    with_select_chain(
+        with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_ITERANCE),
+                                                            get_note_iterance, nullptr,
+                                                            IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
+                                                   adjust_note_iterance),
+                                       value_text_iterance),
+                       permitted_note),
+        chain_note_iterance, kNoteIteranceChain),
+    leaf_text_iterance);
 
 inline constexpr const Node* kNoteEditorChildren[] = {&note_velocity, &note_editor_probability, &note_iterance,
                                                       &note_fill};
@@ -278,20 +289,24 @@ inline constexpr const Node* kNoteRowCustomIteranceChildren[] = {
 inline constexpr Node note_row_custom_iterance_root =
     submenu(sid(deluge::l10n::String::STRING_FOR_CUSTOM), kNoteRowCustomIteranceChildren, Layout::Vertical);
 
-inline constexpr Node note_row_probability = with_permitted(
-    with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY),
-                                         get_note_row_probability, nullptr, IntRange{1, kNumProbabilityValues | 127, 1},
-                                         Hint::None),
-                                adjust_note_row_probability),
-                    value_text_probability),
-    permitted_row);
+inline constexpr Node note_row_probability = with_leaf_text(
+    with_permitted(
+        with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY),
+                                             get_note_row_probability, nullptr,
+                                             IntRange{1, kNumProbabilityValues | 127, 1}, Hint::None),
+                                    adjust_note_row_probability),
+                        value_text_probability),
+        permitted_row),
+    leaf_text_probability);
 
-inline constexpr Node note_row_fill = with_permitted(
-    with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL), get_note_row_fill,
-                                         nullptr, IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                adjust_note_row_fill),
-                    value_text_fill),
-    permitted_row);
+inline constexpr Node note_row_fill = with_leaf_text(
+    with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL),
+                                                        get_note_row_fill, nullptr,
+                                                        IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
+                                               adjust_note_row_fill),
+                                   value_text_fill),
+                   permitted_row),
+    leaf_text_fill);
 
 /// `IterancePreset::selectButtonPress()` (`note_row/iterance_preset.h:72-80`). Defined here, not the
 /// `.cpp` -- see the file-level note.
@@ -303,14 +318,17 @@ inline const Node* chain_note_row_iterance(const MenuContext& ctx, const MenuSta
 	return &note_row_custom_iterance_root;
 }
 
-inline constexpr Node note_row_iterance = with_select_chain(
-    with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_ITERANCE),
-                                                        get_note_row_iterance, nullptr,
-                                                        IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
-                                               adjust_note_row_iterance),
-                                   value_text_iterance),
-                   permitted_row),
-    chain_note_row_iterance, kNoteRowIteranceChain);
+inline constexpr Node note_row_iterance = with_leaf_text(
+    with_select_chain(
+        with_permitted(
+            with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_ITERANCE),
+                                                 get_note_row_iterance, nullptr,
+                                                 IntRange{0, kNumIterancePresets + 1, 1}, Hint::None),
+                                        adjust_note_row_iterance),
+                            value_text_iterance),
+            permitted_row),
+        chain_note_row_iterance, kNoteRowIteranceChain),
+    leaf_text_iterance);
 
 inline constexpr const Node* kNoteRowEditorChildren[] = {&sequence_direction, &note_row_probability, &note_row_iterance,
                                                          &note_row_fill};

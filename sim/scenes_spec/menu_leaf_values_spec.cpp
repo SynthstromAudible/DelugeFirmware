@@ -430,6 +430,23 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 		Rig r;
 		expect(screen_text(nodes::arp_rhythm_midi, r.ctx, 3)).to_equal(std::string{arpRhythmPatternNames[3]});
 	});
+
+	it("spells a note's probability with (L) when it latches, its fill and its iterance, on both editors", _ {
+		Rig r;
+		for (const Node* n : {&nodes::note_editor_probability, &nodes::note_row_probability}) {
+			expect(screen_text(*n, r.ctx, 7)).to_equal(std::string{"35%"});
+			expect(screen_text(*n, r.ctx, 7 | 128)).to_equal(std::string{"35% (L)"});
+		}
+		for (const Node* n : {&nodes::note_fill, &nodes::note_row_fill}) {
+			expect(screen_text(*n, r.ctx, FillMode::OFF)).to_equal(std::string{"OFF"});
+			expect(screen_text(*n, r.ctx, FillMode::FILL)).to_equal(std::string{"FILL"});
+			expect(screen_text(*n, r.ctx, FillMode::NOT_FILL)).to_equal(std::string{"NOT FILL"});
+		}
+		for (const Node* n : {&nodes::note_iterance, &nodes::note_row_iterance}) {
+			expect(screen_text(*n, r.ctx, kDefaultIterancePreset)).to_equal(std::string{"OFF"});
+			expect(screen_text(*n, r.ctx, kCustomIterancePreset)).to_equal(std::string{"CUSTOM"});
+		}
+	});
 });
 // clang-format on
 

@@ -257,6 +257,35 @@ ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, s
 	return ValueText{write_text(text, out), false};
 }
 
+ValueText leaf_text_probability(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Column) {
+		return kValueTextFallback;
+	}
+	bool latching = false;
+	int32_t probability = value;
+	if (probability > kNumProbabilityValues) {
+		probability &= 127;
+		latching = true;
+	}
+	char buffer[24];
+	const int written =
+	    std::snprintf(buffer, sizeof(buffer), "%d%%%s", static_cast<int>(probability * 5), latching ? " (L)" : "");
+	if (written <= 0) {
+		return ValueText{};
+	}
+	return ValueText{write_text(std::string_view(buffer, static_cast<size_t>(written)), out), false};
+}
+
+ValueText leaf_text_fill(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
+	return use == ValueTextUse::Column ? value_text_fill(ctx, value, ValueTextUse::Notification, out)
+	                                   : kValueTextFallback;
+}
+
+ValueText leaf_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
+	return use == ValueTextUse::Column ? value_text_iterance(ctx, value, ValueTextUse::Notification, out)
+	                                   : kValueTextFallback;
+}
+
 // -------------------------------------------------------------------------------------------
 // The note editor.
 // -------------------------------------------------------------------------------------------
