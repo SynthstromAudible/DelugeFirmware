@@ -191,6 +191,7 @@ struct Envelope {
 
 	/// @brief The program of @p settings.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		Coefficients c;
 		c.segments = settings.program.segments;
 		c.release = settings.program.release;
@@ -233,10 +234,14 @@ struct Envelope {
 	}
 
 	/// @brief Starts segment 0 from the current value: a retrigger never jumps.
-	static void gate_on(const Coefficients& c, State& s) { enter(c, s, 0.f, false); }
+	static void gate_on(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		enter(c, s, 0.f, false);
+	}
 	/// @brief Enters the release segment from the current value; a program without one, or an envelope at rest,
 	/// ignores it.
 	static void gate_off(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		if (c.release >= 0.f && s.index >= 0.f) {
 			enter(c, s, c.release, false);
 		}

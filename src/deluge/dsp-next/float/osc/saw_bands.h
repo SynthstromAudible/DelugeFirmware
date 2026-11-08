@@ -42,8 +42,8 @@ extern bool saw_bands_built;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,bugprone-dynamic-static-initializers)
 } // namespace detail
 
-/// @brief Fills the saw bands. Call once before the first @ref saw_bands, off the audio tier; a second call does
-/// nothing.
+/// @brief Fills the saw bands. Call once before the first @ref saw_bands, off the audio tier, with about 4 KB of stack
+/// to spare for the sine table; a second call does nothing.
 /// @details Band b's sample i is `−(2/π) Σ sin(2π h i / kSawBandSize) / h` over h = 1 … 2^(10 − b), the band-limited
 /// form of the naive saw `2x − 1`; its last sample repeats its first so a linear interpolation at the top of the cycle
 /// reads inside the band. The build uses no library function: the sines come from a table made by a rotation

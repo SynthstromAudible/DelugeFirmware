@@ -71,6 +71,7 @@ struct Vca {
 
 	/// @brief The coefficients for @p settings.
 	[[nodiscard]] static Coefficients coefficients(const Settings& settings) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
 		Coefficients c;
 		c.envelope = E::coefficients(settings.envelope);
 		c.gain = settings.gain;
@@ -78,9 +79,15 @@ struct Vca {
 	}
 
 	/// @brief Starts the envelope part's attack.
-	static void gate_on(const Coefficients& c, State& s) { E::gate_on(c.envelope, s.envelope); }
+	static void gate_on(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		E::gate_on(c.envelope, s.envelope);
+	}
 	/// @brief Starts the envelope part's release.
-	static void gate_off(const Coefficients& c, State& s) { E::gate_off(c.envelope, s.envelope); }
+	static void gate_off(const Coefficients& c, State& s) {
+#pragma clang fp contract(off) reassociate(off) reciprocal(off)
+		E::gate_off(c.envelope, s.envelope);
+	}
 
 	/// @brief One sample over V: f32 for one copy, Pack<f32, N> for one per lane.
 	template <class V>

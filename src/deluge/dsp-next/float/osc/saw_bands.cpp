@@ -77,7 +77,9 @@ void build_saw_bands() {
 	if (detail::saw_bands_built) {
 		return;
 	}
-	static const QuarterSine sine;
+	// About 4 KB, on the caller's stack for the one build (at boot, off the audio tier) rather than in .bss for the
+	// image's life.
+	const QuarterSine sine;
 	const double scale = -2.0 / std::numbers::pi;
 	for (std::size_t i = 0; i < kBandStride; ++i) {
 		// Band 10 holds harmonic 1; band b adds the harmonics above 2^(9 − b) up to 2^(10 − b).
