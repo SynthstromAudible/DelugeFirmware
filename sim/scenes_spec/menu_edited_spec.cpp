@@ -10,6 +10,8 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/drum/gate_drum.h"
+#include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -25,6 +27,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/output_items.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
@@ -34,6 +37,9 @@
 #include "support/ui_mode_guard.h"
 
 #include "cppspec.hpp"
+
+#include <set>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -97,6 +103,25 @@ constexpr menu::Node horizontal_column = menu::submenu(0, kValues, menu::Layout:
 /// A horizontal page: a value column, a plain submenu column and a horizontal submenu column.
 constexpr const menu::Node* kPageColumns[] = {&value_a, &plain_list, &horizontal_column};
 constexpr menu::Node page = menu::submenu(0, kPageColumns, menu::Layout::Horizontal);
+
+/// The MIDI device definition's link toggle: a bespoke item whose legacy item is a `Toggle`.
+const menu::Node linked_toggle = menu::custom(0, &nodes::kMidiDeviceLinked);
+
+/// Every horizontal page that is a column of a horizontal page, found from the roots. A group lists its members'
+/// columns, not the members, so a member page is never its current item.
+void collect_nested_pages(const menu::Node& node, std::set<const menu::Node*>& seen,
+                          std::vector<const menu::Node*>& out) {
+	if (node.kind != menu::Kind::Submenu || !seen.insert(&node).second) {
+		return;
+	}
+	for (const menu::Node* child : node.children) {
+		if (node.layout == menu::Layout::Horizontal && !node.is_group && child->kind == menu::Kind::Submenu
+		    && child->layout == menu::Layout::Horizontal) {
+			out.push_back(child);
+		}
+		collect_nested_pages(*child, seen, out);
+	}
+}
 
 /// @brief @p node on screen at the root, its list cursor and its column focus both at @p at.
 menu::MenuState on(const menu::Node& node, int16_t at = 0) {
@@ -163,6 +188,28 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		expect(open_on_guest(nodes::delay_type, ctx)).to_be_true();
 		select_turn();
 		expect(fx.instrument->editedByUser).to_be_false();
+	});
+
+	it("resolves no sound where legacy's currentSound is null: audio, MIDI and CV clips, MIDI and gate rows", _ {
+		const auto slot_of = [](::Song& song, Clip* clip) {
+			return menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false)
+			    .addresses.slot.has_value();
+		};
+		spec::AudioSongFixture audio = spec::make_audio_clip_song();
+		expect(slot_of(*audio.song, audio.clip)).to_be_false();
+		spec::SongFixture midi = spec::make_midi_song();
+		expect(slot_of(*midi.song, midi.clip)).to_be_false();
+		spec::SongFixture cv = spec::make_cv_song();
+		expect(slot_of(*cv.song, cv.clip)).to_be_false();
+		spec::SongFixture midi_row = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(midi_row);
+		expect(slot_of(*midi_row.song, midi_row.clip)).to_be_false();
+		spec::SongFixture gate_row = spec::make_kit_song();
+		(void)spec::add_drum<GateDrum>(gate_row);
+		expect(slot_of(*gate_row.song, gate_row.clip)).to_be_false();
+		spec::SongFixture sound_row = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(sound_row);
+		expect(slot_of(*sound_row.song, sound_row.clip)).to_be_true(); // the control: a sound row has one
 	});
 
 	it("leaves the instrument unmarked in the settings menu, even opened over a synth", _ {
@@ -243,6 +290,7 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		const menu::MenuContext ctx{};
 		expect(menu::select_turn_edits_instrument(ctx, on(nodes::multi_range))).to_be_true();   // MultiRange: a Value
 		expect(menu::select_turn_edits_instrument(ctx, on(nodes::patch_cables))).to_be_false(); // PatchCables: not
+		expect(menu::select_turn_edits_instrument(ctx, on(linked_toggle))).to_be_true();        // Linked: a Toggle
 	});
 
 	it("answers false on a plain submenu, whatever row its cursor is on", _ {
@@ -259,6 +307,26 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		expect(menu::select_turn_edits_instrument(ctx, on(page, 1))).to_be_false(); // a plain submenu column
 		expect(menu::selected_child(ctx, on(page, 2), page) == &horizontal_column).to_be_true();
 		expect(menu::select_turn_edits_instrument(ctx, on(page, 2))).to_be_true(); // its own current item, a value
+	});
+
+	it("reads a nested horizontal page's first column: every column of every such page is a value", _ {
+		// `HorizontalMenu::selectEncoderActionEditsInstrument` asks the nested page's persistent current item; reading the
+		// first column is exact only while every column answers alike.
+		const menu::MenuContext ctx{};
+		std::set<const menu::Node*> seen;
+		std::vector<const menu::Node*> nested;
+		for (const menu::Node* root : nodes::kAllRoots) {
+			collect_nested_pages(*root, seen, nested);
+		}
+		expect(nested.empty()).to_be_false();
+		bool all_values = true;
+		for (const menu::Node* page : nested) {
+			expect(page->dynamic_children == nullptr).to_be_true();
+			for (const menu::Node* column : page->children) {
+				all_values = all_values && menu::select_turn_edits_instrument(ctx, on(*column));
+			}
+		}
+		expect(all_values).to_be_true();
 	});
 
 	it("asks the row under the cursor on a horizontal page drawn as a list", _ {

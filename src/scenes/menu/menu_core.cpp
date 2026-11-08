@@ -114,8 +114,8 @@ bool is_value_item(const Node& node) {
 }
 
 /// What @p item, a horizontal menu's current item, answers: a plain submenu false, a horizontal one its own current
-/// item, which is the item it starts on (each such column holds values only, so the item it last showed answers the
-/// same).
+/// item. Every horizontal page that is a column of a horizontal page holds value columns only (pinned in
+/// `menu_edited_spec`), so the item it last showed answers as the one it starts on does.
 bool current_item_edits_instrument(const MenuContext& ctx, const Node& item) {
 	if (item.kind != Kind::Submenu) {
 		return is_value_item(item);
