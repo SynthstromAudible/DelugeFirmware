@@ -322,7 +322,8 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	// Ports legacy `Enumeration::selectEncoderAction`.
 	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
 	if (f.turn() != 0) {
-		next += f.turn();
+		// `SoundEditor::selectEncoderAction` hands a non-submenu item five detents a click while SHIFT is held.
+		next += static_cast<int32_t>(select_delta(f));
 		next = wrap ? ((next % n) + n) % n : std::clamp<int32_t>(next, 0, n - 1);
 	}
 	resp.changed = next != index;

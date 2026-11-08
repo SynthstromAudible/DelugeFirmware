@@ -636,6 +636,21 @@ describe values_w("ui::oled::values", $ {
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
 	});
 
+	it("scales an enumeration's select turn by 5 while shift is held, then clamps", _ {
+		// `SoundEditor::selectEncoderAction`'s scaledOffset reaches `Enumeration::selectEncoderAction` too.
+		const std::string_view names[] = {"A", "B", "C", "D", "E", "F", "G", "H"};
+		uitest::Rig48 r;
+		ListState st;
+		ScrollText sc;
+		int32_t index = 1;
+		r.input.turn = 1;
+		r.input.shift = true;
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(6);
+		enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
+		expect(index).to_equal(7); // clamped at the last option
+	});
+
 	it("clamps by default and wraps when asked", _ {
 		const std::string_view names[] = {"AAA", "BBB", "CCC", "DDD", "EEE", "FFF"};
 		uitest::Rig48 r;

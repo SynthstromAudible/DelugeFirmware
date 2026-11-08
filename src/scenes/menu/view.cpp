@@ -489,7 +489,9 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// `Enumeration`.
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
-		const int32_t next = std::clamp<int32_t>(st.edit_int + d, r.min, r.max);
+		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
+		const int32_t offset = f.shift() ? d * 5 : d;
+		const int32_t next = std::clamp<int32_t>(st.edit_int + offset, r.min, r.max);
 		if (next != st.edit_int) {
 			st.edit_int = next;
 			st.tick.render_resp.changed = true;

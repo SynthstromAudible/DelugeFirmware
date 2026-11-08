@@ -220,4 +220,19 @@ describe leaf_words("scenes::menu full-screen Decimal words", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words)
+// clang-format off
+describe leaf_turns("scenes::menu full-screen turn rules", $ {
+	it("turns a sync level five steps a detent while shift is held", _ {
+		Rig r;
+		FlashStorage::recordQuantizeLevel = 1;
+		r.open(nodes::record_quantize);
+		deluge::ui::test::Rig48 rig;
+		rig.input.turn = 1;
+		rig.input.shift = true;
+		draw(rig, 0);
+		expect(menu_scene().state().edit_int).to_equal(6);
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(menu_leaf_values_spec, leaf_cursor, leaf_horizontal, leaf_words, leaf_turns)

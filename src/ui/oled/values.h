@@ -146,7 +146,8 @@ Response decimal_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range
 /// `menu_rect(f)` is the rect that reproduces legacy, and the golden is recorded with it;
 /// everything below is relative to it, because `list` already is. The window is `list`'s own
 /// pos/tail rule; the cursor moves by `index + turn`, wrapped into `[0, n)` when @p wrap and
-/// clamped to it otherwise (@p wrap defaults to false, matching legacy's default).
+/// clamped to it otherwise (@p wrap defaults to false, matching legacy's default). A select turn moves five
+/// options a detent while `f.shift()` is held, as `int_value`'s does.
 ///
 /// @note `list`'s own clamping walk is bypassed here -- it cannot wrap -- by rendering `list`
 ///       through an *unfocused* frame: it draws the window and the highlight and reads no input
