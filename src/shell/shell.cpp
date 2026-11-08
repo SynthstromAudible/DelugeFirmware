@@ -279,6 +279,11 @@ void Shell::ensure_tick_window(uint32_t now_ms) {
 	}
 }
 
+void Shell::discard_pending_input() {
+	lowering_.discard_pending();
+	tick_open_ = false;
+}
+
 void Shell::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {
 	ensure_tick_window(now_ms);
 	// Before lowering, not instead of it: see `Screensaver::note_activity`'s doc on why the event

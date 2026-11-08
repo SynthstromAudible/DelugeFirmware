@@ -443,6 +443,12 @@ public:
 	/// earlier, never later: a deadline already set stands.
 	/// @param now_ms The clock now.
 	void reconsider_wake(uint32_t now_ms);
+	/// @brief Drop every input fed since the last tick, and close the tick window it opened.
+	///
+	/// For a host whose scenes leave without a tick: what was fed for them would otherwise wait in the open window and
+	/// be routed by the next tick to whatever scenes are up by then. The lowering keeps its held buttons and partial
+	/// detents (`InputLowering::discard_pending`).
+	void discard_pending_input();
 
 	/// @name Inspection
 	/// @{

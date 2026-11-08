@@ -100,6 +100,9 @@ bool ShellHostUI::opened() {
 	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
 	fedPads_ = deluge::ui::PadMask{};
 	shell_.lowering().forget_held_pads();
+	// Nor any input an earlier visit was fed and closed before a tick routed: a turn just before a direct close is the
+	// UI's that was current then, never this menu's.
+	shell_.discard_pending_input();
 	// A visit is the editor's until its opener says otherwise (`markVisitWithoutEditor`).
 	visitWithoutEditor_ = false;
 
@@ -1326,6 +1329,8 @@ void ShellHostUI::closeGuest() {
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
 	shell_.stack().reset();
+	// What was fed and not yet routed was for the scenes just emptied.
+	shell_.discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	handBack(answered);

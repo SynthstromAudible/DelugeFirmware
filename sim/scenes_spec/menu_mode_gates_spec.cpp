@@ -198,6 +198,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 			(void)shellHostUI.horizontalEncoderAction(detents);
 			(void)shellHostUI.timerCallback();
 		};
+		expect(static_cast<int>(pos())).to_equal(2); // the place a transpose opens on
 		for (int i = 0; i < 4; i++) {
 			horizontal(1); // right, towards the units: places go down, and stop at 0
 		}
@@ -222,6 +223,60 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.timerCallback();
 		expect(edit()).to_equal(at_top + step);
+	});
+
+	it("a turn fed just before a direct close does not reach the next menu opened", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		const auto open_transpose = [&fx] {
+			menu_scene().open(nodes::source0_transpose, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+			shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
+			                                                       menu::node_id(nodes::source0_transpose)});
+			return openUI(&shellHostUI);
+		};
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
+		// A turn, then the long-press close before any tick routes it.
+		(void)shellHostUI.horizontalEncoderAction(1);
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
+		(void)shellHostUI.exitUI();
+	});
+
+	it("nor does one fed before a teardown that skips the close: the next open starts with nothing pending", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		const auto open_transpose = [&fx] {
+			menu_scene().open(nodes::source0_transpose, spec::menu_context_at(fx, menu::MenuContext::Root::Sound));
+			shellHostUI.setInitialScene(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
+			                                                       menu::node_id(nodes::source0_transpose)});
+			return openUI(&shellHostUI);
+		};
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		(void)shellHostUI.horizontalEncoderAction(1);
+		nullifyUIs(); // a song load takes every UI down with no close
+		setRootUILowLevel(&instrumentClipView);
+
+		expect(open_transpose()).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
+		(void)shellHostUI.exitUI();
 	});
 });
 
