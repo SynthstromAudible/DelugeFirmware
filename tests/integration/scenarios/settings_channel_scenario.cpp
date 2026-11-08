@@ -759,6 +759,8 @@ void runTick() {
 		g_beforeReset = SettingsChannelProbe::save();
 		SettingsChannelProbe::addUnknownSetting("scResetProbe", 7);
 		runtimeFeatureSettings.factoryReset(false);
+		// Sampled before the queued re-read lands; sound because the reset unlinked the file, so that re-read adds
+		// nothing.
 		g_unknownAfterReset = SettingsChannelProbe::unknownSettingCount();
 		g_waitTicks = 0;
 		g_stage = Stage::ResetWait;

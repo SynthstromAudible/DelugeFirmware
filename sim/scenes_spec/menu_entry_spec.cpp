@@ -1790,8 +1790,8 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   const menu::Node* const group = deluge::scenes::menu_scene().focused();
 		   expect(is_horizontal_page(group)).to_be_true();
 		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::file0_selector).to_be_true();
-		   const size_t depth = deluge::scenes::menu_scene().state().depth;
-		   // SELECT on the file selector opens the browser; a second claim, SHIFT up, goes back up one level.
+		   const auto column = deluge::scenes::menu_scene().state().columns[0].focused;
+		   // SELECT on the file selector opens the browser; a second claim, SHIFT released, goes back up one level.
 		   (void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		   (void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		   for (int i = 0; i < 3; i++) {
@@ -1805,7 +1805,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 			   (void)shellHostUI.timerCallback();
 		   }
 		   expect(deluge::scenes::menu_scene().focused() == group).to_be_true();
-		   expect(deluge::scenes::menu_scene().state().depth == depth).to_be_true();
+		   expect(deluge::scenes::menu_scene().state().columns[0].focused == column).to_be_true();
 		   closeGuest();
 	   });
 
