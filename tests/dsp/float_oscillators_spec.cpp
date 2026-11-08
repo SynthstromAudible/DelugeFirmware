@@ -21,6 +21,8 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/poly_kernel.h"
 #include "dsp-next/float/osc/blep_oscillator.h"
+#include "dsp-next/float/osc/saw_bands.h"
+#include "dsp-next/float/osc/table_oscillator.h"
 
 #include "float_kernel_records.h"
 
@@ -40,6 +42,7 @@ using namespace deluge::dsp;
 #pragma clang fp contract(off) reassociate(off) reciprocal(off)
 
 static_assert(poly_kernel<fp::BlepOscillator>);
+static_assert(poly_kernel<fp::TableOscillator>);
 
 namespace {
 
@@ -143,6 +146,61 @@ describe float_oscillators_spec("float oscillators", ${
 			expect(digest(out)).to_equal(records::kBlepSaw);
 			pulse.render_block(fp::Buffer{out});
 			expect(digest(out)).to_equal(records::kBlepPulse);
+		});
+	});
+	context("TableOscillator", _ {
+		it("picks the richest band whose top harmonic stays below half the sample rate", _ {
+			for (std::size_t b = 0; b + 1 < fp::kSawBands; ++b) {
+				// Band b's top harmonic is 2^(10 - b); it reaches 0.5 at inc = 2^(b - 11), which band b excludes.
+				const f32 edge = std::ldexp(1.f, static_cast<int>(b) - 11);
+				expect(fp::saw_band_for(std::nextafter(edge, 0.f))).to_equal(b);
+				expect(fp::saw_band_for(edge)).to_equal(b + 1);
+				expect(fp::saw_band_for(std::nextafter(edge, 1.f))).to_equal(b + 1);
+			}
+			expect(fp::saw_band_for(1e-6f)).to_equal(0uz);
+			expect(fp::saw_band_for(0.45f)).to_equal(fp::kSawBands - 1);
+		});
+		it("holds each band's first sample again as its last", _ {
+			for (std::size_t b = 0; b < fp::kSawBands; ++b) {
+				const f32* band = fp::saw_bands() + (b * (fp::kSawBandSize + 1));
+				expect(std::bit_cast<uint32_t>(band[fp::kSawBandSize])).to_equal(std::bit_cast<uint32_t>(band[0]));
+			}
+		});
+		it("stays within the linear-interpolation bound of the analytic band-limited saw", _ {
+			constexpr f32 kFrequency = 0.013f;
+			const std::size_t band = fp::saw_band_for(kFrequency);
+			const std::size_t top = std::size_t{1} << (fp::kSawBands - 1 - band);
+			// f(x) = -(2/pi) sum sin(2 pi h x)/h has |f''| <= 8 pi sum(h); linear interpolation over a step of
+			// 1/kSawBandSize errs by at most |f''|max / 8 of that step squared.
+			const double sum_h = static_cast<double>(top) * static_cast<double>(top + 1) / 2.0;
+			const double bound = 8.0 * std::numbers::pi * sum_h
+			                     / (8.0 * static_cast<double>(fp::kSawBandSize) * static_cast<double>(fp::kSawBandSize));
+			Mono<fp::TableOscillator> osc;
+			osc.configure({.frequency = kFrequency});
+			std::vector<f32> out(2000);
+			osc.render_block(fp::Buffer{out});
+			f32 phase = 0.f; // stepped as the oscillator steps it
+			double worst = 0.0;
+			for (const f32 y : out) {
+				double want = 0.0;
+				for (std::size_t h = 1; h <= top; ++h) {
+					want += std::sin(2.0 * std::numbers::pi * static_cast<double>(h) * static_cast<double>(phase))
+					        / static_cast<double>(h);
+				}
+				want *= -2.0 / std::numbers::pi;
+				worst = std::max(worst, std::fabs(static_cast<double>(y) - want));
+				phase = phase + kFrequency;
+				phase = phase >= 1.f ? phase - 1.f : phase;
+			}
+			expect(worst <= 1.1 * bound).to_be_true();
+			expect(worst >= 0.1 * bound).to_be_true(); // the bound is tight to a factor, not slack by orders
+		});
+		it("matches its record", _ {
+			Mono<fp::TableOscillator> osc;
+			osc.configure({.frequency = 0.013f});
+			std::vector<f32> out(512);
+			osc.render_block(fp::Buffer{out});
+			expect(digest(out)).to_equal(records::kTableSaw);
 		});
 	});
 });

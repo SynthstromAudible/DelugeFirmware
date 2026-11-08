@@ -99,6 +99,10 @@ void pack_specs(auto& self) {
 		expect_lanewise<N>(self, [](auto a, auto b, auto c) { return select(a < b, c, a); },
 		                   [](f32 a, f32 b, f32 c) { return select(a < b, c, a); });
 	});
+	it("floors lane by lane as the scalar floor does", _ {
+		expect_lanewise<N>(self, [](auto a, auto, auto) { return floor(a); },
+		                   [](f32 a, f32, f32) { return deluge::dsp::floor(a); });
+	});
 	it("sums its lanes in lane order", _ {
 		const auto [a, b, c] = operands<N>(7);
 		f32 expected = a.get(0);

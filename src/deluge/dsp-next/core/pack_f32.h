@@ -22,6 +22,7 @@
 
 #include <array>
 #include <bit>
+#include <cassert>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
@@ -89,8 +90,16 @@ inline constexpr bool kFusedMulAdd = detail::has_fused_mul_add();
 	return x;
 }
 
-/// @brief @p base[@p index]: the scalar form of a pack's gather. @p index is a non-negative integer held in an f32.
+/// @brief ⌊@p x⌋: the scalar form of a pack's floor, which a step written over V calls.
+[[nodiscard]] [[gnu::always_inline]] inline f32 floor(f32 x) {
+	return std::floor(x);
+}
+
+/// @brief @p base[@p index]: the scalar form of a pack's gather.
+/// @pre @p index is a non-negative integer held in an f32 and inside the table (asserted in debug builds up to
+/// non-negativity and integrality; the upper bound is the caller's).
 [[nodiscard]] [[gnu::always_inline]] inline f32 gather(const f32* base, f32 index) {
+	assert(index >= 0.f && index == std::floor(index));
 	return base[static_cast<std::size_t>(index)];
 }
 
@@ -188,15 +197,19 @@ struct Pack<f32, N> {
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>(Pack a, Pack b) { return {a.v > b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator<=(Pack a, Pack b) { return {a.v <= b.v}; }
 	[[nodiscard]] [[gnu::always_inline]] friend Mask<N> operator>=(Pack a, Pack b) { return {a.v >= b.v}; }
+	/// @brief ⌊@p a⌋ in each lane, as std::floor. Exact: no rounding policy is involved.
+	[[nodiscard]] [[gnu::always_inline]] friend Pack floor(Pack a) { return Pack{__builtin_elementwise_floor(a.v)}; }
 	/// @brief @p a where @p m holds, @p b elsewhere.
 	[[nodiscard]] [[gnu::always_inline]] friend Pack select(Mask<N> m, Pack a, Pack b) {
 		return Pack{m.bits ? a.v : b.v};
 	}
-	/// @brief Lane i is `base[index.get(i)]`; the indices are non-negative integers held in f32. No float arithmetic:
-	/// N scalar loads.
+	/// @brief Lane i is `base[index.get(i)]`. No float arithmetic: N scalar loads.
+	/// @pre Every index is a non-negative integer held in f32 and inside the table (asserted in debug builds up to
+	/// non-negativity and integrality; the upper bound is the caller's).
 	[[nodiscard]] [[gnu::always_inline]] friend Pack gather(const f32* base, Pack index) {
 		std::array<f32, N> out;
 		for (std::size_t i = 0; i < N; ++i) {
+			assert(index.v[i] >= 0.f && index.v[i] == std::floor(index.v[i]));
 			out[i] = base[static_cast<std::size_t>(index.v[i])];
 		}
 		return load(out.data());

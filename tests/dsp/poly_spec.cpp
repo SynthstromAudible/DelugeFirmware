@@ -10,6 +10,7 @@
 #include "dsp-next/float/filter/smoother.h"
 #include "dsp-next/float/filter/svf.h"
 #include "dsp-next/float/osc/blep_oscillator.h"
+#include "dsp-next/float/osc/table_oscillator.h"
 
 #include <algorithm>
 #include <array>
@@ -339,6 +340,15 @@ void poly_specs(auto& self) {
 				    return fp::BlepOscillator::Settings{.frequency = 0.021f + (0.09f * static_cast<f32>(l)),
 				                                        .width = 0.1f + (0.2f * static_cast<f32>(l)),
 				                                        .mode = fp::BlepOscillator::Mode::PULSE};
+			    },
+			    block);
+		}
+	});
+	it("steps each TableOscillator lane exactly as Mono, each in its own band", _ {
+		for (const std::size_t block : {128uz, 125uz, 7uz}) {
+			expect_generator_lanes_equal_mono<fp::TableOscillator, N>(self,
+			    [](std::size_t l) {
+				    return fp::TableOscillator::Settings{.frequency = 0.0007f * static_cast<f32>(1 << (2 * l))};
 			    },
 			    block);
 		}

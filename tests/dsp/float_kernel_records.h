@@ -32,9 +32,11 @@ inline constexpr uint32_t kSvfNotch = 1315717876U;
 inline constexpr uint32_t kSvfHighPass = 1567773475U;
 inline constexpr uint32_t kBlepSaw = 262873454U;
 inline constexpr uint32_t kBlepPulse = 2717416499U;
+inline constexpr uint32_t kTableSaw = 4229038149U;
 #else
 inline constexpr uint32_t kBlepSaw = 262873454U;
 inline constexpr uint32_t kBlepPulse = 2717416499U;
+inline constexpr uint32_t kTableSaw = 811564572U;
 inline constexpr uint32_t kOnePoleLowPass = 1000713743U;
 inline constexpr uint32_t kOnePoleHighPass = 1062954013U;
 inline constexpr uint32_t kSmootherLinear = 1153755580U;
