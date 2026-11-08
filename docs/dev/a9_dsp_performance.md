@@ -853,14 +853,15 @@ Controls: `calibration_loop` 32.02, `delay_feedback_chain_analog` 165.90, `delay
 (the filters' list: 32.03, 165.89, 12.41).
 
 The envelope advances by one affine map per stage and ends a stage on a threshold test, and the lanes' end test is one
-NEON reduction and one move to a core register. Against the select-and-flag envelope and its 13-instruction mask
-test, the same cases measured, in cycles per channel-sample: envelope Mono 36.73 to 26.48, Poly at four lanes
+NEON reduction and one move to a core register. Measured on the same cases against the previous build (select-and-flag
+envelope, 13-instruction mask test), in cycles per channel-sample: envelope Mono 36.73 to 26.48, Poly at four lanes
 30.05 to 27.39 (held 25.83 to 23.36); voice Mono 110.07 to 95.99 (held 108.57 to 95.51), Poly at four lanes 62.61 to
 55.38 (held 57.82 to 50.78), Poly at two lanes 94.53 to 70.11. The oscillators did not change (the BLEP saw at 52.14
 and 19.55 is the same figure), and the table voice at four lanes, 69.76 to 69.08, moved least.
 
 **Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
-only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.52x. **Envelope.** In
+only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.52x (its Poly at four lanes read 30.49 on an earlier image of the same
+code, 31.58 here: image-to-image variance of about 3.6%, not a code change). **Envelope.** In
 the transition-heavy regime Poly at four lanes costs 27.39 against Mono's 26.48, so the lanes buy nothing there: the
 stage-end handler is scalar and runs once per lane that ends a stage, and the gate events are out-of-line calls into
 one lane. The held envelope costs 23.36 against 27.39, 15% less. The transition-heavy figure depends on the block size
@@ -870,7 +871,7 @@ costs a fixed amount per block; the list does not separate the gate events from 
 **Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the held BLEP voice 1.88x
 faster than its Mono, and the transition-heavy voice 1.73x faster than its Mono; at two lanes the transition-heavy voice
 gains 1.37x. The held voice at four lanes, 50.78, is 8% below the sum of its parts at four lanes (oscillator 19.55, SVF
-12.49 from the filters' list, held envelope 23.36: 55.40), and the envelope is 46% of the voice. In Mono the
+12.49 from the filters' list, held envelope 23.36: 55.40), and the envelope is 46% of the voice. Why the chain runs below the sum of its parts is not established. In Mono the
 transition-heavy voice, 95.99, is 8% below the sum of its parts (52.14 + 26.17 + 26.48 = 104.79). `Linked` at two
 lanes, which steps each lane's scalar chain one after the other, is level with Mono (96.35 against 95.99).
 
@@ -880,7 +881,7 @@ for the BLEP voice, 25% more. The table's read is a gather: each lane loads its 
 own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 5.99 more
 instructions per sample than the BLEP saw (13.74 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
 also share the 32 KB data cache with the voice's own state: per channel-sample, the table voice at four lanes counts
-0.13 L1D refills and 4.45 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.03 and 1.19. The
+0.13 L1D refills and 4.44 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.03 and 1.19. The
 table cases move by a few percent between images of the same list, so read them to a few percent.
 
 **Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes one frame per
