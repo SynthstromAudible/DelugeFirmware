@@ -63,7 +63,7 @@ public:
 	using Base::set_mode;
 	using Base::state;
 
-	/// @brief Lane @p lane's gain in the mix.
+	/// @brief Lane @p lane's gain in the mix; a lane never set has gain 1.
 	void set_gain(std::size_t lane, f32 gain)
 	requires std::same_as<Mix, mix::Weighted>
 	{
@@ -122,7 +122,7 @@ private:
 		this->set_packed_state(s);
 	}
 
-	V gains_{1.f}; ///< Weighted: each lane's gain.
+	V gains_{1.f}; ///< Weighted: each lane's gain; 1 until set_gain.
 };
 
 } // namespace deluge::dsp

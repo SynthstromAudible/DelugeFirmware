@@ -793,15 +793,15 @@ on each. At n = 128 the three runs agree within 0.01 cps on every case but the d
 
 Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.41.
 
-Poly at four lanes runs the one-pole and the SVF 1.32x to 1.35x faster than Mono (about 25 % fewer cycles per
+Poly at four lanes runs the one-pole and the SVF 1.32x to 1.35x faster than Mono (about 25% fewer cycles per
 sample), and at two lanes 1.05x to 1.12x faster, short of the 2x the 64-bit datapath and interleaving were expected
 to give. The smoother, mostly one fused step, gains 1.06x at four lanes, where Poly also pays four configures per
 block inside the timed region. Linked at two lanes, whose frames are interleaved in memory and need no transpose,
 is the cheapest per sample (about 1.7x faster than Mono), and the four-band bank costs about 4.5 Mono SVFs' worth
 per input sample.
 
-At n = 128 the controls sit above the earlier tables in this file (analog chain 162.86 to 165.89, +1.9 %; digital
-11.35 to 12.41, +9 %): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
+At n = 128 the controls sit above the earlier tables in this file (analog chain 162.86 to 165.89, +1.9%; digital
+11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
 how much the image moved the rest, so read the float figures with that margin.
 
 ## Open questions

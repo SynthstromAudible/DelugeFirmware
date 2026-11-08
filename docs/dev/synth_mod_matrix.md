@@ -100,7 +100,10 @@ between the core and NEON registers cost more than the multiplies saved.
 
 `Evaluator<B>` is a template over its numeric core; `evaluator.cpp` instantiates it for `MatrixFixed` alone. A core
 provides `kOne`, `convert`, `depth`, `product`, `depth_product`, `multiply_step`, `add_step`, `preset_term`,
-`double_saturating`, `depth_result` and `curve`, and for the uncabled bulk a `Lanes` type with `preset_terms`,
-`uncabled_multiply`, `curve_square`, `curve_linear` and `curve_bipolar`. A float core (planned, for the float
+`double_saturating`, `depth_result` and `curve`, and for the uncabled bulk three lane types, `SourceLanes`,
+`DepthLanes` and `CombinationLanes` (`QVec<31>`, `QVec<30>` and `QVec<29>` in `MatrixFixed`), with `load_words`,
+`store_words`, `load_ranges`, `preset_terms` (source and depth lanes in, combination lanes out), `uncabled_multiply`
+(combination lanes) and `curve_square`, `curve_linear` and `curve_bipolar` (source and combination lanes in, source
+lanes out). A float core (planned, for the float
 instrument plugin in `TODO.md`) would provide the same over `float` and `Argon<float>` and add its own explicit
 instantiation; the program, the compiler and the pass order would stay as they are.
