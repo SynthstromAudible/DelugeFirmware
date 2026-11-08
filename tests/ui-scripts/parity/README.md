@@ -30,13 +30,13 @@ follow channel.
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
 `DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it ShellMenu on with Horizontal Menus on
-(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen), and
-with ShellMenu off on `card.img` (`--sd`).
+(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen, `--card` takes the directory), and with ShellMenu off on
+`card.img` (`--sd`).
 
 `sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical` (the ShellMenu card with
-HorizontalMenus off; `--sd` takes the directory), where a shortcut opens its item alone: a transpose's cursor, step and
-Horizontal move, the coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the
-press. For a ready-made image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools:
+HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
+coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the press. Run both
+with `tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical`. For a ready-made image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools:
 `mcopy -i card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
