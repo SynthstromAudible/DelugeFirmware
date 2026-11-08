@@ -27,15 +27,18 @@
 
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
+#include "dsp-next/core/bank.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_neon.h"
+#include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/poly.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -61,6 +64,9 @@
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
+#include "dsp-next/float/filter/one_pole.h"
+#include "dsp-next/float/filter/smoother.h"
+#include "dsp-next/float/filter/svf.h"
 
 #include <algorithm>
 #include <argon.hpp>
@@ -68,6 +74,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <span>
 
 namespace deluge::bench {
@@ -1907,6 +1914,169 @@ private:
 	ModMatrixKind kind_;
 };
 
+/// @brief The float kernels' bench settings, one struct per kernel: the kernel, its settings for a lane and block, and
+/// whether the settings change every block.
+struct FloatOnePoleSettings {
+	using Kernel = dsp::fp::OnePole;          ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Cutoff 0.01 + 0.02 per lane, LOW_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f + 0.02f * static_cast<dsp::f32>(lane), .mode = Kernel::Mode::LOW_PASS};
+	}
+};
+
+/// @brief The smoother's bench settings; see FloatOnePoleSettings.
+struct FloatSmootherSettings {
+	using Kernel = dsp::fp::Smoother;        ///< The kernel timed.
+	static constexpr bool kRetargets = true; ///< Configured every block, as its owner sets the target.
+	/// @return EXPONENTIAL, time 64, the target +0.5 on even blocks and -0.5 on odd ones.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t /*lane*/, std::size_t block) {
+		return {.target = (block % 2 == 0) ? 0.5f : -0.5f, .time = 64.f, .mode = Kernel::Mode::EXPONENTIAL};
+	}
+};
+
+/// @brief The SVF's bench settings; see FloatOnePoleSettings.
+struct FloatSvfSettings {
+	using Kernel = dsp::fp::Svf;              ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Cutoff 0.01 per lane + 1, Q 2, LOW_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f * static_cast<dsp::f32>(lane + 1), .q = 2.f, .mode = Kernel::Mode::LOW_PASS};
+	}
+};
+
+/// @brief The SVF bank's bench settings; see FloatOnePoleSettings.
+struct FloatSvfBandSettings {
+	using Kernel = dsp::fp::Svf;              ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return The bank's band: cutoff 0.01 · 2^lane, Q 5, BAND_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f * static_cast<dsp::f32>(1U << lane), .q = 5.f, .mode = Kernel::Mode::BAND_PASS};
+	}
+};
+
+/// @brief Flush-to-zero for the rest of the run, which the float instrument runs under.
+/// @details Set on a case's first setup and never restored: the warm-up, the timed blocks and every later case run
+/// with FPSCR.FZ set. The fixed-point cases that share a list do not use the VFP.
+class FloatBenchFlush {
+public:
+	/// @brief Sets flush-to-zero, once.
+	void enable() {
+		if (!flush_) {
+			flush_.emplace();
+		}
+	}
+
+private:
+	std::optional<dsp::fp::FlushToZero> flush_;
+};
+
+/// @brief `Mono<K>` over one stream of f32: the float input into the float output.
+/// @details **Timed state:** the kernel's state carries from block to block from rest at setup, following the one
+/// input block the case repeats, under flush-to-zero (FloatBenchFlush, set at setup). A kernel that retargets
+/// (the smoother) is configured again at the start of every block, inside the timed region, as its owner does.
+/// @tparam S The kernel's settings: FloatOnePoleSettings, FloatSmootherSettings or FloatSvfSettings.
+template <class S>
+class FloatMonoCase {
+public:
+	using Component = dsp::Mono<typename S::Kernel>; ///< The component timed.
+
+	/// @brief Configures from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return mono_; }
+
+private:
+	Component mono_;
+	FloatBenchFlush flush_;
+	dsp::fp::Signal in_;
+	dsp::fp::Buffer out_;
+	std::size_t block_ = 0;
+};
+
+/// @brief `Poly<K, N>`: N independent streams of f32, one per NEON lane, each with its own settings.
+/// @details **Timed state:** as FloatMonoCase for every lane, each lane following its own slice of the f32 input and
+/// writing its own slice of the output. Cycles are per channel-sample (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatMonoCase.
+/// @tparam N The lane count: 2 or 4.
+template <class S, std::size_t N>
+class FloatPolyCase {
+public:
+	static constexpr std::size_t kLanes = N;            ///< The streams per block.
+	using Component = dsp::Poly<typename S::Kernel, N>; ///< The component timed.
+
+	/// @brief Configures every lane from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples per lane.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples per lane; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return poly_; }
+
+private:
+	Component poly_;
+	FloatBenchFlush flush_;
+	std::array<dsp::fp::Signal, N> in_;
+	std::array<dsp::fp::Buffer, N> out_;
+	std::size_t block_ = 0;
+};
+
+/// @brief `Linked<K, N, Frame<f32, N>>`: N streams of interleaved f32 frames through one kernel configuration.
+/// @details **Timed state:** as FloatMonoCase for every lane, the lanes sharing lane 0's settings, the frames
+/// interleaved in one input block and one output block. Cycles are per channel-sample (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatMonoCase (never a retargeting one).
+/// @tparam N The lane count.
+template <class S, std::size_t N>
+class FloatLinkedCase {
+public:
+	static constexpr std::size_t kLanes = N;                                       ///< The lanes per frame.
+	using Component = dsp::Linked<typename S::Kernel, N, dsp::Frame<dsp::f32, N>>; ///< The component timed.
+
+	/// @brief Configures from rest, fills the f32 input and takes the blocks' spans for @p n frames.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return linked_; }
+
+private:
+	Component linked_;
+	FloatBenchFlush flush_;
+	dsp::Signal<dsp::Frame<dsp::f32, N>> in_;
+	dsp::Buffer<dsp::Frame<dsp::f32, N>> out_;
+};
+
+/// @brief `Bank<Svf, 4, mix::Sum>`: one stream of f32 into four band-pass filters, summed.
+/// @details **Timed state:** four band-pass states carry from block to block from rest at setup, all four reading
+/// the one input block the case repeats, under flush-to-zero (FloatBenchFlush, set at setup). One input sample is one
+/// block sample, so the figure is cycles per input sample (no `kLanes`): four filters' work.
+class FloatBankCase {
+public:
+	using Component = dsp::Bank<dsp::fp::Svf, 4, dsp::mix::Sum>; ///< The component timed.
+
+	/// @brief Configures the four bands from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return bank_; }
+
+private:
+	Component bank_;
+	FloatBenchFlush flush_;
+	dsp::fp::Signal in_;
+	dsp::fp::Buffer out_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -2040,6 +2210,17 @@ struct CaseSet {
 	    {.phase_increment = kPitchShiftUp7, .stereo = true}}; ///< `pitch_shift_stereo_up7`
 	PitchShiftCase pitch_shift_perc_up7{
 	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                 ///< `pitch_shift_perc_up7`
+	FloatMonoCase<FloatOnePoleSettings> fp_one_pole_mono;                         ///< `fp_one_pole_mono`
+	FloatPolyCase<FloatOnePoleSettings, 2> fp_one_pole_poly2;                     ///< `fp_one_pole_poly2`
+	FloatPolyCase<FloatOnePoleSettings, 4> fp_one_pole_poly4;                     ///< `fp_one_pole_poly4`
+	FloatLinkedCase<FloatOnePoleSettings, 2> fp_one_pole_linked2;                 ///< `fp_one_pole_linked2`
+	FloatMonoCase<FloatSmootherSettings> fp_smoother_mono;                        ///< `fp_smoother_mono`
+	FloatPolyCase<FloatSmootherSettings, 4> fp_smoother_poly4;                    ///< `fp_smoother_poly4`
+	FloatMonoCase<FloatSvfSettings> fp_svf_mono;                                  ///< `fp_svf_mono`
+	FloatPolyCase<FloatSvfSettings, 2> fp_svf_poly2;                              ///< `fp_svf_poly2`
+	FloatPolyCase<FloatSvfSettings, 4> fp_svf_poly4;                              ///< `fp_svf_poly4`
+	FloatLinkedCase<FloatSvfSettings, 2> fp_svf_linked2;                          ///< `fp_svf_linked2`
+	FloatBankCase fp_svf_bank4_sum;                                               ///< `fp_svf_bank4_sum`
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
 	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
 	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
@@ -2138,6 +2319,9 @@ enum class CaseList : uint8_t {
 	/// shifter up and down, in stereo and on a percussive input, then the feedback chain's two cases from the chain
 	/// list, as in the delay list.
 	PITCH_SHIFT,
+	/// The calibration loop, each float kernel in Mono, Poly at 2 and 4 lanes, Linked at 2 and the SVF bank, then the
+	/// feedback chain's two cases from the chain list, as in the delay list.
+	FLOAT_FILTERS,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -2173,6 +2357,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
 inline constexpr CaseList kBenchCaseList = CaseList::VA_SHAPES;
 #elif defined(DELUGE_DSP_BENCH_PITCH_SHIFT)
 inline constexpr CaseList kBenchCaseList = CaseList::PITCH_SHIFT;
+#elif defined(DELUGE_DSP_BENCH_FLOAT_FILTERS)
+inline constexpr CaseList kBenchCaseList = CaseList::FLOAT_FILTERS;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

@@ -105,3 +105,17 @@ function instead.
 
 Main's own A/B bench lives in a shared clone of `main` (see the memory notes); its lines use the same
 format, so its captures summarise alongside ours.
+
+## 5. The DSP bench's case lists
+
+A DSP bench image times one case list (`DELUGE_DSP_BENCH_CASES`), because the RTT output holds about 70 lines
+a run. Build it with `tools/bench_image.py --out IMAGE.elf --define DELUGE_DSP_BENCH=ON --define
+DELUGE_DSP_BENCH_CASES=<list>`, run it with `tools/dsp_bench.py --elf IMAGE.elf --select IP=<host> --out DIR`, and
+afterwards `./dbt configure -DDELUGE_DSP_BENCH=OFF -DDELUGE_STREAM_BENCH=OFF`, since the image build leaves the bench
+option cached.
+
+The `float_filters` list times the float kernels (`fp::OnePole`, `fp::Smoother`, `fp::Svf`) in `Mono`, `Poly` at 2 and
+4 lanes, `Linked` at 2 lanes, and an SVF `Bank` of four bands, beside the calibration loop and the two
+`delay_feedback_chain` controls. Each case sets flush-to-zero at setup and keeps it for the run. Cycles are per
+channel-sample for Poly and Linked and per input sample for the Bank. The figures are in
+`docs/dev/a9_dsp_performance.md`.

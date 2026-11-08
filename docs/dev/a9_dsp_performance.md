@@ -767,6 +767,38 @@ throughout.
 - Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
   to +24%): the head's interpolator window is 64 bytes.
 
+## Float kernels across lanes
+
+The `float_filters` list (`DELUGE_DSP_BENCH_CASES=float_filters`) times the float kernels in `Mono`, `Poly` (2 and 4
+independent streams, one per NEON lane), `Linked` (2 lanes through one configuration) and an SVF `Bank` (one input
+into four band-pass copies, summed). Every case runs under flush-to-zero, as the float instrument will, in the
+device's `-funsafe-math-optimizations` build, over 128-sample blocks of seeded noise scaled to ±1. The smoother is
+configured again every block (the target alternates ±0.5), inside the timed region. Medians of three runs of one image
+on the rig (2026-11-08), n = 128, cycles per channel-sample; the bank is per input sample, and does four filters' work
+on each. The three runs agree within 0.01 cps on every case but the digital feedback-chain control (0.05).
+
+| case | cycles per channel-sample | Poly over Mono |
+|---|---:|---:|
+| fp_one_pole_mono | 19.03 | |
+| fp_one_pole_poly2 | 18.09 | 1.05x |
+| fp_one_pole_poly4 | 14.09 | 1.35x |
+| fp_one_pole_linked2 | 11.05 | 1.72x (Linked) |
+| fp_smoother_mono | 15.23 | |
+| fp_smoother_poly4 | 14.43 | 1.06x |
+| fp_svf_mono | 26.15 | |
+| fp_svf_poly2 | 23.40 | 1.12x |
+| fp_svf_poly4 | 19.77 | 1.32x |
+| fp_svf_linked2 | 15.64 | 1.67x (Linked) |
+| fp_svf_bank4_sum (per input sample) | 116.39 | |
+
+Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.41.
+
+Four lanes in Poly cost 1.32x to 1.35x fewer cycles per sample than Mono for the one-pole and the SVF, and two lanes
+1.05x to 1.12x, short of the 2x the 64-bit datapath and interleaving were expected to give; the smoother, mostly one
+fused step, gains 1.06x at four lanes. Linked at two lanes, whose frames are interleaved in memory and need no
+transpose, is the cheapest per sample (1.7x under Mono), and the four-band bank costs about 4.5 Mono SVFs' worth
+per input sample.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The
