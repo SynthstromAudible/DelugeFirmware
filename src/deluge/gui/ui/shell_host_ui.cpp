@@ -1277,8 +1277,11 @@ ActionResult ShellHostUI::exitUI() {
 }
 
 void ShellHostUI::closeGuest() {
-	// Input fed since the last tick reaches the closing scenes first; whatever is left after is dropped below.
+	// Input fed since the last tick reaches the closing scenes first; whatever is left after is dropped below. A
+	// setting the flush's turn wrote is applied whole before the settings are saved, as legacy's `writeCurrentValue`
+	// applies both its halves at once; an open or a move the flush asked for goes with the menu.
 	flushPendingInput();
+	dispatchShellActionsAtClose();
 	// **Hand the two knob indicator rings back to legacy, coherently.** `GuestSurfaceSet::set_indicator` writes the
 	// hardware through `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow -- there
 	// is no scalar at that seam to hand `actuallySetKnobIndicatorLevel`, because a `KnobIndicator` is already the four

@@ -133,6 +133,12 @@ namespace deluge::gui::ui {
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
 
+/// @brief `dispatchShellActions` for a close: a setting a value write filed (the shortcuts version, the screensaver,
+///        pad brightness, highlighting, rounded corners, sticky shift, the flash status, the pad colours) is applied,
+///        as legacy's `writeCurrentValue` applies both its halves at once; a request that opens a UI or moves the
+///        menu is dropped, because the menu is going.
+void dispatchShellActionsAtClose();
+
 /// @brief `soundEditor.exitCompletely()`, ported: take the ported menu off the guest's scene stack
 ///        and let `ShellHostUI::timerCallback` close the guest itself.
 ///

@@ -140,9 +140,8 @@ void handOffGuestOverlays(uint32_t now_ms) {
 	// clears it; a legacy menu opened afterwards sets it only when it means it.
 	soundEditor.setupKitGlobalFXMenu = false;
 	clearShellKitGlobalFx();
-	// A request the close's own flush tick filed goes with the menu: a closing menu opens and re-routes nothing. On the
-	// tick's close path the drain after `Shell::tick` has already emptied both outboxes.
-	(void)deluge::scenes::menu_scene().take_action();
+	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
+	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.
 	(void)deluge::scenes::menu_scene().take_transition();
 	if (const std::optional<deluge::scenes::overlay::ShownPopup> shown =
 	        deluge::scenes::overlay::param_popup_scene().hand_off(now_ms)) {

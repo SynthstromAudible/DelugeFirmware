@@ -292,6 +292,41 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 	return std::nullopt;
 }
 
+namespace {
+void performMenuAction(const MenuActionRequest& req);
+
+/// @brief Whether @p action opens a UI or moves the menu, rather than applying a setting a value write left half done.
+bool opensOrMoves(MenuAction action) {
+	switch (action) {
+	case MenuAction::None:
+	case MenuAction::OpenPerformanceView:
+	case MenuAction::StartStemExport:
+	case MenuAction::SetClipLengthToSampleLength:
+	case MenuAction::OpenSongMidiLearn:
+	case MenuAction::OpenSongMacros:
+	case MenuAction::FileSelectorOpened:
+		return true;
+	case MenuAction::SetShortcutsVersion:
+	case MenuAction::ScreensaverSettingsChanged:
+	case MenuAction::PadBrightnessChanged:
+	case MenuAction::HighlightingChanged:
+	case MenuAction::RoundedCornersChanged:
+	case MenuAction::ShiftStickyChanged:
+	case MenuAction::FlashStatusLeftSlow:
+	case MenuAction::PadColoursChanged:
+		return false;
+	}
+	return true;
+}
+} // namespace
+
+void dispatchShellActionsAtClose() {
+	const MenuActionRequest req = menu_scene().take_action();
+	if (req.engaged() && !opensOrMoves(req.action)) {
+		performMenuAction(req);
+	}
+}
+
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
 	// the request and clears it in the same call (`MenuScene::take_action`). So an early
@@ -302,7 +337,11 @@ void dispatchShellActions() {
 	if (!req.engaged()) {
 		return;
 	}
+	performMenuAction(req);
+}
 
+namespace {
+void performMenuAction(const MenuActionRequest& req) {
 	switch (req.action) {
 	case MenuAction::None:
 		// Unreachable: `MenuActionRequest::engaged()` IS `action != None`, so the guard
@@ -477,6 +516,7 @@ void dispatchShellActions() {
 		break;
 	}
 }
+} // namespace
 
 bool legacyInhibitsScreensaver() {
 	return deluge::hid::display::OLED::isPermanentPopupPresent() || stemExport.processStarted;

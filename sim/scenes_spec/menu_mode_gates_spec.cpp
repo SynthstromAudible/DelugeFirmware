@@ -9,9 +9,11 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
@@ -26,6 +28,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
@@ -275,6 +278,30 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(sound->sources[0].transpose).to_equal(before + 1);
+	});
+
+	it("a shortcuts VERSION turn fed just before a long-BACK close is applied whole, both halves", _ {
+		spec::ShellMenuOn on;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiStackGuard ui_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		const uint8_t saved_legacy = soundEditor.shortcutsVersion;
+		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
+		expect(open_settings_node(fx, nodes::shortcuts_version)).to_be_true();
+		const uint8_t before = soundEditor.shortcutsVersion;
+		shellHostUI.selectEncoderAction(before == SHORTCUTS_VERSION_1 ? 1 : -1); // to the other layout
+		(void)shellHostUI.exitUI();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		// `shortcuts::Version::writeCurrentValue`: the port's layout and `soundEditor`'s, which the close then saves.
+		expect(soundEditor.shortcutsVersion != before).to_be_true();
+		expect(menu::shortcuts_version()
+		       == (soundEditor.shortcutsVersion == SHORTCUTS_VERSION_1 ? menu::ShortcutsVersion::V1
+		                                                               : menu::ShortcutsVersion::V3))
+		    .to_be_true();
+		soundEditor.setShortcutsVersion(saved_legacy);
+		paramShortcutsForSounds[0][6] = saved_cells[0];
+		paramShortcutsForSounds[1][6] = saved_cells[1];
 	});
 
 	it("a BACK fed just before a long-BACK close closes the menu once", _ {

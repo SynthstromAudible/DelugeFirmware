@@ -512,6 +512,9 @@ void dispatchShellActions() {
 	}
 }
 
+void dispatchShellActionsAtClose() {
+}
+
 // `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
 // `deluge::scenes::browser::browser_scene()` and its Sample arm performs a load that names
 // `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. No callback hook here
