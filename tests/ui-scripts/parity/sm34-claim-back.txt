@@ -1,0 +1,51 @@
+# ShellMenu: a sample claim made from the audio clip's SAMPLE page, and the BACKs after it. From the boot song, HOLD a
+# clip pad and press SELECT to turn the empty clip into an audio clip, open it, SELECT into its root list and turn to
+# SAMPLE (eight turns: the first detent after boot is dropped), SELECT opens the SAMPLE page (the vertical card: its
+# list) on the file selector, SELECT opens the browser, Select +1 and SELECT enter CLIPS, SELECT on its first file
+# claims it, then BACK twice. Run on the content card with Horizontal Menus on (`.superpowers/emu-card/content-shellmenu`)
+# and off (the same card with that card's SETTINGS/CommunityFeatures.XML replaced by
+# `.superpowers/emu-card/shellmenu-vertical`'s); `--card` takes the directory.
+100 snapshot boot
+500 button Session down
+520 button Session up
+2000 snapshot song
+2200 pad 3 6 down
+3200 button SelectEnc down
+3220 button SelectEnc up
+4000 pad 3 6 up
+5000 snapshot after
+5200 pad 3 6 down
+5240 pad 3 6 up
+6500 snapshot clip
+6700 button SelectEnc down
+6720 button SelectEnc up
+8000 snapshot root
+8200 encoder Select +1
+8700 encoder Select +1
+9200 encoder Select +1
+9700 encoder Select +1
+10200 encoder Select +1
+10700 encoder Select +1
+11200 encoder Select +1
+11700 encoder Select +1
+13000 snapshot at_sample
+13200 button SelectEnc down
+13220 button SelectEnc up
+14700 snapshot page
+15500 button SelectEnc down
+15520 button SelectEnc up
+18000 snapshot browser
+18500 encoder Select +1
+19500 snapshot clips_row
+20500 button SelectEnc down
+20520 button SelectEnc up
+23500 snapshot in_clips
+24000 button SelectEnc down
+24020 button SelectEnc up
+27500 snapshot claimed
+28000 button Back down
+28020 button Back up
+30500 snapshot back1
+31000 button Back down
+31020 button Back up
+33500 snapshot back2
