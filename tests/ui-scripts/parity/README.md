@@ -40,6 +40,13 @@ coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is re
 image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools: `mcopy -i card.img -o CommunityFeatures.XML
 ::/SETTINGS/CommunityFeatures.XML`.
 
+`sm34-claim-back` covers a sample claim made from the audio clip's SAMPLE page (opened from the clip's root list) and
+the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, Horizontal
+Menus on and off. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs the content
+card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a copy whose `SETTINGS/CommunityFeatures.XML`
+is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
+and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
+
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
 that reach it, CLIP's "menu view" and KEYBOARD from it, a patch cable's page, and a kit's rows and affect-entire. Every
