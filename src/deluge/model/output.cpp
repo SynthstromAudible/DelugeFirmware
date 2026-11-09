@@ -28,6 +28,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include <string_view>
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
@@ -269,6 +270,10 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		}
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
+		// Only when set, so a song that doesn't use it saves exactly as before
+		if (destination_ == TrackDestination::USB) {
+			writer.writeAttribute("outputDestination", "usb");
+		}
 
 		if (clipInstances.getNumElements()) {
 			writer.insertCommaIfNeeded();
@@ -347,6 +352,11 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "colour")) {
 		colour = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (strcmp(tagName, "outputDestination") == 0) {
+		std::string_view const value = reader.readTagOrAttributeValue();
+		destination_ = (value == "usb") ? TrackDestination::USB : TrackDestination::MAIN_MIX;
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {

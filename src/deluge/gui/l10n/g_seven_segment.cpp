@@ -73,6 +73,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_USB_OUTPUT, "USBO"},
         {STRING_FOR_MAIN_MIX, "MIX"},
         {STRING_FOR_LINE_IN, "LINE"},
+        {STRING_FOR_TRACKS, "TRKS"},
         {STRING_FOR_MIX_PRE_FX, "MIX"},
         {STRING_FOR_MIX_POST_FX, "OUTP"},
         {STRING_FOR_TRACK, "TRAK"},

@@ -93,8 +93,9 @@ extern bool directMonitoring;
 enum class OutputSource : uint8_t {
 	MAIN_MIX, // The Deluge's final output
 	LINE_IN,  // The codec's line/mic input, as it arrives
+	TRACKS,   // Only the tracks whose destination is USB, before the song's FX
 };
-constexpr uint8_t kNumOutputSources = 2;
+constexpr uint8_t kNumOutputSources = 3;
 extern OutputSource outputSource;
 
 } // namespace deluge::usb_audio

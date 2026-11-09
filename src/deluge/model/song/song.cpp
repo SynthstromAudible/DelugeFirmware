@@ -2497,6 +2497,22 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
+namespace {
+/// Renders a track whose destination is USB straight into the USB tracks buffer, like any track into the main mix.
+/// Its reverb send is dropped, so the host always gets tracks dry of the Deluge's reverb
+void renderOutputForUSB(Output* output, ModelStack* modelStack, size_t numSamples, int32_t reverbAmountAdjust,
+                        int32_t sideChainHitPending, bool isClipActiveNow) {
+	std::span<StereoSample> to_usb{AudioEngine::getUSBTracksBuffer(), numSamples};
+
+	// No reverb buffer drops the send. The grain FX send to the reverb their own way, so drop theirs too
+	int32_t* const song_grain_reverb_buffer = AudioEngine::grainReverbBuffer;
+	AudioEngine::grainReverbBuffer = nullptr;
+	output->renderOutput(modelStack, to_usb, nullptr, reverbAmountAdjust, sideChainHitPending, !isClipActiveNow,
+	                     isClipActiveNow);
+	AudioEngine::grainReverbBuffer = song_grain_reverb_buffer;
+}
+} // namespace
+
 void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
@@ -2524,8 +2540,14 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
-			                     !isClipActiveNow, isClipActiveNow);
+			if (AudioEngine::routingTracksToUSB && output->getDestination() == TrackDestination::USB) {
+				renderOutputForUSB(output, modelStack, outputBuffer.size(), volumePostFX >> 1, sideChainHitPending,
+				                   isClipActiveNow);
+			}
+			else {
+				output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+				                     !isClipActiveNow, isClipActiveNow);
+			}
 		}
 		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
@@ -3552,6 +3574,9 @@ traverseClips:
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->setDestination(oldOutput->getDestination());
+	oldOutput->setDestination(TrackDestination::MAIN_MIX);
 
 	retargetRecordingFromReferences(oldOutput, newOutput);
 
@@ -5306,6 +5331,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->setDestination(oldOutput->getDestination());
+	oldOutput->setDestination(TrackDestination::MAIN_MIX);
 
 	retargetRecordingFromReferences(oldOutput, newOutput);
 

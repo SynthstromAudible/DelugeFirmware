@@ -216,6 +216,8 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
                                                       int32_t reverbSendAmount, int32_t pan,
                                                       bool doAmplitudeIncrement) {
 
+	// A null reverbBuffer drops the send without touching reverbSendAmount, which the mod FX depend on
+	bool const sendingToReverb = (reverbSendAmount != 0) && (reverbBuffer != nullptr);
 	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
 
 	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
@@ -245,7 +247,7 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 
 	for (StereoSample& sample : buffer) {
 		// Send to reverb
-		if (reverbSendAmount != 0) {
+		if (sendingToReverb) {
 			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
 		}
 
@@ -260,7 +262,7 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 	}
 
 	// We've generated some sound. If reverb is happening, make note
-	if (reverbSendAmount != 0) {
+	if (sendingToReverb) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 	postReverbVolumeLastTime = postReverbVolume;

@@ -51,6 +51,7 @@ public:
 	virtual void cloneFrom(ModControllableAudio* other);
 
 	void processStutter(std::span<StereoSample> buffer, ParamManager* paramManager);
+	/// reverbBuffer may be null, to drop the reverb send
 	void processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer, int32_t postFXVolume,
 	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
 	                                bool doAmplitudeIncrement = false);
