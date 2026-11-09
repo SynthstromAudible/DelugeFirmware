@@ -120,14 +120,20 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
 
-// used for culling. This can be high now since it's decoupled from the time between renders, and
-// will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
-// seconds it will work maybe this should be user configurable? Values from 60-100 all seem justifiable. 100
-// occasionally crackles but means more voices. 60 keeps the modulation updating at about 800hz and LFO2 goes up to
-// 100ish
+// Culling and direness work from the predicted margin: how much of what's queued for the codec will be left when the
+// next render is done, in samples. (Not the time the audio routine takes: when catching up it renders twice, or renders
+// bigger blocks, which takes longer without the CPU being any more overloaded.) Culling starts when the margin is
+// kCullMargin or less, and a hard cull happens 32 below that. Direness starts rising 30 above it.
+constexpr int32_t kCullMargin = 48;
+// The scale cullVoices() and the direness work on, which the margin is mapped onto: numSamplesLimit at kCullMargin
 constexpr int32_t numSamplesLimit = 80;
 // used for decisions in rendering engine
 constexpr int32_t direnessThreshold = numSamplesLimit - 30;
+
+// What recent renders cost (system ticks, including starting notes) and how many samples they made, as running sums
+// which each decay by 1/8 per render
+uint32_t renderCostTicks = 0;
+uint32_t renderCostSamples = 0;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
@@ -514,13 +520,45 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 }
 
 // not in header (private to audio engine)
+/// How many samples to render, given how many there's space for in the output buffer. Can be up to 128
+size_t getRenderSize(size_t numSamples) {
+	// Double the number of samples we're going to do - within some constraints
+	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
+	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
+
+	if (numSamples < maxAdjustedNumSamples) {
+		int32_t samplesOverThreshold = numSamples - sampleThreshold;
+		if (samplesOverThreshold > 0) {
+			samplesOverThreshold = samplesOverThreshold << 1;
+			numSamples = sampleThreshold + samplesOverThreshold;
+		}
+	}
+	numSamples = std::min(numSamples, maxAdjustedNumSamples);
+
+	// Want to round to be doing a multiple of 4 samples so the NEON functions can be utilized most efficiently.
+	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
+	if (numSamples >= 3) {
+		numSamples = (numSamples + 2) & ~3;
+	}
+	return numSamples;
+}
+
+// not in header (private to audio engine)
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
-	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
-	size_t nonDSP = numSamples - dspTime;
-	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
-	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
+	// numSamples is the space in the output buffer, so the rest is still queued for the codec. The next render won't
+	// output anything until it's done, so predict how long it'll take from its size and what renders have recently cost
+	// per sample
+	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
+	size_t renderSize = getRenderSize(numSamples);
+	int32_t predicted = renderSize;
+	// how many ticks the last renders took (moving average) / how many samples they rendered
+	if (renderCostSamples) {
+		predicted = (int32_t)(((uint64_t)renderCostTicks * renderSize << 8)
+		                      / ((uint64_t)renderCostSamples * kSystemTicksPerSampleQ8));
+	}
+	int32_t margin = queued - predicted;
+	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
@@ -773,26 +811,10 @@ bool calledFromScheduler = false;
 	// What's left of the TX buffer is still waiting for the codec, in front of this render
 	size_t const txQueued = SSI_TX_BUFFER_NUM_SAMPLES - numSamples;
 
-	// Double the number of samples we're going to do - within some constraints
-	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
-
-	if (numSamples < maxAdjustedNumSamples) {
-		int32_t samplesOverThreshold = numSamples - sampleThreshold;
-		if (samplesOverThreshold > 0) {
-			samplesOverThreshold = samplesOverThreshold << 1;
-			numSamples = sampleThreshold + samplesOverThreshold;
-		}
-	}
-	numSamples = std::min(numSamples, maxAdjustedNumSamples);
-
-	// Want to round to be doing a multiple of 4 samples, so the NEON functions can be utilized most efficiently.
-	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
-	if (numSamples >= 3) {
-		numSamples = (numSamples + 2) & ~3;
-	}
+	numSamples = getRenderSize(numSamples);
 	voices_started_this_render = 0;
 
+	uint32_t renderStartTicks = getSystemTicks();
 	tickSongFinalizeWindows(numSamples);
 
 	numSamplesLastTime = numSamples;
@@ -801,6 +823,9 @@ bool calledFromScheduler = false;
 	usb_audio::fillInputRing(i2sRXBufferPos, numSamples, txQueued);
 
 	renderAudio(numSamples);
+
+	renderCostTicks = renderCostTicks - (renderCostTicks >> 3) + (getSystemTicks() - renderStartTicks);
+	renderCostSamples = renderCostSamples - (renderCostSamples >> 3) + numSamples;
 
 	scheduleMidiGateOutISR(numSamples);
 
