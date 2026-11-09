@@ -901,7 +901,7 @@ bool Voice::pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, 
 			continue;
 		}
 		for (int32_t c = d.first_cable; c < d.first_cable + d.num_cables; c++) {
-			const auto from = static_cast<PatchSource>(scope.slot_source[scope.cable_slot[c]]);
+			const auto from = static_cast<PatchSource>(scope.read_source[scope.cable_read[c]]);
 			if (from == PatchSource::ENVELOPE_0 || from == PatchSource::ENVELOPE_1 || from == PatchSource::LFO_GLOBAL_1
 			    || from == PatchSource::LFO_LOCAL_1 || from == PatchSource::LFO_GLOBAL_2
 			    || from == PatchSource::LFO_LOCAL_2 || from == PatchSource::RANDOM

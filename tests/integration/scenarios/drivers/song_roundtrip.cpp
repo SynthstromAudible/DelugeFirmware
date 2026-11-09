@@ -10,10 +10,8 @@
 //
 // Exit: 0 = settled; 1 = load error; 2 = usage/IO; 3 = fixed-point mismatch.
 //
-// The song is loaded beside the booted one, from the host file and never through the card. The firmware's
-// load<->execution couplings are gated, not faked:
-//   - AudioEngine yields gated via the active reader's shouldCallRoutines() (in-memory read).
-//   - View selection cleared before save (writeToFile serialises UI state).
+// The song is loaded beside the booted one, from the host file and never through the card. The view selection
+// is cleared before save, because writeToFile serialises UI state.
 
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
@@ -58,16 +56,10 @@ long load_then_save(char* xml, size_t xmlLen, deluge::storage::DocumentFormat fo
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-		// Point the active-reader gate at the adapter: its shouldCallRoutines()==false gates the
-		// AudioEngine render off during load (the in-memory tree never yields), as the streaming
-		// XMLDeserializer's callRoutines==false does. (Interior read sites like MIDIInstrument modKnobs take the
-		// reader as a parameter, so activeDeserializer itself need not point here.)
-		activeReader = &adapter;
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
-		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

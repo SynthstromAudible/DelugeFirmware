@@ -68,5 +68,7 @@ not an allocation), mirroring the cluster-miss fallback.
 (`AudioFileManager::loadAnyEnqueuedClusters`, which is *allowed* to allocate) is called separately from
 `routine()`/the SD routine, not from within `deluge_app_render()`. So a single flag set around the body of
 `deluge_app_render()` cleanly distinguishes "RT render" (no alloc) from the off-RT loader (alloc OK).
-`audioRoutineLocked` is **not** a suitable signal — it is also set by non-RT code (menus, sample browser,
-playback setup) to *prevent re-entry*, so it does not uniquely mean "inside render."
+The old `audioRoutineLocked` flag was **not** a suitable signal — non-RT code (menus, sample browser,
+playback setup) also set it to *prevent re-entry*, so it did not uniquely mean "inside render." Its replacements,
+`AudioEngine::AudioTickHold` and `AudioEngine::audioBusy()`, are not either: a hold is taken by non-RT code, and
+`audioBusy()` is true while one is alive.

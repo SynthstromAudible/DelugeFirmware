@@ -245,7 +245,7 @@ private:
 /// Legacy draws the horizontal-menu notification in its display's single popup slot, typed
 /// `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`), and other legacy code keys on that slot
 /// being occupied -- `View::displayModEncoderValuePopup` only re-reads its change cache while a
-/// `NOTIFICATION` popup is up (`gui/views/view.cpp:1221`). In the application two consumers pop
+/// `NOTIFICATION` popup is up (`gui/views/view.cpp`). In the application two consumers pop
 /// the one notice queue, legacy's `drain_notifications` and `Notices::drain`, so a notification
 /// either of them draws differently lands differently. With a sink installed, `Notices::drain`
 /// hands the notice to legacy's own slot instead of drawing it, which is exactly what the other

@@ -91,8 +91,6 @@ struct OracleOwner : public ParamCollection {
 	void playbackHasEnded(ModelStackWithParamCollection*) override {}
 	void grabValuesFromPos(uint32_t, ModelStackWithParamCollection*) override {}
 	void generateRepeats(ModelStackWithParamCollection*, uint32_t, uint32_t, bool) override {}
-	void appendParamCollection(ModelStackWithParamCollection*, ModelStackWithParamCollection*, int32_t, int32_t,
-	                           bool) override {}
 	void trimToLength(uint32_t, ModelStackWithParamCollection*, Action*, bool) override {}
 	void shiftHorizontally(ModelStackWithParamCollection*, int32_t, int32_t) override {}
 	void processCurrentPos(ModelStackWithParamCollection*, int32_t, bool, bool, bool) override {}

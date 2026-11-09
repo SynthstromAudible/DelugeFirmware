@@ -1357,7 +1357,6 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 		innerImage += innerImageTotalWidth * 3;
 		outerImage += outerImageTotalWidth * 3;
 	}
-	AudioEngine::routineWithClusterLoading();
 }
 
 void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSquareEndOnSourceImage,

@@ -37,7 +37,7 @@
 # `sound_editor.cpp:1891`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
-# (`gui/views/view.cpp:478`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
+# (`gui/views/view.cpp`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
 # the session view): both SIGSEGV at that line under gdb, in the ShellMenu-off leg, on an unmodified
 # tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
@@ -180,7 +180,7 @@
 # **The ported file selector, opened by a real press, over a real card.**
 #
 # Everything above drives menus. This drives **site 8**
-# (`gui/views/instrument_clip_view.cpp:503-520`), the only one of the eight gated
+# (`gui/views/instrument_clip_view.cpp:504-521`), the only one of the eight gated
 # `openUI(&soundEditor)` sites that names a *leaf* rather than a root -- legacy
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` at `:515`, the
 # guest's `openShellMenu(..., ShellMenuNode::Osc0FileSelector)` at `:507-511`. It is reachable from
@@ -366,7 +366,7 @@
 23400  snapshot note-editor-closed
 
 # 6. Hold the audition pad and press SELECT with it still held: the same SELECT_ENC arm, under
-# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:858`): `if (enterNoteRowEditor())`
+# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:859`): `if (enterNoteRowEditor())`
 # (`:858`). Legacy opens `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`: sequence direction,
 # probability, iterance, fill).
 23800  pad 17 4 down

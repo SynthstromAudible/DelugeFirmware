@@ -1,7 +1,7 @@
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lane_pack.h"
-#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/pack.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/noise/cong.h"
 

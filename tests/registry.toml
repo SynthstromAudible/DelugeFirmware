@@ -434,9 +434,9 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "a song with a sample synth, a wavetable, a sample kit drum and an audio clip, saved with collected media, must load back with each holder bound to its collected copy in the song's folder once the originals are gone, and with the audio clip's still-resident sample claimed from memory and the clip named after it. A synth preset and a kit preset whose samples exist only in the preset's own folder must load with each holder's path rewritten to that folder. A song loaded while playback runs must take the crucial-only pass, binding a sound only when its track's active clip is playing, a kit drum only when its row is unmuted and has notes, and every audio clip that is its track's active clip, and must then finish after its armed swap with every holder bound to its collected copy. Each load's routineWithClusterLoading count is reported. The crucial load, the full song, the synth preset and the kit preset must then each load again through AsyncSampleLoad, ticked from the interaction tier with every file it binds dropped from memory first, and the first three end as the blocking load did: the same holders bound to the same files. The kit's load is dropped after its first drum binds, as a cancelled preset load is, and must leave only that drum bound, from the kit's folder, with one lease on its file, no file built for the other drum and no answer kept by the loader for either, even once every request it left has answered. No load may read a sample from the card or probe a folder on the interaction tier. The song must also load when the folder's exists probe is held until every sample request has come back, and when the card is ejected while the probe is out the load must end on the unusable card, with a second load on the same context binding everything once the card is back. A synth preset load held past the stall bound must end Failed/Stalled on the bound's walk with nothing bound, and a second load must bind the sample once the hold is lifted. A load of only the song's wavetable, on a context whose folder probe a dropped load left out, must bind the wavetable to its collected copy. A load of the kit's second drum on a context that has learnt the kit's folder must bind the drum to its copy there, though a load of the same drum on no context, dropped with its request out, was answered with a miss first: a dropped load's answer is discarded, not taken by the next lookup of the path. The same must hold with both loads live: a load of the second drum on no context asks first, and a load of it on the context that knows the kit's folder, looking first once that answer is back, must bind the drum to its copy there rather than take the other load's miss for fewer candidates as its own."
+gates = "a song with a sample synth, a wavetable, a sample kit drum and an audio clip, saved with collected media, must load back with each holder bound to its collected copy in the song's folder once the originals are gone, and with the audio clip's still-resident sample claimed from memory and the clip named after it. A synth preset and a kit preset whose samples exist only in the preset's own folder must load with each holder's path rewritten to that folder. A song loaded while playback runs must take the crucial-only pass, binding a sound only when its track's active clip is playing, a kit drum only when its row is unmuted and has notes, and every audio clip that is its track's active clip, and must then finish after its armed swap with every holder bound to its collected copy. The crucial load, the full song, the synth preset and the kit preset must then each load again through AsyncSampleLoad, ticked from the interaction tier with every file it binds dropped from memory first, and the first three end as the blocking load did: the same holders bound to the same files. The kit's load is dropped after its first drum binds, as a cancelled preset load is, and must leave only that drum bound, from the kit's folder, with one lease on its file, no file built for the other drum and no answer kept by the loader for either, even once every request it left has answered. No load may read a sample from the card or probe a folder on the interaction tier. The song must also load when the folder's exists probe is held until every sample request has come back, and when the card is ejected while the probe is out the load must end on the unusable card, with a second load on the same context binding everything once the card is back. A synth preset load held past the stall bound must end Failed/Stalled on the bound's walk with nothing bound, and a second load must bind the sample once the hold is lifted. A load of only the song's wavetable, on a context whose folder probe a dropped load left out, must bind the wavetable to its collected copy. A load of the kit's second drum on a context that has learnt the kit's folder must bind the drum to its copy there, though a load of the same drum on no context, dropped with its request out, was answered with a miss first: a dropped load's answer is discarded, not taken by the next lookup of the path. The same must hold with both loads live: a load of the second drum on no context asks first, and a load of it on the context that knows the kit's folder, looking first once that answer is back, must bind the drum to its copy there rather than take the other load's miss for fewer candidates as its own."
 scenario = "sample_load_tree"
-markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-SUMMARY", "SLT-RESULT"]
+markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-RESULT"]
 result = "SLT-RESULT failures=0"
 check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render"]
@@ -528,7 +528,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice, and ~VoiceSlot -> VoiceSlot::set_as_unassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum, renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DELETEDRUM (InstrumentClipView::deleteDrum's steps: the note row's note stopped and the drum taken out of drumsWithRenderingActive, Kit::removeDrum, the note row's reassignment, then AudioEngine::retire; the only drum-delete site that can reach a sounding drum, since the preset-replace site kills the voices first and the folder-import, slicer and instrument-load sites only drop drums that never sounded) -- and requires Sound::soundsDestroyedWithLiveVoices() to be 0 for every path. Every deletion retires: the render ends the voices and deregisters the Sounds at the top of its next block and the memory is freed by the first reclaim after that once two blocks have begun, so each count is read after settle blocks, a leg whose objects are still waiting then fails, and SL-RECLAIM requires nothing retired to be left waiting at the end. SL-OPPORTUNISTIC requires a retire to free an older, already let-go object on its own (pending=1, with no reclaim-task tick in the step); SL-BURST retires 80 blank drums (past the 64-slot ring, into the overflow, drained 16 per block) and requires violations=0 (no drum destroyed while still in the Sound registry) and pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is missing, or a deletion (or its deferred destruction) ends the process -- a firmware freeze (E321 from Kit::removeDrum on a drum still in drumsWithRenderingActive) or a std::terminate -- in which case the leg still prints its count with aborted=1 and the step it died in."
+gates = "Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice, and ~SoundVoice -> SoundVoice::set_as_unassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum, renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DELETEDRUM (InstrumentClipView::deleteDrum's steps: the note row's note stopped and the drum taken out of drumsWithRenderingActive, Kit::removeDrum, the note row's reassignment, then AudioEngine::retire; the only drum-delete site that can reach a sounding drum, since the preset-replace site kills the voices first and the folder-import, slicer and instrument-load sites only drop drums that never sounded) -- and requires Sound::soundsDestroyedWithLiveVoices() to be 0 for every path. Every deletion retires: the render ends the voices and deregisters the Sounds at the top of its next block and the memory is freed by the first reclaim after that once two blocks have begun, so each count is read after settle blocks, a leg whose objects are still waiting then fails, and SL-RECLAIM requires nothing retired to be left waiting at the end. SL-OPPORTUNISTIC requires a retire to free an older, already let-go object on its own (pending=1, with no reclaim-task tick in the step); SL-BURST retires 80 blank drums (past the 64-slot ring, into the overflow, drained 16 per block) and requires violations=0 (no drum destroyed while still in the Sound registry) and pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is missing, or a deletion (or its deferred destruction) ends the process -- a firmware freeze (E321 from Kit::removeDrum on a drum still in drumsWithRenderingActive) or a std::terminate -- in which case the leg still prints its count with aborted=1 and the step it died in."
 scenario = "sound_lifetime"
 markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNISTIC", "SL-BURST", "SL-RECLAIM", "SL-RESULT"]
 result = "SL-RESULT failures=0"
@@ -573,6 +573,23 @@ group = "app"
 runtime = "~1m"
 
 [[harness]]
+name = "playhead-moves"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "The interaction tier moves the playhead only with the render excluded. The render ticks the sequencer, so a write the interaction tier makes to playback position state while a clock runs -- a lane cursor, a clip's or note row's position, the next-event schedule, the playback mode or state -- can be seen half made by a render block that preempts it; each such move runs in one section that holds the render off (src/deluge/playback/move_section.h), and nothing in it allocates or logs undo, since on the device a section masks interrupts for its length. Each leg makes one move through the app's own entry point and reports PM-<LEG> stray=<n> masked_alloc=<n> masked_actions=<n> hash=<h>, all three counts required 0: START, RESTART, CONTINUE (external clock, mid-loop), SPP (a MIDI song position pointer), TOARRANGER, TOSESSION, UNDO, CLIPLENGTH, CLIPSHIFT (a quarter of the loop: the volume cursor on the shifted lane, cursor=1), ROWMUTE, ROWLENGTH, ROWDIRECTION, LATESTART and UNSOLO (the launched or restarted clips in phase), the injection legs, which run a render block inside a move: INJECTSTART and INJECTAFTERMOVE (no tick before the clock is published) and INJECTLAUNCH (the launched clip in phase), and ARRANGERRECORD (a switch to the arranger beginning arrangement recording), CLONE and RESUME (a clip cloned for a recorded change and the original resumed), SELFREPAIR (a node past its lane's length played from its published snapshot: the render writes no lane, and the interaction tier erases the node at its request) and CLIPSTOP (a synth clip with expression stopped: the render writes no lane and plays 0, and the interaction tier makes 0 the base at its request). First PM-EFFECTS checks the section on its own: effects deferred in order and run once the outermost section ends with the render running again, none collected on the render. PM-SPAN lines report each section site's longest host wall time (and how long ticks were held), not judged; each leg's hash= is informational, for comparing a change's run with its base's by hand. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran."
+scenario = "playhead_moves"
+result = "PM-RESULT failures=0"
+check = "tests/integration/checks/playhead_moves.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "app"
+runtime = "~30s"
+
+[[harness]]
 name = "card-reinsert"
 path = "."
 level = "integration"
@@ -587,6 +604,23 @@ requires = []
 tier = "nightly"
 group = "app"
 runtime = "~6s"
+
+[[harness]]
+name = "audio-tick-hold"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the audio tick's hold and re-entry guard, on the booted app: no hold alive means ticks are not held (ATH-IDLE); an AudioEngine::AudioTickHold holds them for its scope and releases them after (ATH-HOLD), and nested holds release only when the outermost ends (ATH-NESTED); a held tick does nothing, routine_task() false and routine() 0 without reaching the routine body (ATH-HELD); routine() called from inside routine() returns 0 without running the body again (ATH-REENTRY); and a throw out of routine() does not latch its re-entry guard, so the next deluge_app_audio_tick() reaches the routine body (ATH-THROW), which a guard left set would silence for good"
+scenario = "audio_tick_hold"
+markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY", "ATH-THROW"]
+result = "ATH-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "app"
+runtime = "~2s"
 
 [[harness]]
 name = "stem-export"
@@ -2153,7 +2187,7 @@ level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format parser and its corpus differential, the sample fill/reader/source/stream crates"
+gates = "every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format corpus differential (deluge-sdk runs the parser's own tests), the sample fill/reader/source/stream crates"
 run = ["cargo", "nextest", "run", "--profile", "ci"]
 junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
 requires = ["cargo", "cargo-nextest"]
@@ -2168,7 +2202,7 @@ level = "unit"
 runner = "cargo"
 kind = "unit"
 status = "gate"
-gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its rza1-alloc pin fails here instead of being rewritten."
+gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its deluge-sdk pin fails here instead of being rewritten."
 run = ["cargo", "test", "--locked"]
 requires = ["cargo"]
 tier = "pr"
@@ -2188,50 +2222,6 @@ requires = ["cargo", "clang", "arm-none-eabi-gcc"]
 tier = "pr"
 group = "storage"
 runtime = "~1m"
-
-# --lib --tests: the crate's doc example copies resources/fat16.img into a tmp/ directory that exists only in the
-# upstream repository, so it fails here for want of the directory, not for anything it tests.
-[[harness]]
-name = "embedded-fatfs"
-path = "crates/embedded-fatfs"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the vendored embedded-fatfs's own tests: directory, file and allocation operations on FAT12/16/32 images"
-run = ["cargo", "test", "--lib", "--tests"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~1m"
-
-[[harness]]
-name = "block-device-adapters"
-path = "crates/block-device-adapters"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the block-device adapters: buffered and stream views over a block device must read and write the bytes the device holds"
-run = ["cargo", "test"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~30s"
-
-[[harness]]
-name = "block-device-driver"
-path = "crates/block-device-driver"
-level = "unit"
-runner = "cargo"
-kind = "unit"
-status = "gate"
-gates = "the block-device driver trait's tests"
-run = ["cargo", "test"]
-requires = ["cargo"]
-tier = "pr"
-group = "storage"
-runtime = "~30s"
 
 # The host drivers (tests/integration/scenarios/drivers/): whole-program checks of the project model, each run as a
 # golden_vt_render scenario on the booted app from the state its process once started in (driver.h). The corpus ones
@@ -2673,6 +2663,25 @@ group = "model"
 runtime = "~5s"
 
 [[harness]]
+name = "arrangement-take"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take_baselines): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio clip, a bar each) recorded from the start with a knob turned on each clip, cloning it into a take that repeats it at every loop end, must leave every take's length and lanes byte for byte as the baseline's and render the same output (RS-TAKE, RS-PCM); what the render plays across each repeat must be the take's appended lanes (RS-TAKE-PLAYED); every knob turn must land in its take (RS-KNOB); every repeat, a half-bar row's at its own end included, must be staged and swapped in at its loop end and each audio take's next take be a spare made on the interaction tier (RS-TAKE-REPEATS); once recording ends no spare or staged snapshot may be left (RS-TAKE-LEFT) and every collection must publish its model's lanes (RS-TAKE-STALE); and the render must neither read nor write a lane in the model (RS-SNAPSHOT)"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-TAKE-REPEATS", "RS-TAKE-LEFT", "RS-TAKE-STALE", "RS-KNOB", "RS-SNAPSHOT"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/arrangement_take.py"
+env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
 name = "audio-clip-edit-diff"
 path = "."
 level = "integration"
@@ -2831,21 +2840,6 @@ tier = "pr"
 group = "tooling"
 runtime = "~1s"
 
-# tier = "manual": a fuzzer has no natural end; this bounds one run to a minute, for when the parser changes.
-[[harness]]
-name = "audio-format-fuzz"
-path = "crates/deluge_audio_format/fuzz"
-level = "component"
-runner = "script"
-kind = "fuzz"
-status = "gate"
-gates = "the audio-format header parser must not panic, overrun or loop on arbitrary input"
-run = ["cargo", "+nightly", "fuzz", "run", "parse", "--", "-max_total_time=60"]
-requires = ["cargo-fuzz"]
-tier = "manual"
-group = "unit"
-runtime = "~2m"
-
 [[harness]]
 name = "dsp-bench-parser"
 path = "tools"
@@ -2998,7 +2992,7 @@ kind = "sanitizer"
 status = "gate"
 gates = "the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its record's state, so a record freed under it would read freed memory)"
 scenario = "sample_load_tree"
-markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-SUMMARY", "SLT-RESULT"]
+markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-RESULT"]
 result = "SLT-RESULT failures=0"
 check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render-asan"]

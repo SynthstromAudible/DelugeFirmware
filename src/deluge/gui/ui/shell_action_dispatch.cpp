@@ -283,7 +283,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 	else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 		// `start.h:45-47`. The `&&` order is legacy's and is load-bearing rather than stylistic:
 		// `getCurrentOutputType()` dereferences `currentSong->getCurrentClip()->output`
-		// (`model/song/song.cpp:135-137`), so it is only ever asked once the root is known to be a
+		// (`model/song/song.cpp:136-138`), so it is only ever asked once the root is known to be a
 		// clip view.
 		return StemExportType::DRUM;
 	}

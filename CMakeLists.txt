@@ -294,7 +294,7 @@ set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
 # it runs every DSP case once at boot, before the app starts, and prints its BENCH lines over RTT; without it the
 # benchmark is not compiled into the app, and its boot hook is empty. src/deluge/CMakeLists.txt applies it.
 option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
-# Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Lanes cases beside their mono
+# Which case list a bench image runs: "kernels" (one case per component), "lanes" (the Linked cases beside their mono
 # kernels), "chain" (stages as separate passes beside the same stages as one Chain), "delay" (the whole delay block,
 # fused, over real tapes), "filters" (each filter and the filter set, as a voice runs them), "compressor" (fully wet
 # and blended, as its owners call it), "mod_fx" (each mod FX type as its owners render it through effects::ModFx) or
@@ -303,14 +303,15 @@ option(DELUGE_DSP_BENCH "Run the DSP benchmarks at boot (device builds)" OFF)
 # engine renders it), "dx7" (a DX7 voice's block in each engine, through the voice adapter), "fx_chains" (each home's effect
 # chain runtime beside the same sequence written out over its components), "fft_forward" and "fft_inverse" (the int32
 # real FFT at every size the firmware transforms), "mod_matrix" (today's q31 Patcher on the mod-matrix workload),
-# "va_shapes" (the virtual-analog shapes as a voice renders them, free-running and hard-synced), or "pitch_shift" (the
-# sample reader's resampled read and the live pitch shifter).
+# "va_shapes" (the virtual-analog shapes as a voice renders them, free-running and hard-synced), "pitch_shift" (the
+# sample reader's resampled read and the live pitch shifter), "float_filters" (the float filters in Mono, Poly, Linked
+# and Bank) or "float_voice" (the float oscillators, envelope and a whole voice in Mono, Poly and Linked).
 # The device prints about 70 lines over RTT before it drops some, so the cases come in lists that fit.
 set(DELUGE_DSP_BENCH_CASES "kernels" CACHE STRING
-    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, reverb, dx7, fx_chains, fft_forward, fft_inverse, mod_matrix, va_shapes or pitch_shift")
+    "The DSP bench's case list: kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, reverb, dx7, fx_chains, fft_forward, fft_inverse, mod_matrix, va_shapes, pitch_shift, float_filters or float_voice")
 set_property(CACHE DELUGE_DSP_BENCH_CASES PROPERTY STRINGS kernels lanes chain delay filters compressor mod_fx granular stutter
                                                            reverb dx7 fx_chains fft_forward fft_inverse mod_matrix
-                                                           va_shapes pitch_shift)
+                                                           va_shapes pitch_shift float_filters float_voice)
 
 # The streaming benchmark (src/deluge/bench/stream_bench.h). Off by default; enable with -DDELUGE_STREAM_BENCH=ON. A device
 # image built with it loads the first song after boot, plays it, loads the second while playing, and prints where each

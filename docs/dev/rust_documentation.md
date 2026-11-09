@@ -1,8 +1,7 @@
 # Rust documentation style
 
 How the Rust in this repository is documented: `crates/`, `src/bsp/rust/`, and the Rust harnesses
-under `tests/component/differential/`. The vendored crates (`crates/embedded-fatfs`,
-`crates/block-device-*`) keep their upstream style.
+under `tests/component/differential/`.
 
 Two goals, in order: **accurate**, then **short**. A comment says what the code is and guarantees
 now, and why; it says it once, where a reader looks for it.

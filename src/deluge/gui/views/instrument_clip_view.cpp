@@ -101,6 +101,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -164,7 +165,7 @@ void InstrumentClipView::openedInBackground() {
 
 	recalculateColours();
 
-	AudioEngine::routineWithClusterLoading();
+	AudioEngine::runRoutine(); // Renders only during boot, before the audio tier takes the render over.
 
 	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 
@@ -6883,6 +6884,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	uiNeedsRendering(getCurrentUI(), rowUpdateMask, 0);
 
 	if (playbackHandler.isEitherClockActive() && currentClip->isActiveOnOutput()) {
+		deluge::playback::MoveSection section{"InstrumentClipView::commandQuantizeNotes"};
 		currentClip->expectEvent();
 		currentClip->reGetParameterAutomation(modelStack);
 	}
@@ -7220,6 +7222,7 @@ abandonModRegion:
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 	if (playbackHandler.isEitherClockActive() && modelStackWithTimelineCounter->song->isClipActive(currentClip)) {
+		deluge::playback::MoveSection section{"InstrumentClipView::nudgeNotes"};
 		currentClip->expectEvent();
 		currentClip->reGetParameterAutomation(modelStackWithTimelineCounter);
 	}

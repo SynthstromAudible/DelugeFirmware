@@ -208,9 +208,6 @@ bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t
 
 void Source::detachAllAudioFiles() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
-		if (!(e & 7)) { // 7 works, 15 occasionally drops voices - for multisampled synths
-			AudioEngine::routineWithClusterLoading();
-		}
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
 	}
 }

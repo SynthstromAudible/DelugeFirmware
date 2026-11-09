@@ -57,12 +57,10 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {
 		deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-		activeReader = &adapter;
 		e = openTreeFile(adapter, "song", format);
 		if (e == Error::NONE) {
 			e = deluge::bridge::loadSong(*song, adapter);
 		}
-		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

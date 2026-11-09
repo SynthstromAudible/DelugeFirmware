@@ -59,7 +59,6 @@ const fft::RealFft* getConfig(int32_t magnitude) {
 		fft::Twiddles twiddles = layout.twiddles;
 		fft::factor(twiddles);
 		fft::generate_stage_twiddles(twiddles);
-		AudioEngine::routineWithClusterLoading();
 		fft::generate_super_twiddles(twiddles);
 		transforms[magnitude] = new (block) fft::RealFft{twiddles, layout.scratch};
 	}

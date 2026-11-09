@@ -92,9 +92,6 @@ public:
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong) override {}
-	void appendParamCollection(ModelStackWithParamCollection* modelStack,
-	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) override {}
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) override {}
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,

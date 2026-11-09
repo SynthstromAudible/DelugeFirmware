@@ -1430,8 +1430,6 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	// Only written at peaks, so clear out whatever the allocator left here
 	memset(floatIndexTable, 0, (kPitchDetectWindowSize >> 2) * sizeof(float));
 
-	AudioEngine::routineWithClusterLoading();
-
 	/*
 	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
 	uint16_t startTime = MTU2.TCNT_0;
@@ -1449,15 +1447,10 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	*/
 	AudioEngine::logAction("bypassing culling in pitch detection");
 	AudioEngine::bypassCulling = true;
-	AudioEngine::routineWithClusterLoading();
 
 	// Go through complex-number FFT result, converting to positive (pythagorassed) heights
 	int32_t biggestValue = 0;
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
-
-		if (!(i & 1023)) {
-			AudioEngine::routineWithClusterLoading();
-		}
 
 		int32_t thisValue = deluge::dsp::fixed::fft::magnitude(fftOutput[i]);
 		if (thisValue > biggestValue) {
@@ -1490,10 +1483,6 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	// Go through again doing the running sum, interpolating exact peak frequencies, and deleting everything that's not
 	// a peak
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
-
-		if (!(i & 255)) {
-			AudioEngine::routineWithClusterLoading();
-		}
 
 		int32_t thisValue = fftHeights[i];
 
@@ -1544,8 +1533,6 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	float bestFundamentalIndex;
 	int32_t bestStrength = 0;
 
-	int32_t peakCount = 0;
-
 	// For each peak, evaluate its strength as a contender for the fundamental
 	for (int32_t i = minFundamentalPeakIndex; i < maxFundamentalPeakIndex; i++) {
 
@@ -1554,11 +1541,6 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 		}
 
 		// We're at a peak!
-
-		if (!(peakCount & 7)) {
-			AudioEngine::routineWithClusterLoading(); // Rohan 15 works. 7 is extra safe
-		}
-		peakCount++;
 
 		float fundamentalIndexHere;
 		int32_t strengthHere =

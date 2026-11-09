@@ -57,7 +57,7 @@ These numbers explain the cost of a streaming q31 loop:
    sample ([Chain](#chain)); fusing never turns one kernel's slow loop into a fast one.
 2. **Unrolling (`U`) helps little for streaming kernels.** A gain unrolled two, three or four vectors per iteration
    gains at most about 12%. The loop is bound by the multiply's issue rate and the store, not by latency.
-3. **Interleaving independent streams (`Lanes<K, N>`) is for recursive kernels.** A filter or envelope whose next
+3. **Interleaving independent streams (`Linked<K, N>`) is for recursive kernels.** A filter or envelope whose next
    sample depends on its last is latency-bound. N independent streams interleaved hide the latency when N is at least
    the recurrence latency divided by the whole per-lane issue cost: N ≥ latency ÷ (the lane's instructions ÷ about
    1.5, counting 2 cycles per multiply). The divisor is everything a lane issues, not the critical operation's issue
@@ -114,7 +114,7 @@ shared blocks padded off 1 KB multiples:
 
 ## Lanes
 
-Cycles per channel-sample on the device for `Lanes<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
+Cycles per channel-sample on the device for `Linked<K, N>` (`one_pole_x2` and on), each beside its kernel's `Mono` case
 from the same image. The bench ran on 5c4df244f (2026-10-09), `DELUGE_DSP_BENCH_CASES=lanes`; the `kernels` list from
 the same tree gives the same `Mono` figures to within 0.01.
 
@@ -135,9 +135,9 @@ the same tree gives the same `Mono` figures to within 0.01.
   `lanes=` field gives `stereo_gain` per frame, twice the figure here.
 - **"Op-major" names the form the source asks for, not a different loop.** Over interleaved frames clang compiles the
   op-major and lane-by-lane forms to the same instructions at the shipping flags (`OnePole` at N = 2 and 4,
-  `ShiftTracker` at N = 4), so these are the figures of `Lanes` at each N, whichever form a kernel takes. Opting in is
+  `ShiftTracker` at N = 4), so these are the figures of `Linked` at each N, whichever form a kernel takes. Opting in is
   a shape and test guarantee, not a speed-up; another kernel opts in only when a probe shows its op-major loop beating
-  lane by lane, or a `LanePack` specialisation lane by lane cannot reach.
+  lane by lane, or a `Pack` specialisation lane by lane cannot reach.
 - **`OnePole` at N = 2 is issue-bound.** The loop is 12 instructions per frame (two `smmulr`, `ldrd`/`strd`, no calls,
   no `muls`), and the PTM trace gives 12 cycles per iteration in 95% of them: one instruction per cycle, with the two
   multiplies' latency hidden. What remains is issue: a loop of the same 12 instructions per frame has measured 11.1
@@ -241,7 +241,7 @@ the in-place digital chain.
   two `ldr`s rather than one `ldrd`, 9 instructions per tap-frame against 8. A chain cannot express it yet: it needs a chain that steps a stereo frame, with a `Packed`/`PerChannel` adaptor for its per-channel
   parts. It is deferred to the mod-FX rewrite (`.superpowers/findings/fir-form-spike/`).
 - **The in-place loop's remedy class.** Where a bench shows the in-place stall matters, the remedy is a one-frame
-  software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
+  software pipeline in the `Linked`/`Mono` loop: load frame i + 1 before storing frame i, so the next load's address
   never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
   in-place cost is register allocation around its tap loops (above), which the pipeline would not remove.
 - **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags
@@ -766,6 +766,193 @@ throughout.
   follower stepped through `kernel_ops::step_at`, and the shifter is level with the legacy.
 - Copying the play head's state per segment instead of stepping it in place (`kStateInPlace = false`) is slower (+7%
   to +24%): the head's interpolator window is 64 bytes.
+
+## Float kernels across lanes
+
+The `float_filters` list (`DELUGE_DSP_BENCH_CASES=float_filters`) times the float kernels in `Mono`, `Poly` (2 and 4
+independent streams, one per NEON lane), `Linked` (2 lanes through one configuration) and an SVF `Bank` (one input
+into four band-pass copies, summed). Every case runs under flush-to-zero, as the float instrument will, in the
+device's `-funsafe-math-optimizations` build, over 128-sample blocks of seeded noise scaled to ±1. The smoother is
+configured again every block (the target alternates ±0.5), inside the timed region. Medians of three runs of one image
+on the rig (2026-11-08), n = 128, cycles per channel-sample; the bank is per input sample, and does four filters' work
+on each. At n = 128 the three runs agree exactly on every case.
+
+| case | cycles per channel-sample | Poly over Mono |
+|---|---:|---:|
+| fp_one_pole_mono | 19.03 | |
+| fp_one_pole_poly2 | 12.47 | 1.53x |
+| fp_one_pole_poly4 | 8.38 | 2.27x |
+| fp_one_pole_linked2 | 11.06 | 1.72x (Linked) |
+| fp_smoother_mono | 15.18 | |
+| fp_smoother_poly4 | 9.01 | 1.68x |
+| fp_svf_mono | 26.17 | |
+| fp_svf_poly2 | 16.50 | 1.59x |
+| fp_svf_poly4 | 12.49 | 2.10x |
+| fp_svf_linked2 | 15.65 | 1.67x (Linked) |
+| fp_svf_bank4_sum (per input sample) | 34.02 | 3.08x (four Monos) |
+
+Controls: `calibration_loop` 32.03, `delay_feedback_chain_analog` 165.89, `delay_feedback_chain_digital` 12.41.
+
+Poly at four lanes runs the one-pole 2.27x and the SVF 2.10x faster than Mono per channel-sample, and at two lanes
+1.53x and 1.59x. The smoother gains 1.68x at four lanes, where Poly also pays four configures per block inside the
+timed region. Linked at two lanes, whose frames are interleaved in memory and need no transpose, is a little cheaper
+than Poly at two lanes on the one-pole (11.06 against 12.47) and the SVF (15.65 against 16.50). The four-band bank
+costs 1.3 Mono SVFs per input sample, 3.08x less than four Monos.
+
+What Poly and Bank pay for, read from the image's disassembly: Poly's loop tests each lane's parked bit before its
+load and its store (a mask held in a register or a stack slot, a branch per lane per N frames), and the transpose's
+half-swaps are two `vext.64` each; the SVF at four lanes spills a few q registers to the stack. Bank steps four samples,
+transposes their four packs and adds them as packs, one `vst1.32` per four samples; its tail mixes a sample at a time.
+The arithmetic is the source's, in the source's order: the Bank and Poly SVF loops compute
+`v1 = a1·ic1 + a2·v3`, `v2 = ic2 + a2·ic1 + a3·v3` and `(v1 + v1) − ic1` as written.
+
+At n = 128 the controls sit above the earlier tables in this file (analog chain 162.86 to 165.89, +1.9%; digital
+11.35 to 12.41, +9%): the whole list runs under flush-to-zero and in a different image layout, and the controls bound
+how much the image moved the rest, so read the float figures with that margin.
+
+## Float voice slice
+
+The `float_voice` list (`DELUGE_DSP_BENCH_CASES=float_voice`) times the float oscillators (`fp::BlepOscillator` and
+`fp::TableOscillator`, both sawtooth), `fp::Envelope`, and a whole voice, `Chain<oscillator, fp::Svf,
+fp::Vca<fp::Envelope>>`, in `Mono`, `Poly` (2 and 4 independent voices, one per NEON lane) and `Linked` (2 lanes through
+one configuration). Every case is a generator, run under flush-to-zero in the device's `-funsafe-math-optimizations`
+build, over 128-sample blocks. Lane l's pitch is 0.0041 + 0.0137·l of the sample rate, and the voice's SVF is a low-pass
+at cutoff 0.03 + 0.05·l, Q 0.8 + l. The envelope and voice cases come in two regimes. The **transition-heavy** cases
+(`fp_envelope_mono`, `fp_envelope_poly4`, `fp_voice_blep_{mono,poly2,poly4,linked2}`, `fp_voice_table_poly4`) are
+gated: lane l gets a gate-on once in 8 blocks and a gate-off 4 blocks later, 2·l blocks behind lane 0, and the lane
+programs differ (ADSR, four-segment, ASR), so the lanes sit in different stages. The gate cycle is 8 blocks (1024
+samples at n = 128) with the gate-off 4 blocks after the gate-on, and the programs' stage times are 15 to 93 samples
+(time constants for the exponential stages, lengths for the linear ones); the gate events are inside the timed region.
+The **sustain** cases (`fp_envelope_sustain_poly4`, `fp_voice_blep_sustain_{mono,poly4}`) gate every lane on once at
+setup, render 8192 samples so that every stage before the sustain has finished, and time blocks with no gate event and
+no stage change. A held note is in steady state between its stage changes, so the two regimes bound the cost: the
+sustain figures are the steady state, the transition-heavy ones a stage change on every lane in turn. Medians of three
+runs of one image on the rig (2026-11-08), n = 128, cycles per channel-sample; the three runs agree to within 0.1 on
+every case.
+
+| case | regime | cycles per channel-sample | Poly over Mono |
+|---|---|---:|---:|
+| fp_blep_saw_mono | | 52.14 | |
+| fp_blep_saw_poly2 | | 24.38 | 2.14x |
+| fp_blep_saw_poly4 | | 19.55 | 2.67x |
+| fp_table_saw_mono | | 48.11 | |
+| fp_table_saw_poly2 | | 36.91 | 1.30x |
+| fp_table_saw_poly4 | | 31.58 | 1.52x |
+| fp_envelope_mono | transition-heavy | 26.48 | |
+| fp_envelope_poly4 | transition-heavy | 27.39 | 0.97x |
+| fp_envelope_sustain_poly4 | sustain | 23.36 | |
+| fp_voice_blep_mono | transition-heavy | 95.99 | |
+| fp_voice_blep_poly2 | transition-heavy | 70.11 | 1.37x |
+| fp_voice_blep_poly4 | transition-heavy | 55.38 | 1.73x |
+| fp_voice_blep_linked2 | transition-heavy | 96.35 | 1.00x (Linked) |
+| fp_voice_blep_sustain_mono | sustain | 95.51 | |
+| fp_voice_blep_sustain_poly4 | sustain | 50.78 | 1.88x |
+| fp_voice_table_poly4 | transition-heavy | 69.08 | |
+
+Controls: `calibration_loop` 32.02, `delay_feedback_chain_analog` 165.90, `delay_feedback_chain_digital` 12.35
+(the filters' list: 32.03, 165.89, 12.41).
+
+The envelope advances by one affine map per stage and ends a stage on a threshold test, and the lanes' end test is one
+NEON reduction and one move to a core register. Measured on the same cases against the previous build (select-and-flag
+envelope, 13-instruction mask test), in cycles per channel-sample: envelope Mono 36.73 to 26.48, Poly at four lanes
+30.05 to 27.39 (held 25.83 to 23.36); voice Mono 110.07 to 95.99 (held 108.57 to 95.51), Poly at four lanes 62.61 to
+55.38 (held 57.82 to 50.78), Poly at two lanes 94.53 to 70.11. The oscillators did not change (the BLEP saw at 52.14
+and 19.55 is the same figure), and the table voice at four lanes, 69.76 to 69.08, moved least.
+
+**Oscillators.** The BLEP saw gains the most from Poly, 2.14x at two lanes and 2.67x at four: its step is arithmetic
+only and its per-lane compare-and-select runs across the lanes. The table saw gains 1.30x and 1.52x (its Poly at four
+lanes read 30.49 on an earlier image of the same code, 31.58 here: image-to-image variance of about 3.6%, not a code
+change). **Envelope.** In the transition-heavy regime Poly at four lanes costs 27.39 against Mono's 26.48, so the lanes
+buy nothing there: the stage-end handler is scalar and runs once per lane that ends a stage, and the gate events are
+out-of-line calls into one lane. The held envelope costs 23.36 against 27.39, 15% less. The transition-heavy figure
+depends on the block size more than the others do (Poly at four lanes: 43.53 at n = 32, 32.53 at 64, 27.39 at 128),
+consistent with work that costs a fixed amount per block; the list does not separate the gate events from the handler.
+
+**Whole voice.** The filters' 2.1 to 2.3x does not carry to a voice. Poly at four lanes runs the held BLEP voice 1.88x
+faster than its Mono, and the transition-heavy voice 1.73x faster than its Mono; at two lanes the transition-heavy voice
+gains 1.37x. The held voice at four lanes, 50.78, is 8% below the sum of its parts at four lanes (oscillator 19.55, SVF
+12.49 from the filters' list, held envelope 23.36: 55.40), and the envelope is 46% of the voice. Why the chain runs
+below the sum of its parts is not established. In Mono the transition-heavy voice, 95.99, is 8% below the sum of its
+parts (52.14 + 26.17 + 26.48 = 104.79). `Linked` at two lanes, which steps each lane's scalar chain one after the other,
+is level with Mono (96.35 against 95.99).
+
+**Table against BLEP.** In Mono the table saw is 8% cheaper than the BLEP saw (48.11 against 52.14). Under Poly at four
+lanes it is 62% dearer (31.58 against 19.55), and a transition-heavy table voice at four lanes costs 69.08 against 55.38
+for the BLEP voice, 25% more. The table's read is a gather: each lane loads its own two neighbouring samples from its
+own band, and a NEON register cannot do that in one instruction. The table saw at four lanes executes 5.99 more
+instructions per sample than the BLEP saw (13.74 against 7.75). The four bands (8 KB each in the 90 KB set, in SDRAM)
+also share the 32 KB data cache with the voice's own state: per channel-sample, the table voice at four lanes counts
+0.13 L1D refills and 4.44 data-cache stall cycles, the BLEP voice none, and the table saw alone 0.03 and 1.19. The
+table cases move by a few percent between images of the same list, so read them to a few percent.
+
+**Codegen.** The `fp_voice_blep_poly4` hot loop (the SAW and LOW_PASS mode of the chain's `run`) takes one frame per
+iteration in 73 instructions, loop control included: 23 vadd/vsub, 12 vmul, 11 vld1 and 5 vst1 (four of state
+quadwords, one of the voice's output), and 3 reload a pointer from the stack. There is no `vfma`, `vmla` or reciprocal
+estimate anywhere in the function, so the arithmetic is the source's, in the source's order. The loop has no call on
+its common path: its one call, to the envelope's scalar stage handler, is taken only when a lane has reached the end
+of a stage. Each frame tests for that with a `vcge` against the threshold, a `vorr` of the two halves, a `vpmax.u32`,
+one `vmov` to a core register, then `cmp` and `beq`: six instructions, one NEON-to-core move, which is part of the
+per-frame cost of the voice even when no lane reaches a stage end. The executed instruction counts per frame (four
+channel-samples): 128.8 for the transition-heavy voice, 107.0 for the held voice. Against the 73-instruction loop, 56
+instructions per frame (43%) execute outside it in the transition-heavy case and 34 (32%) in the held case; those
+include each group's prologue and the 4x4 transpose with its four stores, spread over four frames, and the stage
+handler where it runs.
+
+**Placement and build.** The saw-band set is 90,156 bytes of storage written once by `build_saw_bands()`. In the
+device's on-chip SRAM the `float_voice` image does not link (`.sdram_init_pack` overlaps `.rtt_cached_reserve`); the
+storage is `PLACE_SDRAM_BSS`, in SDRAM, where it is all-zero at boot as the section requires. With it there the image's
+SRAM heap starts at 0x20283fe0 against 0x20276590 for the `float_filters` image from the same tree (56 KB more for the
+list), 422 KB of heap left. The one build takes 71.7 million cycles on the device with cold caches, about 0.18 s at the
+A9's 400 MHz, and belongs off the audio tier at boot.
+
+### Ladder and drift
+
+The same list times `fp::Ladder` alone, as a processor over the filters' noise input (`fp_ladder_{clean,drive}_{mono,
+poly4}`: lane l on LP24, LP12, HP and BP in turn, cutoff 0.02 + 0.03·l, resonance 2, drive 2, compensated), and the
+ladder voice `Chain<fp::BlepOscillator, fp::Ladder, fp::Vca<fp::Envelope>>` (`fp_voice_ladder_{mono,poly4}`: the BLEP
+voice's saws, programs, gains and gate schedule through a CLEAN LP24 ladder at cutoff 0.03 + 0.05·l, resonance 2). In
+the voice cases every lane has its own `fp::Drift` (time 32 blocks), stepped once per block and applied as a voice's
+owner would, the pitch by up to 3 cents and the cutoff by up to 5%: each lane's whole chain is configured again at the
+start of every block, inside the timed region. Medians of three runs of one image on the rig (2026-11-08), cycles per
+channel-sample; the runs agree to within 0.1 on every case.
+
+| case | n = 32 | n = 64 | n = 128 | Poly over Mono (128) |
+|---|---:|---:|---:|---:|
+| fp_ladder_clean_mono | 181.46 | 180.72 | 180.36 | |
+| fp_ladder_clean_poly4 | 71.73 | 70.55 | 69.97 | 2.58x |
+| fp_ladder_drive_mono | 696.20 | 695.22 | 695.26 | |
+| fp_ladder_drive_poly4 | 302.60 | 301.37 | 300.81 | 2.31x |
+| fp_voice_ladder_mono | 374.47 | 311.26 | 279.84 | |
+| fp_voice_ladder_poly4 | 241.87 | 175.31 | 142.48 | 1.96x |
+| fp_voice_blep_mono (SVF, no drift) | 105.25 | 99.17 | 96.20 | |
+| fp_voice_blep_poly4 (SVF, no drift) | 74.71 | 61.54 | 55.36 | 1.74x |
+
+**The ladder.** CLEAN costs 180.36 in Mono and 69.97 at four lanes, 5.6 times the SVF's 12.49 at four lanes (filters'
+list). Its step is one dependent chain (the feedback sum, the resolved input, the saturator, four stages in series), so
+Mono spends more cycles waiting than issuing: 72.3 instructions and 108.2 issue-empty cycles per sample. Four lanes
+hide part of that, 2.58x, in line with the SVF's 2.10x. DRIVE runs the four stages twice and saturates every stage's
+input, eight saturators (four in each of two passes) against one: 3.85 times CLEAN in Mono (695.26) and 4.30 times at four lanes (300.81), above the
+2 to 3 times the design estimated. At four lanes one DRIVE voice is about 13 million cycles a second at 44.1 kHz,
+3.3% of the A9's 400 MHz; one CLEAN voice is 0.8%.
+
+**The ladder voice.** At four lanes and n = 128 the drifting ladder voice costs 142.48, 2.57 times the SVF voice
+(55.36); in Mono 279.84, 2.91 times. Its parts at four lanes (BLEP saw 19.55, CLEAN ladder 69.97, transition-heavy
+envelope 27.39) sum to 116.91, 25.6 below the voice. The voice depends on the block size far more than its parts:
+fitting cost = c + K/n to n = 32 and 128 gives K of about 4,240 cycles per lane per block at four lanes (4,040 in
+Mono), against about 820 (390) for the SVF voice, which is gated on the same schedule but configured once. The
+difference, about 3,400 cycles per lane per block, is the inferred cost of reconfiguring the whole chain every block
+(the coefficients in double: the oscillator's increment, the ladder's tan_pi and loop terms, and the envelope's
+program), not a separate measurement. At n = 128 that is about 27 cycles per channel-sample, a fifth of the voice.
+
+**Aliasing (host).** A measure in `float_ladder_spec` (`aliasing`) drives an additive saw, alias-free, through the
+ladder and reports the energy more than 8 bins from every harmonic over the fundamental's, under a four-term
+Blackman-Harris window over 65,536 samples (the saw alone reads −96 dB). Into LP24 at cutoff 0.2: at f0 = 0.0213
+(about 1 kHz), CLEAN at resonance 0 −42.7 dB, CLEAN at resonance 3.5 −25.9 dB, DRIVE at resonance 3.5 and drive 8
+−27.1 dB; at f0 = 0.005 (about 240 Hz) all three are at −91 to −93 dB. The saturators fold their harmonics back into
+the band on high notes in both flavours, CLEAN's at resonance as much as DRIVE's; at resonance 3.5 the figure may also
+include any non-periodic response of the loop, which the measure does not separate. The PolyBLEP saw itself, by the
+same measure, reads −29.8 dB at f0 = 0.0213 and −66.8 dB at 0.005, so a BLEP voice's high notes carry the oscillator's aliasing as well as
+the ladder's.
 
 ## Open questions
 

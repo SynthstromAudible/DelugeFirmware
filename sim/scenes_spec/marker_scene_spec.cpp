@@ -1799,10 +1799,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// Legacy zooms only while the horizontal encoder's BUTTON is held
 		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `sample_marker_editor.cpp:661-671`), and
 		// both sides are driven through that gate rather than around it.
-		// `WaveformBasicNavigator::zoom` runs `PadLEDs::renderZoom()` on success
-		// (`waveform_basic_navigator.cpp:67`), and that pumps `AudioEngine::routineWithClusterLoading()`, which
-		// segfaults in a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
-		// without it this example does not fail, it takes the process down.
+		// `QuietAudio` keeps the audio routine still while the zoom runs (`support/card_access.h`).
 		spec::QuietAudio quiet;
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;

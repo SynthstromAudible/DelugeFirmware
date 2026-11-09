@@ -68,12 +68,10 @@ Song* loadSong(std::string_view bytes, deluge::storage::DocumentFormat format) {
 		return nullptr;
 	}
 	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(format));
-	activeReader = &adapter;
 	Error e = openTreeFile(adapter, "song", format);
 	if (e == Error::NONE) {
 		e = deluge::bridge::loadSong(*song, adapter);
 	}
-	activeReader = &smDeserializer;
 	if (e != Error::NONE) {
 		return nullptr;
 	}

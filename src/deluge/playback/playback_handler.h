@@ -21,7 +21,6 @@
 #include "runtime/app_loop.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
-#include <atomic>
 #include <cstdint>
 
 enum class RecordingMode {
@@ -65,8 +64,9 @@ public:
 	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true,
 	                                     bool restartingPlayback = false, bool restartingPlaybackAtBeginning = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
-	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
-	                   bool shouldShiftAccordingToClipInstance = true,
+	/// @brief [interaction] Set up playback from @p playFromPos with the render's ticks held: the clips are positioned
+	///        and may begin recording before any tick reads them. The caller publishes the clock with releaseTicks().
+	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool shouldShiftAccordingToClipInstance = true,
 	                   int32_t buttonPressLatencyForTempolessRecord = 0);
 	void endPlayback();
 	void inputTick(bool fromTriggerClock = false, uint32_t time = 0);
@@ -247,10 +247,8 @@ public:
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
-	/// @brief Whether a start-up from stopped is under way: `setupPlayback` may have published `playbackState`, but the
-	///        timebase the clock ticks from is set only when the start-up ends, so the render must not tick yet.
-	///        [audio]
-	bool isClockStarting() const { return clockStarting_.load(std::memory_order_acquire); }
+	/// @brief [render] Whether a playback being set up holds the render's ticks back.
+	[[nodiscard]] bool ticksHeld() const { return ticksHeld_; }
 
 	// TEMPO encoder commands
 	void commandDisplaySwingAmount();
@@ -271,11 +269,33 @@ public:
 	float calculateBPMForDisplay();
 
 private:
-	class ClockStartHold;
-	/// Set by a `ClockStartHold`, read by the render: see isClockStarting().
-	std::atomic<bool> clockStarting_{false};
-
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
+	/// @brief [interaction] Publish the clock setupPlayback() held: the internal clock's first tick is due now, and the
+	///        render ticks from its next block.
+	void releaseTicks();
+	/// @brief [render] or [interaction] Hold the render's ticks while a switch moves the playhead in steps that run
+	///        outside a section between them (a mode switch, a song swap); resumeTicks() lets them run again, catching
+	///        up any that fell due.
+	/// @return Whether they were held already: what resumeTicks() restores.
+	bool holdTicks();
+	/// @brief [render] or [interaction] End the hold holdTicks() began.
+	/// @param wasHeld What that holdTicks() returned: a hold within another keeps the outer one.
+	void resumeTicks(bool wasHeld);
+
+	/// [interaction] -> [render] Set while setupPlayback() positions the clips, cleared when the clock is published;
+	/// written only with the render held off.
+	bool ticksHeld_ = false;
+	/// @brief [render] or [interaction] Bring the next-event schedule forward to the next swung tick, if one is due.
+	void scheduleNextEvent();
+	/// @brief [interaction] A hold of the ticks begins: when, for the span reported when they resume.
+	void noteTicksHeld();
+	/// @brief [interaction] The ticks resume: record how long they were held.
+	void noteTicksResumed();
+#if ALPHA_OR_BETA_VERSION || defined(DELUGE_HOST)
+	/// When the ticks were last held from the interaction tier, in the spans' µs; 0 when not held, or held by the
+	/// render.
+	uint64_t ticksHeldSinceUs_ = 0;
+#endif
 
 	// These are all only relevant while playing synced.
 	uint32_t timePerInternalTickMovingAverage{};        // Recalculated every ~24 clocks
@@ -319,12 +339,3 @@ private:
 };
 
 extern PlaybackHandler playbackHandler;
-
-#if defined(DELUGE_HOST)
-namespace deluge::playback {
-/// @brief The host harness's stand-in for the audio tier preempting a start-up from stopped: when set,
-///        `PlaybackHandler::setupPlayback` calls it right after it publishes `playbackState`, where a render block can
-///        land on the device. Null outside a spec that installs it.
-inline void (*renderPreemptsStartupForHarness)() = nullptr;
-} // namespace deluge::playback
-#endif

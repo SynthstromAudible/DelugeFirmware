@@ -226,7 +226,7 @@ It is detected by name, so a `prepare` of any other shape (a template on the
 mode, a non-static member, a mismatched overload) fails the concept instead of
 being skipped. The signature is matched by converting `&K::prepare` to a pointer
 to that exact function type, so a template whose parameters deduce to it is
-accepted, and a `prepare` taking any other type is rejected, never converted. `n` is the block's length and may be 0: an empty block still prepares. The compressor is the exception: its `prepare` divides by `n`, its owner skips empty blocks, and a bare Mono, Chain or Lanes use of it must not pass `n = 0`.
+accepted, and a `prepare` taking any other type is rejected, never converted. `n` is the block's length and may be 0: an empty block still prepares. The compressor is the exception: its `prepare` divides by `n`, its owner skips empty blocks, and a bare Mono, Chain or Linked use of it must not pass `n = 0`.
 The wrapper runs `prepare` on the wrapper's own state, before it takes the
 local copies the loop runs on, so the loop's state stays in registers.
 
@@ -236,7 +236,7 @@ A kernel may declare `Context`, a plain value its owner passes to each block
 (`has_context<K>`; the synth's noise stream is the one use). Its step form then
 takes the context last: `step(c, b, s, Context&)`, `step(c, b, s, x, Context&)`
 or `step(c, b, s, a, b2, Context&)`, the counted partial step taking it after the
-`ActiveLanes` tag. `Mono` and `Lanes` give such a kernel only context-taking
+`ActiveLanes` tag. `Mono` and `Linked` give such a kernel only context-taking
 `render`/`render_block`/`render_lane` overloads, so an owner cannot forget it: the
 wrapper copies the owner's context into a local before the block, hands that
 local to every step of every lane in order (lane 0 then lane 1 within each
@@ -960,7 +960,7 @@ alone.
   response's history.
 - **Nesting.** A chain is a kernel, so it can be a part of another chain;
   `Chain<Chain<A, B>, C>` steps as `Chain<A, B, C>`.
-- **Op-major.** A chain declares no `kLanePackable`, so `Lanes<Chain<…>, N>` and
+- **Op-major.** A chain declares no `kLanePackable`, so `Linked<Chain<…>, N>` and
   `Stereo<Chain<…>>` step it lane by lane: each lane runs every part before the
   next lane starts.
 
@@ -1000,7 +1000,7 @@ alone.
 
 `chain_spec` (`tests/dsp`) pins a chain against its parts run in sequence: every
 form, every mode combination switched block by block, in place and out of place,
-`reset_part`, nesting, and `Stereo` and `Lanes` against per-lane `Mono`s.
+`reset_part`, nesting, and `Stereo` and `Linked` against per-lane `Mono`s.
 
 ### The domain rules
 
@@ -1118,9 +1118,9 @@ per-sample loop, so a `Mono` of one would be inert.
   per sample nests it (see [Composition](#composition)). The same holds for
   `Stereo<K>::render`.
 
-### `Lanes<K, N>` (`core/lanes.h`)
+### `Linked<K, N>` (`core/linked.h`)
 
-`Lanes<K, N, F>` runs one scalar kernel on N independent streams at once (channels, voices, a ladder's sections): one
+`Linked<K, N, F>` runs one scalar kernel on N independent streams at once (channels, voices, a ladder's sections): one
 `Coefficients` shared by every lane, one `State` per lane. It is a generator, processor or mixer to match `K`'s step
 arity, as `Mono` is. A staged or control kernel is rejected at the class: neither has a step to run per lane.
 
@@ -1141,8 +1141,8 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   kernel can be stepped this way. A kernel drawing from a stream every lane shares (noise) draws in lane order on every
   frame.
 - **Op-major, the opt-in.** A kernel written once over its value type steps a whole frame as one
-  `LanePack<q31, N>` (`core/lane_pack.h`), each operation across every lane before the next. Each pack operation is
-  its scalar operation applied lane by lane, so op-major equals lane by lane bit for bit, and `lanes_spec` checks every
+  `Pack<q31, N>` (`core/pack.h`), each operation across every lane before the next. Each pack operation is
+  its scalar operation applied lane by lane, so op-major equals lane by lane bit for bit, and `linked_spec` checks every
   opted-in kernel against its lane-by-lane form. A kernel opts in by declaring:
   - `static constexpr bool kLanePackable = true`;
   - `template <class V> struct StateT`, every member a V, with `using State = StateT<q31>`;
@@ -1152,7 +1152,7 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
 
   `lane_packable<K>` (`core/kernel.h`) detects the opt-in. A kernel with a `prepare` or a `reset` quirk stays lane by
   lane, since both act on one lane's State. A kernel that declares the opt-in without its state and step written over
-  V fails to compile in `Lanes` rather than falling back.
+  V fails to compile in `Linked` rather than falling back.
 
   An op-major step must not draw noise, or from any other stream the lanes share: it steps every lane in one call, so
   one draw would reach every lane, where lane by lane draws once per lane in lane order. A kernel that needs noise does
@@ -1166,7 +1166,7 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   the left channel and stereo blocks through both, and the voice moves between them mid-note (unison stereo spread,
   stereo samples), so the left channel's state must carry across. A separate `Mono<K>` beside the `Stereo<K>` would drop
   it at every switch. The mono loop costs what a dedicated mono loop does
-  ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `lanes_spec` checks it against that lane's `Mono` at every
+  ([a9_dsp_performance.md](a9_dsp_performance.md#filters)). `linked_spec` checks it against that lane's `Mono` at every
   width and on every lane.
 - **State.** `state(lane)` returns a snapshot of the lane's State by value in both forms, and `Stereo`'s `left()` and
   `right()` do the same: later blocks do not update a copy taken earlier.
@@ -1174,7 +1174,7 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   `OnePole` at N = 2 and 4 and `ShiftTracker` at N = 4 give the same bytes either way. Opting in guarantees the shape
   in the source and the bit-exact check against lane by lane; it is not a speed-up. `OnePole` and `ShiftTracker` opt
   in. A further kernel opts in only when a probe at the shipping flags shows its op-major loop beating its lane-by-lane
-  one, or when a `LanePack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
+  one, or when a `Pack` specialisation exists (a hand-written or NEON operation) that lane by lane cannot reach.
 - **The loop.** Each frame is loaded whole, its lanes stepped, and then it is stored. Every input frame is read whole
   before any lane of its output is written, so input and output may be the same buffer. Where the pointer steps fall
   against the store is clang's choice: rendered in place (one span as input and output, as the delay renders its
@@ -1182,61 +1182,32 @@ arity, as `Mono` is. A staged or control kernel is rejected at the class: neithe
   is computed after a pending store. On the A9 such a load waits for that store's data. Check the in-place disassembly,
   and bench in place what ships in place. The digital feedback chain measures the same in place as out of place
   ([a9_dsp_performance.md](a9_dsp_performance.md#chain)), and so is left as it is; the remedy class, once a bench shows
-  the stall matters, is a one-frame software pipeline in the `Lanes`/`Mono` loop: load frame i + 1 before storing
+  the stall matters, is a one-frame software pipeline in the `Linked`/`Mono` loop: load frame i + 1 before storing
   frame i, so the next load's address never follows the store.
 - **The State copy.** The loop runs on local copies of the coefficients and every lane's loop state, written back
   after the block, as in `Mono`, so that scalar state can live in registers while the output may alias the component.
   Only scalar state gains from it. An array in a State never lives in registers, so it is copied in and out for
   nothing, at a cost that grows with its size: the delay's feedback chain as `Stereo` copies 416 bytes in and out per
-  block, about a cycle per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Lanes`
+  block, about a cycle per channel-sample in digital mode at n = 128 and 6–7% of the whole fused digital delay. `Linked`
   takes both of `Mono`'s traits (above), per lane: `kLoopState` copies only each lane's loop state, and
   `kStateInPlace` steps each lane's member loop state with no copy, so a kernel with a big ring (a reverb's combs, a
   chorus's or flanger's line) declares it. `prepare` runs on each lane's member State, and `on`, `reset` and
   `state(lane)` see the whole State. `render_lane` follows the same rules for its one lane.
-- **Neither trait is op-major.** A kernel declaring `kLoopState` or `kStateInPlace` is not `lane_packable`, so `Lanes`
+- **Neither trait is op-major.** A kernel declaring `kLoopState` or `kStateInPlace` is not `lane_packable`, so `Linked`
   steps it lane by lane, as it does a kernel with a `prepare` or a `reset` quirk. An op-major kernel has no `prepare`,
   so nothing but an event would write a State outside its loop, and its packed State is per-block registers by
   design.
-- **`Stereo<K>` is `Lanes<K, 2, StereoSample>`** (below).
-- **Measure every use.** N is per kernel, 2 by default. Each use of `Lanes` gets a bench case at its N (the `lanes`
+- **`Stereo<K>` is `Linked<K, 2, StereoSample>`** (below).
+- **Measure every use.** N is per kernel, 2 by default. Each use of `Linked` gets a bench case at its N (the `lanes`
   list in [Measuring](#measuring)), because clang's scheduling, addressing and encoding choices move the same work by
   10–60%, and a compiler upgrade can undo a win. The measured figures are in
   [a9_dsp_performance.md](a9_dsp_performance.md#lanes).
 
-#### Stereo effects with slots
-
-Design guidance for the first effect that needs it (likely the P3c-3 phaser or chorus). None of this is implemented.
-
-Which kernel form an effect takes follows from where its state is shared:
-
-| Effect shape | Kernel form |
-|---|---|
-| Independent streams, each with its own recurrence (stereo filter, per-voice envelope) | `Lanes<K, N>` / `Stereo<K>` |
-| Channels sharing state (chorus, flanger, ping-pong delay, linked compressor) | one kernel stepping `StereoSample` under `Mono` |
-| Parallel work inside one sample (taps, slots, bands) | `LanePack` inside that kernel's step |
-
-An effect with slots (several voices, taps or bands per channel) falls in one of two families.
-
-- **Slots share state**: taps or heads reading one buffer (chorus, ensemble, multi-tap delay).
-  - One `StereoSample` kernel templated on `Slots`, with a `LanePack<q31, 2 * Slots>` of taps (L0 R0 L1 R1 …) inside
-    `step`. Per-slot settings are packs in its `Coefficients`.
-  - A runtime slot count is a mode (`SLOTS_2`, `SLOTS_4`). `State` is sized for the maximum, and the mode is dispatched
-    once per block.
-  - It needs two `LanePack` additions: a gather load, and a strided lane sum.
-- **Each slot is its own stateful processor**: a parallel filter, comb or allpass bank.
-  - A `Slots<K, S, Mix>` adaptor kernel over a lane-packable K. It broadcasts the stereo frame to 2·S lanes, takes one
-    op-major step over `StateT<LanePack<q31, 2S>>`, and reduces the even lanes to L and the odd lanes to R.
-  - It needs `CoefficientsT<V>` (per-lane coefficients written over V), broadcast-interleave, a lane slice for a
-    runtime slot count, and the adaptor itself.
-  - It is the case that would lift the op-major adoption freeze (a kernel opts in only on a probe's evidence, above),
-    because a slot bank has no cheap lane-by-lane layout.
-  - Measure register pressure first: `OnePole` HIGH_PASS at N = 4 already spills its one shared coefficient.
-
 ### `Stereo<K>` (`core/stereo.h`)
 
 `Stereo<K>` runs a mono q31 processor kernel on both channels of a `StereoSample` block. It is
-`Lanes<K, 2, StereoSample>` with the channels named: `left()` and `right()` are `state(0)` and `state(1)`. Everything
-in [`Lanes`](#lanesk-n-corelanesh) holds for it:
+`Linked<K, 2, StereoSample>` with the channels named: `left()` and `right()` are `state(0)` and `state(1)`. Everything
+in [`Linked`](#linkedk-n-corelinkedh) holds for it:
 
 - **Shared coefficients, a state per channel.** `configure` calls `K::coefficients` once and both channels step with
   the result; `reset()` resets both.
@@ -1285,10 +1256,10 @@ is the block.
 
 ### The shared glue
 
-`Mono`, `Lanes` (so `Stereo`) and `Control` call a kernel only through
+`Mono`, `Linked` (so `Stereo`) and `Control` call a kernel only through
 `kernel_ops` (`core/kernel.h`): `prepare_block`, `dispatch_mode`, then
 `step_at`, `process_at` or `advance_at` for the kernel's form, or
-`dispatch_mode` then `step_packed_at` for an op-major `Lanes`. So the
+`dispatch_mode` then `step_packed_at` for an op-major `Linked`. So the
 `prepare`, mode dispatch and form call exist once, and a composed kernel calls
 its parts through the same functions. Each passes the coefficients as a const
 reference, so the call resolves to the form's own signature even when a kernel
@@ -1308,7 +1279,7 @@ overloads it on non-const `Coefficients`.
   (or the range borrowed), since a view of a temporary would dangle.
 - **`Stereo<K>`** (`core/stereo.h`) runs a mono q31 processor kernel on each
   channel: one `State` per channel and one shared `Coefficients`. It is
-  `Lanes<K, 2, StereoSample>`, a `processor` over `StereoSample`. Each frame steps
+  `Linked<K, 2, StereoSample>`, a `processor` over `StereoSample`. Each frame steps
   the left channel and then the right, so a shared noise stream is drawn left
   then right on every frame, bit-exact. `configure(const K::Settings&)` sets both channels from one
   `Settings`. See [Wrappers](#wrappers).
@@ -1355,59 +1326,275 @@ overloads it on non-const `Coefficients`.
   remove the cross-voice dependence, change the output and belong to the
   audible re-baseline.
 
-## Slotting-ready rules
+## Copies across lanes
 
-Lane-parallel SIMD processes independent streams, one per NEON lane: four voices'
-filters in one `int32x4` pass. It is its own arc, after the component rewrites.
-These rules keep that arc a matter of adding kernels rather than rewriting
-components, and they bind every rewrite:
+Feedback (a filter's state, a smoother's value) stops SIMD inside one signal: sample i + 1 needs sample i. Across
+independent copies there is no such dependence. `Poly<K, N>` and `Bank<K, N, Mix>` run N copies of one float kernel,
+one copy per NEON lane of a `Pack<f32, N>`, each with its own settings. The copies are voices (`Poly`) or the bands of
+a bank fed one signal (`Bank`). Both take a float kernel written once over its value type, the `poly_kernel` contract,
+and `Mono<K>` runs the same kernel as `f32`, the scalar reference. `Linked<K, N>` (above) is the case where the copies
+share one set of settings.
 
-1. `Coefficients` and `State` are plain value structs, with no pointers and no
-   hidden members. A lane kernel can then be built from N scalar ones (packed
-   SoA) and can reuse the scalar coefficient function per lane.
-2. Mode is a per-block policy (see [Kernels](#kernels-corekernelh-coremodeh)).
-   Lanes must agree on mode, never on settings.
-3. Nothing is hidden: no globals, and noise is injected.
-4. The scalar component is the reference. A lane kernel is a separate component,
-   checked lane by lane against it.
+These rules bind every kernel that runs across lanes, and every component rewrite that may become one:
 
-### Target API for the lane arc
+1. **`Coefficients` and `State` are plain value structs**, with no pointers and no hidden members. A kernel declares
+   `template <class V> struct CoefficientsT` and `StateT`, aliased at `f32` as `Coefficients` and `State`, and each
+   names its V members in `static constexpr auto fields`, a tuple of member pointers. `set_lane(packed, lane, scalar)`
+   and `get_lane<S>(packed, lane)` (`core/poly_kernel.h`) copy one lane between a packed struct and a scalar one
+   through `fields`, so the scalar `coefficients(settings)` is the only coefficient code and every lane's arithmetic is
+   the scalar kernel's. A member that is not a V is not a field; `mode` is the one such member, because every lane of
+   an adaptor shares it.
+2. **Mode is a per-block policy** (see [Kernels](#kernels-corekernelh-coremodeh)). The adaptor dispatches the one
+   mode once per block, over the kernel's `Modes`. Copies must agree on mode, never on settings: `configure` asserts a
+   lane's mode matches the others', and `set_mode` changes every lane's from the next block.
+3. **Nothing is hidden**: no globals, and a kernel that draws noise is not a `poly_kernel` (it declares no Context),
+   because drawing for N copies at once would reorder a shared stream. Per-copy noise streams are a deliberate,
+   ear-checked, re-baselined step of their own.
+4. **The scalar component is the reference.** Every lane of `Poly`, `Linked` and `Bank` is bit-identical to `Mono`
+   given the same settings, on every target; the specs check each lane against `Mono` under random per-lane settings.
+   A case that cannot meet this is a finding, not a tolerance.
 
-This arc is NEON across voices: one kernel's arithmetic on SoA packs, a voice
-per vector lane, each lane with its own settings. It is distinct from
-[`Lanes<K, N>`](#lanesk-n-corelanesh), which steps a scalar kernel over
-interleaved frames with one shared `Coefficients`. The sketch below names its
-class `Lanes` too; it takes another name when it lands.
+Two rules on the arithmetic itself, because a float kernel's result depends on how the compiler rounds it:
 
-```cpp
-template <class K> concept lane_kernel = /* K::Scalar (the scalar component), K::Coefficients<N>, K::State<N>
-                                           (SoA packs), static Vec step(const Coefficients<N>&, State<N>&, Vec) */;
+- **Fusion is explicit.** A multiply-add is written `mul_add(a, b, c)` (`core/pack_f32.h`), which is fused where the
+  target has a fused float multiply-add (`kFusedMulAdd`: AArch64, ARMv7 with VFPv4, an x86 host built with `-mfma`) and
+  unfused on the Cortex-A9. The `f32` overload follows the same constant, so `Mono` and every lane fuse together. A
+  step, a `prepare` and a `coefficients` function open with `#pragma clang fp contract(off) reassociate(off)
+  reciprocal(off)`, and so does each of `Pack<f32, N>`'s operations, which `core/pack_f32.h` writes on a GNU vector
+  in its own bodies rather than through Argon or `arm_neon.h`, whose bodies would compile under the including
+  translation unit's flags. Clang fixes an operation's float semantics where its body is compiled, so the compiler
+  neither fuses, reorders nor takes a reciprocal on its own, whatever flags the including translation unit has (the
+  device's `-funsafe-math-optimizations` among them). Their `_unsafe_math` spec twins hold every lane to `Mono`
+  under those flags. No-signed-zeros stays set under them (`#pragma float_control(precise, on)` is ignored on 32-bit
+  ARM); it can change at most the sign of a zero. Output is bit-identical across machines per fusion policy (the
+  unfused host build equals the A9); fused against unfused is held to a tolerance spec.
+- **Flush-to-zero everywhere.** ARMv7 NEON always flushes denormals; scalar VFP, AArch64 NEON and x86 SSE do only when
+  told. `fp::FlushToZero` (`core/flush_to_zero.h`) sets it for a scope and restores the previous control word, and the
+  scalar reference and the float instrument hold it, so every lane agrees with the reference.
 
-template <lane_kernel K, std::size_t N = 4>
-class Lanes {
-public:
-	using value_type = LaneVector<q31, N>;
-	void configure(std::size_t lane, const typename K::Scalar::Settings&); // scalar coefficients, packed
-	void reset(std::size_t lane);
-	void park(std::size_t lane);                                      // idle: frozen, output ignored
-	value_type render(value_type in);
-	void render_block(LaneSignal in, LaneBuffer out);                 // lane-interleaved chains
-	void render_block(std::array<fixed::Signal, N> in, std::array<fixed::Buffer, N> out); // 4x4 transpose
-	typename K::Scalar::State state(std::size_t lane) const;
-};
-```
+The float kernels are `fp::OnePole`, `fp::Smoother` and `fp::Svf` (`float/filter/`):
 
-How lanes behave:
-- A `Lanes` instance serves one mode. The voice engine groups voices by mode,
-  and each lane has its own settings.
-- A noiseless stereo voice takes two lanes, one per channel.
-- A kernel with a noise Context cannot satisfy `lane_kernel`.
-  Drawing for four voices at once would reorder the shared stream. Per-voice
-  noise is a deliberate, ear-checked, re-baselined step, and it belongs to the
-  lane arc.
+| Kernel | Modes | Settings per lane |
+|---|---|---|
+| `OnePole` (TPT one-pole) | `LOW_PASS`, `HIGH_PASS` | `cutoff`, as a fraction of the sample rate |
+| `Smoother` | `EXPONENTIAL`, `LINEAR` | `target`, `time` |
+| `Svf` (Simper/Cytomic TPT) | `LOW_PASS`, `BAND_PASS`, `HIGH_PASS`, `NOTCH` | `cutoff`, `q` |
 
-NEON on the Cortex-A9 has a 64-bit datapath, so expect roughly 2× on
-lane-parallel filter arithmetic, not 4×.
+`OnePole`'s and `Svf`'s `coefficients` clamp the cutoff to [1/48000, 0.49] and `Svf`'s Q to [0.5, 40], so no setting
+makes a NaN or an infinity. `Smoother` clamps nothing: its target is taken as given, a `time` of 0 or less jumps to
+the target, and `LINEAR`'s length is the block's n, at least 1. `Svf`'s `BAND_PASS` returns `v1`, which has gain Q at
+fc (`k·v1` is the unity-gain band-pass). `Smoother`'s `prepare` starts each block's ramp at the current value and
+takes the ramp's length from the block's n, so `LINEAR` lands exactly on the target at the last sample of whatever
+block is rendered.
+
+### `Poly<K, N>` (`core/poly.h`)
+
+`Poly<K, N>` is N copies of a `poly_kernel`, N = 2 or 4, each with its own settings and its own signal. Each frame, lane
+l carries copy l's sample, and one step over `Pack<f32, N>` steps all of them.
+
+- **Settings per lane.** `configure(lane, settings)` runs K's scalar `coefficients` and writes the result into that
+  lane through `fields`. `reset(lane)` returns a lane's state to K's reset state, and `state(lane)` reads it back as
+  a scalar `State`. The shared per-lane code is `detail::Copies<K, N>` (`core/copies.h`), which `Bank` uses too.
+- **One mode.** Every lane runs one mode, dispatched once per block. `configure` and `set_mode` set it; `configure`
+  asserts it matches once any lane is configured. The mode stays the last one set, even when every lane is parked.
+- **Per block.** A K that declares `prepare` has it called once per block on the packed coefficients and state
+  (K's `prepare` is a template over V), as `Mono` does for one copy. A block of length 0, or with every lane parked,
+  steps nothing but still runs `prepare` with n = 0.
+- **Parking.** A fresh `Poly` has every lane parked; `configure` un-parks a lane. `park(lane)` resets the lane's state
+  and holds it at `State{}` after every block, feeds it zero and leaves its output unwritten, until it is `configure`d
+  again. Lanes share nothing, so a parked lane perturbs no other, and a held state never decays into denormals. The
+  parked lanes are a bit mask, read once per block.
+- **The transpose.** `render_block(std::array<fp::Signal, N> in, std::array<fp::Buffer, N> out)` takes one span per
+  lane. Frames go in and out N at a time: N packs load one lane's N samples each, an N×N transpose turns them into
+  one pack per frame, the kernel steps each, and a transpose back stores each lane's samples. The last n mod N frames
+  go lane by lane. Every unparked lane's spans have the block's length; a parked lane's may be empty.
+
+On the A9 four lanes buy the 2x the 64-bit NEON datapath suggests: Poly at four lanes runs `OnePole` 2.27x and `Svf`
+2.10x faster than `Mono` per channel-sample, and at two lanes 1.53x and 1.59x; `Smoother`, configured every block,
+gains 1.68x at four. What the loop pays beyond the kernel's arithmetic is a parked-bit test per lane per N frames and
+the transposes. The figures and the bench are in
+[a9_dsp_performance.md](a9_dsp_performance.md#float-kernels-across-lanes).
+
+## Banks and taps
+
+Which kernel form an effect takes follows from where its state is shared:
+
+| Effect shape | Kernel form |
+|---|---|
+| Independent streams, each with its own recurrence (stereo filter, per-voice envelope) | `Linked<K, N>` / `Stereo<K>` |
+| Independent copies, each with its own settings, one signal in (a filter, comb or allpass bank) | `Bank<K, N, Mix>` |
+| Independent copies, each with its own settings and signal (voices) | `Poly<K, N>` |
+| Channels sharing state (chorus, flanger, ping-pong delay, linked compressor) | one kernel stepping `StereoSample` under `Mono` |
+| Parallel reads of one shared line (chorus, ensemble, multi-tap delay) | `Pack` inside that kernel's step, as `Taps<T, N>` (reserved) |
+
+An effect with several bands, taps or voices per channel is a bank of independent recurrences or a set of reads of one
+line.
+
+### `Bank<K, N, Mix>` (`core/bank.h`)
+
+`Bank<K, N, Mix>` is N copies of a `poly_kernel`, each with its own settings, reading one input: each sample is
+broadcast to every lane, one step over `Pack<f32, N>` steps every copy, and `Mix` reduces the lanes to the output.
+`configure`, `reset`, `state` and `set_mode` are `Poly`'s (the shared `detail::Copies`), as are the one mode per block
+and the `prepare` call once per block. N is 2 or 4. Each copy is bit for bit `Mono<K>` with its settings.
+
+| `Mix` | Output | `render_block` |
+|---|---|---|
+| `mix::Sum` | the lanes summed in lane order | `(in, out)` |
+| `mix::Weighted` | each lane times its gain (`set_gain(lane, gain)`, 1 until set), summed in lane order | `(in, out)` |
+| `mix::StereoPair` | even lanes to left, odd lanes to right: N = 4 left = lane 0 + lane 2, right = lane 1 + lane 3; N = 2 left = lane 0, right = lane 1 | `(in, left, right)` |
+
+The mix adds unfused, in lane order, so the output is the sum of the `Mono` outputs in that order. It takes N samples at
+a time: their N packs transpose into one pack per lane, which add as packs in lane order and store as one vector; the
+last n mod N samples mix one at a time. The bench times `Bank<Svf, 4, Sum>` at 34.02 cycles per input sample, 1.3
+`Mono` `Svf`s' work, 3.08x less than four `Mono`s.
+
+A bank is for copies that each carry their own state. Reads that share one line are `Taps`, below.
+
+### `Taps<T, N>` (designed, not built)
+
+`Taps<T, N>` is the name for N reads of one shared line: taps or heads on one buffer (chorus, ensemble, multi-tap
+delay). Nothing is implemented. The design is one `StereoSample` kernel templated on the tap count, with a
+`Pack<q31, 2 * Taps>` of reads (L0 R0 L1 R1 …) inside `step` and per-tap settings as packs in its `Coefficients`.
+
+- A runtime tap count is a mode (`TAPS_2`, `TAPS_4`). `State` is sized for the maximum, and the mode is dispatched once
+  per block.
+- It needs two `Pack` additions: a gather load, and a strided lane sum.
+- It is built with its first effect (TODO.md).
+
+## The float voice (`float/osc/`, `float/filter/`, `float/envelope/`, `float/vca/`, `float/mod/`)
+
+A voice is a generator, a filter and an amplifier, written once over the value type and run one voice per NEON lane:
+`Poly<Chain<oscillator, filter, fp::Vca<fp::Envelope>>, N>`, the filter `fp::Svf` or `fp::Ladder`. `Poly` runs generators (a source has no input signal to
+transpose); `Bank` takes processors only. The parts follow the rules above: plain-value `Coefficients` and `State`
+naming their V members in `fields`, a `step` that opens with the fp pragma, and every lane bit for bit `Mono`. The
+bench figures are in [a9_dsp_performance.md](a9_dsp_performance.md#float-voice-slice).
+
+### Oscillators
+
+Both oscillators share `step_phase` (`float/osc/phase.h`): the phase advances by the increment and wraps into [0, 1)
+with one compare and subtract, since the increment is below 1.
+
+**`fp::BlepOscillator`** is a saw or a pulse (`Mode::SAW`, `Mode::PULSE`) made from the naive waveform less a two-sample
+PolyBLEP residual at each discontinuity. A pulse is the saw less the saw `width` later, so each edge carries its own
+residual. `frequency` is f0/fs, clamped to [1e-6, 0.45]; `width` is clamped to [0.02, 0.98]. `coefficients` computes
+`1/inc` once, so the residual multiplies by `inv_inc` where it would divide by `inc`. The mode is the one shared member
+of the coefficients, dispatched once per block. The residual is a polynomial correction, not a band limit, and its
+response droops harmonic k by sinc²(k·f0), a treble roll-off that grows with pitch. The table below droops as linear
+interpolation does, about sinc²(h/2048) at harmonic h: the same at every pitch, and large only in the two richest bands
+(below about 47 Hz).
+
+**`fp::TableOscillator`** reads a band-limited saw from the band set, the band chosen for the pitch, the position
+linearly interpolated, and has no mode. Under `Poly` each lane reads its own band at its own position, so the two reads
+per sample are `gather(table, index)`: the index pack is built from `trunc_nonnegative(position)` (the whole part of a
+non-negative value below 2^23, a NEON convert), and the gather loads one `f32` per lane. A lane's `offset`, the band's
+first sample in the set, is a coefficient field. The scalar `gather` and `trunc_nonnegative` overloads in
+`core/pack_f32.h` make the same reads for `Mono`.
+
+**The band set** (`float/osc/saw_bands.h`) is 11 bands of 2048 samples plus a repeated first sample, so an
+interpolation at the top of the cycle reads inside the band. Band b holds harmonics 1 … 2^(10 − b): band 0 is the
+richest and band 10 a sine. `saw_band_for(inc)` picks the smallest b whose top harmonic h has h · inc < 0.5, so a band
+never aliases at its pitch. The set is 11 · 2049 · 4 = about 90 KB of `f32`.
+
+The set is built by an explicit `fp::build_saw_bands()`, called once before the first render and off the audio tier (a
+second call does nothing; `saw_bands()` asserts it ran). The build uses no library function, so it is the same on every
+target: the sines come from a table made by a rotation recurrence in double, and each sample sums in double from the
+sparsest band to the richest, each band adding its new harmonics to the band before, then stores as `f32`. The
+storage is a global in SDRAM on the device, all-zero until built; the build takes about 0.18 s on the A9, which is why
+it is explicit and not a static constructor. The Gibbs overshoot of a truncated series rides above ±1.
+
+### `Ladder` (`float/filter/ladder.h`)
+
+`fp::Ladder` is a four-pole ladder of its own design (not the q31 ladder's sound): four topology-preserving one-pole
+stages, `y = G·x + β·s` with `G = g/(1 + g)`, `β = 1 − G` and `g = tan(π·fc)`, under a feedback loop solved in closed
+form. With the stage memories `s₁…s₄`, the last stage's output is `G⁴·u + S`, `S = β·(G³s₁ + G²s₂ + G·s₃ + s₄)`, so
+the loop `u = in_gain·x − k·y₄` resolves to `u = (in_gain·x − k·S)·r` with `r = 1/(1 + k·G⁴)`: no delay in the
+feedback, so the ladder stays in tune and stable as the cutoff moves block to block, and no division in the step.
+Resonance `k` runs over [0, 4.5]: at 4 the loop gain at the cutoff is exactly 1 and an impulse rings on; above it an
+oscillation grows until the saturator holds it. `drive` (clamped to [1, 8]) scales the input into the saturator, and
+`compensate` scales it by `1 + k` so the low-pass DC gain stays at `drive` (1 at drive 1). Every setting clamps, NaN to the lower bound.
+`coefficients` computes `tan_pi`, `G`, `G⁴`, `r` and the gain in double, libm-free, and rounds each once.
+
+- **The response is five tap weights, not a mode.** The output is `w₀·u + w₁·y₁ + w₂·y₂ + w₃·y₃ + w₄·y₄`, summed left
+  to right. The presets (`Response`): LP24 (0, 0, 0, 0, 1), LP12 (0, 0, 1, 0, 0), HP (1, −4, 6, −4, 1), which is
+  `(1 − H)⁴` expanded over the taps, and BP (0, 0, 2, −4, 2), `2H²(1 − H)²`. `Settings` names a `response`, a
+  `morph_to` and a `morph` in [0, 1]; the weights are the two presets' interpolated in double at `configure`. The
+  weights are coefficient fields, so lanes of one `Poly` run different responses and morphs; the state never depends
+  on them, so the output is linear in them.
+- **The flavour is the one mode** (`Mode::CLEAN`, `Mode::DRIVE`), and both share the State, so switching between
+  blocks keeps it. CLEAN saturates the resolved input once and runs the linear stages. DRIVE saturates every stage's
+  input; that loop has no closed form, so the linear solution predicts `u`, a trial pass through the saturating
+  stages on a copy of the state gives the loop's error `f = u − in_gain·x + k·y₄`, one step `u ← u − f·r` corrects it
+  with the linear loop's slope (a fixed cost, no division), and the committed pass runs on the corrected `u`. On the
+  A9 DRIVE costs about 4 times CLEAN. The tap mixes assume each stage filters the one before, and DRIVE's stages
+  each saturate their own input, so its HP and BP are exact at small signals and leak a little of what they reject
+  when driven hard (a compensated HP at drive 8 and resonance 2 settles at −0.29 on a DC input of 0.5).
+- **The saturator** `fp::detail::soft_clip` (`float/math/detail.h`, over V) is the odd quintic
+  `x − 2x³/(3L²) + x⁵/(5L⁴)` on its input clamped to ±L, L = 15/8, ±1 beyond. Its slope `(1 − x²/L²)²` is 1 at 0,
+  never negative, and reaches 0 with zero curvature at ±L, so the curve enters the clamp with no corner. It is defined
+  by these properties, not as an approximation of tanh: a polynomial that meets the clamp cannot also follow tanh
+  closely. No division, as ARMv7 NEON has no vector divide.
+
+The ladder has no oversampling: on high notes its saturators fold harmonics back into the band (a host measure in
+`float_ladder_spec`; the figures are in [a9_dsp_performance.md](a9_dsp_performance.md#ladder-and-drift)).
+
+### `Drift` (`float/mod/drift.h`)
+
+`fp::Drift` is per-voice slow noise for wandering a voice's pitch and cutoff: a scalar object, one per voice, stepped
+once per block, not a kernel. Each `next()` draws a uniform value in [−1, 1] from a 32-bit xorshift (shifts 13, 17,
+5) and moves the value a fraction `a = 1 − e^(−1/time_blocks)` of the way towards it (a one-pole on white noise,
+through `mul_add`); `value()` reads the last result. `Settings` are `time_blocks` (at least 1) and `seed` (0 taken as
+1); `reseed` restarts the stream. It is libm-free and deterministic, so a seed gives the same stream on every target.
+The owner applies the value through `configure`, linearised: a cutoff `fc·(1 + d·depth)`, a pitch increment
+`inc·(1 + d·cents·ln2/1200)` (within 0.03 cent at ±10 cents). Reconfiguring a whole voice chain each block recomputes
+every part's coefficients; the bench's drifting ladder voice measures that cost.
+
+### `Envelope` (`float/envelope/envelope.h`)
+
+`fp::Envelope` runs a program of up to 8 segments. A `Segment` holds `target` (where it ends: the value lands on it
+exactly), `aim` (where an exponential segment heads, beyond the target for an analog-curve attack), `rate` (the
+one-pole coefficient, or a linear segment's length in samples), an exponential flag, a `hold` flag (stay until a
+gate-off, never reached) and `next` (the segment entered on reaching the target, or `kOff`). A `Program` is its
+segments, the first entered by a gate-on, and a `release` index a gate-off enters, or `kOff` to ignore gate-off. The
+flags and indices are 0/1 or whole numbers held in V, so a segment is a plain value like any coefficient.
+
+The State holds the current segment unpacked: value, target, aim, slope, flags, next, direction and an end tolerance.
+**The common path** is one step and one end-compare per sample on every lane at once: a one-pole step
+`value + slope · (aim − value)` or a linear one `value + slope`, selected per lane, then one test of whether any lane
+reached its target (in its direction, within 1e-5 for an exponential aiming at its own target, which only approaches
+it). **Transitions are rare and run scalar**: when `any(reached)`, each lane that did extracts its own scalar State and
+Coefficients, runs `enter` on its next segment and stores the result. Lanes reach on different samples, so the common
+path never branches per lane.
+
+- **Events.** `gate_on` enters segment 0 from the current value, so a retrigger never jumps. `gate_off` enters the
+  program's release from the current value, and is ignored by a program with none and by an envelope at rest.
+  `kOff` as a `next` rests at exactly 0.
+- **Clamps.** A time under one sample counts as one, for an exponential time constant and a linear length alike. The
+  builders compute the one-pole rate `1 − e^(−1/t)` libm-free (a Taylor series in double), and so the program is the
+  same on every target.
+- **The five programs.** `adsr` (exponential attack aiming at 1.2 and ending at 1, decay to the sustain, a hold, an
+  exponential release), `ad` (attack then decay to 0, ignoring gate-off), `asr` (attack, hold at 1, release),
+  `four_segment` (DX7-shaped: three linear rises, a hold, a gate-off fall to a fourth level and a hold) and
+  `looping` (two linear segments, forever).
+
+### `Vca<E>` (`float/vca/vca.h`)
+
+`fp::Vca<E>` is a processor: `y = (x · e) · gain`, in that order, where `e` is the next level of an envelope part `E`.
+`E`'s Settings, Coefficients and State nest in the Vca's, so a lane carries its own program, stage and gain, and the
+envelope steps once per sample whatever the signal. `gate_on` and `gate_off` forward to `E`, so
+`on<&Vca<E>::gate_on>` reaches the envelope of a `Mono` or of one lane of a `Poly` or `Bank`. `E` must be a float
+generator kernel with no modes and no `prepare`; the Vca `static_assert`s it, since a Vca adds neither.
+
+### Chain over V, and `part_event`
+
+A `Chain` whose parts are all `poly_kernel`s is itself one (see [`Chain` and `Pinned`](#chain-and-pinned-corechainh)):
+its Coefficients and State are built from the parts' `CoefficientsT<V>` and `StateT<V>`, so `Poly<Chain<…>, N>` steps
+the whole voice once per frame on a `Pack`, and `set_lane` and `get_lane` move one lane part by part. A moded part's
+mode sits beside the parts, shared by every lane.
+
+A part's event is reached through `part_event<I, Event>`: `Event(get<I>(c), get<I>(s), args…)`, or on the State alone.
+For the voice, `poly.on<part_event<2, &Vca<fp::Envelope>::gate_on>>(lane)` starts voice `lane`'s envelope. `Copies`
+keeps the shared members of the coefficients that are not fields (every part's mode among them) from the last
+`configure`, so an event on one lane sees the coefficients as `Mono` does.
 
 ## Layer 3: oscillator components
 
@@ -1462,8 +1649,8 @@ state fully into the engine is later work.
   audible, re-baselined step.
 - Mixing into the voice's buffer (unison and oscillator summing) is a mixer.
 - Filters, dynamics, delay, effects and the DX7 are kernels wrapped by `Mono`,
-  `Stereo` or `Control`, under the settings convention and the slotting-ready
-  rules; the DX7's `Graph` and `Voice` are components over them.
+  `Stereo` or `Control`, under the settings convention and the
+  [copies-across-lanes rules](#copies-across-lanes); the DX7's `Graph` and `Voice` are components over them.
 
 ## Effect chains (`effects/`)
 
@@ -1626,7 +1813,7 @@ memory.
     `Stereo<Svf>`, and `Stereo<HighPassLadder>` or `Stereo<Svf>`. A change of family rebuilds the member with a
     zero State.
   - **Blocks.** A stereo block runs the wrapper over its frames. A mono block runs lane 0 alone through `render_lane`
-    ([`Lanes`](#lanesk-n-corelanesh)), so the one object keeps both channels' state across a voice's mono and stereo
+    ([`Linked`](#linkedk-n-corelinkedh)), so the one object keeps both channels' state across a voice's mono and stereo
     blocks.
   - **The fades.** Each slot's fade is a `Mono<FadeInMono>` held beside the union, not inside it. A family change
     mid-fade rebuilds the filter and leaves the fade running, with nothing to copy.
@@ -1770,7 +1957,7 @@ its data-cache stalls 12,290 and 24,883), so those ratios measure where the data
 - **The rest of the kernel form.** Not implemented yet: `U` (the unroll factor
   of the wrappers' loops; stateful vector kernels opt in with `split`/`merge`,
   checked bit-exact against U = 1). `U` is chosen from device cycle-per-sample
-  measurements, as each `Lanes` use's N is.
+  measurements, as each `Linked` use's N is.
 - **The oscillator registry.** The `OscType` choice becomes a block-level
   registry composing generator, band selection, sync and `Amplitude` behind
   `AsBlock`.
@@ -1783,7 +1970,7 @@ its data-cache stalls 12,290 and 24,883), so those ratios measure where the data
 
 ## Measuring
 
-The choices of `U`, `Lanes` and fusion rest on device cycle counts, and the
+The choices of `U`, `Linked` and fusion rest on device cycle counts, and the
 build can take them. What the measurements have shown so far, and the rules for
 kernels that follow from them, are in [a9_dsp_performance.md](a9_dsp_performance.md). `DELUGE_DSP_BENCH` (CMake option, off by default) compiles
 the benchmarks in `src/deluge/bench` into the device image and runs them once at
@@ -1814,7 +2001,7 @@ The cases come in lists chosen by the CMake cache string
 it drops some:
 
 - `kernels` (the default): one case per component;
-- `lanes`: each `Lanes` case beside the mono case of its kernel;
+- `lanes`: each `Linked` case beside the mono case of its kernel;
 - `chain`: stages as separate passes beside the same stages as one `Chain` (the
   delay's feedback, analog and digital, and three mono stages), with each stage
   alone. The delay's cases build with the flags of the library the delay ships
@@ -2076,7 +2263,7 @@ gates:
   unless a part must run alone (see
   [`Chain` and `Pinned`](#chain-and-pinned-corechainh)), and bench the chain
   against its passes.
-- Does each new use of `Lanes` have a bench case at its N? Does a kernel opt in to
+- Does each new use of `Linked` have a bench case at its N? Does a kernel opt in to
   op-major without a probe showing its op-major loop beating lane by lane, or a
-  `LanePack` specialisation lane by lane cannot reach? See
-  [`Lanes<K, N>`](#lanesk-n-corelanesh).
+  `Pack` specialisation lane by lane cannot reach? See
+  [`Linked<K, N>`](#linkedk-n-corelinkedh).

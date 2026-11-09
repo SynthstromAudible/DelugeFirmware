@@ -395,8 +395,8 @@ impl EFatFs {
 
     /// Renames or moves `from` to `to`, both absolute paths.
     ///
-    /// Relies on the vendored crate's fix for multi-component destination paths in `Dir::rename`
-    /// (see `crates/embedded-fatfs/VENDOR.md`); upstream drops the destination's directories.
+    /// Relies on the fork's fix for multi-component destination paths in `Dir::rename` (see
+    /// deluge-sdk's `crates/embedded-fatfs/VENDOR.md`); upstream drops the destination's directories.
     pub fn rename(&self, from: &str, to: &str) {
         block_on(async {
             let root = self.fs.root_dir();

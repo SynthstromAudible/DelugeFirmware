@@ -141,7 +141,6 @@ void dispatch(Main main) {
 		// from them: an arpeggiator's sync level from the default magnitude, say).
 		Pinned current(currentSong, static_cast<Song*>(nullptr));
 		Pinned preloaded(preLoadedSong, static_cast<Song*>(nullptr));
-		Pinned reader(activeReader, activeReader);
 		Pinned fileReader(activeDeserializer, activeDeserializer);
 		Pinned sampleTimer(AudioEngine::audioSampleTimer, AudioEngine::audioSampleTimer);
 		Pinned randomNoise(deluge::synth_noise, deluge::dsp::fixed::Cong{kNoiseSeed});

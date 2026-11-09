@@ -63,8 +63,11 @@ Downward arrows (gui → model) are healthy. The defining problems are the
 - **Concurrency safety is ad-hoc discipline.** The UI mutates the model while
   the audio path reads it; safety rests on single-core cooperative scheduling
   plus hand-placed guards at call sites that query `deluge_storage_fs_busy()`
-  (the `deluge::sync::sd_busy()` app-side alias) and `audioRoutineLocked`. There
-  is no declared contract for which code may run in which context.
+  (the `deluge::sync::sd_busy()` app-side alias) and a shared `audioRoutineLocked`
+  flag, since replaced by `AudioEngine::AudioTickHold` (hold off the tick for an
+  edit), a re-entry guard inside `routine()`, and `AudioEngine::audioBusy()` (am I
+  inside the routine?). There is no declared contract for which code may run in
+  which context.
 - **Undo is its own smeared subsystem**: `model/action` + `model/consequence`
   (the ActionLogger) is invoked ad-hoc from views and model code alike.
 - **Params are a hand-partitioned byte** — see §7, which gets its own section

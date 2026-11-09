@@ -197,18 +197,13 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
 /// **The site-8 example really opens the ported browser**, because
-/// `MenuScene::on_enter` now performs the `Source::getOrCreateFirstRange()` legacy's permission
+/// `MenuScene::on_enter` performs the `Source::getOrCreateFirstRange()` legacy's permission
 /// check performs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) -- so `browser::sample_can` stops
-/// refusing and the scene reads `SAMPLES/` off the fixture card, which holds a file. The next `openUI(&shellHostUI)`
-/// resets the stack, `BrowserScene::on_exit` calls `FileCatalogue::emptyFileItems`, and that pumps
-/// `AudioEngine::routineWithClusterLoading()` between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults**
-/// in a spec process, because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
-/// (`AudioEngine::inputRingPos`; `support/card_access.h` has the whole diagnosis).
-/// Measured: with the fix and without this latch, `menu_entry_spec` dies with SIGSEGV in
-/// `fillInputRing`; with either one absent it passes.
+/// refusing and the scene reads `SAMPLES/` off the fixture card, which holds a file. The latch keeps the audio
+/// routine still while that listing is built and emptied (`support/card_access.h`).
 ///
 /// Process-scoped, function-local rather than namespace-scope: this binary links every spec and
-/// runs one per invocation, so a namespace-scope instance would silently disarm the audio routine
+/// runs one per invocation, so a namespace-scope instance would silently hold the audio routine
 /// for all of them.
 spec::QuietAudio& quiet_audio() {
 	static spec::QuietAudio instance;
@@ -851,7 +846,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
 		// `ActionLogger::getNewAction` refuses unless `getCurrentUI() == getRootUI()`
-		// (`model/action/action_logger.cpp:98-102`), which in a spec process is only true while
+		// (`model/action/action_logger.cpp:100-104`), which in a spec process is only true while
 		// something is actually on the hierarchy. So open first, seed, then close.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();

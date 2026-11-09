@@ -41,7 +41,7 @@ class Song;
 /// process's exit status, stdout and stderr, which is what the runners in tests/golden compare.
 ///
 /// A driver loads and saves songs of its own beside the booted one, and sets currentSong to them as it goes. The step
-/// restores currentSong, the serialization format, the active reader and the sample clock afterwards, so the render
+/// restores currentSong, the serialization format and the sample clock afterwards, so the render
 /// never sees a driver's song: it does not run inside the step.
 namespace deluge::scenarios::driver {
 

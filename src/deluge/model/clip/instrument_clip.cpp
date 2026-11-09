@@ -48,9 +48,12 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/staged_repeat.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -653,64 +656,69 @@ Error InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTi
 	return Error::NONE;
 }
 
-// Returns error
-Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                                 ModelStackWithTimelineCounter* otherModelStack) {
-
-	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
-
-	int32_t whichRepeatThisIs = (uint32_t)loopLength() / (uint32_t)otherInstrumentClip->loopLength();
-
-	if (output->type == OutputType::KIT) {
-		if (std::ssize(noteRows) != std::ssize(otherInstrumentClip->noteRows)) {
+namespace {
+/// Call @p visit with each note row of the take @p thisModelStack names and the source's (@p otherModelStack) row it
+/// repeats: a kit's by index, another instrument's by note. Those whose source row has its own length when @p ownLength
+/// (they repeat at their own end), else the rest (they repeat with the clip). Stops at the first error @p visit
+/// returns.
+/// @return Error::UNSPECIFIED for a kit whose rows no longer match its source's, else the first error.
+template <typename Visit>
+Error forEachRepeatedRow(InstrumentClip& clip, ModelStackWithTimelineCounter* thisModelStack,
+                         ModelStackWithTimelineCounter* otherModelStack, Visit visit, bool ownLength = false) {
+	auto* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
+	if (clip.output->type == OutputType::KIT) {
+		if (std::ssize(clip.noteRows) != std::ssize(otherInstrumentClip->noteRows)) {
 			return Error::UNSPECIFIED;
 		}
-
-		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
+		for (int32_t i = 0; i < std::ssize(clip.noteRows); i++) {
 			NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-			if (otherNoteRow->loopLengthIfIndependent()) {
-				continue; // Skip NoteRows with independent length - they'll take care of themselves.
+			if ((otherNoteRow->loopLengthIfIndependent() != 0) != ownLength) {
+				continue;
 			}
-
-			NoteRow* thisNoteRow = &noteRows[i];
-
-			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
-			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
-
+			NoteRow* thisNoteRow = &clip.noteRows[i];
+			Error error = visit(*thisNoteRow, thisModelStack->addNoteRow(i, thisNoteRow),
+			                    otherModelStack->addNoteRow(i, otherNoteRow));
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		return Error::NONE;
+	}
+	for (int32_t i = 0; i < std::ssize(otherInstrumentClip->noteRows); i++) {
+		NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
+		if ((otherNoteRow->loopLengthIfIndependent() != 0) != ownLength) {
+			continue;
+		}
+		int32_t noteRowId = otherNoteRow->y();
+		ModelStackWithNoteRow* thisModelStackWithNoteRow = clip.getNoteRowForYNote(noteRowId, thisModelStack);
+		NoteRow* thisNoteRow = thisModelStackWithNoteRow->getNoteRowAllowNull();
+		if (thisNoteRow) {
 			Error error =
-			    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength(),
-			                               whichRepeatThisIs, otherInstrumentClip->loopLength());
+			    visit(*thisNoteRow, thisModelStackWithNoteRow, otherModelStack->addNoteRow(noteRowId, otherNoteRow));
 			if (error != Error::NONE) {
 				return error;
 			}
 		}
 	}
+	return Error::NONE;
+}
+} // namespace
 
-	else {
-		for (int32_t i = 0; i < std::ssize(otherInstrumentClip->noteRows); i++) {
-			NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-			if (otherNoteRow->loopLengthIfIndependent()) {
-				continue; // Skip NoteRows with independent length - they'll take care of themselves.
-			}
+// Returns error
+Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
+                                 ModelStackWithTimelineCounter* otherModelStack) {
+	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
+	int32_t whichRepeatThisIs = (uint32_t)loopLength() / (uint32_t)otherInstrumentClip->loopLength();
 
-			int32_t noteRowId = otherNoteRow->y();
-
-			ModelStackWithNoteRow* thisModelStackWithNoteRow = getNoteRowForYNote(noteRowId, thisModelStack);
-			NoteRow* thisNoteRow = thisModelStackWithNoteRow->getNoteRowAllowNull();
-			if (thisNoteRow) {
-				ModelStackWithNoteRow* otherModelStackWithNoteRow =
-				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
-
-				Error error =
-				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength(),
-				                               whichRepeatThisIs, otherInstrumentClip->loopLength());
-				if (error != Error::NONE) {
-					return error;
-				}
-			}
-		}
+	Error error =
+	    forEachRepeatedRow(*this, thisModelStack, otherModelStack,
+	                       [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
+		                       return row.appendNoteRow(thisRow, otherRow, loopLength(), whichRepeatThisIs,
+		                                                otherInstrumentClip->loopLength());
+	                       });
+	if (error != Error::NONE) {
+		return error;
 	}
-
 	return Clip::appendClip(thisModelStack, otherModelStack);
 }
 
@@ -724,7 +732,52 @@ void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack
 		    setupModelStackWithSong(otherModelStackMemory, thisModelStack->song)
 		        ->addTimelineCounter(beingRecordedFromClip);
 
-		appendClip(thisModelStack, otherModelStack);
+		// The notes and the length; the interaction tier appends the repeat's automation before its next job
+		if (appendClip(thisModelStack, otherModelStack) == Error::NONE) {
+			deluge::modulation::appendRepeatIntoTakeCopies(*this, thisModelStack, otherModelStack);
+			// The repeat plays from its staged snapshots, published here
+			(void)deluge::modulation::swapStagedRepeat(*this, thisModelStack, otherModelStack);
+			deluge::modulation::countRepeat(*this);
+			deluge::modulation::takeLoopEnded(*this);
+		}
+	}
+}
+
+void InstrumentClip::forEachRowWithOwnLength(
+    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack,
+    deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit) {
+	(void)forEachRepeatedRow(
+	    *this, thisModelStack, otherModelStack,
+	    [&](NoteRow& row, ModelStackWithNoteRow* thisRow, ModelStackWithNoteRow* otherRow) {
+		    visit(row, thisRow, otherRow);
+		    return Error::NONE;
+	    },
+	    true);
+}
+
+void InstrumentClip::forEachRepeatedManager(
+    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
+    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit) {
+	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
+	const int32_t otherLength = otherInstrumentClip->loopLength();
+	int32_t whichRepeatThisIs = (uint32_t)offset / (uint32_t)otherLength;
+	Error error =
+	    forEachRepeatedRow(*this, thisModelStack, otherModelStack,
+	                       [&](NoteRow& row, ModelStackWithNoteRow*, ModelStackWithNoteRow* otherRow) {
+		                       NoteRow* otherNoteRow = otherRow->getNoteRow();
+		                       if (row.paramManager.containsAnyParamCollectionsIncludingExpression()
+		                           && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			                       visit(row.paramManager, otherNoteRow->paramManager,
+			                             NoteRow::repeatArgs(otherRow, offset, whichRepeatThisIs, otherLength));
+		                       }
+		                       return Error::NONE;
+	                       });
+	if (error != Error::NONE) {
+		return; // a kit whose rows no longer match its source's: appendClip() appended nothing
+	}
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()
+	    && otherInstrumentClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		visit(paramManager, otherInstrumentClip->paramManager, repeatArgs(*otherInstrumentClip, offset));
 	}
 }
 
@@ -1592,10 +1645,6 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	for (int32_t i = noteRowIndexStart; i < noteRowIndexEnd; i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 
-		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading();
-		}
-
 		int32_t yNote;
 
 		if (output->type == OutputType::KIT) {
@@ -1837,9 +1886,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 	const std::vector<uint32_t> oldRows = deluge::bridge::rowIdsOf(oldInstrument);
 
-	AudioEngine::routineWithClusterLoading();
-
-	AudioEngine::audioRoutineLocked = true;
+	// No audio tick runs while the instrument is swapped under this clip. Once the render reads snapshots (M4, the
+	// snapshot boundary) the swap publishes a new one, and this span can shrink or go.
+	std::optional<AudioEngine::AudioTickHold> hold;
+	hold.emplace();
 
 	/* Further stuff to optimize in here:
 	 * -- Delete surplus NoteRows in advance (must stop those Drums playing)
@@ -1872,6 +1922,12 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	                                                     // in changeInstrumentPreset() after all Drums matched up
 	if (error != Error::NONE) {
 		FREEZE_WITH_ERROR("E039");
+		// The clip has left its old instrument and failed to take the new one. Past a resumed freeze the audio tick
+		// stays held for the rest of the session rather than render that half-swapped state.
+		static std::optional<AudioEngine::AudioTickHold> heldAfterFailedSwap;
+		if (!heldAfterFailedSwap) {
+			heldAfterFailedSwap.emplace();
+		}
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -1895,6 +1951,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// NoteRows yet - that happens as Drums are set, below
 	if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()
 	    && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::changeInstrument"};
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 		paramManager.setPlayPos(getLivePos(), modelStackWithThreeMainThings, currentlyPlayingReversed);
@@ -1908,10 +1965,9 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	}
 
 	// Can safely call audio routine again now
-	AudioEngine::audioRoutineLocked = false;
+	hold.reset();
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading();
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1944,9 +2000,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 					break;
 				}
 			}
-
-			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2290,7 +2343,6 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			AudioEngine::routineWithClusterLoading();
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3431,8 +3483,6 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				unbindNoteRowStructure(noteRows[i]);
 				noteRows.deleteNoteRowAtIndex(i);
-
-				AudioEngine::routineWithClusterLoading();
 			}
 			else {
 				i++;
@@ -3673,6 +3723,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 	}
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::shiftHorizontally"};
 		expectEvent();
 		reGetParameterAutomation(modelStack); // Re-gets all NoteRow-level param automation too
 	}
@@ -3686,6 +3737,7 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 	noteRow->shiftHorizontally(shiftAmount, modelStack, shiftAutomation, shiftSequenceAndMPE);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		deluge::playback::MoveSection section{"InstrumentClip::shiftOnlyOneNoteRowHorizontally"};
 		expectEvent();
 
 		if (noteRow->paramManager.mightContainAutomation()) {
@@ -4082,7 +4134,6 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = &noteRows[i];
 
 			if (!(noteRowCount & 15)) {
-				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("nlkr");
 			}
 
@@ -4494,7 +4545,7 @@ extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
                                   int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
-	deluge::modulation::drainRecordEvents(*modelStack->song); // the note's MPE values land after what was recorded
+	deluge::modulation::commitRecording(*modelStack->song); // the note's MPE values land after what was recorded
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
@@ -4566,11 +4617,14 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 									int32_t whichRepeatThisIs =
 									    noteRow->loopLengthIfIndependent() / otherNoteRow->loopLengthIfIndependent();
+									// As at the row's own end, with the repeat's automation appended at once
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent(), whichRepeatThisIs,
 									                       otherNoteRow->loopLengthIfIndependent());
 									noteRow->setLoopLengthIfIndependent(noteRow->loopLengthIfIndependent()
 									                                    + otherNoteRow->loopLengthIfIndependent());
+									deluge::modulation::countRowRepeat(*noteRow);
+									deluge::modulation::catchUpArrangementTakes(*modelStack->song);
 								}
 							}
 						}
@@ -4587,7 +4641,13 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 							    setupModelStackWithSong(otherModelStackMemory, modelStack->song)
 							        ->addTimelineCounter(beingRecordedFromClip);
 
+							// As at the loop end, with the repeat's automation appended at once: the model's
+							// automation catches up to the clip's length before the note is placed in it
 							error = appendClip(thisModelStack, otherModelStack);
+							if (error == Error::NONE) {
+								deluge::modulation::countRepeat(*this);
+								deluge::modulation::catchUpArrangementTakes(*modelStack->song);
+							}
 						}
 
 						if (error != Error::NONE) {
@@ -4679,6 +4739,8 @@ doNormal: // Wrap it back to the start.
 
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
+	// The note's values are written into the model's lanes, not the render's working copies: their take ends first
+	deluge::modulation::endTake(*mpeParams);
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		AutoParam* param = &mpeParams->params[m];

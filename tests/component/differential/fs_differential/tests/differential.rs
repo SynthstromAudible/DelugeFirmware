@@ -339,8 +339,8 @@ mod raw_fat32 {
 }
 
 /// A directory created under the FAT32 root gets 0 in its `..` entry's cluster field, as the FAT
-/// spec requires, not the root's cluster number. Guards the vendored `create_dir` fix (see
-/// `crates/embedded-fatfs/VENDOR.md`).
+/// spec requires, not the root's cluster number. Guards the fork's `create_dir` fix (see
+/// deluge-sdk's `crates/embedded-fatfs/VENDOR.md`).
 #[test]
 fn fat32_dotdot_cluster_probe() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());

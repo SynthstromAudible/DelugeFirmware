@@ -2979,8 +2979,6 @@ void SessionView::transitionToSessionView() {
 }
 
 void SessionView::finishedTransitioningHere() {
-	AudioEngine::routineWithClusterLoading();
-
 	currentUIMode = UI_MODE_ANIMATION_FADE;
 	PadLEDs::recordTransitionBegin(kFadeSpeed);
 	changeRootUI(this);

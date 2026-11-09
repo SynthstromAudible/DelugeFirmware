@@ -46,14 +46,6 @@ public:
 
 	virtual void reset() = 0;
 
-	/// @brief Whether long reads may interleave the cooperative audio/SD routine.
-	///
-	/// True for file-backed reads (the default, which must service the SD cluster stream and pump the engine);
-	/// false for in-memory readers (e.g. the ValueTreeDeserializer), which have nothing to yield to. The
-	/// audio-yield gate (AudioEngine::routineWithClusterLoading) consults the reader currently in use.
-	/// @return True if the reader should call the routines during long reads.
-	[[nodiscard]] virtual bool shouldCallRoutines() const { return true; }
-
 	/// @brief The tree reader behind this interface, or null for a streaming reader.
 	///
 	/// Readers that take a tag's fields from its Value node reach it through deluge::storage::treeReaderOf(),

@@ -2169,7 +2169,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
 		// The output type is the second half of `start.h:45`'s `&&`, and `getCurrentOutputType()`
-		// reads it off the song's current clip (`model/song/song.cpp:135-137`) -- so the fixture is
+		// reads it off the song's current clip (`model/song/song.cpp:136-138`) -- so the fixture is
 		// what varies between this example and the one below, not the root.
 		spec::SongFixture song = spec::make_kit_song();
 		expect(getCurrentOutputType() == OutputType::KIT).to_be_true();
@@ -2356,7 +2356,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      below -- so nothing here observes a half-open stack either way.
 	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
 	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
-	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:816`). Neither clears the other.
+	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp`). Neither clears the other.
 	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
 	//      order observable, which is why it belongs in the argument rather than being left out of
 	//      it.** It recomputes from `getUIGreyoutColsAndRows`, which walks the
@@ -2374,7 +2374,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
-	//      blinks (`gui/views/view.cpp:496`).
+	//      blinks (`gui/views/view.cpp`).
 	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
 	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.

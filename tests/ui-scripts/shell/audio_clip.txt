@@ -85,9 +85,8 @@
 1800  button Play down
 1900  button Play up
 2000  snapshot after_play         # `playbackHandler.playButtonPressed` really runs -- the fixture
-                                  # holds `spec::QuietAudio`, which is the disarm for
-                                  # `AudioEngine::routineWithClusterLoading` in a spec process, not
-                                  # a stub of the transport. `.state` gains `led Play on`
+                                  # holds `spec::QuietAudio`, which keeps the audio routine
+                                  # still, not a stub of the transport. `.state` gains `led Play on`
                                   # (`PlaybackHandler::setLedStates`). RECORD is still lit, and the
                                   # playhead appears at column 0: the booted app's clock runs, so
                                   # `AudioClipView::graphicsRoutine`'s `getTickSquare()` arm draws it

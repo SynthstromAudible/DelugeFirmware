@@ -43,6 +43,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -797,10 +798,7 @@ gotErrorAfterCreatingSong:
 #endif
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	{
-		deluge::storage::ActiveReaderScope reading(songDocument_.reader());
-		error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
-	}
+	error = deluge::bridge::loadSong(*preLoadedSong, songDocument_.reader());
 	// The tree is only needed during the read.
 	songDocument_.release();
 	if (error != Error::NONE) {
@@ -874,6 +872,7 @@ void LoadSongUI::tickEssential() {
 
 void LoadSongUI::runArmSegment() {
 	preLoadedSong->project.metadata.name = enteredText;
+	(void)deluge::modulation::publishSongLanes(*preLoadedSong); // the swap, armed or now, hands it to the render
 
 	loadToDelete_ = currentSong;
 

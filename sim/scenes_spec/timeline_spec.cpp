@@ -142,7 +142,7 @@ struct TickProbe : ClipView {
 	/// @}
 };
 
-/// @brief `deluge_boot`'s own `display = new OLED` (`src/deluge/deluge.cpp:667`).
+/// @brief `deluge_boot`'s own `display = new OLED`.
 ///
 /// A spec process never calls `deluge_boot()` (see `support/song_fixture.h` for why), so the
 /// `display` global is null (`hid/display/display.cpp:4`). Legacy's scroll arm ends in
@@ -550,7 +550,7 @@ describe timeline_spec_body(
 	    it(
 	        "refuses to zoom in past the floor, exactly as the zoom limit does", _ {
 		        // `timeline_view.cpp:189`: `zoomMagnitude == -1 && oldXZoom <= 3`. Three is the floor of
-		        // `Clip::getMaxZoom()`'s ladder (`model/clip/clip.cpp:142-149`), so this is the real edge.
+		        // `Clip::getMaxZoom()`'s ladder (`model/clip/clip.cpp:144-151`), so this is the real edge.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 3};

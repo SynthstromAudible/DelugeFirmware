@@ -257,7 +257,7 @@ int32_t range_count(const MenuContext& ctx);
 ///        top one") when @p index is out of range.
 ///
 /// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
-/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:287-332`). `MultiRange` is a
+/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp`). `MultiRange` is a
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);

@@ -42,12 +42,16 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -146,8 +150,10 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	// The render reads a lane where its collection keeps it: the tree's block once the owner is relocated, the
 	// collection's own store before that (and always, for an MPE note row's lanes). It builds no address and reads no
 	// tree map. Only the interaction tier relocates or changes that storage, each change in a section, so a lookup here
-	// never sees one half made. A lane nothing holds yet reads as unautomated, and nothing writes it.
-	if (deluge::memory::onRenderTier()) {
+	// never sees one half made. A lane nothing holds yet reads as unautomated, and nothing writes it. A playhead move
+	// on the interaction tier reads lanes the same way: it holds the render off, and must not relocate or allocate.
+	if (deluge::memory::onRenderTier() || deluge::playback::MoveEffects::collecting()) {
+		deluge::modulation::noteRenderModelRead();
 		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
 			return own;
 		}
@@ -161,6 +167,9 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 #endif
 		return &g_unheldLane;
 	}
+	// Every interaction-tier access to a lane may be a write: its collection republishes at the next publish point if
+	// the lane changed.
+	deluge::modulation::markLanesChanged(*paramCollection);
 	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
 		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
 			return sameAsRender(*paramCollection, paramId, resolved);
@@ -189,12 +198,15 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	return paramCollection->docParamForId(paramId);
 }
 
-bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
-	return &lane == &g_unheldLane;
+deluge::project::LaneView ModelStackWithAutoParam::laneView() const {
+	if (deluge::memory::onRenderTier()) {
+		return paramCollection->playedLane(paramId);
+	}
+	return deluge::project::LaneView::of(*doc());
 }
 
-const deluge::project::DocAutoParam& unheldLane() {
-	return g_unheldLane;
+bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
+	return &lane == &g_unheldLane;
 }
 
 void AutoParam::init(deluge::project::DocAutoParam& doc) {
@@ -213,7 +225,29 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 // automation, or when playback is stopped.
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
 	int32_t oldValue = played_;
+	if (deluge::memory::onRenderTier()) {
+		// The render writes no model lane: it plays the value now. A lane being recorded takes it as the base of the
+		// render's working copy; any other asks the interaction tier to make it the base. The base the render sees is
+		// the published one, or, for a lane with no nodes, what it plays.
+		const deluge::project::LaneView lane = modelStack->laneView();
+		setPlayed(value);
+		if (deluge::project::DocAutoParam* copy =
+		        deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId)) {
+			deluge::project::set_base(*copy, value);
+			deluge::modulation::noteWorkingCopyWritten(*copy);
+		}
+		else {
+			deluge::modulation::requestLaneBase(*modelStack->paramCollection, modelStack->paramId,
+			                                    lane.empty() ? oldValue : lane.base, value);
+		}
+		const bool automatedNow = isAutomated(lane);
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow,
+		                                                          automatedNow);
+		return;
+	}
 	setBase(*modelStack->doc(), value);
+	deluge::modulation::postLaneCommand(*modelStack,
+	                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -258,7 +292,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
 	if (modelStack->song != nullptr) {
-		deluge::modulation::drainRecordEvents(*modelStack->song); // what this reads includes what was recorded
+		deluge::modulation::commitRecording(*modelStack->song); // what this reads includes what was recorded
 	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
@@ -266,7 +300,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 	bool recorded = false; // the write went to the render as a recorded value
-	resetInterpolationIncrement();
+	stopInterpolating();
 
 	bool isPlaying =
 	    (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
@@ -339,17 +373,22 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// Wait, I can no longer see why this matters...
 			event.backtrackingCouldLoopBack = modelStack->getTimelineCounter()->backtrackingCouldLoopBackToEnd();
 			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
-
-			{
+			// The render records into a copy of the lane it owns; the model hears at the next commit. Without a copy
+			// the value is set, not recorded.
+			deluge::project::DocAutoParam* copy = deluge::modulation::makeWorkingCopy(
+			    *modelStack, deluge::modulation::kNodesPerRecordedWrite,
+			    doMPEMode ? deluge::modulation::Hold::WRITES : deluge::modulation::Hold::TAKE);
+			if (copy != nullptr) {
 				AudioExcludedSection section;
-				deluge::modulation::reserveForRecordedWrite(modelStack->doc()->nodes);
+				deluge::modulation::reserveForRecordedWrite(copy->nodes);
 				if (address) {
 					event.lane = *address;
 				}
 				if (!address || !deluge::modulation::postRecordEvent(event)) {
 					// The render is excluded: write what it has queued, then this, so the writes land in order.
 					deluge::modulation::applyRecordEvents(*modelStack->song);
-					writeRecordedValue(*modelStack->doc(), event);
+					writeRecordedValue(*copy, event);
+					deluge::modulation::noteWorkingCopyWritten(*copy);
 #if ALPHA_OR_BETA_VERSION
 					++(address ? deluge::modulation::recordRingFullFallbacks
 					           : deluge::modulation::recordWritesWithoutAddress);
@@ -361,18 +400,15 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				// Played now, before the render can move it on. Its base is the kernel's to write, after it has read
 				// the old one for where the cleared stretch returns to.
 				setPlayed(value);
+				automationChanged = true;
+				recorded = true;
 			}
-			automationChanged = true;
-			recorded = true;
 		}
 
 		// Or if not recording...
 		else {
 			if (!nodesRef.empty()) {
-				renewedOverridingAtTime = AudioEngine::audioSampleTimer;
-				if (renewedOverridingAtTime <= 1) {
-					renewedOverridingAtTime = 0xFFFFFFFF;
-				}
+				overrideFromNow(*modelStack);
 			}
 		}
 	}
@@ -395,6 +431,8 @@ getOut:
 	// fallback otherwise), and what it plays now; a recorded value is played already.
 	if (!recorded) {
 		setBase(*modelStack->doc(), value);
+		deluge::modulation::postLaneCommand(*modelStack,
+		                                    {.kind = deluge::modulation::LaneCommand::Kind::BASE, .value = value}, 0);
 	}
 	bool automatedNow = recorded || isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
@@ -491,13 +529,10 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 	// scalar patch never touches nodes, so isAutomated is invariant across the write (automatedBefore ==
 	// automatedNow) and the notify's automationChanged is false, matching the getOut: tail.
 	auto& nodesRef = modelStack->doc()->nodes;
-	resetInterpolationIncrement();
+	stopInterpolating();
 	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
 	if (isPlaying && !nodesRef.empty()) {
-		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
-		if (renewedOverridingAtTime <= 1) {
-			renewedOverridingAtTime = 0xFFFFFFFF;
-		}
+		overrideFromNow(*modelStack);
 	}
 	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
@@ -513,7 +548,7 @@ void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack
 	using deluge::project::RegionCurrentValueEffect;
 	if (result.currentValueEffect == RegionCurrentValueEffect::SetAndResetInterp) {
 		// clock-active, playhead inside the edited region: the engine resets the interpolation cursor here.
-		resetInterpolationIncrement();
+		stopInterpolating();
 	}
 	else if (result.currentValueEffect == RegionCurrentValueEffect::NotifyOnly) {
 		// clock-active, playhead outside: the engine leaves current_value alone and notifies the UI of automation.
@@ -595,7 +630,7 @@ removeMiddleNodeInRun:
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
 	if (modelStack->song != nullptr) {
-		deluge::modulation::drainRecordEvents(*modelStack->song); // nothing recorded lands after the delete
+		deluge::modulation::commitRecording(*modelStack->song); // nothing recorded lands after the delete
 	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
@@ -609,9 +644,12 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	else {
 		nodesRef.clear();
 	}
+	if (!deluge::memory::onRenderTier()) {
+		deluge::modulation::postLaneCommand(*modelStack, {.kind = deluge::modulation::LaneCommand::Kind::CLEAR}, 0);
+	}
 
-	resetInterpolationIncrement();
-	renewedOverridingAtTime = 0;
+	stopInterpolating();
+	cancelOverriding();
 
 	if (shouldNotify && wasAutomated) {
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, getCurrentValue(), true, true, false);
@@ -630,30 +668,45 @@ void AutoParam::deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc
 
 int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
                                      bool mayInterpolate, bool mustUpdateValueAtEveryNode) {
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
+	deluge::project::LaneView lane = modelStack->laneView();
 
 	// If no automation...
-	if (nodesRef.empty()) {
+	if (lane.empty()) {
 		return 2147483647;
 	}
 
 	int32_t currentPos = modelStack->getLastProcessedPos();
 	int32_t effectiveLength = modelStack->getLoopLength();
 
+	// No node should be at or past the length (see the self-repair at the end). Playing a published lane, which it
+	// cannot change, the render plays it without that node and asks the interaction tier to erase it.
+	deluge::project::DocAutoParam* recordingCopy =
+	    deluge::memory::onRenderTier()
+	        ? deluge::modulation::workingCopy(*modelStack->paramCollection, modelStack->paramId)
+	        : nullptr;
+	const bool playsPublished = deluge::memory::onRenderTier() && recordingCopy == nullptr;
+	if (playsPublished && lane[lane.size() - 1].pos >= effectiveLength) {
+		deluge::modulation::requestStrayNodeErased(*modelStack->paramCollection, modelStack->paramId,
+		                                           lane[lane.size() - 1].pos);
+		lane.nodes = lane.nodes.first(lane.nodes.size() - 1);
+		if (lane.empty()) {
+			return 2147483647;
+		}
+	}
+
 	// Find next node - here or further along in our direction
 	// The search "direction" is an offset on the lower-bound index: -1 when reversed (the old LESS), else 0
 	int32_t searchDirection = -(int32_t)reversed;
 	int32_t searchPos = currentPos + (int32_t)reversed;
-	int32_t iJustReached = nodesRef.firstAtOrAfter(searchPos) + searchDirection;
+	int32_t iJustReached = lane.first_at_or_after(searchPos) + searchDirection;
 	if (iJustReached < 0) {
-		iJustReached += std::ssize(nodesRef);
+		iJustReached += lane.size();
 	}
-	else if (iJustReached >= std::ssize(nodesRef)) {
+	else if (iJustReached >= lane.size()) {
 		iJustReached = 0;
 	}
 
-	ParamNode* nodeJustReached = &nodesRef[iJustReached];
+	const ParamNode* nodeJustReached = &lane[iJustReached];
 	int32_t howFarUntilThisNode = nodeJustReached->pos - currentPos;
 
 	// If we haven't reached the next node yet...
@@ -689,18 +742,18 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 
 	// Now start thinking about the *next* node, which we'll get to in a while
 	int32_t iRight = iJustReached + 1;
-	if (iRight >= std::ssize(nodesRef)) {
+	if (iRight >= lane.size()) {
 		iRight = 0;
 	}
 
-	ParamNode* nextNodeInOurDirection;
+	const ParamNode* nextNodeInOurDirection;
 
 	if (reversed) {
 		int32_t iLeft = iJustReached - 1;
 		if (iLeft < 0) {
-			iLeft += std::ssize(nodesRef);
+			iLeft += lane.size();
 		}
-		ParamNode* nodeToLeft = &nodesRef[iLeft];
+		const ParamNode* nodeToLeft = &lane[iLeft];
 
 		if (!noNeedToJumpToValue) {
 			valueJustReached = nodeToLeft->value; // At the time of this condition, weInterpolatedHere still means the
@@ -713,7 +766,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		nextNodeInOurDirection = nodeToLeft;
 	}
 	else {
-		ParamNode* nodeToRight = &nodesRef[iRight];
+		const ParamNode* nodeToRight = &lane[iRight];
 		nextNodeInOurDirection = nodeToRight;
 	}
 
@@ -787,13 +840,19 @@ yesCancelOverriding:
 			// happening live, now
 			if (playbackHandler.isCurrentlyRecording()) {
 recordOverNodeJustReached:
-
-				// Back up state if necessary. It normally would have already been, but not if the user only just
-				// activated recording while already overriding!
-				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-				if (action) {
-					action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
+				// Recording: the render writes the lane's working copy, which the interaction tier made (taking the
+				// take's undo snapshot) when the lane was recorded into or overridden. A lane without one is played,
+				// not written.
+				deluge::project::DocAutoParam* copy = recordingCopy;
+				if (copy == nullptr) {
+					deluge::modulation::noteLatchWithoutCopy();
+					goto getOut;
 				}
+				deluge::modulation::noteWorkingCopyWritten(*copy);
+				deluge::project::DocAutoParam& written = *copy;
+				auto& nodesRef = written.nodes;
+				ParamNode& reached = nodesRef[iJustReached];
+				nodeJustReached = &reached;
 
 				int32_t ticksTilNextNode = nextNodeInOurDirection->pos - nodeJustReached->pos;
 				if (reversed) {
@@ -905,9 +964,9 @@ recordOverNodeJustReached:
 adjustNodeJustReached:
 				// D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
-					nodeJustReached->value = played_;
+					reached.value = played_;
 				}
-				nodeJustReached->interpolated = true;
+				reached.interpolated = true;
 				// TODO: if reversing, should we set the one to the right to interpolating too?
 				noNeedToJumpToValue = true;
 
@@ -916,7 +975,7 @@ adjustNodeJustReached:
 				// Having changed that node's value, there's a chance it may have made the node before it redundant
 				if (!reversed) {
 					needToReGetNextNode = deleteRedundantNodeInLinearRun(
-					    *modelStack->doc(), iJustReached,
+					    written, iJustReached,
 					    effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
 				}
 
@@ -925,16 +984,17 @@ adjustNodeJustReached:
 					                   .value_or(-1); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
-						nextNodeInOurDirection = &nodesRef[iRight];
-						nextNodeInOurDirection->value = valueOverridingEnds;
-						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
+						ParamNode& inserted = nodesRef[iRight];
+						inserted.value = valueOverridingEnds;
+						inserted.interpolated = newNodeShouldBeInterpolated;
+						nextNodeInOurDirection = &inserted;
 
 						/*
 						D_PRINTLN("new one:  %d ,  %d", posOverridingEnds, valueOverridingEnds);
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
-							    *modelStack->doc(), iRight,
+							    written, iRight,
 							    effectiveLength); // If returns false, storage wasn't changed, and we've got the next
 							                      // node right here! Shouldn't I make it so this doesn't get called for
 							                      // MPE?
@@ -969,7 +1029,7 @@ adjustNodeJustReached:
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
-		if (!isAutomated(*modelStack->doc())) {
+		if (!isAutomated(modelStack->laneView())) {
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
@@ -994,12 +1054,21 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see
 	// https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj I'm so
 	// sorry, but I'm going to just make it manually fix itself, here.
-	if (!nodesRef.empty()) {
-		int32_t i = std::ssize(nodesRef) - 1;
-		ParamNode* rightmostNode = &nodesRef[i];
-		if (rightmostNode->pos >= effectiveLength) {
-			nodesRef.erase(nodesRef.begin() + i);
-			// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+	// Playing a published lane, the render left such a node out above; it erases it from its own working copy, and the
+	// interaction tier from the model.
+	if (!playsPublished) {
+		deluge::project::DocAutoParam& repaired = (recordingCopy != nullptr) ? *recordingCopy : *modelStack->doc();
+		auto& nodesRef = repaired.nodes;
+		if (!nodesRef.empty()) {
+			int32_t i = std::ssize(nodesRef) - 1;
+			ParamNode* rightmostNode = &nodesRef[i];
+			if (rightmostNode->pos >= effectiveLength) {
+				nodesRef.erase(nodesRef.begin() + i);
+				if (recordingCopy != nullptr) {
+					deluge::modulation::noteWorkingCopyWritten(*recordingCopy);
+				}
+				// FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+			}
 		}
 	}
 
@@ -1010,6 +1079,40 @@ getOut:
 /// the value increment is used to increment / decrement the parameters current value
 bool AutoParam::hasInterpolationIncrement() {
 	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
+}
+
+namespace {
+/// @brief Run @p write, a write of the render's cursor state: as it is on the render, else with the render held off.
+template <typename Write>
+void writeCursor(Write write) {
+	if (deluge::memory::onRenderTier()) {
+		write();
+		return;
+	}
+	AudioExcludedSection section;
+	write();
+}
+} // namespace
+
+void AutoParam::cancelOverriding() {
+	writeCursor([&] { renewedOverridingAtTime = 0; });
+}
+
+void AutoParam::overrideFromNow(ModelStackWithAutoParam const& lane) {
+	// While recording, the latch drifts back on an overridden lane: it writes the lane's working copy
+	if (playbackHandler.recording != RecordingMode::OFF && !deluge::memory::onRenderTier()) {
+		(void)deluge::modulation::makeWorkingCopy(lane, deluge::modulation::kNodesPerRecordedWrite);
+	}
+	writeCursor([&] {
+		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
+		if (renewedOverridingAtTime <= 1) {
+			renewedOverridingAtTime = 0xFFFFFFFF;
+		}
+	});
+}
+
+void AutoParam::stopInterpolating() {
+	writeCursor([&] { resetInterpolationIncrement(); });
 }
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
@@ -1034,7 +1137,7 @@ bool AutoParam::useFloatInterpolation(ModelStackWithAutoParam const* modelStack)
 }
 
 // You now much check before calling this that interpolation should happen at all
-void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNodeInOurDirection,
+void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, const ParamNode* nextNodeInOurDirection,
                                    int32_t effectiveLength, int32_t currentPos, bool reversed) {
 
 	if (renewedOverridingAtTime == 1) {
@@ -1238,6 +1341,7 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into
 // this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// The wiring (Action, whole-loop deleteAutomation, notify) stays here; only the partial region erase is
 	// forwarded to the DOM kernel (with a value sync, since it may zero current_value when nothing remains).
 	if (!isAutomated(*modelStack->doc())) {
@@ -1271,6 +1375,7 @@ int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos,
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
                                   ModelStackWithAutoParam const* modelStack, ActionType actionType) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
@@ -1354,7 +1459,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 
 		if (!clockActive || inRegionNow) {
 			if (clockActive) {
-				resetInterpolationIncrement();
+				stopInterpolating();
 			}
 			setBase(*modelStack->doc(), value);
 		}
@@ -1407,14 +1512,13 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 	// Forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a null-deref;
 	// processCurrentPos already reads it unconditionally). The kernel special-cases the infinite length
 	// (2147483647).
-	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
+	return deluge::project::getValueAtPos(modelStack->laneView(), pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to played_
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
-	if (nodesRef.empty()) {
+	deluge::playback::notePositionWrite();
+	if (modelStack->laneView().empty()) {
 		return false;
 	}
 
@@ -1424,32 +1528,32 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-	// Resolve the DOM node store via the ModelStack.
-	auto& nodesRef = modelStack->doc()->nodes;
+	deluge::playback::notePositionWrite();
+	const deluge::project::LaneView lane = modelStack->laneView();
 
 	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
-	if (!nodesRef.empty()) {
+	if (!lane.empty()) {
 		int32_t oldValue = played_;
 		played_ = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int32_t rightI = nodesRef.firstAtOrAfter(pos + (int32_t)!reversed);
-		if (rightI == std::ssize(nodesRef)) {
+		int32_t rightI = lane.first_at_or_after(pos + (int32_t)!reversed);
+		if (rightI == lane.size()) {
 			rightI = 0;
 		}
-		ParamNode* nextNodeOurDirection =
-		    &nodesRef[rightI]; // This will initially point to the node to the right, regardless of direction;
-		                       // it'll be corrected to left if we're reversed below.
+		const ParamNode* nextNodeOurDirection =
+		    &lane[rightI]; // This will initially point to the node to the right, regardless of direction;
+		                   // it'll be corrected to left if we're reversed below.
 
 		if (nextNodeOurDirection->interpolated) {
 
 			if (reversed) {
 				int32_t leftI = rightI - 1;
 				if (leftI < 0) {
-					leftI += std::ssize(nodesRef);
+					leftI += lane.size();
 				}
-				nextNodeOurDirection = &nodesRef[leftI];
+				nextNodeOurDirection = &lane[leftI];
 			}
 
 			// Setup interpolation from the pos we're at now
@@ -1575,8 +1679,8 @@ addNewNodeAt0IfNecessary:
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true); // Steal
 		}
-		nodesRef.clear();              // Delete them - either if no action, or if the above chose not to steal them.
-		resetInterpolationIncrement(); // In case we were interpolating.
+		nodesRef.clear();    // Delete them - either if no action, or if the above chose not to steal them.
+		stopInterpolating(); // In case we were interpolating.
 	}
 }
 
@@ -1731,7 +1835,11 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 }
 
 bool AutoParam::containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue) {
-	if (isAutomated(doc)) {
+	return containsSomething(deluge::project::LaneView::of(doc), neutralValue);
+}
+
+bool AutoParam::containsSomething(deluge::project::LaneView lane, uint32_t neutralValue) {
+	if (isAutomated(lane)) {
 		return true;
 	}
 	uint32_t* a = (uint32_t*)&played_;
@@ -1755,6 +1863,7 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	bool automatedBefore = isAutomated(*modelStack->doc());
@@ -2013,6 +2122,7 @@ void AutoParam::insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int3
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// The Action-snapshot wiring stays here; the node mutation is forwarded to the DOM kernel. The empty-gate stays
 	// here so we don't snapshot an Action when there's nothing to move.
 	if (modelStack->doc()->nodes.empty()) {
@@ -2033,7 +2143,7 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 	}
 	deluge::project::nudgeNonInterpolatingNodesAtPos(*modelStack->doc(), pos, offset, lengthBeforeLoop);
 	if (modelStack->doc()->nodes.empty()) {
-		resetInterpolationIncrement(); // In case we were interpolating.
+		stopInterpolating(); // In case we were interpolating.
 	}
 }
 
@@ -2043,6 +2153,7 @@ void AutoParam::notifyPingpongOccurred() {
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                            int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
@@ -2123,6 +2234,7 @@ goAgain:
 
 void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
                                   int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord) {
+	deluge::modulation::endTake(*modelStack->paramCollection); // no command the render makes to a working copy
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 

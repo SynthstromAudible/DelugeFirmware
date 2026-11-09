@@ -25,10 +25,6 @@
 #include <optional>
 #include <span>
 
-class Deserializer;
-/// The reader the load in progress is consuming; the audio-yield gate asks it whether to pump the engine.
-extern Deserializer* activeReader;
-
 namespace deluge::storage {
 
 /// @brief A Deluge document parsed whole into a Value tree, with a tree reader positioned inside its root tag.
@@ -72,19 +68,6 @@ private:
 	// The reader points into the tree, so neither ever moves: both are built in place.
 	std::optional<Value> tree_;
 	std::optional<ValueTreeDeserializer> reader_;
-};
-
-/// @brief Points `activeReader` at a reader for one parse, and puts the previous one back on every exit.
-class ActiveReaderScope {
-public:
-	/// @param reader The reader to make active for this scope's lifetime.
-	explicit ActiveReaderScope(Deserializer& reader) : previous_(activeReader) { activeReader = &reader; }
-	~ActiveReaderScope() { activeReader = previous_; }
-	ActiveReaderScope(const ActiveReaderScope&) = delete;
-	ActiveReaderScope& operator=(const ActiveReaderScope&) = delete;
-
-private:
-	Deserializer* previous_;
 };
 
 } // namespace deluge::storage

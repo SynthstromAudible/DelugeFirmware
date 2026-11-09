@@ -37,6 +37,13 @@ class PatchCableSet;
 class MIDIParamCollection;
 class PatchedParamSet;
 class UnpatchedParamSet;
+/// The arguments of one repeat's append to a take's param manager (deluge::modulation::catchUpArrangementTakes()).
+struct RepeatArgs {
+	int32_t offset;                      ///< where the repeat goes: the length already there
+	int32_t reverseThisRepeatWithLength; ///< 0 to copy the repeat straight, else the length to mirror it within
+	bool pingpongingGenerally;           ///< whether a pingpong direction flip applies
+};
+
 class ParamManagerForTimeline;
 class ParamCollectionSummary;
 
@@ -202,8 +209,6 @@ public:
 	void grabValuesFromPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack);
 	void generateRepeats(ModelStackWithThreeMainThings* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong);
-	void appendParamManager(ModelStackWithThreeMainThings* modelStack, ModelStackWithThreeMainThings* otherModelStack,
-	                        int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
 	void trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack, Action* action,
 	                  bool maySetupPatching = true);
 

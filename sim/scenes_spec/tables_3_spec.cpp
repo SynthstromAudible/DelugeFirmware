@@ -1814,7 +1814,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
 
 			expect(arp->mode == ArpMode::ARP).to_be_true();
-			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- so this is false
+			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- so this is false
 			// unless `updatePresetFromCurrentSettings()` actually ran.
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.

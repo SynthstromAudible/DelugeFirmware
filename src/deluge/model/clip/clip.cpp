@@ -26,6 +26,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
 #include "model/edits/clip_address_for.h"
@@ -36,7 +37,9 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/playback_mode.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -406,28 +409,23 @@ playingForwardNow:
 	}
 }
 
-Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
+Error Clip::appendClip(ModelStackWithTimelineCounter* /*thisModelStack*/,
+                       ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-
-		bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
-
-		bool shouldReverseThisRepeat =
-		    (pingpongingGenerally && (((uint32_t)loopLength() / (uint32_t)otherClip->loopLength()) & 1))
-		    || (otherClip->sequenceDirectionMode == SequenceDirection::REVERSE);
-
-		int32_t reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip->loopLength() : 0;
-
-		paramManager.appendParamManager(
-		    thisModelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager),
-		    otherModelStack->addOtherTwoThingsButNoNoteRow(otherClip->output->toModControllable(),
-		                                                   &otherClip->paramManager),
-		    loopLength(), reverseThisRepeatWithLength, pingpongingGenerally);
-	}
 	setLoopLength(loopLength() + otherClip->loopLength());
 
 	return Error::NONE;
+}
+
+RepeatArgs Clip::repeatArgs(const Clip& otherClip, int32_t offset) {
+	bool pingpongingGenerally = (otherClip.sequenceDirectionMode == SequenceDirection::PINGPONG);
+
+	bool shouldReverseThisRepeat = (pingpongingGenerally && (((uint32_t)offset / (uint32_t)otherClip.loopLength()) & 1))
+	                               || (otherClip.sequenceDirectionMode == SequenceDirection::REVERSE);
+
+	return {.offset = offset,
+	        .reverseThisRepeatWithLength = shouldReverseThisRepeat ? otherClip.loopLength() : 0,
+	        .pingpongingGenerally = pingpongingGenerally};
 }
 
 // Accepts any pos >= -length.
@@ -435,6 +433,7 @@ Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStack
 // and are also required to call setPosForParamManagers() or do something equivalent - and that "something equivalent"
 // allows InstrumentClip to save time by iterating through NoteRows only once.
 void Clip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) {
+	deluge::playback::notePositionWrite();
 
 	// It's a bit complex and maybe not the best way for stuff to work, but newPos may be negative because
 	// Session::armClipToStartOrSoloUsingQuantization() subtracts
@@ -566,6 +565,9 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 // This gets called on the "unique" copy of the original Clip
 Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
                                             ModelStackWithTimelineCounter* modelStackClone) {
+	// The original takes back over: its position, the voices and the output's active clip change together, with the
+	// render held off.
+	deluge::playback::MoveSection section{"Clip::resumeOriginalClipFromThisClone"};
 
 	// Take back control!
 	activeIfNoSolo = false;
@@ -1088,6 +1090,8 @@ bool Clip::wantsToBeginLinearRecording(Song* song) {
 }
 
 void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {
+	// The direction and position the render's tick reads, and the resume from them, with the render held off
+	deluge::playback::MoveSection section{"Clip::setSequenceDirectionMode"};
 	bool reversedBefore = currentlyPlayingReversed;
 	setSequenceDirectionModeRaw(newMode);
 
@@ -1176,10 +1180,22 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
 				                                   true);
+				// The take's automation covers its length; each repeat its loop end appends is appended to it at the
+				// next commit (deluge::modulation::catchUpArrangementTakes())
+				auto* take = static_cast<InstrumentClip*>(newClip);
+				take->repeats.paramLength = newClip->loopLength();
+				for (NoteRow& row : take->noteRows) {
+					row.repeats.paramLength = row.loopLengthIfIndependent();
+				}
+				take->repeats.source.store(static_cast<InstrumentClip*>(this), std::memory_order_release);
 			}
 
 			// Add to Song
 			(void)modelStack->song->live.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Can't fail
+
+			// The clone takes over from here: where this clip has played to, the clip instance, the voice and the
+			// output's active clip change together, with the render held off.
+			deluge::playback::MoveSection section{"Clip::possiblyCloneForArrangementRecording"};
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

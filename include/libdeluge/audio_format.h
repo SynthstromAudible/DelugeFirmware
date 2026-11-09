@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /// @file
-/// @brief WAV/AIFF header decoding, implemented in Rust (`crates/deluge_audio_format`).
+/// @brief WAV/AIFF header decoding, implemented in Rust (deluge-sdk's `deluge-audio-format`).
 ///
 /// The parse is a RESUMABLE STATE MACHINE driven from bounded windows, not a one-shot call over a
 /// buffer: init it with the file's size, ask what it wants, read exactly that, feed it, repeat. The

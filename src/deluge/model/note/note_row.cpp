@@ -39,9 +39,12 @@
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -2098,11 +2101,18 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 				int32_t whichRepeatThisIs =
 				    (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent();
 
+				// The notes and the length; the interaction tier appends the repeat's automation before its next job
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
 				              otherNoteRow->loopLengthIfIndependent());
 
 				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
 				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
+
+				deluge::modulation::appendRepeatIntoRowCopies(*this, modelStack, otherModelStackWithNoteRow);
+				// The repeat plays from its staged snapshots, published here
+				(void)deluge::modulation::swapStagedRowRepeat(*this, modelStack, otherModelStackWithNoteRow);
+				deluge::modulation::countRowRepeat(*this);
+				deluge::modulation::takeLoopEnded(*clip, this);
 			}
 		}
 
@@ -2693,6 +2703,8 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 	setLoopLengthIfIndependent((newLength == clip->loopLength()) ? 0 : newLength);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+		deluge::playback::MoveSection section{"NoteRow::setLength"};
+		deluge::playback::notePositionWrite();
 		lastProcessedPosIfIndependent = oldPos;
 		currentlyPlayingReversedIfIndependent =
 		    playingReversedBefore; // Will have no effect if is/was in fact obeying parent Clip
@@ -3165,6 +3177,7 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 
 		// If we've just un-muted
 		else {
+			deluge::playback::MoveSection section{"NoteRow::toggleMute"};
 			resumePlayback(modelStack, clipIsActiveAndPlaybackIsOn);
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 		}
@@ -3813,6 +3826,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()
 		    && modelStack->song->isClipActive(clip)) {
+			deluge::playback::MoveSection section{"NoteRow::setDrum"};
 			paramManager.setPlayPos(clip->getLivePos(), modelStackWithThreeMainThings,
 			                        modelStackWithThreeMainThings->isCurrentlyPlayingReversed());
 		}
@@ -4141,6 +4155,18 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
+RepeatArgs NoteRow::repeatArgs(ModelStackWithNoteRow* otherModelStack, int32_t offset, int32_t whichRepeatThisIs,
+                               int32_t otherNoteRowLength) {
+	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
+	SequenceDirection effectiveSequenceDirectionMode = otherNoteRow->getEffectiveSequenceDirectionMode(otherModelStack);
+	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
+	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
+	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
+	return {.offset = offset,
+	        .reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0,
+	        .pingpongingGenerally = pingpongingGenerally};
+}
+
 Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
                              int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
@@ -4151,15 +4177,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	bool pingpongingGenerally = effectiveSequenceDirectionMode == SequenceDirection::PINGPONG;
 	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
-
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
-
-		paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),
-		                                otherModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), offset,
-		                                reverseThisRepeatWithLength, pingpongingGenerally);
-	}
 
 	int32_t numToInsert = std::ssize(otherNoteRow->notes);
 	if (!numToInsert) {
@@ -4499,10 +4516,13 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 }
 
 void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode) {
+	// The position the render's tick reads, its new direction and the resume from them, with the render held off
+	deluge::playback::MoveSection section{"NoteRow::setSequenceDirectionMode"};
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
 	setSequenceDirectionModeRaw(newMode);
+	deluge::playback::notePositionWrite();
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...

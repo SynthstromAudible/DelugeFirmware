@@ -49,10 +49,9 @@ namespace deluge::sample {
 /// the cache across (issue #4460) rather than re-reading, and a column already marked
 /// `COL_STATUS_INVESTIGATED` is skipped outright.
 ///
-/// @warning **This can read the card**, through `deluge::sample::SampleFrameReader`, and pumps
-///          `AudioEngine::routineWithClusterLoading()` between columns. A caller off the storage
-///          owner must expect a partial result rather than a stall -- that is what the return value
-///          reports.
+/// @warning **This can read the card**, through `deluge::sample::SampleFrameReader`. A caller off
+///          the storage owner must expect a partial result rather than a stall -- that is what the
+///          return value reports.
 ///
 /// @param sample         The sample to scan.
 /// @param xScrollSamples Left edge, in samples.

@@ -541,7 +541,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 				// `:195-197` `audioRecorder.isCurrentlyResampling()` ->
 				// `audioRecorder.endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
 				// ported; `isCurrentlyResampling` reads `audioRecorder.recorder`'s status
-				// (`gui/ui/audio_recorder.cpp:424-427`), which no seam exposes. The port always
+				// (`AudioRecorder::isCurrentlyResampling`), which no seam exposes. The port always
 				// takes the `else`.
 				playbackHandler.recordButtonPressed(); // `:199`
 			}

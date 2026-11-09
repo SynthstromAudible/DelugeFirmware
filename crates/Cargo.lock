@@ -58,15 +58,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
+name = "deluge-audio-format"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
+
+[[package]]
 name = "deluge_alloc"
 version = "0.1.0"
 dependencies = [
  "proptest",
 ]
-
-[[package]]
-name = "deluge_audio_format"
-version = "0.1.0"
 
 [[package]]
 name = "deluge_resource"
@@ -82,8 +83,8 @@ name = "deluge_rust"
 version = "0.1.0"
 dependencies = [
  "critical-section",
+ "deluge-audio-format",
  "deluge_alloc",
- "deluge_audio_format",
  "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",

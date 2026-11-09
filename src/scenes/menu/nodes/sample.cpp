@@ -123,8 +123,8 @@ void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 
 void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `osc::AudioRecorder::beginSession`: set the source, then `openUI(&audioRecorder)`. `SceneId::arg` is unused --
-	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's `process()` loop is
-	// the shell's own tick (`recorder_scene.h`).
+	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's app-loop job
+	// (`AudioRecorder::slowRoutine`) is the shell's own tick (`recorder_scene.h`).
 	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
 	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu` gives a recorder on the chain's SAMPLE

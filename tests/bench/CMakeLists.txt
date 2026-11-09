@@ -10,6 +10,8 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/bench/delay_cases.cpp
     ${_src}/bench/filter_cases.cpp
     ${_src}/bench/compressor_cases.cpp
+    ${_src}/bench/float_filter_cases.cpp
+    ${_src}/bench/float_voice_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mod_fx_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/granular_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stutter_cases_host.cpp
@@ -22,6 +24,7 @@ deluge_specs_driver(bench_specs NEON
     ${CMAKE_CURRENT_LIST_DIR}/chain_cases_host.cpp
     ${_src}/dsp-next/fixed/delay/delay_processor.cpp
     ${_src}/dsp-next/fixed/delay/delay_tape.cpp
+    ${_src}/dsp-next/float/osc/saw_bands.cpp
     ${_src}/dsp-next/fixed/bandlimited/saw.cpp
     ${_src}/dsp-next/fixed/bandlimited/square.cpp
     ${_src}/dsp-next/fixed/dynamics/compressor_kernel.cpp

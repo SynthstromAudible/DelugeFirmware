@@ -25,6 +25,8 @@ const FL_INDEX_MAX: usize = 30; // up to 1 GiB (covers the 64 MB SDRAM arena)
 const FL_INDEX_SHIFT: usize = SL_INDEX_COUNT_LOG2 + ALIGN_LOG2; // 9
 const FL_INDEX_COUNT: usize = FL_INDEX_MAX - FL_INDEX_SHIFT + 1; // 22
 const SMALL_BLOCK_SIZE: usize = 1 << FL_INDEX_SHIFT; // 512
+/// The largest size a block can be: the first-level classes end at `FL_INDEX_MAX`.
+pub const BLOCK_SIZE_MAX: usize = 1 << FL_INDEX_MAX;
 
 const BLOCK_FREE: usize = 1 << 0;
 const BLOCK_PREV_FREE: usize = 1 << 1;
@@ -303,8 +305,12 @@ impl Tlsf {
         }
     }
 
-    /// Finds a free block at least as large as class (fl, sl); returns null if none.
+    /// Finds a free block at least as large as class (fl, sl); returns null if none, or if the
+    /// class is past the last one (a size rounded up beyond `BLOCK_SIZE_MAX`).
     unsafe fn search_suitable(&self, fl_in: usize, sl_in: usize) -> *mut BlockHeader {
+        if fl_in >= FL_INDEX_COUNT {
+            return Self::null();
+        }
         let mut fl = fl_in;
         let mut sl = sl_in;
         // second-level bits at or above sl within this fl
@@ -492,10 +498,11 @@ impl Tlsf {
         }
     }
 
-    /// Allocates `size` bytes aligned to `align` (at least `ALIGN`). Returns null if `size` is 0 or
-    /// nothing fits; does not reclaim.
+    /// Allocates `size` bytes aligned to `align` (at least `ALIGN`). Returns null if `size` is 0,
+    /// past `BLOCK_SIZE_MAX`, or nothing fits; does not reclaim.
     pub unsafe fn malloc(&mut self, size: usize, align: usize) -> *mut u8 {
-        if size == 0 {
+        // Past the largest block, rounding the size up to a class would overflow or leave the tables
+        if size == 0 || size > BLOCK_SIZE_MAX {
             return ptr::null_mut();
         }
         let align = align.max(ALIGN);

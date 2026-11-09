@@ -256,7 +256,7 @@ DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) 
 	// to ever observe NOT_FOUND from a directory-existence check.
 	//
 	// This mirrors real efatfs's Dir::open_dir, which distinguishes the two
-	// failure shapes (crates/embedded-fatfs/src/dir.rs:252-256): Error::NotFound
+	// failure shapes (deluge-sdk crates/embedded-fatfs/src/dir.rs:252-256): Error::NotFound
 	// when the path names no entry at all, vs. Error::InvalidInput when it names
 	// an entry that exists but isn't a directory. The latter maps to
 	// DELUGE_ERR_PARAM, which the policy layer classifies as Undeterminable, not

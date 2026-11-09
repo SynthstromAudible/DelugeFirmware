@@ -49,7 +49,7 @@
 /// the FIRST turn commits, and the popup each function raises only outside a note editor
 /// (`:2933-2935`, `:3497`, `:4249`) is not raised. Three examples pin it, one per function, each with
 /// the guest opened over `instrumentClipView` the way production opens it -- which is also what makes
-/// `ActionLogger::getNewAction`'s own current-UI gate (`model/action/action_logger.cpp:98-102`) a
+/// `ActionLogger::getNewAction`'s own current-UI gate (`model/action/action_logger.cpp:100-104`) a
 /// real question here rather than one a spec-empty UI stack answers for free.
 ///
 /// **Uncovered, reported rather than faked:** `note_probability`/`adjust_note_probability`,
@@ -323,7 +323,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		// `InstrumentClip::getNoteRowOnScreen`'s kit arm indexes `noteRows` at `yDisplay + yScroll`;
 		// `yScroll` is `uint8_t lastAuditionedYDisplay` (`gui/views/
 		// instrument_clip_view.h:263`) added to a signed offset the constructor derives from the
-		// song's root note (`instrument_clip.cpp:90-96`), which is not 0 and not something a
+		// song's root note (`instrument_clip.cpp:91-97`), which is not 0 and not something a
 		// `uint8_t` can cancel out (measured: 35 on this fixture's default song). Pinned to 0
 		// instead, same as `song_fixture.h`'s own fixtures leave every other field it does not
 		// itself seed -- so `yDisplay` 0 lands on `noteRows[0]`, where `add_drum`'s one drum row goes

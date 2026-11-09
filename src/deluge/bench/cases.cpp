@@ -886,10 +886,69 @@ std::span<const Case> pitch_shift_list(CaseSet& s) {
 	return pitch_shift;
 }
 
+/// @brief The float filters list.
+std::span<const Case> float_filters_list(CaseSet& s) {
+	static const std::array float_filters{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fp_one_pole_mono", s.fp_one_pole_mono),
+	    make_case("fp_one_pole_poly2", s.fp_one_pole_poly2),
+	    make_case("fp_one_pole_poly4", s.fp_one_pole_poly4),
+	    make_case("fp_one_pole_linked2", s.fp_one_pole_linked2),
+	    make_case("fp_smoother_mono", s.fp_smoother_mono),
+	    make_case("fp_smoother_poly4", s.fp_smoother_poly4),
+	    make_case("fp_svf_mono", s.fp_svf_mono),
+	    make_case("fp_svf_poly2", s.fp_svf_poly2),
+	    make_case("fp_svf_poly4", s.fp_svf_poly4),
+	    make_case("fp_svf_linked2", s.fp_svf_linked2),
+	    make_case("fp_svf_bank4_sum", s.fp_svf_bank4_sum),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return float_filters;
+}
+
+/// @brief The float voice list.
+std::span<const Case> float_voice_list(CaseSet& s) {
+	static const std::array float_voice{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("fp_blep_saw_mono", s.fp_blep_saw_mono),
+	    make_case("fp_blep_saw_poly2", s.fp_blep_saw_poly2),
+	    make_case("fp_blep_saw_poly4", s.fp_blep_saw_poly4),
+	    make_case("fp_table_saw_mono", s.fp_table_saw_mono),
+	    make_case("fp_table_saw_poly2", s.fp_table_saw_poly2),
+	    make_case("fp_table_saw_poly4", s.fp_table_saw_poly4),
+	    make_case("fp_envelope_mono", s.fp_envelope_mono),
+	    make_case("fp_envelope_poly4", s.fp_envelope_poly4),
+	    make_case("fp_envelope_sustain_poly4", s.fp_envelope_sustain_poly4),
+	    make_case("fp_voice_blep_mono", s.fp_voice_blep_mono),
+	    make_case("fp_voice_blep_poly2", s.fp_voice_blep_poly2),
+	    make_case("fp_voice_blep_poly4", s.fp_voice_blep_poly4),
+	    make_case("fp_voice_blep_sustain_mono", s.fp_voice_blep_sustain_mono),
+	    make_case("fp_voice_blep_sustain_poly4", s.fp_voice_blep_sustain_poly4),
+	    make_case("fp_voice_blep_linked2", s.fp_voice_blep_linked2),
+	    make_case("fp_voice_table_poly4", s.fp_voice_table_poly4),
+	    make_case("fp_ladder_clean_mono", s.fp_ladder_clean_mono),
+	    make_case("fp_ladder_clean_poly4", s.fp_ladder_clean_poly4),
+	    make_case("fp_ladder_drive_mono", s.fp_ladder_drive_mono),
+	    make_case("fp_ladder_drive_poly4", s.fp_ladder_drive_poly4),
+	    make_case("fp_voice_ladder_mono", s.fp_voice_ladder_mono),
+	    make_case("fp_voice_ladder_poly4", s.fp_voice_ladder_poly4),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return float_voice;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::PITCH_SHIFT) {
+	if constexpr (L == CaseList::FLOAT_VOICE) {
+		return float_voice_list(s);
+	}
+	else if constexpr (L == CaseList::FLOAT_FILTERS) {
+		return float_filters_list(s);
+	}
+	else if constexpr (L == CaseList::PITCH_SHIFT) {
 		return pitch_shift_list(s);
 	}
 	else if constexpr (L == CaseList::VA_SHAPES) {
@@ -984,6 +1043,10 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::FFT_INVERSE>(s);
 	case CaseList::VA_SHAPES:
 		return list_cases<CaseList::VA_SHAPES>(s);
+	case CaseList::FLOAT_VOICE:
+		return list_cases<CaseList::FLOAT_VOICE>(s);
+	case CaseList::FLOAT_FILTERS:
+		return list_cases<CaseList::FLOAT_FILTERS>(s);
 	case CaseList::KERNELS:
 		break;
 	}

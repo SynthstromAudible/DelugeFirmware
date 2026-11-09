@@ -28,7 +28,8 @@ heapless = { version = "0.8", default-features = false }
 miniz_oxide = { version = "0.8.9", default-features = false }
 
 # The header decoder the audio loader walks headers through, and whose C ABI the app calls.
-deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
+# deluge-sdk's `deluge-audio-format`, at the pin below; `c-abi` exports what the app calls.
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = ["c-abi"] }
 deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
 # deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
@@ -36,19 +37,19 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
 # Default features off: the image links its own memory layout (linker/memory*.x), not the BSP's,
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
-# `fault-blink` handler. `zero-init-below-image`: the SRAM heap starts at the image's boot-only
-# tail (linker/sdram_sections.x), so the zero-init data has to sit below the image.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3ed5e93ad3085539e3f5caeee54508b0ec62981f", default-features = false, features = [
+# `fault-blink` handler. `zero-init-below-image` puts `.bss` and the MMU table below the image, so the
+# `__sram_heap_base` in linker/sdram_sections.x can hand the image's boot-only tail to the heap.
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", default-features = false, features = [
     "flash",
     "zero-init-below-image",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-deluge-usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3ed5e93ad3085539e3f5caeee54508b0ec62981f", features = [
+usb-classes = { package = "deluge-usb-classes", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = [
     "device-audio",
     "device-midi",
 ] }
 # The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
-rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3ed5e93ad3085539e3f5caeee54508b0ec62981f", features = [
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", features = [
     "rza1l",
     "unstable-driver-steal",
 ] }
@@ -56,15 +57,16 @@ rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3e
 # The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
 # the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
 # use 0.6; both versions are in the graph).
-embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
+# deluge-sdk's fork, published on crates.io; the import name stays `embedded_fatfs`.
+embedded-fatfs = { package = "deluge-embedded-fatfs", version = "0.2", default-features = false, features = ["lfn", "alloc"] }
 embedded-io-async = "0.7.0"
 
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
 # The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
-block-device-driver = { path = "../../../crates/block-device-driver" }
-block-device-adapters = { path = "../../../crates/block-device-adapters" }
+block-device-driver = "0.2"
+block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3" }
 aligned = "0.4"
 # The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs.
 # Imported as `fs_alloc`, the name its call sites use.
@@ -103,11 +105,12 @@ deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional
 
 # The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
 # no `fs_alloc` is needed.
-block-device-driver = { path = "../../../crates/block-device-driver", optional = true }
-block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
+block-device-driver = { version = "0.2", optional = true }
+block-device-adapters = { package = "deluge-block-device-adapters", version = "0.3", optional = true }
 aligned = { version = "0.4", optional = true }
-# The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3ed5e93ad3085539e3f5caeee54508b0ec62981f", optional = true }
+# The desktop simulator window for `sim`, and its panel/audio link (`deluge_simulator::link`), which
+# `sim_panel` plugs into deluge-bsp's host-panel hook.
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "ef2b533eba6689710fc63d8b59a893b0f8699109", optional = true }
 
 [features]
 default = ["host-runtime"]

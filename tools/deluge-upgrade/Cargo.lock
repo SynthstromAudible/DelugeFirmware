@@ -3,16 +3,17 @@
 version = 4
 
 [[package]]
+name = "deluge-audio-format"
+version = "0.1.1"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=ef2b533eba6689710fc63d8b59a893b0f8699109#ef2b533eba6689710fc63d8b59a893b0f8699109"
+
+[[package]]
 name = "deluge-upgrade"
 version = "0.1.0"
 dependencies = [
- "deluge_audio_format",
+ "deluge-audio-format",
  "thiserror",
 ]
-
-[[package]]
-name = "deluge_audio_format"
-version = "0.1.0"
 
 [[package]]
 name = "proc-macro2"

@@ -6,8 +6,10 @@
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
 Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
-``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. Mocks in ``tests/`` are reported
-apart, because a mock of a function nobody calls keeps nothing alive.
+``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. A header in ``EXTERNAL`` is defined by a
+dependency outside this repository instead, and each of its functions counts as defined only when an
+``abi_pin!`` reaches it in that crate. Mocks in ``tests/`` are reported apart, because a mock of a function nobody
+calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
@@ -182,6 +184,13 @@ ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
 BSP_SRC = ROOT / "src" / "bsp" / "rust" / "src"
 HARNESS = ROOT / "src" / "bsp" / "rust" / "harness"
 CRATES = ROOT / "crates"
+# Headers whose functions a dependency defines outside this repository, by the crate name `abi/pins.rs` pins them
+# `in`. Its source is not here to scan, so the pin, which checks each function against the header, stands for the
+# definition: a function with no pin into the crate is reported undefined.
+EXTERNAL: dict[str, str] = {
+    # deluge-sdk's `deluge-audio-format`, at the pin in src/bsp/rust/Cargo.toml.
+    "audio_format.h": "deluge_audio_format",
+}
 # `extern "C" { ... }` (optionally `unsafe`): an import block, as opposed to `extern "C" fn`, a definition.
 EXTERN_BLOCK = re.compile(r'\bextern\s+"C"\s*\{')
 EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
@@ -342,11 +351,15 @@ def main() -> int:
 
     decls = declared()
     names = args.names or sorted(decls)
+    pins = pinned()
     undefined = []
     print(f"{'function':48} {'header':22} def mock  app tests rust")
     for name in names:
         row = scan(name)
         defined = row["rust_def"] + row["cxx_def"]
+        crate = EXTERNAL.get(decls[name].name) if name in decls else None
+        if not defined and crate in pins.get(name, ()):
+            defined = 1
         callers = row["app"] + row["tests"] + row["rust"]
         if not defined:
             undefined.append(name)
@@ -360,7 +373,6 @@ def main() -> int:
         )
     unpinned = []
     if args.pins:
-        pins = pinned()
         items = rust_items(decls)
         for name in names:
             for scope, kind in sorted(items.get(name, ())):

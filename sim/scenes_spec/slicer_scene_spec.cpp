@@ -88,13 +88,10 @@
 
 #include "support/song_fixture.h"
 
-// NOT `support/card_access.h`; the omission is deliberate. `QuietAudio` disarms exactly one
-// landmine -- `FileCatalogue`'s `emptyFileItems`/`deleteSomeFileItems` pump
-// `AudioEngine::routineWithClusterLoading()` between chunks, and an un-booted engine dies in
-// `fillInputRing` (`support/card_access.h`). Nothing here drives a listing, and the card-touching half
-// of `SliceCore::do_slice` is behind `SliceOps::commit`, whose fake performs no I/O -- so nothing in this
-// file reaches an audio-engine yield point at all. Holding the latch anyway would assert a card
-// touch that does not happen. `SdRoot` likewise: no file is opened.
+// NOT `support/card_access.h`; the omission is deliberate. Nothing here drives a listing, and the
+// card-touching half of `SliceCore::do_slice` is behind `SliceOps::commit`, whose fake performs no
+// I/O. `SdRoot` would assert a card touch that does not happen, as `QuietAudio` would a hold on the
+// audio routine nothing here needs.
 
 #include "spec/gfx/support/golden.h"
 #include "spec/shell/support/fake_surfaces.h"

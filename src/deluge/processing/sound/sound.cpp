@@ -60,8 +60,8 @@
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
+#include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_slot.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -833,8 +833,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (!((getSynthMode() == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	          paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648))))
-	    [[unlikely]] {
+	          paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648)))) [[unlikely]] {
 		return;
 	}
 
@@ -1314,7 +1313,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
 	if (getSynthMode() != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	        modelStack->paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
+	        modelStack->paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 		return true;
 	}
 
@@ -1480,7 +1479,7 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
 }
 
@@ -1493,7 +1492,7 @@ bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 	return (getSynthMode() != SynthMode::FM
 	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648));
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648));
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
@@ -1515,7 +1514,7 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
-	            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_OSC_B_VOLUME), -2147483648)
+	            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_OSC_B_VOLUME), -2147483648)
 	        || getSynthMode() == SynthMode::RINGMOD);
 }
 
@@ -1629,9 +1628,9 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
                                                       ParamManagerForTimeline& paramManager) {
 	PatchedParamSet* patchedParams = paramManager.getPatchedParamSet();
 	if (patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
-	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT))
+	        patchedParams->playedLane(params::GLOBAL_REVERB_AMOUNT))
 	    || !patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
-	        patchedParams->findDocForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
+	        patchedParams->playedLane(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
 		return best;
 	}
 	// We deliberately don't use the LPF'ed param here
@@ -2008,7 +2007,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .source_ever_active = sourceEverActives,
 		    .noise_volume_contains_something =
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-		            paramManager->getPatchedParamSet()->findDocForParam(params::LOCAL_NOISE_VOLUME), -2147483648),
+		            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648),
 		    .local_sources_patched_to_anything =
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
@@ -3396,11 +3395,11 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
+	            patchedParams->playedLane(params::LOCAL_ENV_0_SUSTAIN + e), -2147483648)
 	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_DECAY + e))
+	            patchedParams->playedLane(params::LOCAL_ENV_0_DECAY + e))
 	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated(
-	            patchedParams->findDocForParam(params::LOCAL_ENV_0_RELEASE + e))
+	            patchedParams->playedLane(params::LOCAL_ENV_0_RELEASE + e))
 	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
 	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
 }
@@ -3822,7 +3821,7 @@ void Sound::detachSourcesFromAudioFiles() {
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 	// during memory allocation
-	// audioRoutineLocked gates only the cooperative audio routine, not the render, so excluding the render here needs
+	// An AudioTickHold holds off only the audio tick, not the render, so excluding the render here needs an
 	// AudioExcludedSection.
 	AudioExcludedSection section;
 	killAllVoices();
@@ -3957,15 +3956,15 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	// through the algorithm and the remaining comparisons run against a moved-from value.
 	//
 	// `ActiveVoice` is a `unique_ptr`, so "overwritten" means MOVED: that path can recycle a
-	// `VoiceSlot` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
-	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `VoiceSlot*`
+	// `SoundVoice` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
+	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `SoundVoice*`
 	// copied out first removes the aliasing entirely, so the predicate is stable no matter how
 	// `remove` rearranges the container.
 	//
 	// Single-threaded UB, not a race — it needs only repeated culling, which is why it surfaces
 	// under a cull storm rather than under concurrency. Distinct from the cross-tier race on
 	// voices_ (see the containment note in Sound::Sound()), which remains open.
-	VoiceSlot* const target = voice.get();
+	SoundVoice* const target = voice.get();
 	voice->set_as_unassigned(modelStack);
 	if (erase) {
 		eraseVoicesIf([target](const ActiveVoice& v) { return v.get() == target; });
@@ -3984,8 +3983,8 @@ void Sound::killAllVoices() {
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {
-	// Compare by voice priority (VoiceSlot::operator<=> on priority_rating()), NOT by the unique_ptr's
-	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<VoiceSlot>, whose default ordering is by
+	// Compare by voice priority (SoundVoice::operator<=> on priority_rating()), NOT by the unique_ptr's
+	// pointer value. `voices_` holds ActiveVoice == std::unique_ptr<SoundVoice>, whose default ordering is by
 	// address — so a bare max_element(voices_) selects the highest-addressed voice, which is both
 	// semantically wrong (culls an arbitrary voice, not the lowest-priority one) and heap-layout-dependent
 	// (it made the offline golden render depend on allocation addresses — see docs/dev/overread_hunt.md).
@@ -4000,8 +3999,8 @@ const Sound::ActiveVoice& Sound::stealOneActiveVoice() {
 
 	/// Reconstruct the voice
 	this->freeActiveVoice(voice, nullptr, false);
-	voice->~VoiceSlot();
-	new (voice.get()) VoiceSlot(*this);
+	voice->~SoundVoice();
+	new (voice.get()) SoundVoice(*this);
 
 	return voice;
 }

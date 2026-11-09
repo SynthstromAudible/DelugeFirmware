@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -27,6 +28,8 @@
 #include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
+#include "modulation/automation/working_copies.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
 #include "plugin-api/types/param_mapping.h"
@@ -290,6 +293,7 @@ void PatchCableSet::permuteCables(std::span<const uint8_t> order) {
 }
 
 deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, deluge::synth::CableTarget target) {
+	deluge::modulation::markLanesChanged(*this);
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	std::vector<deluge::project::DocCableDepth>& table = depths();
 	for (deluge::project::DocCableDepth& lane : table) {
@@ -304,6 +308,7 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, deluge::
 }
 
 void PatchCableSet::eraseLane(PatchSource from, deluge::synth::CableTarget target) {
+	deluge::modulation::markLanesChanged(*this);
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	// The lane's nodes are moved out inside the section and freed after it.
 	deluge::project::DocAutoParam dropped;
@@ -663,6 +668,7 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 
 void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
                                     bool shouldPingpong) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
@@ -671,29 +677,9 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 	FOR_EACH_PARAM_END
 }
 
-void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                          ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                          int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	PatchCableSet* otherPatchCableSet = (PatchCableSet*)otherModelStack->paramCollection;
-
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated) // Iterate through the *other* ParamManager's stuff
-
-	PatchSource s = otherPatchCableSet->patchCables[c].from;
-	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destination);
-
-	if (i != 255) {
-		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
-		                                 reverseThisRepeatWithLength, pingpongingGenerally);
-	}
-
-	FOR_EACH_PARAM_END
-
-	ticksTilNextEvent = 0;
-}
-
 void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                  bool maySetupPatching) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	bool anyStoppedBeingAutomated = false;
 
@@ -727,6 +713,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 
 void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                       int32_t effectiveLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 	patchCables[c].param.shiftHorizontally(*docForParam(c), amount, effectiveLength);
 	FOR_EACH_PARAM_END
@@ -918,12 +905,14 @@ Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_
 }
 
 void PatchCableSet::stripAutomation() {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 		docForParam(c)->nodes.clear();
 	}
 }
 
 void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 		patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
 	}
@@ -1064,6 +1053,7 @@ void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWith
 }
 
 void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
 	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
@@ -1079,6 +1069,7 @@ void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamColle
 
 void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
                                                     Action* action, ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	bool anyStoppedBeingAutomated = false;
 
@@ -1158,4 +1149,26 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 		return nullptr;
 	}
 	return &patchCables[i];
+}
+
+void PatchCableSet::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+                                       deluge::function_ref<void(int32_t)> visit) {
+	// Each cable of this set whose cable in the other set, from the same source to the same destination, is automated
+	auto& otherSet = static_cast<PatchCableSet&>(other);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		const int32_t o = otherSet.getPatchCableIndex(patchCables[c].from, patchCables[c].destination);
+		if (o != 255 && (otherSummary.whichParamsAreAutomated[o >> 5] & (1u << (o & 31))) != 0) {
+			visit(getParamId(patchCables[c].destination, patchCables[c].from));
+		}
+	}
+}
+
+void PatchCableSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		const int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
+		const deluge::project::DocAutoParam* lane = findDocParamForId(paramId);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(paramId, *lane);
+		}
+	}
 }

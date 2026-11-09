@@ -126,14 +126,14 @@ uint32_t tween_cadence_ms(ActiveTween::Kind kind) {
 	switch (kind) {
 	case ActiveTween::Kind::Fade:
 		// `renderFade` re-arms `TimerName::MATRIX_DRIVER` at `UI_MS_PER_REFRESH`
-		// (`hid/led/pad_leds.cpp:1479`; 50 ms, `board_config.h:55`).
+		// (`hid/led/pad_leds.cpp:1478`; 50 ms, `board_config.h:55`).
 		return 50;
 	case ActiveTween::Kind::ScrollH:
 		// `horizontal::renderScroll` re-arms at `UI_MS_PER_REFRESH_SCROLLING`
-		// (`hid/led/pad_leds.cpp:1409`; 7 ms, `board_config.h:59`).
+		// (`hid/led/pad_leds.cpp:1408`; 7 ms, `board_config.h:59`).
 		return 7;
 	case ActiveTween::Kind::ScrollV:
-		// `vertical::renderScroll` (`hid/led/pad_leds.cpp:1431-1456`) re-arms no timer of its own
+		// `vertical::renderScroll` (`hid/led/pad_leds.cpp:1430-1455`) re-arms no timer of its own
 		// at all -- its caller drives each step directly. `UI_MS_PER_REFRESH` (50 ms) is this
 		// port's own choice for "how often to ask", not a legacy value; there is none to cite.
 		return 50;
@@ -544,7 +544,7 @@ void Shell::tick(uint32_t now_ms) {
 	// A service draws nothing, so what its timer arms is the repaint of whichever scene reads the
 	// state that timer advances. `MidiLearn`'s flash is the case that needed it: legacy's
 	// `View::midiLearnFlash` toggles `midiLearnFlashOn` and then asks the ROOT UI to repaint
-	// (`gui/views/view.cpp:815-820`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
+	// (`gui/views/view.cpp`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
 	// in the tree is a pad renderer. Without this loop the phase advanced on the wake
 	// `compute_next_wake` already granted and nothing ever repainted with it.
 	//

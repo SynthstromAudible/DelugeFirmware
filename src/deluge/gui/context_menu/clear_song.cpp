@@ -23,6 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/song/song.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
@@ -76,7 +77,8 @@ void runAccept() {
 
 	Song* toDelete = currentSong;
 
-	preLoadedSong->ensureAtLeastOneSessionClip(); // The built-in default synth; reads no card
+	preLoadedSong->ensureAtLeastOneSessionClip();               // The built-in default synth; reads no card
+	(void)deluge::modulation::publishSongLanes(*preLoadedSong); // the swap below hands it to the render
 
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
 	// Only with the clock running: stopped, deleteOldSongBeforeLoadingNew() above already retired the old song and

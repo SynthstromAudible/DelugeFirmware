@@ -44,10 +44,13 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "modulation/automation/record_events.h"
+#include "modulation/automation/working_copies.h"
+#include "modulation/params/lane_publication.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/playhead_checks.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include "util/note_editor_open.h"
@@ -92,6 +95,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		++deluge::modulation::renderUndoCalls;
 	}
 #endif
+	deluge::playback::noteActionBegun();
 
 	if (!currentSong) {
 		return nullptr;
@@ -347,8 +351,11 @@ Action* ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDi
 // Clip resize.
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
 	D_PRINTLN("ActionLogger::revert");
+	deluge::modulation::LaneOperation operation; // its lanes published for the render once it is whole
 	if (currentSong != nullptr) {
-		deluge::modulation::drainRecordEvents(*currentSong); // what is undone includes every value recorded
+		deluge::modulation::commitRecording(*currentSong); // what is undone includes every value recorded
+		// Undo and redo rewrite lanes a take's working copies would overwrite at the next commit: the take ends here
+		deluge::modulation::releaseWorkingCopies();
 	}
 
 	deleteLastActionIfEmpty();

@@ -36,8 +36,8 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
+#include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_slot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "plugin-api/types/param_mapping.h"
@@ -435,7 +435,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 				if (!valid_voices_view.empty()) {
 					const Sound::ActiveVoice& assigned_voice =
-					    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
+					    *std::ranges::max_element(valid_voices_view, {}, &SoundVoice::order_sounded);
 
 					const int32_t u = drum->snapshot().num_unison >> 1;
 					deluge::synth::SourceSlot* part = &assigned_voice->kernel.unison_parts[u].slots[0];

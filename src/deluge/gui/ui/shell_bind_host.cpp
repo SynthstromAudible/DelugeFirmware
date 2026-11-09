@@ -3,8 +3,8 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
+#include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
-#include "model/voice/voice_slot.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
@@ -396,7 +396,7 @@ public:
 			}
 			auto* range =
 			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
-			VoiceSlot* newest = nullptr;
+			SoundVoice* newest = nullptr;
 			for (const Sound::ActiveVoice& voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
 				    && (newest == nullptr || voice->order_sounded > newest->order_sounded)) {
@@ -647,12 +647,14 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-201`): range storage is about
+	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-203`): range storage is about
 	// to change, so every voice is unassigned and none may be assigned during the allocation.
 	sound->killAllVoices();
-	AudioEngine::audioRoutineLocked = true;
-	::MultiRange* inserted = sound->sources[source].ranges.insertMultiRange(at);
-	AudioEngine::audioRoutineLocked = false;
+	::MultiRange* inserted = nullptr;
+	{
+		AudioEngine::AudioTickHold hold;
+		inserted = sound->sources[source].ranges.insertMultiRange(at);
+	}
 	if (inserted == nullptr) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
@@ -671,7 +673,7 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp:234-285`): `deleteMultiRange` unassigns the voices.
+	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns the voices.
 	sound->deleteMultiRange(source, index);
 	if (lower_top && index > 0) {
 		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;

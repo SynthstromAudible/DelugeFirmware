@@ -127,7 +127,7 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 ///
 /// **Why the guest must be current over `instrumentClipView`.** `ActionLogger::getNewAction` refuses
 /// an action whenever the current UI is not the root, unless a note editor is open
-/// (`model/action/action_logger.cpp:98-102`) -- the gate every note-mode edit is written through. With no
+/// (`model/action/action_logger.cpp:100-104`) -- the gate every note-mode edit is written through. With no
 /// UI seated, `getRootUI()` is null and `getCurrentUI()` is whatever `nullifyUIs` last left
 /// (`gui/ui/ui.cpp:166-180`), so the gate's answer would be an accident of the previous example rather
 /// than the question production asks. And `instrumentClipView` is the root every note-mode handler

@@ -12,7 +12,7 @@
 /// divides its cycles by N as well, so its cps is per channel-sample, comparable with the mono case of its kernel.
 ///
 /// **Seven lists.** The device prints about 70 lines over RTT before it drops some, so the cases come in seven lists,
-/// each run at every block size: the kernels (one case per component), the lanes (each `Lanes` case beside the mono
+/// each run at every block size: the kernels (one case per component), the lanes (each `Linked` case beside the mono
 /// case of its kernel), the chain (stages run as separate passes beside the same stages as one `Chain`), the delay
 /// (the whole delay block over real tapes), the filters (each filter and the filter set, as a voice runs them) and the
 /// compressor (fully wet and blended, as its owners call it) and the mod FX (each type as its owners render it through
@@ -27,15 +27,18 @@
 
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
+#include "dsp-next/core/bank.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_neon.h"
+#include "dsp-next/core/flush_to_zero.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/lanes.h"
+#include "dsp-next/core/linked.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/poly.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -61,13 +64,26 @@
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
+#include "dsp-next/float/envelope/envelope.h"
+#include "dsp-next/float/filter/ladder.h"
+#include "dsp-next/float/filter/one_pole.h"
+#include "dsp-next/float/filter/smoother.h"
+#include "dsp-next/float/filter/svf.h"
+#include "dsp-next/float/mod/drift.h"
+#include "dsp-next/float/osc/blep_oscillator.h"
+#include "dsp-next/float/osc/saw_bands.h"
+#include "dsp-next/float/osc/table_oscillator.h"
+#include "dsp-next/float/vca/vca.h"
 
 #include <algorithm>
 #include <argon.hpp>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numbers>
+#include <optional>
 #include <span>
 
 namespace deluge::bench {
@@ -747,7 +763,7 @@ private:
 	BlockSpans spans_{};
 };
 
-/// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
+/// @brief `Linked<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
 /// pole, from the lanes input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, following its
 /// own stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a
@@ -759,7 +775,7 @@ public:
 	static constexpr std::size_t kLanes = N; ///< The lanes per frame.
 	/// @brief The moveability, Q31: the mono case's.
 	static constexpr dsp::Q<31> kMoveability = OnePoleLowPassCase::kMoveability;
-	using Component = dsp::Lanes<dsp::fixed::OnePole, N>; ///< The component timed.
+	using Component = dsp::Linked<dsp::fixed::OnePole, N>; ///< The component timed.
 
 	/// @brief Configures the pole from silence, fills the lanes input and takes the blocks' spans for @p n frames.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -780,7 +796,7 @@ using OnePoleX2Case = LanesOnePoleCase<2>;
 /// @brief `one_pole_x4`.
 using OnePoleX4Case = LanesOnePoleCase<4>;
 
-/// @brief `Lanes<ShiftTracker<11>, N>` in REMOVE, op-major: N streams through the delay's DC blocker, from the lanes
+/// @brief `Linked<ShiftTracker<11>, N>` in REMOVE, op-major: N streams through the delay's DC blocker, from the lanes
 /// input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, tracking its own
 /// stream of the one input block the case repeats. Every frame is the same arithmetic: per lane a subtract, a shifted
@@ -789,8 +805,8 @@ using OnePoleX4Case = LanesOnePoleCase<4>;
 template <std::size_t N>
 class LanesShiftTrackerCase {
 public:
-	static constexpr std::size_t kLanes = N;                    ///< The lanes per frame.
-	using Component = dsp::Lanes<ShiftTrackerCase::Tracker, N>; ///< The component timed.
+	static constexpr std::size_t kLanes = N;                     ///< The lanes per frame.
+	using Component = dsp::Linked<ShiftTrackerCase::Tracker, N>; ///< The component timed.
 
 	/// @brief Configures the tracker in REMOVE from silence, fills the lanes input and takes the blocks' spans for @p n
 	/// frames.
@@ -1907,6 +1923,453 @@ private:
 	ModMatrixKind kind_;
 };
 
+/// @brief The float kernels' bench settings, one struct per kernel: the kernel, its settings for a lane and block, and
+/// whether the settings change every block.
+struct FloatOnePoleSettings {
+	using Kernel = dsp::fp::OnePole;          ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Cutoff 0.01 + 0.02 per lane, LOW_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f + 0.02f * static_cast<dsp::f32>(lane), .mode = Kernel::Mode::LOW_PASS};
+	}
+};
+
+/// @brief The smoother's bench settings; see FloatOnePoleSettings.
+struct FloatSmootherSettings {
+	using Kernel = dsp::fp::Smoother;        ///< The kernel timed.
+	static constexpr bool kRetargets = true; ///< Configured every block, as its owner sets the target.
+	/// @return EXPONENTIAL, time 64, the target +0.5 on even blocks and -0.5 on odd ones.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t /*lane*/, std::size_t block) {
+		return {.target = (block % 2 == 0) ? 0.5f : -0.5f, .time = 64.f, .mode = Kernel::Mode::EXPONENTIAL};
+	}
+};
+
+/// @brief The SVF's bench settings; see FloatOnePoleSettings.
+struct FloatSvfSettings {
+	using Kernel = dsp::fp::Svf;              ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Cutoff 0.01 per lane + 1, Q 2, LOW_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f * static_cast<dsp::f32>(lane + 1), .q = 2.f, .mode = Kernel::Mode::LOW_PASS};
+	}
+};
+
+/// @brief The ladder's bench settings in flavour @p M; see FloatOnePoleSettings.
+template <dsp::fp::Ladder::Mode M>
+struct FloatLadderSettings {
+	using Kernel = dsp::fp::Ladder;           ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return Lane @p lane's response LP24, LP12, HP and BP in turn, cutoff 0.02 + 0.03 per lane, resonance 2,
+	/// drive 2, compensated, flavour M.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		using Response = Kernel::Response;
+		constexpr std::array kResponses{Response::LP24, Response::LP12, Response::HP, Response::BP};
+		return {.cutoff = 0.02f + (0.03f * static_cast<dsp::f32>(lane)),
+		        .resonance = 2.f,
+		        .drive = 2.f,
+		        .compensate = true,
+		        .response = kResponses[lane % 4],
+		        .mode = M};
+	}
+};
+using FloatLadderCleanSettings = FloatLadderSettings<dsp::fp::Ladder::Mode::CLEAN>; ///< The CLEAN flavour.
+using FloatLadderDriveSettings = FloatLadderSettings<dsp::fp::Ladder::Mode::DRIVE>; ///< The DRIVE flavour.
+
+/// @brief The SVF bank's bench settings; see FloatOnePoleSettings.
+struct FloatSvfBandSettings {
+	using Kernel = dsp::fp::Svf;              ///< The kernel timed.
+	static constexpr bool kRetargets = false; ///< Configured once, at setup.
+	/// @return The bank's band: cutoff 0.01 · 2^lane, Q 5, BAND_PASS.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane, std::size_t /*block*/) {
+		return {.cutoff = 0.01f * static_cast<dsp::f32>(1U << lane), .q = 5.f, .mode = Kernel::Mode::BAND_PASS};
+	}
+};
+
+/// @brief Flush-to-zero for a float case's blocks, which the float instrument runs under.
+/// @details **On the device** (a DELUGE_DSP_BENCH image) `enable` sets it at the case's first setup and never restores
+/// it, so the warm-up, the timed blocks and every later case run with FPSCR.FZ set, and `scope` costs nothing. **On the
+/// host** `enable` does nothing and `scope` holds it for one block, so no later spec runs with it set.
+class FloatBenchFlush {
+public:
+#if defined(DELUGE_DSP_BENCH)
+	/// @brief Sets flush-to-zero, once, for the rest of the run.
+	void enable() {
+		if (!flush_) {
+			flush_.emplace();
+		}
+	}
+	/// @brief Nothing: flush-to-zero is already set.
+	[[nodiscard]] static std::nullopt_t scope() { return std::nullopt; }
+
+private:
+	std::optional<dsp::fp::FlushToZero> flush_;
+#else
+	/// @brief Nothing: each block sets it for its own span.
+	static void enable() {}
+	/// @brief Flush-to-zero until the returned object ends.
+	[[nodiscard]] static dsp::fp::FlushToZero scope() { return dsp::fp::FlushToZero{}; }
+#endif
+};
+
+/// @brief `Mono<K>` over one stream of f32: the float input into the float output.
+/// @details **Timed state:** the kernel's state carries from block to block from rest at setup, following the one
+/// input block the case repeats, under flush-to-zero (FloatBenchFlush). A kernel that retargets
+/// (the smoother) is configured again at the start of every block, inside the timed region, as its owner does.
+/// @tparam S The kernel's settings: FloatOnePoleSettings, FloatSmootherSettings or FloatSvfSettings.
+template <class S>
+class FloatMonoCase {
+public:
+	using Component = dsp::Mono<typename S::Kernel>; ///< The component timed.
+
+	/// @brief Configures from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return mono_; }
+
+private:
+	Component mono_;
+	FloatBenchFlush flush_;
+	dsp::fp::Signal in_;
+	dsp::fp::Buffer out_;
+	std::size_t block_ = 0;
+};
+
+/// @brief `Poly<K, N>`: N independent streams of f32, one per NEON lane, each with its own settings.
+/// @details **Timed state:** as FloatMonoCase for every lane, each lane following its own slice of the f32 input and
+/// writing its own slice of the output. Cycles are per channel-sample (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatMonoCase.
+/// @tparam N The lane count: 2 or 4.
+template <class S, std::size_t N>
+class FloatPolyCase {
+public:
+	static constexpr std::size_t kLanes = N;            ///< The streams per block.
+	using Component = dsp::Poly<typename S::Kernel, N>; ///< The component timed.
+
+	/// @brief Configures every lane from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples per lane.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples per lane; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return poly_; }
+
+private:
+	Component poly_;
+	FloatBenchFlush flush_;
+	std::array<dsp::fp::Signal, N> in_;
+	std::array<dsp::fp::Buffer, N> out_;
+	std::size_t block_ = 0;
+};
+
+/// @brief `Linked<K, N, Frame<f32, N>>`: N streams of interleaved f32 frames through one kernel configuration.
+/// @details **Timed state:** as FloatMonoCase for every lane, the lanes sharing lane 0's settings, the frames
+/// interleaved in one input block and one output block. Cycles are per channel-sample (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatMonoCase (never a retargeting one).
+/// @tparam N The lane count.
+template <class S, std::size_t N>
+class FloatLinkedCase {
+public:
+	static constexpr std::size_t kLanes = N;                                       ///< The lanes per frame.
+	using Component = dsp::Linked<typename S::Kernel, N, dsp::Frame<dsp::f32, N>>; ///< The component timed.
+
+	/// @brief Configures from rest, fills the f32 input and takes the blocks' spans for @p n frames.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return linked_; }
+
+private:
+	Component linked_;
+	FloatBenchFlush flush_;
+	dsp::Signal<dsp::Frame<dsp::f32, N>> in_;
+	dsp::Buffer<dsp::Frame<dsp::f32, N>> out_;
+};
+
+/// @brief `Bank<Svf, 4, mix::Sum>`: one stream of f32 into four band-pass filters, summed.
+/// @details **Timed state:** four band-pass states carry from block to block from rest at setup, all four reading
+/// the one input block the case repeats, under flush-to-zero (FloatBenchFlush). One input sample is one
+/// block sample, so the figure is cycles per input sample (no `kLanes`): four filters' work.
+class FloatBankCase {
+public:
+	using Component = dsp::Bank<dsp::fp::Svf, 4, dsp::mix::Sum>; ///< The component timed.
+
+	/// @brief Configures the four bands from rest, fills the f32 input and takes the blocks' spans for @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Processes one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return bank_; }
+
+private:
+	Component bank_;
+	FloatBenchFlush flush_;
+	dsp::fp::Signal in_;
+	dsp::fp::Buffer out_;
+};
+
+/// @brief A lane's gate event in a block of the float voice cases.
+enum class FloatGate : uint8_t {
+	NONE, ///< No event.
+	ON,   ///< gate-on.
+	OFF,  ///< gate-off.
+};
+
+/// @brief The gate schedule of the float voice cases: every lane is gated on once in 8 blocks and off 4 blocks later,
+/// lane l's schedule l · 2 blocks behind lane 0's, so at any block the lanes sit in different stages and a stage
+/// change falls inside the timed region.
+/// @param lane The lane.
+/// @param block The block's number since setup.
+/// @return The event to run at the start of that block.
+[[nodiscard]] constexpr FloatGate float_gate_at(std::size_t lane, std::size_t block) {
+	switch ((block + (2 * lane)) % 8) {
+	case 0:
+		return FloatGate::ON;
+	case 4:
+		return FloatGate::OFF;
+	default:
+		return FloatGate::NONE;
+	}
+}
+
+/// @brief Lane @p lane's envelope program in the float voice cases: ADSR, four-segment and ASR in turn, each with
+/// times (in samples) that differ by lane.
+[[nodiscard]] inline dsp::fp::Program float_voice_program(std::size_t lane) {
+	const auto t = static_cast<dsp::f32>(lane);
+	switch (lane % 3) {
+	case 0:
+		return dsp::fp::adsr(20.f + (7.f * t), 40.f, 0.5f, 60.f + (11.f * t));
+	case 1:
+		return dsp::fp::four_segment({0.9f, 0.4f, 0.6f, 0.1f}, {30.f, 25.f + t, 40.f, 50.f});
+	default:
+		return dsp::fp::asr(15.f + t, 90.f);
+	}
+}
+
+/// @brief The BLEP oscillator's bench settings: a sawtooth, 0.0041 + 0.0137 per lane of the sample rate (lane 3 sits
+/// in a sparser band than lane 0); never gated.
+struct FloatBlepSettings {
+	using Kernel = dsp::fp::BlepOscillator;  ///< The kernel timed.
+	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = false;    ///< No gate events.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = 0;       ///< Unused.
+	static constexpr auto kGateOff = 0;      ///< Unused.
+	/// @return Lane @p lane's saw.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) {
+		return {.frequency = 0.0041f + (0.0137f * static_cast<dsp::f32>(lane)), .mode = Kernel::Mode::SAW};
+	}
+};
+
+/// @brief The table oscillator's bench settings: the same pitches as FloatBlepSettings.
+struct FloatTableSettings {
+	using Kernel = dsp::fp::TableOscillator; ///< The kernel timed.
+	static constexpr bool kSawBands = true;  ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = false;    ///< No gate events.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = 0;       ///< Unused.
+	static constexpr auto kGateOff = 0;      ///< Unused.
+	/// @return Lane @p lane's saw.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) {
+		return {.frequency = 0.0041f + (0.0137f * static_cast<dsp::f32>(lane))};
+	}
+};
+
+/// @brief The envelope's bench settings: float_voice_program(lane), gated by float_gate_at.
+struct FloatEnvelopeSettings {
+	using Kernel = dsp::fp::Envelope;                   ///< The kernel timed.
+	static constexpr bool kSawBands = false;            ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = true;                ///< Gate events run at each block's start.
+	static constexpr bool kHeld = false;                ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = &Kernel::gate_on;   ///< The gate-on event.
+	static constexpr auto kGateOff = &Kernel::gate_off; ///< The gate-off event.
+	/// @return Lane @p lane's program.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) { return {.program = float_voice_program(lane)}; }
+};
+
+/// @brief An envelope into a gain: the voice's amplifier, with the envelope's gate events reached through the chain.
+using FloatVoiceVca = dsp::fp::Vca<dsp::fp::Envelope>;
+
+/// @brief The voice of a BLEP saw, a low-pass SVF and an envelope amplifier.
+struct FloatBlepVoiceSettings {
+	using Kernel = dsp::Chain<dsp::fp::BlepOscillator, dsp::fp::Svf, FloatVoiceVca>; ///< The kernel timed.
+	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = true;     ///< Gate events run at each block.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
+	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
+	/// @return Lane @p lane's voice: its own pitch, cutoff 0.03 + 0.05 per lane, Q 0.8 + 1 per lane, program and gain.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) {
+		const auto t = static_cast<dsp::f32>(lane);
+		return Kernel::Settings{
+		    FloatBlepSettings::settings(lane),
+		    dsp::fp::Svf::Settings{.cutoff = 0.03f + (0.05f * t), .q = 0.8f + t, .mode = dsp::fp::Svf::Mode::LOW_PASS},
+		    FloatVoiceVca::Settings{.envelope = {.program = float_voice_program(lane)}, .gain = 0.3f + (0.2f * t)}};
+	}
+};
+
+/// @brief The same voice over the table oscillator.
+struct FloatTableVoiceSettings {
+	using Kernel = dsp::Chain<dsp::fp::TableOscillator, dsp::fp::Svf, FloatVoiceVca>; ///< The kernel timed.
+	static constexpr bool kSawBands = true; ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = true;    ///< Gate events run at each block.
+	static constexpr bool kHeld = false;    ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
+	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
+	/// @return Lane @p lane's voice, as FloatBlepVoiceSettings::settings.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) {
+		const auto t = static_cast<dsp::f32>(lane);
+		return Kernel::Settings{
+		    FloatTableSettings::settings(lane),
+		    dsp::fp::Svf::Settings{.cutoff = 0.03f + (0.05f * t), .q = 0.8f + t, .mode = dsp::fp::Svf::Mode::LOW_PASS},
+		    FloatVoiceVca::Settings{.envelope = {.program = float_voice_program(lane)}, .gain = 0.3f + (0.2f * t)}};
+	}
+};
+
+/// @brief The ladder voice: FloatBlepVoiceSettings' saw and amplifier through a CLEAN LP24 ladder, every lane drifting.
+/// @details Each lane has its own fp::Drift (time 32 blocks, seeded by lane), stepped once per block and applied as its
+/// owner would: the pitch by 3 cents and the cutoff by 5% at full deflection, linearised (inc·(1 + d·depth)).
+struct FloatLadderVoiceSettings {
+	using Kernel = dsp::Chain<dsp::fp::BlepOscillator, dsp::fp::Ladder, FloatVoiceVca>; ///< The kernel timed.
+	static constexpr bool kSawBands = false; ///< Whether the kernel reads the saw bands (build_saw_bands).
+	static constexpr bool kGated = true;     ///< Gate events run at each block.
+	static constexpr bool kHeld = false;     ///< Not held in sustain at setup.
+	static constexpr auto kGateOn = dsp::part_event<2, &FloatVoiceVca::gate_on>;   ///< The gate-on event.
+	static constexpr auto kGateOff = dsp::part_event<2, &FloatVoiceVca::gate_off>; ///< The gate-off event.
+	static constexpr dsp::f32 kDriftTime = 32.f; ///< The drift's time constant, in blocks.
+	static constexpr dsp::f32 kPitchDepth = static_cast<dsp::f32>(3.0 * std::numbers::ln2 / 1200.0); ///< 3 cents.
+	static constexpr dsp::f32 kCutoffDepth = 0.05f;                                                  ///< 5%.
+	/// @return Lane @p lane's voice: its own pitch, cutoff 0.03 + 0.05 per lane, resonance 2, program and gain.
+	[[nodiscard]] static Kernel::Settings settings(std::size_t lane) { return drifted(lane, 0.f); }
+	/// @return Lane @p lane's voice with its pitch and cutoff moved by the drift value @p d ∈ [−1, 1].
+	[[nodiscard]] static Kernel::Settings drifted(std::size_t lane, dsp::f32 d) {
+		const auto t = static_cast<dsp::f32>(lane);
+		auto osc = FloatBlepSettings::settings(lane);
+		osc.frequency = osc.frequency * (1.f + (d * kPitchDepth));
+		return Kernel::Settings{
+		    osc,
+		    dsp::fp::Ladder::Settings{
+		        .cutoff = (0.03f + (0.05f * t)) * (1.f + (d * kCutoffDepth)), .resonance = 2.f, .compensate = true},
+		    FloatVoiceVca::Settings{.envelope = {.program = float_voice_program(lane)}, .gain = 0.3f + (0.2f * t)}};
+	}
+};
+
+/// @brief A float generator's settings that drift: each lane is configured again every block from its fp::Drift.
+template <class S>
+concept drifting_source = requires(std::size_t lane, dsp::f32 d) {
+	{ S::drifted(lane, d) } -> std::same_as<typename S::Kernel::Settings>;
+};
+
+/// @brief The envelope held in sustain: FloatEnvelopeSettings' programs, gated on once at setup and rendered until
+/// every stage before the sustain has finished, with no gate event in the timed region.
+struct FloatEnvelopeSustainSettings : FloatEnvelopeSettings {
+	static constexpr bool kGated = false; ///< No gate events in the timed region.
+	static constexpr bool kHeld = true;   ///< Gated on at setup and rendered into sustain.
+};
+
+/// @brief The BLEP voice held in sustain, as FloatEnvelopeSustainSettings.
+struct FloatBlepVoiceSustainSettings : FloatBlepVoiceSettings {
+	static constexpr bool kGated = false; ///< No gate events in the timed region.
+	static constexpr bool kHeld = true;   ///< Gated on at setup and rendered into sustain.
+};
+
+/// @brief `Mono<K>` of a float generator (oscillator, envelope or voice) into one f32 stream.
+/// @details **Timed state:** the kernel renders from rest at setup under flush-to-zero (FloatBenchFlush), its state
+/// carrying from block to block. A gated kernel gets float_gate_at(0, block)'s event at the start of every block,
+/// inside the timed region: the gate cycle is 8 blocks with the gate-off 4 blocks after the gate-on and the programs'
+/// stages are 15 to 93 samples long, so the cases are transition-heavy. A held kernel (kHeld) is gated on at setup and
+/// rendered until it sits in sustain, and gets no event while timed: the steady state a held note is in between its
+/// stage changes. A drifting kernel (drifting_source) steps its lane's fp::Drift and is configured again from it at the
+/// start of every block, inside the timed region, as a voice's owner does.
+/// @tparam S The kernel's settings: FloatBlepSettings, FloatTableSettings, FloatEnvelopeSettings or a voice's.
+template <class S>
+class FloatSourceMonoCase {
+public:
+	using Component = dsp::Mono<typename S::Kernel>; ///< The component timed.
+
+	/// @brief Configures from rest, builds the saw bands when the kernel reads them and takes the output span.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Runs the block's gate event, then renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return mono_; }
+
+private:
+	Component mono_;
+	FloatBenchFlush flush_;
+	dsp::fp::Buffer out_;
+	std::size_t block_ = 0;
+	dsp::fp::Drift drift_; ///< Stepped only for a drifting_source.
+};
+
+/// @brief `Poly<K, N>` of a float generator: N independent streams, one per NEON lane, each with its own settings.
+/// @details **Timed state:** as FloatSourceMonoCase for every lane, lane l gated by float_gate_at(l, block) so the
+/// lanes are in different stages. Cycles are per channel-sample (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatSourceMonoCase.
+/// @tparam N The lane count: 2 or 4.
+template <class S, std::size_t N>
+class FloatSourcePolyCase {
+public:
+	static constexpr std::size_t kLanes = N;            ///< The streams per block.
+	using Component = dsp::Poly<typename S::Kernel, N>; ///< The component timed.
+
+	/// @brief Configures every lane from rest, builds the saw bands when the kernel reads them and takes the spans.
+	/// @param n Block size to set up for, in samples per lane.
+	void setup(std::size_t n);
+	/// @brief Runs each lane's gate event, then renders one block of the size it was set up for.
+	/// @param n Block size, in samples per lane; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return poly_; }
+
+private:
+	Component poly_;
+	FloatBenchFlush flush_;
+	std::array<dsp::fp::Buffer, N> out_;
+	std::size_t block_ = 0;
+	std::array<dsp::fp::Drift, N> drift_; ///< Stepped only for a drifting_source.
+};
+
+/// @brief `Linked<K, N, Frame<f32, N>>` of a float generator: N streams as interleaved f32 frames through one kernel
+/// configuration.
+/// @details **Timed state:** as FloatSourceMonoCase for every lane, the lanes sharing lane 0's settings and gated
+/// together by float_gate_at(0, block), so every lane is in the same stage. Cycles are per channel-sample
+/// (`kLanes = N`).
+/// @tparam S The kernel's settings, as FloatSourceMonoCase.
+/// @tparam N The lane count.
+template <class S, std::size_t N>
+class FloatSourceLinkedCase {
+public:
+	static constexpr std::size_t kLanes = N;                                       ///< The lanes per frame.
+	using Component = dsp::Linked<typename S::Kernel, N, dsp::Frame<dsp::f32, N>>; ///< The component timed.
+
+	/// @brief Configures from rest, builds the saw bands when the kernel reads them and takes the output span.
+	/// @param n Block size to set up for, in frames.
+	void setup(std::size_t n);
+	/// @brief Runs the block's gate event, then renders one block of the size it was set up for.
+	/// @param n Block size, in frames; the size passed to setup().
+	void block(std::size_t n);
+	/// @return The component.
+	[[nodiscard]] const Component& component() const { return linked_; }
+
+private:
+	Component linked_;
+	FloatBenchFlush flush_;
+	dsp::Buffer<dsp::Frame<dsp::f32, N>> out_;
+	std::size_t block_ = 0;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -2039,7 +2502,41 @@ struct CaseSet {
 	PitchShiftCase pitch_shift_stereo_up7{
 	    {.phase_increment = kPitchShiftUp7, .stereo = true}}; ///< `pitch_shift_stereo_up7`
 	PitchShiftCase pitch_shift_perc_up7{
-	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                 ///< `pitch_shift_perc_up7`
+	    {.phase_increment = kPitchShiftUp7, .percussive = true}};                   ///< `pitch_shift_perc_up7`
+	FloatMonoCase<FloatOnePoleSettings> fp_one_pole_mono;                           ///< `fp_one_pole_mono`
+	FloatPolyCase<FloatOnePoleSettings, 2> fp_one_pole_poly2;                       ///< `fp_one_pole_poly2`
+	FloatPolyCase<FloatOnePoleSettings, 4> fp_one_pole_poly4;                       ///< `fp_one_pole_poly4`
+	FloatLinkedCase<FloatOnePoleSettings, 2> fp_one_pole_linked2;                   ///< `fp_one_pole_linked2`
+	FloatMonoCase<FloatSmootherSettings> fp_smoother_mono;                          ///< `fp_smoother_mono`
+	FloatPolyCase<FloatSmootherSettings, 4> fp_smoother_poly4;                      ///< `fp_smoother_poly4`
+	FloatMonoCase<FloatSvfSettings> fp_svf_mono;                                    ///< `fp_svf_mono`
+	FloatPolyCase<FloatSvfSettings, 2> fp_svf_poly2;                                ///< `fp_svf_poly2`
+	FloatPolyCase<FloatSvfSettings, 4> fp_svf_poly4;                                ///< `fp_svf_poly4`
+	FloatLinkedCase<FloatSvfSettings, 2> fp_svf_linked2;                            ///< `fp_svf_linked2`
+	FloatBankCase fp_svf_bank4_sum;                                                 ///< `fp_svf_bank4_sum`
+	FloatSourceMonoCase<FloatBlepSettings> fp_blep_saw_mono;                        ///< `fp_blep_saw_mono`
+	FloatSourcePolyCase<FloatBlepSettings, 2> fp_blep_saw_poly2;                    ///< `fp_blep_saw_poly2`
+	FloatSourcePolyCase<FloatBlepSettings, 4> fp_blep_saw_poly4;                    ///< `fp_blep_saw_poly4`
+	FloatSourceMonoCase<FloatTableSettings> fp_table_saw_mono;                      ///< `fp_table_saw_mono`
+	FloatSourcePolyCase<FloatTableSettings, 2> fp_table_saw_poly2;                  ///< `fp_table_saw_poly2`
+	FloatSourcePolyCase<FloatTableSettings, 4> fp_table_saw_poly4;                  ///< `fp_table_saw_poly4`
+	FloatSourceMonoCase<FloatEnvelopeSettings> fp_envelope_mono;                    ///< `fp_envelope_mono`
+	FloatSourcePolyCase<FloatEnvelopeSettings, 4> fp_envelope_poly4;                ///< `fp_envelope_poly4`
+	FloatSourcePolyCase<FloatEnvelopeSustainSettings, 4> fp_envelope_sustain_poly4; ///< `fp_envelope_sustain_poly4`
+	FloatSourceMonoCase<FloatBlepVoiceSettings> fp_voice_blep_mono;                 ///< `fp_voice_blep_mono`
+	FloatSourcePolyCase<FloatBlepVoiceSettings, 2> fp_voice_blep_poly2;             ///< `fp_voice_blep_poly2`
+	FloatSourcePolyCase<FloatBlepVoiceSettings, 4> fp_voice_blep_poly4;             ///< `fp_voice_blep_poly4`
+	FloatSourceMonoCase<FloatBlepVoiceSustainSettings> fp_voice_blep_sustain_mono;  ///< `fp_voice_blep_sustain_mono`
+	FloatSourcePolyCase<FloatBlepVoiceSustainSettings, 4>
+	    fp_voice_blep_sustain_poly4;                                              ///< `fp_voice_blep_sustain_poly4`
+	FloatSourceLinkedCase<FloatBlepVoiceSettings, 2> fp_voice_blep_linked2;       ///< `fp_voice_blep_linked2`
+	FloatSourcePolyCase<FloatTableVoiceSettings, 4> fp_voice_table_poly4;         ///< `fp_voice_table_poly4`
+	FloatMonoCase<FloatLadderCleanSettings> fp_ladder_clean_mono;                 ///< `fp_ladder_clean_mono`
+	FloatPolyCase<FloatLadderCleanSettings, 4> fp_ladder_clean_poly4;             ///< `fp_ladder_clean_poly4`
+	FloatMonoCase<FloatLadderDriveSettings> fp_ladder_drive_mono;                 ///< `fp_ladder_drive_mono`
+	FloatPolyCase<FloatLadderDriveSettings, 4> fp_ladder_drive_poly4;             ///< `fp_ladder_drive_poly4`
+	FloatSourceMonoCase<FloatLadderVoiceSettings> fp_voice_ladder_mono;           ///< `fp_voice_ladder_mono`
+	FloatSourcePolyCase<FloatLadderVoiceSettings, 4> fp_voice_ladder_poly4;       ///< `fp_voice_ladder_poly4`
 	ReverbCase reverb_freeverb{ReverbKind::FREEVERB};                             ///< `reverb_freeverb`
 	ReverbCase reverb_mutable{ReverbKind::MUTABLE};                               ///< `reverb_mutable`
 	ReverbCase reverb_digital{ReverbKind::DIGITAL};                               ///< `reverb_digital`
@@ -2094,7 +2591,7 @@ struct CaseSet {
 /// @brief Which case list a run prints.
 enum class CaseList : uint8_t {
 	KERNELS, ///< One case per component: the calibration loop, then each kernel in its Mono, Stereo or Control.
-	LANES,   ///< The calibration loop, then each `Lanes` case beside the mono case of its kernel.
+	LANES,   ///< The calibration loop, then each `Linked` case beside the mono case of its kernel.
 	CHAIN,   ///< The calibration loop, then stages run as separate passes beside the same stages as one `Chain`.
 	/// The calibration loop, the whole delay block in every tape form, mix and shaper, then the feedback chain's
 	/// two cases from the chain list, unchanged code that bounds how much an image's code placement moves the rest.
@@ -2138,6 +2635,14 @@ enum class CaseList : uint8_t {
 	/// shifter up and down, in stereo and on a percussive input, then the feedback chain's two cases from the chain
 	/// list, as in the delay list.
 	PITCH_SHIFT,
+	/// The calibration loop, each float kernel in Mono, Poly at 2 and 4 lanes, Linked at 2 and the SVF bank, then the
+	/// feedback chain's two cases from the chain list, as in the delay list.
+	FLOAT_FILTERS,
+	/// The calibration loop, the float oscillators (BLEP and table saws) in Mono and Poly at 2 and 4 lanes, the
+	/// envelope in Mono and Poly at 4 (also held in sustain), a whole voice (oscillator, SVF, envelope amplifier) in
+	/// Mono, Poly at 2 and 4 lanes and Linked at 2, then the feedback chain's two cases from the chain list, as in the
+	/// delay list.
+	FLOAT_VOICE,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -2173,6 +2678,10 @@ inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
 inline constexpr CaseList kBenchCaseList = CaseList::VA_SHAPES;
 #elif defined(DELUGE_DSP_BENCH_PITCH_SHIFT)
 inline constexpr CaseList kBenchCaseList = CaseList::PITCH_SHIFT;
+#elif defined(DELUGE_DSP_BENCH_FLOAT_FILTERS)
+inline constexpr CaseList kBenchCaseList = CaseList::FLOAT_FILTERS;
+#elif defined(DELUGE_DSP_BENCH_FLOAT_VOICE)
+inline constexpr CaseList kBenchCaseList = CaseList::FLOAT_VOICE;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

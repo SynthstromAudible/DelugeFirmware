@@ -69,7 +69,6 @@ Error layOutBands(deluge::fast_vector<WaveTableBand>& bands, const BandGeometry&
 			bands.erase(bands.begin() + b);
 		}
 	}
-	AudioEngine::routineWithClusterLoading();
 	for (WaveTableBand& band : bands) {
 		// Every band holds 16-bit samples, even when the source file is 8-bit.
 		band.samples =
@@ -168,7 +167,6 @@ Error WaveTable::setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, ui
 	if (const Error error = layOutBands(bands, geometry, band0Transform != nullptr, numCycles); error != Error::NONE) {
 		return error;
 	}
-	AudioEngine::routineWithClusterLoading();
 
 	// The source cycle in and each inverse transform out, so as large as band 0 when that is larger than the source.
 	const int32_t workingSize = std::max(sourceCycleSize, geometry.cycle_size(0));
@@ -177,7 +175,6 @@ Error WaveTable::setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, ui
 	if (!cycle || !spectrum) {
 		return Error::INSUFFICIENT_RAM;
 	}
-	AudioEngine::routineWithClusterLoading();
 	if (const Error error = reader.open(); error != Error::NONE) {
 		return error;
 	}
@@ -191,11 +188,9 @@ Error WaveTable::setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, ui
 	};
 
 	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
-		AudioEngine::routineWithClusterLoading();
 		if (const Error error = reader.read_cycle(builder.cycle_input()); error != Error::NONE) {
 			return error;
 		}
-		AudioEngine::routineWithClusterLoading();
 
 		if (geometry.source_is_power_of_two) {
 			// Band 0 is the cycle as read.
@@ -210,17 +205,14 @@ Error WaveTable::setup(WaveTableCycleReader& reader, int32_t sourceCycleSize, ui
 			// A cycle that is not a power of two takes the DFT, and band 0 is rendered from its spectrum like the rest.
 			builder.analyse(nullptr);
 		}
-		AudioEngine::routineWithClusterLoading();
 
 		bands[0].toCycleNumber = builder.to_cycle_after(cycleIndex);
 		for (int32_t b = geometry.source_is_power_of_two ? 1 : 0; b < static_cast<int32_t>(bands.size()); b++) {
 			bands[b].toCycleNumber = builder.to_cycle_after(cycleIndex);
-			AudioEngine::routineWithClusterLoading();
 			// Fetched before the first cycle, so it is there.
 			builder.render_band(bandTarget(b), cycleIndex, *FFTConfigManager::getConfig(bands[b].cycleSizeMagnitude));
 		}
 	}
-	AudioEngine::routineWithClusterLoading();
 
 	if (numCycles > 1) {
 		const int32_t numCycleTransitions = numCycles - 1;

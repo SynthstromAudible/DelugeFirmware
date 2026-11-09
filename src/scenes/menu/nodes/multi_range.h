@@ -14,7 +14,7 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`multi_range.cpp:334-336`).
+/// (`multi_range.cpp`).
 ///
 /// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
@@ -71,7 +71,7 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The note-range picker. One row per `MultiRange` on the addressed `Source`, labelled with
-///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:287-332`).
+///        the note span it covers (`MultiRange::getText`, `multi_range.cpp`).
 class MultiRangeItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).

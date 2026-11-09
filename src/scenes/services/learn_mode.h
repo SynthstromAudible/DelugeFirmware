@@ -11,7 +11,7 @@
 ///
 /// The rule: **the service that owns the MODE owns the arm, and the
 /// other asks it.** `MidiLearn` owns `UI_MODE_MIDI_LEARN` (`View::startMIDILearn`
-/// `view.cpp:490-498`, `View::endMIDILearn` `:500-518`), so it owns every arm whose *whole body*
+/// `view.cpp`, `View::endMIDILearn`), so it owns every arm whose *whole body*
 /// is learn work -- the `TAP_TEMPO` learn branch (`view.cpp:150-168`), the `LEARN` button itself
 /// (`:185-196`), and the `PLAY` (`:199-212`) and `RECORD` (`:215-228`) arms that exist only under
 /// learn. `GlobalControls` owns the rest and asks `active()` before running the transport arms

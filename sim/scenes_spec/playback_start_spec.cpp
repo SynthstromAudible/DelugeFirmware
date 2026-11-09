@@ -5,10 +5,11 @@
 /// land inside `PlaybackHandler::setupPlaybackUsingInternalClock`, after `setupPlayback` has published
 /// `playbackState` and before the clock's timebase (`timeNextTimerTickBig`) is set. The render must not tick the clock
 /// there: from the old timebase -- 0 on the first start after boot -- it would action every timer tick since it in one
-/// block. The harness hook `deluge::playback::renderPreemptsStartupForHarness` stands in for that block and runs the
-/// render's sequencer step, `AudioEngine::tickSongFinalizeWindows`, at the point the device's render can land.
+/// block. The render injection at `InjectAt::StartBeforeClock` stands in for that block and runs the render's sequencer
+/// step, `AudioEngine::tickSongFinalizeWindows`, at the point the device's render can land.
 
 #include "model/song/song.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 
@@ -35,7 +36,8 @@ constexpr size_t kBlockFrames = 128;
 int32_t g_preemptions = 0;
 int64_t g_ticksScheduledInBlock = -1;
 
-/// The render block the device can run where `setupPlayback` has published `playbackState`.
+/// The render block the device can run after `setupPlayback` has positioned the clips and before the clock is
+/// published.
 void render_block_in_startup() {
 	g_preemptions++;
 	size_t frames = kBlockFrames;
@@ -52,11 +54,11 @@ struct ExternalBlock {
 };
 ExternalBlock g_external;
 
-/// The render block the device can run where an external-clock start-up's `setupPlayback` has published
-/// `playbackState`.
+/// The render block the device can run after an external-clock start-up's `setupPlayback` and before the clock is
+/// published.
 void render_block_in_external_startup() {
 	g_preemptions++;
-	g_external.held = playbackHandler.isClockStarting();
+	g_external.held = playbackHandler.ticksHeld();
 	size_t frames = kBlockFrames;
 	AudioEngine::tickSongFinalizeWindows(frames);
 	g_external.swungTickScheduled = playbackHandler.swungTickScheduled;
@@ -89,9 +91,9 @@ describe playback_start_spec_body("PlaybackHandler start-up under a preempting r
 		spec::QuietAudio quiet;
 		reset_to_stopped();
 
-		deluge::playback::renderPreemptsStartupForHarness = render_block_in_startup;
+		deluge::playback::setRenderInjection(deluge::playback::InjectAt::StartBeforeClock, render_block_in_startup);
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
-		deluge::playback::renderPreemptsStartupForHarness = nullptr;
+		deluge::playback::setRenderInjection(deluge::playback::InjectAt::StartBeforeClock, nullptr);
 
 		expect(g_preemptions).to_equal(1);
 		// No tick was actioned in the block, so none was scheduled past tick 0.
@@ -115,9 +117,10 @@ describe playback_start_spec_body("PlaybackHandler start-up under a preempting r
 		playbackHandler.midiOutClockEnabled = true; // so the render has a clock-out tick to schedule
 		g_external = {};
 
-		deluge::playback::renderPreemptsStartupForHarness = render_block_in_external_startup;
+		deluge::playback::setRenderInjection(deluge::playback::InjectAt::StartBeforeClock,
+		                                     render_block_in_external_startup);
 		playbackHandler.setupPlaybackUsingExternalClock(false);
-		deluge::playback::renderPreemptsStartupForHarness = nullptr;
+		deluge::playback::setRenderInjection(deluge::playback::InjectAt::StartBeforeClock, nullptr);
 
 		expect(g_preemptions).to_equal(1);
 		expect(playbackHandler.isExternalClockActive()).to_be_true();
@@ -125,7 +128,7 @@ describe playback_start_spec_body("PlaybackHandler start-up under a preempting r
 		expect(g_external.swungTickScheduled).to_be_false();
 		expect(g_external.midiClockOutTickScheduled).to_be_false();
 		expect(g_external.triggerClockOutTickScheduled).to_be_false();
-		expect(playbackHandler.isClockStarting()).to_be_false();
+		expect(playbackHandler.ticksHeld()).to_be_false();
 
 		playbackHandler.endPlayback();
 		playbackHandler.midiOutClockEnabled = midiOut;

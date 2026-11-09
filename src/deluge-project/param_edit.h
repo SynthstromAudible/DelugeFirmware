@@ -22,6 +22,7 @@
 // corresponding engine AutoParam ops, so they can be unit-tested in isolation and are the single authority for
 // automation editing.
 
+#include "deluge-project/lane_view.h"
 #include "deluge-project/param_automation.h" // DocAutoParam / ParamNode
 #include <cstdint>
 
@@ -44,6 +45,8 @@ int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpola
 /// @param reversed   Selects the playback direction.
 /// @return The value at @p pos; `current_value` when there are no nodes.
 int32_t getValueAtPos(const DocAutoParam& p, uint32_t pos, int32_t loopLength, bool reversed = false);
+/// @brief As getValueAtPos() on a model lane, on a read-only view of one.
+int32_t getValueAtPos(LaneView lane, uint32_t pos, int32_t loopLength, bool reversed = false);
 
 /// @brief Number of ticks from @p pos to the next node in the playback direction, wrapping across the loop point.
 /// @param p          The automation.
@@ -176,6 +179,15 @@ void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength);
 /// @param pingpongingGenerally       Whether a pingpong direction-flip applies.
 void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
                  bool pingpongingGenerally);
+/// @copydoc appendParam(DocAutoParam&, const DocAutoParam&, int32_t, int32_t, bool)
+/// @note @p src as a read-only view: a published lane, which the render appends from.
+void appendParam(DocAutoParam& dest, LaneView src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                 bool pingpongingGenerally);
+/// @brief The nodes appendParam() may add to its @p dest for a source of @p srcNodes nodes: room a caller reserves so
+/// it adds them without allocating.
+constexpr size_t appendParamRoom(size_t srcNodes) {
+	return srcNodes + 1; // the source's nodes, and a pingpong seam
+}
 
 /// @brief Nudge the single non-interpolating node at @p pos by @p offset within a loop of @p lengthBeforeLoop.
 ///

@@ -244,33 +244,15 @@ A throwaway driver (CMake target `roundtrip_spike`) established:
   by the driver. ⚠️ uncommitted firmware change.
 - The memory-based XML reader **mutates its buffer in place** (null-terminates
   tokens) — the input buffer must be writable. ⚠️ driver constraint.
-- **`Song::readFromFile` is NOT isolated from execution:** it calls
-  `AudioEngine::routineWithClusterLoading()` **6×** mid-parse (song.cpp 2115,
-  2143, 2282, 2291, 2299, 2376) — cooperative yields that pump audio / load
-  sample clusters during a long load. On the host these hit
-  `GeneralMemoryAllocator::checkStack` (bogus stack-distance vs the *emulated*
-  `program_stack_start` → false `E338`) → null `display` deref → SIGSEGV. ⚠️
+- **`Song::readFromFile` was not isolated from execution:** it yielded to the
+  cooperative audio pump mid-parse, and on the host those yields hit
+  `GeneralMemoryAllocator::checkStack` (a false `E338`) and crashed. The pump is
+  gone: the audio tier renders on its own, so a load no longer yields to it.
 
-#### Resolution (done 2026-06-19)
-
-Gated the yields at the single chokepoint: `AudioEngine::routineWithClusterLoading()`
-now early-returns when `activeDeserializer->shouldCallRoutines()` is false (i.e.
-in-memory reads, which already set `FileReader::callRoutines = false`). One guard
-covers all 10 load-path call sites — including the per-Output/Clip/Instrument
-readers a real song reaches — not just the 5 in `Song::readFromFile`.
-**Firmware-neutral:** file-backed loads keep `callRoutines = true` (default
-`activeDeserializer` is the file-based `smDeserializer`), so the gate is off on
-hardware. Changes:
-
-- `storage_manager.h`: `FileReader::shouldCallRoutines()` getter + the
-  `XMLDeserializer` memory ctor; `XMLDeserializer::reset()` honours `memoryBased`.
-- `audio_engine.cpp`: the early-return guard.
-
-With this, `roundtrip_spike` loads the minimal song fully headless: `readFromFile
--> 0`, clean `exit 0`. (The driver calls `_exit()` to skip firmware static
-destructors, whose host-side teardown trips the allocator integrity check →
-null `display`; unrelated to the load. `checkStack`'s false host `E338` is no
-longer reached because the engine is never pumped during a gated load.)
+With the `XMLDeserializer` memory ctor, `roundtrip_spike` loads the minimal song
+fully headless: `readFromFile -> 0`, clean `exit 0`. (The driver calls `_exit()`
+to skip firmware static destructors, whose host-side teardown trips the
+allocator integrity check → null `display`; unrelated to the load.)
 
 #### Real-song validation (2026-06-19)
 
@@ -366,11 +348,10 @@ once the extraction is underway.
 ### Deliverables / checklist
 
 - [x] Spike: confirmed host-sim reaches `Song::readFromFile` headless; links
-      against `deluge_app` alone. Driver = direct in-memory, gated on removing
-      the 6 in-load `routineWithClusterLoading()` yields (see above).
-- [x] Gate the in-load `AudioEngine::routineWithClusterLoading()` yields behind
-      `callRoutines` (single guard at the engine entry; firmware-neutral). Minimal
-      song now loads headless, clean exit. Real-song validation pending corpus.
+      against `deluge_app` alone. Driver = direct in-memory, once the in-load
+      audio yields were out of its way (see above).
+- [x] Take the in-load audio yields out of a headless load. Minimal song now
+      loads headless, clean exit. Real-song validation pending corpus.
 - [x] Round-trip driver (`tests/golden/song_roundtrip.cpp`, target
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.

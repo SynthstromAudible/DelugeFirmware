@@ -18,6 +18,7 @@
 #include "modulation/params/param_set.h"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -34,6 +35,8 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
+#include "modulation/params/lane_publication.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -107,6 +110,7 @@ void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
 	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
 	dropped = std::move(domStore_);
 	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
+	deluge::modulation::markLanesChanged(*this);
 }
 
 void ParamSet::ownExternalStore() {
@@ -135,6 +139,7 @@ void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
 }
 
 deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
+	deluge::modulation::markLanesChanged(*this);
 	// A ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
 	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
 	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
@@ -158,6 +163,7 @@ deluge::project::DocAutoParam* ParamSet::findDocParamForId(int32_t paramId) {
 }
 
 void ParamSet::stripAutomation() {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
 		docForParam(p)->nodes.clear();
@@ -165,6 +171,7 @@ void ParamSet::stripAutomation() {
 }
 
 void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
 		params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength);
@@ -194,6 +201,7 @@ void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* model
 }
 
 void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	params[p].shiftValues(*docForParam(p), offset);
 }
 
@@ -350,27 +358,15 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 
 void ParamSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
                                bool shouldPingpong) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 	params[p].generateRepeats(*docForParam(p), oldLength, newLength, shouldPingpong);
 	FOR_EACH_PARAM_END
 }
 
-void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                     ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                     int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-	ParamSet* otherParamSet = (ParamSet*)otherModelStack->paramCollection;
-
-	FOR_EACH_FLAGGED_PARAM(
-	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(*docForParam(p), *otherParamSet->docForParam(p), oldLength, reverseThisRepeatWithLength,
-	                      pingpongingGenerally);
-	FOR_EACH_PARAM_END
-
-	ticksTilNextEvent = 0;
-}
-
 void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                             bool maySetupPatching) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -393,6 +389,7 @@ void ParamSet::deleteAutomationForParamBasicForSetup(ModelStackWithParamCollecti
 }
 
 void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -412,6 +409,7 @@ void ParamSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParam
 }
 
 void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -429,6 +427,7 @@ void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection
 
 /// this is used in arranger view to insert time between automation nodes (shift = <>)
 void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t lengthToInsert) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -439,6 +438,7 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -453,6 +453,7 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 
 void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
@@ -859,3 +860,27 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
         }
 
  */
+
+void ParamSet::forEachAppendedKey(ParamCollection& /*other*/, const ParamCollectionSummary& otherSummary,
+                                  deluge::function_ref<void(int32_t)> visit) {
+	// Each param the other set automates
+	for (int32_t p = 0; p < numParams_; p++) {
+		if ((otherSummary.whichParamsAreAutomated[p >> 5] & (1u << (p & 31))) != 0) {
+			visit(p);
+		}
+	}
+}
+
+deluge::project::DocAutoParam* ParamSet::laneToAppendTo(int32_t paramId) {
+	return paramId >= 0 && paramId < numParams_ ? docForParam(paramId) : nullptr;
+}
+
+void ParamSet::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	// The lanes the render's lookup finds: the bound store's, or an unbound set's params' own
+	for (int32_t p = 0; p < numParams_; p++) {
+		const deluge::project::DocAutoParam* lane = findDocParamForId(p);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(p, *lane);
+		}
+	}
+}

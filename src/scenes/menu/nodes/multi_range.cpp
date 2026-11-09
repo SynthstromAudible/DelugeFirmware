@@ -393,7 +393,7 @@ std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument:
 }
 
 void range_delete_press(const MenuContext& ctx, MenuState& state) {
-	// `MultiRange::deletePress` (`multi_range.cpp:234-285`).
+	// `MultiRange::deletePress` (`multi_range.cpp`).
 	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off || (ctx.facts != nullptr && ctx.facts->popup_showing())) {
 		return;
 	}
@@ -425,7 +425,7 @@ int32_t range_for_note(std::span<const deluge::instrument::RangeState> ranges, i
 }
 
 bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note) {
-	// `MultiRange::noteOnToChangeRange` (`multi_range.cpp:338-355`).
+	// `MultiRange::noteOnToChangeRange` (`multi_range.cpp`).
 	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
 		return false;
 	}
@@ -444,7 +444,7 @@ bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note) {
 }
 
 bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge) {
-	// `MultiRange::mayEditRangeEdge` (`multi_range.cpp:357-362`).
+	// `MultiRange::mayEditRangeEdge` (`multi_range.cpp`).
 	switch (edge) {
 	case deluge::ui::oled::RangeEdge::Left:
 		return index != 0;
@@ -512,7 +512,7 @@ void step_range_edge(std::vector<deluge::instrument::RangeState>& ranges, int32_
 }
 
 const Node* multi_range_chain(const MenuContext& /*ctx*/, const MenuState& state) {
-	return state.walk.pending_after_range; // `multi_range.cpp:334-336`
+	return state.walk.pending_after_range; // `multi_range.cpp`
 }
 
 } // namespace deluge::scenes::menu::nodes

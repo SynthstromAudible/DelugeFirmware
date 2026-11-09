@@ -78,7 +78,7 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 /// `soundEditor.currentSourceIndex` in `selectButtonPress` and nowhere else
 /// (`cv/selection.h:42`, `gate/selection.h:47`); walking the cursor and backing out is a read-only
 /// gesture there, so it is one here too. `MultiRangeItem` republishes `range_choice` every frame
-/// because *its* legacy twin does (`multi_range.cpp:203-219` -- the cursor IS the selection); these
+/// because *its* legacy twin does (`multi_range.cpp` -- the cursor IS the selection); these
 /// two do not, and the difference is legacy's.
 ///
 /// `MenuScene::after_render` drains the choice above its own `render_resp.entered` arm, so the

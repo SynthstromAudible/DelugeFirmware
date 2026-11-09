@@ -68,6 +68,10 @@ std::size_t sdram_size();
 /// @note The render must not allocate: it shares the heap with every other tier.
 /// @return Allocation count since boot.
 uint32_t audioTierAllocations();
+/// @brief [task] Heap allocations made off the render inside a NoAllocationScope since boot (host-only diagnostic;
+///        always 0 on device).
+/// @return Allocation count since boot.
+uint32_t maskedAllocations();
 /// @brief Count an allocation if the render is making it, for audioTierAllocations().
 ///
 /// Host-only; a no-op on the device.
@@ -80,6 +84,22 @@ void noteRenderBlock(bool entering);
 /// @brief Whether the caller is on the audio tier, or inside a render block its own tier entered.
 /// @return True when inside a render block.
 bool inRenderBlock();
+
+/// @brief Mark the caller as inside (or leaving) a stretch that must not allocate: one that holds the render off, which
+///        on the device masks interrupts for its length.
+/// @param entering True when entering the stretch, false when leaving it.
+void noteNoAllocationScope(bool entering);
+/// @brief Whether the caller is inside a NoAllocationScope.
+/// @return True when inside one.
+bool inNoAllocationScope();
+
+/// @brief A stretch that must not allocate; maskedAllocations() counts what it does.
+struct NoAllocationScope {
+	NoAllocationScope() { noteNoAllocationScope(true); }
+	~NoAllocationScope() { noteNoAllocationScope(false); }
+	NoAllocationScope(const NoAllocationScope&) = delete;
+	NoAllocationScope& operator=(const NoAllocationScope&) = delete;
+};
 
 /// @brief A render block's extent: the caller is the render tier while it lives.
 struct RenderBlock {

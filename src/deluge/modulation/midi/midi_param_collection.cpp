@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -30,7 +31,9 @@
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/song.h"
+#include "modulation/automation/working_copies.h"
 #include "modulation/midi/midi_param.h"
+#include "modulation/params/lane_publication.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
@@ -80,6 +83,7 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
+	deluge::modulation::markLanesChanged(*this);
 	// When bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its cc,
 	// so save and runtime edits share the persistent store (the inline nodes_ is then unused). Unbound, the CC owns
 	// its store inline and rides with the MIDIParam through the vector's reorders.
@@ -105,6 +109,7 @@ void MIDIParamCollection::bindDomMidiExternal(std::vector<deluge::project::DocMi
 	// The render resolves the CCs' lanes through domMidiRef_: it sees the inline lanes or the tree's, never neither.
 	EditGuard guard{ModelEdit::PARAM_STORE};
 	domMidiRef_ = ext;
+	deluge::modulation::markLanesChanged(*this);
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::findDomMidiNodes(uint8_t cc) const {
@@ -194,12 +199,14 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 // (where doc()/playback also read/write), the inline nodes_ otherwise. Reading nodes_ directly would operate on the
 // stale inline store once the collection is bound, diverging from the live tree.
 void MIDIParamCollection::stripAutomation() {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		docForParam(i)->nodes.clear();
 	}
 }
 
 void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		params[i].param.flattenReverse(*docForParam(i), reverseDirectionWithLength);
 	}
@@ -222,31 +229,15 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		params[i].param.generateRepeats(*docForParam(i), oldLength, newLength, shouldPingpong);
 	}
 }
 
-void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* modelStack,
-                                                ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-                                                int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
-
-	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (int32_t oi = 0; oi < std::ssize(otherMIDIParamCollection->params); oi++) {
-		uint8_t cc = otherMIDIParamCollection->params[oi].cc;
-		// Find the param in *this* collection for the same CC. There should be one.
-		int32_t ti = params.firstAtOrAfter(cc);
-		if (ti < std::ssize(params) && params[ti].cc == cc) {
-			params[ti].param.appendParam(*docForParam(ti), *otherMIDIParamCollection->docForParam(oi), oldLength,
-			                             reverseThisRepeatWithLength, pingpongingGenerally);
-		}
-	}
-
-	ticksTilNextEvent = 0;
-}
-
 void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
                                        bool maySetupPatching) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (MIDIParam& midiParam : params) {
 		AutoParam* param = &midiParam.param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
@@ -258,6 +249,7 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		params[i].param.shiftHorizontally(*docForParam(i), amount, effectiveLength);
 	}
@@ -303,6 +295,7 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 }
 
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		if (params[i].param.isAutomated(*docForParam(i))) {
@@ -344,6 +337,7 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 // For MIDI CCs, which prior to V2.0 did interpolation
 // Returns error code
 Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	for (int32_t i = 0; i < std::ssize(params); i++) {
 		if (params[i].cc >= 120) {
@@ -365,7 +359,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated(*docForParam(i))) {
+		if (param->isAutomated(playedLane(params[i].cc))) {
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(params[i].cc, param);
@@ -380,6 +374,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
                                                           Action* action, ModelStackWithParamCollection* modelStack) {
+	deluge::modulation::endTake(*this); // a take ends for lanes edited all at once
 
 	for (MIDIParam& midiParam : params) {
 		AutoParam* param = &midiParam.param;
@@ -438,3 +433,24 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
     }
 */
+
+void MIDIParamCollection::forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& /*otherSummary*/,
+                                             deluge::function_ref<void(int32_t)> visit) {
+	// Each CC of this collection the other collection has a lane for
+	auto& otherCollection = static_cast<MIDIParamCollection&>(other);
+	for (const MIDIParam& param : params) {
+		if (otherCollection.findDocParamForId(param.cc) != nullptr) {
+			visit(param.cc);
+		}
+	}
+}
+
+void MIDIParamCollection::forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		const int32_t cc = params[i].cc;
+		const deluge::project::DocAutoParam* lane = findDocParamForId(cc);
+		if (lane != nullptr && !lane->nodes.empty()) {
+			visit(cc, *lane);
+		}
+	}
+}

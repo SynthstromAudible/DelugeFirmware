@@ -900,7 +900,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 	});
 
 	it("action_logger.cpp: menu closed, getNewAction allows under the root and refuses under any other current UI", _ {
-		// Legacy's gate, `model/action/action_logger.cpp:98-102`, with no ported menu on the guest's stack.
+		// Legacy's gate, `model/action/action_logger.cpp:100-104`, with no ported menu on the guest's stack.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;

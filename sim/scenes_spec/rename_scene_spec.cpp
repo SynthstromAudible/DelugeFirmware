@@ -300,7 +300,7 @@ std::string last_notice() {
 describe rename_targets("scenes::rename target table", $ {
 	it("covers exactly the three targets the ported menu tree reaches", _ {
 		// Legacy has four `RenameUI` subclasses. `renameMidiCCUI` is deliberately absent: its only
-		// opener is `automation_view.cpp:1691`, and no node in `nodes::kAllRoots` reaches it.
+		// opener is `AutomationView::padAction`, and no node in `nodes::kAllRoots` reaches it.
 		expect(static_cast<int>(TargetId::Count)).to_equal(3);
 	});
 

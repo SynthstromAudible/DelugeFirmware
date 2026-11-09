@@ -47,7 +47,7 @@
 ///     `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
 ///     (`sound_editor.cpp:1205-1213`) where legacy edits one row only.
 ///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
-///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:626-643`). The
+///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:624-641`). The
 ///     notify design replaces "am I in the automation view, and is this the param it is showing?"
 ///     with unconditional facts. See `write()`'s own comment for which are raised and why.
 ///
@@ -263,8 +263,8 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 				//    ways: `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77` /
 				//    `unpatched_param.cpp:77-81`), and the knob-indicator refresh
 				//    `setCurrentValueInResponseToUserInput` triggers through
-				//    `ParamManager::notifyParamModifiedInSomeWay` -> `view.notifyParamAutomationOccurred`
-				//    (`auto_param.cpp:1161`, `view.cpp:1709-1729`), whose deferred `displayAutomation()` calls
+				//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`,
+				//    whose deferred `displayAutomation()` calls
 				//    `setKnobIndicatorLevels()` (`View::displayAutomation`). `legacy_redraw_for` lists both
 				//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
 				//
@@ -279,7 +279,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 				//    `r.main_rows` carries for exactly this; the mapping file itself is left alone.
 				//
 				//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`automation_view.cpp:626-637`),
+				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`automation_view.cpp:624-635`),
 				//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
 				//    every param write asks for one grid repaint the drain already coalesces, rather than
 				//    silently dropping the one that mattered.
@@ -339,7 +339,7 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 	}
 
 	default:
-		// `param.h:34-35` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
+		// `param.h:33-34` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
 		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`

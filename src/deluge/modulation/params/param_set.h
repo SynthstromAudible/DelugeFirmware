@@ -104,19 +104,16 @@ public:
 	/// @param p Index into the set's params array.
 	/// @return The param's DOM store slot (never null; the store is created on first use).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
-	/// @brief A param's lane, read without creating the set's store: what the render reads.
-	/// @param p Index into the set's params array.
-	/// @return The bound store's lane, else the unheld lane (no nodes, base 0), as an unbound set's lane reads, or as a
-	/// param past a shorter bound store's end does.
-	[[nodiscard]] const deluge::project::DocAutoParam& findDocForParam(int32_t p) const {
-		if (domStoreRef_ == nullptr || p < 0 || static_cast<size_t>(p) >= domStoreRef_->params.size()) {
-			return unheldLane();
-		}
-		return domStoreRef_->params[p];
-	}
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
 	/// @copydoc ParamCollection::findDocParamForId
 	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::forEachLane
+	void forEachLane(deluge::function_ref<void(int32_t, const deluge::project::DocAutoParam&)> visit) override;
+	/// @copydoc ParamCollection::forEachAppendedKey
+	void forEachAppendedKey(ParamCollection& other, const ParamCollectionSummary& otherSummary,
+	                        deluge::function_ref<void(int32_t)> visit) override;
+	/// @copydoc ParamCollection::laneToAppendTo
+	deluge::project::DocAutoParam* laneToAppendTo(int32_t paramId) override;
 	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
@@ -135,9 +132,6 @@ public:
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) final;
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong) final;
-	void appendParamCollection(ModelStackWithParamCollection* modelStack,
-	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void copyOverridingFrom(ParamSet* otherParamSet);

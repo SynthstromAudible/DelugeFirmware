@@ -18,10 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "foundation/function_ref.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/staged_repeat.h"
+#include <atomic>
 #include <string>
 
 class Song;
@@ -127,6 +130,9 @@ public:
 
 	NoteRowVector noteRows;
 
+	/// An arrangement take's repeats while it records (deluge::modulation::catchUpArrangementTakes()).
+	deluge::modulation::TakeRepeats repeats;
+
 	bool wrapEditing;
 	uint32_t wrapEditLevel{};
 
@@ -207,6 +213,18 @@ public:
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
 	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                 ModelStackWithTimelineCounter* otherModelStack) override;
+	/// @brief Call @p visit with each param manager of this take that a repeat at @p offset of the clip
+	///        @p otherModelStack names appends to, the source's paired one, and the append's arguments: as
+	///        the interaction tier appends them (deluge::modulation::catchUpArrangementTakes()).
+	/// @brief Call @p visit with each note row of this take whose source row has its own length, and that source row:
+	///        those repeat at their own end, each in its own stacks.
+	void
+	forEachRowWithOwnLength(ModelStackWithTimelineCounter* thisModelStack,
+	                        ModelStackWithTimelineCounter* otherModelStack,
+	                        deluge::function_ref<void(NoteRow&, ModelStackWithNoteRow*, ModelStackWithNoteRow*)> visit);
+	void forEachRepeatedManager(
+	    ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack, int32_t offset,
+	    deluge::function_ref<void(ParamManagerForTimeline&, ParamManagerForTimeline&, const RepeatArgs&)> visit);
 	void instrumentBeenEdited() override;
 	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
 	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.

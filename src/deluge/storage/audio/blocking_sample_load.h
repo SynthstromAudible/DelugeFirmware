@@ -29,8 +29,7 @@ namespace deluge::storage {
 /// @brief The blocking driver: loads each demand of a walk as it arrives, on the calling tier, in walk order.
 ///
 /// It makes a walk do exactly what the model tree's own loads did, call for call:
-/// - a source range: the audio routine on every fourth range;
-/// - a song's clip: the audio routine on every eighth clip, only when not reading;
+/// - a source range or a song's clip: nothing, and the walk continues;
 /// - a kit or synth: its own folder becomes the load's context when no context is in effect (see ScopeRule);
 /// - a demand: the lookup (AudioFileHolder::acquire), the bind (AudioFileHolder::setAudioFile), then the after-bind
 ///   step. Nothing stops a walk: a failed lookup leaves its holder empty and the walk goes on.
@@ -61,8 +60,6 @@ private:
 	int32_t scopeDepth_{0};
 	/// The scope depth ownFolder_ was opened at, or -1 when it is not open.
 	int32_t ownFolderDepth_{-1};
-	/// Clips seen while not reading the card: the audio routine runs on every eighth, starting with the first.
-	uint32_t clipsWithoutReading_{0};
 };
 
 } // namespace deluge::storage

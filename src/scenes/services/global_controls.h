@@ -72,7 +72,7 @@
 /// jump straight to `dealtWith` and the tail never runs. The one place that matters is `PLAY` and
 /// `RECORD`: under MIDI learn `View` claims them (`View::buttonAction`'s PLAY and RECORD arms) and the transport tail
 /// is skipped; outside learn the arm's `&& currentUIMode == UI_MODE_MIDI_LEARN` fails, the chain
-/// falls to `view.cpp:483-485`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
+/// falls to `view.cpp`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
 ///
 /// @par The MIDI-learn boundary
 ///
@@ -265,7 +265,7 @@ public:
 		/// here: `effective_ui_mode()` takes that from `LearnMode::active()` instead, so there is
 		/// one owner of the mode and not two.
 		UiMode ui_mode = UiMode::None;
-		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp:522`, `:375`). Decides whether
+		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp`, `:375`). Decides whether
 		/// the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
 		bool current_ui_is_clip_minder = false;
 		/// `getRootUI() == &performanceView` (`view.cpp:238`, `:283`) -- the fifth term of the
@@ -284,7 +284,7 @@ public:
 	};
 
 	/// @param stack    The scene stack this service pushes the settings menu onto
-	///                 (`view.cpp:478-479`).
+	///                 (`view.cpp`).
 	/// @param lowering The input lowering it reads and writes the used-up bit and the press clock
 	///                 on.
 	/// @param learn    MIDI learn, asked before the `PLAY`/`RECORD`/`TAP_TEMPO` arms. A real
@@ -507,7 +507,7 @@ private:
 	void count_unported(UnportedOpen which);
 
 	/// @brief Is the SYNC_SCALING LED in `View::setTimeBaseScaleLedState`'s blink arm
-	///        (`view.cpp:522-524`) right now?
+	///        (`view.cpp`) right now?
 	///
 	/// Asked by `leds()` and by `next_timer()`, which has to request a wake for it -- see the note
 	/// there.

@@ -371,7 +371,7 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		spec::SongFixture fx = spec::make_synth_song();
 
 		// Seed a real logged action while SOME guest is open -- `ActionLogger::getNewAction` refuses
-		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:98-102`), exactly
+		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:100-104`), exactly
 		// `menu_entry_spec.cpp`'s own undo-log examples note -- then close it again.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();

@@ -365,8 +365,6 @@ bool find_peaks_per_col(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSa
 
 			data->maxPerCol[col] = maxThisCol;
 			data->minPerCol[col] = minThisCol;
-
-			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -483,8 +481,6 @@ bool investigate_whole_cluster(Sample* sample, int32_t clusterIndex) {
 	// The sample's found range is left alone: the full-screen waveform scales its bars to it, and main's holds only
 	// what a render has scanned. Whole-cluster peaks folded in here would draw every later render's bars smaller.
 
-	AudioEngine::routineWithClusterLoading();
-
 	return true;
 }
 
@@ -529,7 +525,7 @@ bool advance_overview_scan(Sample* sample, int32_t maxClusters) {
 		// back the seam with a real mutex-held check (Embassy); cooperative/C-host builds answer false
 		// unconditionally because storage there runs inline on the caller, so there's no FS mutex to
 		// report on and no deadlock of this shape to guard against.
-		if (deluge::sync::sd_busy() || AudioEngine::audioRoutineLocked) {
+		if (deluge::sync::sd_busy() || AudioEngine::audioTicksHeld()) {
 			return true;
 		}
 

@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/poly_kernel.h"
 
 #include <array>
 #include <concepts>
@@ -86,12 +87,20 @@ struct PartsNode<T, Tail, true, true> {
 /// another's tail padding, so a part's kernel may treat its value as a complete object, bytes and all.
 ///
 /// Built from its parts by brace elision, part 0 first: `Parts<A, B, C>{a, b, c}`.
+///
+/// Its `fields` are `head` and `tail`, so set_lane and get_lane move a lane of Parts of packed values part by part.
 template <typename... Ts>
-struct Parts {};
+struct Parts {
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name set_lane reads.
+	static constexpr std::tuple<> fields{}; ///< No part: no field.
+};
 
 /// @brief One value per part: @p T first, then the rest.
 template <typename T, typename... Ts>
-struct Parts<T, Ts...> : detail::PartsNode<T, Parts<Ts...>, std::is_empty_v<T>, detail::all_empty_v<Ts...>> {};
+struct Parts<T, Ts...> : detail::PartsNode<T, Parts<Ts...>, std::is_empty_v<T>, detail::all_empty_v<Ts...>> {
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name set_lane reads.
+	static constexpr auto fields = std::tuple{&Parts::head, &Parts::tail}; ///< This part, then the later parts.
+};
 
 /// @brief Part @p I of @p parts.
 template <std::size_t I, typename T, typename... Ts>
@@ -294,9 +303,54 @@ template <typename Mode, typename... Ts>
 struct ModedParts {
 	Parts<Ts...> parts{}; ///< Each part's coefficients, part 0 first.
 	Mode mode{};          ///< The combination the wrapper dispatches on once per block.
+	/// @brief The parts: the mode is no field, so every lane of a Poly or Bank shares it.
+	// NOLINTNEXTLINE(readability-identifier-naming): `fields` is the name set_lane reads.
+	static constexpr auto fields = std::tuple{&ModedParts::parts};
 };
 
-/// @brief The types a chain of @p Ks derives from its parts' modes.
+/// @brief A chain's Coefficients from its parts' @p Ts: a bare Parts at NoMode, else the parts beside @p Mode.
+template <typename Mode, typename... Ts>
+using chain_coefficients_t =
+    std::conditional_t<std::same_as<Mode, kernel_ops::NoMode>, Parts<Ts...>, ModedParts<Mode, Ts...>>;
+
+/// @brief A chain's Coefficients, State and step value over a value type V, for a chain whose parts are not all
+/// @ref poly_kernel: its own, whatever V, which is never deduced.
+template <bool Poly, typename Mode, typename... Ks>
+struct ChainOver {
+	/// @brief The chain's Coefficients.
+	template <typename V>
+	using CoefficientsOf = chain_coefficients_t<Mode, typename Ks::Coefficients...>;
+	/// @brief The chain's State.
+	template <typename V>
+	using StateOf = Parts<typename Ks::State...>;
+	/// @brief What the chain's step takes and returns: its step type.
+	template <typename V>
+	using StepOf = std::tuple_element_t<0, std::tuple<Ks...>>::step_type;
+};
+
+/// @brief A chain of poly kernels' Coefficients, State and step value over V, f32 or Pack<f32, N>: each part's own
+/// `CoefficientsT<V>` and `StateT<V>`, and V. V is deduced from the State.
+template <typename Mode, typename... Ks>
+struct ChainOver<true, Mode, Ks...> {
+	/// @brief Each part's coefficients over V, beside the mode as the chain's Coefficients have it.
+	template <typename V>
+	using CoefficientsOf = chain_coefficients_t<Mode, typename Ks::template CoefficientsT<V>...>;
+	/// @brief Each part's state over V.
+	template <typename V>
+	using StateOf = Parts<typename Ks::template StateT<V>...>;
+	/// @brief What the chain's step takes and returns: V.
+	template <typename V>
+	using StepOf = V;
+
+	/// @brief The chain's coefficients over V, as @ref poly_kernel reads them.
+	template <typename V>
+	using CoefficientsT = CoefficientsOf<V>;
+	/// @brief The chain's state over V, as @ref poly_kernel reads it.
+	template <typename V>
+	using StateT = StateOf<V>;
+};
+
+/// @brief The types a chain of @p Ks derives from its parts' modes and value forms.
 template <typename... Ks>
 struct ChainTypes {
 	/// @brief The `Mode` and `Modes` base: empty when no part is moded.
@@ -306,8 +360,10 @@ struct ChainTypes {
 	/// @brief What the chain's `step` is templated on.
 	using StepMode = typename chain_step_mode<ModesBase>::type;
 	/// @brief Each part's coefficients, with the mode beside them when the chain is moded.
-	using Coefficients = std::conditional_t<kModed, ModedParts<StepMode, typename Ks::Coefficients...>,
-	                                        Parts<typename Ks::Coefficients...>>;
+	using Coefficients = chain_coefficients_t<StepMode, typename Ks::Coefficients...>;
+	/// @brief The chain's Coefficients, State and step value over V: the parts' own over V when every part is a
+	/// @ref poly_kernel.
+	using Over = ChainOver<(poly_kernel<Ks> && ...), StepMode, Ks...>;
 };
 
 } // namespace detail
@@ -345,30 +401,41 @@ namespace detail {
 
 /// @brief A chain's `prepare` and `Block`, present only when some part declares a `prepare`: a base, so that a chain
 /// without one declares no member named `prepare` for @ref declares_prepare to find.
-/// @tparam Coefficients The chain's Coefficients.
-template <bool Declares, typename Coefficients, typename... Ks>
+/// @tparam Over The chain's @ref ChainOver.
+template <bool Declares, typename Over, typename... Ks>
 struct ChainPrepare {};
 
 /// @brief A chain's `prepare` and `Block`: each declaring part's `prepare`, in part order.
-template <typename Coefficients, typename... Ks>
-struct ChainPrepare<true, Coefficients, Ks...> {
-	/// @brief Every part's per-block values, an EmptyBlock for a part without a `prepare`.
+template <typename Over, typename... Ks>
+struct ChainPrepare<true, Over, Ks...> {
+private:
+	/// @brief The chain's Coefficients over V.
+	template <typename V>
+	using CoefficientsOf = Over::template CoefficientsOf<V>;
+	/// @brief The chain's State over V.
+	template <typename V>
+	using StateOf = Over::template StateOf<V>;
+
+public:
+	/// @brief Every part's per-block values, an EmptyBlock for a part without a `prepare`. The same for every V: a
+	/// Block is shared by every lane.
 	using Block = Parts<kernel_block_t<Ks>...>;
 
 	/// @brief Every part's Block for a block of @p n samples: each declaring part's `prepare` on its own Coefficients
 	/// and State, part 0 first, once.
+	/// @tparam V The value type, for a chain of poly kernels: f32, or Pack<f32, N> under Poly and Bank.
 	/// @param n The block's length in samples (frames for a stereo kernel); may be 0.
-	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, Parts<typename Ks::State...>& s,
+	template <typename V = std::tuple_element_t<0, std::tuple<Ks...>>::value_type>
+	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const CoefficientsOf<V>& c, StateOf<V>& s,
 	                                                          std::size_t n) {
-		return prepare_parts(c, s, n, std::index_sequence_for<Ks...>{});
+		return prepare_parts<V>(c, s, n, std::index_sequence_for<Ks...>{});
 	}
 
 private:
 	/// @brief @ref prepare, with the parts' indices.
-	template <std::size_t... I>
-	[[nodiscard]] [[gnu::always_inline]] static Block prepare_parts(const Coefficients& c,
-	                                                                Parts<typename Ks::State...>& s, std::size_t n,
-	                                                                std::index_sequence<I...> /*parts*/) {
+	template <typename V, std::size_t... I>
+	[[nodiscard]] [[gnu::always_inline]] static Block
+	prepare_parts(const CoefficientsOf<V>& c, StateOf<V>& s, std::size_t n, std::index_sequence<I...> /*parts*/) {
 		Block block;
 		// A comma fold runs its operands left to right: part 0 prepares first.
 		((get<I>(block) = kernel_ops::prepare_block<Ks>(get<I>(c), get<I>(s), n)), ...);
@@ -403,13 +470,22 @@ private:
 /// @brief A kernel made of kernels: each sample (or vector) goes through part 0's `step`, then part 1's, … in one
 /// pass per block, every step inline.
 /// @tparam Ks The parts, in signal order; @ref chainable says which. A chain is itself a kernel of its first part's
-/// form, so every wrapper takes it unchanged (`Mono<Chain<…>>`, `Stereo<Chain<…>>`, `Lanes<Chain<…>, N>`), and a
+/// form, so every wrapper takes it unchanged (`Mono<Chain<…>>`, `Stereo<Chain<…>>`, `Linked<Chain<…>, N>`), and a
 /// chain may be a part of another chain.
 /// @details
 /// **Types.** `value_type` and `step_type` are the parts'. `Settings`, `State` and `Block` are @ref Parts of the
 /// parts' own, part @c I at `get<I>`, each a plain value since each part's is. `Coefficients` are the parts' too, at
 /// `get<I>(c)`: a bare @ref Parts for a chain of unmoded parts; for a moded chain, the parts beside a `mode` member.
 /// `coefficients` calls each part's.
+///
+/// **Over V.** When every part is a @ref poly_kernel, `CoefficientsT<V>` and `StateT<V>` are built the same way from
+/// the parts' own `CoefficientsT<V>` and `StateT<V>` (the `mode` beside them as in `Coefficients`), and
+/// `Coefficients` and `State` are their f32 forms. @ref Parts and the moded Coefficients declare `fields` reaching
+/// each part, the mode no field, so set_lane and get_lane move a lane part by part, and the chain is itself a poly
+/// kernel: `Poly<Chain<…>, N>` steps the whole chain once per frame on a Pack, one copy per lane. `step` and
+/// `prepare` are templates over V, deduced from the State; on packed lanes each part steps its whole State over V, as
+/// Poly steps a poly kernel. A part's event reaches it through @ref part_event. For any other chain V is never
+/// deduced and the forms are its own.
 ///
 /// **Per block.** `prepare(c, s, n)` runs each declaring part's `prepare` on its own Coefficients and State, once, in
 /// part order; its Block is every part's Block, an EmptyBlock for a part without one. A chain declares `prepare` and
@@ -437,7 +513,7 @@ private:
 /// product is every combination, each a loop of its own: keep it small, and leave a part with many modes its own
 /// component. A chain with no moded part declares no `Mode` or `Modes`, and its step is unmoded.
 ///
-/// **Op-major.** A chain declares no `kLanePackable`: `Lanes` steps it lane by lane.
+/// **Op-major.** A chain declares no `kLanePackable`: `Linked` steps it lane by lane.
 ///
 /// **Loop state.** A part declaring `kLoopState` steps on that member of its State; the chain declares none, so a
 /// wrapper copies the chain's whole State around its loop.
@@ -446,17 +522,27 @@ private:
 /// the cheapest calls, the parts' steps land in the wrapper's loop with no call between them.
 template <kernel... Ks>
 requires chainable<Ks...>
-struct Chain : detail::ChainTypes<Ks...>::ModesBase,
-               detail::ChainPrepare<(detail::declares_prepare<Ks> || ...),
-                                    typename detail::ChainTypes<Ks...>::Coefficients, Ks...>,
-               detail::ChainReset<(detail::declares_reset<Ks> || ...), Ks...> {
+struct Chain
+    : detail::ChainTypes<Ks...>::ModesBase,
+      detail::ChainTypes<Ks...>::Over,
+      detail::ChainPrepare<(detail::declares_prepare<Ks> || ...), typename detail::ChainTypes<Ks...>::Over, Ks...>,
+      detail::ChainReset<(detail::declares_reset<Ks> || ...), Ks...> {
 private:
-	/// @brief The chain's mode types and Coefficients.
+	/// @brief The chain's mode types, Coefficients and value forms.
 	using Types = detail::ChainTypes<Ks...>;
 	/// @brief Whether some part is moded, and so the chain is.
 	static constexpr bool kModed = Types::kModed;
 	/// @brief What `step` is templated on: the chain's `Mode`, or NoMode when it has none.
 	using StepMode = typename Types::StepMode;
+	/// @brief The chain's Coefficients over V: the parts' own over V for a chain of poly kernels, else Coefficients.
+	template <typename V>
+	using CoefficientsOf = Types::Over::template CoefficientsOf<V>;
+	/// @brief The chain's State over V: the parts' own over V for a chain of poly kernels, else State.
+	template <typename V>
+	using StateOf = Types::Over::template StateOf<V>;
+	/// @brief What a step over V takes and returns: V for a chain of poly kernels, else the step type.
+	template <typename V>
+	using StepOf = Types::Over::template StepOf<V>;
 
 public:
 	/// @brief Part @p I's kernel type.
@@ -528,33 +614,39 @@ public:
 	/// @brief Generate one step at mode @p M: part 0 generates, each later part processes.
 	/// @tparam M The chain's mode for a moded chain, each moded part stepping at its member; NoMode::NONE, the
 	/// default, for a chain without modes.
-	template <StepMode M = StepMode{}>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step(const Coefficients& c, const StepBlock& b, State& s)
+	/// @tparam V For a chain of poly kernels, the value type, deduced from @p s: f32, or Pack<f32, N> under Poly and
+	/// Bank. Unused for any other chain.
+	template <StepMode M = StepMode{}, typename V = value_type>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step(const CoefficientsOf<V>& c, const StepBlock& b,
+	                                                           StateOf<V>& s)
 	requires generator_kernel<First>
 	{
-		return step_all<M>(c, b, s);
+		return step_all<M, V>(c, b, s);
 	}
 
 	/// @brief Process one step at mode @p M: part 0 takes @p x, each later part what the part before it returned.
 	/// @tparam M The chain's mode for a moded chain, each moded part stepping at its member; NoMode::NONE, the
 	/// default, for a chain without modes.
-	template <StepMode M = StepMode{}>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step(const Coefficients& c, const StepBlock& b, State& s,
-	                                                           step_type x)
+	/// @tparam V For a chain of poly kernels, the value type, deduced from @p s. Unused for any other chain.
+	template <StepMode M = StepMode{}, typename V = value_type>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step(const CoefficientsOf<V>& c, const StepBlock& b,
+	                                                           StateOf<V>& s, std::type_identity_t<StepOf<V>> x)
 	requires processor_kernel<First>
 	{
-		return step_all<M>(c, b, s, x);
+		return step_all<M, V>(c, b, s, x);
 	}
 
 	/// @brief Mix one step at mode @p M: part 0 mixes @p a and @p b2, each later part processes.
 	/// @tparam M The chain's mode for a moded chain, each moded part stepping at its member; NoMode::NONE, the
 	/// default, for a chain without modes.
-	template <StepMode M = StepMode{}>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step(const Coefficients& c, const StepBlock& b, State& s,
-	                                                           step_type a, step_type b2)
+	/// @tparam V Unused: a mixer is no poly kernel.
+	template <StepMode M = StepMode{}, typename V = value_type>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step(const CoefficientsOf<V>& c, const StepBlock& b,
+	                                                           StateOf<V>& s, std::type_identity_t<StepOf<V>> a,
+	                                                           std::type_identity_t<StepOf<V>> b2)
 	requires mixer_kernel<First>
 	{
-		return step_all<M>(c, b, s, a, b2);
+		return step_all<M, V>(c, b, s, a, b2);
 	}
 
 private:
@@ -579,43 +671,83 @@ private:
 
 	/// @brief One step of every part at mode @p M, with every part's Block: the chain's own, or EmptyBlocks when it
 	/// prepares none.
-	template <StepMode M, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step_all(const Coefficients& c, const StepBlock& b, State& s,
-	                                                               X... x) {
+	template <StepMode M, typename V, typename... X>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step_all(const CoefficientsOf<V>& c, const StepBlock& b,
+	                                                               StateOf<V>& s, X... x) {
 		if constexpr (kPrepares) {
-			return step_parts<M>(c, b, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
+			return step_parts<M, V>(c, b, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
 		}
 		else {
 			const Blocks none{};
-			return step_parts<M>(c, none, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
+			return step_parts<M, V>(c, none, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
 		}
 	}
 
 	/// @brief Part 0's step on @p x, then part I + 1's on the value before it, for each I in order.
-	template <StepMode M, std::size_t... I, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step_parts(const Coefficients& c, const Blocks& b, State& s,
-	                                                                 std::index_sequence<I...> /*later*/, X... x) {
-		step_type y = step_part<M, 0>(c, b, s, x...);
+	template <StepMode M, typename V, std::size_t... I, typename... X>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step_parts(const CoefficientsOf<V>& c, const Blocks& b,
+	                                                                 StateOf<V>& s, std::index_sequence<I...> /*later*/,
+	                                                                 X... x) {
+		StepOf<V> y = step_part<M, V, 0>(c, b, s, x...);
 		// A comma fold runs its operands left to right: each part steps on the output of the one before it.
-		((y = step_part<M, I + 1>(c, b, s, y)), ...);
+		((y = step_part<M, V, I + 1>(c, b, s, y)), ...);
 		return y;
 	}
 
-	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, on the part's loop state (@ref
-	/// loop_state_t): at its member of @p M when it is moded, else unmoded.
-	template <StepMode M, std::size_t P, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type step_part(const Coefficients& c, const Blocks& b, State& s,
-	                                                                X... x) {
+	/// @brief Part @p P's mode within the chain's mode @p M: its member of @p M when it is moded, else NoMode::NONE.
+	template <std::size_t P, StepMode M>
+	static constexpr auto kPartMode = [] {
 		if constexpr (detail::has_modes<part_t<P>>) {
-			return kernel_ops::step_at<part_t<P>, get<kModedIndex[P]>(M)>(
-			    get<P>(c), get<P>(b), kernel_ops::loop_state<part_t<P>>(get<P>(s)), x...);
+			return get<kModedIndex[P]>(M);
 		}
 		else {
-			return kernel_ops::step_at<part_t<P>, kernel_ops::NoMode::NONE>(
-			    get<P>(c), get<P>(b), kernel_ops::loop_state<part_t<P>>(get<P>(s)), x...);
+			return kernel_ops::NoMode::NONE;
+		}
+	}();
+
+	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, at @ref kPartMode. On the chain's
+	/// own State the part steps its loop state (@ref loop_state_t), as a wrapper steps it; on packed lanes it steps its
+	/// whole State over V, as Poly and Bank step a poly kernel, which declares no loop state.
+	template <StepMode M, typename V, std::size_t P, typename... X>
+	[[nodiscard]] [[gnu::always_inline]] static StepOf<V> step_part(const CoefficientsOf<V>& c, const Blocks& b,
+	                                                                StateOf<V>& s, X... x) {
+		using K = part_t<P>;
+		if constexpr (std::same_as<StateOf<V>, State>) {
+			return kernel_ops::step_at<K, kPartMode<P, M>>(get<P>(c), get<P>(b), kernel_ops::loop_state<K>(get<P>(s)),
+			                                               x...);
+		}
+		else {
+			return kernel_ops::step_at<K, kPartMode<P, M>>(get<P>(c), get<P>(b), get<P>(s), x...);
 		}
 	}
 };
+
+/// @brief Event @p Event of part @p I, run as an event of a chain: `Event(get<I>(c), get<I>(s), args…)`, or
+/// `Event(get<I>(s), args…)` for an event taking the State alone.
+/// @details A wrapper runs it through `on` as any event of the chain: `mono.on<part_event<2, &Vca<E>::gate_on>>()`,
+/// or on one lane of a Poly or Bank, `poly.on<part_event<2, &Vca<E>::gate_on>>(lane)`. The event sees part @c I's
+/// Coefficients as `coefficients(settings)` built them, its own `mode` included, on a Mono and on a lane alike.
+template <std::size_t I, auto Event>
+struct PartEvent {
+	/// @brief @p Event on part @p I's Coefficients and State.
+	template <typename C, typename S, typename... A>
+	[[gnu::always_inline]] constexpr auto operator()(const C& c, S& s, A&&... args) const
+	    -> decltype(Event(get<I>(c), get<I>(s), std::forward<A>(args)...)) {
+		return Event(get<I>(c), get<I>(s), std::forward<A>(args)...);
+	}
+
+	/// @brief @p Event on part @p I's State alone.
+	template <typename S, typename... A>
+	[[gnu::always_inline]] constexpr auto operator()(S& s, A&&... args) const
+	    -> decltype(Event(get<I>(s), std::forward<A>(args)...)) {
+		return Event(get<I>(s), std::forward<A>(args)...);
+	}
+};
+
+/// @brief Event @p Event of part @p I of a chain, as an event of the chain: see @ref PartEvent.
+template <std::size_t I, auto Event>
+// NOLINTNEXTLINE(readability-identifier-naming): an event, named in snake case as `reset_part` is.
+inline constexpr PartEvent<I, Event> part_event{};
 
 namespace detail {
 
@@ -665,7 +797,7 @@ struct PinnedReset<true, K> {
 /// @details Its Settings, Coefficients, State and Block are K's, and its `coefficients`, `prepare`, `reset` and
 /// `kLoopState` are K's, declared exactly when K declares them. The Coefficients keep K's `mode` member, which
 /// `coefficients` sets to @p M and the step never reads: it is fixed at @p M. Pinned declares no `Modes`, so it is no
-/// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Lanes` steps it lane by
+/// moded kernel, and a chain dispatches on nothing for it. It declares no `kLanePackable`, so `Linked` steps it lane by
 /// lane. Its step forwards whatever K's takes, the counted partial step included, and it declares K's
 /// kPartialStepAdvancesByCount and kStateInPlace.
 template <kernel K, auto M>

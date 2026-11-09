@@ -459,10 +459,6 @@ private:
 	Serializer* previous_;
 };
 extern FileDeserializer* activeDeserializer;
-// The reader readFromFile is currently consuming: a streaming reader, or a TreeDocument's tree reader for the
-// span of its parse (deluge::storage::ActiveReaderScope). The audio-yield gate consults this to decide whether
-// to pump the engine.
-extern Deserializer* activeReader;
 
 namespace deluge::storage {
 class TreeDocument;

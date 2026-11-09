@@ -6,9 +6,10 @@ How to answer "is this faster, and where does the time go" on the J-Trace rig, w
 ## The rig
 
 A Raspberry Pi holds the J-Trace PRO and runs `JLinkRemoteServerCLExe`; the tools reach the probe
-through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE_HOST`). `tools/rig.py restart` recovers a wedged probe and starts
-the server; `tools/rig.py park` leaves the panel dark when you are done; `tools/rig.py stop` frees the
-probe. A dropped connection is usually the network to the Pi, not the rig: retry.
+through it (`--select IP=<host>`, and `--host`, which defaults to `$DELUGE_PROBE_HOST`).
+`tools/rig.py restart` recovers a wedged probe and starts the server; `tools/rig.py park` leaves the
+panel dark when you are done; `tools/rig.py stop` frees the probe. A dropped connection is usually the
+network to the Pi, not the rig: retry.
 
 ## Does it boot? `tools/device_check.py`
 
@@ -105,3 +106,27 @@ function instead.
 
 Main's own A/B bench lives in a shared clone of `main` (see the memory notes); its lines use the same
 format, so its captures summarise alongside ours.
+
+## 5. The DSP bench's case lists
+
+A DSP bench image times one case list (`DELUGE_DSP_BENCH_CASES`), because the RTT output holds about 70 lines
+a run. Build it with `tools/bench_image.py --out IMAGE.elf --define DELUGE_DSP_BENCH=ON --define
+DELUGE_DSP_BENCH_CASES=<list>`, run it with `tools/dsp_bench.py --elf IMAGE.elf --select IP=<host> --out DIR`, and
+afterwards `./dbt configure -DDELUGE_DSP_BENCH=OFF -DDELUGE_STREAM_BENCH=OFF`, since the image build leaves the bench
+option cached.
+
+The `float_filters` list times the float kernels (`fp::OnePole`, `fp::Smoother`, `fp::Svf`) in `Mono`, `Poly` at 2 and
+4 lanes, `Linked` at 2 lanes, and an SVF `Bank` of four bands, beside the calibration loop and the two
+`delay_feedback_chain` controls. On the device each case sets flush-to-zero at setup and keeps it for the run; on the
+host it is held one block at a time. Cycles are per channel-sample for Poly and Linked and per input sample for the
+Bank. The figures are in
+`docs/dev/a9_dsp_performance.md`.
+
+The `float_voice` list times the float oscillators (BLEP and table saws), the envelope and a whole voice (oscillator,
+SVF, envelope amplifier) in `Mono`, `Poly` at 2 and 4 lanes and `Linked` at 2 lanes, with the same controls and the same
+flush-to-zero rule. The transition-heavy envelope and voice cases get gate events at the start of each block, inside the
+timed region; the `sustain` cases are gated on once at setup and timed with no event. The image prints one extra line
+before the cases, `BENCH-INFO build_saw_bands_cycles`: the cycles of the one build of the 90 KB saw-band set, caches
+cold. The list also times `fp::Ladder` in both flavours as a processor over the filters' input, and a ladder voice in
+which every lane's `fp::Drift` reconfigures its whole chain at the start of each block, inside the timed region. The
+figures are in `docs/dev/a9_dsp_performance.md`.

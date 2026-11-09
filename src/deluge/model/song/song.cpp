@@ -81,6 +81,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
 #include "processing/audio_output.h"
@@ -317,25 +318,16 @@ Song::~Song() {
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < std::ssize(live.clips.session_clips); c++) {
-		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading();
-		}
-
 		Clip* clip = live.clips.session_clips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	for (int32_t c = 0; c < std::ssize(live.clips.arrangement_only_clips); c++) {
-		if (!(c & 31)) { // Rohan: Exact number here not fine-tuned
-			AudioEngine::routineWithClusterLoading();
-		}
-
 		Clip* clip = live.clips.arrangement_only_clips[c];
 		deleteClipObject(clip, true, InstrumentRemoval::NONE);
 	}
 
 	AudioEngine::logAction("s4");
-	AudioEngine::routineWithClusterLoading();
 
 	// Free all ParamManagers which are backed up
 	deleteAllBackedUpParamManagers();
@@ -437,7 +429,6 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
-		AudioEngine::routineWithClusterLoading();
 		Output* toDelete = *prevPointer;
 		{
 			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
@@ -456,11 +447,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 void Song::deleteAllBackedUpParamManagers() {
 	while (!live.param_backup.map.empty()) {
-		AudioEngine::routineWithClusterLoading();
 		live.param_backup.map.erase(live.param_backup.map.begin());
 	}
 	while (!live.param_backup.pending.empty()) {
-		AudioEngine::routineWithClusterLoading();
 		live.param_backup.pending.pop_front();
 	}
 }
@@ -468,7 +457,6 @@ void Song::deleteAllBackedUpParamManagers() {
 void Song::deleteAllBackedUpParamManagersWithClips() {
 	for (auto it = live.param_backup.map.begin(); it != live.param_backup.map.end();) {
 		if (it->first.clip_id.has_value()) {
-			AudioEngine::routineWithClusterLoading();
 			it = live.param_backup.map.erase(it);
 		}
 		else {
@@ -479,7 +467,6 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 		if (!entry.clip_id.has_value()) {
 			return false;
 		}
-		AudioEngine::routineWithClusterLoading();
 		return true;
 	});
 }
@@ -1005,6 +992,7 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 	clip->output->clipLengthChanged(clip, oldLength);
 
 	if (playbackHandler.isEitherClockActive() && isClipActive(clip)) {
+		deluge::playback::MoveSection section{"Song::setClipLength"};
 
 		if (mayReSyncClip) {
 			if (allowResyncingDuringClipLengthChange) {
@@ -2030,7 +2018,6 @@ loadOutput:
 			Clip* thisClip = (*clipArray)[c]; // TODO: deal with other Clips too!
 
 			if (!(count & 31)) {
-				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("aaa0");
 			}
 			count++;
@@ -2147,8 +2134,6 @@ loadOutput:
 	}
 
 	AudioEngine::logAction("matched up");
-
-	AudioEngine::routineWithClusterLoading();
 
 	anyOutputsSoloingInArrangement = false;
 
@@ -2275,8 +2260,6 @@ skipInstance:
 	D_PRINTLN("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
-	AudioEngine::routineWithClusterLoading();
-
 	reassessWhetherAnyClipsSoloing();
 
 	AudioEngine::logAction("aaa4.2");
@@ -2357,16 +2340,12 @@ skipInstance:
 		}
 	}
 
-	AudioEngine::routineWithClusterLoading();
-
 	int32_t playbackWillStartInArrangerAtPos =
 	    playbackHandler.playbackState ? persistentView.lastClipInstanceEnteredStartPos : -1;
 
 	AudioEngine::logAction("aaa5.1");
 	sortOutWhichClipsAreActiveWithoutSendingPGMs(modelStack, playbackWillStartInArrangerAtPos);
 	AudioEngine::logAction("aaa5.2");
-
-	AudioEngine::routineWithClusterLoading();
 
 	// Advance the serial-id counters past every id restored from the file, so any object created
 	// after load gets a fresh, non-colliding id.
@@ -2571,7 +2550,6 @@ void Song::deleteSoundsWhichWontSound() {
 	for (ClipIterator it = allClips.begin(); it != allClips.end();) {
 		Clip* clip = *it;
 
-		AudioEngine::routineWithClusterLoading();
 		if (!clip->isActiveOnOutput() && !view.knobsOnClip(*this, *clip)) {
 			// Arranger ClipInstances may still reference this Clip - remove them so they don't dangle (E455)
 			clip->output->deleteAnyInstancesOfClip(clip);
@@ -2589,7 +2567,6 @@ void Song::deleteSoundsWhichWontSound() {
 	for (ClipIterator it = allClips.begin(); it != allClips.end();) {
 		Clip* clip = *it;
 
-		AudioEngine::routineWithClusterLoading();
 		if (clip->deleteSoundsWhichWontSound(this)) {
 			clip->output->deleteAnyInstancesOfClip(clip);
 			it.deleteClip(InstrumentRemoval::DELETE);
@@ -3306,6 +3283,12 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 }
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
+	// An arrangement take's spare goes with it
+	if (clip->type == ClipType::AUDIO) {
+		if (AudioClip* spare = static_cast<AudioClip*>(clip)->spare.exchange(nullptr)) {
+			deleteClipObject(spare, songBeingDestroyedToo, InstrumentRemoval::NONE);
+		}
+	}
 
 	// The clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
 	// the clip is valid; erase the entry after the clip (and its bound ParamSets) are destructed below.
@@ -3718,8 +3701,7 @@ traverseClips:
 			Error error = instrumentClip->changeInstrument(
 			    modelStackWithTimelineCounter, newOutput, nullptr, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
-			    true); // Will call audio routine
-			           // TODO: deal with errors!
+			    true); // TODO: deal with errors!
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one
@@ -4130,8 +4112,6 @@ void Song::setupPatchingForAllParamManagers() {
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		// TODO: we probably don't need to call this so often anymore?
-		AudioEngine::routineWithClusterLoading();
 		AudioEngine::logAction("aaa4.26");
 		((Instrument*)instrumentClip->output)->setupPatching(modelStackWithTimelineCounter);
 		AudioEngine::logAction("aaa4.27");
@@ -4149,7 +4129,6 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading();
 		const deluge::project::OwnerId owner = it->first.owner;
 
 		auto itNull = live.param_backup.map.find({owner, std::nullopt});
@@ -4176,7 +4155,6 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			++it;
 			continue;
 		}
-		AudioEngine::routineWithClusterLoading();
 		auto itNull = std::ranges::find_if(pending, [&](const deluge::bridge::ParamBackup::Pending& entry) {
 			return entry.owner.is(it->owner) && !entry.clip_id;
 		});
@@ -4407,7 +4385,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			Clip* clip = live.clips.session_clips[c];
 
 			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading();
 				AudioEngine::logAction("aaa5.114");
 			}
 			count++;
@@ -4451,7 +4428,6 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 	for (int32_t c = 0; c < std::ssize(live.clips.session_clips); c++) {
 		Clip* clip = live.clips.session_clips[c];
 		if (!(count & 7)) {
-			AudioEngine::routineWithClusterLoading();
 			AudioEngine::logAction("aaa5.125");
 		}
 		count++;
@@ -4663,8 +4639,6 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading();
-
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {}
 
@@ -4681,8 +4655,6 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		if (thisInstrument->type != OutputType::SYNTH && thisInstrument->type != OutputType::KIT) {
 			continue;
 		}
-
-		AudioEngine::routineWithClusterLoading();
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
@@ -4802,9 +4774,7 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 			Clip* clip = clipInstance->clip;
 			thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + j);
 
-			deletingClipInstanceForClip(thisOutput, clip, action,
-			                            true); // Could be bad that this calls the audio routine before we've
-			                                   // actually deleted the ClipInstances...
+			deletingClipInstanceForClip(thisOutput, clip, action, true);
 		}
 
 		// Shorten the previous one if need be
@@ -4819,7 +4789,6 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	}
 }
 
-// Will call audio routine!!
 // Note: in most cases (when action supplied), will try to pick a new activeClip even if told not to. But this
 // should be ok
 void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip) {
@@ -4840,8 +4809,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 		if (!deletionDone) { // If not enough memory to create undo-history...
 			actionLogger.deleteAllLogs();
 			// Delete the actual Clip.
-			// Will not remove Instrument from Song. Will call audio routine! That's why we deleted the ClipInstance
-			// first
+			// Will not remove Instrument from Song.
 			int32_t index = live.clips.arrangement_only_clips.getIndexForClip(clip);
 			if (index != -1) {
 				live.clips.arrangement_only_clips.erase(live.clips.arrangement_only_clips.begin()
@@ -5100,6 +5068,7 @@ tryAgain:
 
 			// If it's still playing...
 			if (clipInstance->pos + clipInstance->length > playbackHandler.getActualSwungTickCount()) {
+				deluge::playback::MoveSection section{"Song::instrumentSwapped arranger"};
 				arrangement.resumeClipInstancePlayback(clipInstance); // Sets activeClip
 			}
 
@@ -5124,7 +5093,7 @@ tryAgain:
 			assertActiveness(modelStackWithTimelineCounter);
 
 			if (playbackHandler.isEitherClockActive()) {
-
+				deluge::playback::MoveSection section{"Song::instrumentSwapped"};
 				thisClip->setPosForParamManagers(modelStackWithTimelineCounter);
 			}
 		}

@@ -50,7 +50,7 @@ enum class DepthMode : uint8_t {
 	SQUARED_PITCH_OTHER,    ///< squared, then scaled to three octaves
 };
 
-/// How a cable reads its source.
+/// How a source read converts its source.
 enum class Conversion : uint8_t {
 	AS_IS,              ///< a bipolar cable, Y, or aftertouch read unipolar
 	UNIPOLAR,           ///< v / 2 + (2^31 - 1) / 2, C's truncating division

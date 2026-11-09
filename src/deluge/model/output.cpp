@@ -28,6 +28,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/move_section.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
@@ -551,9 +552,13 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clipInstance->clip);
 
-	newClip->activeIfNoSolo = true;
-	newClip->setPos(modelStackWithTimelineCounter, 0, false);
-	setActiveClip(modelStackWithTimelineCounter);
+	{
+		// The clip instance is in place, so the render's arrangement ticks reach the clip from here on.
+		deluge::playback::MoveSection section{"Output::possiblyBeginArrangementRecording"};
+		newClip->activeIfNoSolo = true;
+		newClip->setPos(modelStackWithTimelineCounter, 0, false);
+		setActiveClip(modelStackWithTimelineCounter);
+	}
 
 	newClip->beginLinearRecording(modelStackWithTimelineCounter, 0);
 
