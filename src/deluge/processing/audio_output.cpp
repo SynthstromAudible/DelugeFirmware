@@ -191,9 +191,8 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	                 .tick_owner = this},
 	                [&](const deluge::model::ContentBlock& c) {
 		                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
-		                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
-		                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust,
-		                                     deluge::dsp::q<30>(0.125), deluge::dsp::q<30>(0.125));
+		                                     *c.adjustments, c.side_chain_hit_pending, c.should_limit_delay_feedback,
+		                                     c.is_clip_active, deluge::dsp::q<30>(0.125), deluge::dsp::q<30>(0.125));
 	                });
 }
 
@@ -230,8 +229,8 @@ bool AudioOutput::modeAllowsMonitoring() const {
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
                                 int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
-                                int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-                                bool isClipActive, deluge::dsp::Q<24> pitchAdjust, deluge::dsp::Q<30> amplitudeAtStart,
+                                deluge::model::RenderAdjustments& adjustments, int32_t sideChainHitPending,
+                                bool shouldLimitDelayFeedback, bool isClipActive, deluge::dsp::Q<30> amplitudeAtStart,
                                 deluge::dsp::Q<30> amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
@@ -283,7 +282,7 @@ renderEnvelope:
 
 				std::span render_mono{reinterpret_cast<deluge::dsp::Q<31>*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
-				                       pitchAdjust);
+				                       adjustments.pitch());
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 
@@ -384,8 +383,8 @@ renderEnvelope:
 		rendered = true;
 		alignas(ModelStackWithAutoParam) std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		                                  shouldLimitDelayFeedback, isClipActive);
+		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, adjustments.reverbAmount(),
+		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
 	}
 	return rendered;
 }

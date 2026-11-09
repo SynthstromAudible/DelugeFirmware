@@ -653,9 +653,10 @@ void Kit::cutAllSound() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
-                        int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
-                        int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-                        deluge::dsp::Q<24> pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+                        int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
+                        deluge::model::RenderAdjustments& adjustments, int32_t sideChainHitPending,
+                        bool shouldLimitDelayFeedback, bool isClipActive, int32_t amplitudeAtStart,
+                        int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
 	// render removes the next (see RenderingDrums::walk).
@@ -698,9 +699,9 @@ bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<Ste
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, buffer, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
-		                  shouldLimitDelayFeedback, pitchAdjust,
-		                  nullptr); // According to our volume, we tell Drums to send less reverb
+		// According to our volume, we tell Drums to send less reverb
+		soundDrum->render(modelStackWithThreeMainThings, buffer, reverbBuffer, sideChainHitPending,
+		                  adjustments.reverbAmount(), shouldLimitDelayFeedback, adjustments.pitch(), nullptr);
 		rendered = true;
 	});
 
@@ -804,14 +805,10 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, d
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
 	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
 	    && !stemExport.includeKitFX) [[unlikely]] {
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-		const deluge::dsp::Q<24> pitchAdjust =
-		    deluge::model::pitch_adjust_from_knob(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST));
-
-		channel_.rendered_last_time = renderContent(modelStackWithTimelineCounter, output, nullptr, reverbBuffer,
-		                                            reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-		                                            isClipActive, pitchAdjust, 134217728, 134217728);
+		deluge::model::RenderAdjustments adjustments = channel_.bypassAdjustments(*paramManager, reverbAmountAdjust);
+		channel_.rendered_last_time =
+		    renderContent(modelStackWithTimelineCounter, output, nullptr, reverbBuffer, adjustments,
+		                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive, 134217728, 134217728);
 	}
 	// render kit row with kit affect entire FX
 	else {
@@ -826,9 +823,8 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, d
 		                 .tick_owner = this},
 		                [&](const deluge::model::ContentBlock& c) {
 			                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
-			                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
-			                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust,
-			                                     134217728, 134217728);
+			                                     *c.adjustments, c.side_chain_hit_pending,
+			                                     c.should_limit_delay_feedback, c.is_clip_active, 134217728, 134217728);
 		                });
 	}
 

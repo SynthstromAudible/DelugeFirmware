@@ -183,19 +183,19 @@ private:
 	/// @param render The channel's buffer, zeroed; the clip renders into it.
 	/// @param bufferToTransferTo Where to render instead of @p render, or null; the channel passes null.
 	/// @param reverbBuffer The song's reverb send buffer.
-	/// @param reverbAmountAdjust The reverb send scaling, scaled by the track's volume, Q31.
+	/// @param adjustments The track's pitch adjust and the record source's reverb send scaling; read only if the clip
+	/// or the record source renders.
 	/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
 	/// @param shouldLimitDelayFeedback Whether a delay's feedback is capped below self-oscillation.
 	/// @param isClipActive Whether the track's active clip plays.
-	/// @param pitchAdjust The track's pitch adjust.
 	/// @param amplitudeAtStart The clip's amplitude at the block's start, Q30: the monitored input's gain, and, times
 	/// the envelope, the sample reader's amplitude. The channel passes an eighth.
 	/// @param amplitudeAtEnd The clip's amplitude at the block's end, Q30.
 	/// @return Whether the clip rendered.
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
-	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
-	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                   deluge::dsp::Q<24> pitchAdjust, deluge::dsp::Q<30> amplitudeAtStart,
+	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
+	                   deluge::model::RenderAdjustments& adjustments, int32_t sideChainHitPending,
+	                   bool shouldLimitDelayFeedback, bool isClipActive, deluge::dsp::Q<30> amplitudeAtStart,
 	                   deluge::dsp::Q<30> amplitudeAtEnd);
 	/// The audio track's channel strip: the chain its clip renders into, its settings and view.
 	deluge::model::TrackChannel channel_;

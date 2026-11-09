@@ -52,18 +52,8 @@ TrackChannel::~TrackChannel() {
 
 [[gnu::hot]] void TrackChannel::render(ModelStackWithTimelineCounter* modelStack, ParamManager& paramManager,
                                        std::span<StereoSample> output, const ChannelBlock& block, Content content) {
-	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
-
-	// Process FX and stuff. For kits, stutter happens before reverb send
-	const dsp::Q<27> volumeAdjustment =
-	    conversions_.volume(unpatchedParams->getKnob(params::UNPATCHED_VOLUME), volume_from_knob);
-
-	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
-	int32_t reverbAmountAdjustForDrums =
-	    mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust), volumeAdjustment).raw();
-
-	const dsp::Q<24> pitchAdjust =
-	    conversions_.pitch_adjust(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST), pitch_adjust_from_knob);
+	// Read from the params only once something asks: an idle track's content renders nothing
+	RenderAdjustments adjustments{paramManager, conversions_, block.reverb_amount_adjust, true};
 
 	alignas(CACHE_LINE_SIZE) StereoSample channel_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(channel_memory, 0, sizeof(StereoSample) * output.size());
@@ -74,11 +64,10 @@ TrackChannel::~TrackChannel() {
 	const bool rendered = content({
 	    .buffer = channel_audio,
 	    .reverb_buffer = block.reverb_buffer,
-	    .reverb_amount_adjust = reverbAmountAdjustForDrums,
 	    .side_chain_hit_pending = block.side_chain_hit_pending,
 	    .should_limit_delay_feedback = block.should_limit_delay_feedback,
 	    .is_clip_active = block.is_clip_active,
-	    .pitch_adjust = pitchAdjust,
+	    .adjustments = &adjustments,
 	});
 
 	SampleRecorder* recorder = block.recorder;
@@ -90,7 +79,10 @@ TrackChannel::~TrackChannel() {
 		if (!rendered && !recording && !stuttering) {
 			// Still nothing to process: the chain stays off, and only the params move on
 			rendered_last_time = false;
-			core().compressor().dsp().reset();
+			if (!compressor_reset_while_skipping_) {
+				core().compressor().dsp().reset();
+				compressor_reset_while_skipping_ = true;
+			}
 			tickParamAutomation(modelStack, paramManager, output.size(), block);
 			return;
 		}
@@ -107,7 +99,7 @@ TrackChannel::~TrackChannel() {
 	}
 
 	const effects::TrackChainInputs in =
-	    trackChainInputs(*this, paramManager, volumeAdjustment, block.reverb_amount_adjust,
+	    trackChainInputs(*this, paramManager, adjustments.volume(), block.reverb_amount_adjust,
 	                     block.side_chain_hit_pending, delay, block.output_type, conversions_);
 	effects::TrackBlock levels = chain_.begin_block(in, output.size());
 
@@ -194,9 +186,36 @@ void TrackChannel::reassessSkipping(ParamManager& paramManager, bool held) {
 	}
 }
 
+dsp::Q<27> RenderAdjustments::volume() {
+	if (!have_volume_) {
+		volume_ = conversions_.volume(param_manager_.getUnpatchedParamSet()->getKnob(params::UNPATCHED_VOLUME),
+		                              volume_from_knob);
+		have_volume_ = true;
+	}
+	return volume_;
+}
+
+dsp::Q<24> RenderAdjustments::pitch() {
+	if (!have_pitch_) {
+		pitch_ = conversions_.pitch_adjust(
+		    param_manager_.getUnpatchedParamSet()->getKnob(params::UNPATCHED_PITCH_ADJUST), pitch_adjust_from_knob);
+		have_pitch_ = true;
+	}
+	return pitch_;
+}
+
+int32_t RenderAdjustments::reverbAmount() {
+	if (!reverb_follows_volume_) {
+		return reverb_amount_adjust_;
+	}
+	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
+	return mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(reverb_amount_adjust_), volume()).raw();
+}
+
 void TrackChannel::startSkipping() {
 	time_started_skipping_ = AudioEngine::audioSampleTimer;
 	skipping_ = true;
+	compressor_reset_while_skipping_ = false;
 	core().granular().startSkippingRendering();
 }
 

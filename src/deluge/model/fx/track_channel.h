@@ -48,15 +48,48 @@ struct ChannelBlock {
 	ModControllable* tick_owner{nullptr}; ///< The track, which the param tick's model stack names.
 };
 
+/// @brief A channel's volume and pitch adjust for one block, and the reverb send scaling its content renders with,
+/// each read from the params the first time it is asked for.
+/// @details An idle track's content renders nothing, and reading its params and their remembered conversions (cold
+/// memory) every block was most of what skipping it cost.
+class RenderAdjustments {
+public:
+	/// @param paramManager The params the volume and pitch adjust are read from.
+	/// @param conversions The channel's remembered conversions.
+	/// @param reverb_amount_adjust The song's reverb send scaling for this output, Q27 (2^27 is 1).
+	/// @param reverb_follows_volume Whether the content's reverb send is scaled by the channel's volume.
+	RenderAdjustments(ParamManager& paramManager, ChainConversions& conversions, int32_t reverb_amount_adjust,
+	                  bool reverb_follows_volume)
+	    : param_manager_(paramManager), conversions_(conversions), reverb_amount_adjust_(reverb_amount_adjust),
+	      reverb_follows_volume_(reverb_follows_volume) {}
+
+	/// @return The channel's volume adjustment (volume_from_knob), Q27.
+	[[nodiscard]] dsp::Q<27> volume();
+	/// @return The channel's pitch adjust (pitch_adjust_from_knob).
+	[[nodiscard]] dsp::Q<24> pitch();
+	/// @return The reverb send scaling the content renders with, Q27: the song's, times the channel's volume when the
+	/// reverb follows it.
+	[[nodiscard]] int32_t reverbAmount();
+
+private:
+	ParamManager& param_manager_;
+	ChainConversions& conversions_;
+	int32_t reverb_amount_adjust_;
+	bool reverb_follows_volume_;
+	bool have_volume_ = false;
+	bool have_pitch_ = false;
+	dsp::Q<27> volume_{};
+	dsp::Q<24> pitch_{};
+};
+
 /// @brief What a channel hands the track's content for one block.
 struct ContentBlock {
 	std::span<dsp::StereoSample> buffer{};      ///< The channel's buffer, zeroed: the content renders into it.
 	deluge::dsp::Q<31>* reverb_buffer{nullptr}; ///< The song's reverb send buffer.
-	int32_t reverb_amount_adjust{};     ///< The reverb send scaling, already scaled by the channel's volume, Q27.
-	int32_t side_chain_hit_pending{};   ///< The sidechain hit pending this block, Q31; 0 for none.
-	bool should_limit_delay_feedback{}; ///< Whether a delay's feedback is capped below self-oscillation.
-	bool is_clip_active{};              ///< Whether the track's active clip plays.
-	dsp::Q<24> pitch_adjust{};          ///< The channel's pitch adjust (pitch_adjust_from_knob).
+	int32_t side_chain_hit_pending{};           ///< The sidechain hit pending this block, Q31; 0 for none.
+	bool should_limit_delay_feedback{};         ///< Whether a delay's feedback is capped below self-oscillation.
+	bool is_clip_active{};                      ///< Whether the track's active clip plays.
+	RenderAdjustments* adjustments{nullptr};    ///< The volume, pitch adjust and reverb scaling, read on first use.
 };
 
 /// @brief A track's content render: returns whether anything rendered.
@@ -105,6 +138,14 @@ public:
 	/// @return The new best.
 	[[nodiscard]] ReverbCandidate reverbCandidate(ReverbCandidate best, ParamManagerForTimeline& paramManager) const;
 
+	/// @brief The block's adjustments for content rendered outside the chain (a drum stem exported without the kit's
+	/// FX): the pitch adjust as usual, the reverb send not scaled by the channel's volume.
+	/// @param paramManager The active clip's params (or the track's, with no clip).
+	/// @param reverb_amount_adjust The song's reverb send scaling for this output, Q27.
+	[[nodiscard]] RenderAdjustments bypassAdjustments(ParamManager& paramManager, int32_t reverb_amount_adjust) {
+		return {paramManager, conversions_, reverb_amount_adjust, false};
+	}
+
 	/// Whether the track's content rendered last block: the delay starts or stops on it.
 	bool rendered_last_time = false;
 
@@ -129,6 +170,8 @@ private:
 	ChainConversions conversions_;
 	/// Whether the chain is skipped: only the content renders, and the chain runs again once it renders something.
 	bool skipping_ = false;
+	/// Whether the compressor has been reset since skipping started: nothing runs it while skipping, so once is enough.
+	bool compressor_reset_while_skipping_ = false;
 	/// When to start skipping, once the tails have died away; 0 while not waiting.
 	uint32_t start_skipping_at_ = 0;
 	/// When skipping started, for catching up on stopping.

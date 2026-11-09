@@ -177,18 +177,19 @@ private:
 	/// @param buffer The channel's buffer, zeroed; the drums add into it.
 	/// @param bufferToTransferTo Unused by a kit (null).
 	/// @param reverbBuffer The song's reverb send buffer.
-	/// @param reverbAmountAdjust The reverb send scaling, scaled by the kit's volume, Q31.
+	/// @param adjustments The kit's pitch adjust, applied to every drum, and the drums' reverb send scaling; read
+	/// only if a drum renders.
 	/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
 	/// @param shouldLimitDelayFeedback Whether the drums' delay feedback is capped below self-oscillation.
 	/// @param isClipActive Whether the kit's active clip plays.
-	/// @param pitchAdjust The kit's pitch adjust, applied to every drum.
 	/// @param amplitudeAtStart Unused by a kit.
 	/// @param amplitudeAtEnd Unused by a kit.
 	/// @return Whether any drum rendered.
 	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
-	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer, int32_t reverbAmountAdjust,
-	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                   deluge::dsp::Q<24> pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                   int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
+	                   deluge::model::RenderAdjustments& adjustments, int32_t sideChainHitPending,
+	                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t amplitudeAtStart,
+	                   int32_t amplitudeAtEnd);
 	/// The kit's channel strip: the chain its drums render into, its settings and view.
 	deluge::model::TrackChannel channel_;
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,

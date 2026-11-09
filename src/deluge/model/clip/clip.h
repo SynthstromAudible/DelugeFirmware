@@ -193,6 +193,10 @@ public:
 	void notify_content_changed();
 
 	Output* output;
+	// Song::renderAudio() reads these three with output for every Output, every block: keep them in one cache line
+	Clip* beingRecordedFromClip;
+	bool soloingInSessionMode;
+	bool activeIfNoSolo;
 
 	/// Clip colour offset lives in the DOM DocClip (see loopLength()).
 	[[nodiscard]] int16_t colourOffset() const { return docClip_->colour_offset; }
@@ -202,9 +206,7 @@ public:
 	/// Clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
 	[[nodiscard]] uint8_t section() const { return docClip_->section; }
 	void setSection(uint8_t newSection) { docClip_->section = newSection; }
-	bool soloingInSessionMode;
 	ArmState armState;
-	bool activeIfNoSolo;
 	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                     // Used by stem export to flag if this note row should be exported
 	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
@@ -245,8 +247,6 @@ public:
 	int32_t originalLength;
 
 	int32_t lastProcessedPos{};
-
-	Clip* beingRecordedFromClip;
 
 	int32_t repeatCount{};
 
