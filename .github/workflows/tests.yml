@@ -68,9 +68,15 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Install cross-compilation toolchain and QEMU
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: qemu
+          packages: gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-binfmt
+
+      - name: Use ARM cross toolchain
         run: |
           sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db        
+          sudo dpkg-reconfigure man-db
           sudo apt-get update
           sudo apt-get install -y gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user binfmt-support qemu-user-static qemu-system-arm
           echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
