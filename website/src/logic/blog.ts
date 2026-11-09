@@ -6,9 +6,7 @@ export const getBlogPosts = async () =>
     await getCollection(
       "docs",
       ({ id, data }) =>
-        id.startsWith("blog/") &&
-        id !== "blog/index" &&
-        !(import.meta.env.PROD && data.draft),
+        id.startsWith("blog/") && !(import.meta.env.PROD && data.draft),
     )
   ).sort(
     (a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0),

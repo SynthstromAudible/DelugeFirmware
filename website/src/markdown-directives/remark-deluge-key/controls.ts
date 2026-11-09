@@ -53,23 +53,23 @@ const ControlDefinitionSchema = z
      */
     didYouMean: z.string().array().optional().default([]),
 
-    toAction: z
-      .function()
-      .args(
+    toAction: z.function({
+      input: [
         z.string().describe("The name of the control"),
         z.string().array().describe("List of modifiers"),
         z
           .string()
           .array()
           .describe("All keywords (name and modifiers) in original order"),
-      )
-      .returns(ActionSchema),
+      ],
+      output: ActionSchema,
+    }),
 
     display: z.string().optional(),
   })
   .strict()
 
-const ControlData = z.record(ControlDefinitionSchema)
+const ControlData = z.record(z.string(), ControlDefinitionSchema)
 
 const parseModifiers = (
   modifiers: string[],
@@ -107,7 +107,7 @@ const parseModifiers = (
 
 const labelledButtonToAction =
   (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
-  (text: string, modifiers: string[]): typeof ActionSchema._input => {
+  (text: string, modifiers: string[]): z.input<typeof ActionSchema> => {
     if (modifiers.length > 0) {
       throw new Error(
         `Can't add modifiets to ${text}. (Modifiers used: ${modifiers.join(" ")})`,
@@ -135,7 +135,7 @@ const knobToAction =
       return undefined
     },
   ) =>
-  (text: string, modifiers: string[]): typeof ActionSchema._input => {
+  (text: string, modifiers: string[]): z.input<typeof ActionSchema> => {
     // Separate icon modifiers from the modifier list
     const {
       before: modifiersBefore,
@@ -323,7 +323,7 @@ export const CONTROLS = ControlData.parse({
   // Pads
   Pad: {
     // TODO: parse pad ID from modifiers
-    toAction: (name, modifiers): typeof ActionSchema._input => {
+    toAction: (name, modifiers): z.input<typeof ActionSchema> => {
       return {
         label: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
         isPad: true,
@@ -333,7 +333,7 @@ export const CONTROLS = ControlData.parse({
       }
     },
   },
-} as typeof ControlData._input)
+} as z.input<typeof ControlData>)
 
 /** The keys of a `:key[...]` sequence: chords split by `>`, keys within a chord by `+`. */
 export const sequenceKeys = (sequence: string): string[][] => {

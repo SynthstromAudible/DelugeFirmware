@@ -26,8 +26,10 @@ const Led = z.union([
 
 export const FrameSchema = z
   .object({
-    pads: z.record(z.string().regex(/^#[0-9a-fA-F]{6}$/)).optional(),
-    leds: z.record(Led).optional(),
+    pads: z
+      .record(z.string(), z.string().regex(/^#[0-9a-fA-F]{6}$/))
+      .optional(),
+    leds: z.record(z.string(), Led).optional(),
     /** For authors: what this frame shows. Not rendered. */
     note: z.string().optional(),
   })

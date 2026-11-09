@@ -2,11 +2,13 @@
 title: "Built Together: Community and the Deluge Firmware"
 date: 2026-10-26
 authors:
-  - Mark Adams
+  - mark-adams
 ---
 
 The Deluge is a strange and wonderful instrument. It’s a sequencer, a sampler, a synth, a groovebox, or a looper, or a drum machine, or a sequencer, or whatever you want it to be, and it fits in a bag.
 The firmware that runs it exists because a lot of people care about it, and that was true long before any of us were using AI tools to write code.
+
+<!-- excerpt -->
 
 I want to talk about a couple things: how we’ve been using AI while working on the firmware, and why it hasn’t changed the need for community
 

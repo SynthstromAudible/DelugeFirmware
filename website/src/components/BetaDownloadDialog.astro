@@ -42,17 +42,15 @@ const { Content } = await render(changelog)
         <p class="beta-download-dialog__eyebrow">Read before downloading</p>
         <h2 id="beta-changelog-title">{title}</h2>
         <p id="beta-changelog-description">{description}</p>
-        {
-          bugReportUrl && (
-            <p>
-              Found a bug? Please{" "}
-              <a href={bugReportUrl} target="_blank" rel="noopener noreferrer">
-                report it on GitHub
-              </a>{" "}
-              with detailed steps to reproduce it.
-            </p>
-          )
-        }
+        {bugReportUrl && (
+          <p>
+            Found a bug? Please{" "}
+            <a href={bugReportUrl} target="_blank" rel="noopener noreferrer">
+              report it on GitHub
+            </a>{" "}
+            with detailed steps to reproduce it.
+          </p>
+        )}
       </div>
       <button
         class="beta-download-dialog__close"

@@ -34,7 +34,7 @@ class AutoParam;
 class ConsequenceParamChange;
 class Note;
 class ActionClipState;
-class UI;
+class RootUI;
 class Instrument;
 class ClipInstance;
 class Song;
@@ -102,7 +102,8 @@ public:
 
 	// bool inKeyboardView;
 
-	UI* view{};
+	// Grouping and navigation use the root view, including for edits made in an overlay.
+	RootUI* view{};
 
 	Clip* currentClip{}; // Watch out - this might get set to NULL
 

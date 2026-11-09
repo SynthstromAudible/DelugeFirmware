@@ -2602,7 +2602,9 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
-	for (Output* output = live.media.first_output; output; output = output->next) {
+	for (Output *output = live.media.first_output, *next; output; output = next) {
+		// Read alongside inValidState (same cache line): rendering this Output often evicts it
+		next = output->next;
 		if (!output->inValidState) {
 			continue;
 		}

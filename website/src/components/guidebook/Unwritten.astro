@@ -11,15 +11,13 @@ const { editUrl } = Astro.locals.starlightRoute
 
 <div data-pagefind-ignore>
   <Aside type="note" title="This section is unwritten!">
-    {
-      editUrl ? (
-        <>
-          You can help by <a href={editUrl}>adding content</a>.
-        </>
-      ) : (
-        <>You can help by adding content.</>
-      )
-    }
+    {editUrl ? (
+      <>
+        You can help by <a href={editUrl}>adding content</a>.
+      </>
+    ) : (
+      <>You can help by adding content.</>
+    )}
     <slot />
   </Aside>
 </div>

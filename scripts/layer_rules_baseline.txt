@@ -2,8 +2,7 @@
 src/deluge/io/midi/device_specific/midi_device_lumi_keys.cpp	model-calls-ui	2
 src/deluge/io/midi/device_specific/midi_device_lumi_keys.cpp	model-includes-ui	1
 src/deluge/io/midi/device_specific/midi_device_lumi_keys.h	model-includes-ui	1
-src/deluge/io/midi/midi_device.cpp	model-includes-ui	1
-src/deluge/io/midi/midi_device_manager.cpp	model-includes-ui	3
+src/deluge/io/midi/midi_device_manager.cpp	model-includes-ui	2
 src/deluge/io/midi/midi_engine.cpp	model-includes-ui	4
 src/deluge/io/midi/midi_follow.cpp	model-calls-ui	2
 src/deluge/io/midi/midi_follow.cpp	model-includes-ui	6
@@ -11,7 +10,7 @@ src/deluge/io/midi/midi_takeover.cpp	model-includes-ui	2
 src/deluge/io/midi/midi_transpose.cpp	model-calls-ui	3
 src/deluge/io/midi/midi_transpose.cpp	model-includes-ui	5
 src/deluge/io/midi/sysex.cpp	model-includes-ui	1
-src/deluge/model/action/action_logger.cpp	model-calls-ui	53
+src/deluge/model/action/action_logger.cpp	model-calls-ui	55
 src/deluge/model/action/action_logger.cpp	model-includes-ui	10
 src/deluge/model/action/action_logger.h	model-includes-ui	1
 src/deluge/model/clip/audio_clip.cpp	model-includes-ui	1
@@ -89,7 +88,7 @@ src/deluge/playback/mode/session.cpp	model-calls-ui	25
 src/deluge/playback/mode/session.cpp	model-includes-ui	8
 src/deluge/playback/mode/session.h	model-includes-ui	1
 src/deluge/playback/playback_handler.cpp	model-calls-display	6
-src/deluge/playback/playback_handler.cpp	model-calls-ui	51
+src/deluge/playback/playback_handler.cpp	model-calls-ui	48
 src/deluge/playback/playback_handler.cpp	model-includes-ui	20
 src/deluge/playback/render_requests.cpp	model-calls-display	1
 src/deluge/playback/render_requests.cpp	model-calls-ui	4
@@ -97,8 +96,8 @@ src/deluge/playback/render_requests.cpp	model-includes-ui	5
 src/deluge/playback/render_requests.h	model-calls-ui	1
 src/deluge/processing/audio_output.cpp	model-includes-ui	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-display	1
-src/deluge/processing/engines/audio_engine.cpp	model-calls-ui	4
-src/deluge/processing/engines/audio_engine.cpp	model-includes-ui	11
+src/deluge/processing/engines/audio_engine.cpp	model-calls-ui	2
+src/deluge/processing/engines/audio_engine.cpp	model-includes-ui	7
 src/deluge/processing/engines/cv_engine.cpp	model-includes-ui	1
 src/deluge/processing/sound/sound.cpp	model-calls-ui	1
 src/deluge/processing/sound/sound.cpp	model-includes-ui	7

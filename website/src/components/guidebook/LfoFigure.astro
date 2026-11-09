@@ -40,21 +40,19 @@ const tiles = SHAPES.map((shape, i) => {
   data-scope="lfo"
 >
   <div class="gb-lfo-grid">
-    {
-      tiles.map((t) => (
-        <div class="gb-lfo-tile" data-shape={t.id}>
-          <p class="gb-lfo-name">{t.name}</p>
-          <svg
-            class="gb-lfo-plot"
-            viewBox={`0 0 ${TILE.w} ${TILE.h}`}
-            role="img"
-            aria-label={t.about ? `${t.name}: ${t.about}` : `${t.name} LFO`}
-            set:html={t.svg}
-          />
-          {t.about && <p class="gb-lfo-about">{t.about}</p>}
-        </div>
-      ))
-    }
+    {tiles.map((t) => (
+      <div class="gb-lfo-tile" data-shape={t.id}>
+        <p class="gb-lfo-name">{t.name}</p>
+        <svg
+          class="gb-lfo-plot"
+          viewBox={`0 0 ${TILE.w} ${TILE.h}`}
+          role="img"
+          aria-label={t.about ? `${t.name}: ${t.about}` : `${t.name} LFO`}
+          set:html={t.svg}
+        />
+        {t.about && <p class="gb-lfo-about">{t.about}</p>}
+      </div>
+    ))}
   </div>
   <div class="gb-lfo-actions" hidden>
     <button type="button" class="gb-lfo-pause" aria-pressed="false">
