@@ -138,7 +138,7 @@ public:
 private:
 	using Freeverb = dsp::fixed::Freeverb;
 	using Plate = dsp::fp::Plate;
-	/// @brief One buffer for whichever model is held: Freeverb's 25,450 words or the plate's 32,768-float ring.
+	/// @brief One buffer for whichever model is held: Freeverb's 28,522 words or the plate's 32,768-float ring.
 	union Memory {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): the kernels index it per frame
 		dsp::Q<31> freeverb[Freeverb::kMemoryWords];

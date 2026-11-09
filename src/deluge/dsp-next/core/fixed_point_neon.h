@@ -268,6 +268,35 @@ requires(A + B >= 31 && A + B - 31 <= 31)
 	return QVec<A + B - 31>::from_raw(vqrdmulhq_n_s32(a.raw(), b.raw()));
 }
 
+/// @brief The high word of a × b per lane, rounded half up, as the scalar mul_r: Q<A> × Q<B> → Q<A+B−32>
+/// (`vmull.s32` and `vrshrn.i64 #32` on each half).
+/// @details Twice the instructions of mul_doubling_r_sat, which gives the same lanes when one operand is known even and
+/// is passed halved (a Q<A−1> holding the same value).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 32> mul_r(QVec<A> a, QVec<B> b) noexcept {
+	const int32x4_t x = a.raw();
+	const int32x4_t y = b.raw();
+	return QVec<A + B - 32>::from_raw(vcombine_s32(vrshrn_n_s64(vmull_s32(vget_low_s32(x), vget_low_s32(y)), 32),
+	                                               vrshrn_n_s64(vmull_s32(vget_high_s32(x), vget_high_s32(y)), 32)));
+}
+
+/// @brief Transposes four vectors as the rows of a 4×4 matrix: afterwards lane j of the i-th vector holds what lane i
+/// of the j-th held (`vtrn.32` twice, then d-register moves).
+template <class Lane>
+[[gnu::always_inline]] inline void transpose(FixedVec<Lane, 4>& a, FixedVec<Lane, 4>& b, FixedVec<Lane, 4>& c,
+                                             FixedVec<Lane, 4>& d) noexcept
+requires std::is_same_v<typename FixedVec<Lane, 4>::register_type, Argon<std::int32_t>>
+{
+	const int32x4x2_t ab = vtrnq_s32(a.raw(), b.raw());
+	const int32x4x2_t cd = vtrnq_s32(c.raw(), d.raw());
+	using V = FixedVec<Lane, 4>;
+	a = V::from_raw(vcombine_s32(vget_low_s32(ab.val[0]), vget_low_s32(cd.val[0])));
+	b = V::from_raw(vcombine_s32(vget_low_s32(ab.val[1]), vget_low_s32(cd.val[1])));
+	c = V::from_raw(vcombine_s32(vget_high_s32(ab.val[0]), vget_high_s32(cd.val[0])));
+	d = V::from_raw(vcombine_s32(vget_high_s32(ab.val[1]), vget_high_s32(cd.val[1])));
+}
+
 /// @brief x × 2^N per lane in the same format, wrapping (`vshl.i32 #N`).
 template <int N, int F>
 requires detail::shift_amount<N, std::int32_t>

@@ -72,7 +72,7 @@ src/deluge/dsp-next/fixed/pitch_shift/input_history.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/pitch_shift/percussive_search.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/pitch_shift/play_head.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/pitch_shift/slope_follower.h raw=0 boundary=5
-src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=3
+src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/shaping/antialiased_tanh.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/shaping/bit_depth.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16

@@ -161,7 +161,7 @@ describe freeverb_kernel("the Freeverb kernel", ${
 		}
 		expect(mismatches).to_equal(std::size_t{0});
 	});
-	it("lays its lines end to end in kMemoryWords at the reference's tunings", _ {
+	it("lays its lines end to end in kMemoryWords at the reference's tunings, each followed by its overhang", _ {
 		namespace ref = deluge::dsp::test::reverb_ref;
 		// The reference's tunings (Jezar's tuning.h), left then right for each line.
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): a table read by index
@@ -180,18 +180,18 @@ describe freeverb_kernel("the Freeverb kernel", ${
 			for (std::size_t i = 0; i < Freeverb::kCombs; ++i) {
 				expect(l.comb[ch][i].base).to_equal(base);
 				expect(static_cast<int32_t>(l.comb[ch][i].length)).to_equal(kCombs[ch][i]);
-				base += l.comb[ch][i].length;
+				base += l.comb[ch][i].length + Freeverb::kOverhang;
 			}
 		}
 		for (std::size_t ch = 0; ch < 2; ++ch) {
 			for (std::size_t i = 0; i < Freeverb::kAllpasses; ++i) {
 				expect(l.allpass[ch][i].base).to_equal(base);
 				expect(static_cast<int32_t>(l.allpass[ch][i].length)).to_equal(kAllpasses[ch][i]);
-				base += l.allpass[ch][i].length;
+				base += l.allpass[ch][i].length + Freeverb::kOverhang;
 			}
 		}
 		expect(static_cast<std::size_t>(base)).to_equal(Freeverb::kMemoryWords);
-		expect(Freeverb::kMemoryWords).to_equal(std::size_t{25450});
+		expect(Freeverb::kMemoryWords).to_equal(std::size_t{25450 + (24 * Freeverb::kOverhang)});
 	});
 });
 // clang-format on

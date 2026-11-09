@@ -33,6 +33,8 @@ static_assert(std::is_same_v<decltype(mul_doubling_sat(QVec<31>{}, Q<29>{})), QV
 static_assert(std::is_same_v<decltype(mul_doubling_sat(Q16Vec<15>{}, Q16<15>{})), Q16Vec<15>>);
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, Q<30>{})), QVec<30>>);
+static_assert(std::is_same_v<decltype(mul_r(QVec<31>{}, QVec<31>{})), QVec<30>>);
+static_assert(std::is_same_v<decltype(mul_r(QVec<31>{}, QVec<29>{})), QVec<28>>);
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(as_wrap<QVec<31>>(QVec<26>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(clamp_bits<27>(QVec<26>{})), QVec<26>>);
@@ -136,6 +138,10 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto b, auto) { return mul_doubling_r_sat(q<31>(a), q<31>(b)).raw(); });
 	bad += mismatches32([](auto a, auto, auto c) { return out(mul_doubling_r_sat(vec<31>(a), q<30>(c))); },
 	                    [](auto a, auto, auto c) { return mul_doubling_r_sat(q<31>(a), q<30>(c)).raw(); });
+	bad += mismatches32([](auto a, auto b, auto) { return out(mul_r(vec<31>(a), vec<31>(b))); },
+	                    [](auto a, auto b, auto) { return mul_r(q<31>(a), q<31>(b)).raw(); });
+	bad += mismatches32([](auto a, auto, auto c) { return out(mul_r(vec<31>(a), vec<29>(c))); },
+	                    [](auto a, auto, auto c) { return mul_r(q<31>(a), Q<29>::from_raw(c)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shl_wrap<3>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return scale_shl_wrap<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shr_floor<3>(vec<31>(a))); },
@@ -340,6 +346,25 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 	});
 	it("select each pair's halves and each register's halves", _ {
 		expect(half_mismatches()).to_equal(std::size_t{0});
+	});
+	it("transpose four vectors as the rows of a 4×4 matrix", _ {
+		std::array<std::array<Q<31>, 4>, 4> rows{};
+		for (std::size_t i = 0; i < 4; ++i) {
+			for (std::size_t j = 0; j < 4; ++j) {
+				rows[i][j] = Q<31>::from_raw(static_cast<std::int32_t>((10 * i) + j));
+			}
+		}
+		QVec<31> a = QVec<31>::load(rows[0].data());
+		QVec<31> b = QVec<31>::load(rows[1].data());
+		QVec<31> c = QVec<31>::load(rows[2].data());
+		QVec<31> d = QVec<31>::load(rows[3].data());
+		transpose(a, b, c, d);
+		const std::array<QVec<31>, 4> cols{a, b, c, d};
+		for (std::size_t i = 0; i < 4; ++i) {
+			for (std::size_t j = 0; j < 4; ++j) {
+				expect(cols[j].lane(i).raw()).to_equal(rows[i][j].raw());
+			}
+		}
 	});
 	it("saturate only min × min in the doubling multiplies", _ {
 		const auto min = QVec<31>::splat(Q<31>::min());

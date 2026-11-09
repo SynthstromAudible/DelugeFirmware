@@ -677,6 +677,31 @@ image d068b23c3. Cycles per channel-sample, the minimum of four runs of each ima
   for the block to 249. Stepping the plate's State in place instead costs it 9-19%, so both States are copied.
 - **The controls move by 0.1-2.2%**, the bound on placement noise between the two images.
 
+### Freeverb in NEON
+
+Freeverb as a block-staged kernel (`Freeverb::process`, from upstream's vectorised freeverb) against the scalar frame
+kernel above, on 2026-11-09, one run of each image (cycle counts on the rig are deterministic). The output is bit-exact
+with the frame kernel: `freeverb_kernel_spec`'s recorded workloads pass on the host and under qemu on ARM.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) |
+|---|---:|---:|---:|
+| `control delay_feedback_chain_analog` | 174.58 → 174.60 (+0.0%) | 168.78 → 168.79 (+0.0%) | 165.89 → 165.89 (+0.0%) |
+| `control delay_feedback_chain_digital` | 20.96 → 20.97 (+0.0%) | 15.23 → 15.23 (+0.0%) | 12.36 → 12.36 (+0.0%) |
+| `reverb_freeverb` | 251.98 → 165.64 (-34.3%) | 249.81 → 151.47 (-39.4%) | 248.79 → 147.69 (-40.6%) |
+| `reverb_mutable` | 179.82 → 176.16 (-2.0%) | 179.08 → 175.82 (-1.8%) | 178.56 → 175.19 (-1.9%) |
+| `reverb_digital` | 226.67 → 221.40 (-2.3%) | 225.93 → 220.72 (-2.3%) | 225.67 → 220.40 (-2.3%) |
+
+- **Four lines per vector.** Each group of four combs loads four frames from each line, sums them as the output,
+  transposes so each vector holds one frame of the four combs, steps the filter stores across the lanes, and
+  transposes back to store. Each channel's four allpasses run in series on four frames at once. Instructions per
+  channel-sample fall from 251 to 83 at n=128.
+- **Lines run on past their end.** Each line has 128 words after it (`kOverhang`, 12 KB in all, inside the plate's
+  larger ring in the shared buffer), so a pass runs every line straight through and copies the overhang back to the
+  start afterwards, with no per-sample wrap test.
+- **Halves for the even values.** The filter stores and the cross-mixed channels are even, so `vqrdmulh` of their
+  halves gives the scalar's rounded high word exactly; the line samples take `mul_r` (`vmull`, `vrshrn`).
+- **The plates move by 2%**, placement between the two images (they share `effects::Reverb::render`).
+
 ## DX7
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:

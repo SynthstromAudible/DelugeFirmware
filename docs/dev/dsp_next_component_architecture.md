@@ -648,11 +648,13 @@ The song reverb is two processor kernels of stereo frames, `fixed::Freeverb` (`f
   `Granular`'s is, here a mono send read and mixed into stereo frames) and q31 frames in and out. The plate's loop is
   float, as the models were written and balanced, so it lives in `float/`; its input is the send over `(float)INT32_MAX`
   and its output stage is `to_q31_saturating` then the rounded multiply-accumulate, both named in the kernel.
-- **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 25,450 words laid out
-  end to end by `kLayout`, or the plate's 32,768-float ring. The State holds only indices, the combs' stores and the
-  filter memories. Neither declares `kStateInPlace`: copying the State into registers for the block measures faster
-  for both (Freeverb 249 against 277 cycles per channel-sample, the plate 9-19% faster), see
-  `a9_dsp_performance.md`, "Reverb".
+- **Memory handed in.** `set_memory` points each kernel at the component's buffer: Freeverb's 28,522 words laid out
+  end to end by `kLayout` (each line followed by the 128 words a NEON pass runs on into), or the plate's 32,768-float
+  ring. The State holds only indices, the combs' stores and the
+  filter memories. The plate does not declare `kStateInPlace`: copying its State into registers for the block measures
+  9-19% faster. Freeverb is a block-staged kernel: `process` runs the block in NEON passes of four lines per vector,
+  148 against 249 cycles per channel-sample for the frame kernel, which still renders a block's last frames when the
+  block is not a multiple of four; see `a9_dsp_performance.md`, "Reverb".
 - **Freeverb's DC blocker is a nested part.** `Pinned<ShiftTracker<11>, REMOVE>`, stepped through
   `kernel_ops::step_at` on each send sample. A `Chain` cannot hold it: it filters the mono send, not the frame the
   chain steps. The blocked sample is not written back into the send: nothing reads the send after the reverb, and a
