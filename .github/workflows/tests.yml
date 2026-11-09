@@ -91,7 +91,7 @@ jobs:
         uses: ./.github/actions/apt-install
         with:
           cache-name: qemu
-          packages: gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-static
+          packages: gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf binfmt-support qemu-user-binfmt
 
       - name: Use ARM cross toolchain
         run: |
