@@ -186,9 +186,37 @@ struct RenderCost {
 RenderCost renderCost;
 
 // Time a song tick before a render can take (starting notes, mostly), in samples of time. Ticks that start notes come
-// only every so often, and can cost a lot, so it's the most a recent one has taken - decaying by 1/256 per render - to
-// keep headroom for the next
-float songTickCost = 0;
+// only every so often (on beats, say), and can cost a lot, so it's the most one has taken in the last 2 seconds, to
+// keep headroom for the next. Kept as the most in each of 8 quarter-second slots, so an unusually expensive tick (a
+// clip launch, say) is forgotten 2 seconds later
+class SongTickCost {
+public:
+	void add(float tickTime, uint32_t now) {
+		uint32_t slotsPassed = (now - currentSlotStart) / kSlotLength;
+		if (slotsPassed) {
+			currentSlotStart += slotsPassed * kSlotLength;
+			for (uint32_t i = 0; i < std::min<uint32_t>(slotsPassed, kNumSlots); i++) {
+				currentSlot = (currentSlot + 1) % kNumSlots;
+				slots[currentSlot] = 0;
+			}
+			most = *std::max_element(slots.begin(), slots.end());
+		}
+		slots[currentSlot] = std::max(slots[currentSlot], tickTime);
+		most = std::max(most, tickTime);
+	}
+
+	/// The most a song tick has taken lately
+	[[nodiscard]] float get() const { return most; }
+
+private:
+	static constexpr uint32_t kNumSlots = 8;
+	static constexpr uint32_t kSlotLength = kSampleRate / 4;
+	std::array<float, kNumSlots> slots{};
+	uint32_t currentSlot = 0;
+	uint32_t currentSlotStart = 0;
+	float most = 0;
+};
+SongTickCost songTickCost;
 
 // How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
 // other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
@@ -599,7 +627,8 @@ size_t getRenderSize(size_t numSamples) {
 	// when the CPU's busy, doubling can make a render take longer than the backlog it's catching up on. Never fewer
 	// than there's space for, though
 	if (numSamples > spaceInBuffer) {
-		float timeAvailable = (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickCost;
+		float timeAvailable =
+		    (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickCost.get();
 		float sizeAllowed = renderCost.sizeFor(timeAvailable);
 		if (sizeAllowed < (float)numSamples) {
 			numSamples = std::max(spaceInBuffer, (size_t)std::max(sizeAllowed, 0.f));
@@ -622,7 +651,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	// plus a song tick
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
 	size_t renderSize = getRenderSize(numSamples);
-	int32_t predicted = (int32_t)(songTickCost + renderCost.predict(renderSize));
+	int32_t predicted = (int32_t)(songTickCost.get() + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
@@ -892,8 +921,7 @@ bool calledFromScheduler = false;
 	renderAudio(numSamples);
 
 	renderCost.add(numSamples, (float)((getSystemTicks() - renderStartTicks) << 8) / kSystemTicksPerSampleQ8);
-	songTickCost = std::max(songTickCost * (255.f / 256.f),
-	                        (float)((renderStartTicks - tickStartTicks) << 8) / kSystemTicksPerSampleQ8);
+	songTickCost.add((float)((renderStartTicks - tickStartTicks) << 8) / kSystemTicksPerSampleQ8, audioSampleTimer);
 
 	scheduleMidiGateOutISR(numSamples);
 
