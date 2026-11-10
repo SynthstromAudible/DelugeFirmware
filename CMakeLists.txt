@@ -259,6 +259,12 @@ set_target_properties(deluge
         SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
 )
 
+# Let dbt gdb locate the ELF without duplicating the output naming rules.
+file(GENERATE
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/deluge-elf-path.txt"
+    CONTENT "$<TARGET_FILE:deluge>\n"
+)
+
 set(BIN_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.bin)
 set(HEX_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.hex)
 set(MAP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.map)
