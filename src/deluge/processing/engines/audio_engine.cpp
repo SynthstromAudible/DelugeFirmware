@@ -130,10 +130,69 @@ constexpr int32_t numSamplesLimit = 80;
 // used for decisions in rendering engine
 constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 
-// What recent renders cost (system ticks, including starting notes) and how many samples they made, as running sums
-// which each decay by 1/8 per render
-uint32_t renderCostTicks = 0;
-uint32_t renderCostSamples = 0;
+// What recent renders have cost for predicting how long the next will take. Each render has a fixed cost (for every
+// Output, Sound and effect) as well as one per sample so a linear fit is fairly good
+// Times are in samples (of time) and leave out the song tick (see songTickCost)
+struct RenderCost {
+	float count = 0;
+	float size = 0;
+	float time = 0;
+	float sizeSquared = 0;
+	float sizeTime = 0;
+
+	void add(float renderSize, float renderTime) {
+		constexpr float kDecay = 15.f / 16.f;
+		count = count * kDecay + 1;
+		size = size * kDecay + renderSize;
+		time = time * kDecay + renderTime;
+		sizeSquared = sizeSquared * kDecay + renderSize * renderSize;
+		sizeTime = sizeTime * kDecay + renderSize * renderTime;
+	}
+
+	/// How long a render of renderSize samples should take
+	[[nodiscard]] float predict(float renderSize) const {
+		if (size == 0) {
+			return renderSize;
+		}
+		// Only fit a line if recent renders' sizes have varied enough (by more than about 8 samples)
+		float spread = count * sizeSquared - size * size;
+		if (spread > count * count * 64) {
+			float perSample = (count * sizeTime - size * time) / spread;
+			float fixed = (time - perSample * size) / count;
+			if (perSample > 0 && fixed >= 0) {
+				return fixed + perSample * renderSize;
+			}
+		}
+		// Otherwise, just what they've cost per sample
+		return time / size * renderSize;
+	}
+
+	/// The biggest render that should take no longer than renderTime
+	[[nodiscard]] float sizeFor(float renderTime) const {
+		if (size == 0 || time <= 0) {
+			return renderTime;
+		}
+		float spread = count * sizeSquared - size * size;
+		if (spread > count * count * 64) {
+			float perSample = (count * sizeTime - size * time) / spread;
+			float fixed = (time - perSample * size) / count;
+			if (perSample > 0 && fixed >= 0) {
+				return (renderTime - fixed) / perSample;
+			}
+		}
+		return renderTime * size / time;
+	}
+};
+RenderCost renderCost;
+
+// Time a song tick before a render can take (starting notes, mostly), in samples of time. Ticks that start notes come
+// only every so often, and can cost a lot, so it's the most a recent one has taken - decaying by 1/256 per render - to
+// keep headroom for the next
+float songTickCost = 0;
+
+// How much of what's queued for the codec a render (and song tick) shouldn't be predicted to use up, in samples, for
+// other tasks and the occasional slower render. Bigger renders are only done if they fit within the rest
+constexpr int32_t kRenderSafetyMargin = 8;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
@@ -522,6 +581,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 // not in header (private to audio engine)
 /// How many samples to render, given how many there's space for in the output buffer. Can be up to 128
 size_t getRenderSize(size_t numSamples) {
+	size_t const spaceInBuffer = numSamples;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
@@ -535,6 +595,17 @@ size_t getRenderSize(size_t numSamples) {
 	}
 	numSamples = std::min(numSamples, maxAdjustedNumSamples);
 
+	// But not so many that the render (and a song tick before it) would use up what's still queued for the codec -
+	// when the CPU's busy, doubling can make a render take longer than the backlog it's catching up on. Never fewer
+	// than there's space for, though
+	if (numSamples > spaceInBuffer) {
+		float timeAvailable = (float)(SSI_TX_BUFFER_NUM_SAMPLES - spaceInBuffer - kRenderSafetyMargin) - songTickCost;
+		float sizeAllowed = renderCost.sizeFor(timeAvailable);
+		if (sizeAllowed < (float)numSamples) {
+			numSamples = std::max(spaceInBuffer, (size_t)std::max(sizeAllowed, 0.f));
+		}
+	}
+
 	// Want to round to be doing a multiple of 4 samples so the NEON functions can be utilized most efficiently.
 	// Note - this can take numSamples up as high as SSI_TX_BUFFER_NUM_SAMPLES (currently 128).
 	if (numSamples >= 3) {
@@ -547,16 +618,11 @@ size_t getRenderSize(size_t numSamples) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// numSamples is the space in the output buffer, so the rest is still queued for the codec. The next render won't
-	// output anything until it's done, so predict how long it'll take from its size and what renders have recently cost
-	// per sample
+	// output anything until it's done, so predict how long it'll take from its size and what recent renders have cost,
+	// plus a song tick
 	int32_t queued = SSI_TX_BUFFER_NUM_SAMPLES - (int32_t)numSamples;
 	size_t renderSize = getRenderSize(numSamples);
-	int32_t predicted = renderSize;
-	// how many ticks the last renders took (moving average) / how many samples they rendered
-	if (renderCostSamples) {
-		predicted = (int32_t)(((uint64_t)renderCostTicks * renderSize << 8)
-		                      / ((uint64_t)renderCostSamples * kSystemTicksPerSampleQ8));
-	}
+	int32_t predicted = (int32_t)(songTickCost + renderCost.predict(renderSize));
 	int32_t margin = queued - predicted;
 	numSamples = std::max<int32_t>(numSamplesLimit + kCullMargin - margin, 0);
 
@@ -814,8 +880,9 @@ bool calledFromScheduler = false;
 	numSamples = getRenderSize(numSamples);
 	voices_started_this_render = 0;
 
-	uint32_t renderStartTicks = getSystemTicks();
+	uint32_t tickStartTicks = getSystemTicks();
 	tickSongFinalizeWindows(numSamples);
+	uint32_t renderStartTicks = getSystemTicks();
 
 	numSamplesLastTime = numSamples;
 
@@ -824,8 +891,9 @@ bool calledFromScheduler = false;
 
 	renderAudio(numSamples);
 
-	renderCostTicks = renderCostTicks - (renderCostTicks >> 3) + (getSystemTicks() - renderStartTicks);
-	renderCostSamples = renderCostSamples - (renderCostSamples >> 3) + numSamples;
+	renderCost.add(numSamples, (float)((getSystemTicks() - renderStartTicks) << 8) / kSystemTicksPerSampleQ8);
+	songTickCost = std::max(songTickCost * (255.f / 256.f),
+	                        (float)((renderStartTicks - tickStartTicks) << 8) / kSystemTicksPerSampleQ8);
 
 	scheduleMidiGateOutISR(numSamples);
 
