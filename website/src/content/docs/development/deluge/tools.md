@@ -58,7 +58,7 @@ port to your computer alone does not provide a J-Link debugging connection.
 
 #### Set up the probe and software
 
-1. Set up the firmware repository and `dbt` as described in [Getting Started](../getting_started/).
+1. Set up the firmware repository and `dbt` as described in [Getting Started](/development/deluge/getting_started).
 2. Install the [SEGGER J-Link Software and Documentation Pack](https://www.segger.com/downloads/jlink/).
    Make sure `JLinkGDBServerCL` is available on your terminal's `PATH`. The ARM GDB client is supplied by the `dbt`
    toolchain.
