@@ -2518,7 +2518,9 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
-	for (Output* output = firstOutput; output; output = output->next) {
+	for (Output *output = firstOutput, *next; output; output = next) {
+		// Read alongside inValidState (same cache line): rendering this Output often evicts it
+		next = output->next;
 		if (!output->inValidState) {
 			continue;
 		}

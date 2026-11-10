@@ -29,6 +29,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/fast_divide.h"
 
 extern "C" {}
 
@@ -757,8 +758,10 @@ readCachedWindow:
 
 		int32_t samplesTilThisWindowEnd;
 		if constexpr (kCacheByteDepth == 3) {
+			// Divide by a constant for each channel count, so it's a multiply rather than a call to the software divide
 			samplesTilThisWindowEnd =
-			    (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * kCacheByteDepth)
+			    ((sampleSourceNumChannels == 2) ? (uint32_t)(bytesTilThisWindowEnd - 1) / (2 * kCacheByteDepth)
+			                                    : (uint32_t)(bytesTilThisWindowEnd - 1) / kCacheByteDepth)
 			    + 1; // Round up
 		}
 		else {
@@ -1297,8 +1300,8 @@ readTimestretched:
 
 				int32_t newerHopAmplitudeAfter = lshiftAndSaturate<7>(timeStretcher->crossfadeProgress);
 
-				int32_t newerHopAmplitudeIncrement =
-				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
+				int32_t newerHopAmplitudeIncrement = deluge::divideBySmall(
+				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow), (int32_t)numSamplesThisTimestretchedRead);
 				int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
 				int32_t hopAmplitudeChange = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeIncrement)

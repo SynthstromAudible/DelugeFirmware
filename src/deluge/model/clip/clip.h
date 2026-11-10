@@ -162,13 +162,16 @@ public:
 
 	Output* output;
 
+	// Song::renderAudio() reads these three for every Output, every render: keep them together, in one cache line
+	Clip* beingRecordedFromClip;
+	bool soloingInSessionMode;
+	bool activeIfNoSolo;
+
 	int16_t colourOffset;
 
 	const ClipType type;
 	uint8_t section;
-	bool soloingInSessionMode;
 	ArmState armState;
-	bool activeIfNoSolo;
 	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                     // Used by stem export to flag if this note row should be exported
 	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
@@ -187,8 +190,6 @@ public:
 	int32_t originalLength;
 
 	int32_t lastProcessedPos;
-
-	Clip* beingRecordedFromClip;
 
 	int32_t repeatCount;
 

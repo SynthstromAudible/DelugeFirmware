@@ -96,28 +96,44 @@ void RMSFeedbackCompressor::render(std::span<StereoSample> buffer, q31_t volAdju
 	q31_t amplitudeIncrementL = ((int32_t)((finalVolumeL - (currentVolumeL >> 8)) / float(buffer.size()))) << 8;
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(buffer.size()))) << 8;
 
-	auto dry_it = dryBuffer.begin();
-	for (StereoSample& sample : buffer) {
-		currentVolumeL += amplitudeIncrementL;
-		currentVolumeR += amplitudeIncrementR;
+	// One channel at a time, in locals, which the compiler would otherwise have to reload after every store to the
+	// buffer
+	auto renderChannel = [&](q31_t StereoSample::* channel, q31_t& currentVolume, q31_t amplitudeIncrement,
+	                         uint32_t& lastWorkingValue, auto blend) __attribute__((always_inline)) {
+		q31_t volume = currentVolume;
+		uint32_t workingValue = lastWorkingValue;
+		const q31_t wetAmount = wet;
+		const q31_t dryAmount = dry;
+		const StereoSample* __restrict__ dry_it = dryBuffer.data();
+		for (StereoSample& sample : buffer) {
+			volume += amplitudeIncrement;
 
-		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
-		sample.l = multiply_32x32_rshift32(sample.l, currentVolumeL) << 4;
-		sample.l = getTanHAntialiased(sample.l, &lastSaturationTanHWorkingValue[0], saturationAmount);
-
-		sample.r = multiply_32x32_rshift32(sample.r, currentVolumeR) << 4;
-		sample.r = getTanHAntialiased(sample.r, &lastSaturationTanHWorkingValue[1], saturationAmount);
-		// wet/dry blend
-		if (wet != ONE_Q31) {
-			sample.l = multiply_32x32_rshift32(sample.l, wet);
-			sample.l = multiply_accumulate_32x32_rshift32_rounded(sample.l, dry_it->l, dry);
-			sample.l <<= 1; // correct for the two multiplications
-			// same for r because StereoSample is a dumb class
-			sample.r = multiply_32x32_rshift32(sample.r, wet);
-			sample.r = multiply_accumulate_32x32_rshift32_rounded(sample.r, dry_it->r, dry);
-			sample.r <<= 1;
-			++dry_it; // this is a little gross but it's fine
+			// Need to shift left by 4 because currentVolume is a 5.26 signed number rather than a 1.30 signed.
+			q31_t value = multiply_32x32_rshift32(sample.*channel, volume) << 4;
+			value = getTanHAntialiased(value, &workingValue, saturationAmount);
+			// wet/dry blend
+			if constexpr (blend) {
+				value = multiply_32x32_rshift32(value, wetAmount);
+				value = multiply_accumulate_32x32_rshift32_rounded(value, (*dry_it).*channel, dryAmount);
+				value <<= 1; // correct for the two multiplications
+				++dry_it;
+			}
+			sample.*channel = value;
 		}
+		currentVolume = volume;
+		lastWorkingValue = workingValue;
+	};
+	if (wet != ONE_Q31) {
+		renderChannel(&StereoSample::l, currentVolumeL, amplitudeIncrementL, lastSaturationTanHWorkingValue[0],
+		              std::true_type{});
+		renderChannel(&StereoSample::r, currentVolumeR, amplitudeIncrementR, lastSaturationTanHWorkingValue[1],
+		              std::true_type{});
+	}
+	else {
+		renderChannel(&StereoSample::l, currentVolumeL, amplitudeIncrementL, lastSaturationTanHWorkingValue[0],
+		              std::false_type{});
+		renderChannel(&StereoSample::r, currentVolumeR, amplitudeIncrementR, lastSaturationTanHWorkingValue[1],
+		              std::false_type{});
 	}
 
 	// for LEDs

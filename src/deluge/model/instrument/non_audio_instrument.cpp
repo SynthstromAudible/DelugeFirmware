@@ -91,6 +91,15 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		// Run everything by the Arp...
 		arpeggiator.noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
+		// If the note was already sounding, the Arp switches it off first so note-ons and note-offs stay paired
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			noteOffPostArp(instruction.noteCodeOffPostArp[n], instruction.outputMIDIChannelOff[n], kDefaultLiftValue,
+			               n);
+		}
+
 		if (instruction.arpNoteOn != nullptr) {
 			for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 				if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -212,6 +221,8 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 				break;
 			}
 			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+			// Otherwise it stays PENDING and the next render or tick sends its note-on again
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
 	}
 

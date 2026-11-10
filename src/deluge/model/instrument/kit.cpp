@@ -533,8 +533,8 @@ void Kit::cutAllSound() {
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
                                         std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                        bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+                                        int32_t* reverbBuffer, RenderAdjustments& adjustments,
+                                        int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
@@ -580,7 +580,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
 		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
-		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		                  adjustments.reverbAmount(), shouldLimitDelayFeedback, adjustments.pitch(),
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	}
@@ -685,14 +685,12 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
 	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)
 	    && !stemExport.includeKitFX) [[unlikely]] {
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-		int32_t pitchAdjust =
-		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+		// Pitch adjust as usual, but the drums' reverb isn't scaled by the kit's volume
+		RenderAdjustments adjustments{*this, *paramManager, reverbAmountAdjust, false};
 
 		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
-		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, adjustments, sideChainHitPending,
+		    shouldLimitDelayFeedback, isClipActive, 134217728, 134217728);
 	}
 	// render kit row with kit affect entire FX
 	else {

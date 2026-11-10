@@ -22,41 +22,46 @@
  */
 
 #pragma once
-#include "util/functions.h"
+#include "dsp/reverb/freeverb/delay_lines.hpp"
+#include "dsp/reverb/freeverb/tuning.h"
 #include <cstdint>
-#include <limits>
 #include <span>
 
 namespace freeverb {
-class Allpass {
+// All the allpass filters: numallpasses in series for the left channel, then numallpasses for the right
+class Allpasses {
 public:
-	Allpass() = default;
+	Allpasses() = default;
 
-	constexpr void setBuffer(std::span<int32_t> buffer) { buffer_ = buffer; }
+	// For allpass i; the last maxblockframes words of the buffer are spare
+	void setBuffer(size_t i, std::span<int32_t> buffer) { lines_.setBuffer(i, buffer); }
 
-	constexpr void mute() { std::fill(buffer_.begin(), buffer_.end(), 0); }
+	void mute() { lines_.mute(); }
 
-	constexpr void setFeedback(float val) { feedback_ = val * std::numeric_limits<int32_t>::max(); }
+	// One frame, in place
+	[[gnu::always_inline]] void process(int32_t& l, int32_t& r) {
+		for (size_t i = 0; i < numallpasses; i++) {
+			l = process(i, l);
+			r = process(numallpasses + i, r);
+		}
+		lines_.advance();
+	}
 
-	[[nodiscard]] constexpr float getFeedback() const { return (float)feedback_ / std::numeric_limits<int32_t>::max(); }
+	// Exactly the same as process() for each frame of a block (a multiple of four frames long, at most
+	// maxblockframes), in place
+	void processBlock(int32_t* samples_l, int32_t* samples_r, size_t numFrames);
 
-	[[gnu::always_inline]] constexpr int32_t process(int32_t input) {
-		int32_t bufout = buffer_[bufidx_];
+private:
+	[[gnu::always_inline]] int32_t process(size_t i, int32_t input) {
+		int32_t bufout = lines_[i];
 		int32_t output = -input + bufout;
 
-		buffer_[bufidx_] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
+		lines_[i] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
 		// buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
-
-		if (++bufidx_ >= buffer_.size()) {
-			bufidx_ = 0;
-		}
 
 		return output;
 	}
 
-private:
-	int32_t feedback_;
-	std::span<int32_t> buffer_;
-	int32_t bufidx_{0};
+	DelayLines<2 * numallpasses> lines_;
 };
 } // namespace freeverb

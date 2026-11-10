@@ -49,31 +49,27 @@ const sizing = natural
   data-animate={animate}
   style={natural ? `--gb-natural: ${natural}px` : undefined}
 >
-  {
-    src && (
-      <div
-        class="gb-figure-art"
-        role="img"
-        aria-label={alt}
-        style={sizing}
-        set:html={withBase(src)}
-      />
-    )
-  }
+  {src && (
+    <div
+      class="gb-figure-art"
+      role="img"
+      aria-label={alt}
+      style={sizing}
+      set:html={withBase(src)}
+    />
+  )}
   {img && <img src={`${base}${img}`} alt={alt} loading="lazy" style={sizing} />}
-  {
-    animate && src && (
-      <button
-        type="button"
-        class="gb-replay"
-        aria-label="Replay animation"
-        title="Replay animation"
-        hidden
-      >
-        ↻
-      </button>
-    )
-  }
+  {animate && src && (
+    <button
+      type="button"
+      class="gb-replay"
+      aria-label="Replay animation"
+      title="Replay animation"
+      hidden
+    >
+      ↻
+    </button>
+  )}
   {caption && <figcaption>{caption}</figcaption>}
 </figure>
 

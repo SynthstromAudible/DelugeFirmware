@@ -23,54 +23,60 @@
 
 #pragma once
 
+#include "dsp/reverb/freeverb/delay_lines.hpp"
+#include "dsp/reverb/freeverb/tuning.h"
 #include "util/fixedpoint.h"
 #include <cstdint>
 #include <limits>
 #include <span>
 
 namespace freeverb {
-class Comb {
+// All the comb filters: numcombs for the left channel, then numcombs for the right. They all have the same damping and
+// feedback.
+class Combs {
 public:
-	Comb() = default;
-	constexpr void setBuffer(std::span<int32_t> buffer) { buffer_ = buffer; }
+	Combs() = default;
 
-	constexpr void mute() { std::fill(buffer_.begin(), buffer_.end(), 0); }
+	// For comb i; the last maxblockframes words of the buffer are spare
+	void setBuffer(size_t i, std::span<int32_t> buffer) { lines_.setBuffer(i, buffer); }
+
+	void mute() { lines_.mute(); }
 
 	constexpr void setDamp(float val) {
 		damp1_ = val * std::numeric_limits<int32_t>::max();
 		damp2_ = std::numeric_limits<int32_t>::max() - damp1_;
 	}
 
-	[[nodiscard]] constexpr float getDamp() const { return damp1_ / std::numeric_limits<int32_t>::max(); }
-
 	constexpr void setFeedback(int32_t val) { feedback_ = val; }
 
-	[[nodiscard]] constexpr int32_t getFeedback() const { return feedback_; }
+	// One frame: adds the left combs' outputs to out_l and the right ones' to out_r
+	[[gnu::always_inline]] void process(int32_t input, int32_t& out_l, int32_t& out_r) {
+		for (size_t i = 0; i < kNumCombs; i++) {
+			int32_t output = lines_[i];
 
-	// Big to inline - but crucial for speed
-	inline int32_t process(int32_t input) {
-		int32_t output = buffer_[bufidx_];
+			filterstore_[i] = (multiply_32x32_rshift32_rounded(output, damp2_) + //<
+			                   multiply_32x32_rshift32_rounded(filterstore_[i], damp1_))
+			                  << 1;
 
-		filterstore_ = (multiply_32x32_rshift32_rounded(output, damp2_) + //<
-		                multiply_32x32_rshift32_rounded(filterstore_, damp1_))
-		               << 1;
+			lines_[i] = input + (multiply_32x32_rshift32_rounded(filterstore_[i], feedback_) << 1);
 
-		buffer_[bufidx_] = input + (multiply_32x32_rshift32_rounded(filterstore_, feedback_) << 1);
-
-		if (++bufidx_ >= buffer_.size()) {
-			bufidx_ = 0;
+			((i < numcombs) ? out_l : out_r) += output;
 		}
-
-		return output;
+		lines_.advance();
 	}
 
+	// Exactly the same as process() for each frame of a block (a multiple of four frames long, at most
+	// maxblockframes), but storing the sums in output_l and output_r
+	void processBlock(const int32_t* input, int32_t* output_l, int32_t* output_r, size_t numFrames);
+
 private:
-	int32_t feedback_;
-	int32_t filterstore_{0};
+	static constexpr size_t kNumCombs = 2 * numcombs;
+
+	DelayLines<kNumCombs> lines_;
+	alignas(16) std::array<int32_t, kNumCombs> filterstore_{};
 	int32_t damp1_;
 	int32_t damp2_;
-	std::span<int32_t> buffer_;
-	int32_t bufidx_{0};
+	int32_t feedback_;
 };
 } // namespace freeverb
 // ends

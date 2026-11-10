@@ -2445,12 +2445,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	}
 	ArpReturnInstruction instruction;
 
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
+		// Only the arp reads these here. With it off, noteOn() refreshes them before it uses them, so don't touch
+		// them (cold memory) every render
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
