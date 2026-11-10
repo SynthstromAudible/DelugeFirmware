@@ -150,6 +150,94 @@ You can then stop the J-Link server in the first terminal.
 - **`JLinkGDBServerCL` is not found:** check the SEGGER installation and your `PATH`. You can specify the executable
   explicitly with `./dbt debug --jlink --command "/path/to/JLinkGDBServerCL"`.
 
+### Using J-Link from VS Code
+
+VS Code's **Run → Start Debugging** and **Run → Run Without Debugging** can build and upload firmware through the
+[Cortex-Debug extension](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). Complete the
+[J-Link hardware and software setup](#set-up-the-probe-and-software) first. VS Code will manage the GDB client and
+J-Link server for this workflow.
+
+#### Configure VS Code
+
+1. Open the firmware repository root as your VS Code workspace and install **Cortex-Debug** by **marus25**.
+2. Copy the files from `IDE_Configs/vscode` into `.vscode` in the repository root. If you already have local
+   configurations, merge the settings and launch profiles you need instead of overwriting them. For a new setup on
+   macOS or Linux:
+
+   ```shell
+   mkdir -p .vscode
+   cp IDE_Configs/vscode/* .vscode/
+   ```
+
+   `.vscode` is gitignored, so machine-specific paths and preferences stay local.
+
+3. In `.vscode/settings.json`, set `cortex-debug.armToolchainPath` to the directory containing the `dbt` toolchain's
+   `arm-none-eabi-gdb`, `arm-none-eabi-objdump`, and `arm-none-eabi-nm`. For example, an Apple Silicon Mac with toolchain
+   v22 uses:
+
+   ```json
+   "cortex-debug.armToolchainPath": "${workspaceFolder}/toolchain/v22/darwin-arm64/arm-none-eabi-gcc/bin"
+   ```
+
+   Adjust the version and platform to match your installation. This is a setting inside the existing JSON object,
+   not a replacement for the whole file.
+
+4. In `.vscode/launch.json`, find **Cortex-Debug Load/Run Debug** and **Cortex-Debug Load/Run RelWithDebInfo**. Set
+   `serverpath` inside each profile to your J-Link GDB Server executable if it is not available on VS Code's `PATH`.
+   On macOS, run `command -v JLinkGDBServerCL` in a terminal to find it. For example:
+
+   ```json
+   "serverpath": "/usr/local/bin/JLinkGDBServerCL"
+   ```
+
+   You can also set `armToolchainPath` directly inside a launch profile to override the workspace setting. The
+   supplied profiles include a Windows-specific server path; adjust it if your SEGGER installation is elsewhere.
+   Remove the optional `rttConfig` block from these profiles if you only need the GDB upload/debug workflow described
+   here.
+
+The supplied J-Link profiles build Debug or RelWithDebInfo. To add Release, duplicate **Cortex-Debug Load/Run Debug**
+and change these three fields in the duplicate:
+
+```json
+"name": "Cortex-Debug Load/Run Release",
+"preLaunchTask": "Build Release",
+"executable": "${workspaceFolder}/build/Release/deluge.elf"
+```
+
+The **Build Release** task is already supplied in `.vscode/tasks.json`. These profiles use fixed ELF paths. If you
+enable versioned build filenames, update `executable` to the actual ELF filename for the selected configuration.
+
+#### Switch from terminal debugging
+
+Before starting a VS Code session, close any terminal debugging session using the same probe. If firmware is running
+under GDB, press **Ctrl+C in the GDB terminal** to get the `(gdb)` prompt, then enter:
+
+```gdb
+detach
+quit
+```
+
+In the other terminal running `./dbt debug --jlink`, press **Ctrl+C** to stop the server. Do not start a separate
+`./dbt gdb` or `./dbt debug --jlink` session while using these VS Code launch profiles.
+
+#### Build, upload, and run
+
+1. Open VS Code's **Run and Debug** panel and select **Cortex-Debug Load/Run Debug**, **Cortex-Debug Load/Run
+   RelWithDebInfo**, or your added **Cortex-Debug Load/Run Release** profile from the configuration dropdown.
+2. Choose **Run → Start Debugging** (**F5**). The selected profile runs its build task, starts the J-Link server,
+   connects GDB, and loads the firmware into RAM.
+3. If the Deluge remains paused after loading, click **Continue** in the debug toolbar. Click beside a source line to
+   set a breakpoint, and use the toolbar to pause, continue, step over, or step into code. Pausing stops the Deluge's
+   real-time work, including audio.
+
+To upload and run without normal breakpoint debugging, select the same profile and choose **Run → Run Without
+Debugging**. Cortex-Debug describes this mode as experimental in its
+[changelog](https://github.com/Marus/cortex-debug/blob/master/CHANGELOG.md). If it does not work with your setup, use
+**Start Debugging**, disable any breakpoints, and click **Continue**.
+
+Both modes load firmware into **RAM**. To keep the build after powering off, use the
+[SD-card installation procedure](#upload-and-run-your-build).
+
 ### Printing debug log messages on the console
 
 While the Deluge is connected over USB, you can print the messages it produces to the console. In order to do that
