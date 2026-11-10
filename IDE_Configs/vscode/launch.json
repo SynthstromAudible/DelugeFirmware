@@ -12,6 +12,9 @@
         "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
       },
       "servertype": "jlink",
+      "postLaunchCommands": [
+        "source scripts/debug/crash-report.gdb"
+      ],
       "device": "R7S721020",
       "interface": "swd",
       //"runToEntryPoint": "main",
@@ -51,6 +54,9 @@
         "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
       },
       "servertype": "jlink",
+      "postLaunchCommands": [
+        "source scripts/debug/crash-report.gdb"
+      ],
       "device": "R7S721020",
       "interface": "swd",
       //"runToEntryPoint": "main",

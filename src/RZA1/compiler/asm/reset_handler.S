@@ -244,11 +244,21 @@ abort:
 /* so that the address we report/print is the actual faulting address.       */
 /* ========================================================================= */
 undefined_handler:
-    SUB  LR, LR, #4              /* LR = addr. of undefined instruction + 4  */
+    /* ARMv7-A ARM B1.9: LR_und is fault PC + 2 in Thumb state (including
+     * 32-bit Thumb instructions), or fault PC + 4 in ARM state.
+     * Read the interrupted state from SPSR, not the handler's CPSR. */
+    MRS  r4, SPSR
+    TST  r4, #Thum_bit
+    SUBNE LR, LR, #2
+    SUBEQ LR, LR, #4
     MOV r5, #0
     B    common_fault_handler
 svc_handler: /*technically not a fault but we don't use syscalls, so use address of syscall instead of syscall return */
-    SUB  LR, LR, #4              /* LR = addr. of instruction after SVC      */
+    /* LR_svc points past SVC: 2 bytes in Thumb state, 4 in ARM state. */
+    MRS  r4, SPSR
+    TST  r4, #Thum_bit
+    SUBNE LR, LR, #2
+    SUBEQ LR, LR, #4
     MOV r5, #0xF
     B    common_fault_handler
 prefetch_handler:

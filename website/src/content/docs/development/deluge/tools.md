@@ -238,6 +238,43 @@ Debugging**. Cortex-Debug describes this mode as experimental in its
 Both modes load firmware into **RAM**. To keep the build after powering off, use the
 [SD-card installation procedure](#upload-and-run-your-build).
 
+#### Automatic crash reports in VS Code
+
+The supplied Cortex-Debug J-Link profiles load `scripts/debug/crash-report.gdb`. For an existing local launch profile,
+add the following property in `.vscode/launch.json` (or append the command to its existing `postLaunchCommands`):
+
+```json
+"postLaunchCommands": [
+  "source scripts/debug/crash-report.gdb"
+]
+```
+
+Keep the profile's `cwd` set to the repository root, as in the supplied configurations. Restart the debug session
+after changing the profile, and use **Start Debugging** for crash reporting.
+
+The script sets two entry breakpoints: one for CPU faults and one for software-triggered freezes. When either is
+reached, it pauses the Deluge and prints a **Deluge crash report** in VS Code's **Debug Console**, including:
+
+- The fault type and faulting instruction for CPU faults.
+- The saved return address (link register) and stack pointer, without guessing callers from stack contents.
+- Function names and source-line information from the loaded ELF, followed by a separate GDB backtrace.
+
+Use the ELF from the exact firmware running on the Deluge. The CPU fault address comes from the exception's link
+register, adjusted for the exception type and, for undefined instructions and SVC, the saved ARM/Thumb state.
+GDB's separate backtrace may be incomplete because it cannot unwind through the assembly exception entry; this
+does not by itself prove stack corruption. Addresses without symbols or line information remain unresolved.
+
+Execution stops before the handler draws the pad crash report. Click **Continue** to let the handler run; this does
+not recover from the fault. You can inspect memory, registers, and the call stack while paused. The script reads
+target state without changing target registers or calling firmware functions, and works with the bundled GDB even
+when Python scripting is unavailable.
+
+For terminal GDB sessions, enable the same reporting after loading the matching ELF with:
+
+```gdb
+source scripts/debug/crash-report.gdb
+```
+
 ### Printing debug log messages on the console
 
 While the Deluge is connected over USB, you can print the messages it produces to the console. In order to do that
