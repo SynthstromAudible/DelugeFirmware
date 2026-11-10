@@ -243,28 +243,30 @@ abort:
 /* Adjust LR at the vector's own entry point then fall through to common     */
 /* so that the address we report/print is the actual faulting address.       */
 /* ========================================================================= */
+/* Only r0-r3 and r12 (caller-saved) are used here, so the callee-saved      */
+/* registers of the interrupted code survive for the debugger's unwinder.    */
 undefined_handler:
     SUB  LR, LR, #4              /* LR = addr. of undefined instruction + 4  */
-    MOV r5, #0
+    MOV  r1, #0
     B    common_fault_handler
 svc_handler: /*technically not a fault but we don't use syscalls, so use address of syscall instead of syscall return */
     SUB  LR, LR, #4              /* LR = addr. of instruction after SVC      */
-    MOV r5, #0xF
+    MOV  r1, #0xF
     B    common_fault_handler
 prefetch_handler:
     SUB  LR, LR, #4              /* LR = addr. of aborted instruction + 4    */
-    MOV r5, #1
+    MOV  r1, #1
     B    common_fault_handler
 abort_handler:
     SUB  LR, LR, #8              /* LR = addr. of aborted instruction + 8    */
-    MOV r5, #2
+    MOV  r1, #2
     B    common_fault_handler
 reserved_handler:
-    MOV r5, #3
+    MOV  r1, #3
 common_fault_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
     ISB
-    MOV     r4, LR              /* Save faulting address (e.g. nullptr)      */
+    MOV     r12, LR             /* Save faulting address (e.g. nullptr)      */
 /* ========================================================================= */
 /* The banked LR/SP of the exception mode (UND/ABT/SVC) only tell us the PC  */
 /* when the fault occurred (e.g. a near-0 address from a null vtable)        */
@@ -272,10 +274,31 @@ common_fault_handler:
 /* which will have the previous return address                               */
 /* ========================================================================= */
     CPS  #SYS_MODE
-    MOV     r0, r4              /* exception_lr - PC at time of fault         */
-    MOV     r1, r5              /* fault type                                */
+/* ========================================================================= */
+/* From here SP/LR are the interrupted code's own, so we can describe this   */
+/* as a signal frame whose "return address" is the faulting PC. Calling (not */
+/* tail-jumping to) handle_cpu_fault lets a debugger unwind through the      */
+/* faulting function and on up its call chain.                               */
+/* PC (r15) is used as the return column so the outer frame's LR (r14) can   */
+/* be described separately. Emitted to .debug_frame only: the linker script  */
+/* has no .eh_frame placement and nothing here needs runtime unwinding.      */
+/* ========================================================================= */
+    .cfi_sections .debug_frame
+    .cfi_startproc
+    .cfi_signal_frame
+    .cfi_return_column 15
+    .cfi_def_cfa 13, 0           /* CFA = interrupted SP                     */
+    .cfi_register 15, 12         /* outer PC = faulting PC, held in r12      */
+    .cfi_same_value 14           /* outer LR = SYS LR, still live in r14     */
+    MOV     r0, r12             /* exception_lr - PC at time of fault         */
     MOV     r2, LR              /* sys_lr - caller's return address (fault address for null function call)      */
     MOV     r3, SP              /* sys_sp - caller's stack pointer (SYS SP)  */
-    LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */
-    BX   r12                   /* no return possible but this makes the debugger happier */
+    PUSH    {r12, LR}           /* r12/LR are clobbered by the call: spill   */
+    .cfi_adjust_cfa_offset 8
+    .cfi_offset 15, -8
+    .cfi_offset 14, -4
+    LDR     r12, =handle_cpu_fault /* register call for possible long jump  */
+    BLX     r12                 /* never returns                             */
+    B       .                   /* keep the return address inside this FDE   */
+    .cfi_endproc
 .end
