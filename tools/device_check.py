@@ -52,7 +52,15 @@ import rig
 
 DEFAULT_ELF = REPO / "build" / "RelWithDebInfo" / "deluge.elf"
 DEFAULT_OUT = REPO / ".superpowers" / "estate" / "device-check"
-NM = REPO / "toolchain" / "current" / "arm-none-eabi-gcc" / "bin" / "arm-none-eabi-nm"
+# The toolchain is the clone's own, or the one DBT_TOOLCHAIN_PATH names (a worktree has none of its own).
+NM = (
+    Path(os.environ.get("DBT_TOOLCHAIN_PATH") or REPO)
+    / "toolchain"
+    / "current"
+    / "arm-none-eabi-gcc"
+    / "bin"
+    / "arm-none-eabi-nm"
+)
 # src/deluge/memory/memory_report.h's kStackPaint.
 STACK_PAINT = 0x57ACC0DE
 
