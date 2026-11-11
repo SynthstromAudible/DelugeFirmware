@@ -46,6 +46,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/fast_divide.h"
 
 #include "dsp/oscillators/basic_waves.h"
 #include "dsp/oscillators/oscillator.h"
@@ -1070,7 +1071,8 @@ skipAutoRelease: {}
 		}
 
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sourceAmplitudeIncrements[s] = (int32_t)(sourceAmplitudes[s] - sourceAmplitudesLastTime[s]) / numSamples;
+			sourceAmplitudeIncrements[s] =
+			    deluge::divideBySmall((int32_t)(sourceAmplitudes[s] - sourceAmplitudesLastTime[s]), numSamples);
 		}
 
 		filterGainLastTime = filterGain;
@@ -1082,9 +1084,10 @@ skipAutoRelease: {}
 				    (paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
 
 				if (modulatorsActive[m]) {
-					modulatorAmplitudeIncrements[m] = (int32_t)(paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
-					                                            - modulatorAmplitudeLastTime[m])
-					                                  / numSamples;
+					modulatorAmplitudeIncrements[m] =
+					    deluge::divideBySmall((int32_t)(paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
+					                                    - modulatorAmplitudeLastTime[m]),
+					                          numSamples);
 				}
 			}
 		}
@@ -1096,12 +1099,13 @@ skipAutoRelease: {}
 		if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 			overallOscAmplitudeLastTime = overallOscAmplitude;
 		}
-		overallOscillatorAmplitudeIncrement = (int32_t)(overallOscAmplitude - overallOscAmplitudeLastTime) / numSamples;
+		overallOscillatorAmplitudeIncrement =
+		    deluge::divideBySmall((int32_t)(overallOscAmplitude - overallOscAmplitudeLastTime), numSamples);
 
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sourceWaveIndexIncrements[s] =
-			    (int32_t)(paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s])
-			    / numSamples;
+			sourceWaveIndexIncrements[s] = deluge::divideBySmall(
+			    (int32_t)(paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s]),
+			    numSamples);
 		}
 	}
 
