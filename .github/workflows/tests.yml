@@ -78,7 +78,7 @@ jobs:
           sudo debconf-communicate <<< "set man-db/auto-update false"
           sudo dpkg-reconfigure man-db
           sudo apt-get update
-          sudo apt-get install -y gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user binfmt-support qemu-user-static qemu-system-arm
+          sudo apt-get install -y gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user binfmt-support qemu-user-binfmt qemu-system-arm
           echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
           echo "CXX=arm-linux-gnueabihf-g++-14" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
