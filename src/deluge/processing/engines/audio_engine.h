@@ -24,6 +24,7 @@
 #include "memory/object_pool.h"
 #include "model/output.h"
 #include "processing/engines/input_monitor.h"
+#include "processing/engines/voice_budget.h"
 #include "runtime/app_loop.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
@@ -432,6 +433,14 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+
+/// @brief The render's cycle budget per block: the last blocks' measured cost and the voices admitted since.
+extern deluge::audio::VoiceBudget voiceBudget;
+
+/// @brief Counts a new voice predicted to cost @p cost cycles against this block's budget. Over budget, it first
+///        fast-releases the lowest-priority voice not already fading (the cull's pick), so the new note always
+///        starts. The caller excludes the render (or is the render).
+void admitVoice(uint32_t cost);
 
 /// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
 ///        voices and deregisters it at the top of a following block. It is destroyed and freed at the first

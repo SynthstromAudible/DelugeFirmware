@@ -1065,7 +1065,12 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				voiceCost_.add_note_on(lastNoteOnCycles_);
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
 				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
-					this->terminateOneActiveVoice();
+					this->terminateOneActiveVoice(); // a voice for a voice: the block's cost stays
+				}
+				else {
+					// The note-on's own cycles count only when it ran in the render, against the block it ran in.
+					const uint32_t noteOn = deluge_in_audio_context() ? lastNoteOnCycles() : 0;
+					AudioEngine::admitVoice(predictedVoiceCycles() + noteOn);
 				}
 				publishVoice(std::move(voice));
 				reassessRenderSkippingStatus(modelStack);

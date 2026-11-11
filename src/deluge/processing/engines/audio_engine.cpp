@@ -557,6 +557,8 @@ void init() {
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
+	// Before the first render reads it.
+	voiceBudget.configure(deluge_cycle_hz(), DELUGE_VOICE_BUDGET_PERCENT);
 	deluge_audio_start();
 	inputRingPos = (uintptr_t)inputRing;
 
@@ -753,6 +755,21 @@ uint8_t numRoutines = 0;
 
 /// What the renders have cost per frame lately: what the CPU cull and direness decide on (see RenderLoad).
 deluge::audio::RenderLoad renderLoad;
+
+deluge::audio::VoiceBudget voiceBudget;
+
+void admitVoice(uint32_t cost) {
+	if (stemExport.renderingOffline() || voiceBudget.admit(cost)) {
+		return;
+	}
+	// Over budget: the newest note sounds, and the voice the cull would pick goes instead, so a block is never
+	// planned past what it can render.
+	terminateOneVoice(0);
+#if defined(DELUGE_STREAM_BENCH)
+	deluge::bench::render_profile::g_totals.stolen_voices += 1;
+#endif
+	voiceBudget.commit(cost);
+}
 
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
@@ -1131,6 +1148,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// The caller is the render tier for the block: onRenderTier() reads it, and the host counts the render's heap
 	// allocations by it (it must make none).
 	deluge::memory::RenderBlock renderBlock;
+	const uint32_t blockStart = deluge_cycle_count();
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	// Two of the board's blocks: the render runs once a block, so a longer gap means the audio tier was held off
@@ -1239,6 +1257,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 
 	if (!offline) {
 		renderLoad.add(getSystemTime() - current_time, frames);
+		voiceBudget.end_block(deluge_cycle_count() - blockStart);
 	}
 
 	bypassCulling = false;

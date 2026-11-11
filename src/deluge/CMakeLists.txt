@@ -143,6 +143,11 @@ target_compile_definitions(deluge_app PUBLIC
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
 )
 
+# The share of a block period the render may spend before a new voice steals the lowest-priority one
+# (processing/engines/voice_budget.h), in percent. Here rather than at the top level, so the host builds get it too.
+set(DELUGE_VOICE_BUDGET_PERCENT "85" CACHE STRING "The share of a block period the render may spend before a new voice steals one, in percent")
+target_compile_definitions(deluge_app PRIVATE DELUGE_VOICE_BUDGET_PERCENT=${DELUGE_VOICE_BUDGET_PERCENT})
+
 target_compile_options(deluge_app PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
 
 if(_dsp_bench_on)

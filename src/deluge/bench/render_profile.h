@@ -20,6 +20,7 @@ struct Totals {
 	int32_t direness_max;             ///< The highest CPU direness the render reached.
 	uint64_t voice_render_by_kind[4]; ///< voice_render's cycles, split by VoiceKind.
 	uint64_t voice_frames_by_kind[4]; ///< Voice-frames rendered (voices × window frames), split by VoiceKind.
+	uint32_t stolen_voices;           ///< Voices a note-on over budget stole.
 };
 
 extern Totals g_totals;
