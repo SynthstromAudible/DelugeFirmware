@@ -132,6 +132,14 @@ rtt = ["dep:rtt-target", "deluge-bsp/rtt"]
 ## for driving a device on the probe rig. Never in a shipping image.
 rig-harness = ["rtt"]
 
+## The audio-timing probe: each render's time against the queue it had, and the render task's wake
+## lateness, printed as an `AUDIO-TIMING` line every two seconds of audio. Never in a shipping image.
+audio-timing = ["rtt"]
+
+## Bench only: the device drive renders fixed windows of 64 or of 128 frames instead of pacing them.
+fixed-window-64 = []
+fixed-window-128 = []
+
 ## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
 ## ABI and export the C-ABI crates' symbols it calls.
 host_app = [

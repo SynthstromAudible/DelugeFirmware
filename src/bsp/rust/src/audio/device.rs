@@ -44,6 +44,14 @@ const RX_LATENCY_FRAMES: usize = RX_FRAMES - TX_FRAMES - 16;
 /// out of bounds into adjacent globals. The TX ring is larger and independent.
 const APP_BLOCK_FRAMES: usize = 128;
 
+/// The fixed render window a bench image forces, if any (see the `fixed-window-*` features).
+#[cfg(feature = "fixed-window-64")]
+const FIXED_WINDOW: Option<usize> = Some(64);
+#[cfg(feature = "fixed-window-128")]
+const FIXED_WINDOW: Option<usize> = Some(128);
+#[cfg(not(any(feature = "fixed-window-64", feature = "fixed-window-128")))]
+const FIXED_WINDOW: Option<usize> = None;
+
 const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
 // Render scratch, sized to the app's render-buffer limit. In SDRAM (`.sdram_bss`, zeroed at boot)
@@ -213,15 +221,30 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
                 break;
             }
             // Cap at the app's render-buffer size, not the TX ring (see APP_BLOCK_FRAMES).
-            let frames = pace_window(raw, APP_BLOCK_FRAMES);
+            let frames = match FIXED_WINDOW {
+                Some(n) => crate::audio::pacing::fixed_window(raw, n),
+                None => pace_window(raw, APP_BLOCK_FRAMES),
+            };
+            if frames == 0 {
+                break;
+            }
             BLOCK_START_WRITE = TX_WRITE;
             BLOCK_START_PLAY.store(PLAY_CACHED, Ordering::Relaxed);
             prepare_input_block(frames);
             RENDER_BLOCKS.fetch_add(1, Ordering::Release);
+            #[cfg(feature = "audio-timing")]
+            let probe_start = embassy_time::Instant::now();
             crate::sys::deluge_app_render(
                 core::ptr::addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
                 core::ptr::addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
                 frames as u32,
+            );
+            #[cfg(feature = "audio-timing")]
+            probe::record_render(
+                frames as u32,
+                (TX_FRAMES - raw) as u32,
+                (embassy_time::Instant::now() - probe_start).as_micros() as u32,
+                (tx_play_frame().wrapping_sub(PLAY_CACHED) & TX_MASK) as u32,
             );
             PENDING_POS = 0;
             PENDING_END = frames;
@@ -292,3 +315,37 @@ abi_pin!(
     deluge_audio_stamp_to_render_offset,
     deluge_audio_start,
 );
+
+/// The audio-timing probe's interval, kept by the render (the only writer) and printed every
+/// two seconds of audio.
+#[cfg(feature = "audio-timing")]
+mod probe {
+    use crate::audio::timing_probe::TimingStats;
+
+    static mut STATS: TimingStats = TimingStats::EMPTY;
+
+    fn stats() -> &'static mut TimingStats {
+        // SAFETY: only the audio tier touches STATS (the render and the render task, which never
+        // run at once), so no two references are live together.
+        unsafe { &mut *core::ptr::addr_of_mut!(STATS) }
+    }
+
+    pub(super) fn record_render(frames: u32, queued: u32, us: u32, played: u32) {
+        let s = stats();
+        s.record_render(frames, queued, us, played);
+        if s.interval_done() {
+            log::info!("{}", s);
+            *s = TimingStats::EMPTY;
+        }
+    }
+
+    pub(super) fn record_wake_late(late_us: u32) {
+        stats().record_wake_late(late_us);
+    }
+}
+
+/// Notes how late the render task woke after its timer's deadline (the audio-timing probe).
+#[cfg(feature = "audio-timing")]
+pub(crate) fn note_wake_late(late_us: u32) {
+    probe::record_wake_late(late_us);
+}

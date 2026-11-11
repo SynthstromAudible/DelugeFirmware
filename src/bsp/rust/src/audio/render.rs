@@ -86,7 +86,10 @@ pub async fn render_task() {
         Timer::after(period).await;
     }
     loop {
-        Timer::after(period).await;
+        let deadline = Instant::now() + period;
+        Timer::at(deadline).await;
+        #[cfg(all(feature = "audio-timing", target_os = "none"))]
+        crate::audio::device::note_wake_late((Instant::now() - deadline).as_micros() as u32);
         let start = Instant::now();
         // SAFETY: the app's render tick, called only from this task, on the audio tier.
         let rendered = unsafe { crate::sys::deluge_app_audio_tick() };
