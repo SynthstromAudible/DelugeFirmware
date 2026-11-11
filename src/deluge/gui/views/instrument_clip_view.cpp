@@ -2136,19 +2136,24 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 	if (path == &nothing) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	char* slashAddress = strrchr(path, '/');
+	char const* slashAddress = strrchr(path, '/');
 	if (slashAddress == nullptr) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
+	// This allocation avoids shenanigans with trying to terminate in place to get a subpath.
+	// I think the afh filepath can get changed in this process so putting it back could later crash.
+	String dirPath;
+	if (dirPath.set(path, slashAddress - path) != Error::NONE) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Open directory of current audio file
-	*slashAddress = 0;
-	staticDIR = D_TRY_CATCH(FatFS::Directory::open(path), error, {
-		*slashAddress = '/';
+	staticDIR = D_TRY_CATCH(FatFS::Directory::open(dirPath.get()), error, {
 		display->displayError(Error::SD_CARD);
 		return ActionResult::DEALT_WITH;
 	});
-	*slashAddress = '/';
 
 	// Select random audio file from directory
 	int32_t fileCount = 0;
@@ -2168,10 +2173,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		soundDrum->killAllVoices();
 
 		afh->setAudioFile(nullptr);
-		// set the slash to 0 again
-		*slashAddress = 0;
-		afh->filePath.set(path);
-
+		afh->filePath.set(&dirPath);
 		afh->filePath.concatenate("/");
 		afh->filePath.concatenate(chosenFilename);
 		afh->loadFile(false, true, true, 1, nullptr, false);
@@ -2183,7 +2185,6 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 		}
 		soundDrum->drumName = chosenFilename;
 		kit->beenEdited();
-		*slashAddress = '/';
 
 		// we've randomized a drum sample
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;

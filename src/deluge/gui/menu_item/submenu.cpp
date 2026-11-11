@@ -62,6 +62,12 @@ void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
 }
 
 void Submenu::drawPixelsForOled() {
+	// The walks below only stop if current_item_ points into our own items. A HorizontalMenuGroup points it into its
+	// child menus' items, so if one is ever drawn vertically, draw nothing rather than walking off through memory
+	if (current_item_ < items.begin() || current_item_ > items.end()) {
+		return;
+	}
+
 	// Collect items before the current item, this is possibly more than we need.
 	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
