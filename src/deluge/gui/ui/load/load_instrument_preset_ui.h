@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/file_item.h"
 
 class Instrument;
 class InstrumentClip;
@@ -94,19 +96,45 @@ private:
 	bool loadingIndicatorActive = false;
 	struct LoadingIndicatorGuard {
 		LoadInstrumentPresetUI& ui;
-		~LoadingIndicatorGuard() { ui.stopPresetLoadingIndicator(); }
+		bool keepActive = false;
+		~LoadingIndicatorGuard() {
+			if (!keepActive) {
+				ui.stopPresetLoadingIndicator();
+			}
+		}
 	};
-	void clearFailedPresetNavigation();
-	void rememberFailedPresetNavigation(Instrument* origin, FileItem* failedItem);
+	void clearPresetNavigationCursor();
+	Error rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate, Clip* targetClip);
+	void cancelPresetNavigation();
+	bool presetNavigationContextMatches() const;
+	static bool presetNavigationReady();
+	static void resumePresetNavigation();
+	PresetNavigationResult loadNavigatedPreset(FileItem* item, Instrument* oldInstrument, Clip* displayClip);
+	struct {
+		TaskID task = -1;
+		bool resuming = false;
+		double deadline = 0;
+		Song* song = nullptr;
+		UI* ui = nullptr;
+		int32_t uiMode = 0;
+		Clip* currentClip = nullptr;
+		Clip* selectedClip = nullptr;
+		Clip* displayClip = nullptr;
+		Instrument* instrument = nullptr;
+		bool doBlink = false;
+		FileItem item;
+		String displayName;
+	} presetNavigation;
 	struct {
 		Song* song = nullptr;
 		Instrument* instrument = nullptr;
 		Clip* clip = nullptr;
 		UI* ui = nullptr;
+		Clip* targetClip = nullptr;
 		String sourceName;
 		String dir;
 		String filename;
-	} failedPresetNavigation;
+	} presetNavigationCursor;
 	void loadPendingPreview();
 	bool previewPending = false;
 	bool showingAuditionPads();

@@ -4940,6 +4940,10 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 	else {
 		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
 		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
+		if (results.pending) {
+			return output;
+		}
+
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {
