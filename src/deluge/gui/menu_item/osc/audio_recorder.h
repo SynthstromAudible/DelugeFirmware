@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
@@ -37,15 +38,16 @@ public:
 		soundEditor.shouldGoUpOneLevelOnBegin = true;
 		soundEditor.setCurrentSource(source_id_);
 
-		if (parentMenuHeadingTo != nullptr && menuItemHeadingTo != nullptr) {
+		// These can be left over from a session that never began, so only go there if it'll render horizontally
+		if (parentMenuHeadingTo != nullptr && menuItemHeadingTo != nullptr
+		    && parentMenuHeadingTo->renderingStyle() == Submenu::HORIZONTAL) {
 			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
 			soundEditor.navigationDepth = 0;
 			soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth] = parentMenuHeadingTo;
 			soundEditor.shouldGoUpOneLevelOnBegin = false;
-
-			parentMenuHeadingTo = nullptr;
-			menuItemHeadingTo = nullptr;
 		}
+		parentMenuHeadingTo = nullptr;
+		menuItemHeadingTo = nullptr;
 
 		if (bool success = openUI(&audioRecorder); !success) {
 			if (getCurrentUI() == &soundEditor) {
