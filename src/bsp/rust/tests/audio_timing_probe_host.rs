@@ -51,6 +51,22 @@ fn the_wake_lateness_keeps_its_maximum() {
 }
 
 #[test]
+fn the_drive_overruns_count_what_the_drive_added_since_the_last_note() {
+    let mut s = TimingStats::EMPTY;
+    let mut seen = 5;
+    s.note_drive_overruns(5, &mut seen);
+    assert_eq!(s.drive_overruns, 0);
+    s.note_drive_overruns(7, &mut seen);
+    s.note_drive_overruns(8, &mut seen);
+    assert_eq!(s.drive_overruns, 3);
+    assert_eq!(seen, 8);
+    // The drive's count wraps.
+    let mut seen = u32::MAX;
+    s.note_drive_overruns(1, &mut seen);
+    assert_eq!(s.drive_overruns, 5);
+}
+
+#[test]
 fn an_interval_ends_after_two_seconds_of_frames() {
     let mut s = TimingStats::EMPTY;
     assert!(!s.interval_done());
@@ -65,6 +81,8 @@ fn the_line_names_every_field_with_comma_separated_histograms() {
     let mut s = TimingStats::EMPTY;
     s.record_render(128, 900, 1500, 66);
     s.record_wake_late(25);
+    let mut seen = 0;
+    s.note_drive_overruns(2, &mut seen);
     let line = s.to_string();
     assert!(
         line.starts_with("AUDIO-TIMING renders=1 frames=128 us=1500 "),
@@ -79,6 +97,7 @@ fn the_line_names_every_field_with_comma_separated_histograms() {
         "min_slack=834",
         "overruns=0",
         "max_wake_late_us=25",
+        "drive_overruns=2",
         "us_hist=0,0,0,0,0,0,0,0,0,0,0,1,0,0",
         "frames_hist=0,0,0,0,0,0,0,0,1",
     ] {

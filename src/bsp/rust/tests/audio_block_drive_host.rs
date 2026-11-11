@@ -59,6 +59,7 @@ fn a_late_wake_catches_up_without_an_overrun_while_the_queue_lasts() {
     let p = d.plan(frame_of(2), 2 * BLOCK_US);
     assert_eq!(p.renders, 2);
     assert!(!p.resynced);
+    assert_eq!(p.skipped, 0);
     assert_eq!(d.overruns(), 0);
 }
 
@@ -71,6 +72,8 @@ fn reaching_an_unwritten_block_is_an_overrun_and_resyncs() {
     assert_eq!(d.overruns(), 1);
     assert_eq!(p.write_block, 6 % RING_BLOCKS);
     assert_eq!(p.renders, QUEUE_BLOCKS as u32);
+    // Blocks 4 and 5 were never written, and block 6 starts the new queue.
+    assert_eq!(p.skipped, 2);
 }
 
 #[test]
@@ -79,6 +82,7 @@ fn a_stall_that_laps_the_ring_is_still_an_overrun() {
     // 215 ms, about nine laps: the position alone looks like block 2, inside the queue.
     let p = d.plan(frame_of(74), 74 * BLOCK_US);
     assert!(p.resynced);
+    assert_eq!(p.skipped, 71);
     assert_eq!(d.overruns(), 1);
 }
 

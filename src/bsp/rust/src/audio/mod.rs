@@ -7,7 +7,6 @@ pub mod capture_stamp;
 pub(crate) mod device;
 #[cfg(feature = "host_app")]
 pub mod host;
-pub mod pacing;
 pub mod render;
 pub(crate) mod ring;
 pub mod timing_probe;

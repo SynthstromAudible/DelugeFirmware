@@ -2,9 +2,10 @@
 """Reads the audio-timing probe's AUDIO-TIMING lines from stream-bench captures.
 
 `report CAPTURE...` prints, per stream-bench phase, the DSP load, the worst render, the closest the
-queue came to running dry, overruns and the render task's worst wake lateness. `overhead --small A
+queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns. `overhead --small A
 --large B` fits each render's fixed cost and its cost per frame from two captures made with fixed
-windows of two sizes (the device BSP's fixed-window-64 and fixed-window-128 features).
+windows of two sizes (images from before the fixed-block drive, built with its fixed-window-64 and
+fixed-window-128 features; the drive now always renders 128 frames).
 
 An AUDIO-TIMING line belongs to the stream-bench phase whose STREAM-BENCH-PHASE line follows it;
 lines before STREAM-BENCH-LOADED are the boot's and are left out.
@@ -35,6 +36,8 @@ class Phase:
     min_slack: int | None = None
     overruns: int = 0
     max_wake_late_us: int = 0
+    # None until a line from a fixed-block drive image (which reports it) is added.
+    drive_overruns: int | None = None
 
     def add(self, f: dict[str, str]) -> None:
         self.renders += int(f["renders"])
@@ -48,6 +51,8 @@ class Phase:
         self.min_slack = s if self.min_slack is None else min(self.min_slack, s)
         self.overruns += int(f["overruns"])
         self.max_wake_late_us = max(self.max_wake_late_us, int(f["max_wake_late_us"]))
+        if "drive_overruns" in f:
+            self.drive_overruns = (self.drive_overruns or 0) + int(f["drive_overruns"])
 
     @property
     def load(self) -> float:
@@ -104,15 +109,16 @@ def read(path: str) -> dict[str, Phase]:
 
 def report(paths: list[str]) -> None:
     print(
-        "| capture | phase | load | renders | frames/render | µs/render | worst µs (frames) | min queued | min slack | overruns | max wake late µs |"
+        "| capture | phase | load | renders | frames/render | µs/render | worst µs (frames) | min queued | min slack | overruns | max wake late µs | drive overruns |"
     )
-    print("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    print("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for path in paths:
         for name, p in read(path).items():
             print(
                 f"| {Path(path).parent.name} | {name} | {p.load:.0%} | {p.renders} | {p.frames_per_render:.1f} | "
                 f"{p.us_per_render:.0f} | {p.max_us} ({p.max_us_frames}) | {p.min_queued} | {p.min_slack} | "
-                f"{p.overruns} | {p.max_wake_late_us} |"
+                f"{p.overruns} | {p.max_wake_late_us} | "
+                f"{'-' if p.drive_overruns is None else p.drive_overruns} |"
             )
 
 

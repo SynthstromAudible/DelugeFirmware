@@ -7,13 +7,23 @@ import audio_timing
 
 
 def timing(
-    renders, frames, us, max_us=1000, min_queued=900, min_slack=850, overruns=0, late=20
+    renders,
+    frames,
+    us,
+    max_us=1000,
+    min_queued=900,
+    min_slack=850,
+    overruns=0,
+    late=20,
+    drive=None,
 ):
+    # `drive=None` is a line from an image before the fixed-block drive, which has no drive_overruns.
+    drive_field = "" if drive is None else f"drive_overruns={drive} "
     return (
         f"12.0: INFO  [deluge_bsp_rust::audio::device::probe] AUDIO-TIMING renders={renders} frames={frames} "
         f"us={us} f2={frames * frames // max(renders, 1)} fus=0 max_us={max_us} max_us_frames=128 "
         f"min_queued={min_queued} min_slack={min_slack} overruns={overruns} max_wake_late_us={late} "
-        f"us_hist=0,0,0,0,0,0,0,0,0,0,{renders},0,0,0 frames_hist=0,0,0,0,0,0,0,0,{renders}"
+        f"{drive_field}us_hist=0,0,0,0,0,0,0,0,0,0,{renders},0,0,0 frames_hist=0,0,0,0,0,0,0,0,{renders}"
     )
 
 
@@ -33,6 +43,7 @@ def capture():
             min_slack=820,
             overruns=1,
             late=60,
+            drive=2,
         ),
         "48.0: stream_bench.cpp:1: STREAM-BENCH-PHASE phase=steady ms=30000 underrun_wait=0",
     ]
@@ -54,6 +65,11 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(steady.min_slack, 800)
         self.assertEqual(steady.overruns, 1)
         self.assertEqual(steady.max_wake_late_us, 60)
+        self.assertEqual(steady.drive_overruns, 2)
+
+    def test_a_line_without_drive_overruns_reads_as_none(self):
+        idle = audio_timing.parse(capture())["idle"]
+        self.assertIsNone(idle.drive_overruns)
 
     def test_load_is_render_time_over_real_time(self):
         steady = audio_timing.parse(capture())["steady"]

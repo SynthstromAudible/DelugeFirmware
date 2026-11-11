@@ -1,8 +1,10 @@
-//! The audio tier's render driver: calls the app's `deluge_app_audio_tick` on a fixed poll cadence,
-//! and keeps the running average of how long a tick that rendered took.
+//! The audio tier's render driver: calls the app's `deluge_app_audio_tick` each time the codec's
+//! transmit ring completes a block (device) or on a fixed cadence (host), and keeps the running
+//! average of how long a tick that rendered took.
 //!
-//! The tick renders only as far as the output DMA has played (`deluge_audio_drive`), so the cadence
-//! is a poll rate, not a block size.
+//! On the device the tick renders the blocks the drive plans (`deluge_audio_drive`): the block
+//! signal paces it, and the drive's own position check decides what it renders, so a wake that
+//! merges several completions still catches up.
 
 use core::sync::atomic::{AtomicU64, Ordering};
 
@@ -73,8 +75,11 @@ fn cadence() -> (Duration, Duration) {
     )
 }
 
-/// Drives the render: waits, ticks, pauses, forever. It holds off until boot has finished, so
-/// the first tick follows `deluge_app_init`.
+/// Drives the render: waits, ticks, forever. It holds off until boot has finished, so the first
+/// tick follows `deluge_app_init`.
+///
+/// On the device it waits for each transmit block to complete; on the host (and on a device
+/// before board audio, which never has the signal) it waits, ticks and pauses on [`cadence`].
 ///
 /// Spawn it once, on the audio executor (the device's `AUDIO_EXEC`, the host's `deluge-audio`
 /// thread), or on a single-executor harness's one executor.
@@ -84,6 +89,11 @@ pub async fn render_task() {
     let (period, backoff) = cadence();
     while !crate::boot::finished() {
         Timer::after(period).await;
+    }
+    #[cfg(target_os = "none")]
+    match deluge_bsp::audio::tx_block_signal() {
+        Some(signal) => block_signal_loop(signal).await,
+        None => log::warn!("audio: no transmit block signal; the render ticks on a timer"),
     }
     loop {
         let deadline = Instant::now() + period;
@@ -97,6 +107,31 @@ pub async fn render_task() {
             record_tick_us((Instant::now() - start).as_micros());
         }
         Timer::after(backoff).await;
+    }
+}
+
+/// Ticks once per completed transmit block, forever. The signal latches, so a block that completes
+/// during a tick wakes the next wait at once.
+#[cfg(all(has_app, target_os = "none"))]
+async fn block_signal_loop(signal: rza1_hal::ring_buffer::BlockSignal) -> ! {
+    #[cfg(feature = "audio-timing")]
+    let mut last_wake = Instant::now();
+    loop {
+        signal.wait().await;
+        let start = Instant::now();
+        #[cfg(feature = "audio-timing")]
+        {
+            // How much longer than one block this wake came after the last.
+            const BLOCK_US: u64 = 2902;
+            let gap = (start - last_wake).as_micros();
+            crate::audio::device::note_wake_late(gap.saturating_sub(BLOCK_US) as u32);
+            last_wake = start;
+        }
+        // SAFETY: the app's render tick, called only from this task, on the audio tier.
+        let rendered = unsafe { crate::sys::deluge_app_audio_tick() };
+        if rendered {
+            record_tick_us((Instant::now() - start).as_micros());
+        }
     }
 }
 

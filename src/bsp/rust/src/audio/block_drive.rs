@@ -23,6 +23,9 @@ pub struct Plan {
     pub write_block: usize,
     /// Whether this wake found an overrun and skipped the blocks the codec already passed.
     pub resynced: bool,
+    /// Blocks the resync skipped: never rendered, so the input those blocks would have read is
+    /// skipped too, to keep input and output aligned. 0 without a resync.
+    pub skipped: u64,
 }
 
 /// The scheduler's state: unwrapped counts of blocks written and started by the codec.
@@ -73,8 +76,10 @@ impl BlockDrive {
             self.played += delta + laps * ring;
         }
         let mut resynced = false;
+        let mut skipped = 0;
         if self.played >= self.written {
             self.overruns = self.overruns.wrapping_add(1);
+            skipped = self.played + 1 - self.written;
             self.written = self.played + 1;
             resynced = true;
         }
@@ -85,6 +90,7 @@ impl BlockDrive {
             renders,
             write_block: (self.written % RING_BLOCKS as u64) as usize,
             resynced,
+            skipped,
         }
     }
 

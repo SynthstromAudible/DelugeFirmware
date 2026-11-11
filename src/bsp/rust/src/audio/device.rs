@@ -1,16 +1,20 @@
 //! `libdeluge/audio_io.h` — duplex block audio over the free-running SSI0 DMA rings.
 //!
 //! Board audio bring-up starts both DMA rings, which `deluge_bsp::audio` holds; this module owns
-//! only the read/write cursors and the pacing, and fills and reads the rings by offset (the
-//! rings' positional window). The app renders i32 stereo via `deluge_app_render`, written directly
-//! into the uncached TX ring.
+//! the block drive and the input read cursor, and fills and reads the rings by offset (the rings'
+//! positional window). The drive renders fixed [`BLOCK_FRAMES`]-frame blocks, keeping
+//! [`QUEUE_BLOCKS`] of them written ahead of the block the codec plays ([`block_drive`] decides
+//! which); the render task wakes it as each TX block completes. The app renders i32 stereo via
+//! `deluge_app_render` into a scratch block, copied into the uncached TX ring.
 //!
-//! No ISR touches this state. The `static mut` cursors belong to the render (the preemptive audio
-//! tier) alone, apart from `deluge_audio_start`, which anchors them before the render starts. The
+//! No ISR touches this state. The `static mut` state belongs to the render (the preemptive audio
+//! tier) alone, apart from `deluge_audio_start`, which anchors it before the render starts. The
 //! cross-tier exceptions are atomics: [`RENDER_BLOCKS`], bumped by the render and read by
 //! [`deluge_audio_await_block`] in thread mode; [`BLOCK_START_PLAY`], written by the render and read
-//! by the task tier to place capture stamps; and [`RX_RESYNC_REQUESTED`], which the task tier sets
-//! for the render to act on.
+//! by the task tier to place capture stamps; [`OVERRUNS`], written by the render and read by the
+//! task tier; and [`RX_RESYNC_REQUESTED`], which the task tier sets for the render to act on.
+//!
+//! [`block_drive`]: crate::audio::block_drive
 #![allow(non_upper_case_globals)]
 // The unsafe ops inside the unsafe fns are justified per site.
 #![allow(unsafe_op_in_unsafe_fn)]
@@ -19,8 +23,9 @@ use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicUsize, Ordering
 
 use deluge_bsp::audio;
 
-use crate::audio::block_drive::{BLOCK_FRAMES, QUEUE_BLOCKS};
-use crate::audio::pacing::pace_window;
+use embassy_time::Instant;
+
+use crate::audio::block_drive::{BLOCK_FRAMES, BlockDrive, QUEUE_BLOCKS, RING_BLOCKS};
 use crate::audio::ring::{frame_at, read_frame, write_frame};
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
@@ -38,37 +43,27 @@ pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 /// plus a margin, so a render never reads uncaptured frames.
 const RX_LATENCY_FRAMES: usize = RX_FRAMES - TX_FRAMES - 16;
 
-/// Maximum frames per `deluge_app_render` call.
-///
-/// Must not exceed the app's render-buffer size (`SSI_TX_BUFFER_NUM_SAMPLES` = 128 in
-/// `board_config.h`): the app renders into fixed arrays of that size, and a larger block writes
-/// out of bounds into adjacent globals. The TX ring is larger and independent.
-const APP_BLOCK_FRAMES: usize = 128;
-
-/// The fixed render window a bench image forces, if any (see the `fixed-window-*` features).
-#[cfg(feature = "fixed-window-64")]
-const FIXED_WINDOW: Option<usize> = Some(64);
-#[cfg(feature = "fixed-window-128")]
-const FIXED_WINDOW: Option<usize> = Some(128);
-#[cfg(not(any(feature = "fixed-window-64", feature = "fixed-window-128")))]
-const FIXED_WINDOW: Option<usize> = None;
+// The block is the app's render-buffer size (`SSI_TX_BUFFER_NUM_SAMPLES` in `board_config.h`): the
+// app renders into fixed arrays of that size, and a larger block writes out of bounds into adjacent
+// globals. The TX ring is whole blocks.
+const _: () = assert!(BLOCK_FRAMES == 128 && TX_FRAMES == RING_BLOCKS * BLOCK_FRAMES);
 
 const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
 // Render scratch, sized to the app's render-buffer limit. In SDRAM (`.sdram_bss`, zeroed at boot)
 // to spare internal SRAM; RENDER_BLOCK is flushed into the SRAM TX ring.
 #[unsafe(link_section = ".sdram_bss")]
-static mut RENDER_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
+static mut RENDER_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
 #[unsafe(link_section = ".sdram_bss")]
-static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
+static mut INPUT_BLOCK: [DelugeStereoSample; BLOCK_FRAMES] = [ZERO; BLOCK_FRAMES];
 
-// Cursors, in stereo frames.
-static mut TX_WRITE: usize = 0; // write cursor (frame index into TX ring)
-static mut PLAY_CACHED: usize = 0; // last-polled DMA play head (frame index)
-static mut RX_READ: usize = 0; // read cursor (frame index into RX ring)
-static mut PENDING_POS: usize = 0; // [PENDING_POS, PENDING_END) = rendered, not yet flushed
-static mut PENDING_END: usize = 0;
-// Anchors of the current render block, for sample-accurate gate/MIDI timing.
+/// Which blocks to render, and the overruns.
+static mut DRIVE: BlockDrive = BlockDrive::new();
+/// When the drive last planned, for its lap check; `None` before the first plan.
+static mut LAST_PLAN: Option<Instant> = None;
+/// The RX read cursor, a frame index into the RX ring.
+static mut RX_READ: usize = 0;
+/// The TX frame the current render block starts at, for sample-accurate gate/MIDI timing.
 static mut BLOCK_START_WRITE: usize = 0;
 /// The play frame at which the most recently begun render block started.
 ///
@@ -134,26 +129,17 @@ pub(crate) fn block_lead_frames() -> usize {
     write.wrapping_sub(BLOCK_START_PLAY.load(Ordering::Relaxed)) & TX_MASK
 }
 
-/// Flushes pending rendered frames into the TX ring; returns true once all are flushed, false if
-/// the write cursor would lap the play head. Re-polls the play head once when the ring looks full.
-unsafe fn flush_pending() -> bool {
+/// Copies the rendered block into the TX ring from frame `start`, a block boundary. The drive plans
+/// only blocks ahead of the one playing, so the codec is not reading them.
+unsafe fn write_block(start: usize) {
     let base = tx_ring();
     let rb = core::ptr::addr_of!(RENDER_BLOCK) as *const DelugeStereoSample;
-    while PENDING_POS != PENDING_END {
-        // A zero lead means the write cursor is a full ring ahead of the play head.
-        if TX_WRITE.wrapping_sub(PLAY_CACHED) & TX_MASK == 0 {
-            PLAY_CACHED = tx_play_frame();
-            if TX_WRITE.wrapping_sub(PLAY_CACHED) & TX_MASK == 0 {
-                return false;
-            }
-        }
-        let s = *rb.add(PENDING_POS);
-        // SAFETY: TX_WRITE is masked into [0, TX_FRAMES), within the ring's TX_FRAMES frames.
-        write_frame(base, TX_WRITE, s.l, s.r);
-        TX_WRITE = (TX_WRITE + 1) & TX_MASK;
-        PENDING_POS += 1;
+    for i in 0..BLOCK_FRAMES {
+        let s = *rb.add(i);
+        // SAFETY: `start` is a block boundary inside the ring and the ring is whole blocks, so
+        // `start + i` is below TX_FRAMES.
+        write_frame(base, start + i, s.l, s.r);
     }
-    true
 }
 
 /// Copies the next `frames` received frames from the RX ring into `INPUT_BLOCK` and advances the
@@ -172,13 +158,12 @@ unsafe fn prepare_input_block(frames: usize) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_start() -> DelugeStatus {
-    // The DMA stream free-runs from board audio init; only (re-)anchor the cursors. Idempotent.
+    // The DMA stream free-runs from board audio init; only (re-)anchor the drive and the input
+    // cursor. Idempotent.
     unsafe {
-        TX_WRITE = 0;
+        (*core::ptr::addr_of_mut!(DRIVE)).restart();
+        LAST_PLAN = None;
         RX_READ = RX_LATENCY_FRAMES & RX_MASK;
-        PLAY_CACHED = tx_play_frame();
-        PENDING_POS = 0;
-        PENDING_END = 0;
     }
     DELUGE_OK
 }
@@ -205,6 +190,11 @@ unsafe fn resync_rx() {
     }
 }
 
+/// Renders the blocks the drive plans for the play head's position now: one per completed TX block
+/// in steady state, up to [`QUEUE_BLOCKS`] after a late wake. Returns how many it rendered.
+///
+/// An overrun (the codec reached a block not yet written) is counted in [`OVERRUNS`] and skips the
+/// lost blocks, output and input alike, so the queue restarts one block ahead of the play head.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let mut renders = 0u32;
@@ -212,43 +202,42 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
         if RX_RESYNC_REQUESTED.swap(false, Ordering::Acquire) {
             resync_rx();
         }
-        while flush_pending() && renders < 2 {
-            PLAY_CACHED = tx_play_frame();
-            // Frames the play head is ahead of the write cursor = free space.
-            let raw = PLAY_CACHED.wrapping_sub(TX_WRITE) & TX_MASK;
-            // Render only as far as the play head advanced; a second pass in one drive needs more
-            // than 10 free frames per render already done.
-            if raw as u32 <= 10 * renders {
-                break;
-            }
-            // Cap at the app's render-buffer size, not the TX ring (see APP_BLOCK_FRAMES).
-            let frames = match FIXED_WINDOW {
-                Some(n) => crate::audio::pacing::fixed_window(raw, n),
-                None => pace_window(raw, APP_BLOCK_FRAMES),
-            };
-            if frames == 0 {
-                break;
-            }
-            BLOCK_START_WRITE = TX_WRITE;
-            BLOCK_START_PLAY.store(PLAY_CACHED, Ordering::Relaxed);
-            prepare_input_block(frames);
+        let now = Instant::now();
+        let elapsed_us = LAST_PLAN.map_or(0, |t| (now - t).as_micros());
+        LAST_PLAN = Some(now);
+        let drive = &mut *core::ptr::addr_of_mut!(DRIVE);
+        let plan = drive.plan(tx_play_frame(), elapsed_us);
+        OVERRUNS.store(drive.overruns(), Ordering::Relaxed);
+        if plan.resynced {
+            let skipped = (plan.skipped % (RX_FRAMES / BLOCK_FRAMES) as u64) as usize;
+            RX_READ = (RX_READ + skipped * BLOCK_FRAMES) & RX_MASK;
+            resync_rx();
+        }
+        for i in 0..plan.renders as usize {
+            let play = tx_play_frame();
+            BLOCK_START_WRITE = ((plan.write_block + i) % RING_BLOCKS) * BLOCK_FRAMES;
+            BLOCK_START_PLAY.store(play, Ordering::Relaxed);
+            prepare_input_block(BLOCK_FRAMES);
             RENDER_BLOCKS.fetch_add(1, Ordering::Release);
             #[cfg(feature = "audio-timing")]
-            let probe_start = embassy_time::Instant::now();
+            let probe_start = Instant::now();
             crate::sys::deluge_app_render(
                 core::ptr::addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
                 core::ptr::addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
-                frames as u32,
+                BLOCK_FRAMES as u32,
             );
+            write_block(BLOCK_START_WRITE);
+            drive.rendered();
             #[cfg(feature = "audio-timing")]
             probe::record_render(
-                frames as u32,
-                (TX_FRAMES - raw) as u32,
-                (embassy_time::Instant::now() - probe_start).as_micros() as u32,
-                (tx_play_frame().wrapping_sub(PLAY_CACHED) & TX_MASK) as u32,
+                BLOCK_FRAMES as u32,
+                // The frames queued ahead of the codec when this render began: the blocks written
+                // after the one playing, less what the codec has already played of its own.
+                (BLOCK_START_WRITE.wrapping_sub(play) & TX_MASK) as u32,
+                (Instant::now() - probe_start).as_micros() as u32,
+                (tx_play_frame().wrapping_sub(play) & TX_MASK) as u32,
+                drive.overruns(),
             );
-            PENDING_POS = 0;
-            PENDING_END = frames;
             renders += 1;
         }
     }
@@ -346,6 +335,8 @@ mod probe {
     use crate::audio::timing_probe::TimingStats;
 
     static mut STATS: TimingStats = TimingStats::EMPTY;
+    /// The drive's overrun count at the last render recorded.
+    static mut SEEN_OVERRUNS: u32 = 0;
 
     fn stats() -> &'static mut TimingStats {
         // SAFETY: only the audio tier touches STATS (the render and the render task, which never
@@ -356,7 +347,7 @@ mod probe {
     /// A render this long is reported at once, on its own `AUDIO-SLOW` line: a trace can stop on it.
     const SLOW_US: u32 = 10_000;
 
-    pub(super) fn record_render(frames: u32, queued: u32, us: u32, played: u32) {
+    pub(super) fn record_render(frames: u32, queued: u32, us: u32, played: u32, overruns: u32) {
         if us >= SLOW_US {
             log::info!(
                 "AUDIO-SLOW us={} frames={} queued={} played={}",
@@ -368,6 +359,10 @@ mod probe {
         }
         let s = stats();
         s.record_render(frames, queued, us, played);
+        // SAFETY: as STATS.
+        s.note_drive_overruns(overruns, unsafe {
+            &mut *core::ptr::addr_of_mut!(SEEN_OVERRUNS)
+        });
         if s.interval_done() {
             log::info!("{}", s);
             *s = TimingStats::EMPTY;

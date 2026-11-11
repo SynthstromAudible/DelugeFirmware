@@ -42,8 +42,12 @@ pub struct TimingStats {
     pub min_slack: i32,
     /// Renders that finished after the codec had played everything queued when they began.
     pub overruns: u32,
-    /// The latest the render task woke after its timer's deadline, µs.
+    /// The latest the render task woke: after its timer's deadline (timer cadence), or after one
+    /// block past its previous wake (block signal), µs.
     pub max_wake_late_us: u32,
+    /// Blocks the codec reached before the drive wrote them, as the drive counts them (lapped
+    /// stalls included).
+    pub drive_overruns: u32,
     /// Renders by time.
     pub us_hist: [u32; US_BUCKETS],
     /// Renders by size.
@@ -64,6 +68,7 @@ impl TimingStats {
         min_slack: i32::MAX,
         overruns: 0,
         max_wake_late_us: 0,
+        drive_overruns: 0,
         us_hist: [0; US_BUCKETS],
         frames_hist: [0; FRAME_BUCKETS],
     };
@@ -95,6 +100,13 @@ impl TimingStats {
         self.max_wake_late_us = self.max_wake_late_us.max(late_us);
     }
 
+    /// Adds the overruns the drive counted since `seen`, its count at the last note (its count
+    /// wraps), and moves `seen` to `total`.
+    pub fn note_drive_overruns(&mut self, total: u32, seen: &mut u32) {
+        self.drive_overruns += total.wrapping_sub(*seen);
+        *seen = total;
+    }
+
     /// Whether the interval has covered [`INTERVAL_FRAMES`].
     pub fn interval_done(&self) -> bool {
         self.frames >= INTERVAL_FRAMES
@@ -117,7 +129,7 @@ impl fmt::Display for TimingStats {
         write!(
             f,
             "AUDIO-TIMING renders={} frames={} us={} f2={} fus={} max_us={} max_us_frames={} min_queued={} \
-             min_slack={} overruns={} max_wake_late_us={} us_hist=",
+             min_slack={} overruns={} max_wake_late_us={} drive_overruns={} us_hist=",
             self.renders,
             self.frames,
             self.us,
@@ -129,6 +141,7 @@ impl fmt::Display for TimingStats {
             self.min_slack,
             self.overruns,
             self.max_wake_late_us,
+            self.drive_overruns,
         )?;
         write_list(f, &self.us_hist)?;
         f.write_str(" frames_hist=")?;
