@@ -40,8 +40,8 @@ pub fn reset_average_for_test() {
 
 /// The tick cadence override, in µs, for a harness that needs one block per period.
 ///
-/// On the device the tick polls the DMA play head. The host render pump renders a block on every
-/// call, so a harness racing playback against modelled storage time (golden_vt_render's
+/// The host render pump renders a block on every call (on the device the transmit block signal
+/// paces the tick instead), so a harness racing playback against modelled storage time (golden_vt_render's
 /// `render_song`) sets the real block period instead. Zero period means no override.
 #[cfg(not(target_os = "none"))]
 static PERIOD_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
@@ -122,9 +122,10 @@ async fn block_signal_loop(signal: rza1_hal::ring_buffer::BlockSignal) -> ! {
         #[cfg(feature = "audio-timing")]
         {
             // How much longer than one block this wake came after the last.
-            const BLOCK_US: u64 = 2902;
             let gap = (start - last_wake).as_micros();
-            crate::audio::device::note_wake_late(gap.saturating_sub(BLOCK_US) as u32);
+            crate::audio::device::note_wake_late(
+                gap.saturating_sub(crate::audio::block_drive::BLOCK_US) as u32,
+            );
             last_wake = start;
         }
         // SAFETY: the app's render tick, called only from this task, on the audio tier.

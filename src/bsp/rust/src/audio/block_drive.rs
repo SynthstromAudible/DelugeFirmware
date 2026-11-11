@@ -12,7 +12,7 @@ pub const RING_BLOCKS: usize = 8;
 /// Blocks kept written ahead of the one the codec is playing.
 pub const QUEUE_BLOCKS: usize = 3;
 /// One block's duration at 44.1 kHz, in µs (128 / 44100 s, rounded down).
-const BLOCK_US: u64 = 2902;
+pub const BLOCK_US: u64 = 2902;
 
 /// What one wake renders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,6 +36,8 @@ pub struct BlockDrive {
     /// The block the codec is playing (unwrapped).
     played: u64,
     started: bool,
+    /// The next plan re-anchors the queue after the block playing, without counting an overrun.
+    reanchor: bool,
     overruns: u32,
 }
 
@@ -46,14 +48,16 @@ impl BlockDrive {
             written: 0,
             played: 0,
             started: false,
+            reanchor: false,
             overruns: 0,
         }
     }
 
-    /// Forgets the play position, so the next [`plan`](Self::plan) anchors afresh as the first
-    /// did. The overrun count is kept.
+    /// Makes the next [`plan`](Self::plan) fill the queue afresh after the block playing, as the
+    /// first did, without counting the blocks the codec passed as an overrun. The play timeline
+    /// ([`played_block`](Self::played_block)) keeps counting, and the overrun count is kept.
     pub fn restart(&mut self) {
-        self.started = false;
+        self.reanchor = true;
     }
 
     /// Plans a wake: `play_frame` is the DMA's position in the ring, `elapsed_us` the time since
@@ -77,7 +81,10 @@ impl BlockDrive {
         }
         let mut resynced = false;
         let mut skipped = 0;
-        if self.played >= self.written {
+        if self.reanchor {
+            self.reanchor = false;
+            self.written = self.played + 1;
+        } else if self.played >= self.written {
             self.overruns = self.overruns.wrapping_add(1);
             skipped = self.played + 1 - self.written;
             self.written = self.played + 1;
@@ -97,6 +104,32 @@ impl BlockDrive {
     /// Notes one block rendered into the ring at the write position.
     pub fn rendered(&mut self) {
         self.written += 1;
+    }
+
+    /// Checks, after a block is written, whether the codec had already started it (`play_frame`
+    /// is the DMA's position now): it played part of the block stale, an overrun the plan could
+    /// not see. Counts it and returns true. A codec further ahead is left to the next plan.
+    pub fn check_written(&mut self, play_frame: usize) -> bool {
+        let play_block = (play_frame / BLOCK_FRAMES) % RING_BLOCKS;
+        let prev = (self.played % RING_BLOCKS as u64) as usize;
+        let now = self.played + ((play_block + RING_BLOCKS - prev) % RING_BLOCKS) as u64;
+        if self.written > 0 && now == self.written - 1 {
+            self.overruns = self.overruns.wrapping_add(1);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The block the codec was playing at the last plan, counted from the first: the play
+    /// timeline input events are stamped on.
+    pub fn played_block(&self) -> u64 {
+        self.played
+    }
+
+    /// Blocks written, counted as [`played_block`](Self::played_block) counts.
+    pub fn written_blocks(&self) -> u64 {
+        self.written
     }
 
     /// Blocks written ahead of the one the codec plays, as of the last plan: the output queue.

@@ -90,6 +90,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/notify.h"
+#include <atomic>
 #include <iterator>
 #include <math.h>
 #include <new>
@@ -1948,16 +1949,17 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		setupPlaybackUsingExternalClock(true);
 	}
 
+	// The offset counts from the sample the next render starts with, so it and the sample timer must be read between
+	// the same two renders: the render preempts this tier, so read the timer again and retry if one ran in between.
+	std::atomic_ref<uint32_t> sampleTimer(AudioEngine::audioSampleTimer);
+	uint32_t timerAtRead;
 	uint32_t timeTilInputTick;
+	do {
+		timerAtRead = sampleTimer.load(std::memory_order_relaxed);
+		timeTilInputTick = (time != 0) ? deluge_audio_stamp_to_render_offset(time) : 0;
+	} while (sampleTimer.load(std::memory_order_relaxed) != timerAtRead);
 
-	if (time) {
-		timeTilInputTick = deluge_audio_stamp_to_render_offset(time);
-	}
-	else {
-		timeTilInputTick = 0;
-	}
-
-	uint32_t timeThisInputTick = AudioEngine::audioSampleTimer + timeTilInputTick;
+	uint32_t timeThisInputTick = timerAtRead + timeTilInputTick;
 
 	// If we're doing tempo magnitude matching, do all that
 	if (tempoMagnitudeMatchingActiveNow) {

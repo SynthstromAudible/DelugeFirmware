@@ -36,15 +36,15 @@ extern "C" {
 /// [task]
 DelugeStatus deluge_audio_start(void) DELUGE_NOEXCEPT;
 
-/// Drive the board's audio path. Flushes any rendered-but-unplayed samples to
-/// the DAC ring; then, while the previous block is fully flushed and the
-/// board's pacing policy asks for more (on RZ/A1L: render as far as the DMA
-/// play head has advanced, doubled under light load, capped at the ring size,
-/// rounded to a multiple of 4), calls `deluge_app_render()` with the chosen
-/// frame count and an input block aligned to it. Returns how many times
-/// `deluge_app_render()` was invoked (0 = no new audio was needed). The
-/// application's audio task calls this; the BSP never invokes the app
-/// unprompted. [task] [audio]
+/// Drive the board's audio path: renders the fixed blocks the output queue is missing, calling
+/// `deluge_app_render()` once per block with `deluge_audio_block_frames()` frames and the input
+/// block aligned to it. On the device the queue is `deluge_audio_queue_blocks()` blocks ahead of
+/// the one the codec plays: one render per completed block, up to the whole queue after a late
+/// wake. When the codec has reached a block not yet written (an overrun, counted in
+/// `deluge_audio_overruns()`), the lost blocks are skipped, output and input alike, and the queue
+/// restarts after the block playing. Returns how many times `deluge_app_render()` was invoked
+/// (0 = no new audio was needed). The application's audio task calls this; the BSP never invokes
+/// the app unprompted. [task] [audio]
 uint32_t deluge_audio_drive(void) DELUGE_NOEXCEPT;
 
 /// @brief Wait for, or run, roughly one render block.
@@ -82,11 +82,12 @@ uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t
 
 /// Convert a capture stamp into how many samples after the next one the render produces the event takes effect at.
 ///
-/// A capture stamp is the TX ring's play frame at the moment of the event: the `arrival_stamp` of
-/// `deluge_midi_din_read_timed()`, or a trigger-clock handler's argument. Every event takes effect the same fixed
-/// latency after it happened (the output queue plus a block), so the spacing between events is exact; one read so late
-/// that its place is already rendered takes effect at once (0). On the Embassy host every stamp converts to 0
-/// ("now"). [task]
+/// A capture stamp is the codec's play position at the moment of the event, in frames counted from the drive's first
+/// block (a wrapping 32-bit count, not a ring position): the `arrival_stamp` of `deluge_midi_din_read_timed()`, or a
+/// trigger-clock handler's argument. Every event takes effect the same fixed latency after it happened (the output
+/// queue plus two blocks), so the spacing between events is exact; one read so late that its place is already rendered
+/// takes effect at once (0), however late. Read `AudioEngine::audioSampleTimer` with it as a pair: the offset counts
+/// from the sample the next render starts with. On the Embassy host every stamp converts to 0 ("now"). [task]
 uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 
 /// @brief The running average of a render tick that rendered at least one block, in seconds:
@@ -100,8 +101,9 @@ uint32_t deluge_audio_block_frames(void) DELUGE_NOEXCEPT;
 /// latency, in blocks. [task] [audio]
 uint32_t deluge_audio_queue_blocks(void) DELUGE_NOEXCEPT;
 
-/// @brief Blocks the codec reached before they were written, since boot: each is an audible
-/// glitch. [task] [audio]
+/// @brief Blocks the codec reached before they were written (or while they were), since boot:
+/// each is an audible glitch while audio plays. An offline render (stem export) drives the queue
+/// at its own pace and counts here too, over the dither the codec plays meanwhile. [task] [audio]
 uint32_t deluge_audio_overruns(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

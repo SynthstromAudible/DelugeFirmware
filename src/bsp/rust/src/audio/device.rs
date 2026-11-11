@@ -10,9 +10,10 @@
 //! No ISR touches this state. The `static mut` state belongs to the render (the preemptive audio
 //! tier) alone, apart from `deluge_audio_start`, which anchors it before the render starts. The
 //! cross-tier exceptions are atomics: [`RENDER_BLOCKS`], bumped by the render and read by
-//! [`deluge_audio_await_block`] in thread mode; [`BLOCK_START_PLAY`], written by the render and read
-//! by the task tier; [`WRITE_END`], written by the render and read by the task tier to place
-//! capture stamps; [`OVERRUNS`], written by the render and read by the task tier; and [`RX_RESYNC_REQUESTED`], which the task tier sets for the render to act on.
+//! [`deluge_audio_await_block`] in thread mode; [`BLOCK_START_PLAY`], [`PLAYED_BLOCK`],
+//! [`WRITE_END`] and [`OVERRUNS`], written by the render and read by the task tier (the middle two
+//! place capture stamps on the play timeline); and [`RX_RESYNC_REQUESTED`], which the task tier
+//! sets for the render to act on.
 //!
 //! [`block_drive`]: crate::audio::block_drive
 #![allow(non_upper_case_globals)]
@@ -71,9 +72,14 @@ static mut BLOCK_START_WRITE: usize = 0;
 /// atomic.
 static BLOCK_START_PLAY: AtomicUsize = AtomicUsize::new(0);
 
-/// The TX frame just past the most recently rendered block: where the next rendered sample goes.
-/// Written by the render after each block, read by the task tier to place input events.
-static WRITE_END: AtomicUsize = AtomicUsize::new(0);
+/// The play-timeline frame (see [`capture_stamp`](crate::audio::capture_stamp)) the next rendered
+/// sample plays at: just past the most recently rendered block. Written by the render after each
+/// block, read by the task tier to place input events.
+static WRITE_END: AtomicU32 = AtomicU32::new(0);
+/// The drive's unwrapped play block at its last plan, as a wrapping `u32`: the base the play
+/// timeline counts the DMA position on from. Written by the render, read by any tier stamping an
+/// input event.
+static PLAYED_BLOCK: AtomicU32 = AtomicU32::new(0);
 
 /// How many render blocks have begun: bumped by the render (audio tier) just before each
 /// `deluge_app_render` call, read by [`deluge_audio_await_block`]. Wraps; only a change matters.
@@ -166,7 +172,6 @@ pub extern "C" fn deluge_audio_start() -> DelugeStatus {
     // cursor. Idempotent.
     unsafe {
         (*core::ptr::addr_of_mut!(DRIVE)).restart();
-        LAST_PLAN = None;
         RX_READ = RX_LATENCY_FRAMES & RX_MASK;
     }
     DELUGE_OK
@@ -198,7 +203,8 @@ unsafe fn resync_rx() {
 /// in steady state, up to [`QUEUE_BLOCKS`] after a late wake. Returns how many it rendered.
 ///
 /// An overrun (the codec reached a block not yet written) is counted in [`OVERRUNS`] and skips the
-/// lost blocks, output and input alike, so the queue restarts one block ahead of the play head.
+/// lost blocks, output and input alike, so the queue restarts one block ahead of the play head. A
+/// block the codec started while it was still being written counts too.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let mut renders = 0u32;
@@ -211,6 +217,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
         LAST_PLAN = Some(now);
         let drive = &mut *core::ptr::addr_of_mut!(DRIVE);
         let plan = drive.plan(tx_play_frame(), elapsed_us);
+        PLAYED_BLOCK.store(drive.played_block() as u32, Ordering::Relaxed);
         OVERRUNS.store(drive.overruns(), Ordering::Relaxed);
         if plan.resynced {
             let skipped = (plan.skipped % (RX_FRAMES / BLOCK_FRAMES) as u64) as usize;
@@ -231,11 +238,14 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
                 BLOCK_FRAMES as u32,
             );
             write_block(BLOCK_START_WRITE);
+            drive.rendered();
             WRITE_END.store(
-                (BLOCK_START_WRITE + BLOCK_FRAMES) & TX_MASK,
+                (drive.written_blocks() as u32).wrapping_mul(BLOCK_FRAMES as u32),
                 Ordering::Relaxed,
             );
-            drive.rendered();
+            if drive.check_written(tx_play_frame()) {
+                OVERRUNS.store(drive.overruns(), Ordering::Relaxed);
+            }
             #[cfg(feature = "audio-timing")]
             probe::record_render(
                 BLOCK_FRAMES as u32,
@@ -259,7 +269,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 /// deadline.
 ///
 /// Nothing arms an alarm for the deadline: the bound relies on some interrupt waking the WFI. The
-/// render task's `Timer` keeps one queued, so the core wakes at least once a block.
+/// TX DMA's block interrupt wakes the core once a block.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
     let start = RENDER_BLOCKS.load(Ordering::Acquire);
@@ -302,8 +312,17 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
 /// [`input_offset`](super::capture_stamp::input_offset)). Task tier.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
-    let write_end = WRITE_END.load(Ordering::Relaxed) as u32;
-    crate::audio::capture_stamp::input_offset(stamp, write_end, TX_MASK as u32)
+    crate::audio::capture_stamp::input_offset(stamp, WRITE_END.load(Ordering::Relaxed))
+}
+
+/// The play-timeline frame the DMA is at now (see [`capture_stamp`](crate::audio::capture_stamp)):
+/// what an input event is stamped with. Any tier.
+pub(crate) fn play_timeline_frame() -> u32 {
+    crate::audio::capture_stamp::timeline_frame(
+        tx_play_frame() as u32,
+        PLAYED_BLOCK.load(Ordering::Relaxed),
+        TX_MASK as u32,
+    )
 }
 
 /// Overruns the drive has counted: the render updates it after each plan, so the task tier reads it

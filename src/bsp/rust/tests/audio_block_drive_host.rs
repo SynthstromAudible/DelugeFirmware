@@ -96,12 +96,60 @@ fn a_whole_lap_measured_a_little_short_is_still_a_lap() {
 }
 
 #[test]
-fn restart_forgets_the_old_position() {
+fn restart_reanchors_the_queue_without_counting_an_overrun() {
     let mut d = primed();
     d.restart();
+    // Long after: the codec is far past what was written, which a restart does not count.
     let p = d.plan(frame_of(4), 1_000_000);
     assert!(!p.resynced);
     assert_eq!(p.renders, QUEUE_BLOCKS as u32);
     assert_eq!(p.write_block, 5);
     assert_eq!(d.overruns(), 0);
+}
+
+#[test]
+fn restart_keeps_the_timeline_running() {
+    let mut d = primed();
+    for block in 1..20 {
+        let p = d.plan(frame_of(block), BLOCK_US);
+        for _ in 0..p.renders {
+            d.rendered();
+        }
+    }
+    assert_eq!(d.played_block(), 19);
+    d.restart();
+    // Two blocks later: the play block keeps counting from where it was.
+    d.plan(frame_of(21), 2 * BLOCK_US);
+    assert_eq!(d.played_block(), 21);
+    assert_eq!(d.written_blocks(), 22);
+}
+
+#[test]
+fn the_timeline_counts_blocks_written_and_played() {
+    let mut d = primed();
+    assert_eq!((d.played_block(), d.written_blocks()), (0, 4));
+    d.plan(frame_of(1), BLOCK_US);
+    d.rendered();
+    assert_eq!((d.played_block(), d.written_blocks()), (1, 5));
+}
+
+#[test]
+fn the_codec_reaching_a_block_while_it_was_written_is_an_overrun() {
+    let mut d = primed();
+    // Five blocks late: a resync renders blocks 6, 7 and 8 while the codec plays block 5.
+    let p = d.plan(frame_of(5), 5 * BLOCK_US);
+    assert_eq!(d.overruns(), 1);
+    d.rendered(); // block 6
+    assert!(!d.check_written(frame_of(5) + 100));
+    // The codec moved into block 7 while it was written.
+    d.rendered(); // block 7
+    assert!(d.check_written(frame_of(7) + 3));
+    assert_eq!(d.overruns(), 2);
+    d.rendered(); // block 8, after the codec: not counted again here
+    assert!(!d.check_written(frame_of(7) + 60));
+    assert_eq!(p.renders, 3);
+    // The next plan sees the codec in block 7, which was written: no further overrun.
+    let p = d.plan(frame_of(7) + 100, BLOCK_US);
+    assert!(!p.resynced);
+    assert_eq!(d.overruns(), 2);
 }
