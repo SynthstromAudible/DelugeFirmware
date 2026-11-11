@@ -1950,10 +1950,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 
 	uint32_t timeTilInputTick;
 
-	// The 40 here is a fine-tuned amount to stop everything wrapping wrong when CPU load heavy. 28 to 98 seemed to
-	// work correctly
 	if (time) {
-		timeTilInputTick = (deluge_audio_stamp_to_render_offset(time) + 40) & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+		timeTilInputTick = deluge_audio_stamp_to_render_offset(time);
 	}
 	else {
 		timeTilInputTick = 0;

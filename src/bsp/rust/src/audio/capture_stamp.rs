@@ -3,7 +3,7 @@
 //! A capture stamp is the TX ring's play frame at the moment of the event, in frames at the codec
 //! rate, modulo the ring. Every input the app times (a MIDI byte, a trigger-clock edge) is stamped
 //! on this one timeline, so `deluge_audio_stamp_to_render_offset` can place it in the next render.
-//! Each event is late by the same block, and the spacing between events is exact.
+//! Each event takes effect the same latency after it happened, so the spacing between events is exact.
 
 /// Returns the stamp for an event that happened at `event_ticks`, read when the play position is
 /// `play_now` and the Embassy clock reads `now_ticks`. Ticks are at `tick_hz`, frames at
@@ -25,10 +25,21 @@ pub fn stamp_at(
     play_now.wrapping_sub(back)
 }
 
-/// Returns how far past `block_start_play` (the play frame when the block being rendered began) the
-/// event at `stamp` fell, in frames, modulo the ring (`mask` + 1 frames).
-pub fn render_offset(stamp: u32, block_start_play: u32, mask: u32) -> u32 {
-    stamp.wrapping_sub(block_start_play) & mask
+/// The frames from an input event to the output sample it takes effect at: the most the write head
+/// can lead the play head just after a render (the queue and the block playing), plus one block
+/// for the task tier to read the event in.
+pub const INPUT_LATENCY_FRAMES: u32 = ((crate::audio::block_drive::QUEUE_BLOCKS + 2)
+    * crate::audio::block_drive::BLOCK_FRAMES) as u32;
+
+/// Returns how many samples after the next one the render produces the event at `stamp` takes
+/// effect at, so that it plays [`INPUT_LATENCY_FRAMES`] after it happened. `write_end` is the TX
+/// frame the next rendered sample goes to, which the codec plays when it reaches it; `mask` + 1 is
+/// the ring.
+///
+/// An event read so late that its place is already rendered takes effect at once (0).
+pub fn input_offset(stamp: u32, write_end: u32, mask: u32) -> u32 {
+    let behind = write_end.wrapping_sub(stamp) & mask;
+    INPUT_LATENCY_FRAMES.saturating_sub(behind)
 }
 
 /// Returns the stamp for an event at `event_ticks`, read now.

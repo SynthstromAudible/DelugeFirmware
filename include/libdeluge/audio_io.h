@@ -80,12 +80,13 @@ void deluge_audio_input_resync(void) DELUGE_NOEXCEPT;
 /// [task] [audio]
 uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out) DELUGE_NOEXCEPT;
 
-/// Convert a capture stamp into how far past the start of the most recently begun render block the event fell.
+/// Convert a capture stamp into how many samples after the next one the render produces the event takes effect at.
 ///
 /// A capture stamp is the TX ring's play frame at the moment of the event: the `arrival_stamp` of
-/// `deluge_midi_din_read_timed()`, or a trigger-clock handler's argument. Every event lands one block late, by the
-/// same amount, so the spacing between events is exact. On the Embassy host every stamp converts to 0 ("now").
-/// [task]
+/// `deluge_midi_din_read_timed()`, or a trigger-clock handler's argument. Every event takes effect the same fixed
+/// latency after it happened (the output queue plus a block), so the spacing between events is exact; one read so late
+/// that its place is already rendered takes effect at once (0). On the Embassy host every stamp converts to 0
+/// ("now"). [task]
 uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 
 /// @brief The running average of a render tick that rendered at least one block, in seconds:

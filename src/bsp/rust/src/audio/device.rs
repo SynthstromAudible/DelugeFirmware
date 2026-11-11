@@ -11,8 +11,8 @@
 //! tier) alone, apart from `deluge_audio_start`, which anchors it before the render starts. The
 //! cross-tier exceptions are atomics: [`RENDER_BLOCKS`], bumped by the render and read by
 //! [`deluge_audio_await_block`] in thread mode; [`BLOCK_START_PLAY`], written by the render and read
-//! by the task tier to place capture stamps; [`OVERRUNS`], written by the render and read by the
-//! task tier; and [`RX_RESYNC_REQUESTED`], which the task tier sets for the render to act on.
+//! by the task tier; [`WRITE_END`], written by the render and read by the task tier to place
+//! capture stamps; [`OVERRUNS`], written by the render and read by the task tier; and [`RX_RESYNC_REQUESTED`], which the task tier sets for the render to act on.
 //!
 //! [`block_drive`]: crate::audio::block_drive
 #![allow(non_upper_case_globals)]
@@ -70,6 +70,10 @@ static mut BLOCK_START_WRITE: usize = 0;
 /// Written by the render ([`deluge_audio_drive`], audio tier) and read by the task tier, so it is
 /// atomic.
 static BLOCK_START_PLAY: AtomicUsize = AtomicUsize::new(0);
+
+/// The TX frame just past the most recently rendered block: where the next rendered sample goes.
+/// Written by the render after each block, read by the task tier to place input events.
+static WRITE_END: AtomicUsize = AtomicUsize::new(0);
 
 /// How many render blocks have begun: bumped by the render (audio tier) just before each
 /// `deluge_app_render` call, read by [`deluge_audio_await_block`]. Wraps; only a change matters.
@@ -227,6 +231,10 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
                 BLOCK_FRAMES as u32,
             );
             write_block(BLOCK_START_WRITE);
+            WRITE_END.store(
+                (BLOCK_START_WRITE + BLOCK_FRAMES) & TX_MASK,
+                Ordering::Relaxed,
+            );
             drive.rendered();
             #[cfg(feature = "audio-timing")]
             probe::record_render(
@@ -289,12 +297,13 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     }
 }
 
-/// Returns how far past the start of the most recently begun render block the event stamped
-/// `stamp` fell, in frames (see [`capture_stamp`](super::capture_stamp)). Task tier.
+/// Returns how many samples after the next one the render produces the event stamped `stamp`
+/// takes effect at, for a constant latency from the event (see
+/// [`input_offset`](super::capture_stamp::input_offset)). Task tier.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
-    let block_start = BLOCK_START_PLAY.load(Ordering::Relaxed) as u32;
-    crate::audio::capture_stamp::render_offset(stamp, block_start, TX_MASK as u32)
+    let write_end = WRITE_END.load(Ordering::Relaxed) as u32;
+    crate::audio::capture_stamp::input_offset(stamp, write_end, TX_MASK as u32)
 }
 
 /// Overruns the drive has counted: the render updates it after each plan, so the task tier reads it
