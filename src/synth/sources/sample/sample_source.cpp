@@ -258,7 +258,7 @@ bool SampleSource::get_pitch_and_speed_params(uint32_t* phase_increment, uint32_
 			// more
 			bool further_pitch_shifting = std::cmp_not_equal(*phase_increment, pitch_adjust_neutral_value);
 			if (further_pitch_shifting) {
-				*time_stretch_ratio = (static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / *phase_increment;
+				*time_stretch_ratio = stretch_to_undo_pitch(pitch_adjust_neutral_value, *phase_increment);
 			}
 			*phase_increment = static_cast<uint64_t>(*phase_increment) * static_cast<uint64_t>(sample_length_in_samples)
 			                   / *note_length_in_samples;
@@ -283,14 +283,23 @@ bool SampleSource::get_pitch_and_speed_params(uint32_t* phase_increment, uint32_
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from render() when doing a "late start" on a Sample and we need to disregard any pitch modulation, so send this the
 // non-modulated phaseIncrement.
+uint32_t SampleSource::stretch_to_undo_pitch(int32_t pitch_adjust_neutral_value, uint32_t phase_increment) {
+	if (phase_increment != stretch_cache_increment_ || pitch_adjust_neutral_value != stretch_cache_neutral_) {
+		stretch_cache_neutral_ = pitch_adjust_neutral_value;
+		stretch_cache_increment_ = phase_increment;
+		stretch_cache_ratio_ =
+		    static_cast<uint32_t>((static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / phase_increment);
+	}
+	return stretch_cache_ratio_;
+}
+
 uint32_t SampleSource::get_speed_param_for_no_syncing(int32_t phase_increment, int32_t pitch_adjust_neutral_value) {
 
 	uint32_t time_stretch_ratio = kMaxSampleValue;
 
 	// If pitch and time being treated independently, then achieve this by adjusting stretch to counteract pitch
 	if (port_->pitch_and_speed_independent() && phase_increment != pitch_adjust_neutral_value) {
-		time_stretch_ratio =
-		    (static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / static_cast<uint32_t>(phase_increment);
+		time_stretch_ratio = stretch_to_undo_pitch(pitch_adjust_neutral_value, static_cast<uint32_t>(phase_increment));
 	}
 
 	// And whether or not that was the case, if there's a manual adjustment to time-stretch, apply that now

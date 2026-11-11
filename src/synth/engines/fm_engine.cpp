@@ -18,6 +18,7 @@
 #include "synth/engines/fm_engine.h"
 #include "arm_neon_shim.h" // NEON intrinsics (SIMDe on host) for the operator renders
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/phasor.h"
@@ -230,8 +231,8 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
 		// Raw: the increment is an integer division of the levels' difference
-		pass.source_amplitude_increments[s] = Q<31>::from_raw(
-		    static_cast<int32_t>(pass.source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw()) / num_samples);
+		pass.source_amplitude_increments[s] = Q<31>::from_raw(dsp::divide_by_small(
+		    static_cast<int32_t>(pass.source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw()), num_samples));
 	}
 	levels.filter_gain_last_time = c.filter_gain;
 
@@ -241,8 +242,8 @@ FMEngine::Pass FMEngine::begin(const EngineBlock& block) const {
 		pass.modulators_active[m] = (c.modulator_volume[m] != Q<31>{} || last != Q<31>{});
 		if (pass.modulators_active[m]) {
 			// Raw: the increment is an integer division of the levels' difference
-			pass.modulator_amplitude_increments[m] =
-			    Q<31>::from_raw(static_cast<int32_t>(c.modulator_volume[m].raw() - last.raw()) / num_samples);
+			pass.modulator_amplitude_increments[m] = Q<31>::from_raw(
+			    dsp::divide_by_small(static_cast<int32_t>(c.modulator_volume[m].raw() - last.raw()), num_samples));
 		}
 	}
 

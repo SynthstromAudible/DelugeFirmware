@@ -99,6 +99,8 @@ set(buffer_view_spec_DEPS)
 set(fixed_point_neon_spec_DEPS)
 # The Ramp spec needs no sources: ramp.h is header-only.
 set(ramp_spec_DEPS)
+# The divide spec needs no sources: divide.h is header-only.
+set(divide_spec_DEPS)
 # The StereoSample spec needs no sources: stereo_sample.h is header-only.
 set(stereo_sample_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.

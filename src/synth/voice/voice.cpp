@@ -17,6 +17,7 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
@@ -379,8 +380,8 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 			overall_osc_amplitude_last_time_ = overall_osc_amplitude;
 		}
 		// Raw: the increment is an integer division of the change
-		overall_oscillator_amplitude_increment =
-		    Q<31>::from_raw((overall_osc_amplitude.raw() - overall_osc_amplitude_last_time_.raw()) / num_samples);
+		overall_oscillator_amplitude_increment = Q<31>::from_raw(
+		    dsp::divide_by_small(overall_osc_amplitude.raw() - overall_osc_amplitude_last_time_.raw(), num_samples));
 	}
 
 	done_first_render_ = true;

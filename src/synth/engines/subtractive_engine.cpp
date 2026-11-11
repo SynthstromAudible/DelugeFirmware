@@ -16,6 +16,7 @@
  */
 #include "synth/engines/subtractive_engine.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include <algorithm>
 #include <array>
@@ -105,9 +106,9 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 	Pass pass{.amplitudes = levels.amplitudes_last_time};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		// Raw: the increment is an integer division of the levels' difference
-		pass.amplitude_increments[s] =
-		    dsp::Q<31>::from_raw(static_cast<int32_t>(source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw())
-		                         / block.num_samples);
+		pass.amplitude_increments[s] = dsp::Q<31>::from_raw(dsp::divide_by_small(
+		    static_cast<int32_t>(source_amplitudes[s].raw() - levels.amplitudes_last_time[s].raw()),
+		    block.num_samples));
 	}
 	levels.filter_gain_last_time = c.filter_gain;
 

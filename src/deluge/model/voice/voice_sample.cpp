@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -816,8 +817,10 @@ readCachedWindow:
 
 		int32_t samplesTilThisWindowEnd;
 		if constexpr (kCacheByteDepth == 3) {
+			// Divide by a constant for each channel count, so it's a multiply rather than a call to the software divide
 			samplesTilThisWindowEnd =
-			    (uint32_t)(bytesTilThisWindowEnd - 1) / (uint8_t)(sampleSourceNumChannels * kCacheByteDepth)
+			    ((sampleSourceNumChannels == 2) ? (uint32_t)(bytesTilThisWindowEnd - 1) / (2 * kCacheByteDepth)
+			                                    : (uint32_t)(bytesTilThisWindowEnd - 1) / kCacheByteDepth)
 			    + 1; // Round up
 		}
 		else {
@@ -1397,8 +1400,8 @@ readTimestretched:
 				int32_t newerHopAmplitudeAfter =
 				    as_clamp_then_shift<Q<31>>(Q<24>::from_raw(timeStretcher->crossfadeProgress)).raw();
 
-				int32_t newerHopAmplitudeIncrement =
-				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
+				int32_t newerHopAmplitudeIncrement = deluge::dsp::divide_by_small(
+				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow), (int32_t)numSamplesThisTimestretchedRead);
 				int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
 				// The pre-cache amplitude times each Q31 hop amplitude (and its step), moved back to Q31

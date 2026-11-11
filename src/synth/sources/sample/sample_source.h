@@ -66,8 +66,15 @@ private:
 	/// The non-syncing time-stretch ratio: counteract pitch when pitch/speed are independent, then apply the manual
 	/// time-stretch amount. Also used for the late-start position (with the non-modulated phaseIncrement).
 	uint32_t get_speed_param_for_no_syncing(int32_t phase_increment, int32_t pitch_adjust_neutral_value);
+	/// The time-stretch ratio that undoes a pitch change, (@p pitch_adjust_neutral_value << 24) / @p phase_increment.
+	/// The 64-bit divide is a call to the software divide and the pitch rarely changes between blocks, so the last
+	/// one is kept.
+	uint32_t stretch_to_undo_pitch(int32_t pitch_adjust_neutral_value, uint32_t phase_increment);
 
 	SamplePlaybackPort* port_;
+	int32_t stretch_cache_neutral_ = 0;
+	uint32_t stretch_cache_increment_ = 0;
+	uint32_t stretch_cache_ratio_ = 0;
 };
 
 } // namespace deluge::synth

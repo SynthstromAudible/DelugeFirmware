@@ -979,6 +979,23 @@ include any non-periodic response of the loop, which the measure does not separa
 same measure, reads −29.8 dB at f0 = 0.0213 and −66.8 dB at 0.005, so a BLEP voice's high notes carry the oscillator's aliasing as well as
 the ladder's.
 
+## Per-block divides
+
+The voice's per-block ramp steps (a level's change over the block, divided by the block's length) and the time-stretch
+ratio that undoes a pitch change called the software divide: the A9 has no integer divide instruction. From upstream's
+#5256, the ramps divide by a reciprocal from a table (`dsp::divide_by_small`, `dsp-next/core/divide.h`, exact for every
+dividend and divisors up to 256), and the sample source keeps the last time-stretch ratio, whose 64-bit divide reruns
+only when the pitch changes. Measured on 2026-11-11 with the stream bench (Cordae playing, then Glitchy_2 loaded while
+it plays), three interleaved runs of each image, cycles per voice block from `STREAM-BENCH-RENDER`:
+
+| phase | before (mean, range) | after (mean, range) | delta |
+|---|---:|---:|---:|
+| steady | 21,069 (21,030-21,125) | 20,620 (20,552-20,747) | -2.1% |
+| load while playing | 21,160 (20,855-21,319) | 20,632 (20,238-20,953) | -2.5% |
+
+The steady ranges are apart. The Sound's patching (`sound_patch`, the matrix evaluator) moved by +39 cycles a block
+in the same images with its code unchanged: the evaluator moved from a 16-byte-aligned address to a 4-byte-aligned one.
+
 ## Open questions
 
 - Whether NEON-sourced stores overlap with arithmetic in kernels that do much more work per sample than a gain. The

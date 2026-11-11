@@ -16,6 +16,7 @@
  */
 
 #include "synth/engines/dual_source_engine.h"
+#include "dsp-next/core/divide.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h"
@@ -73,8 +74,9 @@ std::array<dsp::UQ<32>, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(cons
 std::array<int32_t, kNumSources> DualSourceEngine::wave_index_increments(const EngineBlock& block) {
 	std::array<int32_t, kNumSources> increments{};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		increments[s] = static_cast<int32_t>(block.dual.wave_index[s] - block.levels->wave_indexes_last_time[s])
-		                / block.num_samples;
+		increments[s] = dsp::divide_by_small(
+		    static_cast<int32_t>(block.dual.wave_index[s] - block.levels->wave_indexes_last_time[s]),
+		    block.num_samples);
 	}
 	return increments;
 }
