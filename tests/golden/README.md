@@ -91,3 +91,14 @@ CI with no corpus, instead of *Skipped*. `--update` re-baselines these alongside
 the corpus. To make one: author a minimal song that exercises the structure, run
 it through the driver until it *settles* (exit 0), commit the emitted `gen1`, and
 `--update` (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
+
+## Menu reference tables (`ui/menu_oracle/`)
+
+Upstream `main`'s menu answers, one row per answer, which the ported menu's scenes specs check it against
+(`sim/scenes_spec/support/oracle_table.h` reads them; every spec that reads a table also checks it asked every
+row). A row is `path<TAB>column<TAB>values…`: the path names what answered (a menu node by its child positions
+under its root, a setting case, a shortcut cell), the column the question, the values the answer. `pixels/` holds
+panels as PBM, `pads/` pad images.
+
+These are reference data, not recordings: nothing in the tree regenerates them. Change a row only to follow `main`,
+reading its source with `git show origin/main:<path>`, and name that source in the commit.
