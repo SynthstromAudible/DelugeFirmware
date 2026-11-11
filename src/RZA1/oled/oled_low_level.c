@@ -53,6 +53,16 @@ static volatile uint32_t cv_pending_data[NUM_PHYSICAL_CV_CHANNELS];
 static uint8_t cv_next_channel    = 0;
 static uint8_t cv_sending_channel = 0;
 
+static inline bool isCVChannelPending(uint8_t channel)
+{
+    return cv_pending_channels & (1u << channel);
+}
+
+static inline uint8_t nextCVChannel(uint8_t channel)
+{
+    return (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+}
+
 void sendCVWord(uint32_t message);
 bool sendPriorityCVIfPending();
 static void finishOledSettling();
@@ -266,12 +276,14 @@ bool sendPriorityCVIfPending()
     {
         return false;
     }
+    // Round-robin: starting from the channel whose turn it is, send the first one with a word waiting,
+    // so a busy channel can't starve the other. Always terminates since at least one channel is pending.
     uint8_t channel = cv_next_channel;
-    while (!(cv_pending_channels & (1u << channel)))
+    while (!isCVChannelPending(channel))
     {
-        channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+        channel = nextCVChannel(channel);
     }
-    cv_next_channel = (channel + 1) % NUM_PHYSICAL_CV_CHANNELS;
+    cv_next_channel = nextCVChannel(channel);
     cv_pending_channels &= ~(1u << channel);
     cv_sending         = true;
     cv_sending_channel = channel;
