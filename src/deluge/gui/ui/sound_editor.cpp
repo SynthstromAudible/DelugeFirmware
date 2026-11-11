@@ -2112,6 +2112,8 @@ doMIDIOrCV:
 	    horizontal_menu_child->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
+		// The browser won't be opened so forget where maybeGetParentMenu() said to go once a file is chosen
+		sampleBrowser.clearMenuHeadingTo();
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
