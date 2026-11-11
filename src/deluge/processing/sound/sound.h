@@ -97,6 +97,16 @@ constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
 	return number * 21474836;
 }
 
+/// @brief What a Sound's voices are made of, as far as their cost goes: the prior a Sound not yet measured is costed
+/// at (see deluge::audio::VoiceCost).
+enum class VoiceKind : uint8_t {
+	OSCILLATOR, ///< Subtractive, every source an oscillator or a wavetable.
+	SAMPLE,     ///< Subtractive, at least one source a sample or a live input.
+	FM,         ///< FM, or any DX7 source.
+	RINGMOD,    ///< Ring modulation.
+};
+inline constexpr size_t kNumVoiceKinds = 4;
+
 class Sound : public ModControllableAudio, public virtual Voiced {
 public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
@@ -349,6 +359,8 @@ public:
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
 	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synth_mode; }
+	/// @brief What this Sound's voices are made of, as far as their cost goes.
+	[[nodiscard]] VoiceKind voiceKind() const;
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
 	// effects (voice kill, mod-knob and filter swaps) — for the load path.
 	void assignSynthMode(SynthMode value);

@@ -2020,6 +2020,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
 		const deluge::synth::matrix::MatrixBlock controlBlock = matrixBlock(*paramManager, PresetGather::ROUTED);
 
+#if defined(DELUGE_STREAM_BENCH)
+		const auto kind = static_cast<size_t>(voiceKind());
+#endif
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2047,8 +2050,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                    .noise = &deluge::synth_noise,
 			                                });
 #if defined(DELUGE_STREAM_BENCH)
-			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;
+			const uint32_t voiceCycles = deluge::bench::render_profile::cycles() - t0;
+			deluge::bench::render_profile::g_totals.voice_render += voiceCycles;
 			++deluge::bench::render_profile::g_totals.voice_blocks;
+			deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += voiceCycles;
+			deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += sound_mono.size();
 #endif
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
@@ -3831,6 +3837,24 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 }
 
 // This function has to give the same outcome as Source::renderInStereo()
+VoiceKind Sound::voiceKind() const {
+	if (getSynthMode() == SynthMode::RINGMOD) {
+		return VoiceKind::RINGMOD;
+	}
+	bool sample = false;
+	for (const Source& source : sources) {
+		if (source.oscType == OscType::DX7) {
+			return VoiceKind::FM;
+		}
+		sample |= source.oscType == OscType::SAMPLE || source.oscType == OscType::INPUT_L
+		          || source.oscType == OscType::INPUT_R || source.oscType == OscType::INPUT_STEREO;
+	}
+	if (getSynthMode() == SynthMode::FM) {
+		return VoiceKind::FM;
+	}
+	return sample ? VoiceKind::SAMPLE : VoiceKind::OSCILLATOR;
+}
+
 bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 

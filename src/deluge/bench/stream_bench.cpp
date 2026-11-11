@@ -304,6 +304,23 @@ bool printReportLine() {
 		          static_cast<unsigned long>(g.render.note_ons), static_cast<unsigned long>(g.render.culled_voices),
 		          static_cast<long>(g.render.direness_max));
 		return true;
+	case 20: {
+		const auto& r = g.render;
+		auto perBlock = [&](size_t k) -> unsigned long {
+			return r.voice_frames_by_kind[k] == 0
+			           ? 0UL
+			           : static_cast<unsigned long>(r.voice_render_by_kind[k] * 128 / r.voice_frames_by_kind[k]);
+		};
+		D_PRINTLN("STREAM-BENCH-VOICEKIND phase=%s osc_cpb=%lu sample_cpb=%lu fm_cpb=%lu ringmod_cpb=%lu "
+		          "osc_vf=%lu sample_vf=%lu fm_vf=%lu ringmod_vf=%lu note_on_cyc=%lu",
+		          g.phase, perBlock(0), perBlock(1), perBlock(2), perBlock(3),
+		          static_cast<unsigned long>(r.voice_frames_by_kind[0]),
+		          static_cast<unsigned long>(r.voice_frames_by_kind[1]),
+		          static_cast<unsigned long>(r.voice_frames_by_kind[2]),
+		          static_cast<unsigned long>(r.voice_frames_by_kind[3]),
+		          static_cast<unsigned long>(r.note_ons == 0 ? 0 : r.voice_note_on / r.note_ons));
+		return true;
+	}
 	default:
 		return false;
 	}

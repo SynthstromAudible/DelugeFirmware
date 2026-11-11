@@ -16,8 +16,10 @@ struct Totals {
 	uint32_t voice_blocks;
 	uint32_t sound_blocks;
 	uint32_t note_ons;
-	uint32_t culled_voices; ///< Voices the CPU cull released, terminated or killed.
-	int32_t direness_max;   ///< The highest CPU direness the render reached.
+	uint32_t culled_voices;           ///< Voices the CPU cull released, terminated or killed.
+	int32_t direness_max;             ///< The highest CPU direness the render reached.
+	uint64_t voice_render_by_kind[4]; ///< voice_render's cycles, split by VoiceKind.
+	uint64_t voice_frames_by_kind[4]; ///< Voice-frames rendered (voices × window frames), split by VoiceKind.
 };
 
 extern Totals g_totals;
