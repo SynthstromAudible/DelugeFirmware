@@ -4,6 +4,11 @@
 //! go through `deluge_bsp::flash::MAP`, which refuses ranges outside the writable windows.
 //! Command-mode access is safe because the code runs from SRAM, not XIP.
 //!
+//! Erase and program leave interrupts enabled, so the audio tier keeps rendering through a settings
+//! save (a 64 KB erase is about a quarter of a second). That holds because nothing in the image is
+//! in the flash (code, data, handlers: all in SRAM and SDRAM), and the only reader of the window is
+//! [`deluge_flash_read`], on the task tier, which is the tier these calls block.
+//!
 //! The app's settings live at `flash::DELUGE_SETTINGS_OFFSET` (0x7F000, where the original
 //! firmware keeps them), not the app-loader's `flash::SETTINGS_OFFSET`: sharing a sector makes
 //! each clobber the other on every boot, forcing a factory reset.
@@ -72,8 +77,9 @@ pub extern "C" fn deluge_flash_erase(offset: u32) {
         "flash: erase settings off={offset:#x} (abs={:#x})",
         flash::DELUGE_SETTINGS_OFFSET + offset
     );
-    // SAFETY: MAP guards the writable window, and no code executes from SPI flash.
-    unsafe { flash::MAP.erase_sector(flash::DELUGE_SETTINGS_OFFSET + offset) };
+    // SAFETY: MAP guards the writable window; nothing that can run meanwhile reads or executes from
+    // the flash window (see the module docs).
+    unsafe { flash::MAP.erase_sector_interruptible(flash::DELUGE_SETTINGS_OFFSET + offset) };
 }
 
 /// Host: erases the whole store to 0xFF. It is one sector, so any `offset` erases all of it, as a
@@ -96,7 +102,8 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
         "flash: program settings off={offset:#x} len={len} first8={:02x?}",
         &data[..data.len().min(8)]
     );
-    unsafe { flash::MAP.program(flash::DELUGE_SETTINGS_OFFSET + offset, data) };
+    // SAFETY: as `deluge_flash_erase`.
+    unsafe { flash::MAP.program_interruptible(flash::DELUGE_SETTINGS_OFFSET + offset, data) };
     // Diagnostic: log the read-back through both windows.
     let cached = spibsc::SPI_FLASH_BASE + flash::DELUGE_SETTINGS_OFFSET + offset;
     let uncached = cached + UNCACHED_FLASH_MIRROR;
