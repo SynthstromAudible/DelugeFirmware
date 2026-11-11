@@ -38,6 +38,12 @@ DelugeStatus deluge_memory_region(uint8_t /*index*/, DelugeMemoryRegion* /*out*/
 uint64_t deluge_clock_now(void) noexcept {
 	return 0;
 }
+uint32_t deluge_cycle_count(void) noexcept {
+	return 0;
+}
+uint32_t deluge_cycle_hz(void) noexcept {
+	return 0;
+}
 void deluge_clock_delay_ms(uint32_t /*ms*/) noexcept {
 }
 void deluge_clock_delay_us(uint32_t /*us*/) noexcept {

@@ -189,6 +189,8 @@ pub fn start() -> ! {
     let pins = board.pins;
     // SAFETY: once, straight after the MMU and caches came up, before anything reads the flash.
     unsafe { crate::peripherals::flash::seal_xip_window() };
+    // The cycle counter the app measures its render with, before anything reads it.
+    crate::services::enable_cycle_counter();
 
     // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
     // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers

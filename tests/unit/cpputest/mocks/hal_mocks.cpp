@@ -43,3 +43,10 @@ extern "C" void deluge_app_wake(uint32_t) noexcept {
 extern "C" uint64_t deluge_clock_now() noexcept {
 	return 0;
 }
+// No cycle counter: the voice budget reads that as nothing measured.
+extern "C" uint32_t deluge_cycle_count() noexcept {
+	return 0;
+}
+extern "C" uint32_t deluge_cycle_hz() noexcept {
+	return 0;
+}

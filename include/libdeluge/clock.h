@@ -36,6 +36,15 @@ extern "C" {
 /// counter width. [task] [audio] [isr]
 uint64_t deluge_clock_now(void) DELUGE_NOEXCEPT;
 
+/// The CPU's free-running cycle counter: 32 bits, wrapping (about 10.8 s on the device), so difference two readings
+/// within that. For measuring short spans of work, such as a block's render or one Sound's voices. Reads 0 where
+/// the board has no cycle counter (see deluge_cycle_hz). [task] [audio] [isr]
+uint32_t deluge_cycle_count(void) DELUGE_NOEXCEPT;
+
+/// The rate deluge_cycle_count counts at, in Hz; 0 where there is no cycle counter (the host), which callers read
+/// as "nothing measured". [task] [audio] [isr]
+uint32_t deluge_cycle_hz(void) DELUGE_NOEXCEPT;
+
 /// Busy-wait for approximately `us` microseconds. Use sparingly; prefer the
 /// scheduler for anything non-trivial. [task]
 void deluge_clock_delay_us(uint32_t us) DELUGE_NOEXCEPT;

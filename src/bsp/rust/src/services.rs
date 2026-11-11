@@ -199,6 +199,50 @@ pub extern "C" fn deluge_clock_now() -> u64 {
     embassy_time::Instant::now().as_micros()
 }
 
+/// The CPU's cycle counter (PMCCNTR), started at boot by [`enable_cycle_counter`]; 0 on the host.
+/// `[task]` `[audio]` `[isr]`
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_cycle_count() -> u32 {
+    #[cfg(target_os = "none")]
+    {
+        let v: u32;
+        // SAFETY: a read of the PMU cycle count register, which has no side effects.
+        unsafe {
+            core::arch::asm!("mrc p15, 0, {}, c9, c13, 0", out(reg) v, options(nomem, nostack, preserves_flags))
+        };
+        v
+    }
+    #[cfg(not(target_os = "none"))]
+    0
+}
+
+/// The rate [`deluge_cycle_count`] counts at: the A9's core clock Iφ, the crystal × 30 (the CPG's
+/// PLL, with Iφ at ×1), so 396,768,750 Hz on the Deluge's 13.2256 MHz crystal; 0 on the host,
+/// which has no counter. `[task]` `[audio]` `[isr]`
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_cycle_hz() -> u32 {
+    #[cfg(target_os = "none")]
+    {
+        deluge_bsp::system::CLOCKS.extal_hz() * 30
+    }
+    #[cfg(not(target_os = "none"))]
+    0
+}
+
+/// Starts the cycle counter: PMCR.E on, PMCR.D off (every cycle, not every 64th), the counter's
+/// enable bit set.
+#[cfg(target_os = "none")]
+pub fn enable_cycle_counter() {
+    // SAFETY: PMU configuration at boot, before anything reads the counter; no memory is touched.
+    unsafe {
+        let mut pmcr: u32;
+        core::arch::asm!("mrc p15, 0, {}, c9, c12, 0", out(reg) pmcr, options(nomem, nostack));
+        pmcr = (pmcr | 1) & !(1 << 3);
+        core::arch::asm!("mcr p15, 0, {}, c9, c12, 0", in(reg) pmcr, options(nomem, nostack));
+        core::arch::asm!("mcr p15, 0, {}, c9, c12, 1", in(reg) 1u32 << 31, options(nomem, nostack));
+    }
+}
+
 // ── memory.h ────────────────────────────────────────────────────────────────
 //
 // The device's regions come from linker symbols; the host app's, below, are process statics.
@@ -365,6 +409,8 @@ abi_pin!(
     deluge_clock_delay_ms,
     deluge_clock_delay_us,
     deluge_clock_now,
+    deluge_cycle_count,
+    deluge_cycle_hz,
     deluge_in_audio_context,
     deluge_in_interrupt,
     deluge_log,
