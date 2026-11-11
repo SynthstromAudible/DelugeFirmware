@@ -1,11 +1,12 @@
 //! The audio tier's render driver: calls the app's `deluge_app_audio_tick` each time the codec's
-//! transmit ring completes a block (device) or on a fixed cadence (host), and keeps the running
-//! average of how long a tick that rendered took.
+//! transmit ring completes a block (device) or on a fixed cadence (host). The app measures its own
+//! render's cost (the voice budget, with `deluge_cycle_count`).
 //!
 //! On the device the tick renders the blocks the drive plans (`deluge_audio_drive`): the block
 //! signal paces it, and the drive's own position check decides what it renders, so a wake that
 //! merges several completions still catches up.
 
+#[cfg(not(target_os = "none"))]
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use embassy_time::Duration;
@@ -16,27 +17,6 @@ use embassy_time::{Instant, Timer};
 const PERIOD_US: u64 = 64 * 1_000_000 / 44_100;
 /// The pause after each tick: 8 frames at 44.1 kHz, in µs.
 const BACKOFF_US: u64 = 8 * 1_000_000 / 44_100;
-
-/// Running average of a rendering tick's duration, in µs: `avg = (avg + sample) / 2` over the ticks
-/// that rendered at least one block.
-static AVG_TICK_US: AtomicU64 = AtomicU64::new(0);
-
-/// Records one rendering tick's duration into the average.
-pub fn record_tick_us(us: u64) {
-    let avg = AVG_TICK_US.load(Ordering::Relaxed);
-    AVG_TICK_US.store((avg + us) / 2, Ordering::Relaxed);
-}
-
-/// The running average of a rendering tick's duration, in µs.
-pub fn average_tick_us() -> u64 {
-    AVG_TICK_US.load(Ordering::Relaxed)
-}
-
-/// Zeroes the average, so a host test starts from a known state.
-#[cfg(not(target_os = "none"))]
-pub fn reset_average_for_test() {
-    AVG_TICK_US.store(0, Ordering::Relaxed);
-}
 
 /// The tick cadence override, in µs, for a harness that needs one block per period.
 ///
@@ -100,12 +80,8 @@ pub async fn render_task() {
         Timer::at(deadline).await;
         #[cfg(all(feature = "audio-timing", target_os = "none"))]
         crate::audio::device::note_wake_late((Instant::now() - deadline).as_micros() as u32);
-        let start = Instant::now();
         // SAFETY: the app's render tick, called only from this task, on the audio tier.
-        let rendered = unsafe { crate::sys::deluge_app_audio_tick() };
-        if rendered {
-            record_tick_us((Instant::now() - start).as_micros());
-        }
+        unsafe { crate::sys::deluge_app_audio_tick() };
         Timer::after(backoff).await;
     }
 }
@@ -118,10 +94,10 @@ async fn block_signal_loop(signal: rza1_hal::ring_buffer::BlockSignal) -> ! {
     let mut last_wake = Instant::now();
     loop {
         signal.wait().await;
-        let start = Instant::now();
         #[cfg(feature = "audio-timing")]
         {
             // How much longer than one block this wake came after the last.
+            let start = Instant::now();
             let gap = (start - last_wake).as_micros();
             crate::audio::device::note_wake_late(
                 gap.saturating_sub(crate::audio::block_drive::BLOCK_US) as u32,
@@ -129,17 +105,6 @@ async fn block_signal_loop(signal: rza1_hal::ring_buffer::BlockSignal) -> ! {
             last_wake = start;
         }
         // SAFETY: the app's render tick, called only from this task, on the audio tier.
-        let rendered = unsafe { crate::sys::deluge_app_audio_tick() };
-        if rendered {
-            record_tick_us((Instant::now() - start).as_micros());
-        }
+        unsafe { crate::sys::deluge_app_audio_tick() };
     }
 }
-
-/// The render's average tick time, in seconds; the C-ABI form of [`average_tick_us`].
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_render_time_average() -> f64 {
-    average_tick_us() as f64 / 1_000_000.0
-}
-
-abi_pin!(deluge_audio_render_time_average);

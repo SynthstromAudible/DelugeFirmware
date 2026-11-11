@@ -90,10 +90,6 @@ uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t
 /// from the sample the next render starts with. On the Embassy host every stamp converts to 0 ("now"). [task]
 uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 
-/// @brief The running average of a render tick that rendered at least one block, in seconds:
-/// `avg = (avg + sample) / 2` per tick. Voice culling reads it. [task] [audio]
-double deluge_audio_render_time_average(void) DELUGE_NOEXCEPT;
-
 /// @brief The frames each `deluge_app_render()` call renders: the board's fixed block. [task] [audio]
 uint32_t deluge_audio_block_frames(void) DELUGE_NOEXCEPT;
 

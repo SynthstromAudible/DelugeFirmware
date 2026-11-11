@@ -111,7 +111,6 @@
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
 #include "processing/engines/render_domain.h"
-#include "processing/engines/render_load.h"
 
 namespace params = deluge::modulation::params;
 
@@ -746,11 +745,6 @@ void runRoutine() {
 
 extern uint16_t g_usb_usbmode;
 
-uint8_t numRoutines = 0;
-
-/// What the renders have cost per frame lately: what the CPU cull and direness decide on (see RenderLoad).
-deluge::audio::RenderLoad renderLoad;
-
 deluge::audio::VoiceBudget voiceBudget;
 
 void admitVoice(uint32_t cost) {
@@ -1210,12 +1204,10 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 #endif
 
 	if (!offline) {
-		renderLoad.add(getSystemTime() - current_time, frames);
 		voiceBudget.end_block(deluge_cycle_count() - blockStart);
 	}
 
 	bypassCulling = false;
-	numRoutines += 1;
 
 	// Periodic loader-instrumentation dump. Every ~2 s of audio time: an integer compare on the
 	// render path, and a print two orders of magnitude rarer than the renders themselves.
@@ -1770,7 +1762,6 @@ uint32_t routine() {
 	}
 #endif
 
-	numRoutines = 0;
 	uint32_t renders = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		// The BSP renders the fixed blocks its queue is missing, calling deluge_app_render() once per block.

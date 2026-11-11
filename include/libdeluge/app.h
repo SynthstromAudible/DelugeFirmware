@@ -98,9 +98,8 @@ void deluge_app_render_skipped(void) DELUGE_NOEXCEPT;
 
 /// @brief One tick of the render, called by the BSP's audio tier on its poll cadence.
 ///
-/// Renders as far as the output has played. Returns true if the tick rendered at least one block,
-/// the ticks the BSP's render-time average counts. Returns false, and renders nothing, while an
-/// offline export owns rendering or the render is locked.
+/// Renders as far as the output has played. Returns true if the tick rendered at least one block;
+/// false, having rendered nothing, while an offline export owns rendering or the render is locked.
 /// [audio]
 bool deluge_app_audio_tick(void) DELUGE_NOEXCEPT;
 
