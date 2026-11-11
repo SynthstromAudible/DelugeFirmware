@@ -20,9 +20,8 @@ const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
   <Badge text={version} variant="tip" />
   <strong>{label}.</strong>
   <span data-pagefind-ignore>
-    Unwritten: you can help by {
-      editUrl ? <a href={editUrl}>adding content</a> : "adding content"
-    }.
+    Unwritten: you can help by{" "}
+    {editUrl ? <a href={editUrl}>adding content</a> : "adding content"}.
     <slot />
   </span>
 </div>

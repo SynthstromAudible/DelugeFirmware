@@ -37,20 +37,18 @@ const tiles = SHAPES[group].map((shape) => {
   data-group={group}
 >
   <div class="gb-lfo-grid">
-    {
-      tiles.map((t) => (
-        <div class="gb-lfo-tile" data-shape={t.id}>
-          <p class="gb-lfo-name">{t.name}</p>
-          <svg
-            class="gb-lfo-plot"
-            viewBox={`0 0 ${TILE.w} ${TILE.h}`}
-            role="img"
-            aria-label={`${t.name}, ${kind} oscillator`}
-            set:html={t.svg}
-          />
-        </div>
-      ))
-    }
+    {tiles.map((t) => (
+      <div class="gb-lfo-tile" data-shape={t.id}>
+        <p class="gb-lfo-name">{t.name}</p>
+        <svg
+          class="gb-lfo-plot"
+          viewBox={`0 0 ${TILE.w} ${TILE.h}`}
+          role="img"
+          aria-label={`${t.name}, ${kind} oscillator`}
+          set:html={t.svg}
+        />
+      </div>
+    ))}
   </div>
   <div class="gb-lfo-actions" hidden>
     <button type="button" class="gb-lfo-pause" aria-pressed="false">

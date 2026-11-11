@@ -32,6 +32,8 @@ jobs:
     uses: ./.github/workflows/build.yml
     needs: beta-detect
     if: needs.beta-detect.outputs.new-commits > 0
+    permissions:
+      contents: write
     with:
       firmware-retention-days: 30
       build-type: "Release"
@@ -40,6 +42,8 @@ jobs:
   beta-publish:
     uses: ./.github/workflows/publish.yml
     needs: beta-build
+    permissions:
+      contents: write
     with:
       tag: "beta"
       branch: "release/1.3"

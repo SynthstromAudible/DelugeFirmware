@@ -19,6 +19,7 @@
 #include "dsp/stereo_sample.h"
 #include "mem_functions.h"
 #include "memory/memory_allocator_interface.h"
+#include <algorithm>
 #include <cmath>
 #include <optional>
 
@@ -188,4 +189,26 @@ void DelayBuffer::setupForRender(int32_t rate) {
 	    .rateMultiple = rateMultiple,
 	    .writeSizeAdjustment = writeSizeAdjustment,
 	};
+}
+
+bool DelayBuffer::clearAndReadNative(std::span<StereoSample> output) {
+	StereoSample* pos = current_;
+	bool wrapped = false;
+	auto sample = output.begin();
+	while (sample != output.end()) {
+		// Moving on can't wrap until the last sample of the buffer, so read up to there without checking
+		auto runEnd = sample + std::min(output.end() - sample, end_ - 1 - pos);
+		for (; sample != runEnd; sample++) {
+			*pos = {0, 0};
+			*sample = *++pos;
+		}
+		if (sample != output.end()) {
+			*pos = {0, 0};
+			pos = start_;
+			wrapped = true;
+			*sample++ = *pos;
+		}
+	}
+	current_ = pos;
+	return wrapped;
 }

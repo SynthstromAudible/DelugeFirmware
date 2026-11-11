@@ -13,7 +13,9 @@ const { id, page } = Astro.props
 
 <figure class="figure-pending" id={id}>
   <figcaption>Figure pending (guidebook p.{page})</figcaption>
-  <div class="figure-pending-text"><slot /></div>
+  <div class="figure-pending-text">
+    <slot />
+  </div>
 </figure>
 
 <style>

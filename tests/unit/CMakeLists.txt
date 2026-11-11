@@ -102,6 +102,7 @@ add_executable(UnitTests
         hold_pulse_tests.cpp
         track_pad_gesture_tests.cpp
         track_parameter_edit_tests.cpp
+        fast_divide_tests.cpp
         tick_interpolation_tests.cpp
 )
 add_test(NAME UnitTests

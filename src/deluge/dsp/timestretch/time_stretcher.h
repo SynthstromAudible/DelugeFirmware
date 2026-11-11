@@ -46,6 +46,7 @@ public:
 	void beenUnassigned();
 	void unassignAllReasonsForPercLookahead();
 	void unassignAllReasonsForPercCacheClusters();
+	void unassignAllReasonsForHopBack();
 	bool hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int32_t numChannels,
 	            int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int32_t playDirection,
 	            LoopType loopingType, int32_t priorityRating);
@@ -99,6 +100,14 @@ public:
 	Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed
 	                                     // Clusters, basically
 
+	// Reasons for the earliest Clusters of audio data the next hop could start the new play-head in, so they're
+	// enqueued for loading well before the hop. Otherwise, nothing would load audio before the start marker, which
+	// a hop can reach back into when time is slowed down a lot, e.g. when pitched up with the length kept.
+	Cluster* clustersForHopBack[kNumClustersLoadedAhead];
+
+	// A reason for the Cluster a failed hop wanted to start in, so it stays in the loading queue until we try again
+	Cluster* clusterForHopRetry;
+
 	// Where the last call to Sample::fillPercCache() started, and where it left the perc cache zone ending, so we can
 	// skip calling it (and its walk through the Sample's metadata, which lives in SDRAM) until the lookahead has moved
 	// on a bit
@@ -109,6 +118,9 @@ public:
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,
 	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);
+	void updateClustersForHopBack(Sample* sample, int64_t samplePos, int32_t timeStretchRatio, int32_t phaseIncrement,
+	                              int32_t playDirection, int32_t priorityRating);
+	void keepClusterForHopRetry(Cluster* cluster);
 };
 
 inline int32_t getTotalDifferenceAbs(int32_t* totals1, int32_t* totals2) {
