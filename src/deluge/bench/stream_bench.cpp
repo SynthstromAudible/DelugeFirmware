@@ -295,12 +295,14 @@ bool printReportLine() {
 		return true;
 	case 19:
 		D_PRINTLN("STREAM-BENCH-RENDER phase=%s voice_render_kcyc=%lu sound_patch_kcyc=%lu "
-		          "voice_note_on_kcyc=%lu voice_blocks=%lu sound_blocks=%lu note_ons=%lu",
+		          "voice_note_on_kcyc=%lu voice_blocks=%lu sound_blocks=%lu note_ons=%lu culled_voices=%lu "
+		          "direness_max=%ld",
 		          g.phase, static_cast<unsigned long>(g.render.voice_render / 1000),
 		          static_cast<unsigned long>(g.render.sound_patch / 1000),
 		          static_cast<unsigned long>(g.render.voice_note_on / 1000),
 		          static_cast<unsigned long>(g.render.voice_blocks), static_cast<unsigned long>(g.render.sound_blocks),
-		          static_cast<unsigned long>(g.render.note_ons));
+		          static_cast<unsigned long>(g.render.note_ons), static_cast<unsigned long>(g.render.culled_voices),
+		          static_cast<long>(g.render.direness_max));
 		return true;
 	default:
 		return false;

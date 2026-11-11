@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "bench/render_profile.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
@@ -787,6 +788,9 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			}
 			// soft cull
 			forceReleaseOneVoice(numSamples);
+#if defined(DELUGE_STREAM_BENCH)
+			deluge::bench::render_profile::g_totals.culled_voices += num_to_kill + num_to_terminate + 1;
+#endif
 
 #if ALPHA_OR_BETA_VERSION
 			logAction("hard cull");
@@ -800,6 +804,9 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		else if (num_samples_over_limit >= 0) {
 			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
 				forceReleaseOneVoice(numSamples);
+#if defined(DELUGE_STREAM_BENCH)
+				deluge::bench::render_profile::g_totals.culled_voices += 1;
+#endif
 				if (numRoutines > 0) {
 					culled = true;
 					D_PRINTLN("culling in second routine");
@@ -812,6 +819,9 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (num_samples_over_limit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
 			forceReleaseOneVoice(numSamples);
+#if defined(DELUGE_STREAM_BENCH)
+			deluge::bench::render_profile::g_totals.culled_voices += 1;
+#endif
 			culled = true;
 		}
 	}
@@ -844,6 +854,10 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		if (newDireness >= cpuDireness) {
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
+#if defined(DELUGE_STREAM_BENCH)
+			deluge::bench::render_profile::g_totals.direness_max =
+			    std::max(deluge::bench::render_profile::g_totals.direness_max, cpuDireness);
+#endif
 		}
 		auto numAudio = currentSong ? currentSong->countAudioVoices() : 0;
 		auto numVoice = getNumVoices();
