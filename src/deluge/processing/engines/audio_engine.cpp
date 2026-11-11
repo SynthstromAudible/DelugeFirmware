@@ -111,6 +111,7 @@
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
 #include "processing/engines/render_domain.h"
+#include "processing/engines/render_load.h"
 
 namespace params = deluge::modulation::params;
 
@@ -750,6 +751,9 @@ extern uint16_t g_usb_usbmode;
 
 uint8_t numRoutines = 0;
 
+/// What the renders have cost per frame lately: what the CPU cull and direness decide on (see RenderLoad).
+deluge::audio::RenderLoad renderLoad;
+
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
@@ -840,11 +844,9 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 // not in header (private to audio engine)
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
-	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(deluge_audio_render_time_average() * 44100.);
-	size_t nonDSP = numSamples - dspTime;
-	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
-	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
+	// The time a 128-frame block takes at the renders' recent cost per frame, in samples: per frame, so it reads the
+	// same whatever window the board renders and however many renders its tick holds
+	numSamples = renderLoad.block_samples();
 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
@@ -1233,6 +1235,10 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 #if DO_AUDIO_LOG
 	dumpAudioLog();
 #endif
+
+	if (!offline) {
+		renderLoad.add(getSystemTime() - current_time, frames);
+	}
 
 	bypassCulling = false;
 	numRoutines += 1;
