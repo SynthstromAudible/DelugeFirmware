@@ -29,11 +29,8 @@ namespace deluge::audio {
 /// None of them ring-modulates, so ring modulation takes the largest.
 inline constexpr std::array<uint32_t, 4> kPriorCyclesPerVoiceBlock = {37'000, 90'000, 15'000, 90'000};
 
-/// @brief Predicted cycles for a voice's note-on, until a Sound has measured its own: the stream bench's largest mean.
-inline constexpr uint32_t kPriorNoteOnCycles = 27'000;
-
-/// @brief What one of a Sound's voices costs for one 128-frame block, and what its note-on costs, in CPU cycles,
-/// measured from its renders and smoothed.
+/// @brief What one of a Sound's voices costs for one 128-frame block, in CPU cycles, measured from its renders and
+/// smoothed.
 ///
 /// Renders accumulate until they hold four blocks of one voice, so a short window's per-call overhead does not
 /// dominate a reading; each such fold moves the reading halfway to it.
@@ -59,25 +56,15 @@ public:
 		accFrames_ = 0;
 	}
 
-	/// @brief Notes one voice note-on that took @p cycles.
-	void add_note_on(uint32_t cycles) {
-		noteOn_ = noteOnMeasured_ ? (noteOn_ + cycles) / 2 : cycles;
-		noteOnMeasured_ = true;
-	}
-
 	/// @brief Cycles one voice costs for a 128-frame block, or @p prior before any measurement.
 	[[nodiscard]] uint32_t per_block(uint32_t prior) const { return measured_ ? perBlock_ : prior; }
-	/// @brief Cycles a note-on costs, or @p prior before any measurement.
-	[[nodiscard]] uint32_t note_on(uint32_t prior) const { return noteOnMeasured_ ? noteOn_ : prior; }
 	[[nodiscard]] bool measured() const { return measured_; }
 
 private:
 	uint64_t accCycles_ = 0;
 	uint32_t accFrames_ = 0;
 	uint32_t perBlock_ = 0;
-	uint32_t noteOn_ = 0;
 	bool measured_ = false;
-	bool noteOnMeasured_ = false;
 };
 
 /// @brief The cycles one block's render may spend, against what the last blocks spent and what has been admitted

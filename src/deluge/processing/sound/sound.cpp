@@ -916,16 +916,12 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
 	}
-	const uint32_t noteOnStart = deluge_cycle_count();
-	const bool started = deluge::bench::render_profile::timed_note_on([&] {
-		return voice->note_on(
-		    *modelStack,
-		    noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, false, fromMIDIChannel, mpeValues),
-		    sampleSyncLength, ticksLate);
-	});
-	lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
-	voiceCost_.add_note_on(lastNoteOnCycles_);
-	if (started) {
+	if (deluge::bench::render_profile::timed_note_on([&] {
+		    return voice->note_on(
+		        *modelStack,
+		        noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, false, fromMIDIChannel, mpeValues),
+		        sampleSyncLength, ticksLate);
+	    })) {
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
 			voice->kernel.envelope(e).resume_attack(envelopePositions[e]);
 		}
@@ -1004,9 +1000,9 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		try {
 			built.emplace(AudioEngine::VoicePool::get().acquire(*this));
 		} catch (deluge::exception e) {
-			// No memory for another voice: start this note on one of this Sound's own voices instead, as a new note
-			// (what the voice limit's steal has always done). That voice is in voices_ and the render plays it, so
-			// all of it runs with the render excluded.
+			// No memory for another voice: start this note as a new note on one of this Sound's own voices, as the
+			// voice limit's steal does. That voice is in voices_ and the render plays it, so all of it runs with the
+			// render excluded.
 			AudioExcludedSection section;
 			if (voices_.empty()) {
 				return; // nothing to take: the note cannot play
@@ -1017,16 +1013,12 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (sideChainSendLevel != 0) [[unlikely]] {
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
-			const uint32_t noteOnStart = deluge_cycle_count();
-			const bool started = deluge::bench::render_profile::timed_note_on([&] {
-				return voice->note_on(*modelStack,
-				                      noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
-				                                  fromMIDIChannel, mpeValues),
-				                      sampleSyncLength, ticksLate);
-			});
-			lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
-			voiceCost_.add_note_on(lastNoteOnCycles_);
-			if (!started) {
+			if (!deluge::bench::render_profile::timed_note_on([&] {
+				    return voice->note_on(*modelStack,
+				                          noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
+				                                      fromMIDIChannel, mpeValues),
+				                          sampleSyncLength, ticksLate);
+			    })) {
 				this->freeActiveVoice(voice, modelStack);
 			}
 		}
@@ -1043,26 +1035,25 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                                  fromMIDIChannel, mpeValues),
 				                      sampleSyncLength, ticksLate);
 			});
-			lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
+			const uint32_t noteOnCycles = deluge_cycle_count() - noteOnStart;
 			if (started) {
-				// Publish: the voice limit, the push and the skipping status in one step the render cannot split. The
-				// note-on's cost is noted here too, where the render cannot be reading it.
+				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
 				AudioExcludedSection section;
-				voiceCost_.add_note_on(lastNoteOnCycles_);
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
 				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
 					this->terminateOneActiveVoice(); // a voice for a voice: the block's cost stays
 				}
 				else {
-					// The note-on's own cycles count only when it ran in the render, against the block it ran in.
-					const uint32_t noteOn = deluge_in_audio_context() ? lastNoteOnCycles() : 0;
+					// The note-on's own cycles count only when it ran in the render, against the block it ran in;
+					// elsewhere the render may have preempted it, and its reading would hold whole blocks.
+					const uint32_t noteOn = deluge_in_audio_context() ? noteOnCycles : 0;
 					AudioEngine::admitVoice(predictedVoiceCycles() + noteOn);
 				}
 				publishVoice(std::move(voice));
 				reassessRenderSkippingStatus(modelStack);
 			}
 			// A voice whose note-on failed goes back to the pool when `built` goes out of scope; the render never saw
-			// it. The note-on still runs to its end below (portamento's last note, MIDI out), as it always did.
+			// it. The note-on still runs to its end below (portamento's last note, MIDI out).
 		}
 	}
 
@@ -1554,8 +1545,8 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
-	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
-	// pending - otherwise it'd stay pending forever (issue #2262)
+	// The arpeggiator's pending notes are started only from render(), so keep rendering while one is pending:
+	// otherwise it would stay pending forever (issue #2262)
 	bool skippingStatusNow =
 	    (voices_.empty() && (core().delay().repeatsUntilAbandon() == 0u)
 	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(core()))
@@ -2038,7 +2029,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
-			++voicesRendered;
+			// A voice's first render call (just_created not yet set) only marks it created and renders nothing: only
+			// the calls after it count toward the voices' cost.
+			const bool renders = voice->just_created;
+			voicesRendered += renders ? 1 : 0;
 			bool stillGoing = voice->render(controlBlock, voiceConfig,
 			                                {
 			                                    .buffer = sound_mono.data(),
@@ -2058,7 +2052,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			deluge::bench::render_profile::g_totals.voice_render += voiceCycles;
 			++deluge::bench::render_profile::g_totals.voice_blocks;
 			deluge::bench::render_profile::g_totals.voice_render_by_kind[kind] += voiceCycles;
-			deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += sound_mono.size();
+			deluge::bench::render_profile::g_totals.voice_frames_by_kind[kind] += renders ? sound_mono.size() : 0;
 #endif
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");

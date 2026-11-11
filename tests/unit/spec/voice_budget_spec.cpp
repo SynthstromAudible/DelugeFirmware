@@ -66,15 +66,6 @@ describe voice_cost("deluge::audio::VoiceCost", ${
 		cost.add_render(1'000, 0);
 		expect(cost.measured()).to_be_false();
 	});
-
-	it("reads the note-on prior until one is measured, then moves halfway", _ {
-		VoiceCost cost;
-		expect(cost.note_on(9'000)).to_equal(9'000u);
-		cost.add_note_on(4'000);
-		expect(cost.note_on(9'000)).to_equal(4'000u);
-		cost.add_note_on(8'000);
-		expect(cost.note_on(9'000)).to_equal(6'000u);
-	});
 });
 
 describe voice_budget("deluge::audio::VoiceBudget", ${

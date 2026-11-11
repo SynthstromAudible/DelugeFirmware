@@ -763,7 +763,9 @@ void admitVoice(uint32_t cost) {
 /// @brief The backstop: culls voices only when the last block's render ran past its period, or the board counted an
 ///        overrun. The voice budget keeps a block from being planned past what it can render; this catches what it
 ///        mispredicted.
-void cullVoices() {
+/// @param bypassed The render asked to skip culling this block: the overshoot is still noted, so the next block
+///        compares against this one, but nothing is culled.
+void cullVoices(bool bypassed) {
 	static int32_t lastOver = 0;
 	static uint32_t lastOverruns = deluge_audio_overruns();
 	const uint32_t overruns = deluge_audio_overruns();
@@ -774,6 +776,11 @@ void cullVoices() {
 	lastOverruns = overruns;
 	if (over < 0 && !overran) {
 		return; // the render fits its period: no cull, and no need to count the voices
+	}
+	if (bypassed) {
+		D_PRINTLN("numSamples %d", voiceBudget.last_samples());
+		logAction("skipped cull");
+		return;
 	}
 
 	const int32_t numAudio = currentSong ? currentSong->countAudioVoices() : 0;
@@ -846,13 +853,7 @@ inline void setDireness() {
 		}
 	}
 
-	if (!bypassCulling) {
-		cullVoices();
-	}
-	else if (voiceBudget.last_samples() >= static_cast<int32_t>(deluge_audio_block_frames())) {
-		D_PRINTLN("numSamples %d", voiceBudget.last_samples());
-		logAction("skipped cull");
-	}
+	cullVoices(bypassCulling);
 }
 
 // MIDI / gate output scheduling. Gates changed while finalizing a render window are captured along with their sample

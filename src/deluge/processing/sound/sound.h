@@ -467,15 +467,11 @@ public:
 
 	/// @brief Get the voices for this sound
 	[[nodiscard]] const deluge::fast_vector<ActiveVoice>& voices() const { return voices_; }
-	/// @brief What one of this Sound's voices costs for a 128-frame block, and what its note-on costs, as measured.
-	[[nodiscard]] const deluge::audio::VoiceCost& voiceCost() const { return voiceCost_; }
 	/// @brief The cycles a new voice of this Sound is predicted to cost per 128-frame block: its measured cost, or
 	/// its kind's prior until it has one.
 	[[nodiscard]] uint32_t predictedVoiceCycles() const {
 		return voiceCost_.per_block(deluge::audio::kPriorCyclesPerVoiceBlock[static_cast<size_t>(voiceKind())]);
 	}
-	/// @brief The cycles the most recent voice note-on took: read inside that same note-on.
-	[[nodiscard]] uint32_t lastNoteOnCycles() const { return lastNoteOnCycles_; }
 
 	/// @brief Releases a given voice from the Sound
 	/// @param voice The voice to release
@@ -493,11 +489,9 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
-	/// @brief Its voices' measured cost. Renders write it on the audio tier; note-ons write theirs with the render
-	/// excluded, so the two never overlap.
+	/// @brief Its voices' measured cost per 128-frame block: written by the render, read by a note-on with the render
+	/// excluded.
 	deluge::audio::VoiceCost voiceCost_;
-	/// @brief What the most recent voice note-on took, in cycles: written and read within one note-on.
-	uint32_t lastNoteOnCycles_ = 0;
 	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
