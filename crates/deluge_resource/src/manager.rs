@@ -27,6 +27,29 @@ const NONE: u32 = u32::MAX;
 /// pointer that is not resident.
 pub(crate) const NO_SLOT: u32 = u32::MAX;
 
+/// Upper bound on the eviction heap's depth, which bounds every sift: a binary heap of up to
+/// 2^32 slots is at most 32 levels deep.
+const HEAP_MAX_DEPTH: u32 = 32;
+
+/// Heap entries [`Manager::heap_pick`] can hold on its frontier while it walks past a protected
+/// asset's chunks.
+const PICK_FRONTIER: usize = 16;
+
+/// Victims [`Manager::evict_lowest`] tries before giving up; another only after a pick fails to
+/// re-validate.
+const EVICT_ATTEMPTS: usize = 8;
+
+/// The outcome of [`Manager::heap_pick`].
+#[derive(Clone, Copy)]
+enum Pick {
+    /// The slot to evict.
+    Found(usize),
+    /// Nothing outside the protected asset is evictable.
+    Empty,
+    /// The frontier filled; see [`Manager::heap_pick_linear`].
+    Overflow,
+}
+
 /// Reconstructs chunk `index` of `owner` into `dest[..len]`; returns false if it cannot be rebuilt
 /// now (e.g. the backing file vanished).
 pub type MaterializeFn = unsafe extern "C" fn(
@@ -92,6 +115,10 @@ struct AssetSlot {
     resident: u32,
     /// One past the highest index any chunk of this asset has been indexed at.
     index_end: u32,
+    /// For an `evict_tail_first` asset, the highest index of its resident chunks, the only one
+    /// that may be evicted; `NONE` when none is resident or the asset is not tail-first. Kept by
+    /// [`Manager::index_insert`] and [`Manager::index_remove`].
+    tail: u32,
 }
 impl AssetSlot {
     const EMPTY: AssetSlot = AssetSlot {
@@ -110,6 +137,7 @@ impl AssetSlot {
         self_protect: false,
         resident: 0,
         index_end: 0,
+        tail: NONE,
     };
 }
 
@@ -143,8 +171,14 @@ struct ChunkSlot {
     /// lease. Callers that hold their own lease across the load use plain `loader_enqueue` and
     /// leave it false.
     queue_leased: bool,
-    // Adopted chunks (asset == NONE) carry their own cost and evict callback; unused otherwise.
+    /// Reconstruction cost for the eviction rank: an adopted chunk's own, otherwise a copy of its
+    /// asset's `source.cost`, refreshed by [`Manager::heap_sync`] so the heap compares slots
+    /// without reading the asset table.
     cost: u32,
+    /// The asset's `soft_refs > 0`, cached for the eviction rank like `cost`. False for adopted
+    /// chunks.
+    soft_ref: bool,
+    // Adopted chunks (asset == NONE) carry their own evict callback; unused otherwise.
     adopt_evict: Option<AdoptEvictFn>,
     adopt_ctx: *mut c_void,
     /// Next slot in this chunk's `(asset, index)` bucket chain, or `NONE`. Meaningful only for
@@ -156,6 +190,8 @@ struct ChunkSlot {
     /// Next slot in this chunk's backing-pointer bucket chain, or `NONE`. Every occupied slot is in
     /// this index, adopted ones included, because backing pointers are unique.
     ptr_next: u32,
+    /// Position in [`Manager::evict_heap`], or `NONE` while the chunk is not evictable.
+    heap_pos: u32,
 }
 impl ChunkSlot {
     const EMPTY: ChunkSlot = ChunkSlot {
@@ -172,11 +208,13 @@ impl ChunkSlot {
         queue_priority: 0,
         queue_leased: false,
         cost: 0,
+        soft_ref: false,
         adopt_evict: None,
         adopt_ctx: ptr::null_mut(),
         hash_next: NONE,
         ptr_next: NONE,
         queued_at: 0,
+        heap_pos: NONE,
     };
 
     /// Queues this chunk at `priority` (lower = more urgent). While it is already queued the
@@ -220,7 +258,8 @@ pub struct Stats {
     pub adopts: u64,       // objects adopted
     pub evictions_by_cost: [u64; COST_BUCKETS], // evictions by cost class
     // Table-scan cost: `*_calls` counts lookups, `*_slots` the slots visited. Each visit is a
-    // masked read of a slot in SDRAM, so visits are the cost driver.
+    // masked read of a slot in SDRAM, so visits are the cost driver. For evictions, the slots
+    // visited are eviction-heap steps: the pick, its sift out of the heap, and any tail walk.
     pub scan_resident_calls: u64,
     pub scan_resident_slots: u64,
     pub scan_ptr_calls: u64,
@@ -283,6 +322,15 @@ pub struct Manager {
     /// evicted keeps its bit until a scan finds it stale and clears it (see
     /// [`Manager::for_each_queued`]).
     queued_bits: &'static [Cell<u32>],
+    /// Binary min-heap of the evictable chunks' slot indices, ordered by [`Manager::evicts_before`];
+    /// `evict_heap[..heap_len]` is live and each member's `ChunkSlot::heap_pos` points back at its entry.
+    ///
+    /// A slot is a member exactly when [`Manager::is_evictable`] holds. Every write that can change
+    /// that, or the slot's rank, calls [`Manager::heap_sync`] in the same masked window, so a
+    /// preempting eviction always finds the heap and the table in agreement and its root is the
+    /// chunk a full scan would pick.
+    evict_heap: &'static [Cell<u32>],
+    heap_len: Cell<u32>,
     /// Where the next free-slot search starts: just past the slot last handed out. Occupied slots
     /// pile up at the start of the table, so a search from slot 0 walked past all of them.
     free_hint: Cell<u32>,
@@ -450,6 +498,9 @@ impl Manager {
     ///
     /// Adopted chunks (`asset == NONE`) are not indexed: they all share the key `(NONE, 0)`, so
     /// they would form one long chain whose unlink is a linear scan.
+    ///
+    /// A chunk above a tail-first asset's tail becomes the tail, and the old tail leaves the
+    /// eviction heap; the caller syncs slot `i` itself.
     fn index_insert(&self, i: usize) {
         let mut s = self.chunks[i].get();
         if s.asset == NONE {
@@ -463,7 +514,18 @@ impl Manager {
             let mut a = cell.get();
             a.resident = a.resident.saturating_add(1);
             a.index_end = a.index_end.max(s.index.saturating_add(1));
+            let old_tail = a.tail;
+            let new_tail = a.evict_tail_first && (old_tail == NONE || s.index > old_tail);
+            if new_tail {
+                a.tail = s.index;
+            }
             cell.set(a);
+            // The old tail stops being a candidate; the new slot is synced by the caller.
+            if new_tail && old_tail != NONE {
+                if let Some(t) = self.find_indexed_unmasked(s.asset, old_tail) {
+                    self.heap_sync(t);
+                }
+            }
         }
     }
 
@@ -479,10 +541,37 @@ impl Manager {
     /// Unlinks slot `i` from its bucket. Same masking contract as [`Manager::index_insert`]; must
     /// run before the slot is cleared, since it walks `hash_next`. Takes the key explicitly because
     /// the caller is overwriting the slot.
-    fn index_remove(&self, i: usize, asset: u32, index: u32) {
+    ///
+    /// When `i` is a tail-first asset's tail, the next-highest resident chunk becomes the tail and
+    /// joins the eviction heap. Returns the heap steps taken.
+    fn index_remove(&self, i: usize, asset: u32, index: u32) -> u32 {
         if asset == NONE {
-            return; // never indexed — see index_insert
+            return 0; // never indexed — see index_insert
         }
+        self.index_unlink(i, asset, index);
+        let Some(cell) = self.assets.get(asset as usize) else {
+            return 0;
+        };
+        let mut a = cell.get();
+        if !a.evict_tail_first || a.tail != index {
+            return 0;
+        }
+        // From `index` itself: a duplicate chunk at the same index (see `find_resident`) stays
+        // the tail, as it would for a scan.
+        a.tail = if a.resident == 0 {
+            NONE
+        } else {
+            self.highest_indexed_below(asset, index.saturating_add(1))
+        };
+        cell.set(a);
+        match self.find_indexed_unmasked(asset, a.tail) {
+            Some(t) if a.tail != NONE => self.heap_sync(t),
+            _ => 0,
+        }
+    }
+
+    /// The bucket-chain half of [`Manager::index_remove`].
+    fn index_unlink(&self, i: usize, asset: u32, index: u32) {
         let b = self.bucket_of(asset, index);
         let head = self.buckets[b].get();
         if head == i as u32 {
@@ -538,6 +627,129 @@ impl Manager {
             let s = m_get(&self.chunks[i]);
             !s.backing.is_null() && s.asset == asset && s.index == index
         })
+    }
+
+    /// The chunk a whole-table scan would evict with `protect` protected: the lowest
+    /// [`evict_rank`], first slot on a tie, among unleased clean chunks not of `protect`, taking
+    /// only the highest resident index of a tail-first asset. The ground truth the tests compare
+    /// the eviction heap against.
+    #[cfg(test)]
+    pub(crate) fn evict_candidate_linear(&self, protect: u32) -> Option<usize> {
+        let mut best: Option<usize> = None;
+        let mut best_rank = (u8::MAX, u64::MAX, u64::MAX);
+        for i in 0..self.chunks.len() {
+            let s = m_get(&self.chunks[i]);
+            if s.backing.is_null() || s.leases != 0 || s.dirty {
+                continue;
+            }
+            // NONE means no protection (and also marks adopted chunks, so test it first).
+            if protect != NONE && s.asset == protect {
+                continue;
+            }
+            let (cost, soft_refs) = if s.asset == NONE {
+                (s.cost, 0)
+            } else if (s.asset as usize) < self.assets.len() {
+                let a = m_get(&self.assets[s.asset as usize]);
+                if a.evict_tail_first && !self.is_highest_resident(s.asset, s.index) {
+                    continue;
+                }
+                (a.source.cost, a.soft_refs)
+            } else {
+                continue;
+            };
+            let rank = evict_rank(soft_refs, cost, s.size, s.recency);
+            if rank < best_rank {
+                best_rank = rank;
+                best = Some(i);
+            }
+        }
+        best
+    }
+
+    /// The chunk [`Manager::evict_lowest`] would evict with `protect` protected, and whether
+    /// finding it overflowed the frontier.
+    #[cfg(test)]
+    pub(crate) fn evict_candidate_indexed(&self, protect: u32) -> (Option<usize>, bool) {
+        let mut visited = 0;
+        let pick = {
+            let _m = Masked::enter();
+            self.heap_pick(protect, &mut visited)
+        };
+        match pick {
+            Pick::Found(i) => (Some(i), false),
+            Pick::Empty => (None, false),
+            Pick::Overflow => (self.heap_pick_linear(protect, &mut visited), true),
+        }
+    }
+
+    /// Asserts the eviction heap's invariants: every entry points back at its position, every
+    /// parent is evicted before its children, a slot is in the heap exactly when it is evictable
+    /// (with the tail-first rule checked by a table scan), and members' cached rank inputs match
+    /// their asset.
+    #[cfg(test)]
+    pub(crate) fn assert_evict_heap_consistent(&self) {
+        let len = self.heap_len.get() as usize;
+        assert!(len <= self.evict_heap.len(), "heap_len {len} past capacity");
+        for pos in 0..len {
+            let slot = self.evict_heap[pos].get() as usize;
+            assert!(
+                slot < self.chunks.len(),
+                "heap[{pos}] = {slot} out of range"
+            );
+            assert_eq!(
+                self.chunks[slot].get().heap_pos as usize,
+                pos,
+                "slot {slot} does not point back at heap[{pos}]"
+            );
+            if pos > 0 {
+                let parent = self.evict_heap[(pos - 1) / 2].get() as usize;
+                assert!(
+                    self.evicts_before(parent, slot),
+                    "heap order: parent slot {parent} ranks after child slot {slot}"
+                );
+            }
+        }
+        for (i, cell) in self.chunks.iter().enumerate() {
+            let s = cell.get();
+            let tail_ok = s.asset == NONE
+                || !self.assets[s.asset as usize].get().evict_tail_first
+                || self.is_highest_resident(s.asset, s.index);
+            let evictable = !s.backing.is_null() && s.leases == 0 && !s.dirty && tail_ok;
+            assert_eq!(
+                s.heap_pos != NONE,
+                evictable,
+                "slot {i}: heap membership disagrees with the slot (asset {}, index {}, leases {}, \
+                 dirty {})",
+                s.asset,
+                s.index,
+                s.leases,
+                s.dirty
+            );
+            if evictable && s.asset != NONE {
+                let a = self.assets[s.asset as usize].get();
+                assert_eq!(s.cost, a.source.cost, "slot {i}: stale cached cost");
+                assert_eq!(
+                    s.soft_ref,
+                    a.soft_refs > 0,
+                    "slot {i}: stale cached soft_ref"
+                );
+            }
+        }
+        for (ai, cell) in self.assets.iter().enumerate() {
+            let a = cell.get();
+            if !a.evict_tail_first {
+                continue;
+            }
+            let highest = self
+                .chunks
+                .iter()
+                .map(Cell::get)
+                .filter(|s| !s.backing.is_null() && s.asset == ai as u32)
+                .map(|s| s.index)
+                .max()
+                .unwrap_or(NONE);
+            assert_eq!(a.tail, highest, "asset {ai}: stale tail");
+        }
     }
 
     fn find_by_ptr(&self, p: *mut u8) -> Option<usize> {
@@ -606,7 +818,8 @@ impl Manager {
     }
 
     /// Finds the slot backing `p`, then in one masked window re-validates `backing == p` (the
-    /// slot may have been reused since the lookup) and applies `f`. Returns whether it mutated.
+    /// slot may have been reused since the lookup), applies `f` and resyncs the slot's
+    /// eviction-heap entry. Returns whether it mutated.
     fn rmw_by_ptr(&self, p: *mut u8, f: impl FnOnce(&mut ChunkSlot)) -> bool {
         let Some(i) = self.find_by_ptr(p) else {
             return false;
@@ -618,13 +831,19 @@ impl Manager {
         }
         f(&mut s);
         self.chunks[i].set(s);
+        self.heap_sync(i);
         true
     }
 
-    /// Masked RMW on slot `i`. Re-validating the slot (it may have emptied since the lookup) is
-    /// the closure's job.
+    /// Masked RMW on slot `i`, followed in the same window by [`Manager::heap_sync`].
+    /// Re-validating the slot (it may have emptied since the lookup) is the closure's job.
     fn rmw_by_ptr_slot<R>(&self, i: usize, f: impl FnOnce(&mut ChunkSlot) -> R) -> R {
-        m_rmw(&self.chunks[i], f)
+        let _m = Masked::enter();
+        let mut s = self.chunks[i].get();
+        let r = f(&mut s);
+        self.chunks[i].set(s);
+        self.heap_sync(i);
+        r
     }
 
     /// Returns the slot index backing `p`, or [`NO_SLOT`] if `p` is not resident.
@@ -763,6 +982,7 @@ impl Manager {
         }
         s.queue_at(priority);
         self.chunks[i].set(s);
+        self.heap_sync(i);
         self.mark_queued(i);
     }
 
@@ -833,7 +1053,7 @@ impl Manager {
         if i >= self.chunks.len() {
             return;
         }
-        m_rmw(&self.chunks[i], |s| {
+        self.rmw_by_ptr_slot(i, |s| {
             if s.queued {
                 s.queued = false;
             }
@@ -928,13 +1148,299 @@ impl Manager {
         found
     }
 
-    /// Returns whether no resident chunk of `asset` has an index above `index`; gates tail-first
-    /// eviction. O(n).
+    /// Returns whether no resident chunk of `asset` has an index above `index`, by scanning the
+    /// table: the ground truth for `AssetSlot::tail` in the tests.
+    #[cfg(test)]
     fn is_highest_resident(&self, asset: u32, index: u32) -> bool {
         !(0..self.chunks.len()).any(|i| {
             let s = m_get(&self.chunks[i]);
             !s.backing.is_null() && s.asset == asset && s.index > index
         })
+    }
+
+    // The eviction heap (see `Manager::evict_heap`). Every function here expects the mask held, and
+    // reads slots and heap entries with plain `get`.
+
+    /// Whether `s` may be evicted now: occupied, unleased and clean, adopted or of an in-range
+    /// asset, and, for an `evict_tail_first` asset, its highest resident index (`AssetSlot::tail`).
+    fn is_evictable(&self, s: &ChunkSlot) -> bool {
+        if s.backing.is_null() || s.leases != 0 || s.dirty {
+            return false;
+        }
+        if s.asset == NONE {
+            return true;
+        }
+        match self.assets.get(s.asset as usize) {
+            Some(cell) => {
+                let a = cell.get();
+                !a.evict_tail_first || a.tail == s.index
+            }
+            None => false,
+        }
+    }
+
+    /// Whether slot `i` is evicted before slot `j`: the lower [`evict_rank`], then the lower slot
+    /// index, which is the choice a scan from slot 0 keeping the first minimum makes.
+    fn evicts_before(&self, i: usize, j: usize) -> bool {
+        let rank = |s: ChunkSlot| evict_rank(s.soft_ref as u32, s.cost, s.size, s.recency);
+        (rank(self.chunks[i].get()), i) < (rank(self.chunks[j].get()), j)
+    }
+
+    /// The slot at heap position `pos`, or `None` past the end or for a corrupt entry.
+    fn heap_entry(&self, pos: usize) -> Option<usize> {
+        if pos >= self.heap_len.get() as usize {
+            return None;
+        }
+        let slot = self.evict_heap.get(pos)?.get() as usize;
+        (slot < self.chunks.len()).then_some(slot)
+    }
+
+    /// Stores `slot` at heap position `pos` and points the slot back at it.
+    fn heap_place(&self, pos: usize, slot: usize) {
+        self.evict_heap[pos].set(slot as u32);
+        let mut s = self.chunks[slot].get();
+        s.heap_pos = pos as u32;
+        self.chunks[slot].set(s);
+    }
+
+    /// Moves the entry at `pos` up past every parent it is evicted before. Returns the levels
+    /// moved; at most the heap depth, so a corrupt heap cannot loop.
+    fn heap_sift_up(&self, mut pos: usize) -> u32 {
+        let Some(slot) = self.heap_entry(pos) else {
+            return 0;
+        };
+        let mut steps = 0;
+        while pos > 0 && steps < HEAP_MAX_DEPTH {
+            let parent = (pos - 1) / 2;
+            let Some(p) = self.heap_entry(parent) else {
+                break;
+            };
+            if !self.evicts_before(slot, p) {
+                break;
+            }
+            self.heap_place(pos, p);
+            pos = parent;
+            steps += 1;
+        }
+        self.heap_place(pos, slot);
+        steps
+    }
+
+    /// Moves the entry at `pos` down below every child evicted before it. Returns the levels
+    /// moved, bounded like [`Manager::heap_sift_up`].
+    fn heap_sift_down(&self, mut pos: usize) -> u32 {
+        let Some(slot) = self.heap_entry(pos) else {
+            return 0;
+        };
+        let mut steps = 0;
+        while steps < HEAP_MAX_DEPTH {
+            let Some(mut child) = self.heap_entry(2 * pos + 1) else {
+                break;
+            };
+            let mut child_pos = 2 * pos + 1;
+            if let Some(right) = self.heap_entry(2 * pos + 2) {
+                if self.evicts_before(right, child) {
+                    child = right;
+                    child_pos = 2 * pos + 2;
+                }
+            }
+            if !self.evicts_before(child, slot) {
+                break;
+            }
+            self.heap_place(pos, child);
+            pos = child_pos;
+            steps += 1;
+        }
+        self.heap_place(pos, slot);
+        steps
+    }
+
+    /// Restores heap order around `pos` after its entry's rank changed. Returns the levels moved.
+    fn heap_fix(&self, pos: usize) -> u32 {
+        match self.heap_sift_up(pos) {
+            0 => self.heap_sift_down(pos),
+            up => up,
+        }
+    }
+
+    /// The heap position slot `i` claims, if the heap agrees.
+    fn heap_pos_of(&self, i: usize) -> Option<usize> {
+        let pos = self.chunks[i].get().heap_pos as usize;
+        (self.heap_entry(pos) == Some(i)).then_some(pos)
+    }
+
+    /// Removes slot `i` from the heap, if it is there. Returns the heap steps taken.
+    fn heap_remove(&self, i: usize) -> u32 {
+        let mut steps = 0;
+        if let Some(pos) = self.heap_pos_of(i) {
+            let last = self.heap_len.get() as usize - 1;
+            let moved = self.heap_entry(last);
+            self.heap_len.set(last as u32);
+            if let Some(moved) = moved.filter(|_| pos != last) {
+                self.heap_place(pos, moved);
+                steps = 1 + self.heap_fix(pos);
+            }
+        }
+        let mut s = self.chunks[i].get();
+        s.heap_pos = NONE;
+        self.chunks[i].set(s);
+        steps
+    }
+
+    /// Brings slot `i`'s heap membership and position in line with its state: inserts it once it
+    /// becomes evictable, removes it once it stops, and re-sifts it when its rank may have changed.
+    /// Refreshes the slot's cached `cost` and `soft_ref` from its asset first. Returns the heap
+    /// steps taken.
+    ///
+    /// Call in the masked window of every write that can change [`Manager::is_evictable`] or the
+    /// rank: `backing`, `leases`, `dirty`, `recency`, the asset's `soft_refs`, `evict_tail_first`
+    /// and `tail`. The window then holds at most a sift: the heap depth, about 13 levels.
+    fn heap_sync(&self, i: usize) -> u32 {
+        let Some(cell) = self.chunks.get(i) else {
+            return 0;
+        };
+        let mut s = cell.get();
+        if !self.is_evictable(&s) {
+            return if s.heap_pos == NONE {
+                0
+            } else {
+                self.heap_remove(i)
+            };
+        }
+        if s.asset != NONE {
+            let a = self.assets[s.asset as usize].get();
+            s.cost = a.source.cost;
+            s.soft_ref = a.soft_refs > 0;
+            cell.set(s);
+        }
+        if let Some(pos) = self.heap_pos_of(i) {
+            return self.heap_fix(pos);
+        }
+        let len = self.heap_len.get() as usize;
+        if len >= self.evict_heap.len() {
+            return 0; // only reachable through a corrupt heap; the chunk just stays resident
+        }
+        self.heap_len.set(len as u32 + 1);
+        self.heap_place(len, i);
+        1 + self.heap_sift_up(len)
+    }
+
+    /// The eviction candidate: the heap root, or while `protect` names an asset, the lowest-ranked
+    /// member of any other asset.
+    ///
+    /// With an asset protected, a best-first walk down from the root expands only that asset's
+    /// entries: every unexpanded entry lies under the frontier, so the first frontier minimum not
+    /// of `protect` is the answer. The frontier is a fixed array; `Pick::Overflow` means it filled
+    /// before the walk ended and the caller must fall back to [`Manager::heap_pick_linear`].
+    fn heap_pick(&self, protect: u32, visited: &mut u64) -> Pick {
+        let Some(root) = self.heap_entry(0) else {
+            return Pick::Empty;
+        };
+        *visited += 1;
+        if protect == NONE || self.chunks[root].get().asset != protect {
+            return Pick::Found(root);
+        }
+        let mut frontier = [0u32; PICK_FRONTIER];
+        let mut n = 0;
+        let expand = |pos: usize, frontier: &mut [u32; PICK_FRONTIER], n: &mut usize| {
+            for child in [2 * pos + 1, 2 * pos + 2] {
+                if self.heap_entry(child).is_some() {
+                    if *n == PICK_FRONTIER {
+                        return false;
+                    }
+                    frontier[*n] = child as u32;
+                    *n += 1;
+                }
+            }
+            true
+        };
+        if !expand(0, &mut frontier, &mut n) {
+            return Pick::Overflow;
+        }
+        // Each round expands one heap entry, so the heap size bounds the walk.
+        for _ in 0..self.heap_len.get() {
+            if n == 0 {
+                return Pick::Empty; // every member belongs to the protected asset
+            }
+            let mut best = 0;
+            for k in 1..n {
+                if let (Some(a), Some(b)) = (
+                    self.heap_entry(frontier[k] as usize),
+                    self.heap_entry(frontier[best] as usize),
+                ) {
+                    if self.evicts_before(a, b) {
+                        best = k;
+                    }
+                }
+            }
+            let pos = frontier[best] as usize;
+            *visited += 1;
+            let Some(slot) = self.heap_entry(pos) else {
+                return Pick::Empty;
+            };
+            if self.chunks[slot].get().asset != protect {
+                return Pick::Found(slot);
+            }
+            n -= 1;
+            frontier[best] = frontier[n];
+            if !expand(pos, &mut frontier, &mut n) {
+                return Pick::Overflow;
+            }
+        }
+        Pick::Empty
+    }
+
+    /// [`Manager::heap_pick`]'s answer by a pass over every heap member, for when its frontier
+    /// overflows: more than `PICK_FRONTIER` of the protected asset's chunks rank first. Each entry
+    /// is read in its own masked window, so the caller re-validates the pick.
+    fn heap_pick_linear(&self, protect: u32, visited: &mut u64) -> Option<usize> {
+        let mut best: Option<usize> = None;
+        for pos in 0..self.evict_heap.len() {
+            let _m = Masked::enter();
+            let Some(slot) = self.heap_entry(pos) else {
+                break;
+            };
+            *visited += 1;
+            if self.chunks[slot].get().asset == protect {
+                continue;
+            }
+            if best.is_none_or(|b| self.evicts_before(slot, b)) {
+                best = Some(slot);
+            }
+        }
+        best
+    }
+
+    /// Re-runs [`Manager::heap_sync`] on every resident chunk of `asset`, after a change to the
+    /// asset that moves their membership or rank. Walks the asset's indices downward through the
+    /// `(asset, index)` index, stopping once it has seen as many chunks as the asset has resident.
+    ///
+    /// Call with the mask held; the window grows with the asset's `index_end`, so this is for
+    /// changes made at asset setup.
+    fn heap_sync_asset(&self, asset: u32) {
+        let a = self.assets[asset as usize].get();
+        let mut seen = 0;
+        let mut index = a.index_end;
+        while index > 0 && seen < a.resident {
+            index -= 1;
+            if let Some(i) = self.find_indexed_unmasked(asset, index) {
+                self.heap_sync(i);
+                seen += 1;
+            }
+        }
+    }
+
+    /// The highest index below `below` at which `asset` has a resident chunk, or `NONE`. Walks the
+    /// `(asset, index)` index downward, so it is bounded by `below` and stops at the first hit.
+    fn highest_indexed_below(&self, asset: u32, below: u32) -> u32 {
+        let mut index = below;
+        while index > 0 {
+            index -= 1;
+            if self.find_indexed_unmasked(asset, index).is_some() {
+                return index;
+            }
+        }
+        NONE
     }
 
     /// Protects `asset`'s chunks from eviction until the returned guard drops.
@@ -991,56 +1497,44 @@ impl Manager {
         p
     }
 
-    /// Evicts the lowest-ranked unleased, clean chunk. Returns false if nothing is evictable.
-    /// Serves as the heap reclaim hook and frees table slots.
+    /// Evicts the lowest-ranked evictable chunk: the [`Manager::evict_heap`] root, or, while an asset is
+    /// protected, the lowest-ranked chunk of any other asset. Returns false if nothing is
+    /// evictable. Serves as the heap reclaim hook and frees table slots.
     fn evict_lowest(&self) -> bool {
         let protect = m_get(&self.protect);
-        // The commit bails if the victim was leased or dirtied since the scan; then retry
-        // without it. Bounded by the table size.
-        let mut skip: Option<usize> = None;
-        // A floor: the nested `is_highest_resident` scans for tail-first assets are not counted.
+        // Heap steps, counted as the slots the old whole-table scan visited.
         let mut visited = 0u64;
         let mut result = false;
-        for _ in 0..self.chunks.len() {
-            let mut best: Option<usize> = None;
-            let mut best_rank = (u8::MAX, u64::MAX, u64::MAX);
-            for i in 0..self.chunks.len() {
-                if Some(i) == skip {
-                    continue;
-                }
-                visited += 1;
-                let s = m_get(&self.chunks[i]);
-                if s.backing.is_null() || s.leases != 0 || s.dirty {
-                    continue;
-                }
-                // NONE means no protection (and also marks adopted chunks, so test it first).
-                if protect != NONE && s.asset == protect {
-                    continue;
-                }
-                let (cost, soft_refs) = if s.asset == NONE {
-                    (s.cost, 0)
-                } else if (s.asset as usize) < self.assets.len() {
-                    let a = m_get(&self.assets[s.asset as usize]);
-                    // Tail-first assets: only the highest-index chunk is a candidate.
-                    if a.evict_tail_first && !self.is_highest_resident(s.asset, s.index) {
-                        continue;
-                    }
-                    (a.source.cost, a.soft_refs)
-                } else {
-                    continue; // out-of-range asset index
+        // The common path picks and unlinks the victim in one masked window, so nothing can
+        // intervene. Only the overflow fallback, or a heap entry that fails re-validation (which
+        // `take_victim` resyncs out of the heap), comes round again.
+        for _ in 0..EVICT_ATTEMPTS {
+            let (pick, taken) = {
+                let _m = Masked::enter();
+                let pick = self.heap_pick(protect, &mut visited);
+                let taken = match pick {
+                    Pick::Found(i) => self.take_victim(i, &mut visited),
+                    _ => None,
                 };
-                let rank = evict_rank(soft_refs, cost, s.size, s.recency);
-                if rank < best_rank {
-                    best_rank = rank;
-                    best = Some(i);
-                }
-            }
-            let Some(i) = best else { break };
-            if self.evict_slot(i) {
+                (pick, taken)
+            };
+            let taken = match (pick, taken) {
+                (Pick::Empty, _) => break,
+                (_, Some(s)) => Some(s),
+                (Pick::Overflow, None) => match self.heap_pick_linear(protect, &mut visited) {
+                    Some(i) => {
+                        let _m = Masked::enter();
+                        self.take_victim(i, &mut visited)
+                    }
+                    None => break,
+                },
+                (Pick::Found(_), None) => None,
+            };
+            if let Some(s) = taken {
+                self.finish_eviction(s);
                 result = true;
                 break;
             }
-            skip = Some(i); // commit bailed; re-scan without it
         }
         self.stat(|s| {
             s.scan_evict_calls += 1;
@@ -1049,25 +1543,24 @@ impl Manager {
         result
     }
 
-    /// Evicts the chunk at slot `i`, returning false if it is no longer evictable.
+    /// Re-validates heap member `i` as evictable and clears it from the table and every index,
+    /// returning its old state; or resyncs it (a stale entry leaves the heap) and returns `None`.
     ///
-    /// The slot is re-validated and cleared in one masked window before any callback runs, so the
-    /// table is consistent during `on_evict`; the callback and the free run unmasked.
-    fn evict_slot(&self, i: usize) -> bool {
-        // Masked commit: re-read, validate, capture, clear.
-        let s = {
-            let _m = Masked::enter();
-            let s = self.chunks[i].get();
-            if s.backing.is_null() || s.leases != 0 || s.dirty {
-                return false; // changed under us since the scan — do not evict
-            }
-            // Unlink before clearing (EMPTY wipes the chain links), in the same window.
-            self.index_remove(i, s.asset, s.index);
-            self.ptr_index_remove(i, s.backing);
-            self.chunks[i].set(ChunkSlot::EMPTY);
-            s
-        };
-        // Never hold the mask across a callback or a free.
+    /// Call with the mask held. The table is consistent before any callback runs, since
+    /// [`Manager::finish_eviction`] runs them unmasked afterwards.
+    fn take_victim(&self, i: usize, visited: &mut u64) -> Option<ChunkSlot> {
+        let s = self.chunks.get(i)?.get();
+        if s.heap_pos == NONE || !self.is_evictable(&s) {
+            *visited += self.heap_sync(i) as u64;
+            return None;
+        }
+        *visited += self.clear_slot(i) as u64;
+        Some(s)
+    }
+
+    /// The unmasked half of an eviction: counts it, tells the owner, and frees the backing of the
+    /// chunk [`Manager::take_victim`] cleared. Never hold the mask across a callback or a free.
+    fn finish_eviction(&self, s: ChunkSlot) {
         let cost: u32 = if s.asset == NONE {
             s.cost
         } else if (s.asset as usize) < self.assets.len() {
@@ -1093,7 +1586,19 @@ impl Manager {
             }
         }
         self.free_backing(s.backing, s.asset);
-        true
+    }
+
+    /// Unlinks occupied slot `i` from the key, pointer and eviction indexes and clears it.
+    /// Returns the heap steps taken.
+    ///
+    /// Call with the mask held: the unlinks walk the slot's chain links, which the clear wipes.
+    fn clear_slot(&self, i: usize) -> u32 {
+        let s = self.chunks[i].get();
+        let mut steps = self.index_remove(i, s.asset, s.index);
+        self.ptr_index_remove(i, s.backing);
+        steps += self.heap_remove(i);
+        self.chunks[i].set(ChunkSlot::EMPTY);
+        steps
     }
 
     /// Returns chunk `index` of `asset` under a hard lease, materializing it if not resident; null
@@ -1172,6 +1677,7 @@ impl Manager {
             });
             self.index_insert(idx);
             self.ptr_index_insert(idx);
+            self.heap_sync(idx);
             idx
         };
         let a = m_get(&self.assets[ai]);
@@ -1188,9 +1694,7 @@ impl Manager {
             // Roll back, unlinking before the clear.
             {
                 let _m = Masked::enter();
-                self.index_remove(idx, asset, index);
-                self.ptr_index_remove(idx, p);
-                self.chunks[idx].set(ChunkSlot::EMPTY);
+                self.clear_slot(idx);
             }
             self.free_backing(p, asset);
             return ptr::null_mut();
@@ -1283,6 +1787,7 @@ impl Manager {
             });
             self.index_insert(idx);
             self.ptr_index_insert(idx);
+            self.heap_sync(idx);
         }
         let a = m_get(&self.assets[ai]);
         // SAFETY: ctx/owner come from this asset and `p` is the backing just allocated;
@@ -1304,7 +1809,18 @@ impl Manager {
         if ai >= self.assets.len() {
             return;
         }
-        m_rmw(&self.assets[ai], |a| a.evict_tail_first = on);
+        // One window over the flag, the tail and the asset's heap entries, which all change
+        // together; the window walks the asset's indices, so set this before it has chunks.
+        let _m = Masked::enter();
+        let mut a = self.assets[ai].get();
+        a.evict_tail_first = on;
+        a.tail = if on && a.resident > 0 {
+            self.highest_indexed_below(asset, a.index_end)
+        } else {
+            NONE
+        };
+        self.assets[ai].set(a);
+        self.heap_sync_asset(asset);
     }
 
     fn set_self_protect(&self, asset: u32, on: bool) {
@@ -1327,9 +1843,7 @@ impl Manager {
             if s.backing != p {
                 return; // changed under us
             }
-            self.index_remove(c, s.asset, s.index); // before the clear, which wipes the links
-            self.ptr_index_remove(c, s.backing);
-            self.chunks[c].set(ChunkSlot::EMPTY);
+            self.clear_slot(c);
             s
         };
         self.free_backing(s.backing, s.asset); // unmasked
@@ -1394,6 +1908,7 @@ impl Manager {
                 ..ChunkSlot::EMPTY
             });
             self.ptr_index_insert(idx);
+            self.heap_sync(idx);
         }
         self.stat(|s| s.adopts += 1);
         ptr
@@ -1450,7 +1965,7 @@ impl Manager {
             return ptr::null_mut();
         };
         let r = self.bump();
-        m_rmw(&self.chunks[c], |s| {
+        self.rmw_by_ptr_slot(c, |s| {
             if s.backing.is_null() || !s.ready || s.asset != asset || s.index != index {
                 return ptr::null_mut();
             }
@@ -1508,13 +2023,15 @@ impl Manager {
         }
         let a = self.assets[ai].get();
         let drop_chunk = |i: usize| {
-            let s = self.chunks[i].get();
             // Unlink, then clear the slot before the callback so a reentrant call sees a
             // consistent table. The asset slot is cleared last, since `free_backing` reads its
-            // backing kind.
-            self.index_remove(i, s.asset, s.index);
-            self.ptr_index_remove(i, s.backing);
-            self.chunks[i].set(ChunkSlot::EMPTY);
+            // backing kind. Masked, as the eviction heap is shared with every other asset.
+            let s = {
+                let _m = Masked::enter();
+                let s = self.chunks[i].get();
+                self.clear_slot(i);
+                s
+            };
             if let Some(cb) = a.source.on_evict {
                 // SAFETY: the callback, ctx and owner come from this asset.
                 unsafe { cb(a.source.ctx, a.owner, s.index) };
@@ -1544,13 +2061,40 @@ impl Manager {
         if ai >= self.assets.len() {
             return;
         }
-        m_rmw(&self.assets[ai], |a| {
+        let flipped = m_rmw(&self.assets[ai], |a| {
+            let was = a.soft_refs > 0;
             if delta > 0 {
                 a.soft_refs += delta as u32;
             } else {
                 a.soft_refs = a.soft_refs.saturating_sub((-delta) as u32);
             }
+            (a.soft_refs > 0) != was
         });
+        if flipped {
+            self.heap_resync_asset_windowed(asset);
+        }
+    }
+
+    /// [`Manager::heap_sync_asset`] for an asset whose `soft_refs` just crossed zero, which
+    /// changes the rank of every chunk of it: one masked window per index probed, since a
+    /// sample's stream asset can span thousands of indices and this runs at song load.
+    ///
+    /// Between windows the heap is ordered and every member evictable, but chunks not yet
+    /// reached keep their old `soft_ref` for the rank, so an eviction that preempts the walk may
+    /// pick by the old reference state. A chunk written meanwhile is synced by its own write,
+    /// from the new `soft_refs`.
+    fn heap_resync_asset_windowed(&self, asset: u32) {
+        let a = m_get(&self.assets[asset as usize]);
+        let mut seen = 0;
+        let mut index = a.index_end;
+        while index > 0 && seen < a.resident {
+            index -= 1;
+            let _m = Masked::enter();
+            if let Some(i) = self.find_indexed_unmasked(asset, index) {
+                self.heap_sync(i);
+                seen += 1;
+            }
+        }
     }
 }
 
@@ -1789,12 +2333,18 @@ unsafe fn create_inner(
         queued_words * core::mem::size_of::<Cell<u32>>(),
         core::mem::align_of::<Cell<u32>>().max(16),
     ) as *mut Cell<u32>;
+    let heap_raw = deluge_alloc(
+        heap,
+        chunk_cap * core::mem::size_of::<Cell<u32>>(),
+        core::mem::align_of::<Cell<u32>>().max(16),
+    ) as *mut Cell<u32>;
     if m.is_null()
         || assets_raw.is_null()
         || chunks_raw.is_null()
         || buckets_raw.is_null()
         || ptr_buckets_raw.is_null()
         || queued_bits_raw.is_null()
+        || heap_raw.is_null()
     {
         deluge_free(heap, m as *mut u8);
         deluge_free(heap, assets_raw as *mut u8);
@@ -1802,6 +2352,7 @@ unsafe fn create_inner(
         deluge_free(heap, buckets_raw as *mut u8);
         deluge_free(heap, ptr_buckets_raw as *mut u8);
         deluge_free(heap, queued_bits_raw as *mut u8);
+        deluge_free(heap, heap_raw as *mut u8);
         return ptr::null_mut();
     }
     for i in 0..queued_words {
@@ -1816,6 +2367,7 @@ unsafe fn create_inner(
     }
     for i in 0..chunk_cap {
         chunks_raw.add(i).write(Cell::new(ChunkSlot::EMPTY));
+        heap_raw.add(i).write(Cell::new(NONE));
     }
     // The tables are never freed, so 'static is sound.
     let assets: &'static [Cell<AssetSlot>] = &*ptr::slice_from_raw_parts(assets_raw, asset_cap);
@@ -1825,6 +2377,7 @@ unsafe fn create_inner(
         &*ptr::slice_from_raw_parts(ptr_buckets_raw, bucket_cap);
     let queued_bits: &'static [Cell<u32>] =
         &*ptr::slice_from_raw_parts(queued_bits_raw, queued_words);
+    let evict_heap: &'static [Cell<u32>] = &*ptr::slice_from_raw_parts(heap_raw, chunk_cap);
     ptr::write(
         m,
         Manager {
@@ -1835,6 +2388,8 @@ unsafe fn create_inner(
             buckets,
             ptr_buckets,
             queued_bits,
+            evict_heap,
+            heap_len: Cell::new(0),
             free_hint: Cell::new(0),
             tick: Cell::new(0),
             protect: Cell::new(NONE),
@@ -2464,5 +3019,276 @@ mod tests {
         assert_eq!(m.lease_count_by_slot(slot1), before + 1);
         assert!(m.release_by_slot_gen(slot1, gen1));
         assert_eq!(m.lease_count_by_slot(slot1), before);
+    }
+
+    // The eviction heap against the whole-table scan it replaces.
+
+    unsafe extern "C" fn mock_materialize(
+        _ctx: *mut c_void,
+        _owner: *mut c_void,
+        index: u32,
+        _dest: *mut u8,
+        _len: usize,
+    ) -> bool {
+        index % 7 != 6 // some indices cannot be rebuilt, exercising acquire's rollback
+    }
+
+    /// A deterministic xorshift generator, so a failing sequence replays from its seed.
+    struct Rng(u32);
+    impl Rng {
+        fn next(&mut self) -> u32 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 17;
+            self.0 ^= self.0 << 5;
+            self.0
+        }
+        fn below(&mut self, n: u32) -> u32 {
+            self.next() % n
+        }
+    }
+
+    const DIFF_ASSETS: u32 = 5;
+
+    /// Defines logical asset `n` (`0..DIFF_ASSETS`) in some free asset slot: assets 0 and 1 are
+    /// tail-first and self-protecting, asset 2 is free to rebuild so its chunks crowd the top of
+    /// the heap, and every asset is requestable.
+    fn define_diff_asset(m: &Manager, n: u32) -> u32 {
+        let a = m.define_asset(
+            (n as usize + 1) as *mut c_void,
+            Source {
+                materialize: Some(mock_materialize),
+                on_evict: None,
+                construct: Some(mock_construct),
+                ctx: ptr::null_mut(),
+                cost: [3, 1, 0, 2, 4][n as usize],
+                backing: BACKING_HEAP,
+            },
+        );
+        assert_ne!(a, NONE);
+        m.set_evict_tail_first(a, n < 2);
+        m.set_self_protect(a, n < 2);
+        a
+    }
+
+    /// A random occupied slot's backing, or null if it drew a free slot.
+    fn some_resident(m: &Manager, rng: &mut Rng) -> *mut u8 {
+        m.chunks[rng.below(m.chunks.len() as u32) as usize]
+            .get()
+            .backing
+    }
+
+    /// Asserts the heap invariants and that, for no protection and for each asset protected, the
+    /// heap picks the chunk the table scan picks. Returns how many picks overflowed the frontier.
+    fn check_against_scan(m: &Manager, assets: &[u32]) -> u32 {
+        m.assert_evict_heap_consistent();
+        let mut overflows = 0;
+        for &protect in core::iter::once(&NONE).chain(assets) {
+            let (indexed, overflowed) = m.evict_candidate_indexed(protect);
+            overflows += overflowed as u32;
+            assert_eq!(
+                indexed,
+                m.evict_candidate_linear(protect),
+                "heap and scan disagree with asset {protect:#x} protected"
+            );
+        }
+        overflows
+    }
+
+    /// Random operation sequences through the manager's API: after every step the heap must hold
+    /// exactly the evictable chunks, in heap order, and pick the chunk the table scan picks.
+    #[test]
+    fn the_eviction_heap_picks_what_a_table_scan_picks() {
+        const SEQUENCES: u32 = 200;
+        const STEPS: u32 = 400;
+        let mut overflows = 0;
+        let mut protected_picks = 0;
+        for seed in 1..=SEQUENCES {
+            let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9) | 1);
+            // A small arena, so allocations run the reclaim hook as well as the table filling.
+            let words = (128 * 1024usize).div_ceil(16);
+            let mut buf = std::vec![0u128; words];
+            // SAFETY: `buf` is a live, 16-aligned arena for the whole sequence.
+            let h = unsafe {
+                deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16)
+            };
+            // SAFETY: `h` is the live heap just created.
+            let handle = unsafe { deluge_resource_create(h, 8, 64) };
+            assert!(!handle.is_null());
+            // SAFETY: live for the sequence, with `buf`.
+            let m = unsafe { mgr(handle) };
+            let mut assets: std::vec::Vec<u32> =
+                (0..DIFF_ASSETS).map(|n| define_diff_asset(m, n)).collect();
+            // Leases this sequence took, by backing; released at random.
+            let mut leases: std::vec::Vec<*mut u8> = std::vec::Vec::new();
+            for _ in 0..STEPS {
+                let n = rng.below(DIFF_ASSETS);
+                let asset = assets[n as usize];
+                // Asset 2 spans more indices than the pick frontier holds, to overflow it.
+                let index = rng.below(if n == 2 { 48 } else { 12 });
+                let size = 512 << rng.below(4);
+                match rng.below(21) {
+                    0..=2 => {
+                        let p = m.acquire(asset, index, size);
+                        if !p.is_null() {
+                            leases.push(p);
+                        }
+                    }
+                    3..=5 => {
+                        let p = m.request(asset, index, size);
+                        if !p.is_null() {
+                            leases.push(p);
+                        }
+                    }
+                    6..=8 => {
+                        if !leases.is_empty() {
+                            let p = leases.swap_remove(rng.below(leases.len() as u32) as usize);
+                            m.release(p);
+                        }
+                    }
+                    9 => {
+                        let p = some_resident(m, &mut rng);
+                        if !p.is_null() {
+                            m.add_lease(p);
+                            leases.push(p);
+                        }
+                    }
+                    10 => {
+                        // The slot-token pair, retain or release.
+                        let slot = rng.below(m.chunks.len() as u32);
+                        let gen = m.generation_of_slot(slot);
+                        if rng.below(2) == 0 {
+                            if m.retain_by_slot_gen(slot, gen) {
+                                leases.push(m.chunks[slot as usize].get().backing);
+                            }
+                        } else if let Some(k) = leases
+                            .iter()
+                            .position(|&p| p == m.chunks[slot as usize].get().backing)
+                        {
+                            assert!(m.release_by_slot_gen(slot, gen));
+                            leases.swap_remove(k);
+                        }
+                    }
+                    11 => m.set_dirty(some_resident(m, &mut rng), rng.below(3) == 0),
+                    12 => m.touch(some_resident(m, &mut rng)),
+                    13 => m.reference(asset, if rng.below(2) == 0 { 1 } else { -1 }),
+                    14 => {
+                        let expected = m.evict_candidate_linear(NONE);
+                        let before = expected.map(|i| m.chunks[i].get().backing);
+                        assert_eq!(m.evict_lowest(), expected.is_some());
+                        if let (Some(i), Some(b)) = (expected, before) {
+                            assert_ne!(m.chunks[i].get().backing, b, "the scan's pick survived");
+                        }
+                    }
+                    15 => {
+                        let p = m.try_acquire(asset, index);
+                        if !p.is_null() {
+                            leases.push(p);
+                        }
+                        m.mark_ready(some_resident(m, &mut rng));
+                    }
+                    16 => {
+                        let bytes = 256 << rng.below(4);
+                        // SAFETY: `h` is live; the block is handed to (or freed past) the manager.
+                        let raw = unsafe { deluge_alloc::deluge_alloc(h, bytes, 16) };
+                        if !raw.is_null()
+                            && m.adopt(raw, bytes, rng.below(5), ptr::null_mut(), None)
+                                .is_null()
+                        {
+                            // SAFETY: not adopted, so still ours.
+                            unsafe { deluge_alloc::deluge_free(h, raw) };
+                        }
+                    }
+                    17 => {
+                        let slot = rng.below(m.chunks.len() as u32);
+                        match rng.below(3) {
+                            0 => m.loader_enqueue_owned(slot, rng.below(4)),
+                            1 => {
+                                m.loader_release_owned(slot);
+                            }
+                            _ => m.loader_remove(slot),
+                        }
+                    }
+                    18 => {
+                        let p = some_resident(m, &mut rng);
+                        if !p.is_null() {
+                            leases.retain(|&q| q != p);
+                            m.evict_chunk(p);
+                        }
+                    }
+                    19 => {
+                        // A burst of unleased asset-2 chunks, which rank first while unreferenced.
+                        for _ in 0..24 {
+                            let p = m.request(assets[2], rng.below(48), 512);
+                            m.release(p);
+                        }
+                    }
+                    _ => {
+                        if rng.below(4) == 0 {
+                            // Retire the asset and define it afresh, dropping the leases on it.
+                            leases.retain(|&q| m.chunk_ident(q).map(|(a, _)| a) != Some(asset));
+                            m.release_asset(asset);
+                            assets[n as usize] = define_diff_asset(m, n);
+                        } else {
+                            // Flip tail-first with chunks resident.
+                            let on = !m.assets[asset as usize].get().evict_tail_first;
+                            m.set_evict_tail_first(asset, on);
+                        }
+                    }
+                }
+                overflows += check_against_scan(m, &assets);
+                if m.evict_candidate_linear(assets[2]) != m.evict_candidate_linear(NONE) {
+                    protected_picks += 1;
+                }
+            }
+            drop(buf);
+        }
+        // The protected walk must have been exercised, past the root and past the frontier.
+        assert!(
+            protected_picks > 0,
+            "no pick ever skipped a protected asset"
+        );
+        assert!(
+            overflows > 0,
+            "the frontier never overflowed, so its fallback went untested"
+        );
+        std::println!("{protected_picks} protected picks, {overflows} frontier overflows");
+    }
+
+    /// One eviction from a full 7,490-slot table visits a heap path, not the table.
+    #[test]
+    fn an_eviction_does_not_scan_the_chunk_table() {
+        const SLOTS: usize = 7490;
+        let words = (4 * 1024 * 1024usize).div_ceil(16);
+        let mut buf = std::vec![0u128; words];
+        // SAFETY: `buf` is a live, 16-aligned arena for the whole test.
+        let h =
+            unsafe { deluge_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
+        // SAFETY: `h` is the live heap just created.
+        let handle = unsafe { deluge_resource_create(h, 4, SLOTS) };
+        assert!(!handle.is_null());
+        // SAFETY: live for the test, with `buf`.
+        let m = unsafe { mgr(handle) };
+        let asset = define_requestable_test_asset(handle);
+        for index in 0..SLOTS as u32 {
+            let p = m.request(asset, index, 64);
+            assert!(!p.is_null(), "request {index} failed");
+            m.release(p);
+        }
+        m.stats_reset();
+        // SAFETY: `handle` is live.
+        assert!(unsafe { deluge_resource_try_evict(handle) });
+        let s = m.stats_snapshot();
+        assert_eq!(s.scan_evict_calls, 1);
+        std::println!(
+            "one eviction over {SLOTS} evictable chunks visited {} slots",
+            s.scan_evict_slots
+        );
+        assert!(
+            s.scan_evict_slots < 64,
+            "one eviction visited {} slots of {SLOTS}",
+            s.scan_evict_slots
+        );
+        m.assert_evict_heap_consistent();
+        drop(buf);
     }
 }
