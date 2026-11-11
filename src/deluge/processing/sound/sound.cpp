@@ -35,6 +35,7 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/clock.h"
 #include "libdeluge/system.h"
 #include "memory/fast_allocator.h"
 #include "memory/general_memory_allocator.h"
@@ -929,12 +930,16 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
 	}
-	if (deluge::bench::render_profile::timed_note_on([&] {
-		    return voice->note_on(
-		        *modelStack,
-		        noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, false, fromMIDIChannel, mpeValues),
-		        sampleSyncLength, ticksLate);
-	    })) {
+	const uint32_t noteOnStart = deluge_cycle_count();
+	const bool started = deluge::bench::render_profile::timed_note_on([&] {
+		return voice->note_on(
+		    *modelStack,
+		    noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, false, fromMIDIChannel, mpeValues),
+		    sampleSyncLength, ticksLate);
+	});
+	lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
+	voiceCost_.add_note_on(lastNoteOnCycles_);
+	if (started) {
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
 			voice->kernel.envelope(e).resume_attack(envelopePositions[e]);
 		}
@@ -1026,12 +1031,16 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (sideChainSendLevel != 0) [[unlikely]] {
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
-			if (!deluge::bench::render_profile::timed_note_on([&] {
-				    return voice->note_on(*modelStack,
-				                          noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
-				                                      fromMIDIChannel, mpeValues),
-				                          sampleSyncLength, ticksLate);
-			    })) {
+			const uint32_t noteOnStart = deluge_cycle_count();
+			const bool started = deluge::bench::render_profile::timed_note_on([&] {
+				return voice->note_on(*modelStack,
+				                      noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
+				                                  fromMIDIChannel, mpeValues),
+				                      sampleSyncLength, ticksLate);
+			});
+			lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
+			voiceCost_.add_note_on(lastNoteOnCycles_);
+			if (!started) {
 				this->freeActiveVoice(voice, modelStack);
 			}
 		}
@@ -1041,14 +1050,19 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (sideChainSendLevel != 0) [[unlikely]] {
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
-			if (deluge::bench::render_profile::timed_note_on([&] {
-				    return voice->note_on(*modelStack,
-				                          noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
-				                                      fromMIDIChannel, mpeValues),
-				                          sampleSyncLength, ticksLate);
-			    })) {
-				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
+			const uint32_t noteOnStart = deluge_cycle_count();
+			const bool started = deluge::bench::render_profile::timed_note_on([&] {
+				return voice->note_on(*modelStack,
+				                      noteOnEvent(noteCodePreArp, noteCodePostArp, velocity, samplesLate, true,
+				                                  fromMIDIChannel, mpeValues),
+				                      sampleSyncLength, ticksLate);
+			});
+			lastNoteOnCycles_ = deluge_cycle_count() - noteOnStart;
+			if (started) {
+				// Publish: the voice limit, the push and the skipping status in one step the render cannot split. The
+				// note-on's cost is noted here too, where the render cannot be reading it.
 				AudioExcludedSection section;
+				voiceCost_.add_note_on(lastNoteOnCycles_);
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
 				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
 					this->terminateOneActiveVoice();
@@ -2023,6 +2037,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 		const auto kind = static_cast<size_t>(voiceKind());
 #endif
+		const uint32_t voicesStart = deluge_cycle_count();
+		uint32_t voicesRendered = 0;
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
@@ -2035,6 +2051,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
+			++voicesRendered;
 			bool stillGoing = voice->render(controlBlock, voiceConfig,
 			                                {
 			                                    .buffer = sound_mono.data(),
@@ -2063,6 +2080,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			++it;
 		}
 		eraseVoicesIf([](const ActiveVoice& voice) { return voice->should_be_deleted(); });
+		voiceCost_.add_render(deluge_cycle_count() - voicesStart,
+		                      voicesRendered * static_cast<uint32_t>(sound_mono.size()));
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		const dsp::Q<31> pan = halve_floor(paramManager->getPatchedParamSet()->getKnob(params::LOCAL_PAN));
