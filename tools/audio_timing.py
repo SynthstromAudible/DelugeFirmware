@@ -3,9 +3,9 @@
 
 `report CAPTURE...` prints, per stream-bench phase, the DSP load, the worst render, the closest the
 queue came to running dry, overruns, the render task's worst wake lateness and the drive's overruns. `overhead --small A
---large B` fits each render's fixed cost and its cost per frame from two captures made with fixed
-windows of two sizes (images from before the fixed-block drive, built with its fixed-window-64 and
-fixed-window-128 features; the drive now always renders 128 frames).
+--large B` fits each render's fixed cost and its cost per frame from two captures whose renders are
+of two sizes (the drive renders 128 frames, so one of them comes from an image whose drive renders
+another size).
 
 An AUDIO-TIMING line belongs to the stream-bench phase whose STREAM-BENCH-PHASE line follows it;
 lines before STREAM-BENCH-LOADED are the boot's and are left out.

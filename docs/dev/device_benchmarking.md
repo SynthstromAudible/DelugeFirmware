@@ -126,9 +126,9 @@ Run it with `stream_bench_matrix.py` as above, then read the captures:
 
     tools/audio_timing.py report DIR/*/stream-*.rtt
 
-`tools/audio_timing.py overhead --small A --large B --phase steady` fits the per-render fixed cost from captures of
-two render sizes; images from before the fixed-block drive built them with its `fixed-window-64` and
-`fixed-window-128` features.
+`tools/audio_timing.py overhead --small A --large B --phase steady` fits the per-render fixed cost and the cost per
+frame from captures at two render sizes. The drive renders one size, so it needs captures from images whose drive
+renders another.
 
 The stream bench's `STREAM-BENCH-RENDER` line also counts the voices the CPU cull took (`culled_voices`) and the
 highest direness reached (`direness_max`) per phase.

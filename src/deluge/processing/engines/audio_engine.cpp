@@ -1133,11 +1133,12 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	deluge::memory::RenderBlock renderBlock;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
-	if (current_time - last_call_time > 0.003) {
-		// If the audio routine is called at less than a 3ms interval, something is wrong. `frames` is
-		// logged alongside because the two failure shapes look identical in the interval alone: a driver
-		// handing over one huge late window (frames tracks the gap) versus the render being starved while
-		// the window stays small (frames stays nominal).
+	// Two of the board's blocks: the render runs once a block, so a longer gap means the audio tier was held off
+	// (one block's jitter is normal and stays quiet).
+	const double lateGap = 2.0 * static_cast<double>(deluge_audio_block_frames()) / kSampleRate;
+	if (current_time - last_call_time > lateGap) {
+		// More than two blocks since the last render: something held the audio tier off. `frames` is logged
+		// alongside so a capture shows the block size the gap is measured against.
 		//
 		// RATE-LIMITED to once a second, reporting how many it swallowed. Unthrottled this fires on EVERY
 		// render call once the engine falls behind, which made it three problems at once: formatting and
@@ -1799,8 +1800,7 @@ uint32_t routine() {
 	numRoutines = 0;
 	uint32_t renders = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-		// The BSP flushes previously-rendered audio toward the DAC and calls
-		// deluge_app_render() for as many new frames as its pacing policy asks.
+		// The BSP renders the fixed blocks its queue is missing, calling deluge_app_render() once per block.
 		renders = deluge_audio_drive();
 	}
 	else {
