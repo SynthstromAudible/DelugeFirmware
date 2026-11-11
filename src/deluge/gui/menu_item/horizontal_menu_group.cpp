@@ -25,7 +25,8 @@
 namespace deluge::gui::menu_item {
 
 std::string_view HorizontalMenuGroup::getTitle() const {
-	return current_menu_->getTitle();
+	// current_menu_ is only set once preparePaging() has run, which a vertical render never does
+	return current_menu_ != nullptr ? current_menu_->getTitle() : HorizontalMenu::getTitle();
 }
 
 void HorizontalMenuGroup::beginSession(MenuItem* navigatedBackwardFrom) {
