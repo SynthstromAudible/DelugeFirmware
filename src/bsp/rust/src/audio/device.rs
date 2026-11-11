@@ -19,6 +19,7 @@ use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicUsize, Ordering
 
 use deluge_bsp::audio;
 
+use crate::audio::block_drive::{BLOCK_FRAMES, QUEUE_BLOCKS};
 use crate::audio::pacing::pace_window;
 use crate::audio::ring::{frame_at, read_frame, write_frame};
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
@@ -307,9 +308,31 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     crate::audio::capture_stamp::render_offset(stamp, block_start, TX_MASK as u32)
 }
 
+/// Overruns the drive has counted: the render updates it after each plan, so the task tier reads it
+/// without touching the drive's state.
+static OVERRUNS: AtomicU32 = AtomicU32::new(0);
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_block_frames() -> u32 {
+    BLOCK_FRAMES as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_queue_blocks() -> u32 {
+    QUEUE_BLOCKS as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_overruns() -> u32 {
+    OVERRUNS.load(Ordering::Relaxed)
+}
+
 abi_pin!(
     deluge_audio_await_block,
+    deluge_audio_block_frames,
     deluge_audio_drive,
+    deluge_audio_overruns,
+    deluge_audio_queue_blocks,
     deluge_audio_frames_until_block_offset,
     deluge_audio_input_resync,
     deluge_audio_stamp_to_render_offset,

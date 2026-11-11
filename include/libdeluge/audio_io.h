@@ -92,6 +92,17 @@ uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 /// `avg = (avg + sample) / 2` per tick. Voice culling reads it. [task] [audio]
 double deluge_audio_render_time_average(void) DELUGE_NOEXCEPT;
 
+/// @brief The frames each `deluge_app_render()` call renders: the board's fixed block. [task] [audio]
+uint32_t deluge_audio_block_frames(void) DELUGE_NOEXCEPT;
+
+/// @brief The blocks the board keeps written ahead of the one the codec plays: the output
+/// latency, in blocks. [task] [audio]
+uint32_t deluge_audio_queue_blocks(void) DELUGE_NOEXCEPT;
+
+/// @brief Blocks the codec reached before they were written, since boot: each is an audible
+/// glitch. [task] [audio]
+uint32_t deluge_audio_overruns(void) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif

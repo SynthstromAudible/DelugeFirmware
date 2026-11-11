@@ -569,8 +569,29 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
         .wrapping_sub(play_now) as u32
 }
 
+/// The host drive renders the same fixed block as the device.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_block_frames() -> u32 {
+    APP_BLOCK_FRAMES as u32
+}
+
+/// The host drive renders on demand into its sink: no output queue.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_queue_blocks() -> u32 {
+    0
+}
+
+/// The host sink never runs dry.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_overruns() -> u32 {
+    0
+}
+
 abi_pin!(
     deluge_audio_await_block,
+    deluge_audio_block_frames,
     deluge_audio_drive,
-    deluge_audio_frames_until_block_offset
+    deluge_audio_frames_until_block_offset,
+    deluge_audio_overruns,
+    deluge_audio_queue_blocks,
 );
