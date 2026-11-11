@@ -424,14 +424,9 @@ void renderRetirementStep() {
 
 namespace AudioEngine {
 
-// used for culling. This can be high now since it's decoupled from the time between renders, and
-// will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
-// seconds it will work maybe this should be user configurable? Values from 60-100 all seem justifiable. 100
-// occasionally crackles but means more voices. 60 keeps the modulation updating at about 800hz and LFO2 goes up to
-// 100ish
-constexpr int32_t numSamplesLimit = 80;
-// used for decisions in rendering engine
-constexpr int32_t direnessThreshold = numSamplesLimit - 30;
+// Where direness starts: the budget's held load, as samples of a 128-frame block (128 is the whole period). Direness
+// rises one step a sample above it, to 14.
+constexpr int32_t direnessThreshold = 50;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
@@ -772,84 +767,48 @@ void admitVoice(uint32_t cost) {
 }
 
 // not in header (private to audio engine)
-/// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
-void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+/// @brief The backstop: culls voices only when the last block's render ran past its period, or the board counted an
+///        overrun. The voice budget keeps a block from being planned past what it can render; this catches what it
+///        mispredicted.
+void cullVoices() {
+	static int32_t lastOver = 0;
+	static uint32_t lastOverruns = deluge_audio_overruns();
+	const uint32_t overruns = deluge_audio_overruns();
+	const int32_t over = voiceBudget.last_samples() - static_cast<int32_t>(deluge_audio_block_frames());
+	const bool overran = overruns != lastOverruns;
+	const int32_t previousOver = lastOver;
+	lastOver = over;
+	lastOverruns = overruns;
+	if (over < 0 && !overran) {
+		return; // the render fits its period: no cull, and no need to count the voices
+	}
 
-	bool culled = false;
-	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
-	// we can be a bit more lenient with the limit
-	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
-	static int32_t last_num_samples_over = 0;
-	int32_t num_samples_over_limit = numSamples - max_num_samples;
-
-	if (numAudio + numVoice > MIN_VOICES) {
-
-		// If it's real dire, do a proper immediate cull
-		if (num_samples_over_limit >= 32) {
-
-			int32_t num_to_cull = (num_samples_over_limit >> 4);
-			// leave at least 7 - below this point culling won't save us
-			// if they can't load their sample in time they'll stop the same way anyway
-			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
-
-			// soft cull one voice, then terminate half the remainder and kill the other half
-			auto num_to_hard_cull = num_to_cull - 1;
-			auto num_to_kill = num_to_hard_cull / 2;
-			auto num_to_terminate = num_to_hard_cull - num_to_kill;
-
-			D_PRINTLN("Culling %d voices - 1 force, %d  terminate, %d kill", num_to_cull, num_to_terminate,
-			          num_to_kill);
-			for (int32_t i = 0; i < num_to_kill; i++) {
-				// cull with immediate release
-				killOneVoice(numSamples);
-			}
-			for (int32_t i = 0; i < num_to_terminate; i++) {
-				// cull with fast release
-				terminateOneVoice(numSamples);
-			}
-			// soft cull
-			forceReleaseOneVoice(numSamples);
-#if defined(DELUGE_STREAM_BENCH)
-			deluge::bench::render_profile::g_totals.culled_voices += num_to_kill + num_to_terminate + 1;
-#endif
-
+	const int32_t numAudio = currentSong ? currentSong->countAudioVoices() : 0;
+	const int32_t numVoice = getNumVoices();
+	const deluge::audio::CullPlan plan =
+	    deluge::audio::plan_cull(over, previousOver, overran, numAudio + numVoice, MIN_VOICES);
+	const auto logged = static_cast<size_t>(std::max(over, 0));
+	for (int32_t i = 0; i < plan.kill; i++) {
+		killOneVoice(logged); // stops within the block (may click)
+	}
+	for (int32_t i = 0; i < plan.terminate; i++) {
+		terminateOneVoice(logged); // fast release
+	}
+	for (int32_t i = 0; i < plan.force_release; i++) {
+		forceReleaseOneVoice(logged); // soft
+	}
 #if ALPHA_OR_BETA_VERSION
-			logAction("hard cull");
-
-#endif
-			culled = true;
-		}
-
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
-		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
-				forceReleaseOneVoice(numSamples);
-#if defined(DELUGE_STREAM_BENCH)
-				deluge::bench::render_profile::g_totals.culled_voices += 1;
-#endif
-				if (numRoutines > 0) {
-					culled = true;
-					D_PRINTLN("culling in second routine");
-				}
-			}
-		}
+	if (plan.kill + plan.terminate > 0) {
+		logAction("hard cull");
 	}
-	else {
-		// Cull anyway if things are bad
-		if (num_samples_over_limit >= 40) {
-			D_PRINTLN("under min voices but culling anyway");
-			forceReleaseOneVoice(numSamples);
-#if defined(DELUGE_STREAM_BENCH)
-			deluge::bench::render_profile::g_totals.culled_voices += 1;
 #endif
-			culled = true;
-		}
-	}
-	last_num_samples_over = num_samples_over_limit;
+	const int32_t culled = plan.kill + plan.terminate + plan.force_release;
+#if defined(DELUGE_STREAM_BENCH)
+	deluge::bench::render_profile::g_totals.culled_voices += culled;
+#endif
 
 	// blink LED to alert the user
-	if (culled && FlashStorage::highCPUUsageIndicator) {
+	if (culled != 0 && FlashStorage::highCPUUsageIndicator) {
 		// [audio] The UI tick owns the LED blink, not the render loop; this only sets the flag for it
 		// to consume. No dirty bit is raised here: the drain polls this flag outside its d.any() gate,
 		// and a dirty bit would make PlaybackState schedule a full main+sidebar+OLED repaint once per
@@ -860,10 +819,10 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 // not in header (private to audio engine)
 /// set the direness level and cull any voices
-inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
-	// The time a 128-frame block takes at the renders' recent cost per frame, in samples: per frame, so it reads the
-	// same whatever window the board renders and however many renders its tick holds
-	numSamples = renderLoad.block_samples();
+inline void setDireness() {
+	// The budget's held load: the last blocks' measured render, peak-held, as the samples of real time a 128-frame
+	// block takes.
+	const int32_t numSamples = voiceBudget.held_samples();
 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
@@ -877,19 +836,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			deluge::bench::render_profile::g_totals.direness_max =
 			    std::max(deluge::bench::render_profile::g_totals.direness_max, cpuDireness);
 #endif
-		}
-		auto numAudio = currentSong ? currentSong->countAudioVoices() : 0;
-		auto numVoice = getNumVoices();
-		if (!bypassCulling) {
-			cullVoices(numSamples, numAudio, numVoice);
-		}
-		else {
-
-			int32_t num_samples_over_limit = (int32_t)numSamples - numSamplesLimit;
-			if (num_samples_over_limit >= 0) {
-				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
-				logAction("skipped cull");
-			}
 		}
 	}
 	// otherwise lower it (with some hysteresis to avoid jittering
@@ -905,6 +851,14 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 				D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
+	}
+
+	if (!bypassCulling) {
+		cullVoices();
+	}
+	else if (voiceBudget.last_samples() >= static_cast<int32_t>(deluge_audio_block_frames())) {
+		D_PRINTLN("numSamples %d", voiceBudget.last_samples());
+		logAction("skipped cull");
 	}
 }
 
@@ -1196,7 +1150,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	if (!offline) {
 		startWindow(0);
 		flushMIDIGateBuffers();
-		setDireness(frames);
+		setDireness();
 	}
 
 	uint32_t produced = 0;
