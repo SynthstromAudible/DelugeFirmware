@@ -857,7 +857,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	bool atLeastOneNoteOn = false;
-	bool atLeastOneNoteLeftPending = false;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -865,20 +864,12 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			}
 			atLeastOneNoteOn = true;
 
-			if (AudioEngine::allowedToStartVoice()) {
-
-				invertReversed = instruction.invertReversed;
-				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
-				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
-				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
-				                      fromMIDIChannel);
-				instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
-			}
-			else {
-				// D_PRINTLN("couldn't start note from sound::noteon");
-				// It stays PENDING, and render() will start it as soon as a voice is available
-				atLeastOneNoteLeftPending = true;
-			}
+			// The note starts now: the voice budget, not a cap on starts per render, bounds what a burst costs.
+			invertReversed = instruction.invertReversed;
+			noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.arpNoteOn->noteCodeOnPostArp[n],
+			                      instruction.arpNoteOn->velocity, mpeValues, instruction.sampleSyncLengthOn, ticksLate,
+			                      samplesLate, fromMIDIChannel);
+			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -887,11 +878,6 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
-	}
-	else if (atLeastOneNoteLeftPending) {
-		// We started no voice for that note, so nothing else will have taken us out of render-skipping - and render()
-		// is the only thing that can start the pending note (issue #2262)
-		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 }
 
@@ -1777,10 +1763,6 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 			// has the note already started? if yes, skip it
 			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
 				continue;
-			}
-			// note is pending, are we allowing to start it? if no, exit early
-			if (!AudioEngine::allowedToStartVoice()) {
-				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 

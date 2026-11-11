@@ -431,9 +431,6 @@ constexpr bool isCodecInput(AudioInputChannel channel) {
 	return channel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && channel != AudioInputChannel::USB;
 }
 
-/// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
-bool allowedToStartVoice();
-
 /// @brief The render's cycle budget per block: the last blocks' measured cost and the voices admitted since.
 extern deluge::audio::VoiceBudget voiceBudget;
 

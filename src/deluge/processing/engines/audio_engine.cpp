@@ -506,7 +506,6 @@ static void advanceInputRingPos(size_t numSamples) {
 
 deluge::audio::InputMonitor inputMonitor{};
 bool usbInputMonitoredByTrack = false;
-volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -1176,8 +1175,6 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 			startWindow(produced);
 			flushMIDIGateBuffers();
 		}
-
-		voices_started_this_render = 0;
 
 		size_t numSamples = frames - produced;
 		if (currentSong != nullptr) {
@@ -2208,21 +2205,6 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechainSettings.attack = song->project.reverb.sidechain_attack;
 	reverbSidechainSettings.release = song->project.reverb.sidechain_release;
 	reverbSidechainSettings.sync_level = song->project.reverb.sidechain_sync;
-}
-
-bool allowedToStartVoice() {
-	// The budget spreads voice starts across render windows so a burst of note-ons cannot blow a real-time deadline. An
-	// offline render has no deadline, and its loop has no window to reset the budget in: every note starts when it is
-	// played.
-	if (stemExport.renderingOffline()) {
-		return true;
-	}
-	auto threshold = cpuDireness > 12 ? 1 : 4;
-	if (voices_started_this_render < threshold) {
-		voices_started_this_render += 1;
-		return true;
-	}
-	return false;
 }
 
 VoiceSample* solicitVoiceSample() {

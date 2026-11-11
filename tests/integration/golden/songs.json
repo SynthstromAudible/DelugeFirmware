@@ -121,9 +121,9 @@
  },
  "RS_GRAIN_RESTART": {
   "frames": 512000,
-  "peak": 1166575616,
-  "rms_db": -19.32,
-  "sha256": "5a534822f28faa33bdaad2e8bebbd67c4162d2211bb3bf77998b96f328c3eb76"
+  "peak": 1130131456,
+  "rms_db": -19.53,
+  "sha256": "cd0228cb1bda8996f7ba6b59d889960e3bee1f8d7e7e58394d9415d855e1b273"
  },
  "RS_GRAIN_STEREO": {
   "frames": 384000,
@@ -343,8 +343,8 @@
  },
  "RS_TEMPO_DELAYS": {
   "frames": 384000,
-  "peak": 314840064,
-  "rms_db": -27.97,
-  "sha256": "4bb9a2cba5cc22a6a14152b57e996d2369de76cdead88ae666c7817d4dd0fd70"
+  "peak": 360412160,
+  "rms_db": -25.63,
+  "sha256": "c48d5bf297cf7ca3d4ce57e40882322d2fadc4bdc466e924792dc4f92b1e6389"
  }
 }
