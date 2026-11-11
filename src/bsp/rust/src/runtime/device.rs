@@ -187,6 +187,8 @@ pub fn start() -> ! {
     // L1+L2 caches, SDRAM controller). The board's peripherals and pins come back by role.
     let board = deluge_bsp::Board::new(rza1_hal::init(deluge_bsp::system::BOARD_CONFIG));
     let pins = board.pins;
+    // SAFETY: once, straight after the MMU and caches came up, before anything reads the flash.
+    unsafe { crate::peripherals::flash::seal_xip_window() };
 
     // The logger only now, with the MMU on. Until then all memory is strongly ordered and an
     // unaligned access faults, and formatting may read unaligned: built for size, LLVM lowers

@@ -6,8 +6,10 @@
 //!
 //! Erase and program leave interrupts enabled, so the audio tier keeps rendering through a settings
 //! save (a 64 KB erase is about a quarter of a second). That holds because nothing in the image is
-//! in the flash (code, data, handlers: all in SRAM and SDRAM), and the only reader of the window is
-//! [`deluge_flash_read`], on the task tier, which is the tier these calls block.
+//! in the flash (code, data, handlers: all in SRAM and SDRAM), the only reader of the window is
+//! [`deluge_flash_read`], on the task tier, which is the tier these calls block, and
+//! [`seal_xip_window`] maps the window strongly-ordered and execute-never at boot, so not even a
+//! speculative fetch or read reaches it.
 //!
 //! The app's settings live at `flash::DELUGE_SETTINGS_OFFSET` (0x7F000, where the original
 //! firmware keeps them), not the app-loader's `flash::SETTINGS_OFFSET`: sharing a sector makes
@@ -40,6 +42,35 @@ const HOST_SETTINGS_LEN: usize = 64 * 1024;
 #[cfg(not(target_os = "none"))]
 static HOST_SETTINGS: std::sync::Mutex<[u8; HOST_SETTINGS_LEN]> =
     std::sync::Mutex::new([0xFF; HOST_SETTINGS_LEN]);
+
+/// The MMU attribute the flash windows are sealed with: strongly-ordered (no speculative or cached
+/// data access) and execute-never (section bit 4: no instruction fetch, speculative or not).
+pub const SEALED_SECTION_ATTR: u32 = 0x0DE2 | (1 << 4);
+
+/// The 1 MB sections of the flash window (0x1800_0000, 128 MB) and its mirror (0x5800_0000), by
+/// physical address.
+pub fn xip_window_sections() -> impl Iterator<Item = u32> {
+    (0x180..0x200u32).chain(0x580..0x600).map(|mb| mb << 20)
+}
+
+/// Maps the flash windows strongly-ordered and execute-never, for good. Settings reads still work
+/// (strongly-ordered memory reads normally); nothing executes from the flash.
+///
+/// # Safety
+///
+/// Once, at boot, after the MMU and caches are up (`deluge_bsp::Board::new`) and before anything
+/// reads the windows: the caches were invalidated when they came up and nothing has filled a line
+/// from the flash since, so no cached line goes stale under the new attribute.
+#[cfg(target_os = "none")]
+pub unsafe fn seal_xip_window() {
+    critical_section::with(|_| {
+        for pa in xip_window_sections() {
+            // SAFETY: the MMU is on (the caller's contract), interrupts are masked here, and no
+            // cache line holds flash data (see the safety section).
+            unsafe { rza1_hal::mmu::update_section(pa, SEALED_SECTION_ATTR) };
+        }
+    });
+}
 
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
@@ -104,14 +135,15 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
     );
     // SAFETY: as `deluge_flash_erase`.
     unsafe { flash::MAP.program_interruptible(flash::DELUGE_SETTINGS_OFFSET + offset, data) };
-    // Diagnostic: log the read-back through both windows.
-    let cached = spibsc::SPI_FLASH_BASE + flash::DELUGE_SETTINGS_OFFSET + offset;
-    let uncached = cached + UNCACHED_FLASH_MIRROR;
-    let rb_cached =
-        unsafe { core::slice::from_raw_parts(cached as *const u8, len.min(8) as usize) };
-    let rb_uncached =
-        unsafe { core::slice::from_raw_parts(uncached as *const u8, len.min(8) as usize) };
-    log::info!("flash: readback cached={rb_cached:02x?} uncached={rb_uncached:02x?}");
+    // Diagnostic: log what the flash reads back.
+    // SAFETY: the settings region, read as `deluge_flash_read` reads it.
+    let rb = unsafe {
+        core::slice::from_raw_parts(
+            (SETTINGS_XIP_BASE + offset) as *const u8,
+            len.min(8) as usize,
+        )
+    };
+    log::info!("flash: readback {rb:02x?}");
 }
 
 /// Host: programs `len` bytes from `src` at `offset`, clamped to the store's bounds.
@@ -138,6 +170,31 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
 #[cfg(test)]
 mod host_tests {
     use super::*;
+
+    /// The seal covers both 128 MB windows, every 1 MB section, and nothing else.
+    #[test]
+    fn the_seal_covers_the_flash_window_and_its_mirror() {
+        let sections: Vec<u32> = xip_window_sections().collect();
+        assert_eq!(sections.len(), 256);
+        assert_eq!(sections.first(), Some(&0x1800_0000));
+        assert_eq!(sections[127], 0x1FF0_0000);
+        assert_eq!(sections[128], 0x5800_0000);
+        assert_eq!(sections.last(), Some(&0x5FF0_0000));
+    }
+
+    /// Strongly-ordered (TEX=000, C=0, B=0), execute-never, a section, full access.
+    #[test]
+    fn the_seal_is_strongly_ordered_and_execute_never() {
+        let a = SEALED_SECTION_ATTR;
+        assert_eq!(a & 0b11, 0b10, "a section");
+        assert_ne!(a & (1 << 4), 0, "XN");
+        assert_eq!(
+            a & ((0b111 << 12) | (1 << 3) | (1 << 2)),
+            0,
+            "TEX=000 C=0 B=0"
+        );
+        assert_eq!(a & !(1 << 4), rza1_hal::memmap::PARA_STRONGLY_ORDERED);
+    }
 
     /// Every erase clears the whole store, so a test's erase must not land between another's
     /// program and read.
