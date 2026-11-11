@@ -35,6 +35,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -140,6 +141,8 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 		crossfadeProgress = kMaxSampleValue;
 		crossfadeIncrement = 0;
+
+		updateClustersForHopBack(sample, getSamplePos(playDirection), timeStretchRatio, phaseIncrement, playDirection);
 	}
 
 	AudioEngine::logAction("---/");
@@ -172,6 +175,8 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercLookahead();
 	unassignAllReasonsForPercCacheClusters();
+	unassignAllReasonsForHopBack();
+	releaseClusterForHopRetry();
 	// we might sometimes want to dealloc the clusters but I'm not sure
 	olderPartReader.unassignAllReasons(false);
 	if (buffer) {
@@ -192,6 +197,33 @@ void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 			deluge::cluster::remove_reason(*percCacheClustersNearby[l], "E132");
 			percCacheClustersNearby[l] = nullptr;
 		}
+	}
+}
+
+void TimeStretcher::unassignAllReasonsForHopBack() {
+	if (hopBack_ != nullptr) {
+		deluge_sample_reserve_close(hopBack_);
+		hopBack_ = nullptr;
+	}
+}
+
+// Pins the cluster holding bytePos (and the next few in playDirection) until the hop is retried
+void TimeStretcher::keepClusterForHopRetry(Sample* sample, int32_t bytePos, int32_t playDirection) {
+	uint32_t sourceId = deluge::sample::source_id_for(*sample);
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
+	uint64_t frame = (uint32_t)(bytePos - sample->audioDataStartPosBytes) / (uint32_t)bytesPerSample;
+	if (hopRetry_ == nullptr) {
+		hopRetry_ = deluge_sample_reserve_open(sourceId, frame, playDirection, DELUGE_LOAD_ENQUEUE);
+	}
+	else {
+		deluge_sample_reserve_move(hopRetry_, sourceId, frame, playDirection, DELUGE_LOAD_ENQUEUE);
+	}
+}
+
+void TimeStretcher::releaseClusterForHopRetry() {
+	if (hopRetry_ != nullptr) {
+		deluge_sample_reserve_close(hopRetry_);
+		hopRetry_ = nullptr;
 	}
 }
 
@@ -238,6 +270,85 @@ const int16_t lookaheadFine[] = {
         0 // +12
 };
 */
+
+namespace {
+// How long hops can be and how they crossfade, depending on the time-stretch speed
+struct HopParams {
+	int32_t minBeamWidth; // Not pixellated
+	int32_t maxBeamWidth; // Not pixellated
+	int32_t crossfadeProportional;
+	int32_t crossfadeAbsolute;
+	int32_t randomElement;
+};
+
+HopParams getHopParams(int32_t timeStretchRatio) {
+	int32_t speedLog = deluge::dsp::fixed::quick_log(timeStretchRatio);
+
+	HopParams params;
+
+	// int32_t beamWidthIncrement = (uint32_t)phaseIncrement
+
+	// Neutral is (832 << 20). Each octave is a (32 << 20)
+
+	// If within +/- 1 octave...
+	if (speedLog >= (800 << 20) && speedLog < (864 << 20)) {
+		int32_t position = speedLog - (800 << 20);
+
+		params.minBeamWidth =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, minHopSizeFine, 4) >> 16;
+		params.maxBeamWidth =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, maxHopSizeFine, 4) >> 16;
+		params.crossfadeProportional =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeProportionalFine, 4)
+		    << 8;
+		params.crossfadeAbsolute =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeAbsoluteFine, 4)
+		    >> 16;
+		params.randomElement =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, randomFine, 4);
+		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, lookaheadFine, 4)
+		// >> 16;
+	}
+
+	// Or if outside of that...
+	else {
+		if (speedLog > (896 << 20)) {
+			speedLog = (896 << 20);
+		}
+		else if (speedLog < (768 << 20)) {
+			speedLog = (768 << 20);
+		}
+
+		int32_t position = speedLog - (768 << 20);
+
+		// interpolate_signed reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
+		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
+		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
+		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
+		// resolves to the last table entry, matching the intended ceiling.
+		if (position >= (128 << 20)) {
+			position = (128 << 20) - 1;
+		}
+
+		params.minBeamWidth =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, minHopSizeCoarse, 2) >> 16;
+		params.maxBeamWidth =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, maxHopSizeCoarse, 2) >> 16;
+		params.crossfadeProportional = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
+		                                   position, 27, crossfadeProportionalCoarse, 2)
+		                               << 8;
+		params.crossfadeAbsolute =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, crossfadeAbsoluteCoarse, 2)
+		    >> 16;
+		params.randomElement =
+		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, randomCoarse, 2);
+		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, lookaheadCoarse, 2)
+		// >> 16;
+	}
+
+	return params;
+}
+} // namespace
 
 // Returns false if sound needs to cut due to a load error or similar
 bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int32_t numChannels,
@@ -316,71 +427,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplePos = getSamplePos(playDirection);
 	}
 
-	int32_t speedLog = deluge::dsp::fixed::quick_log(timeStretchRatio);
-
-	int32_t minBeamWidth; // Not pixellated
-	int32_t maxBeamWidth; // Not pixellated
-	int32_t crossfadeProportional;
-	int32_t crossfadeAbsolute;
-	int32_t randomElement;
-
-	// int32_t beamWidthIncrement = (uint32_t)phaseIncrement
-
-	// Neutral is (832 << 20). Each octave is a (32 << 20)
-
-	// If within +/- 1 octave...
-	if (speedLog >= (800 << 20) && speedLog < (864 << 20)) {
-		int32_t position = speedLog - (800 << 20);
-
-		minBeamWidth =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, minHopSizeFine, 4) >> 16;
-		maxBeamWidth =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, maxHopSizeFine, 4) >> 16;
-		crossfadeProportional =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeProportionalFine, 4)
-		    << 8;
-		crossfadeAbsolute =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, crossfadeAbsoluteFine, 4)
-		    >> 16;
-		randomElement = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, randomFine, 4);
-		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 26, lookaheadFine, 4)
-		// >> 16;
-	}
-
-	// Or if outside of that...
-	else {
-		if (speedLog > (896 << 20)) {
-			speedLog = (896 << 20);
-		}
-		else if (speedLog < (768 << 20)) {
-			speedLog = (768 << 20);
-		}
-
-		int32_t position = speedLog - (768 << 20);
-
-		// interpolate_signed reads table[whichValue] AND table[whichValue + 1], with whichValue = position >> 25.
-		// The coarse tables have 5 entries (indices 0..4), so position must stay strictly below 2^27 or whichValue
-		// reaches 4 and the +1 read runs one past the end. The speedLog clamp above is inclusive (speedLog == 896<<20
-		// gives position == 2^27), so pin position to the top of the valid 27-bit range - the interpolation there still
-		// resolves to the last table entry, matching the intended ceiling.
-		if (position >= (128 << 20)) {
-			position = (128 << 20) - 1;
-		}
-
-		minBeamWidth =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, minHopSizeCoarse, 2) >> 16;
-		maxBeamWidth =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, maxHopSizeCoarse, 2) >> 16;
-		crossfadeProportional = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
-		                            position, 27, crossfadeProportionalCoarse, 2)
-		                        << 8;
-		crossfadeAbsolute =
-		    deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, crossfadeAbsoluteCoarse, 2)
-		    >> 16;
-		randomElement = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, randomCoarse, 2);
-		// lookahead = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(position, 27, lookaheadCoarse, 2)
-		// >> 16;
-	}
+	auto [minBeamWidth, maxBeamWidth, crossfadeProportional, crossfadeAbsolute, randomElement] =
+	    getHopParams(timeStretchRatio);
 
 	//	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
@@ -407,6 +455,19 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	uint32_t crossfadeLengthSamples;
 
 	int32_t additionalOscPos = 0;
+
+	// A hop can reach back before the start marker. Nothing but hopBack_ loads the audio there, so if that hasn't
+	// happened in time, start the new play-head at the marker instead, rather than failing to start it at all
+	auto clampToStartIfNotLoaded = [&]() {
+		if ((int32_t)(newHeadBytePos - guide->startPlaybackAtByte) * playDirection < 0) {
+			uint64_t frame = (uint32_t)(newHeadBytePos - sample->audioDataStartPosBytes) / (uint32_t)bytesPerSample;
+			if (deluge_sample_peek(deluge::sample::source_id_for(*sample), frame, static_cast<int8_t>(playDirection))
+			        .frames
+			    == nullptr) {
+				newHeadBytePos = guide->startPlaybackAtByte;
+			}
+		}
+	};
 
 	int32_t waveformStartByte = sample->audioDataStartPosBytes;
 	if (playDirection != 1) {
@@ -624,6 +685,9 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		newHeadBytePos = sample->audioDataStartPosBytes + beamBackEdge * bytesPerSample;
+
+		// Before the phase search, so that it searches around wherever we really start
+		clampToStartIfNotLoaded();
 	}
 
 skipPercStuff:
@@ -899,6 +963,9 @@ stopSearch:
 			D_PRINTLN("avoided going before 0: %i", newHeadBytePos - waveformStartByte);
 			newHeadBytePos = waveformStartByte;
 		}
+
+		// The search may have moved us back over the start marker a little
+		clampToStartIfNotLoaded();
 	}
 
 skipSearch:
@@ -974,6 +1041,21 @@ optForDirectReading:
 
 			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
+			// If that was because the cluster to start in isn't loaded yet, it's now in the loading queue. Pin it, so
+			// letting go of the new play-head's leases below doesn't take it back out of the queue, and it can be
+			// loaded by the time we try again (rather than being enqueued and dropped again on every try)
+			const uint64_t wantedFrame =
+			    (uint32_t)(newHeadBytePos - sample->audioDataStartPosBytes) / (uint32_t)bytesPerSample;
+			if (deluge_sample_peek(deluge::sample::source_id_for(*sample), wantedFrame,
+			                       static_cast<int8_t>(playDirection))
+			        .frames
+			    == nullptr) {
+				keepClusterForHopRetry(sample, newHeadBytePos, playDirection);
+			}
+			else {
+				releaseClusterForHopRetry();
+			}
+
 			// Restore ONLY the SampleLowLevelReader base state from olderPartReader (stealing its cluster reasons
 			// back). Assigning to the whole VoiceSample - `*voiceSample = SampleLowLevelReader(...)` - does NOT bind
 			// the base operator=: VoiceSample declares its own operator= (hiding the base one), so this routes through
@@ -987,6 +1069,9 @@ optForDirectReading:
 
 			crossfadeIncrement = 0;
 			samplesTilHopEnd = 500; // Come back in a while and try again
+		}
+		else {
+			releaseClusterForHopRetry(); // The new play-head holds its own leases now
 		}
 
 #if TIME_STRETCH_ENABLE_BUFFER
@@ -1009,6 +1094,8 @@ optForDirectReading:
 	}
 
 #endif
+
+	updateClustersForHopBack(sample, samplePos, timeStretchRatio, phaseIncrement, playDirection);
 
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1183,6 +1270,39 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 	}
 	else {
 		deluge_sample_reserve_move(percLookahead_, sourceId, markerFrame, playDirection, DELUGE_LOAD_ENQUEUE);
+	}
+}
+
+// Works out the earliest the next hop could start the new play-head, and pins the clusters from there on in
+// playDirection, so they're enqueued now and have time to load before the hop. samplePos only moves on before that hop,
+// so working this out from it now errs on the early side.
+void TimeStretcher::updateClustersForHopBack(Sample* sample, int64_t samplePos, int32_t timeStretchRatio,
+                                             int32_t phaseIncrement, int32_t playDirection) {
+	HopParams params = getHopParams(timeStretchRatio);
+
+	// The widest beam hopEnd() can pick. Its random element can make minBeamWidth nearly twice as big
+	int32_t widestBeam = std::max(params.maxBeamWidth, params.minBeamWidth << 1);
+	widestBeam = ((uint64_t)(uint32_t)widestBeam * (uint32_t)phaseIncrement) >> 24;
+
+	// When time is slowed down, the beam's back edge is behind samplePos by half the beam times how much slower. Then
+	// the phase search can move it back by up to half its search limit, and one more sample for sub-sample alignment
+	int64_t samplesBack = ((sample->sampleRate / 45) >> 1) + 1;
+	if (timeStretchRatio < kMaxSampleValue) {
+		samplesBack += ((int64_t)widestBeam * (kMaxSampleValue - timeStretchRatio)) >> 25;
+	}
+
+	int64_t lastSample = (int64_t)sample->lengthInSamples - 1;
+	if (lastSample < 0) {
+		return;
+	}
+	int64_t earliestSample = std::clamp<int64_t>(samplePos - samplesBack * playDirection, 0, lastSample);
+
+	uint32_t sourceId = deluge::sample::source_id_for(*sample);
+	if (hopBack_ == nullptr) {
+		hopBack_ = deluge_sample_reserve_open(sourceId, earliestSample, playDirection, DELUGE_LOAD_ENQUEUE);
+	}
+	else {
+		deluge_sample_reserve_move(hopBack_, sourceId, earliestSample, playDirection, DELUGE_LOAD_ENQUEUE);
 	}
 }
 

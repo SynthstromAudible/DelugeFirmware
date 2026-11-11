@@ -45,6 +45,7 @@ public:
 	void beenUnassigned();
 	void unassignAllReasonsForPercLookahead();
 	void unassignAllReasonsForPercCacheClusters();
+	void unassignAllReasonsForHopBack();
 	bool hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample, int32_t numChannels,
 	            int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int32_t playDirection,
 	            LoopType loopingType, int32_t priorityRating);
@@ -105,6 +106,14 @@ public:
 	ComputedChunk* percCacheClustersNearby[2]{}; ///< Reason-holder for the two most recently needed/accessed
 	                                             ///< perc-cache chunks.
 
+	/// @note Pins the earliest clusters the next hop could start the new play-head in, so they are enqueued well
+	///       before the hop. Nothing else loads audio before the start marker, which a hop reaches back into when time
+	///       is slowed down a lot (pitched up with the length kept, say). See updateClustersForHopBack.
+	DelugeSampleReservation* hopBack_ = nullptr;
+
+	/// @note Pins the cluster a failed hop wanted to start in, so it stays in the loading queue until the retry.
+	DelugeSampleReservation* hopRetry_ = nullptr;
+
 	// Where the last call to Sample::fillPercCache() started, and where it left the perc cache zone ending, so we can
 	// skip calling it (and its walk through the Sample's metadata, which lives in SDRAM) until the lookahead has moved
 	// on a bit
@@ -115,6 +124,10 @@ public:
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,
 	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);
+	void updateClustersForHopBack(Sample* sample, int64_t samplePos, int32_t timeStretchRatio, int32_t phaseIncrement,
+	                              int32_t playDirection);
+	void keepClusterForHopRetry(Sample* sample, int32_t bytePos, int32_t playDirection);
+	void releaseClusterForHopRetry();
 };
 
 // The crossfade window-match helpers (getTotalDifferenceAbs / getTotalChange) moved to
