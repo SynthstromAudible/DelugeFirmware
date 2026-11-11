@@ -35,6 +35,11 @@ static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, Q<30>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(mul_r(QVec<31>{}, QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(mul_r(QVec<31>{}, QVec<29>{})), QVec<28>>);
+static_assert(std::is_same_v<decltype(mul(QVec<31>{}, QVec<27>{})), QVec<26>>);
+static_assert(std::is_same_v<decltype(mul(QVec<31>{}, Q<31>{})), QVec<30>>);
+static_assert(std::is_same_v<decltype(mul_as_wrap<QVec<31>>(QVec<31>{}, QVec<27>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(add_pairs_wrap(QVec<31>{}, QVec<31>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(get_lane<2>(QVec<27>{})), Q<27>>);
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(as_wrap<QVec<31>>(QVec<26>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(clamp_bits<27>(QVec<26>{})), QVec<26>>);
@@ -142,6 +147,12 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto b, auto) { return mul_r(q<31>(a), q<31>(b)).raw(); });
 	bad += mismatches32([](auto a, auto, auto c) { return out(mul_r(vec<31>(a), vec<29>(c))); },
 	                    [](auto a, auto, auto c) { return mul_r(q<31>(a), Q<29>::from_raw(c)).raw(); });
+	bad += mismatches32([](auto a, auto b, auto) { return out(mul(vec<31>(a), vec<27>(b))); },
+	                    [](auto a, auto b, auto) { return mul(q<31>(a), Q<27>::from_raw(b)).raw(); });
+	bad += mismatches32([](auto a, auto, auto c) { return out(mul(vec<31>(a), q<31>(c))); },
+	                    [](auto a, auto, auto c) { return mul(q<31>(a), q<31>(c)).raw(); });
+	bad += mismatches32([](auto a, auto b, auto) { return out(mul_as_wrap<QVec<31>>(vec<31>(a), vec<27>(b))); },
+	                    [](auto a, auto b, auto) { return mul_as_wrap<Q<31>>(q<31>(a), Q<27>::from_raw(b)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shl_wrap<3>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return scale_shl_wrap<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shr_floor<3>(vec<31>(a))); },
@@ -346,6 +357,19 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 	});
 	it("select each pair's halves and each register's halves", _ {
 		expect(half_mismatches()).to_equal(std::size_t{0});
+	});
+	it("sum adjacent lanes, wrapping, and read a lane", _ {
+		const std::array<Q<31>, 4> a{Q<31>::from_raw(INT32_MAX), Q<31>::from_raw(1), Q<31>::from_raw(-5),
+		                             Q<31>::from_raw(2)};
+		const std::array<Q<31>, 4> b{Q<31>::from_raw(INT32_MIN), Q<31>::from_raw(-1), Q<31>::from_raw(7),
+		                             Q<31>::from_raw(8)};
+		const QVec<31> sums = add_pairs_wrap(QVec<31>::load(a.data()), QVec<31>::load(b.data()));
+		expect(sums.lane(0).raw()).to_equal(INT32_MIN);
+		expect(sums.lane(1).raw()).to_equal(-3);
+		expect(sums.lane(2).raw()).to_equal(INT32_MAX);
+		expect(sums.lane(3).raw()).to_equal(15);
+		expect(get_lane<0>(sums).raw()).to_equal(INT32_MIN);
+		expect(get_lane<3>(sums).raw()).to_equal(15);
 	});
 	it("transpose four vectors as the rows of a 4×4 matrix", _ {
 		std::array<std::array<Q<31>, 4>, 4> rows{};

@@ -280,6 +280,12 @@ int32x4_t probe_vec_mul_doubling_r_sat(int32x4_t a, int32x4_t b) {
 int32x4_t probe_vec_mul_r(int32x4_t a, int32x4_t b) {
 	return mul_r(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
 }
+int32x4_t probe_vec_mul(int32x4_t a, int32x4_t b) {
+	return mul(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_add_pairs_wrap(int32x4_t a, int32x4_t b) {
+	return add_pairs_wrap(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
 float32x4_t probe_vec_to_float_24(int32x4_t a) {
 	return to_float(QVec<24>::from_raw(a));
 }

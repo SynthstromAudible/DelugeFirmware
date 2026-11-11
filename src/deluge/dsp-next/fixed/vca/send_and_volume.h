@@ -18,12 +18,14 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/vca/pan.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -106,12 +108,10 @@ struct SendAndVolume {
 	};
 
 	/// @brief The per-frame steps of a ramping block.
-	struct Block {
+	struct Steps {
 		Volume step_l{}; ///< Added to the left gain before each frame.
 		Volume step_r{}; ///< Added to the right gain before each frame.
 	};
-
-	static constexpr auto kLoopState = &State::loop; ///< The loop steps the gains and the cursor.
 
 	/// @brief One frame's reverb send: (l + r) × @p send_gain, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> send_of(StereoSample x, Q<31> send_gain) {
@@ -132,13 +132,79 @@ struct SendAndVolume {
 		};
 	}
 
+	/// @brief A block: four frames to a vector, then any left over one at a time through the frame arithmetic.
+	/// @details Each vector lane gives what the frame arithmetic gives: the products are the high words (`vmull.s32`,
+	/// `vshrn.i64 #32`) and the gains step by whole multiples of the per-frame step, wrapping as the scalar adds do.
+	/// @tparam M The block's mode.
+	/// @param c The coefficients.
+	/// @param s The state; the gains, the send cursor and the last volume move on by the block.
+	/// @param in The frames, at least `out.size()`; may be @p out.
+	/// @param out The frames written.
+	template <Mode M>
+	static void process(const Coefficients& c, State& s, dsp::Signal<StereoSample> in, dsp::Buffer<StereoSample> out) {
+		const std::size_t n = out.size();
+		if (n == 0) {
+			return;
+		}
+		const Steps b = start_block(c, s, n);
+		Loop l = s.loop;
+		constexpr bool kSend = (M == Mode::HOLD_SEND || M == Mode::RAMP_SEND);
+		constexpr bool kRamp = (M == Mode::RAMP || M == Mode::RAMP_SEND);
+		const std::size_t vectored = n & ~std::size_t{3};
+		if (vectored != 0) {
+			using Gains = QVec<27>;
+			// Frames f and f + 1 of each vector: the gains after one step and after two
+			const std::array<Volume, 4> start{l.gain_l, l.gain_r, l.gain_l, l.gain_r};
+			Gains gains = Gains::load(start.data());
+			Gains two_steps = Gains::splat(Volume{});
+			if constexpr (kRamp) {
+				const std::array<Volume, 4> steps{b.step_l, b.step_r, b.step_l, b.step_r};
+				const std::array<Volume, 4> first_steps{b.step_l, b.step_r, add_wrap(b.step_l, b.step_l),
+				                                        add_wrap(b.step_r, b.step_r)};
+				gains = add_wrap(gains, Gains::load(first_steps.data()));
+				const Gains step = Gains::load(steps.data());
+				two_steps = add_wrap(step, step);
+			}
+			const auto* src = reinterpret_cast<const Q<31>*>(in.data());
+			auto* dst = reinterpret_cast<Q<31>*>(out.data());
+			for (std::size_t i = 0; i < vectored; i += 4) {
+				const QVec<31> first = QVec<31>::load(src + 2 * i);      // l0 r0 l1 r1
+				const QVec<31> second = QVec<31>::load(src + 2 * i + 4); // l2 r2 l3 r3
+				if constexpr (kSend) {
+					const auto sent = mul_as_wrap<QVec<31>>(add_pairs_wrap(first, second), c.send_gain);
+					add_wrap(QVec<31>::load(l.send), sent).store(l.send);
+					l.send += 4;
+				}
+				Gains second_gains = gains;
+				if constexpr (kRamp) {
+					second_gains = add_wrap(gains, two_steps);
+				}
+				mul_as_wrap<QVec<31>>(first, gains).store(dst + 2 * i);
+				mul_as_wrap<QVec<31>>(second, second_gains).store(dst + 2 * i + 4);
+				if constexpr (kRamp) {
+					gains = add_wrap(second_gains, two_steps);
+				}
+			}
+			if constexpr (kRamp) {
+				// The gains after the last vectored frame: lanes 2 and 3 of the last pair's, one pair back
+				const Gains last = sub_wrap(gains, two_steps);
+				l.gain_l = get_lane<2>(last);
+				l.gain_r = get_lane<3>(last);
+			}
+		}
+		for (std::size_t i = vectored; i < n; ++i) {
+			out[i] = frame<M>(c, b, l, in[i]);
+		}
+		s.loop = l;
+	}
+
 	/// @brief Starts the gains at this block's volumes, works out the ramp's step from the last block's post-reverb
 	/// volume over @p n frames, and records this block's.
 	/// @param c The block's volumes and pan.
 	/// @param s The gains, set; the last volume, read and then replaced.
 	/// @param n The block's length, at least 1.
 	/// @return The per-frame steps (zero unless ramping).
-	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
+	[[nodiscard]] [[gnu::always_inline]] static Steps start_block(const Coefficients& c, State& s, std::size_t n) {
 		const Volume post_fx = c.post_fx_volume;
 		auto gain_l = mul_as_wrap<Volume>(c.post_reverb_volume, post_fx);
 		Volume gain_r = gain_l;
@@ -159,7 +225,7 @@ struct SendAndVolume {
 			step_l = mul_as_wrap<Volume>(step_l, pan_l);
 			step_r = mul_as_wrap<Volume>(step_r, pan_r);
 		}
-		const Block b{.step_l = step_l, .step_r = step_r};
+		const Steps b{.step_l = step_l, .step_r = step_r};
 		s.loop.gain_l = gain_l;
 		s.loop.gain_r = gain_r;
 		s.last_post_reverb_volume = c.post_reverb_volume;
@@ -174,8 +240,8 @@ struct SendAndVolume {
 	/// @param x The frame, Q31.
 	/// @return The frame at the gains.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, Loop& l,
-	                                                              StereoSample x) {
+	[[nodiscard]] [[gnu::always_inline]] static StereoSample frame(const Coefficients& c, const Steps& b, Loop& l,
+	                                                               StereoSample x) {
 		if constexpr (M == Mode::HOLD_SEND || M == Mode::RAMP_SEND) {
 			*l.send = add_wrap(*l.send, send_of(x, c.send_gain));
 			++l.send;
@@ -211,7 +277,7 @@ struct SendAndVolume {
 	}
 };
 
-static_assert(processor_kernel<SendAndVolume>);
+static_assert(staged_kernel<SendAndVolume>);
 static_assert(!std::is_polymorphic_v<SendAndVolume>);
 
 } // namespace deluge::dsp::fixed

@@ -705,11 +705,14 @@ engine's monitoring decision to a copy of the function it replaced.
   chain's post-reverb volume) and `REVERB_RETURN` (2^29 unducked, the reverb's return). `effects::Sidechain::level`
   is the one place a duck becomes a level; `TrackChain` and `effects::Reverb` (which owns its return's `Sidechain`
   and a `ReturnDuck`, the depth and shape `AudioEngine::updateReverbParams` chooses) both call it.
-- **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A stereo processor with a `prepare` (the gains at this block's
-  volumes, the ramp's step from the last block's post-reverb volume, pan folded in) and the two running gains as its
-  `kLoopState`, with the reverb send's cursor, which the SEND modes advance per frame as `Granular`'s does (`set_send`
-  points it at the block's reverb input). Named quirk: the ramp starts at this block's gain and steps before the first
-  frame, ending one block's change past its target. `prime` and `forget` are events.
+- **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A block-staged stereo kernel. Each block starts the gains at
+  this block's volumes, works out the ramp's step from the last block's post-reverb volume and folds the pan in; then
+  `process` runs four frames to a pair of NEON vectors (the gains for frames f and f + 1 in one vector, the four
+  frames' channel sums for the send in another, each product the high word as the frame arithmetic's) and the
+  block's last frames, when it is not a multiple of four, one at a time. The reverb send's cursor is advanced per frame
+  as `Granular`'s is (`set_send` points it at the block's reverb input). Named quirk: the ramp starts at this block's
+  gain and steps before the first frame, ending one block's change past its target. `prime` and `forget` are
+  events.
 - **`ShelfPair` (`fixed/filter/shelf_pair.h`).** The EQ's two shelves. Not `OnePole`: the steps truncate, and the
   treble's is doubled while the bass's is not. Modes `BOTH`, `BASS`, `TREBLE` step only the bands that are on, so a
   flat band's memory holds; the adapter skips the kernel with both flat. The band coefficients are computed every

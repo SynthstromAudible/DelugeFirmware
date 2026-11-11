@@ -47,7 +47,7 @@ using Adapter = deluge::effects::SendAndVolume;
 
 namespace {
 
-static_assert(processor_kernel<Kernel>);
+static_assert(staged_kernel<Kernel>);
 static_assert(moded_kernel<Kernel>);
 static_assert(!std::is_polymorphic_v<Kernel>);
 

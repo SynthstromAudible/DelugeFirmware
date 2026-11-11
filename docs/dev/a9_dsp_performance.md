@@ -702,6 +702,28 @@ with the frame kernel: `freeverb_kernel_spec`'s recorded workloads pass on the h
   halves gives the scalar's rounded high word exactly; the line samples take `mul_r` (`vmull`, `vrshrn`).
 - **The plates move by 2%**, placement between the two images (they share `effects::Reverb::render`).
 
+### Send and volume in NEON
+
+`SendAndVolume` as a block-staged kernel (`SendAndVolume::process`, four frames to a pair of vectors, from upstream's
+#5256) against the frame kernel, on 2026-11-11: `fx_chains`, three runs of each image, the minimum of each; the last
+column is the after spread (max - min), worst size. The output is bit-exact with the frame kernel:
+`send_and_volume_kernel_spec`, against the frozen send-and-volume across every block size, passes on the host and under
+qemu on ARM.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.16 → 32.16 (+0.0%) | 32.07 → 32.07 (+0.0%) | 32.03 → 32.04 (+0.0%) | 0.01 |
+| `control delay_feedback_chain_digital` | 20.95 → 20.98 (+0.1%) | 15.23 → 15.23 (+0.0%) | 12.41 → 12.36 (-0.4%) | 0.35 |
+| `fx_chain_sound` | 220.76 → 218.49 (-1.0%) | 198.71 → 196.31 (-1.2%) | 187.74 → 184.79 (-1.6%) | 0.48 |
+| `fx_chain_clip` | 395.32 → 393.67 (-0.4%) | 367.78 → 365.59 (-0.6%) | 353.64 → 351.12 (-0.7%) | 0.24 |
+| `fx_chain_master` | 351.61 → 351.45 (-0.0%) | 326.18 → 325.38 (-0.2%) | 313.01 → 312.11 (-0.3%) | 0.33 |
+
+- **Two frames' gains in one vector.** The left and right gains of frames f and f + 1 step together by twice the
+  per-frame step; each product is `vmull.s32` then `vshrn.i64 #32`, the frame arithmetic's high word. The send sums
+  four frames' channels with two `vpadd.i32` and adds them to the reverb input as one vector.
+- **The gain is a small share of each chain**, so the chains move by 0.3-1.6% at n=128; the master chain at n=32 is
+  inside its spread.
+
 ## DX7
 
 The `dx7` list (`DELUGE_DSP_BENCH_CASES=dx7`) times one voice's block through the voice adapter, as a sound renders it:

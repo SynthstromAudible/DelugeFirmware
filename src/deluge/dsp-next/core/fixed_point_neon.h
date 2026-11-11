@@ -281,6 +281,53 @@ requires(A + B >= 32)
 	                                               vrshrn_n_s64(vmull_s32(vget_high_s32(x), vget_high_s32(y)), 32)));
 }
 
+/// @brief The high word of a × b per lane, rounded toward −∞, as the scalar mul: Q<A> × Q<B> → Q<A+B−32>
+/// (`vmull.s32` and `vshrn.i64 #32` on each half).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 32> mul(QVec<A> a, QVec<B> b) noexcept {
+	const int32x4_t x = a.raw();
+	const int32x4_t y = b.raw();
+	return QVec<A + B - 32>::from_raw(vcombine_s32(vshrn_n_s64(vmull_s32(vget_low_s32(x), vget_low_s32(y)), 32),
+	                                               vshrn_n_s64(vmull_s32(vget_high_s32(x), vget_high_s32(y)), 32)));
+}
+/// @brief The high word of a × b per lane by one scalar, rounded toward −∞: Q<A> × Q<B> → Q<A+B−32>
+/// (`vmull.s32` by a scalar and `vshrn.i64 #32` on each half).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 32> mul(QVec<A> a, Q<B> b) noexcept {
+	const int32x4_t x = a.raw();
+	return QVec<A + B - 32>::from_raw(vcombine_s32(vshrn_n_s64(vmull_n_s32(vget_low_s32(x), b.raw()), 32),
+	                                               vshrn_n_s64(vmull_n_s32(vget_high_s32(x), b.raw()), 32)));
+}
+/// @brief as_wrap<To>(mul(a, b)) per lane: the high word reformatted, wrapping, as the scalar mul_as_wrap.
+template <class To, int A, class B>
+[[gnu::always_inline, nodiscard]] inline To mul_as_wrap(QVec<A> a, B b) noexcept {
+	const auto product = mul(a, b);
+	if constexpr (std::is_same_v<To, decltype(product)>) {
+		return product;
+	}
+	else {
+		return as_wrap<To>(product);
+	}
+}
+/// @brief The sums of adjacent lanes, wrapping: (a0 + a1, a2 + a3, b0 + b1, b2 + b3) (`vpadd.i32` twice). Four
+/// interleaved stereo frames' channel sums.
+template <int F>
+[[gnu::always_inline, nodiscard]] inline QVec<F> add_pairs_wrap(QVec<F> a, QVec<F> b) noexcept {
+	const int32x4_t x = a.raw();
+	const int32x4_t y = b.raw();
+	return QVec<F>::from_raw(
+	    vcombine_s32(vpadd_s32(vget_low_s32(x), vget_high_s32(x)), vpadd_s32(vget_low_s32(y), vget_high_s32(y))));
+}
+
+/// @brief Lane @p I, in a register (`vmov.32`).
+template <int I, int F>
+requires(I >= 0 && I < 4)
+[[gnu::always_inline, nodiscard]] inline Q<F> get_lane(QVec<F> x) noexcept {
+	return Q<F>::from_raw(vgetq_lane_s32(x.raw(), I));
+}
+
 /// @brief Transposes four vectors as the rows of a 4×4 matrix: afterwards lane j of the i-th vector holds what lane i
 /// of the j-th held (`vtrn.32` twice, then d-register moves).
 template <class Lane>
