@@ -4832,7 +4832,7 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
@@ -4933,13 +4933,13 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
-		view.displayOutputName(oldNonAudioInstrument);
+		view.displayOutputName(oldNonAudioInstrument, true, displayClip);
 	}
 
 	// Or if we're on a Kit or Synth...
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {

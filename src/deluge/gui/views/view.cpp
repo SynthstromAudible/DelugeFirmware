@@ -2544,7 +2544,7 @@ gotAnInstrument:
 	else {
 
 		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false, clip);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
