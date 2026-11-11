@@ -32,6 +32,8 @@ jobs:
     uses: ./.github/workflows/build.yml
     needs: nightly-detect
     if: needs.nightly-detect.outputs.new-commits > 0
+    permissions:
+      contents: write
     with:
       firmware-retention-days: 30
       build-type: "Release"
@@ -40,6 +42,8 @@ jobs:
   nightly-publish:
     uses: ./.github/workflows/publish.yml
     needs: nightly-build
+    permissions:
+      contents: write
     with:
       tag: "nightly"
       branch: "main"
