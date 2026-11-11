@@ -9,3 +9,4 @@ pub mod host;
 pub mod pacing;
 pub mod render;
 pub(crate) mod ring;
+pub mod timing_probe;

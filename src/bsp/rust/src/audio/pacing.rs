@@ -25,3 +25,9 @@ pub fn pace_window(raw: usize, ring: usize) -> usize {
     }
     n as usize
 }
+
+/// Returns the render window when the drive renders fixed blocks of `n` frames: `n` once that
+/// much of the ring is free, else 0 (render nothing yet).
+pub fn fixed_window(raw: usize, n: usize) -> usize {
+    if raw >= n { n } else { 0 }
+}

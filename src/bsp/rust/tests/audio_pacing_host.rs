@@ -45,3 +45,13 @@ fn the_window_never_exceeds_the_ring_and_is_a_multiple_of_four_from_three_up() {
         }
     }
 }
+
+#[test]
+fn a_fixed_window_renders_exactly_its_size_once_that_much_is_free() {
+    assert_eq!(pacing::fixed_window(0, 128), 0);
+    assert_eq!(pacing::fixed_window(127, 128), 0);
+    assert_eq!(pacing::fixed_window(128, 128), 128);
+    assert_eq!(pacing::fixed_window(900, 128), 128);
+    assert_eq!(pacing::fixed_window(63, 64), 0);
+    assert_eq!(pacing::fixed_window(64, 64), 64);
+}
