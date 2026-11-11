@@ -107,6 +107,28 @@ function instead.
 Main's own A/B bench lives in a shared clone of `main` (see the memory notes); its lines use the same
 format, so its captures summarise alongside ours.
 
+## Audio timing
+
+The device BSP's `audio-timing` feature reports, every two seconds of audio, what the renders cost against the queue
+they had: an `AUDIO-TIMING` line with the renders, frames and time, the longest render, the fewest frames queued for
+the codec when a render began (`min_queued`), the fewest left when one finished (`min_slack`), overruns (a render
+that finished after the codec had played everything queued) and the render task's worst wake lateness after its
+timer (`max_wake_late_us`, how long the audio tier was held off). `fixed-window-64` and `fixed-window-128` make the
+drive render fixed windows instead of pacing them. Build them into a stream-bench image:
+
+    python3 tools/bench_image.py --define DELUGE_DSP_BENCH=OFF \
+        --define DELUGE_STREAM_BENCH_SONG_A=SONGS/problem_songs/Cordae/Cordae.XML \
+        --define DELUGE_STREAM_BENCH_SONG_B=SONGS/Glitchy_2.XML \
+        --features audio-timing --features fixed-window-128 --out X.elf
+
+Run it with `stream_bench_matrix.py` as above, then read the captures:
+
+    tools/audio_timing.py report DIR/*/stream-*.rtt
+    tools/audio_timing.py overhead --small A/stream-*.rtt --large B/stream-*.rtt --phase steady
+
+The stream bench's `STREAM-BENCH-RENDER` line also counts the voices the CPU cull took (`culled_voices`) and the
+highest direness reached (`direness_max`) per phase.
+
 ## 5. The DSP bench's case lists
 
 A DSP bench image times one case list (`DELUGE_DSP_BENCH_CASES`), because the RTT output holds about 70 lines
