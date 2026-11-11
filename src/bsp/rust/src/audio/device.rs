@@ -330,7 +330,19 @@ mod probe {
         unsafe { &mut *core::ptr::addr_of_mut!(STATS) }
     }
 
+    /// A render this long is reported at once, on its own `AUDIO-SLOW` line: a trace can stop on it.
+    const SLOW_US: u32 = 10_000;
+
     pub(super) fn record_render(frames: u32, queued: u32, us: u32, played: u32) {
+        if us >= SLOW_US {
+            log::info!(
+                "AUDIO-SLOW us={} frames={} queued={} played={}",
+                us,
+                frames,
+                queued,
+                played
+            );
+        }
         let s = stats();
         s.record_render(frames, queued, us, played);
         if s.interval_done() {
