@@ -18,8 +18,8 @@ pub const RING_FRAMES: usize = 1024;
 const RING_MASK: usize = RING_FRAMES - 1;
 
 /// How far ahead of the codec the from-host reader holds the host's audio, beyond the output
-/// queue's usual depth, in frames. A render block takes up to 128 frames and needs them all there
-/// already; this leaves as much again for packet and render jitter.
+/// queue's depth, in frames. A render block takes 128 frames and needs them all there already;
+/// this leaves as much again for packet and render jitter.
 pub const FROM_HOST_TARGET_FILL: u32 = 256;
 /// How far the averaged from-host latency may drift from its target before a frame is dropped or
 /// repeated. Packet and render jitter move the average much less than this.
@@ -32,8 +32,9 @@ pub const FROM_HOST_CORRECTION_INTERVAL: u32 = 1024;
 const FROM_HOST_OVERRUN_MARGIN: u32 = 64;
 
 /// The to-host backlog, in frames, the packet filler waits for before it starts taking frames from
-/// the ring, and trims back to when the ring backs up. The render queues a block of up to 128
-/// frames at a time, with up to two blocks per tick; this covers the gap between two of them.
+/// the ring, and trims back to when the ring backs up. The render queues a block of 128 frames at a
+/// time, one per codec block, or up to three back to back after a late wake; this covers the gap
+/// between two of them.
 pub const TO_HOST_TARGET_BACKLOG: u32 = 256;
 /// How far past [`TO_HOST_TARGET_BACKLOG`] the backlog may grow before the excess is dropped.
 pub const TO_HOST_SLACK: u32 = 384;
