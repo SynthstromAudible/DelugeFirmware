@@ -380,6 +380,7 @@ void SampleBrowser::enterKeyPress() {
 
 		if (error != Error::NONE) {
 			display->displayError(error);
+			clearMenuHeadingTo();
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 		}
 	}
