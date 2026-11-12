@@ -727,12 +727,12 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | The note leaves' `get`, `adjust`, `permitted` and `value_text` hooks call the note bridge unguarded: a harness that opens a note root without `wireShellNoteBridge()` crashes on the first read. | `menu/nodes/note.cpp` |
 | Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
 
-## Legacy features not yet ported
+## Features `main` has that the scenes do not
 
-Legacy's menus are the truth the tree transcribes. A feature-level legacy behaviour the scenes lag is
-listed here; the specs that walk both trees in lockstep step over it by identity
-(`tables_3_spec.cpp`'s `unported_legacy`) or pin the divergence, so porting it fails that spec until
-it leaves both lists.
+`main` is the truth the scenes match (read with `git show origin/main:<path>`); every way they differ is a
+`tests/ui-scripts/parity/DIFFERENCES.md` row, fixed or accepted. A feature-level `main` behaviour the scenes lag is
+listed here, and the specs over the frozen legacy rows pin each divergence by identity
+(`sim/scenes_spec/support/known_differences.h`), so porting it fails that spec until the pin goes.
 
 | legacy | gap | what porting it takes |
 |---|---|---|
