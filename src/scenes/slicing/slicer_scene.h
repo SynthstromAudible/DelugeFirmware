@@ -308,6 +308,12 @@ public:
 	///        underneath still needs to paint (and, through `Shell::tick_stack`, still needs its
 	///        clock advanced).
 	bool occludes_grid() const override { return false; }
+	/// @brief REGION mode leaves the audition column to the view beneath, as the sample browser it hands its pads to
+	///        does (`SampleBrowser::padAction`); MANUAL deals with every pad (`Slicer::padAction`).
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return mode_ == Mode::Region ? deluge::ui::shell::GridPadClaim::AllButAudition
+		                             : deluge::ui::shell::GridPadClaim::All;
+	}
 	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`gui/ui/slicer.h`), so
 	///        `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`) walks past it to the UI below
 	///        and this page composites over what that drew.

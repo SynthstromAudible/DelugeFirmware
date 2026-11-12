@@ -51,6 +51,7 @@
 /// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
 #include "model/sample/waveform_scan.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -808,9 +809,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().mode() == Mode::Region).to_be_true();
 	});
 
-	it("swallows a REGION pad, which main hands to the sample browser beneath", _ {
-		// Main's `:567` types it into the browser's keyboard, moving the file under a slicer that is slicing
-		// another: swallowed here, and recorded in DIFFERENCES.
+	it("swallows a REGION main pad, which main hands to the sample browser beneath", _ {
+		// Main's `Slicer::padAction` hands it to `SampleBrowser::padAction`, whose keyboard would move the file under a
+		// slicer that is slicing another: swallowed here (DIFFERENCES D57, accepted for the main pads).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -822,6 +823,67 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(r.shell.router().dropped_events()).to_equal(dropped);
 		expect(static_cast<int32_t>(ops.auditions.size())).to_equal(0);
 		expect(slicer_scene().current_slice()).to_equal(0);
+		expect(r.on_stack()).to_be_true();
+	});
+
+	it("leaves the audition column to the view beneath in REGION mode, as SampleBrowser::padAction does", _ {
+		// `SampleBrowser::padAction`'s audition arm hands x = 17 to the instrument clip view; MANUAL deals with it.
+		Rig r;
+		r.open();
+		expect(slicer_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButAudition).to_be_true();
+		slicer_scene().set_mode(Mode::Manual);
+		expect(slicer_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::All).to_be_true();
+	});
+
+	it("exits the slicer and the browser beneath on a REGION mute-column press, as SampleBrowser::padAction does", _ {
+		// `possiblyExit`: a press with no UI mode stops the preview and runs `exitAction`, which closes the browser and
+		// the slicer over it. A release does nothing.
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		const auto pad = [&](int16_t velocity) {
+			deluge::ui::shell::ButtonSet held{};
+			deluge::ui::PadMask pads{};
+			const deluge::ui::shell::UiContext ctx{held, pads, false, false, 0, r.profile};
+			deluge::ui::shell::UiEvent e{deluge::ui::shell::UiEvent::Kind::Pad};
+			e.x = kDisplayWidth;
+			e.y = 3;
+			e.velocity = velocity;
+			e.on = velocity != 0;
+			return slicer_scene().handle(e, ctx);
+		};
+		const deluge::ui::shell::Result released = pad(0);
+		expect(released.handled).to_be_true();
+		expect(released.actions.empty()).to_be_true();
+		const deluge::ui::shell::Result pressed = pad(64);
+		expect(pressed.handled).to_be_true();
+		const auto removes = [&](deluge::ui::shell::SceneKind kind) {
+			return std::ranges::any_of(pressed.actions, [&](const deluge::ui::shell::Action& a) {
+				return a.kind == deluge::ui::shell::Action::Kind::Remove && a.pop_to == kind;
+			});
+		};
+		expect(removes(deluge::scenes::slicing::kSlicerSceneKind)).to_be_true();
+		expect(removes(deluge::scenes::browser::kBrowserSceneKind)).to_be_true();
+		expect(ops.stop_previewing_calls).to_equal(1);
+		// Through the shell: the slicer leaves.
+		r.pad(kDisplayWidth, 3, 64, 10);
+		r.settle(10);
+		expect(r.on_stack()).to_be_false();
+	});
+
+	it("keeps a MANUAL mute-column press, as main's MANUAL arm deals with every pad", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(Mode::Manual);
+		r.tick(0);
+		r.pad(kDisplayWidth, 3, 64, 10);
+		r.settle(10);
+		expect(r.on_stack()).to_be_true();
+		expect(ops.stop_previewing_calls).to_equal(0);
 	});
 
 	it("swallows a MANUAL pad outside the slot grid, as legacy does", _ {

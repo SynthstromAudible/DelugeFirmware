@@ -3,6 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
 
@@ -435,9 +436,19 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 		return r;
 	}
 
-	// `:567` hands a REGION pad to the sample browser beneath, whose keyboard would move the file under a slicer
-	// slicing another. Swallowed instead (DIFFERENCES records it).
+	// `:567` hands a REGION pad to `SampleBrowser::padAction`. Its mute-column arm (`possiblyExit`): a press stops the
+	// preview and exits the browser, and the slicer over it with it. Its audition column is the view beneath's
+	// (`grid_pad_claim`). Its keyboard would move the file under a slicer slicing another: swallowed instead
+	// (DIFFERENCES D57).
 	r.handled = true;
+	if (x == kDisplayWidth && on) {
+		if (ops_ != nullptr) {
+			ops_->stop_previewing();
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
+		(void)r.actions.push_back(
+		    Action{.kind = Action::Kind::Remove, .pop_to = deluge::scenes::browser::kBrowserSceneKind});
+	}
 	return r;
 }
 
