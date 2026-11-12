@@ -47,6 +47,7 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -295,13 +296,59 @@ std::string last_notice() {
 }
 
 /// @brief Is the pixel at (@p x, @p y) lit in the P1 PBM @p pbm?
-bool pbm_lit(const std::string& pbm, int32_t x, int32_t y) {
+///
+/// Reads the header (comment lines skipped, then the magic, width and height) and the pixel digits that follow, so
+/// the answer does not depend on how the text is laid out.
+/// @return the pixel, or nullopt when the text is not a P1 PBM or (@p x, @p y) lies outside it
+std::optional<bool> pbm_lit(const std::string& pbm, int32_t x, int32_t y) {
 	size_t pos = 0;
-	for (int line = 0; line < 2 + y; line++) {
-		pos = pbm.find('\n', pos) + 1;
+	auto skip_blank = [&] {
+		while (pos < pbm.size()) {
+			if (pbm[pos] == '#') {
+				while (pos < pbm.size() && pbm[pos] != '\n') {
+					pos++;
+				}
+			}
+			else if (pbm[pos] == ' ' || pbm[pos] == '\n' || pbm[pos] == '\r' || pbm[pos] == '\t') {
+				pos++;
+			}
+			else {
+				break;
+			}
+		}
+	};
+	auto token = [&] {
+		skip_blank();
+		const size_t start = pos;
+		while (pos < pbm.size() && pbm[pos] != ' ' && pbm[pos] != '\n' && pbm[pos] != '\r' && pbm[pos] != '\t') {
+			pos++;
+		}
+		return pbm.substr(start, pos - start);
+	};
+	if (token() != "P1") {
+		return std::nullopt;
 	}
-	return pbm[pos + static_cast<size_t>(x) * 2] == '1';
+	const int32_t width = std::atoi(token().c_str());
+	const int32_t height = std::atoi(token().c_str());
+	if (x < 0 || y < 0 || x >= width || y >= height) {
+		return std::nullopt;
+	}
+	skip_blank();
+	// P1 pixels are single digits, whitespace between them optional.
+	size_t seen = 0;
+	const size_t target = static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+	for (; pos < pbm.size(); pos++) {
+		if (pbm[pos] == '0' || pbm[pos] == '1') {
+			if (seen++ == target) {
+				return pbm[pos] == '1';
+			}
+		}
+	}
+	return std::nullopt;
 }
+
+/// The 48-row panel's top bezel: rows the frame's origin carries as `visible_top` (`OLED_MAIN_TOPMOST_PIXEL`).
+constexpr int32_t kVisibleTop48 = 5;
 
 } // namespace
 
@@ -1017,9 +1064,9 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// The title's rule runs the panel's width on its last title row; the rename window covers
 		// only the middle, so its two ends show whatever the menu beneath drew.
 		const std::string pbm = r.fake.pbm(0);
-		constexpr int32_t kRuleRow = 5 + deluge::ui::kTitleSeparatorY; // the 48-row panel's top bezel is 5 rows
-		expect(pbm_lit(pbm, 1, kRuleRow)).to_be_false();
-		expect(pbm_lit(pbm, 126, kRuleRow)).to_be_false();
+		constexpr int32_t kRuleRow = kVisibleTop48 + deluge::ui::kTitleSeparatorY;
+		expect(pbm_lit(pbm, 1, kRuleRow) == std::optional<bool>{false}).to_be_true();
+		expect(pbm_lit(pbm, 126, kRuleRow) == std::optional<bool>{false}).to_be_true();
 	});
 
 	it("reopens the editor when a menu parked on the item is restored", _ {
