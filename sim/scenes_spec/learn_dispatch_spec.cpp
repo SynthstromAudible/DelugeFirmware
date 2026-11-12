@@ -12,7 +12,6 @@
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/buttons.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -107,19 +106,13 @@ struct ViewLearnHeld {
 	[[nodiscard]] bool written() const { return slot.channelOrZone != kPoisonChannel; }
 };
 
-/// @brief Learn mode and Shift for one example, put back after it.
+/// @brief Learn mode for one example, put back after it.
 struct Mode {
 	int32_t saved_mode = currentUIMode;
-	explicit Mode(bool learning, bool shift = false) {
-		currentUIMode = learning ? UI_MODE_MIDI_LEARN : UI_MODE_NONE;
-		if (shift) {
-			Buttons::commandToggleShift(true);
-		}
-	}
-	~Mode() {
-		Buttons::commandToggleShift(false);
-		currentUIMode = saved_mode;
-	}
+	explicit Mode(bool learning) { currentUIMode = learning ? UI_MODE_MIDI_LEARN : UI_MODE_NONE; }
+	~Mode() { currentUIMode = saved_mode; }
+	Mode(const Mode&) = delete;
+	Mode& operator=(const Mode&) = delete;
 };
 
 /// @brief A song with no tracks, and @p ui as the only open UI, for one example. A message the dispatcher passes on
