@@ -79,6 +79,8 @@ public:
 
 	[[nodiscard]] int32_t getMinValue() const override { return modulation::EnvelopeShape::kMinCurve; }
 	[[nodiscard]] int32_t getMaxValue() const override { return modulation::EnvelopeShape::kMaxCurve; }
+	// Bipolar with a meaningful zero (linear) and default (32, classic), so show the number rather than a knob
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->envelopeConfig[envelopeIndex_].curve); }
 	bool usesAffectEntire() override { return true; }

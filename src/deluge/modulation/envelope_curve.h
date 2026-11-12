@@ -33,7 +33,7 @@ namespace deluge::modulation {
 		frac += 1.f;
 		whole -= 1;
 	}
-	// Weighted least-squares fit of 2^f on [0, 1] with p(0) = 1 exactly
+	// Weighted least-squares fit of 2^f to polynomial on [0, 1]
 	float p = 0.00185888436f;
 	p = p * frac + 0.00903089405f;
 	p = p * frac + 0.0557939352f;
@@ -47,8 +47,7 @@ namespace deluge::modulation {
 ///
 /// `k` is how many octaves (6 dB steps) an unnormalised exponential would fall over the segment:
 ///   - k = 0 is a straight line
-///   - k > 0 is a decaying exponential, steep at the start (k = 8 is the classic Deluge decay and release, k = 4
-///     the attack, read upside down)
+///   - k > 0 is a decaying exponential, steep at the start
 ///   - k < 0 bends the other way: slow at the start, steep at the end
 /// The Deluge's original lookup tables decayTableSmall4 and decayTableSmall8 are exactly k = 4 and k = 8.
 class EnvelopeCurve {
