@@ -39,6 +39,7 @@
 namespace deluge::gui::menu_item {
 using deluge::hid::display::OLED;
 } // namespace deluge::gui::menu_item
+#include "gui/context_menu/reset_settings.h"
 #include "gui/l10n/setting_names.h"
 #include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
@@ -279,6 +280,7 @@ using deluge::hid::display::OLED;
 #include "gui/views/performance_view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "playback/playback_handler.h"
 
@@ -328,8 +330,10 @@ using deluge::hid::display::OLED;
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/global_guest_menu.h"
+#include "support/host_flash.h"
 #include "support/menu_scales_fixtures.h"
 #include "support/midi_device_fixtures.h"
+#include "support/reset_witness.h"
 #include "support/shortcuts_fixtures.h"
 
 #include "spec/gfx/support/pbm.h"
@@ -3916,6 +3920,46 @@ bool freeze(OracleWriter& out) {
 
 } // namespace dx_cartridge
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `context_menu_scene`: the witness each settings reset leaves from `kPerturbed`, and the confirmation window
+// for each action.
+
+namespace context_menu_scene {
+
+namespace rw = deluge::scenes::spec::reset;
+using deluge::gui::context_menu::ResetSettingsAction;
+
+/// @brief One reset through the shipped `ResetSettings` object, from `rw::kPerturbed`: `setAction`, then the
+///        `acceptCurrentOption()` that `ContextMenu::buttonAction` calls. @return the witness afterwards.
+rw::ResetWitness run_legacy_reset(ResetSettingsAction action) {
+	rw::restore(rw::kPerturbed);
+	deluge::gui::context_menu::resetSettings.setAction(action);
+	(void)deluge::gui::context_menu::resetSettings.acceptCurrentOption();
+	return rw::witness();
+}
+
+/// @brief The confirmation window for @p action as the shipped object draws it: the `setAction` /
+///        `setupAndCheckAvailability` / `renderOLED` sequence `reset_settings::Reset::selectButtonPress` runs, minus
+///        the `openUI`, on a 128x48 canvas.
+std::string legacy_reset_pbm(ResetSettingsAction action) {
+	static deluge::hid::display::oled_canvas::Canvas canvas;
+	canvas.clear();
+	deluge::gui::context_menu::resetSettings.setAction(action);
+	(void)deluge::gui::context_menu::resetSettings.setupAndCheckAvailability();
+	deluge::gui::context_menu::resetSettings.renderOLED(canvas);
+	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+}
+
+/// @brief The six witness rows of one reset: `reset/<name>	<column>	<n>`.
+void emit_reset(OracleWriter& out, std::string_view name, const rw::ResetWitness& w) {
+	const auto values = rw::witness_values(w);
+	for (size_t i = 0; i < values.size(); i++) {
+		out.row("reset/" + std::string{name}, rw::kWitnessColumns[i], static_cast<int64_t>(values[i]));
+	}
+}
+
+} // namespace context_menu_scene
+
 } // namespace
 
 // clang-format off
@@ -4127,5 +4171,49 @@ describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, 
 });
 // clang-format on
 
-DELUGE_SPEC(freeze_menu_oracles_spec, freeze_frame,
-            freeze_tables /*, one family per later task, appended in task order */)
+// clang-format off
+describe freeze_context_menu_scene("menu oracle freezer: the settings resets", $ {
+	it("writes context_menu_scene.tsv and the five confirmation panels", _ {
+		if (!writes("context_menu_scene")) {
+			return;
+		}
+		namespace cm = context_menu_scene;
+		OracleWriter out{"context_menu_scene"};
+		// The spec's order: flash, MIDI follow, community features, MIDI devices. The full factory reset is not run:
+		// it rebuilds the process's MIDI singletons under everything after it.
+		const cm::rw::ResetWitness entry = cm::rw::witness();
+		{
+			deluge::scenes::spec::ErasedFlash flash; // the flash reset programs the settings sector
+			cm::emit_reset(out, "flash", cm::run_legacy_reset(cm::ResetSettingsAction::Flash));
+			cm::rw::restore(entry);
+		}
+		cm::emit_reset(out, "midi_follow", cm::run_legacy_reset(cm::ResetSettingsAction::MidiFollow));
+		cm::rw::restore(entry);
+		cm::emit_reset(out, "community_features", cm::run_legacy_reset(cm::ResetSettingsAction::CommunityFeatures));
+		cm::rw::restore(entry);
+		cm::emit_reset(out, "midi_devices", cm::run_legacy_reset(cm::ResetSettingsAction::MidiDevices));
+		cm::rw::restore(entry);
+
+		const std::pair<std::string_view, cm::ResetSettingsAction> kPanels[] = {
+		    {"flash", cm::ResetSettingsAction::Flash},
+		    {"community_features", cm::ResetSettingsAction::CommunityFeatures},
+		    {"midi_follow", cm::ResetSettingsAction::MidiFollow},
+		    {"midi_devices", cm::ResetSettingsAction::MidiDevices},
+		    {"all", cm::ResetSettingsAction::All},
+		};
+		bool panels = true;
+		for (const auto& [name, action] : kPanels) {
+			cm::rw::pin_panel_globals();
+			panels = write_pixels(std::string{"context_menu_reset_"} + std::string{name}, cm::legacy_reset_pbm(action))
+			         && panels;
+		}
+		expect(panels).to_be_true();
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{23}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(freeze_menu_oracles_spec, freeze_frame, freeze_tables,
+            freeze_context_menu_scene /*, one family per later task, appended in task order */)

@@ -44,7 +44,6 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "gui/context_menu/reset_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/led/pad_leds.h"
@@ -82,6 +81,7 @@
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
+#include "support/reset_witness.h"
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
 
@@ -1515,9 +1515,8 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 });
 
 describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
-	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven
-	// and cross-checked against legacy directly by `DescriptorId`
-	// (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does NOT drive is the settings
+	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven directly by `DescriptorId`
+	// and checked against main's frozen resets (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does NOT drive is the settings
 	// tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
 	// `nodes::reset_flash` .. `nodes::reset_all`. This is the missing half -- the mapping from menu
 	// node to descriptor -- and it is the one thing a swapped pair of `ResetItem` ids would break
@@ -1569,7 +1568,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		}
 	});
 
-	it("resets exactly what legacy resets, driven through the real node, the real push and the real "
+	it("resets exactly what main resets, driven through the real node, the real push and the real "
 	   "accept button -- not just through a DescriptorId",
 	   _ {
 		   deluge::notify::dirty().drain();
@@ -1580,10 +1579,9 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
 
-		   // A sentinel moved off `runtimeFeatureSettings`'s own reset value, so "the reset ran" and
-		   // "the reset did not run" are always distinguishable -- `context_menu_scene_spec.cpp`'s
-		   // own idiom, driven here through the menu node instead of a bare `DescriptorId`.
-		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, 1);
+		   // The community-features reset's field of the reset witness, moved where `kPerturbed` moves it, so the
+		   // port starts here, through the menu node, where main's frozen reset started.
+		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, spec::reset::kPerturbed.drum_randomizer);
 
 		   Rig r;
 		   r.open(nodes::reset_settings, settings.ctx);
@@ -1603,7 +1601,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		   r.shell.tick(140);
-		   const uint32_t ported = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+		   const uint32_t ported = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer);
 
 		   // `acceptCurrentOption` returns false for every shipped reset -> the menu removes itself,
 		   // and `go_up_on_resume` (set alongside the push, `EditNameItem`'s own mechanism) steps the
@@ -1611,13 +1609,11 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   expect(r.shell.stack().depth()).to_equal(size_t(1));
 		   expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
 
-		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, 1);
-		   gui::context_menu::resetSettings.setAction(gui::context_menu::ResetSettingsAction::CommunityFeatures);
-		   gui::context_menu::resetSettings.currentOption = 0;
-		   (void)gui::context_menu::resetSettings.acceptCurrentOption();
-		   const uint32_t legacy = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
-
-		   expect(ported).to_equal(legacy);
+		   // Main's community-features reset from the same sentinel, as `context_menu_scene.tsv` holds it
+		   // (`context_menu_scene_spec` asks every row of that table; this example reads one).
+		   expect(std::to_string(ported))
+		       .to_equal(spec::OracleTable::named("context_menu_scene").value("reset/community_features", "drum_randomizer"));
+		   expect(ported != spec::reset::kPerturbed.drum_randomizer).to_be_true(); // the reset ran
 	   });
 });
 
