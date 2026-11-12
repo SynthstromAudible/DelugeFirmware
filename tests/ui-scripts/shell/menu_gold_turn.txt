@@ -32,15 +32,8 @@
 # goldens are directly comparable: one recorded with null services (where the turn now reaches
 # nobody at all) and one with real ones (where it reaches `ModKnobs`).
 #
-# **The first gold detent is swallowed, and that is the port working.** `RealServices::installer`
-# calls `ModKnobs::set_focus`, which opens with `pretend_knobs_untouched()`
-# (legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1969-1973`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
-# opening half of a possible wiggle. `param_popup.txt` carries the same note and the same two-turn
-# opening for the same reason. This half is unaffected by the select-encoder fix: it was always about
-# the gold path into `ModKnobs`, which this script now actually reaches.
+# Every gold turn acts, as `main`'s `interpretEncoders` does.
 0     snapshot idle              # the SATURATION leaf reading 0, one `scene` line, indicator upper 16
-100   encoder GoldUpper +1       # armed, not acted on: see above
 150   encoder GoldUpper +2
 200   snapshot after_gold_turn   # **the frame this script exists for**: the leaf still reads 0 --
                                  # `int_value` never claimed this turn -- but `ModKnobs` did: a second

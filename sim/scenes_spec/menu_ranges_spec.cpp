@@ -145,8 +145,7 @@ struct Rig {
 	void detent(uint8_t index, int32_t detents, uint32_t at_ms) {
 		edges(index, static_cast<int16_t>(detents * 2), at_ms);
 	}
-	/// A gold knob is `EncoderKind::Accelerating`, so the raw edge count IS the magnitude. Keep the
-	/// clock under 500 ms or `InputLowering::action_gold_turn` swallows the first turn as a wiggle.
+	/// A gold knob is `EncoderKind::Accelerating`, so the raw edge count IS the magnitude.
 	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
 };
 

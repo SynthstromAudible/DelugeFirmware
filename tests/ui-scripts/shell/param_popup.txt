@@ -13,21 +13,7 @@
 # composited over something rather than over a blank panel -- `ParamPopupScene::oled_transparent`
 # reports true for `SurfaceRole::Main` precisely so the scene beneath shows around it.
 #
-# **The turn at 100 ms is SWALLOWED, and that is the port working, not the script failing.**
-# `ModKnobs::set_focus` opens with `pretend_knobs_untouched()`
-# (legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1969-1973`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
-# gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
-# of a possible wiggle. Every gold gesture on the device therefore
-# costs a detent to arm, and the fixture sets the mod target before the run exactly as
-# `View::setActiveModControllableTimelineCounter` does on the device. A script that
-# turns only once records a `popup_shown` golden byte-identical to `idle`.
-#
-# `src/scenes/README.md`'s "Divergences from legacy" already logs the *other* face of this debounce -- the
-# first turn after boot is swallowed too, because `last_turn_ms_` starts at 0 and on device `now_ms`
-# is uptime -- and records that whether the whole mechanism is a defect needs a device to settle. So
-# "the port working" is the narrow claim: the port reproduces legacy here. Whether legacy is right
-# is the open question that row already carries.
+# Every gold turn acts, as `main`'s `interpretEncoders` does: one detent writes the param and pushes the popup.
 #
 # **`popup_moved` guards a real defect:** a second detent on an
 # already-open popup moved the scene's text and **nothing repainted the panel**, so the pixels kept
@@ -40,7 +26,6 @@
 # legacy's `display->displayNotification(...)` at `view.cpp` being a write AND a blit. Deleting
 # that action turns this frame back into a copy of `popup_shown`.
 0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line
-100   encoder GoldUpper +1       # armed, not acted on: see above
 150   encoder GoldUpper +1
 200   snapshot popup_shown       # `ModKnobs` wrote the param and pushed the popup: the MASTER LEVEL
                                  # name/value notification strip over the top of the clip view, and

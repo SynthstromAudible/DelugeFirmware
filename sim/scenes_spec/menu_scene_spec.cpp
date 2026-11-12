@@ -419,12 +419,7 @@ struct Rig {
 	/// @brief \p delta detents of a gold knob.
 	///
 	/// The gold knobs are `EncoderKind::Accelerating`, so the raw edge count IS the magnitude and
-	/// no `edges_per_detent` division applies. `InputLowering::action_gold_turn`
-	/// additionally swallows the first turn after a *pause*
-	/// longer than `short_press_ms` (500 ms) as a possible accidental wiggle -- but
-	/// `last_turn_ms_` starts at 0, so every clock this spec uses (all under 500 ms) already
-	/// counts as "turned recently" and one event is one acted-on turn. Keep spec clocks under
-	/// 500 ms, or the first gold turn will be silently swallowed.
+	/// no `edges_per_detent` division applies; one event is one acted-on turn.
 	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
 	/// @brief One button press/release at matrix (\p x, \p y).
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {

@@ -953,10 +953,8 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 		// `int_value` (`ui/oled/values.cpp`'s `select_delta`) -- exactly what legacy's own
 		// `Value<T>::selectEncoderAction` does for both items.
 		//
-		// The loop still runs until the value lands rather than counting detents: the select
-		// encoder is not `Accelerating` and does not swallow a first turn the way the gold knobs
-		// did, so in practice this now lands in exactly `abs(target - value)` iterations, but the
-		// loop makes no assumption about that.
+		// The loop still runs until the value lands rather than counting detents: in practice it lands in exactly
+		// `abs(target - value)` iterations, but it makes no assumption about that.
 		const int32_t d = target > value ? 1 : -1;
 		r.turn(d, 120 + step * 10);
 		r.shell.tick(125 + step * 10);
@@ -1504,9 +1502,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
 		// And a second detent still lands, which an ascend would have made impossible. `int_value`
-		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`);
-		// the select encoder is not `EncoderKind::Accelerating` the way the gold knobs are, so it
-		// needs no anti-wiggle timing against the walk's last turn -- see `choose_screensaver`.
+		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
 		r.turn(1, 200);
 		r.shell.tick(210);
 		deluge::gui::ui::dispatchShellActions();

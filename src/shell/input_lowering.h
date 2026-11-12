@@ -63,31 +63,11 @@ struct LoweringConfig {
 /// `withdraw()`n from the snapshot and routed, so no event is consumed twice and none waits for
 /// the render to be delivered.
 ///
-/// # The gold-knob wiggle debounce
+/// # The gold knobs act on every turn
 ///
-/// An `EncoderKind::Accelerating` encoder does not act on every turn. The first turn after it has
-/// been still for `LoweringConfig::short_press_ms` is recorded but swallowed, and a turn that
-/// exactly cancels the recorded one is written off as an accidental wiggle and swallowed too; only
-/// a turn that carries on past the recorded direction is lowered. Ported from the mod-knob block
-/// of `interpretEncoders` in its pre-overhaul form -- the current legacy file dropped the
-/// `turnedRecently` half and left the surviving `modEncoderInitialTurnDirection` test unreachable
-/// (`hid/encoder_input.cpp:178-205`). A swallowed turn produces no `UiEvent` and contributes nothing
-/// to the snapshot, but still counts as input.
-///
-/// @warning **The first gold turn after boot is always swallowed on device, and every committed
-///          script depicts the other arm.** `last_turn_ms_` starts at 0 and the test is
-///          `(now_ms - last_turn_ms_[i]) < short_press_ms` (`input_lowering.cpp` `action_gold_turn`),
-///          so "has it been still for 500 ms" answers *no* for the first 500 ms of the clock and
-///          *yes* ever after. On device `now_ms` is uptime, which is long past 500 by the time a
-///          user reaches a knob -- so the very first turn of a session takes the `!turned_recently`
-///          arm and is recorded-but-swallowed. In a script the clock starts at 0, so a gold turn
-///          before `t = 500` takes the *acted-on* arm; every committed script that turns gold does so
-///          inside that window, by luck rather than design, and their goldens therefore show
-///          behaviour the device never presents first. `was_short_press` above
-///          carries a deliberate guard against exactly this shape ("false for a button that has
-///          never been pressed"); this function has none. Deciding whether that is a defect to fix
-///          or legacy behaviour to keep needs a device, so it is documented rather than changed --
-///          see `src/scenes/README.md`, "Defects this port found in shipping firmware".
+/// An `EncoderKind::Accelerating` encoder lowers every turn, as `interpretEncoders` does on `main`
+/// (`origin/main:src/deluge/hid/encoder_input.cpp`): its wiggle test compares the turn against
+/// `modEncoderInitialTurnDirection`, which nothing sets to anything but 0, so no turn is written off.
 ///
 /// # What is dropped
 ///
@@ -409,21 +389,10 @@ public:
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
-	/// @brief Backdate \p role's "last turned" clock so the next turn counts as the first after a
-	///        pause -- `View::pretendModKnobsUntouchedForAWhile`.
+	/// @brief Backdate \p role's "last turned" clock -- `View::pretendModKnobsUntouchedForAWhile`.
 	///
-	/// The state it writes is `last_turn_ms_`, which is `timeModEncoderLastTurned`
-	/// (`hid/encoder_input.cpp`) and is read by `action_gold_turn`'s `turned_recently` test
-	/// alone. Backdating it makes that test false, so the next detent is remembered as the
-	/// gesture's initial direction rather than actioned -- which is exactly what "harder to turn"
-	/// means, and what legacy spends it on in `View::potentiallyMakeItHarderToTurnKnob`
-	/// and at the three `setActiveModControllable*`/`setModRegion` entry points.
-	///
-	/// @note **In current legacy this write is inert**, and here it is not. The encoder overhaul
-	///       dropped the `turnedRecently` branch that read `timeModEncoderLastTurned`
-	///       (`hid/encoder_input.cpp:178-205` has no such test left), so legacy's four callers
-	///       write a field nothing reads; `action_gold_turn` deliberately restores the working
-	///       shape (see its own comment), which makes this setter live.
+	/// The state it writes is `last_turn_ms_`, `main`'s `timeModEncoderLastTurned`, which nothing reads on `main`
+	/// either: the call is kept where `main` makes it, and changes nothing a turn does.
 	/// @param role   Which encoder to backdate; anything but `GoldUpper`/`GoldLower` is still
 	///               accepted (the array is per role) but only the gold pair is ever consulted.
 	/// @param now_ms The wall clock to backdate from.
@@ -432,9 +401,6 @@ public:
 private:
 	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
 	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1970-1972`).
-	///
-	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
-	/// compares against; one second is legacy's own number and clears it by a wide margin.
 	static constexpr uint32_t kPretendUntouchedMs = 1000;
 
 	/// @brief One board event waiting out the SD routine, with the clock it arrived at.
@@ -478,7 +444,6 @@ private:
 	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift = false);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
-	bool action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms);
 	void toggle_shift(bool on, uint32_t now_ms);
 	void emit(const UiEvent& e);
 	void push_out(const UiEvent& e);
@@ -508,7 +473,6 @@ private:
 	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
 	uint32_t acceleration_clock_ms_ = 0;                         ///< See set_acceleration_clock_ms().
 	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
-	int8_t initial_turn_direction_[kEncoderCount]{};             ///< `modEncoderInitialTurnDirection`, per role.
 	uint32_t last_turn_ms_[kEncoderCount]{};                     ///< `timeModEncoderLastTurned`, per role.
 	/// @}
 

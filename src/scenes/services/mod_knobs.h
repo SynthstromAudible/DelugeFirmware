@@ -41,7 +41,7 @@
 /// @note **Not inert before it is bound.** `leds()` drives the eight mod LEDs every frame and, with no bound
 ///       owner, clears both gold knobs' indicator levels to 0 (`declare_indicators`). Installing the service takes
 ///       those LEDs from legacy whether or not a `ModTarget` is set. `pretend_knobs_untouched()` also reaches shared
-///       `InputLowering` state outside the router: it backdates the turn time the gold-knob wiggle debounce reads.
+///       `InputLowering` state outside the router: it backdates a turn time that, as on `main`, no turn reads.
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
 ///          points backdate against the last `now_ms` the service was ticked with (`pretend_knobs_untouched()`).

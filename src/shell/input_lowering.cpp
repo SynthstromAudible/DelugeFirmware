@@ -296,11 +296,8 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 	}
 	else {
 		// `ContinuousEncoder::applyEdges`: the raw edge count is the magnitude; acceleration is
-		// applied by whoever consumes it, through `calc_next_knob_speed`.
+		// applied by whoever consumes it, through `calc_next_knob_speed`. Every turn is acted on.
 		delta = edges;
-		if (delta != 0 && !action_gold_turn(r, delta, now_ms)) {
-			return;
-		}
 	}
 	if (delta == 0) {
 		return;
@@ -311,32 +308,6 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 	e.encoder = role;
 	e.delta = delta;
 	emit(e);
-}
-
-bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms) {
-	// The mod-knob block of `interpretEncoders` in its pre-overhaul form. The current legacy code
-	// keeps the `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that
-	// is the only thing that ever sets the field, so the surviving code can no longer reach its own
-	// wiggle case (`hid/encoder_input.cpp:178-205`); this restores the working shape.
-	const bool turned_recently = (now_ms - last_turn_ms_[role_index]) < cfg_.short_press_ms;
-	last_turn_ms_[role_index] = now_ms;
-	if (!turned_recently) {
-		// The first turn after a pause is not acted on: remember which way it went, so that going
-		// straight back the other way can be written off as an accidental wiggle.
-		//
-		// Legacy also closes the action logger's pending value change here when the *other* gold
-		// knob has been still too; that is an undo-history concern rather than a lowering one, and
-		// belongs to whoever owns the mod knobs.
-		initial_turn_direction_[role_index] = delta;
-		return false;
-	}
-	if (delta + initial_turn_direction_[role_index] == 0) {
-		// Exactly cancels the remembered turn: an accidental wiggle.
-		initial_turn_direction_[role_index] = delta;
-		return false;
-	}
-	initial_turn_direction_[role_index] = 0;
-	return true;
 }
 
 void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift) {

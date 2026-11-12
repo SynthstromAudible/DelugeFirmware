@@ -480,55 +480,37 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.sticky()).to_be_true();
 	});
 
-	it("debounces the first turn and an immediate reversal of a gold knob", _ {
+	it("acts on every gold-knob turn, after a pause and straight back, as main's interpretEncoders does", _ {
+		// `interpretEncoders` (`origin/main:src/deluge/hid/encoder_input.cpp`) acts unless the turn cancels
+		// `modEncoderInitialTurnDirection`, which nothing ever sets to anything but 0: every turn is acted on.
 		InputLowering in(uitest::test_profile_input(), {});
-		UiEvent e;
 
-		// First turn after a pause longer than short_press_ms (500): recorded, not actioned.
+		// The first turn after a pause longer than short_press_ms (500).
 		in.begin_tick(1000);
 		in.on_encoder_edges(4, 1, 1000);
 		in.end_tick(1000);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-		expect(in.had_input_this_tick()).to_be_true();    // legacy still sets `anything`
-		expect(in.next(e)).to_be_false();
+		expect(drain_count(in)).to_equal(size_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
 
-		// Straight back the other way, inside the window: an accidental wiggle, also swallowed.
+		// Straight back the other way, inside the window.
 		in.begin_tick(1100);
 		in.on_encoder_edges(4, -1, 1100);
 		in.end_tick(1100);
-		expect(in.next(e)).to_be_false();
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-
-		// Carrying on that way is a real turn.
-		in.begin_tick(1200);
-		in.on_encoder_edges(4, -1, 1200);
-		in.end_tick(1200);
 		expect(drain_count(in)).to_equal(size_t(1));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
 
-		// And so is the next one, in either direction, now that the record is cleared.
-		in.begin_tick(1300);
-		in.on_encoder_edges(4, 1, 1300);
-		in.end_tick(1300);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
-
-		// Pausing past the window arms the debounce again.
-		in.begin_tick(2000);
-		in.on_encoder_edges(4, 1, 2000);
-		in.end_tick(2000);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-
-		// The other gold knob keeps its own record.
+		// The other gold knob, after its own pause.
 		in.begin_tick(2010);
 		in.on_encoder_edges(5, 1, 2010);
 		in.end_tick(2010);
-		expect(in.snapshot().edit[1]).to_equal(int8_t(0));
+		expect(in.snapshot().edit[1]).to_equal(int8_t(1));
 
-		// Detented encoders are not debounced.
+		// A knob backdated as untouched acts on its next turn too.
+		in.pretend_knob_untouched(EncoderRole::GoldUpper, 3000);
 		in.begin_tick(3000);
-		in.on_encoder_edges(3, 2, 3000);
+		in.on_encoder_edges(4, 1, 3000);
 		in.end_tick(3000);
-		expect(in.snapshot().turn).to_equal(int8_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
 	});
 
 	it("maps each widget-owned shape onto the claim that owns it", _ {

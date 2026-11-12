@@ -458,10 +458,8 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// `:1074` `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
 		// declared by `leds()`.
 		//
-		// `:1077` -- "Make it harder to turn that knob away from its centred position". In *current*
-		// legacy this write is inert (the encoder overhaul dropped the only reader); the shell's
-		// `InputLowering::action_gold_turn` restored the working shape in plan D, so here it does
-		// what it was written to do. See `InputLowering::pretend_knob_untouched`.
+		// `:1077` -- "Make it harder to turn that knob away from its centred position". The write is inert, as on
+		// `main`, where nothing reads `timeModEncoderLastTurned`. See `InputLowering::pretend_knob_untouched`.
 		lowering_.pretend_knob_untouched(role_of(which_encoder), now_ms_);
 	}
 	else {

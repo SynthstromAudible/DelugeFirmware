@@ -59,7 +59,7 @@ Deluge).
 ## Input (`input_lowering.h`, `router.h`)
 
 **Lowering.** `InputLowering` owns all input state (held buttons and pads, press times, used-up
-presses, the sticky-shift latch, partial detents, the gold-knob wiggle debounce). `begin_tick`
+presses, the sticky-shift latch, partial detents). `begin_tick`
 clears the per-tick state and claims; `end_tick(now_ms)` stamps the tick's clock and assembles the
 snapshot every frame reads. The routed FIFO survives `begin_tick`: a late event is delivered on a
 later tick, not dropped.

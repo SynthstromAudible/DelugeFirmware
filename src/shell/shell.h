@@ -359,8 +359,7 @@ public:
 	bool route_midi(const UiEvent& event, uint32_t now_ms);
 	/// @brief Route a gold-knob turn a host has already lowered -- its wiggle check and its acceleration applied --
 	///        as an `Encoder` event marked `lowered`, which the knobs' service applies as it is. Like `route_midi`, it
-	///        does not enter the lowering or open its tick window, so the lowering's own gold-turn debounce never
-	///        sees it.
+	///        does not enter the lowering or open its tick window.
 	/// @param role   The gold knob: `GoldLower` or `GoldUpper`.
 	/// @param offset The turn, as the host's knob path hands it over.
 	/// @param now_ms The wall clock, for the `UiContext` and the screensaver.

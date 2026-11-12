@@ -200,9 +200,8 @@ namespace deluge::gui::ui {
 ///
 ///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and
 ///    `calcNextKnobSpeed` before it calls `modEncoderAction` (`hid/encoder_input.cpp`), so the turn
-///    goes to `Shell::route_lowered_turn`, not into the lowering: the lowering's `action_gold_turn`
-///    would swallow the first turn after a pause, which legacy's own (dead) wiggle check never does,
-///    and `ModKnobs` would accelerate it a second time.
+///    goes to `Shell::route_lowered_turn`, not into the lowering, where `ModKnobs` would accelerate it a
+///    second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
 ///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which does
 ///    nothing then.
