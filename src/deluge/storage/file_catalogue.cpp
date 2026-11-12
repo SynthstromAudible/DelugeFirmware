@@ -214,8 +214,12 @@ Error FileCatalogue::readFileItemsForFolder(char const* filePrefixHere, bool all
 	// Local RAII handle (not the shared FatFS::Directory staticDIR global) — the port selector picks
 	// efatfs or C-FatFS underneath; the destructor closes it on every return path below, so there's no
 	// manual close() to forget or double up on.
-	auto dir = D_TRY_CATCH_MOVE(deluge::io::Directory::open(currentDir), error,
-	                            { return delugeStatusToError(deluge::io::to_deluge_status(error)); });
+	// A directory that is not on the card is a missing FOLDER, as main's FatFS open reports it: the browsers'
+	// default-folder arms turn on FOLDER_DOESNT_EXIST, and its popup names the folder, not a file.
+	auto dir = D_TRY_CATCH_MOVE(deluge::io::Directory::open(currentDir), error, {
+		return error == deluge::io::Status::NOT_FOUND ? Error::FOLDER_DOESNT_EXIST
+		                                              : delugeStatusToError(deluge::io::to_deluge_status(error));
+	});
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
@@ -278,6 +282,14 @@ extensionNotSupported:
 	}
 
 	return error;
+}
+
+Error FileCatalogue::makeFolder(std::string_view path) {
+	auto made = deluge::io::mkdir(path);
+	if (!made.has_value()) {
+		return delugeStatusToError(deluge::io::to_deluge_status(made.error()));
+	}
+	return Error::NONE;
 }
 
 void FileCatalogue::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {

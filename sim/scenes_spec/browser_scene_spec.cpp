@@ -1142,6 +1142,25 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		expect(browser_scene().on_enter(SceneId{kBrowserSceneKind,
 		                                        static_cast<uint16_t>(BrowserId::Sample)})).to_be_false();
 	});
+
+	it("creates DX7 when the card has none and opens on it, empty, as DxSyxBrowser does", _ {
+		// `readFileItemsFromFolderAndMemory`: the folder `DxSyxBrowser::opened` lists is its default one, so a missing
+		// one is created and listed, and the browser stays up on the empty folder. This card has no DX7.
+		CleanBrowser clean;
+		ScratchCard card;
+		expect(deluge::io::Directory::open("DX7").has_value()).to_be_false();
+		spec::SongFixture f = spec::make_synth_song();
+		expect(browser::descriptor(BrowserId::DxSyx).can(context_of(f))).to_be_true();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::DxSyx);
+
+		expect(r.browser_on_stack()).to_be_true();
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"DX7"});
+		expect(catalogue_order()).to_equal(std::string(""));
+		expect(browser_scene().file_index()).to_equal(-1);
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{""});
+		expect(deluge::io::Directory::open("DX7").has_value()).to_be_true();
+	});
 });
 
 describe browser_in_flight("scenes::browser::BrowserScene while a listing is in flight", $ {
@@ -1794,6 +1813,28 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		r.land();
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
+	});
+
+	it("closes with the card's error when the folder it enters has gone, without falling back to SAMPLES", _ {
+		// `goIntoFolder` lists with no default folder, so a folder that vanished under the browser fails the listing
+		// and `onListingFailed` closes it; only the opening listing falls back.
+		CleanBrowser clean;
+		ScratchCard card;
+		expect(deluge::io::mkdir("SAMPLES/GONE").has_value()).to_be_true();
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,GONE,KICKS,SNARE.WAV,TOM.WAV"));
+
+		r.turn(2, r.clock + 10);
+		r.step();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"GONE"});
+		expect(deluge::io::unlink("SAMPLES/GONE").has_value()).to_be_true();
+		r.enter();
+		r.land();
+
+		expect(r.browser_on_stack()).to_be_false();
+		expect(deluge::io::Directory::open("SAMPLES/GONE").has_value()).to_be_false();
 	});
 
 	it("refuses to enter SAMPLES/CLIPS/TEMP, and says why", _ {

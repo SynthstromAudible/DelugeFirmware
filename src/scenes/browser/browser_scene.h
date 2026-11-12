@@ -594,8 +594,8 @@ private:
 
 	/// @brief Build and file the request that opens the browser (`ListingAction::Open`).
 	void request_open();
-	/// @brief Fill in the fields every request of this scene's shares (extensions, flags, default
-	///        directory).
+	/// @brief Fill in the fields every request of this scene's shares (extensions, flags). The
+	///        opening listing adds the default directory itself (`request_open`).
 	/// @param action Which listing.
 	/// @return The request, ready for `file_request`.
 	ListingRequest make_request(ListingAction action) const;

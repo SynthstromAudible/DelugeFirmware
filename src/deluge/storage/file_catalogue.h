@@ -21,6 +21,7 @@
 #include "storage/file_item.h"
 #include "util/containers.h"
 #include <string>
+#include <string_view>
 
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
@@ -73,6 +74,11 @@ public:
 	                                    char const** allowedFileExtensionsHere, char const* filenameToStartAt,
 	                                    int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection,
 	                                    bool interpretNoteNames);
+
+	/// @brief Create the folder at @p path on the card, with any folders above it that are missing.
+	/// @param path The folder, from the card's root.
+	/// @return `Error::NONE`, or the card's error.
+	static Error makeFolder(std::string_view path);
 
 	/// @brief Sort `fileItems` by `displayName()` per `strcmpspecial`. Pins `octaveStartsFromA`
 	///        false, as legacy did.

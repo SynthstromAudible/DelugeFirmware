@@ -242,13 +242,9 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		// FILE_NOT_FOUND, not FOLDER_DOESNT_EXIST -- pinned exactly because a whole legacy branch
-		// turns on the difference. `Directory::open` on a missing folder yields
-		// `DELUGE_ERR_NOT_FOUND`, which `delugeStatusToError` maps to `Error::FILE_NOT_FOUND`
-		// (`delugeStatusToError` in `util/functions.cpp`); nothing on a listing path can produce
-		// `Error::FOLDER_DOESNT_EXIST` any more, which is why legacy's default-directory fallback
-		// (`browser.cpp:293`) is dead and this port's fallback accepts both codes.
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
+		// FOLDER_DOESNT_EXIST, as main's FatFS directory open reports a missing folder: the default-folder arms turn on
+		// it, and its popup says "Folder not found".
+		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		// The seam did not hang: it is idle, the animation is down, and the failure was announced
 		// the way `Browser::onListingFailed` announces it (`browser.cpp:166-167`, displayError).
 		expect(state_of(listing)).to_equal(kIdle);
@@ -377,13 +373,13 @@ describe listing("the async listing seam", $ {
 		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
-	it("does not fall back to the default directory when the requested one is missing, as legacy does", _ {
+	it("falls back to the default directory when the requested one is missing, as main does", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
 		Listing listing(&Deferred::dispatch);
 
-		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:293-300`) is gated on FOLDER_DOESNT_EXIST, and a
-		// missing directory returns FILE_NOT_FOUND on `main`, so `main` never takes it, and nor does this.
+		// `readFileItemsFromFolderAndMemory`: a folder that is not there gives way to `defaultDirToAlsoTry`, read from
+		// its start.
 		ListingRequest req = open_request("NO_SUCH_FOLDER");
 		req.default_dir = "SETTINGS";
 		expect(outcome_of(listing.request(req))).to_equal(kAccepted);
@@ -391,7 +387,9 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
+		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
+		expect(result->dir).to_equal(std::string("SETTINGS"));
+		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
 	// ---- the harness's own limit, pinned rather than described --------------------------------

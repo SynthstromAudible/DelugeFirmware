@@ -761,7 +761,6 @@ ListingRequest BrowserScene::make_request(ListingAction action) const {
 	req.allow_folders = true; // `Browser::arrivedInNewFolder` passes `allowFolders = true`
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
-	req.default_dir = d.default_dir;
 	return req;
 }
 
@@ -774,6 +773,9 @@ void BrowserScene::request_open() {
 		dir = d.default_dir;
 	}
 	ListingRequest req = make_request(ListingAction::Open);
+	// Only the opening listing has a default folder to fall back to and create, as main's `opened()`: entering,
+	// leaving and reloading a folder that has gone is the card's error.
+	req.default_dir = d.default_dir;
 	req.path = std::move(dir);
 	req.filename_to_start_at = name;
 	select_after_listing_ = std::move(name);

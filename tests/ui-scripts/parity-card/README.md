@@ -55,6 +55,10 @@ load takes about 400 ms on the emulator, so the window sits well inside it on bo
 with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's drum creator then falls back the way `main` does:
 the browser's error popup over the new kit's clip view.
 
+`c42-dx-browser-no-folder` runs on its own card, `tests/fixtures/card-dx-no-folder` (`--card`): the fixture card with
+`EnableDX7Engine` on and no `DX7` folder. The new FM synth's browse row creates `DX7` and opens the `.syx` browser on
+it, empty; a Select turn and SELECT on the empty list do nothing, and BACK leaves it.
+
 `c39-browser-record-audition` opens the sample browser with Shift + (0,5) and presses RECORD with the audition pad
 (17,3) held, which the browser refuses, then without it, which opens the recorder.
 
