@@ -27,7 +27,8 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
-#include "gui/ui/shell_guest_services.h" // the shell* arms
+#include "gui/ui/shell_choice_dispatch.h" // shellMenuModControllable, shellMenuParamManager
+#include "gui/ui/shell_guest_services.h"  // the shell* arms
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "processing/source.h"
@@ -48,6 +49,14 @@ bool soundMenuKitGlobalFx() {
 
 bool soundMenuCurrent() {
 	return getCurrentUI() == &soundEditor || shellSoundMenuOpen();
+}
+
+ModControllableAudio* soundMenuModControllable() {
+	return getCurrentUI() == &soundEditor ? soundEditor.currentModControllable : shellMenuModControllable();
+}
+
+ParamManagerForTimeline* soundMenuParamManager() {
+	return getCurrentUI() == &soundEditor ? soundEditor.currentParamManager : shellMenuParamManager();
 }
 
 bool menuCurrent() {

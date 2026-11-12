@@ -52,7 +52,7 @@ src/deluge/model/global_effectable/global_effectable.cpp	model-calls-ui	8
 src/deluge/model/global_effectable/global_effectable.cpp	model-includes-ui	4
 src/deluge/model/global_effectable/global_effectable_for_clip.cpp	model-includes-ui	2
 src/deluge/model/instrument/kit.cpp	model-calls-ui	4
-src/deluge/model/instrument/kit.cpp	model-includes-ui	4
+src/deluge/model/instrument/kit.cpp	model-includes-ui	3
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
 src/deluge/model/instrument/melodic_instrument.cpp	model-includes-ui	4
 src/deluge/model/instrument/midi_instrument.cpp	model-calls-display	2

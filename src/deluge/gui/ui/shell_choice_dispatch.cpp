@@ -30,7 +30,6 @@
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/led/pad_leds.h"
@@ -54,6 +53,7 @@
 #include "util/notify.h"
 #include "util/shell_menu_entry.h"
 
+#include <atomic>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -450,8 +450,24 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 	browser_scene().set_drum_creator_next(fromCreator);
 }
 
-void adoptShellMenuContext() {
-	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
+namespace {
+/// What `publishShellMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
+std::atomic<ModControllableAudio*> publishedMod{nullptr};
+std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
+} // namespace
+
+void publishShellMenuTarget() {
+	const deluge::gui::SoundTarget target = shellMenuTarget();
+	publishedMod.store(target.mod, std::memory_order_relaxed);
+	publishedParams.store(target.params, std::memory_order_relaxed);
+}
+
+ModControllableAudio* shellMenuModControllable() {
+	return publishedMod.load(std::memory_order_relaxed);
+}
+
+ParamManagerForTimeline* shellMenuParamManager() {
+	return publishedParams.load(std::memory_order_relaxed);
 }
 
 deluge::gui::SoundTarget shellMenuTarget() {

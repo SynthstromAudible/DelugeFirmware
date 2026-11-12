@@ -49,6 +49,9 @@
 #include <optional>
 #include <string_view>
 
+class ModControllableAudio;
+class ParamManagerForTimeline;
+
 namespace deluge::gui {
 struct ClaimRequest;
 struct FolderImportRequest;
@@ -184,9 +187,15 @@ using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setFolderImportDispatch(FolderImportDispatch dispatch);
 
-/// @brief Point `soundEditor`'s current sound, source and range at what the ported menu edits, before an operation
-///        that reads them on the menu's behalf.
-void adoptShellMenuContext();
+/// @brief Publish the owner and params of what the ported menu edits now, for `shellMenuModControllable` and
+///        `shellMenuParamManager`. The menu's context-adopted hook, and every open and re-root of the guest, call it.
+void publishShellMenuTarget();
+
+/// @brief The owner the ported menu edits, as last published.
+ModControllableAudio* shellMenuModControllable();
+
+/// @brief The params the ported menu edits, as last published. Safe on the audio tier.
+ParamManagerForTimeline* shellMenuParamManager();
 
 /// @brief The engine objects the ported menu's context names now, resolved in the current song: what a claim, an import
 ///        or a slice started from the menu acts on.

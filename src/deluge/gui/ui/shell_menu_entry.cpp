@@ -20,7 +20,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/shell_choice_dispatch.h" // adoptShellMenuContext
+#include "gui/ui/shell_choice_dispatch.h" // publishShellMenuTarget
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_pad_forward.h"
@@ -196,7 +196,7 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		else {
 			deluge::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
 		}
-		adoptShellMenuContext();
+		publishShellMenuTarget();
 		shellHostUI.refreshRootFacts();
 		display->cancelPopup();
 		return true;
@@ -204,10 +204,9 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 	// A guest torn down without its close (`nullifyUIs`) leaves the creator's drum behind; a new guest is not its.
 	forgetShellDrumCreator();
 	deluge::scenes::menu_scene().open(root, ctx);
-	// What the legacy views read as "the sound menu's" while it is open -- the automation view's model stacks and
-	// affect-entire, the automation display -- is `soundEditor`'s context, which `setup()` writes and nothing here
-	// runs.
-	adoptShellMenuContext();
+	// The legacy views read the sound menu's owner and params while it is open: the automation view's model stacks and
+	// the automation display.
+	publishShellMenuTarget();
 	if (shortcut != nullptr) {
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
 	}
@@ -263,7 +262,7 @@ void latchShellKitGlobalFxOnReentry() {
 
 void wireShellKitGlobalShortcuts() {
 	deluge::scenes::menu_scene().set_kit_global_shortcut_source(&kitGlobalShortcutContext);
-	deluge::scenes::menu_scene().set_context_adopted_hook(&adoptShellMenuContext);
+	deluge::scenes::menu_scene().set_context_adopted_hook(&publishShellMenuTarget);
 	deluge::scenes::menu_scene().set_reentry_hook(&latchShellKitGlobalFxOnReentry);
 }
 

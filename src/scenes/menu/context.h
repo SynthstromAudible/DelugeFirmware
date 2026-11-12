@@ -49,7 +49,7 @@ struct Node;
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
 	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
-	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2326-2328`).
+	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp`'s `SoundEditor::getCurrentHorizontalMenusChain`).
 	bool horizontal_menus = true;
 	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
 	///        by default, as `MenuOnly` is).

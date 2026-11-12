@@ -49,8 +49,7 @@ namespace {
 /// opens with `getCurrentMenuItem()->getParamKind()`, and `getCurrentMenuItem()` is
 /// `menuItemNavigationRecord[navigationDepth]` (`SoundEditor::getCurrentMenuItem`) -- a zero-initialised member
 /// (`menuItemNavigationRecord` in `gui/ui/sound_editor.h`) written only by `SoundEditor::setup`/`navigate`, neither of
-/// which runs under the guest. `adoptResolvedContext` deliberately does not write it and says so
-/// (`SoundEditor::adoptResolvedContext`). So legacy's copy dereferences null here on any boot that never opened a
+/// which runs under the guest. So legacy's copy dereferences null here on any boot that never opened a
 /// legacy menu, and the state cannot be supplied here, because with ShellMenu on the open menu
 /// genuinely is `MenuScene`.
 ///

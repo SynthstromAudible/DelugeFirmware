@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <optional>
 
+class ModControllableAudio;
+class ParamManagerForTimeline;
 class Source;
 
 /// @file
@@ -42,6 +44,14 @@ bool soundMenuCurrent();
 
 /// @brief The kit-global-FX latch (`shellKitGlobalFx`), which both menus' shortcut presses read and write.
 bool soundMenuKitGlobalFx();
+
+/// @brief The owner the sound menu edits: legacy's `currentModControllable` when its editor is current, else the
+///        ported menu's (`shellMenuModControllable`). Read only while `soundMenuOpen()`.
+ModControllableAudio* soundMenuModControllable();
+
+/// @brief The params the sound menu edits: legacy's `currentParamManager` when its editor is current, else the ported
+///        menu's (`shellMenuParamManager`). Safe on the audio tier.
+ParamManagerForTimeline* soundMenuParamManager();
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, whatever its root, or the ported menu frontmost on any root.
 bool menuCurrent();

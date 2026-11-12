@@ -206,27 +206,6 @@ public:
 	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
 	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
-	/// @brief The facts `setup()` resolves before it opens anything, as a value: the target a claim, an import or a
-	///        slice carries (`deluge::gui::SoundTarget`). The ported menu's caller translates its own context into one
-	///        (`gui/ui/shell_choice_dispatch.cpp`), so this header names no `src/scenes` type.
-	using ResolvedContext = deluge::gui::SoundTarget;
-
-	/// @brief Point the resolved `current*` members at what @p resolved names -- `setup()`'s
-	///        own tail, for a caller that never ran `setup()`.
-	///
-	/// **Why this exists.** The kit's param stacks for the menu (`Kit::getModelStackWithParamForKit`) and
-	/// `View::notifyParamAutomationOccurred` read `currentModControllable` and `currentParamManager`. **Under the
-	/// ShellMenu toggle nothing calls `setup()` at all**, so they hold whatever the last legacy menu left, which on a
-	/// fresh boot is `nullptr`.
-	///
-	/// The write lives on the class that owns the members rather than in the wiring layer that has
-	/// the values.
-	///
-	/// What it deliberately does NOT touch: `allowsNoteTails`, `navigationDepth` / `menuItemNavigationRecord` (the
-	/// ported walk lives in `MenuState`), and every UI member. This makes `soundEditor` a correct *model* accessor; it
-	/// does not make it an open UI.
-	void adoptResolvedContext(const ResolvedContext& resolved);
-
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,

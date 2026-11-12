@@ -2313,24 +2313,3 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 */
-
-void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
-	// `setup()`'s tail, assigned unconditionally: the caller (the ported `menu::context_for`) has already applied
-	// the guards `setup()` applies.
-	currentParamManager = resolved.params;
-	currentModControllable = resolved.mod;
-	currentSound = resolved.sound;
-	currentArpSettings = resolved.arp;
-	currentMultiRange = resolved.range;
-	// The sidechain is derived from the ModControllable, exactly as `setup()` derives it.
-	if (currentModControllable != nullptr) {
-		currentSidechain = &currentModControllable->core().sidechain();
-	}
-	currentSourceIndex = resolved.sourceIndex;
-	currentSource = resolved.source;
-
-	// `setup()` never writes this. Only this editor's own current range reads it: `Source::setOscType` finds that
-	// range again by it (`legacyRangesRetyped`). Left unwritten, a stale index from an earlier legacy session would
-	// select the wrong one.
-	currentMultiRangeIndex = resolved.rangeIndex;
-}

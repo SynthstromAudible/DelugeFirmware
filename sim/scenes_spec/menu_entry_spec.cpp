@@ -48,6 +48,7 @@
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/ui.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/column_controls/dx.h"
@@ -59,6 +60,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/display/screensaver.h"
@@ -1540,7 +1542,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		// One tick: the press, then the drains that hand the move to the automation view. The editor is on the kit's
 		// own effects by then, as legacy's `setup()` re-points it before the view refreshes.
 		(void)shellHostUI.timerCallback();
-		expect(soundEditor.currentModControllable == k.f.instrument->toModControllable()).to_be_true();
+		expect(entry::soundMenuModControllable() == k.f.instrument->toModControllable()).to_be_true();
 		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.padAction(8, 7, 0);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
@@ -2136,9 +2138,92 @@ describe menu_entry_legacy_closed("with ShellMenu on the legacy editor cannot op
 		nullifyUIs();
 	});
 });
+describe menu_entry_published_target("the ported menu's owner and params, which the automation view and the kit's stacks read", $ {
+	it("names a kit row's drum and its note row's params, not what the legacy editor last held", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
+		soundEditor.currentModControllable = nullptr;
+		soundEditor.currentParamManager = nullptr;
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(entry::soundMenuModControllable() == static_cast<ModControllableAudio*>(drum)).to_be_true();
+		expect(entry::soundMenuParamManager() == &row->paramManager).to_be_true();
+		closeGuest();
+	});
+
+	it("builds the kit's automation stack under the menu on the published row", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
+		soundEditor.currentModControllable = nullptr;
+		soundEditor.currentParamManager = nullptr;
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, kit.song, kit.clip);
+		ModelStackWithAutoParam* param = kit.instrument->getModelStackWithParam(
+		    stack, kit.clip, deluge::modulation::params::LOCAL_LPF_FREQ, deluge::modulation::params::Kind::PATCHED,
+		    /*affectEntire=*/false, /*useMenuStack=*/true, /*forEdit=*/false);
+		expect(param != nullptr).to_be_true();
+		if (param != nullptr) {
+			expect(param->paramManager == &row->paramManager).to_be_true();
+			expect(param->modControllable == static_cast<ModControllableAudio*>(drum)).to_be_true();
+		}
+		closeGuest();
+	});
+
+	it("builds the kit-wide automation stack under the menu on the published owner, not the kit's own", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, kit.song, kit.clip);
+		ModelStackWithAutoParam* param = kit.instrument->getModelStackWithParam(
+		    stack, kit.clip, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
+		    deluge::modulation::params::Kind::UNPATCHED_GLOBAL, /*affectEntire=*/true, /*useMenuStack=*/true,
+		    /*forEdit=*/false);
+		expect(param != nullptr).to_be_true();
+		if (param != nullptr) {
+			expect(param->paramManager == &row->paramManager).to_be_true();
+			expect(param->modControllable == static_cast<ModControllableAudio*>(drum)).to_be_true();
+		}
+		closeGuest();
+	});
+
+	it("arms the automation display when playback automates the published params", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
+		soundEditor.currentParamManager = nullptr;
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		// The knobs' own params are the other arm of the test; with them released only the menu's can match.
+		view.releaseActiveModControllable();
+		uiTimerManager.unsetTimer(TimerName::DISPLAY_AUTOMATION);
+		view.notifyParamAutomationOccurred(&row->paramManager);
+		expect(uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)).to_be_true();
+		uiTimerManager.unsetTimer(TimerName::DISPLAY_AUTOMATION);
+		closeGuest();
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
             menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
-            menu_entry_shortcut_whole, menu_entry_legacy_closed)
+            menu_entry_shortcut_whole, menu_entry_legacy_closed, menu_entry_published_target)
