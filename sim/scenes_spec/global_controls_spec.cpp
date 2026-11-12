@@ -373,7 +373,7 @@ struct GcRig {
 	preLoadedSong = nullptr;
 	// Legacy's own record combo really does start an output recording -- `hid/buttons.cpp:161`,
 	// reached when PLAY goes down with RECORD held and playback running -- and nothing in a spec
-	// process ever reaps it (`AudioRecorder::slowRoutine` is not driven here). Left standing, it
+	// process ever reaps it (`deluge::recording::slowRoutine` is not driven here). Left standing, it
 	// makes `AudioEngine::foregroundRecordingSource()` report `OUTPUT` for every later example,
 	// which suppresses the RECORD LED (`PlaybackHandler::setLedStates`) and flips the PLAY arm's
 	// first test (`:147`). Cleared through the published seam, which is the same storage

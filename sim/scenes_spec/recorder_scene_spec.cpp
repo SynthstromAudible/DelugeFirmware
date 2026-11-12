@@ -478,9 +478,9 @@ deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
 /// @brief Hold the foreground-recording publication clear for the scope -- and refuse to run, or to
 ///        finish, if it is not.
 ///
-/// `AudioRecorder::recordingSource`/`::recorder` are process
-/// globals nine subsystems read, so an example that leaks one poisons the next; clearing it
-/// silently is what hid the leak in the first place.
+/// The foreground recording's channel and recorder (`AudioEngine::foregroundRecordingSource()` /
+/// `foregroundRecorder()`) are process globals many subsystems read, so an example that leaks one poisons the next;
+/// clearing it silently is what hid the leak in the first place.
 struct NoForegroundRecording {
 	NoForegroundRecording() { check("a foreground recording was already published when an example started"); }
 	~NoForegroundRecording() { check("an example finished with a foreground recording still published"); }
@@ -792,7 +792,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		AudioFileHolder* holder = r.range->getAudioFileHolder();
 		expect(holder->audioFile == static_cast<AudioFile*>(captured)).to_be_true();
 		expect(holder->filePath).to_equal(std::string("SAMPLES/RECORD/REC000.WAV"));
-		// `finishRecording()` (`:245-253`), and `close()` (`:221`).
+		// `deluge::recording`'s `finishRecording`, and `AudioRecorder::finishInputTake`'s `close()`.
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
 	});
@@ -1020,7 +1020,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("defers the whole completion arm while the SD routine is running", _ {
-		// `AudioRecorder::slowRoutine`'s guard (`:168-176`), which `after_render()` needs for the
+		// `deluge::recording::slowRoutine`'s guard, which `after_render()` needs for the
 		// same reason: `finish_recording()` frees the recorder, and freeing one that is suspended
 		// part-way through its own `cardRoutine()` leaves that routine running on freed memory.
 		Guards g;
@@ -1166,7 +1166,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("restarts both shared blinks as the recording begins", _ {
-		// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`).
+		// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`).
 		Guards g;
 		Rig r;
 		r.open_over_menu();
@@ -1180,7 +1180,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
-		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:101-107`). SYNTH/KIT are the
+		// `AudioRecorder::opened`'s LED tail. SYNTH/KIT are the
 		// interesting pair: `SoundEditor::setLedStates` turns BOTH off
 		// and this UI lights exactly one, so a scene that left them to `MenuScene` beneath would
 		// show neither.

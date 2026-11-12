@@ -131,7 +131,7 @@ bool RecorderScene::name_drum() {
 }
 
 bool RecorderScene::setup_recording() {
-	// `AudioRecorder::setupRecordingToFile` (`:121-141`), for the one call `opened()` makes
+	// `deluge::recording`'s `setupRecordingToFile`, for the one call `AudioRecorder::opened` makes
 	// (`:94-95`): stereo when something is plugged in, mono otherwise, into `RECORD`.
 	//
 	// Legacy's `ALPHA_OR_BETA_VERSION` freeze at `:124` guards `recordingSource > NONE`; the
@@ -188,7 +188,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`) on success.
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
 	blink_restart_ = setup_recording();
 	last_enter_refused_ = !blink_restart_;
 	return blink_restart_;
@@ -232,7 +232,7 @@ bool RecorderScene::threshold_take() const {
 }
 
 void RecorderScene::end_recording_soon() {
-	// `AudioRecorder::endRecordingSoon` (`:159-166`). The status test is legacy's own guard against
+	// `deluge::recording::endRecordingSoon`. The status test is legacy's own guard against
 	// being called twice, which it says "a few scenarios" can do.
 	if (recorder_ == nullptr || recorder_->status != RecorderStatus::CAPTURING_DATA) {
 		return;
@@ -256,7 +256,7 @@ void RecorderScene::attach_sample() {
 }
 
 void RecorderScene::finish_recording() {
-	// `AudioRecorder::finishRecording` (`:245-253`). `recordingSource = NONE` is `recorder_ =
+	// `deluge::recording`'s `finishRecording`. Unpublishing the channel is `recorder_ =
 	// nullptr` here; `display->removeLoadingAnimation()` is the `ClearWorking` notice.
 	//
 	// **The caller must have checked `AudioEngine::sdRoutineBusy()` first** -- this frees, and
@@ -290,7 +290,7 @@ Result RecorderScene::after_render() {
 	if (recorder_->settled()) {
 		// **Not from inside the card routine.** `finish_recording()` below frees the recorder
 		// through `AudioEngine::discardRecorder`, and legacy states the hazard on its *other*
-		// caller, `AudioRecorder::slowRoutine`: the recorder may be suspended part-way
+		// caller, `deluge::recording::slowRoutine`: the recorder may be suspended part-way
 		// through its own `cardRoutine()`, so freeing it there leaves that `cardRoutine()` running
 		// on freed memory and then frees it a second time. `slowRoutine` is registered
 		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` *and* carries this same

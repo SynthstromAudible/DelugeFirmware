@@ -480,7 +480,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			playbackHandler.playButtonPressed(kInternalButtonPressLatency); // `:157`
 			if (record_held && playbackHandler.playbackState != 0
 			    && !lowering_.press_used_up(ButtonId::Record)) { // `:160`
-				// Legacy's `deluge::recording::beginOutputRecording()`.
+				// `Buttons::buttonAction`'s `deluge::recording::beginOutputRecording()`.
 				//
 				// @warning **Not ported** -- the output recording is the engine's and this layer
 				//          does not start it (see the class doc). The *decision* is ported: this is
@@ -515,7 +515,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
-					// Legacy's `deluge::recording::beginOutputRecording()` -- @warning not ported,
+					// `Buttons::buttonAction`'s `deluge::recording::beginOutputRecording()` -- @warning not ported,
 					// as above.
 					count_unported(UnportedOpen::OutputRecordFromShift);
 					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
@@ -537,7 +537,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
 			if (own_press && !lowering_.press_used_up(ButtonId::Record)
 			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
-				// Legacy's `deluge::recording::isCurrentlyResampling()` ->
+				// `Buttons::buttonAction`'s `deluge::recording::isCurrentlyResampling()` ->
 				// `deluge::recording::endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
 				// ported, as above: the port always takes the `else`.
 				playbackHandler.recordButtonPressed(); // `:199`

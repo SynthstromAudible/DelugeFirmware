@@ -39,6 +39,8 @@ bool isCurrentlyResampling();
 /// Whether an audio-input take is in progress: a recorder published on `LEFT` or `STEREO`.
 bool inputTakeInProgress();
 
+// Only the legacy `AudioRecorder` UI's input take calls these two, and they go with it.
+
 /// @brief Starts the recorder UI's audio-input take on @p channel, @p numChannels wide, into the RECORD folder, and
 ///        publishes it.
 /// @return false, with nothing published, while a recording is already live or when no recorder could be made.

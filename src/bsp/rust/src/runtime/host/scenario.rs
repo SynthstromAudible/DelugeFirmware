@@ -63,7 +63,7 @@ pub struct ScenarioResult {
     pub playback_started: bool,
     /// Playback was seen active after starting it.
     pub playback_confirmed_active: bool,
-    /// `AudioRecorder::beginOutputRecording` returned true.
+    /// `deluge::recording::beginOutputRecording` returned true.
     pub recording_started: bool,
     /// Audio blocks rendered from just before playback until the target or the timeout
     /// ([`crate::audio::host::drive_count`]).

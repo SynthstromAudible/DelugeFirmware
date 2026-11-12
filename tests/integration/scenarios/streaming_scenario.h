@@ -106,7 +106,7 @@ void deluge_scenario_start_playback();
 bool deluge_scenario_playback_active();
 
 /// @brief Start a real-time recording of the master output to a WAV file on the card
-///        (`AudioRecorder::beginOutputRecording` — the same mechanism a RECORD button
+///        (`deluge::recording::beginOutputRecording` — the same mechanism a RECORD button
 ///        press with nothing armed starts).
 ///
 /// Runs concurrently with playback/streaming.
