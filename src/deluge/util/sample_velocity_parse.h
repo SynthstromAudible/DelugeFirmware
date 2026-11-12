@@ -26,12 +26,16 @@
 /// [1, 127]. On a match, writes the value to *outVelocity and returns true; otherwise returns false
 /// and leaves *outVelocity untouched.
 ///
+/// The "vel" has to start a word: at the start of the name, after anything that isn't a letter, or at
+/// a lower-to-upper case change. Without that, the "vel" inside "Level 3" or "Novel2" would read as a
+/// velocity, and a set of files numbered that way would import with nonsense bands.
+///
 /// Deliberately requires the "vel" marker rather than a bare digit run or a bare "v" prefix, since a
 /// bare "v" collides with common version-tag conventions ("Kick_v2.wav" meaning "version 2", not
 /// velocity 2). Examples that match: "Kick_C1_vel100.wav" -> 100, "Snare-VEL64.wav" -> 64,
 /// "HatVelocity1.wav" -> 1. Examples that don't: "Kick_v2.wav" (no "vel"), "Tom_vel200.wav" (200 is
 /// out of Deluge's real 1-127 velocity range), "Ride_velvet.wav" (letters follow "vel", digits never
-/// found before the next non-digit).
+/// found before the next non-digit), "Level 3.wav" (the "vel" is inside a word).
 bool tryParseVelocityFromFilename(char const* filename, uint8_t* outVelocity);
 
 /// Given `count` (1..kMaxRoundRobinAlternates + 1) velocity values - one per round-robin slot, in

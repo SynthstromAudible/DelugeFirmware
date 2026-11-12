@@ -33,7 +33,9 @@ number from 1 to 127, such as `Snare_vel40.wav` and `Snare_vel100.wav` - that zo
 and 1-127 is split between its tags, each boundary falling halfway between neighbouring ones. Samples with the
 same tag are takes of the same layer: they share its range and take turns within it. If any sample
 on the note is untagged, the zone stays in `CYCLE` with every slot on the full range. A bare `v` is not read
-as a velocity, since `Kick_v2.wav` usually means version 2.
+as a velocity, since `Kick_v2.wav` usually means version 2. Nor is a `vel` inside a longer word, as in
+`Level 3.wav`: it has to start the name, follow a separator or a digit, or begin with a capital after a lower-case
+letter (`SnareVel100.wav`).
 
 With the community feature turned off, none of this happens: folder import keeps its original behaviour, one
 sample per note with duplicates skipped, and no variant data is created or saved.

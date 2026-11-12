@@ -67,6 +67,30 @@ TEST(SampleVelocityParse, lastOccurrenceWins) {
 	CHECK_EQUAL(90, velocity);
 }
 
+TEST(SampleVelocityParse, velInsideAWordIsNotAMatch) {
+	uint8_t velocity = 0;
+	CHECK_FALSE(tryParseVelocityFromFilename("Level 3.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("Piano_Level_2.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("Novel2.wav", &velocity));
+	CHECK_FALSE(tryParseVelocityFromFilename("GRAVEL-4.wav", &velocity));
+	CHECK_EQUAL(0, velocity);
+}
+
+TEST(SampleVelocityParse, velStartingAWordIsAMatch) {
+	uint8_t velocity = 0;
+	CHECK_TRUE(tryParseVelocityFromFilename("vel90.wav", &velocity));
+	CHECK_EQUAL(90, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("Kick1vel80.wav", &velocity));
+	CHECK_EQUAL(80, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("SnareVel100.wav", &velocity));
+	CHECK_EQUAL(100, velocity);
+	CHECK_TRUE(tryParseVelocityFromFilename("Tom.Velocity 64.wav", &velocity));
+	CHECK_EQUAL(64, velocity);
+	// A real tag after a false start still counts.
+	CHECK_TRUE(tryParseVelocityFromFilename("Level 3 vel40.wav", &velocity));
+	CHECK_EQUAL(40, velocity);
+}
+
 TEST(SampleVelocityParse, boundaryValuesAreAccepted) {
 	uint8_t velocity = 0;
 	CHECK_TRUE(tryParseVelocityFromFilename("A_vel1.wav", &velocity));
