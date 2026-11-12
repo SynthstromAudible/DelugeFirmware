@@ -634,7 +634,7 @@ doActualSimpleChange:
 							if (instrument->type != newOutputType) {
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
-									view.displayOutputName(newInstrument);
+									view.displayOutputName(newInstrument, true, clip);
 									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
