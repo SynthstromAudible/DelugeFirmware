@@ -1330,6 +1330,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 void AutomationView::handleKeyboardButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Keyboard / Performance View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		if (onArrangerView) {
@@ -1825,12 +1827,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
 			// Automation edits store physical pad rows, which note-editor releases cannot match.
 			if (inAutomationEditor()) {
-				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-					if (instrumentClipView.editPadPresses[i].isActive) {
-						instrumentClipView.endEditPadPress(i);
-					}
-				}
-				instrumentClipView.checkIfAllEditPadPressesEnded();
+				endAutomationEditPadPresses();
 			}
 			if (outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
@@ -3123,6 +3120,16 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	if (updateDisplay) {
 		renderDisplay();
 	}
+}
+
+void AutomationView::endAutomationEditPadPresses() {
+	// Automation records contain value-pad rows, so do not reassess note audition for these rows.
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (instrumentClipView.editPadPresses[i].isActive) {
+			instrumentClipView.endEditPadPress(i);
+		}
+	}
+	instrumentClipView.checkIfAllEditPadPressesEnded();
 }
 
 // exit pad selection mode, reset pad press statuses
