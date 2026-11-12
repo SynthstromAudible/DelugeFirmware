@@ -1467,6 +1467,14 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 }
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+	// Always let TimelineView clear the held-encoder mode, regardless of shortcut modifiers.
+	if (!on) {
+		if (isUIModeActive(UI_MODE_AUDITIONING)) {
+			instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
+		}
+		return true;
+	}
+
 	// copy / paste automation (same shortcut used for notes)
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (inAutomationEditor()) {
@@ -1539,11 +1547,6 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 	// Otherwise...
 	else {
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			if (!on) {
-				instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
-			}
-		}
 		return true;
 	}
 	return false;
