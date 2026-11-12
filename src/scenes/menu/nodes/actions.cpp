@@ -129,6 +129,8 @@ void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) 
 }
 
 std::array<std::string_view, 3> PerformEditorItem::option_names() {
+	// `EditingMode::getOptions`, in its own order -- the order IS the `PerformanceEditingMode` numbering, which is
+	// what makes the cursor the value.
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::DISABLED) == 0);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::VALUE) == 1);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::PARAM) == 2);
@@ -142,8 +144,6 @@ std::array<std::string_view, 3> PerformEditorItem::option_names() {
 void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	draw_title_for(f, state);
 
-	// `EditingMode::getOptions` (`editing_mode.h:99-107`), in its own order -- the order IS the
-	// `PerformanceEditingMode` numbering, which is what makes the cursor the value.
 	const std::array<std::string_view, 3> names = option_names();
 
 	const size_t d = depth_of(state);

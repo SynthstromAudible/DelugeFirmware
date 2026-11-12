@@ -2817,8 +2817,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 	// user reaches an editing mode from a menu at all (`PerformanceView::buttonAction`'s
 	// SELECT_ENC arm), it writes both bools, and the mirror would sit where it was until ShellMenu is
 	// turned on and `PerformEditorItem::on_focus` reads it. Driven here on the REAL
-	// `performEditorMenu` singleton, the same object the `menu_action_perform` group runs
-	// `readCurrentValue` on.
+	// `performEditorMenu` singleton.
 
 	it("legacy's own Editing Mode item syncs the mirror on both of its writing arms", _ {
 		// `editing_mode.h:55-62` -- the two arms that write, and their two answers. Both in one

@@ -100,6 +100,9 @@ row). A row is `path<TAB>column<TAB>values…`: the path names what answered (a 
 under its root, a setting case, a shortcut cell), the column the question, the values the answer. `pixels/` holds
 panels as PBM, `pads/` pad images.
 
+Fields are raw bytes: only tab, newline and backslash are escaped, so a glyph byte such as the flat sign (0x81 in
+`menu_ranges.tsv`) is stored as it is and the files are not always valid UTF-8.
+
 These are reference data, not recordings: nothing in the tree regenerates them. Change a row only to follow `main`,
 reading its source with `git show origin/main:<path>`, and name that source in the commit.
 
