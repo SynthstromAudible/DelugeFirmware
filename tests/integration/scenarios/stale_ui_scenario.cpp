@@ -22,7 +22,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
@@ -44,12 +44,14 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/output.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "playback/render_requests.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/registry.h"
 #include "util/misc.h"
+#include "util/shell_menu_entry.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -180,9 +182,6 @@ int32_t g_steps = 0;
 std::string g_scriptPath;
 int32_t g_events = 0;
 Song* g_songBefore = nullptr;
-/// The Legacy Menu setting before the editor leg, which turns it on: the leg drives legacy's own editor, which the
-/// setting keeps while it exists and which refuses to open with it off.
-RuntimeFeatureStateToggle g_legacyMenuBefore = RuntimeFeatureStateToggle::Off;
 Clip* g_clipBefore = nullptr;
 /// Compared by address only: once the old song is freed, nothing it held may be dereferenced.
 const void* g_modBefore = nullptr;
@@ -204,6 +203,8 @@ bool g_modButtonReleased = false;
 int32_t g_preSwapSteps = 0;
 int32_t g_postSwapSteps = 0;
 int32_t g_staleEditor = 0;
+/// retired_song: whether the ported menu was still open, editing the outgoing song, once the load was over.
+bool g_guestOnOldSong = false;
 int32_t g_staleView = 0;
 
 /// hold_load_to_launch.
@@ -506,12 +507,12 @@ void stepEditorSetup() {
 	if (!playbackHandler.isEitherClockActive()) {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
 	}
-	g_legacyMenuBefore =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::On);
-	if (!soundEditor.setup(clip) || !openUI(&soundEditor) || getCurrentUI() != &soundEditor) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
-		fail("SU-RETIRED", "the sound editor could not be opened on the synth clip");
+	// Site 6's open: the clip view's SELECT on a synth clip, which resolves the sound root over the clip.
+	if (!deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                    /*kitGlobalFx=*/false)
+	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
+		fail("SU-RETIRED", "the ported menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -541,7 +542,7 @@ void stepEditorRun() {
 		if (!swapped && !g_externalAuditioned && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 			g_externalAuditioned = auditionFromExternalMidi(g_clipBefore->output);
 		}
-		if (getCurrentUI() == &soundEditor) {
+		if (getCurrentUI() == &shellHostUI) {
 			g_staleEditor++;
 		}
 		if (swapped
@@ -563,23 +564,28 @@ void stepEditorRun() {
 	}
 	if (!loadOver()) {
 		if (++g_steps > kMaxSettleSteps) {
-			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 			fail("SU-RETIRED", "the NEXT_SONG load never ended");
 			g_stage = Stage::Report;
 		}
 		return;
 	}
-	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d renderWrites=%d steps=%d\n",
-	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView,
+	// The load took every UI down; nothing may have put the menu back on the song it freed.
+	g_guestOnOldSong = isUIOpen(&shellHostUI) && deluge::scenes::menu_scene().menu_context().song == g_songBefore;
+	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d guestOnOldSong=%d "
+	       "renderWrites=%d steps=%d\n",
+	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_guestOnOldSong ? 1 : 0,
 	       View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
 	if (g_preSwapSteps == 0 || g_postSwapSteps == 0) {
 		fail("SU-RETIRED", "no step saw the stack empty on both sides of the swap, so nothing was tested");
 	}
 	if (g_staleEditor != 0) {
-		fail("SU-RETIRED", "input would have reached the sound editor on the outgoing song while the stack was empty");
+		fail("SU-RETIRED", "input would have reached the ported menu on the outgoing song while the stack was empty");
 	}
 	if (g_staleView != 0) {
 		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
+	}
+	if (g_guestOnOldSong) {
+		fail("SU-RETIRED", "the ported menu was left open on the song the load freed");
 	}
 	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d "
@@ -609,7 +615,6 @@ void stepEditorRun() {
 			fail("SU-SWAPWORK", "the outgoing song was still auditioning after the swap's interaction side ran");
 		}
 	}
-	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, g_legacyMenuBefore);
 	g_steps = 0;
 	g_stage = Stage::AuditionSetup;
 }
