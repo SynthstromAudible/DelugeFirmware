@@ -183,9 +183,10 @@ char const* getPatchedParamShortName(ParamType type) {
 }
 
 namespace {
-/// AHD and AR envelopes reuse some of their params for other jobs (see EnvelopeMode): AHD's decay param is its hold
-/// and its release param its decay, and AR's sustain is its level. Returns the name for the job the param is doing,
-/// or nullptr if it's doing its usual one. `modControllable` must own patched params, which means it's a Sound.
+/// AHD, AR and MPE envelopes reuse some of their params for other jobs (see EnvelopeMode): AHD's decay param is its
+/// hold and its release param its decay, and AR's and MPE's sustain is their level. Returns the name for the job the
+/// param is doing, or nullptr if it's doing its usual one. `modControllable` must own patched params, which means it's
+/// a Sound.
 char const* envelopeParamNameForMode(ParamType p, ModControllableAudio* modControllable, bool shortName) {
 	using enum l10n::String;
 	using EnvelopeMode = deluge::modulation::EnvelopeMode;
@@ -226,6 +227,7 @@ char const* envelopeParamNameForMode(ParamType p, ModControllableAudio* modContr
 		}
 		break;
 	case EnvelopeMode::AR:
+	case EnvelopeMode::MPE:
 		if (inGroup(LOCAL_ENV_0_SUSTAIN)) {
 			return format(STRING_FOR_ENV_LEVEL_MENU_TITLE);
 		}

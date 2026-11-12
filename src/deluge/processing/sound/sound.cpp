@@ -919,6 +919,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				envelopeConfig[e].setCurve(reader.readTagOrAttributeValueInt());
 				reader.exitTag("curve");
 			}
+			else if (!strcmp(tagName, "follow")) {
+				envelopeConfig[e].follow = deluge::modulation::stringToEnvelopeFollow(reader.readTagOrAttributeValue());
+				reader.exitTag("follow");
+			}
 			else {
 				reader.exitTag(tagName);
 			}
@@ -4261,6 +4265,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning(kEnvelopeSettingsTags[e]);
 		writer.writeAttribute("mode", deluge::modulation::envelopeModeToString(config.mode), false);
 		writer.writeAttribute("curve", static_cast<int32_t>(config.curve), false);
+		if (config.follow != deluge::modulation::EnvelopeFollow::Z) {
+			writer.writeAttribute("follow", deluge::modulation::envelopeFollowToString(config.follow), false);
+		}
 		writer.closeTag();
 	}
 
@@ -4400,6 +4407,7 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false; // one-shot
 	case deluge::modulation::EnvelopeMode::AR:
+	case deluge::modulation::EnvelopeMode::MPE:
 		return true; // holds while the note does
 	default:
 		break;
@@ -4418,6 +4426,7 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false;
 	case deluge::modulation::EnvelopeMode::AR:
+	case deluge::modulation::EnvelopeMode::MPE:
 		return true;
 	default:
 		break;

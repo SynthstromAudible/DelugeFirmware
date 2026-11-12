@@ -49,7 +49,7 @@ public:
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
 	/// Returns the level as a bipolar q31 patch source value (0 -> INT32_MIN, 1 -> INT32_MAX), or INT32_MIN when off.
-	/// `followInput` is what AR mode follows (MPE pressure), as a q31 patch source value; other modes ignore it.
+	/// `followInput` is what MPE mode follows (see EnvelopeFollow), as a q31 patch source value; other modes ignore it.
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
 	               const deluge::modulation::EnvelopeConfig& config, int32_t followInput = 0);
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,

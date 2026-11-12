@@ -115,15 +115,27 @@ enum class EnvelopeMode : uint8_t {
 	/// param (an eighth of what a decay stage would take) and the decay by the release param, so the release gold knob
 	/// sets a drum's length.
 	AHD,
-	/// Attack and release around a level that follows MPE pressure (Z): the target is sustain + (1 - sustain) * Z,
-	/// approached at the attack rate going up and the release rate going down. With sustain at full it's a plain AR.
+	/// Slews to a level (the sustain param) while the note is held, at the attack rate going up and the release rate
+	/// going down, then releases to zero on note-off. With the level at full it's a plain attack-release envelope;
+	/// automating or patching the level makes it a slew limiter for that modulation.
 	AR,
+	/// Like AR, plus an expression input (see EnvelopeFollow): the target is level + (1 - level) * input.
+	MPE,
 };
-constexpr int32_t kNumEnvelopeModes = 3;
+constexpr int32_t kNumEnvelopeModes = 4;
+
+/// What an MPE-mode envelope follows. Both are read as unipolar: mod wheel covers the full range, while per-note MPE
+/// Y (CC74), which is bipolar, only moves the level in its upper half.
+enum class EnvelopeFollow : uint8_t {
+	Z, ///< Pressure: MPE Z, channel or polyphonic aftertouch
+	Y, ///< Mod wheel or MPE Y
+};
+constexpr int32_t kNumEnvelopeFollows = 2;
 
 /// A sound's settings for one of its envelopes. Not a param: it doesn't vary per clip and can't be modulated.
 struct EnvelopeConfig {
 	EnvelopeMode mode{EnvelopeMode::ADSR};
+	EnvelopeFollow follow{EnvelopeFollow::Z};
 	int8_t curve{EnvelopeShape::kClassicCurve};
 	EnvelopeShape shape{}; // derived from curve; call setCurve() rather than writing either directly
 
@@ -131,12 +143,16 @@ struct EnvelopeConfig {
 		curve = static_cast<int8_t>(std::clamp(newCurve, EnvelopeShape::kMinCurve, EnvelopeShape::kMaxCurve));
 		shape = EnvelopeShape::fromCurve(curve);
 	}
-	constexpr bool isDefault() const { return mode == EnvelopeMode::ADSR && curve == EnvelopeShape::kClassicCurve; }
+	constexpr bool isDefault() const {
+		return mode == EnvelopeMode::ADSR && follow == EnvelopeFollow::Z && curve == EnvelopeShape::kClassicCurve;
+	}
 };
 
 inline constexpr EnvelopeConfig kAudioClipEnvelopeConfig{.shape = kAudioClipEnvelopeShape};
 
 char const* envelopeModeToString(EnvelopeMode mode);
 EnvelopeMode stringToEnvelopeMode(char const* string);
+char const* envelopeFollowToString(EnvelopeFollow follow);
+EnvelopeFollow stringToEnvelopeFollow(char const* string);
 
 } // namespace deluge::modulation

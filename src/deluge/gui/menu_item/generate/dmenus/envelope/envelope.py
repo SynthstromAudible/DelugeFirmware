@@ -52,4 +52,12 @@ for i in range(4):
             name="STRING_FOR_CURVE",
             title="STRING_FOR_ENV_CURVE_MENU_TITLE",
         ),
+        Menu(
+            "envelope::Follow",
+            f"env{i + 1}FollowMenu",
+            ["{name}", "{title}", f"{i}"],
+            "envelope/follow.md",
+            name="STRING_FOR_FOLLOW",
+            title="STRING_FOR_ENV_FOLLOW_MENU_TITLE",
+        ),
     ]

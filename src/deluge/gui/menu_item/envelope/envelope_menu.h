@@ -75,7 +75,10 @@ public:
 		const int32_t selected_pos = std::distance(items.begin(), std::ranges::find(items, currentItem));
 		selected_x_ = -1, selected_y_ = -1;
 
-		drawSegment(start_x, 0.f, attack_x, 1.f, config.shape.attack);
+		// AR rises to its level; every other mode to full
+		const float attack_level = (config.mode == EnvelopeMode::AR) ? sustain_level : 1.f;
+		const int32_t attack_y = level_y(attack_level);
+		drawSegment(start_x, 0.f, attack_x, attack_level, config.shape.attack);
 
 		switch (config.mode) {
 		case EnvelopeMode::AHD: {
@@ -96,14 +99,29 @@ public:
 		}
 
 		case EnvelopeMode::AR: {
-			// Up to full while held (or to the level, with no pressure), down on release
+			// Up to the level while held, down on release
+			constexpr float sustain_x = start_x + max_segment_width * 3;
+			const float release_x = round(sustain_x + release / 50.0f * (end_x - sustain_x));
+			image.drawLine(attack_x, sustain_y, sustain_x, sustain_y);
+			drawSegment(sustain_x, sustain_level, release_x, 0.f, config.shape.release);
+			image.drawLine(release_x, base_y, end_x, base_y);
+			drawDottedLine(sustain_x, true, sustain_y);
+
+			drawTransitionIndicator(attack_x, attack_y, selected_pos == 0);
+			drawTransitionIndicator(attack_x + (sustain_x - attack_x) / 2, sustain_y, selected_pos == 2);
+			drawTransitionIndicator(release_x, base_y, selected_pos == 3);
+			break;
+		}
+
+		case EnvelopeMode::MPE: {
+			// Up to full with the input fully on, resting at the level with it off, down on release
 			constexpr float sustain_x = start_x + max_segment_width * 3;
 			const float release_x = round(sustain_x + release / 50.0f * (end_x - sustain_x));
 			image.drawLine(attack_x, start_y, sustain_x, start_y);
 			drawSegment(sustain_x, 1.f, release_x, 0.f, config.shape.release);
 			image.drawLine(release_x, base_y, end_x, base_y);
 
-			// The level the envelope rests at without pressure
+			// The level the envelope rests at with no input
 			for (int32_t x = start_x; x <= sustain_x; x += 3) {
 				image.drawPixel(x, sustain_y);
 			}

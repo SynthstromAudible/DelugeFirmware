@@ -162,13 +162,15 @@ PLACE_SDRAM_BSS envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR
 PLACE_SDRAM_BSS envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 0};
 PLACE_SDRAM_BSS envelope::Mode env1ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS envelope::Curve env1CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 6> child11 = {
+PLACE_SDRAM_BSS envelope::Follow env1FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 0};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child11 = {
     &env1AttackMenu,
     &env1DecayMenu,
     &env1SustainMenu,
     &env1ReleaseMenu,
     &env1ModeMenu,
     &env1CurveMenu,
+    &env1FollowMenu,
 };
 PLACE_SDRAM_BSS envelope::EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child11, 0};
 PLACE_SDRAM_BSS envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 1};
@@ -177,13 +179,15 @@ PLACE_SDRAM_BSS envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR
 PLACE_SDRAM_BSS envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 1};
 PLACE_SDRAM_BSS envelope::Mode env2ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS envelope::Curve env2CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 6> child12 = {
+PLACE_SDRAM_BSS envelope::Follow env2FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 1};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child12 = {
     &env2AttackMenu,
     &env2DecayMenu,
     &env2SustainMenu,
     &env2ReleaseMenu,
     &env2ModeMenu,
     &env2CurveMenu,
+    &env2FollowMenu,
 };
 PLACE_SDRAM_BSS envelope::EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child12, 1};
 PLACE_SDRAM_BSS envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 2};
@@ -192,13 +196,15 @@ PLACE_SDRAM_BSS envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR
 PLACE_SDRAM_BSS envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 2};
 PLACE_SDRAM_BSS envelope::Mode env3ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 2};
 PLACE_SDRAM_BSS envelope::Curve env3CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 6> child13 = {
+PLACE_SDRAM_BSS envelope::Follow env3FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 2};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child13 = {
     &env3AttackMenu,
     &env3DecayMenu,
     &env3SustainMenu,
     &env3ReleaseMenu,
     &env3ModeMenu,
     &env3CurveMenu,
+    &env3FollowMenu,
 };
 PLACE_SDRAM_BSS envelope::EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child13, 2};
 PLACE_SDRAM_BSS envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 3};
@@ -207,13 +213,15 @@ PLACE_SDRAM_BSS envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR
 PLACE_SDRAM_BSS envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE, 3};
 PLACE_SDRAM_BSS envelope::Mode env4ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 3};
 PLACE_SDRAM_BSS envelope::Curve env4CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 3};
-PLACE_SDRAM_DATA std::array<MenuItem*, 6> child14 = {
+PLACE_SDRAM_BSS envelope::Follow env4FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child14 = {
     &env4AttackMenu,
     &env4DecayMenu,
     &env4SustainMenu,
     &env4ReleaseMenu,
     &env4ModeMenu,
     &env4CurveMenu,
+    &env4FollowMenu,
 };
 PLACE_SDRAM_BSS envelope::EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child14, 3};
 PLACE_SDRAM_BSS lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO1_ID};

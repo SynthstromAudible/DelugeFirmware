@@ -60,8 +60,10 @@ int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, u
 		decay = release;
 		sustain = 0;
 	}
-	else if (config.mode == EnvelopeMode::AR && state < EnvelopeStage::RELEASE) {
-		return follow(numSamples, attack, sustain, release, shape, followInput);
+	else if ((config.mode == EnvelopeMode::AR || config.mode == EnvelopeMode::MPE) && state < EnvelopeStage::RELEASE) {
+		// AR slews to its level alone; MPE adds an expression input on top
+		return follow(numSamples, attack, sustain, release, shape,
+		              (config.mode == EnvelopeMode::MPE) ? followInput : 0);
 	}
 
 	// otherwise modulating sustain with aftertouch causes un smoothed jumps downstream because params don't smooth
@@ -163,9 +165,9 @@ int32_t Envelope::follow(uint32_t numSamples, uint32_t attack, uint32_t sustain,
 		setState(EnvelopeStage::SUSTAIN);
 	}
 
-	float floor = q31_to_float(static_cast<int32_t>(sustain));
+	float level = q31_to_float(static_cast<int32_t>(sustain));
 	float input = std::clamp(q31_to_float(followInput), 0.f, 1.f);
-	float target = floor + (1.f - floor) * input;
+	float target = level + (1.f - level) * input;
 
 	// How far through a full-scale stage this render takes us, at the rate for the direction we're going
 	uint32_t rate = (target > lastValue) ? attack : release;
@@ -182,7 +184,7 @@ int32_t Envelope::follow(uint32_t numSamples, uint32_t attack, uint32_t sustain,
 		lastValue += std::clamp(gap, -distance, distance);
 	}
 
-	// The voice is freed when envelope 0 sits at exactly 0 outside attack or decay, and no pressure must not mean that
+	// The voice is freed when envelope 0 sits at exactly 0 outside attack or decay, and a level of 0 must not mean that
 	lastValue = std::max(lastValue, 0x1p-31f);
 	return toSourceValue(lastValue);
 }
@@ -192,8 +194,9 @@ int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain, EnvelopeMode mod
 	ignoredNoteOff = false;
 	pos = 0;
 	lastValue = 0.f;
-	// In AR mode, even without an attack stage the first render gets to the target, since the attack rate is huge
-	if (!directlyToDecay || mode == EnvelopeMode::AR) {
+	// The followers (AR, MPE) get to their target on the first render even without an attack stage, since the attack
+	// rate is then huge
+	if (!directlyToDecay || mode == EnvelopeMode::AR || mode == EnvelopeMode::MPE) {
 		setState(EnvelopeStage::ATTACK);
 	}
 	else {
@@ -257,7 +260,7 @@ void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFas
 
 void Envelope::resumeAttack(float oldLastValue, const EnvelopeConfig& config) {
 	if (state == EnvelopeStage::ATTACK) {
-		if (config.mode == EnvelopeMode::AR) {
+		if (config.mode == EnvelopeMode::AR || config.mode == EnvelopeMode::MPE) {
 			lastValue = oldLastValue; // carry on following from where the old note was
 		}
 		else {
@@ -273,6 +276,8 @@ char const* envelopeModeToString(EnvelopeMode mode) {
 		return "ahd";
 	case EnvelopeMode::AR:
 		return "ar";
+	case EnvelopeMode::MPE:
+		return "mpe";
 	default:
 		return "adsr";
 	}
@@ -285,6 +290,17 @@ EnvelopeMode stringToEnvelopeMode(char const* string) {
 	if (!strcmp(string, "ar")) {
 		return EnvelopeMode::AR;
 	}
+	if (!strcmp(string, "mpe")) {
+		return EnvelopeMode::MPE;
+	}
 	return EnvelopeMode::ADSR;
+}
+
+char const* envelopeFollowToString(EnvelopeFollow follow) {
+	return (follow == EnvelopeFollow::Y) ? "y" : "z";
+}
+
+EnvelopeFollow stringToEnvelopeFollow(char const* string) {
+	return !strcmp(string, "y") ? EnvelopeFollow::Y : EnvelopeFollow::Z;
 }
 } // namespace deluge::modulation

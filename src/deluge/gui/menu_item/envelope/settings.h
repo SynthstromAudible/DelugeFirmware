@@ -55,7 +55,8 @@ public:
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
-		return {l10n::getView(STRING_FOR_ADSR), l10n::getView(STRING_FOR_AHD), l10n::getView(STRING_FOR_AR)};
+		return {l10n::getView(STRING_FOR_ADSR), l10n::getView(STRING_FOR_AHD), l10n::getView(STRING_FOR_AR),
+		        l10n::getView(STRING_FOR_MPE)};
 	}
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->envelopeConfig[envelopeIndex_].mode); }
@@ -63,6 +64,39 @@ public:
 	void writeCurrentValue() override {
 		auto mode = this->getValue<modulation::EnvelopeMode>();
 		changeEnvelopeConfig(envelopeIndex_, [mode](modulation::EnvelopeConfig& config) { config.mode = mode; });
+	}
+
+private:
+	uint8_t envelopeIndex_;
+};
+
+/// What an MPE-mode envelope follows: pressure (Z) or mod wheel (Y)
+class Follow final : public Selection, FormattedTitle {
+public:
+	Follow(l10n::String name, l10n::String title, uint8_t envelopeIndex)
+	    : Selection(name, title), FormattedTitle(title, envelopeIndex + 1), envelopeIndex_(envelopeIndex) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		using enum l10n::String;
+		bool shortOpt = optType == OptType::SHORT;
+		return {l10n::getView(shortOpt ? STRING_FOR_ENV_FOLLOW_Z_SHORT : STRING_FOR_ENV_FOLLOW_Z),
+		        l10n::getView(shortOpt ? STRING_FOR_ENV_FOLLOW_Y_SHORT : STRING_FOR_ENV_FOLLOW_Y)};
+	}
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return soundEditor.currentSound != nullptr
+		       && soundEditor.currentSound->envelopeConfig[envelopeIndex_].mode == modulation::EnvelopeMode::MPE;
+	}
+
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentSound->envelopeConfig[envelopeIndex_].follow);
+	}
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		auto follow = this->getValue<modulation::EnvelopeFollow>();
+		changeEnvelopeConfig(envelopeIndex_, [follow](modulation::EnvelopeConfig& config) { config.follow = follow; });
 	}
 
 private:

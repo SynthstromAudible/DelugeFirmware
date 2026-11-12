@@ -70,6 +70,10 @@ TEST(EnvelopeCurveTest, classicCurveSettingIsTheClassicShape) {
 	CHECK(!config.isDefault());
 	DOUBLES_EQUAL(0.5, config.shape.decay.falling(0.5f), 0.0);
 
+	config.setCurve(EnvelopeShape::kClassicCurve);
+	config.follow = deluge::modulation::EnvelopeFollow::Y;
+	CHECK(!config.isDefault()); // follow is saved too
+
 	config.setCurve(1000); // clamped
 	LONGS_EQUAL(EnvelopeShape::kMaxCurve, config.curve);
 }

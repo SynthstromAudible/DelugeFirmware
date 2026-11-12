@@ -33,7 +33,7 @@ inline modulation::EnvelopeMode currentEnvelopeMode(uint8_t envelopeIndex) {
 	return soundEditor.currentSound->envelopeConfig[envelopeIndex].mode;
 }
 
-/// One of an envelope's four params. AHD and AR modes reuse them for other jobs, so the name follows the mode.
+/// One of an envelope's four params. AHD, AR and MPE modes reuse them for other jobs, so the name follows the mode.
 class Segment : public source::PatchedParam {
 public:
 	Segment(l10n::String newName, l10n::String title, int32_t newP, uint8_t source_id)
@@ -56,6 +56,7 @@ public:
 		case AHD:
 			return base != modulation::params::LOCAL_ENV_0_SUSTAIN;
 		case AR:
+		case MPE:
 			return base != modulation::params::LOCAL_ENV_0_DECAY;
 		default:
 			return true;
@@ -82,7 +83,7 @@ private:
 			}
 			return {STRING_FOR_DECAY, STRING_FOR_DECAY_SHORT, STRING_FOR_ENV_DECAY_MENU_TITLE};
 		case params::LOCAL_ENV_0_SUSTAIN:
-			if (mode == EnvelopeMode::AR) {
+			if (mode == EnvelopeMode::AR || mode == EnvelopeMode::MPE) {
 				return {STRING_FOR_ENV_LEVEL, STRING_FOR_ENV_LEVEL_SHORT, STRING_FOR_ENV_LEVEL_MENU_TITLE};
 			}
 			return {STRING_FOR_SUSTAIN, STRING_FOR_SUSTAIN_SHORT, STRING_FOR_ENV_SUSTAIN_MENU_TITLE};

@@ -1033,6 +1033,11 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ADSR, "ADSR"},
         {STRING_FOR_AHD, "AHD"},
         {STRING_FOR_AR, "AR"},
+        {STRING_FOR_ENV_FOLLOW_MENU_TITLE, "Env* follow"},
+        {STRING_FOR_ENV_FOLLOW_Z, "Pressure (Z)"},
+        {STRING_FOR_ENV_FOLLOW_Z_SHORT, "Z"},
+        {STRING_FOR_ENV_FOLLOW_Y, "Mod wheel (Y)"},
+        {STRING_FOR_ENV_FOLLOW_Y_SHORT, "Y"},
     },
 };
 } // namespace deluge::l10n::built_in
