@@ -51,6 +51,7 @@ describe legacy_shared_latch("the legacy editor's setupKitGlobalFXMenu is the po
 		static_cast<InstrumentClip*>(kit.clip)->affectEntire = true;
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/true)).to_be_true();
+		soundEditor.setupKitGlobalFXMenu = true;
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(soundEditor.setupKitGlobalFXMenu).to_be_false();

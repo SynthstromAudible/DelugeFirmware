@@ -213,10 +213,10 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
 
-/// @brief `SoundEditor::setupKitGlobalFXMenu` for the ported menu: whether an open, and a shortcut press re-rooting
-///        the open guest, edit a kit's own effects rather than its selected row.
+/// @brief The one kit-global-FX latch, which `SoundEditor::setupKitGlobalFXMenu` refers to: whether an open, and a
+///        shortcut press re-rooting the open guest, edit a kit's own effects rather than its selected row.
 ///
-/// Sticky, as legacy's member is. `shellShortcutPadAction` writes it with the guest closed, on every press it is
+/// Sticky. `shellShortcutPadAction` writes it with the guest closed, on every press it is
 /// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
 /// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). It is read live, never copied: by the
 /// shortcut presses with the guest closed (`shellShortcutPadAction`), by the open menu's own Shift + pad, SHIFT overlay
@@ -226,8 +226,7 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 /// says now (DIFFERENCES D130).
 bool shellKitGlobalFx();
 
-/// @brief Clear the latch `shellKitGlobalFx` reads, as legacy's `exitCompletely` and `enterDrumCreator` clear
-///        `setupKitGlobalFXMenu`.
+/// @brief Clear the latch, as the editor's `exitCompletely` and `enterDrumCreator` do.
 void clearShellKitGlobalFx();
 
 /// @brief The kit-global-FX latch itself. The legacy editor's `setupKitGlobalFXMenu` is a reference onto it, so the
