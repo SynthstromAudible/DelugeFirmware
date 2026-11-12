@@ -165,6 +165,8 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/mpe/zone_num_member_channels.h"
+#include "gui/menu_item/mpe/zone_selector.h"
 #include "gui/menu_item/note/fill.h"
 #include "gui/menu_item/note/iterance_divisor.h"
 #include "gui/menu_item/note/iterance_preset.h"
@@ -267,6 +269,7 @@ using deluge::hid::display::OLED;
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -300,6 +303,7 @@ using deluge::hid::display::OLED;
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -309,11 +313,16 @@ using deluge::hid::display::OLED;
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 
 #include "support/descriptor_fixtures.h"
 #include "support/global_guest_menu.h"
+#include "support/menu_scales_fixtures.h"
+#include "support/midi_device_fixtures.h"
 #include "support/shortcuts_fixtures.h"
+
+#include "spec/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -482,6 +491,22 @@ extern deluge::gui::menu_item::bend_range::PerFinger perFingerBendRangeMenu;
 extern deluge::gui::menu_item::bend_range::PerFinger drumBendRangeMenu;
 extern deluge::gui::menu_item::sidechain::Release reverbSidechainReleaseMenu;
 extern deluge::gui::menu_item::sidechain::Sync reverbSidechainSyncMenu;
+/// @}
+
+/// @name The legacy items the range, scale, MIDI device and editing-mode families drive.
+/// @{
+extern deluge::gui::menu_item::IntegerRange defaultTempoMenu;
+extern deluge::gui::menu_item::IntegerRange defaultSwingAmountMenu;
+extern deluge::gui::menu_item::KeyRange defaultKeyMenu;
+extern deluge::gui::menu_item::ActiveScaleMenu defaultActiveScaleMenu;
+extern deluge::gui::menu_item::ActiveScaleMenu activeScaleMenu;
+extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
+extern deluge::gui::menu_item::midi::DefaultVelocityToLevel defaultVelocityToLevelMenu;
+extern deluge::gui::menu_item::midi::DeviceSendClock device_send_clock_menu;
+extern deluge::gui::menu_item::midi::DeviceReceiveClock device_receive_clock_menu;
+extern deluge::gui::menu_item::midi::DeviceIsRelative device_is_relative_menu;
+extern deluge::gui::menu_item::midi::DeviceSendThru device_send_thru_menu;
+extern deluge::gui::menu_item::performance_session_view::EditingMode performEditorMenu;
 /// @}
 
 /// @name The legacy root menus `SoundEditor::setup` opens, and the note-row editor's.
@@ -3013,6 +3038,414 @@ void freeze(OracleWriter& out) {
 
 } // namespace shortcuts
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `menu_ranges`: the three range items' bounds, spellings, edits, edge turns, entry seeds and panels.
+
+namespace menu_ranges {
+
+std::string_view edge_name(legacy::RangeEdit e) {
+	using legacy::RangeEdit;
+	return e == RangeEdit::LEFT ? "left" : e == RangeEdit::RIGHT ? "right" : "off";
+}
+
+/// @brief The cases `menu_ranges_spec`'s examples drive, in its order: what each start, edge and turn leaves.
+/// @return Whether every panel file was written.
+bool freeze(OracleWriter& out) {
+	bool panels = true;
+	using legacy::RangeEdit;
+	auto& tempo = FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO];
+	auto& key = FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY];
+	out.row("default_tempo", "bounds",
+	        {std::to_string(defaultTempoMenu.minValue), std::to_string(defaultTempoMenu.maxValue)});
+	out.row("default_swing_amount", "bounds",
+	        {std::to_string(defaultSwingAmountMenu.minValue), std::to_string(defaultSwingAmountMenu.maxValue)});
+	for (int32_t v = defaultTempoMenu.minValue; v <= defaultTempoMenu.maxValue; v++) {
+		defaultTempoMenu.lower = v;
+		defaultTempoMenu.upper = v;
+		char buf[64] = {};
+		int32_t left = 0;
+		int32_t right = 0;
+		defaultTempoMenu.getText(buf, &left, &right, /*mayShowJustOne=*/true);
+		out.row("tempo/" + std::to_string(v), "text", std::string(buf, static_cast<size_t>(left)));
+	}
+	for (const bool sharps : {true, false}) {
+		FlashStorage::defaultUseSharps = sharps;
+		for (int32_t v = 0; v <= 11; v++) {
+			defaultKeyMenu.lower = v;
+			defaultKeyMenu.upper = v;
+			char buf[64] = {};
+			int32_t left = 0;
+			int32_t right = 0;
+			defaultKeyMenu.getText(buf, &left, &right, /*mayShowJustOne=*/true);
+			out.row(std::string{"key/"} + (sharps ? "sharps/" : "flats/") + std::to_string(v), "text",
+			        std::string(buf, static_cast<size_t>(left)));
+		}
+	}
+	struct Edit {
+		const char* item;
+		int32_t lower;
+		int32_t upper;
+		RangeEdit edge;
+		int32_t detents;
+	};
+	const Edit edits[] = {
+	    {"tempo", 120, 120, RangeEdit::OFF, 5},    {"tempo", 90, 150, RangeEdit::OFF, 5},
+	    {"tempo", 120, 120, RangeEdit::LEFT, 7},   {"tempo", 120, 150, RangeEdit::LEFT, -7},
+	    {"tempo", 120, 120, RangeEdit::RIGHT, -7}, {"tempo", 200, 238, RangeEdit::RIGHT, 9},
+	    {"tempo", 62, 200, RangeEdit::LEFT, -9},   {"key", 5, 5, RangeEdit::OFF, 3},
+	    {"key", 2, 9, RangeEdit::OFF, 3},          {"key", 5, 5, RangeEdit::LEFT, 4},
+	    {"key", 2, 9, RangeEdit::LEFT, 4},         {"key", 2, 9, RangeEdit::RIGHT, -10},
+	    {"key", 0, 10, RangeEdit::RIGHT, 5},       {"tempo", 5, 5, RangeEdit::LEFT, 1},
+	    {"key", 5, 5, RangeEdit::LEFT, 1},
+	};
+	for (const Edit& e : edits) {
+		const bool is_tempo = std::string_view{e.item} == "tempo";
+		auto& slot = is_tempo ? tempo : key;
+		slot = {.lower = e.lower, .upper = e.upper};
+		soundEditor.editingRangeEdge = e.edge;
+		if (is_tempo) {
+			defaultTempoMenu.selectEncoderAction(e.detents);
+		}
+		else {
+			defaultKeyMenu.selectEncoderAction(e.detents);
+		}
+		out.row(std::string{e.item} + "/" + std::to_string(e.lower) + "-" + std::to_string(e.upper) + "/"
+		            + std::string{edge_name(e.edge)} + "/" + std::to_string(e.detents),
+		        "edit", {std::to_string(slot.lower), std::to_string(slot.upper)});
+	}
+	for (const RangeEdit from : {RangeEdit::OFF, RangeEdit::LEFT, RangeEdit::RIGHT}) {
+		for (const int32_t h : {-1, 1}) {
+			soundEditor.editingRangeEdge = from;
+			defaultTempoMenu.horizontalEncoderAction(h);
+			out.row("tempo/" + std::string{edge_name(from)} + "/" + std::to_string(h), "edge",
+			        std::string{edge_name(soundEditor.editingRangeEdge)});
+		}
+	}
+	struct Seed {
+		const char* item;
+		int32_t lower;
+		int32_t upper;
+	};
+	for (const Seed s : {Seed{"tempo", 120, 120}, Seed{"tempo", 90, 150}, Seed{"key", 5, 5}, Seed{"key", 2, 9}}) {
+		const bool is_tempo = std::string_view{s.item} == "tempo";
+		(is_tempo ? tempo : key) = {.lower = s.lower, .upper = s.upper};
+		soundEditor.editingRangeEdge = RangeEdit::RIGHT;
+		if (is_tempo) {
+			defaultTempoMenu.beginSession(nullptr);
+		}
+		else {
+			defaultKeyMenu.beginSession(nullptr);
+		}
+		out.row(std::string{s.item} + "/" + std::to_string(s.lower) + "-" + std::to_string(s.upper), "seed",
+		        std::string{edge_name(soundEditor.editingRangeEdge)});
+	}
+	struct Shot {
+		const char* name;
+		int32_t lower;
+		int32_t upper;
+		RangeEdit edge;
+	};
+	for (const Shot s : {Shot{"point", 120, 120, RangeEdit::OFF}, Shot{"split", 90, 150, RangeEdit::OFF},
+	                     Shot{"left", 90, 150, RangeEdit::LEFT}, Shot{"right", 90, 150, RangeEdit::RIGHT}}) {
+		tempo = {.lower = s.lower, .upper = s.upper};
+		soundEditor.editingRangeEdge = s.edge;
+		deluge::hid::display::OLED::main.clear();
+		defaultTempoMenu.renderOLED();
+		const auto& canvas = deluge::hid::display::OLED::main;
+		panels = write_pixels(std::string{"menu_range_"} + s.name,
+		                      page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS))
+		         && panels;
+	}
+	return panels;
+}
+
+} // namespace menu_ranges
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `menu_scales`: the preset-scale list, the toggles it writes and its panels.
+
+namespace menu_scales {
+
+using spec::scales::bits_hex;
+using spec::scales::ScalesGuard;
+using spec::scales::sentinel_bits;
+
+/// @brief Move the legacy item's own `currentPos` to @p row, from wherever the last example left it.
+///
+/// `currentPos` is private and persists across visits (`beginSession` is only a redraw), so it is driven to a known
+/// row rather than assumed: enough single down-detents to reach the bottom, then @p row single up-detents.
+///
+/// @note **One detent at a time, deliberately.** `ActiveScaleMenu::selectEncoderAction` narrows `currentPos + offset`
+///       to `int8_t` before it clamps, so a large offset wraps and lands somewhere unrelated:
+///       `selectEncoderAction(-1000)` from row 0 gives `(int8_t)(-1000) == 24`, which clamps up to `LAST_PRESET_SCALE`.
+///       It is unreachable on the device -- the encoder delivers one detent per pass -- and the port clamps in
+///       `int32_t`.
+void legacy_walk_to(legacy::ActiveScaleMenu& item, int32_t row) {
+	for (int32_t i = 0; i <= static_cast<int32_t>(LAST_PRESET_SCALE); i++) {
+		item.selectEncoderAction(-1);
+	}
+	for (int32_t i = 0; i < row; i++) {
+		item.selectEncoderAction(1);
+	}
+}
+
+/// @brief `OLED::main` -- what `MenuItem::renderOLED` draws into -- as a PBM.
+std::string legacy_panel_pbm() {
+	const auto& canvas = deluge::hid::display::OLED::main;
+	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
+/// @return Whether every panel file was written.
+bool freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	bool panels = true;
+	{
+		// The rows legacy draws: walked well past the end, the last row the cursor reaches is the one a press toggles.
+		spec::SongFixture fixture = spec::make_synth_song(); // legacy reads `currentSong` directly
+		ScalesGuard guard;
+		currentSong->project.scale.disabled_preset_scales.reset();
+		legacy_walk_to(activeScaleMenu, 1000);
+		activeScaleMenu.selectButtonPress();
+		const auto& after = currentSong->project.scale.disabled_preset_scales;
+		check(after.count() == 1, "the walk past the end toggled exactly one scale");
+		size_t last = 0;
+		for (size_t i = 0; i < NUM_PRESET_SCALES; i++) {
+			if (after[i]) {
+				last = i;
+			}
+		}
+		out.row("scales", "count", static_cast<int64_t>(last + 1));
+		for (size_t i = 0; i <= last; i++) {
+			out.row("scales/" + std::to_string(i), "name", std::string{scalelikeNames[i]});
+		}
+	}
+	for (const int32_t row : {0, 1, 4, static_cast<int32_t>(LAST_PRESET_SCALE)}) {
+		spec::SongFixture fixture = spec::make_synth_song();
+		ScalesGuard guard;
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
+		legacy_walk_to(activeScaleMenu, row);
+		activeScaleMenu.selectButtonPress();
+		out.row("scales/toggle/" + std::to_string(row), "bits",
+		        bits_hex(currentSong->project.scale.disabled_preset_scales));
+	}
+	for (const int32_t row : {0, 4, static_cast<int32_t>(LAST_PRESET_SCALE)}) {
+		spec::SongFixture fixture = spec::make_synth_song();
+		ScalesGuard guard;
+		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
+		legacy_walk_to(activeScaleMenu, row);
+		deluge::hid::display::OLED::main.clear();
+		activeScaleMenu.renderOLED();
+		const std::string name = row == static_cast<int32_t>(LAST_PRESET_SCALE) ? "last" : std::to_string(row);
+		panels = write_pixels("menu_scales_" + name, legacy_panel_pbm()) && panels;
+	}
+	return panels;
+}
+
+} // namespace menu_scales
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `midi_device`: the per-device page's shape, its per-cable writes and the MPE arm under it.
+
+namespace midi_device {
+
+using spec::mididev::baseline;
+using spec::mididev::CableState;
+using spec::mididev::Fixture;
+using spec::mididev::SpecCable;
+
+/// @brief Point the `soundEditor` globals the legacy items read at the same cable and song.
+void install_legacy(::MIDICable* cable, Song* song) {
+	currentSong = song;
+	soundEditor.currentMIDICable = cable;
+}
+
+/// @brief A legacy page pointer as the name `mididev::chain_name` gives the port's.
+std::string legacy_chain_name(::MenuItem* page) {
+	if (page == nullptr) {
+		return "<ascend>";
+	}
+	if (page == &midiDeviceMenu) {
+		return "device";
+	}
+	if (page == &legacy::mpe::zoneSelectorMenu) {
+		return "mpe_zone";
+	}
+	if (page == &legacy::mpe::zoneNumMemberChannelsMenu) {
+		return "mpe_members";
+	}
+	return "UNMAPPED";
+}
+
+std::vector<std::string> as_strings(const deluge::vector<std::string_view>& options) {
+	std::vector<std::string> out;
+	for (const std::string_view v : options) {
+		out.emplace_back(v);
+	}
+	return out;
+}
+
+void freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	Fixture& f = spec::mididev::fixture();
+
+	// The shape.
+	const auto& items = SubmenuPeek::items_of(midiDeviceMenu);
+	out.row("device", "kids", static_cast<int64_t>(items.size()));
+	for (size_t i = 0; i < items.size(); i++) {
+		out.row("device/" + std::to_string(i), "name", std::string{items[i]->getName()});
+	}
+	install_legacy(f.a.get(), f.song.song);
+	out.row("devices", "chain", legacy_chain_name(legacy::midi::devicesMenu.selectButtonPress()));
+	out.row("mpe_direction", "chain", legacy_chain_name(legacy::mpe::directionSelectorMenu.selectButtonPress()));
+	out.row("mpe_zone", "chain", legacy_chain_name(legacy::mpe::zoneSelectorMenu.selectButtonPress()));
+
+	// The default velocity.
+	for (const int32_t value : {0, 1, 25, kMaxMenuValue}) {
+		baseline(*f.a, *f.b);
+		install_legacy(f.a.get(), f.song.song);
+		defaultVelocityToLevelMenu.setValue(value);
+		ValuePeek<int32_t>::write(defaultVelocityToLevelMenu);
+		const std::string path = "velocity/" + std::to_string(value);
+		out.row(path, "cable/0", std::to_string(f.a->defaultVelocityToLevel));
+		out.row(path, "cable/1", std::to_string(f.b->defaultVelocityToLevel));
+		out.row(path, "state", CableState::capture(*f.a, *f.b));
+		defaultVelocityToLevelMenu.readCurrentValue();
+		out.row(path, "read", defaultVelocityToLevelMenu.getValue());
+	}
+
+	// The four toggles.
+	struct Row {
+		const char* name;
+		legacy::Toggle* item;
+	};
+	const Row rows[] = {
+	    {"sendClock", &device_send_clock_menu},
+	    {"receiveClock", &device_receive_clock_menu},
+	    {"is_relative", &device_is_relative_menu},
+	    {"midi_thru", &device_send_thru_menu},
+	};
+	for (const Row& row : rows) {
+		for (const int32_t value : {0, 1}) {
+			baseline(*f.a, *f.b);
+			install_legacy(f.a.get(), f.song.song);
+			row.item->setValue(value != 0);
+			ValuePeek<bool>::write(*row.item);
+			const std::string path = std::string{"toggle/"} + row.name + "/" + std::to_string(value);
+			out.row(path, "fields",
+			        {std::to_string(int(f.a->sendClock)), std::to_string(int(f.a->receiveClock)),
+			         std::to_string(int(f.a->is_relative)), std::to_string(int(f.a->midi_thru))});
+			out.row(path, "state", CableState::capture(*f.a, *f.b));
+			row.item->readCurrentValue();
+			out.row(path, "read", row.item->getValue() ? 1 : 0);
+		}
+	}
+
+	// The member-channel page: what it reads and bounds, per cable.
+	for (SpecCable* cable : {f.a.get(), f.b.get()}) {
+		baseline(*f.a, *f.b);
+		install_legacy(cable, f.song.song);
+		const std::string which = cable == f.a.get() ? "a" : "b";
+		for (uint8_t direction = 0; direction < 2; direction++) {
+			for (uint8_t zone = 0; zone < 2; zone++) {
+				legacy::mpe::directionSelectorMenu.whichDirection = direction;
+				legacy::mpe::zoneSelectorMenu.whichZone = zone;
+				legacy::mpe::zoneNumMemberChannelsMenu.readCurrentValue();
+				const std::string path = "mpe/" + std::to_string(direction) + "/" + std::to_string(zone);
+				out.row(path, "read@" + which, legacy::mpe::zoneNumMemberChannelsMenu.getValue());
+				out.row(path, "max@" + which, legacy::mpe::zoneNumMemberChannelsMenu.getMaxValue());
+			}
+		}
+	}
+
+	// The member-channel write: the port it lands on, and the MCM tail it sends.
+	for (uint8_t direction = 0; direction < 2; direction++) {
+		for (uint8_t zone = 0; zone < 2; zone++) {
+			for (const int32_t value : {0, 4, 7}) {
+				baseline(*f.a, *f.b);
+				install_legacy(f.a.get(), f.song.song);
+				legacy::mpe::directionSelectorMenu.whichDirection = direction;
+				legacy::mpe::zoneSelectorMenu.whichZone = zone;
+				legacy::mpe::zoneNumMemberChannelsMenu.setValue(value);
+				ValuePeek<int32_t>::write(legacy::mpe::zoneNumMemberChannelsMenu);
+				const std::string path =
+				    "mpe/" + std::to_string(direction) + "/" + std::to_string(zone) + "/" + std::to_string(value);
+				out.row(path, "ports",
+				        {std::to_string(f.a->ports[0].mpeLowerZoneLastMemberChannel),
+				         std::to_string(f.a->ports[0].mpeUpperZoneLastMemberChannel),
+				         std::to_string(f.a->ports[1].mpeLowerZoneLastMemberChannel),
+				         std::to_string(f.a->ports[1].mpeUpperZoneLastMemberChannel)});
+				out.row(path, "state", CableState::capture(*f.a, *f.b));
+				out.row(path, "sent", f.a->sent);
+			}
+		}
+	}
+
+	// The titles and the options.
+	for (uint8_t direction = 0; direction < 2; direction++) {
+		legacy::mpe::directionSelectorMenu.whichDirection = direction;
+		out.row("mpe/" + std::to_string(direction), "title",
+		        std::string{legacy::mpe::directionSelectorMenu.getTitle()});
+	}
+	out.row("mpe_direction", "options",
+	        as_strings(legacy::mpe::directionSelectorMenu.getOptions(legacy::Selection::OptType::FULL)));
+	out.row("mpe_zone", "options",
+	        as_strings(legacy::mpe::zoneSelectorMenu.getOptions(legacy::Selection::OptType::FULL)));
+}
+
+} // namespace midi_device
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `menu_actions`: the performance editing mode item's options and its mode for each pair of view flags.
+
+namespace menu_actions {
+
+void freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	std::vector<std::string> names;
+	for (const std::string_view v : performEditorMenu.getOptions(legacy::Selection::OptType::FULL)) {
+		names.emplace_back(v);
+	}
+	out.row("perform", "options", names);
+
+	const bool saved_default = performanceView.defaultEditingMode;
+	const bool saved_param = performanceView.editingParam;
+	// `{false, true}` is unreachable in legacy -- `readCurrentValue` tests `defaultEditingMode` first.
+	for (const auto& [default_mode, editing_param] :
+	     std::array<std::pair<bool, bool>, 4>{{{false, false}, {true, false}, {true, true}, {false, true}}}) {
+		performanceView.defaultEditingMode = default_mode;
+		performanceView.editingParam = editing_param;
+		performEditorMenu.readCurrentValue();
+		out.row("perform/" + std::to_string(int(default_mode)) + "," + std::to_string(int(editing_param)), "mode",
+		        performEditorMenu.getValue());
+	}
+	performanceView.defaultEditingMode = saved_default;
+	performanceView.editingParam = saved_param;
+}
+
+} // namespace menu_actions
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `song_settings_edit`: the mode every kit row's arp takes from the legacy mode item with affect-entire held.
+
+namespace song_settings_edit {
+
+void freeze(OracleWriter& out) {
+	spec::SongFixture f = spec::make_kit_song();
+	SoundDrum* sound = spec::add_drum<SoundDrum>(f);
+	MIDIDrum* midi = spec::add_drum<MIDIDrum>(f);
+	f.song->setCurrentClip(f.clip);
+	soundEditor.currentArpSettings = &midi->arpSettings;
+	soundEditor.setupKitGlobalFXMenu = false;
+	currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
+	arpModeMenu.setValue(1);
+	ValuePeek<int32_t>::write(arpModeMenu);
+	currentUIMode = UI_MODE_NONE;
+	out.row("kit_arp/sound", "mode", static_cast<int64_t>(sound->arpSettings.mode));
+	out.row("kit_arp/midi", "mode", static_cast<int64_t>(midi->arpSettings.mode));
+}
+
+} // namespace song_settings_edit
+
 } // namespace
 
 // clang-format off
@@ -3090,6 +3523,80 @@ describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, 
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
 		expect(out.size() > size_t{2400}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes menu_ranges.tsv and its panels", _ {
+		if (!writes("menu_ranges")) {
+			return;
+		}
+		freeze_problems().clear();
+		std::array<FlashStorage::DefaultRange, FlashStorage::NUM_DEFAULT_RANGE_SLOTS> saved_ranges{};
+		std::ranges::copy(FlashStorage::defaultRanges, saved_ranges.begin());
+		const bool saved_sharps = FlashStorage::defaultUseSharps;
+		const auto saved_edge = soundEditor.editingRangeEdge;
+		OracleWriter out{"menu_ranges"};
+		const bool panels = menu_ranges::freeze(out);
+		std::ranges::copy(saved_ranges, FlashStorage::defaultRanges);
+		FlashStorage::defaultUseSharps = saved_sharps;
+		soundEditor.editingRangeEdge = saved_edge;
+		expect(panels).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{200}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes menu_scales.tsv and its panels", _ {
+		if (!writes("menu_scales")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"menu_scales"};
+		const bool panels = menu_scales::freeze(out);
+		expect(panels).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{20}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes midi_device.tsv", _ {
+		if (!writes("midi_device")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"midi_device"};
+		midi_device::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{100}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes menu_actions.tsv", _ {
+		if (!writes("menu_actions")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"menu_actions"};
+		menu_actions::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{4}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes song_settings_edit.tsv", _ {
+		if (!writes("song_settings_edit")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"song_settings_edit"};
+		song_settings_edit::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{1}).to_be_true();
 		expect(out.flush()).to_be_true();
 	});
 });

@@ -1,11 +1,10 @@
 /// @file
-/// @brief The per-device MIDI page (`nodes/midi_device.h`) against the legacy items it ports:
-///        `midi::Device midiDeviceMenu`'s five children (`gui/ui/menus.cpp:1444-1453`) and the
-///        three-page MPE arm under it (`gui/menu_item/mpe/`).
+/// @brief The per-device MIDI page (`nodes/midi_device.h`) against the reference rows
+///        `tests/golden/ui/menu_oracle/midi_device.tsv` holds for main's `midi::Device midiDeviceMenu`'s children and
+///        the three-page MPE arm under it.
 ///
-/// Both sides are reachable and both sides are **driven**: the port through `bindings::read`/`write`
-/// and a real `Shell` over the real input path, legacy through `readCurrentValue()` /
-/// `writeCurrentValue()` / `selectButtonPress()` on the shipped singletons.
+/// The port is **driven**: through `bindings::read`/`write` and a real `Shell` over the real input path, and its
+/// result is compared with the frozen answer main gave for the same start.
 ///
 /// ## The trap this spec is shaped against
 ///
@@ -14,21 +13,16 @@
 /// `get`/`set` pair wired to the wrong one of them reads back perfectly from its own hook. So:
 ///
 ///   * **the mapping is proved by mutation, and asserted by identity.** Every comparison captures
-///     the *whole* observable state of *both* cables as one string (`CableState::describe`) -- all
+///     the *whole* observable state of *both* cables as one string (`CableState::capture`) -- all
 ///     five per-cable fields and all four MPE member-channel numbers, on both -- so a swapped pair
 ///     of hooks changes the string even though every individual read still round-trips.
 ///   * **the fixture has two cables**, and every write is checked to leave the other one exactly
 ///     where it was. `MenuContext::midi_cable` is the first binding input that is a *selection*
 ///     rather than a global, and a hook that reached for `MIDIDeviceManager::dinMIDIPorts` (or for
 ///     the wrong `MIDIPort` of the right cable) would pass a one-cable spec.
-///   * **each side is driven from its own sentinel.** Legacy is reset to the same baseline, driven
-///     with the same value, and its resulting state captured with the same `describe()` -- the two
-///     strings are compared, rather than the port being compared against a restatement of its own
+///   * **each example starts from the asymmetric baseline**, drives the port with a value, and compares the captured
+///     state string with the frozen one: the port is compared with main's answer, not with a restatement of its own
 ///     rule.
-///
-/// @note The SPEC may include `gui/menu_item/`; the library may not
-///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule every other
-///       `tables_*_spec.cpp` here runs under.
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_host_ui.h"
@@ -53,22 +47,6 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/integer.h"
-#include "gui/menu_item/midi/default_velocity_to_level.h"
-#include "gui/menu_item/midi/device.h"
-#include "gui/menu_item/midi/device_is_relative.h"
-#include "gui/menu_item/midi/device_receive_clock.h"
-#include "gui/menu_item/midi/device_send_clock.h"
-#include "gui/menu_item/midi/device_send_thru.h"
-#include "gui/menu_item/midi/devices.h"
-#include "gui/menu_item/mpe/direction_selector.h"
-#include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "gui/menu_item/mpe/zone_selector.h"
-#include "gui/menu_item/selection.h"
-#include "gui/menu_item/submenu.h"
-#include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/action/action_logger.h"
@@ -81,6 +59,8 @@
 #include "util/sound_menu_open.h"
 
 #include "support/global_guest_menu.h"
+#include "support/midi_device_fixtures.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -97,23 +77,6 @@
 
 #include "spec/support/spec_main.h"
 
-namespace legacy = deluge::gui::menu_item;
-
-/// @name The legacy globals this spec drives.
-///
-/// `midiDeviceMenu` is the page itself (`gui/ui/menus.cpp:1444`) and the four non-MPE children are
-/// its leaves (`:1440-1443`); none is declared in `gui/ui/menus.h`, which is the same situation
-/// `tables_3_spec.cpp`'s `extern` block handles for the CV/gate chaining group. The three MPE items *are*
-/// declared, by their own headers.
-/// @{
-extern legacy::midi::Device midiDeviceMenu;
-extern legacy::midi::DefaultVelocityToLevel defaultVelocityToLevelMenu;
-extern legacy::midi::DeviceSendClock device_send_clock_menu;
-extern legacy::midi::DeviceReceiveClock device_receive_clock_menu;
-extern legacy::midi::DeviceIsRelative device_is_relative_menu;
-extern legacy::midi::DeviceSendThru device_send_thru_menu;
-/// @}
-
 using namespace deluge::scenes;
 using deluge::l10n::String;
 using deluge::scenes::menu::MenuContext;
@@ -128,6 +91,12 @@ namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
+using spec::mididev::baseline;
+using spec::mididev::CableState;
+using spec::mididev::chain_name;
+using spec::mididev::Fixture;
+using spec::mididev::fixture;
+using spec::mididev::SpecCable;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -140,130 +109,19 @@ void select_language() {
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
-/// @brief Read a `Submenu`'s protected child list -- `tables_3_spec.cpp`'s `SubmenuPeek`,
-///        verbatim and for the same [class.protected] reason.
-struct SubmenuPeek : legacy::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
-};
-
-/// @brief Call a legacy item's protected `writeCurrentValue()` -- `tables_3_spec.cpp`'s `ValuePeek`.
-template <typename T>
-struct ValuePeek : legacy::Value<T> {
-	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
-};
-
-/// @brief A cable this spec owns outright.
-///
-/// `MIDICable` is abstract (six pure virtuals) and none of the shipped cable types can be built in
-/// a host spec without a USB or DIN backend behind it -- `tables_3_spec.cpp`'s `FakeCable`
-/// makes the same observation. This one additionally **records what was sent**, which is how
-/// `ZoneNumMemberChannels::writeCurrentValue`'s MCM tail (`mpe/zone_num_member_channels.cpp:78-84`)
-/// is proved rather than assumed.
-struct SpecCable final : ::MIDICable {
-	explicit SpecCable(const char* n) : display{n} {}
-	void writeToFlash(uint8_t*) override {}
-	char const* getDisplayName() override { return display; }
-	void sendMessage(MIDIMessage message) override {
-		sent.push_back(std::to_string(message.channel) + ":" + std::to_string(message.data1) + "="
-		               + std::to_string(message.data2));
-	}
-	void sendSysex(const uint8_t*, int32_t) override {}
-	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
-
-	const char* display;
-	std::vector<std::string> sent;
-
-protected:
-	void writeReferenceAttributesToFile(Serializer&) override {}
-};
-
-/// @brief Every field the page can touch, on both cables, as one string.
-///
-/// The identity table this spec turns on: five per-cable settings and both `MIDIPort`s' two
-/// member-channel numbers, for cable A **and** cable B. A hook wired to the wrong field, the wrong
-/// port or the wrong cable moves this string; a hook that merely round-trips through itself does
-/// not.
-struct CableState {
-	std::string text;
-	static std::string of(::MIDICable& c) {
-		std::string s{c.getDisplayName()};
-		s += " vel=" + std::to_string(c.defaultVelocityToLevel);
-		s += " sendClock=" + std::to_string(int(c.sendClock));
-		s += " recvClock=" + std::to_string(int(c.receiveClock));
-		s += " relative=" + std::to_string(int(c.is_relative));
-		s += " thru=" + std::to_string(int(c.midi_thru));
-		for (int32_t p = 0; p < 2; p++) {
-			s += (p == 0 ? " in[" : " out[");
-			s += std::to_string(c.ports[p].mpeLowerZoneLastMemberChannel) + ","
-			     + std::to_string(c.ports[p].mpeUpperZoneLastMemberChannel) + "]";
-		}
-		return s;
-	}
-	static std::string capture(::MIDICable& a, ::MIDICable& b) { return of(a) + " | " + of(b); }
-};
-
-/// @brief Put both cables into a known, **asymmetric** baseline.
-///
-/// Asymmetric on purpose: every field differs from every other and A differs from B, so any
-/// mis-wiring lands on a value the correct wiring would not have produced.
-void baseline(SpecCable& a, SpecCable& b) {
-	a.defaultVelocityToLevel = 0;
-	a.sendClock = true;
-	a.receiveClock = false;
-	a.is_relative = false;
-	a.midi_thru = true;
-	a.ports[0].mpeLowerZoneLastMemberChannel = 3;
-	a.ports[0].mpeUpperZoneLastMemberChannel = 12;
-	a.ports[1].mpeLowerZoneLastMemberChannel = 5;
-	a.ports[1].mpeUpperZoneLastMemberChannel = 10;
-	a.sent.clear();
-
-	b.defaultVelocityToLevel = 1073741824;
-	b.sendClock = false;
-	b.receiveClock = true;
-	b.is_relative = true;
-	b.midi_thru = false;
-	b.ports[0].mpeLowerZoneLastMemberChannel = 1;
-	b.ports[0].mpeUpperZoneLastMemberChannel = 14;
-	b.ports[1].mpeLowerZoneLastMemberChannel = 2;
-	b.ports[1].mpeUpperZoneLastMemberChannel = 13;
-	b.sent.clear();
+spec::OracleTable& table() {
+	return spec::OracleTable::named("midi_device");
 }
 
-/// @brief The two cables, and the settings-root context that points at the first of them.
-///
-/// Built once (`song_fixture.h`'s ownership note) and shared by every example; `baseline()` is what
-/// each example resets.
-struct Fixture {
-	spec::SongFixture song;
-	std::unique_ptr<SpecCable> a;
-	std::unique_ptr<SpecCable> b;
-	MenuContext ctx{};
-};
-
-Fixture& fixture() {
-	static Fixture f = [] {
-		select_language();
-		Fixture k;
-		k.song = spec::make_synth_song();
-		k.a = std::make_unique<SpecCable>("CABLE A");
-		k.b = std::make_unique<SpecCable>("CABLE B");
-		// The settings root's own context (`tables_3_spec.cpp`'s "settings" fixture): no clip, not a
-		// session root. `context_for` never assigns `midi_cable` -- the device list publishes it --
-		// so this spec sets it, exactly as `MenuScene::after_render` would.
-		k.ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
-		return k;
-	}();
-	return f;
-}
-
-/// @brief Point the `soundEditor` globals the legacy items read at the same cable and song.
-///
-/// Only the two members these items actually touch: `currentMIDICable` (all five leaves and both
-/// MPE selectors) and `currentSong` (`DefaultVelocityToLevel::writeCurrentValue`'s repatch tail).
-void install_legacy(::MIDICable* cable, Song* song) {
+/// @brief Point the app's current song at the fixture's, as a booted app's is while the page is open.
+void install_song(Song* song) {
 	currentSong = song;
-	soundEditor.currentMIDICable = cable;
+}
+
+/// @brief The frozen values of (@p path, @p column) as a list, or one entry saying where a miss was looked for.
+std::vector<std::string> frozen_list(const std::string& path, std::string_view column) {
+	const std::vector<std::string>* v = table().find(path, column);
+	return v == nullptr ? std::vector<std::string>{path + " <no row>"} : *v;
 }
 
 /// @brief A 128x64 single-panel board (`menu_scene_spec.cpp`'s `board_64`).
@@ -375,7 +233,7 @@ bool title_band_blank(const std::string& pbm) {
 
 /// @brief The per-device page on the GLOBAL guest over the clip view, as the device list opens it for @p ctx's cable.
 bool open_device_page_on_guest(Fixture& f, const MenuContext& ctx) {
-	install_legacy(ctx.midi_cable, f.song.song);
+	install_song(f.song.song);
 	setRootUILowLevel(&instrumentClipView);
 	(void)menu::assign_node_ids(nodes::kAllRoots);
 	menu_scene().open(nodes::midi_device, ctx);
@@ -409,19 +267,16 @@ int32_t member_channels(const MenuContext& ctx, uint8_t direction, uint8_t zone)
 // clang-format off
 describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and chain", $ {
 
-	it("declares midiDeviceMenu's six children, in the literal's own order and with its names", _ {
-		// `midi::Device midiDeviceMenu{EMPTY_STRING, {...}}` (`gui/ui/menus.cpp:1444-1453`), read off
-		// the live legacy object rather than restated here.
+	it("declares main's six children, in its order and with its names", _ {
 		select_language();
-		const auto& legacy_items = SubmenuPeek::items_of(midiDeviceMenu);
-		expect(legacy_items.size()).to_equal(size_t(6));
-		expect(nodes::midi_device.children.size()).to_equal(legacy_items.size());
+		expect(table().value("device", "kids")).to_equal(std::string{"6"});
+		expect(std::to_string(nodes::midi_device.children.size())).to_equal(table().value("device", "kids"));
 		expect(nodes::midi_device.kind == menu::Kind::Submenu).to_be_true();
 
-		for (size_t i = 0; i < legacy_items.size() && i < nodes::midi_device.children.size(); i++) {
+		for (size_t i = 0; i < nodes::midi_device.children.size(); i++) {
 			const Node* n = nodes::midi_device.children[i];
-			expect(std::to_string(i) + ": " + text_of(n->name))
-			    .to_equal(std::to_string(i) + ": " + std::string{legacy_items[i]->getName()});
+			const std::string path = "device/" + std::to_string(i);
+			expect(path + ": " + text_of(n->name)).to_equal(path + ": " + table().value(path, "name"));
 		}
 	});
 
@@ -461,14 +316,12 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		expect(bindings::range(nodes::device_default_velocity_to_level, fixture().ctx).max).to_equal(kMaxMenuValue);
 	});
 
-	it("chains from the device list onto the page, where legacy chains, driven through the scene", _ {
-		// `Devices::selectButtonPress` returns `&midiDeviceMenu` (`gui/menu_item/midi/devices.cpp:154-156`),
-		// unconditionally -- checked against the live legacy item, then driven through the real
-		// scene and the real input path.
+	it("chains from the device list onto the page, where main chains, driven through the scene", _ {
+		// Main's `Devices::selectButtonPress` returns `&midiDeviceMenu` unconditionally; driven through the real scene
+		// and the real input path.
 		select_language();
 		Fixture& f = fixture();
-		install_legacy(f.a.get(), f.song.song);
-		expect(legacy::midi::devicesMenu.selectButtonPress() == &midiDeviceMenu).to_be_true();
+		install_song(f.song.song);
 
 		MenuContext ctx = f.ctx;
 		ctx.midi_cable = f.a.get();
@@ -478,16 +331,12 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		uint32_t at = 10;
 		r.press(at);
 		expect(menu_scene().focused() == &nodes::midi_device).to_be_true();
+		expect(chain_name(menu_scene().focused())).to_equal(table().value("devices", "chain"));
 	});
 
-	it("chains onward through the MPE arm exactly as the two legacy selectors do", _ {
-		// `DirectionSelector::selectButtonPress` -> `&zoneSelectorMenu` (`mpe/direction_selector.cpp:31-33`);
-		// `ZoneSelector::selectButtonPress` -> `&zoneNumMemberChannelsMenu` (`mpe/zone_selector.cpp:32-34`).
+	it("chains onward through the MPE arm exactly as main's two selectors do", _ {
+		// Main's direction selector chains to the zone selector, and the zone selector to the member-channel page.
 		select_language();
-		expect(legacy::mpe::directionSelectorMenu.selectButtonPress() == &legacy::mpe::zoneSelectorMenu).to_be_true();
-		expect(legacy::mpe::zoneSelectorMenu.selectButtonPress() == &legacy::mpe::zoneNumMemberChannelsMenu)
-		    .to_be_true();
-
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
@@ -500,8 +349,10 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		expect(menu_scene().focused() == &nodes::mpe_direction).to_be_true();
 		r.press(at);
 		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
+		expect(chain_name(menu_scene().focused())).to_equal(table().value("mpe_direction", "chain"));
 		r.press(at);
 		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		expect(chain_name(menu_scene().focused())).to_equal(table().value("mpe_zone", "chain"));
 	});
 
 	it("declares the page and its three chain-only MPE nodes with ids, and validates them clean", _ {
@@ -532,7 +383,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 	// is every field on both cables, so "wrote the right field on the right cable" and "left
 	// everything else alone" are the same assertion.
 
-	it("writes what DefaultVelocityToLevel writes, on the selected cable and no other", _ {
+	it("writes what main's DefaultVelocityToLevel writes, on the selected cable and no other", _ {
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
@@ -540,20 +391,18 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 
 		for (const int32_t value : {0, 1, 25, kMaxMenuValue}) {
 			baseline(*f.a, *f.b);
+			install_song(f.song.song);
 			bindings::write(nodes::device_default_velocity_to_level, ctx, value);
-			const std::string got = CableState::capture(*f.a, *f.b);
+			const std::string path = "velocity/" + std::to_string(value);
+			expect(path + " " + CableState::capture(*f.a, *f.b)).to_equal(path + " " + table().value(path, "state"));
+			expect(path + " a " + std::to_string(f.a->defaultVelocityToLevel))
+			    .to_equal(path + " a " + table().value(path, "cable/0"));
+			expect(path + " b " + std::to_string(f.b->defaultVelocityToLevel))
+			    .to_equal(path + " b " + table().value(path, "cable/1"));
 
-			baseline(*f.a, *f.b);
-			install_legacy(f.a.get(), f.song.song);
-			defaultVelocityToLevelMenu.setValue(value);
-			ValuePeek<int32_t>::write(defaultVelocityToLevelMenu);
-			expect(std::to_string(value) + ": " + got).to_equal(std::to_string(value) + ": "
-			                                                    + CableState::capture(*f.a, *f.b));
-
-			// ... and the port reads back what legacy reads back, from the same state.
-			defaultVelocityToLevelMenu.readCurrentValue();
-			expect(bindings::read(nodes::device_default_velocity_to_level, ctx))
-			    .to_equal(defaultVelocityToLevelMenu.getValue());
+			// ... and the port reads back what main reads back, from the same state.
+			expect(path + " " + std::to_string(bindings::read(nodes::device_default_velocity_to_level, ctx)))
+			    .to_equal(path + " " + table().value(path, "read"));
 		}
 	});
 
@@ -612,32 +461,30 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 
 		struct Row {
 			const Node* node;
-			legacy::Toggle* item;
 			const char* what;
 		};
 		const Row rows[] = {
-		    {&nodes::device_send_clock, &device_send_clock_menu, "sendClock"},
-		    {&nodes::device_receive_clock, &device_receive_clock_menu, "receiveClock"},
-		    {&nodes::device_is_relative, &device_is_relative_menu, "is_relative"},
-		    {&nodes::device_send_thru, &device_send_thru_menu, "midi_thru"},
+		    {&nodes::device_send_clock, "sendClock"},
+		    {&nodes::device_receive_clock, "receiveClock"},
+		    {&nodes::device_is_relative, "is_relative"},
+		    {&nodes::device_send_thru, "midi_thru"},
 		};
 
 		for (const Row& row : rows) {
 			for (const int32_t value : {0, 1}) {
 				baseline(*f.a, *f.b);
+				install_song(f.song.song);
 				bindings::write(*row.node, ctx, value);
-				const std::string got = CableState::capture(*f.a, *f.b);
-
-				baseline(*f.a, *f.b);
-				install_legacy(f.a.get(), f.song.song);
-				row.item->setValue(value != 0);
-				ValuePeek<bool>::write(*row.item);
-				const std::string label = std::string{row.what} + "=" + std::to_string(value) + ": ";
-				expect(label + got).to_equal(label + CableState::capture(*f.a, *f.b));
-
-				row.item->readCurrentValue();
-				expect(label + std::to_string(bindings::read(*row.node, ctx)))
-				    .to_equal(label + std::to_string(row.item->getValue() ? 1 : 0));
+				const std::string path = std::string{"toggle/"} + row.what + "/" + std::to_string(value);
+				expect(path + " " + CableState::capture(*f.a, *f.b))
+				    .to_equal(path + " " + table().value(path, "state"));
+				const std::vector<std::string> fields{std::to_string(int(f.a->sendClock)),
+				                                      std::to_string(int(f.a->receiveClock)),
+				                                      std::to_string(int(f.a->is_relative)),
+				                                      std::to_string(int(f.a->midi_thru))};
+				expect(frozen_list(path, "fields")).to_equal(fields);
+				expect(path + " " + std::to_string(bindings::read(*row.node, ctx)))
+				    .to_equal(path + " " + table().value(path, "read"));
 			}
 		}
 	});
@@ -797,26 +644,21 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		    .to_equal(nodes::mpe_zone_channels_value(ctx, menu_scene().state()));
 	});
 
-	it("reads and bounds the member-channel page exactly as the legacy item does, over all four "
+	it("reads and bounds the member-channel page exactly as main's item does, over all four "
 	   "(direction, zone) pairs and both cables",
 	   _ {
-		   // `ZoneNumMemberChannels::readCurrentValue` (`mpe/zone_num_member_channels.cpp:56-64`)
-		   // and `getMaxValue` (`:33-54`). Both sides are driven: legacy from its own two selector
-		   // singletons, the port from `MenuState`.
+		   // Main's `ZoneNumMemberChannels::readCurrentValue` and `getMaxValue`; the port reads from `MenuState`.
 		   select_language();
 		   Fixture& f = fixture();
 		   for (SpecCable* cable : {f.a.get(), f.b.get()}) {
 			   baseline(*f.a, *f.b);
 			   MenuContext ctx = f.ctx;
 			   ctx.midi_cable = cable;
-			   install_legacy(cable, f.song.song);
+			   install_song(f.song.song);
+			   const std::string which = cable == f.a.get() ? "a" : "b";
 
 			   for (uint8_t direction = 0; direction < 2; direction++) {
 				   for (uint8_t zone = 0; zone < 2; zone++) {
-					   legacy::mpe::directionSelectorMenu.whichDirection = direction;
-					   legacy::mpe::zoneSelectorMenu.whichZone = zone;
-					   legacy::mpe::zoneNumMemberChannelsMenu.readCurrentValue();
-
 					   // A `MenuState` of this example's own rather than the scene singleton's:
 					   // `MenuScene::state()` is const, and the item reads nothing else.
 					   menu::MenuState st{};
@@ -824,13 +666,12 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 					   st.walk.mpe_zone = zone;
 					   nodes::kMpeZoneChannelsItem.on_focus(ctx, st);
 
-					   const std::string label = std::string{cable->getDisplayName()} + " d" + std::to_string(direction)
-					                             + "z" + std::to_string(zone) + ": ";
+					   const std::string path = "mpe/" + std::to_string(direction) + "/" + std::to_string(zone);
+					   const std::string label = std::string{cable->getDisplayName()} + " " + path + ": ";
 					   expect(label + std::to_string(st.edit_int))
-					       .to_equal(label + std::to_string(legacy::mpe::zoneNumMemberChannelsMenu.getValue()));
+					       .to_equal(label + table().value(path, "read@" + which));
 					   expect(label + "max " + std::to_string(nodes::mpe_zone_channels_range(ctx, st).max))
-					       .to_equal(label + "max "
-					                 + std::to_string(legacy::mpe::zoneNumMemberChannelsMenu.getMaxValue()));
+					       .to_equal(label + "max " + table().value(path, "max@" + which));
 					   expect(label + "min " + std::to_string(nodes::mpe_zone_channels_range(ctx, st).min))
 					       .to_equal(label + "min 0"); // `Number::getMinValue`
 				   }
@@ -841,7 +682,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 	it("writes the member channels onto the port the two selectors name, and onto no other", _ {
 		// The 2x2 mutation: four (direction, zone) pairs address four distinct `uint8_t`s on one
 		// cable, and a port index or a zone branch taken the wrong way round still round-trips
-		// through its own read. Every write is compared against the legacy item driven from the same
+		// through its own read. Every write is compared against what main's item left from the same
 		// pair, with the *whole* two-cable state as the verdict.
 		select_language();
 		Fixture& f = fixture();
@@ -852,58 +693,45 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 			for (uint8_t zone = 0; zone < 2; zone++) {
 				for (const int32_t value : {0, 4, 7}) {
 					baseline(*f.a, *f.b);
+					install_song(f.song.song);
 					menu::MenuState st{};
 					st.walk.mpe_direction = direction;
 					st.walk.mpe_zone = zone;
 					st.edit_int = value;
 					nodes::kMpeZoneChannelsItem.commit(ctx, st);
-					const std::string got = CableState::capture(*f.a, *f.b);
-					const std::vector<std::string> got_sent = f.a->sent;
 
-					baseline(*f.a, *f.b);
-					install_legacy(f.a.get(), f.song.song);
-					legacy::mpe::directionSelectorMenu.whichDirection = direction;
-					legacy::mpe::zoneSelectorMenu.whichZone = zone;
-					legacy::mpe::zoneNumMemberChannelsMenu.setValue(value);
-					ValuePeek<int32_t>::write(legacy::mpe::zoneNumMemberChannelsMenu);
-
-					const std::string label =
-					    "d" + std::to_string(direction) + "z" + std::to_string(zone) + "=" + std::to_string(value) + ": ";
-					expect(label + got).to_equal(label + CableState::capture(*f.a, *f.b));
-					// The MCM tail: five CCs on the master channel, but only for an OUT port
-					// (`mpe/zone_num_member_channels.cpp:78-84`). Compared against what the legacy
-					// write actually sent through the same cable.
-					expect(label + std::to_string(got_sent.size())).to_equal(label + std::to_string(f.a->sent.size()));
-					for (size_t i = 0; i < got_sent.size() && i < f.a->sent.size(); i++) {
-						expect(label + got_sent[i]).to_equal(label + f.a->sent[i]);
-					}
+					const std::string path =
+					    "mpe/" + std::to_string(direction) + "/" + std::to_string(zone) + "/" + std::to_string(value);
+					expect(path + " " + CableState::capture(*f.a, *f.b))
+					    .to_equal(path + " " + table().value(path, "state"));
+					const std::vector<std::string> ports{std::to_string(f.a->ports[0].mpeLowerZoneLastMemberChannel),
+					                                     std::to_string(f.a->ports[0].mpeUpperZoneLastMemberChannel),
+					                                     std::to_string(f.a->ports[1].mpeLowerZoneLastMemberChannel),
+					                                     std::to_string(f.a->ports[1].mpeUpperZoneLastMemberChannel)};
+					expect(frozen_list(path, "ports")).to_equal(ports);
+					// The MCM tail: five CCs on the master channel, but only for an OUT port.
+					expect(frozen_list(path, "sent")).to_equal(f.a->sent);
 					if (direction == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
-						expect(label + std::to_string(got_sent.size())).to_equal(label + "5");
+						expect(path + " " + std::to_string(f.a->sent.size())).to_equal(path + " 5");
 					}
 					else {
-						expect(label + std::to_string(got_sent.size())).to_equal(label + "0");
+						expect(path + " " + std::to_string(f.a->sent.size())).to_equal(path + " 0");
 					}
 				}
 			}
 		}
 	});
 
-	it("titles the direction page from its own value, as DirectionSelector::getTitle does", _ {
-		// `direction_selector.h:40-43` -- the runtime title. `Node::title` is one static id, which is
-		// half of why this item is bespoke.
+	it("titles the direction page from its own value, as main's DirectionSelector::getTitle does", _ {
+		// The runtime title. `Node::title` is one static id, which is half of why this item is bespoke.
 		//
-		// **What this pins, and what it does not.** Both sides spell the same
-		// l10n mapping -- legacy's `getTitle()` picks MPE OUTPUT on a non-zero `whichDirection`, and
-		// the expectation below restates that -- so this is a *transcription* check on the mapping,
-		// not an independent comparison: swap the two ids inside `MpeDirectionItem::render` and this
-		// example still passes. What catches that swap is the pair of goldens in
-		// `midi_device_pixels` below, which render the item itself one detent apart. The same is
-		// true of the options example that follows: it pins legacy's own option order, not the
-		// port's copy of it.
+		// **What this pins, and what it does not.** The frozen titles are main's; the port's side is its mapping from
+		// the direction to an l10n id, so swapping the two ids inside `MpeDirectionItem::render` still passes here. What
+		// catches that swap is the pair of goldens in `midi_device_pixels` below, which render the item itself one
+		// detent apart.
 		select_language();
 		for (uint8_t direction = 0; direction < 2; direction++) {
-			legacy::mpe::directionSelectorMenu.whichDirection = direction;
-			const std::string want{legacy::mpe::directionSelectorMenu.getTitle()};
+			const std::string want = table().value("mpe/" + std::to_string(direction), "title");
 			const std::string got = text_of(static_cast<uint16_t>(direction != 0 ? String::STRING_FOR_MPE_OUTPUT
 			                                                                    : String::STRING_FOR_MPE_INPUT));
 			expect("direction " + std::to_string(direction) + ": " + got)
@@ -939,17 +767,15 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		}
 	});
 
-	it("offers the same options the two legacy Selections do", _ {
+	it("offers the same options as main's two Selections", _ {
 		select_language();
-		const auto directions = legacy::mpe::directionSelectorMenu.getOptions(legacy::Selection::OptType::FULL);
-		expect(directions.size()).to_equal(size_t(2));
-		expect(std::string{directions[0]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_IN)));
-		expect(std::string{directions[1]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_OUT)));
+		const std::vector<std::string> directions{text_of(static_cast<uint16_t>(String::STRING_FOR_IN)),
+		                                          text_of(static_cast<uint16_t>(String::STRING_FOR_OUT))};
+		expect(frozen_list("mpe_direction", "options")).to_equal(directions);
 
-		const auto zones = legacy::mpe::zoneSelectorMenu.getOptions(legacy::Selection::OptType::FULL);
-		expect(zones.size()).to_equal(size_t(2));
-		expect(std::string{zones[0]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_LOWER_ZONE)));
-		expect(std::string{zones[1]}).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_UPPER_ZONE)));
+		const std::vector<std::string> zones{text_of(static_cast<uint16_t>(String::STRING_FOR_LOWER_ZONE)),
+		                                     text_of(static_cast<uint16_t>(String::STRING_FOR_UPPER_ZONE))};
+		expect(frozen_list("mpe_zone", "options")).to_equal(zones);
 	});
 
 	it("the member-channel page re-reads after an MPE configuration message, as mpeZonesPotentiallyUpdated re-reads "
@@ -1054,6 +880,16 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 		shoot(self, nodes::mpe_zone_num_member_channels, "menu_mpe_member_channels", 0);
 	});
 });
+
+describe midi_device_reference_rows("scenes::menu: the per-device page: the reference rows", $ {
+	it("parses midi_device.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{40}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(midi_device_spec, midi_device_shape, midi_device_per_cable, midi_device_mpe, midi_device_pixels)
+DELUGE_SPEC(midi_device_spec, midi_device_shape, midi_device_per_cable, midi_device_mpe, midi_device_pixels,
+            midi_device_reference_rows)

@@ -33,11 +33,11 @@
 ///     `audio_clip_view.cpp:766-768`'s `STRING_FOR_NO_SAMPLE` arm, which no `AudioClip` can reach
 ///     (see `menu_action_three_verbs`' first example).
 ///
-/// Legacy is the oracle wherever it can be reached: `performEditorMenu`'s real option list and its
-/// real `readCurrentValue` mapping are both run here, on the real `performanceView`, and compared
-/// against the port; and the three one-line verbs run their real legacy callees on the
-/// real `audioClipView`, `sessionView` and `gui/context_menu/` singletons. The identity pinning is kept alongside -- it
-/// is what says the right *item* files the right *action*, which no effect assertion can say on its own.
+/// `PerformEditorItem`'s option list and its mapping from the performance view's two bools to a mode are compared
+/// with the rows `tests/golden/ui/menu_oracle/menu_actions.tsv` holds for main's `EditingMode`; and the three one-line
+/// verbs run their real legacy callees on the real `audioClipView`, `sessionView` and `gui/context_menu/` singletons.
+/// The identity pinning is kept alongside -- it is what says the right *item* files the right *action*, which no effect
+/// assertion can say on its own.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
@@ -98,6 +98,7 @@
 
 #include "support/global_guest_menu.h"
 #include "support/host_flash.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "spec/shell/support/fake_surfaces.h"
@@ -117,10 +118,8 @@
 
 #include "spec/support/spec_main.h"
 
-/// The real `performance_session_view::EditingMode` singleton. Declared bare at global scope
-/// because `gui/ui/menus.cpp:2005` defines it there (that file's `using namespace` lines are what
-/// make its `menu_item::` spelling work) and `gui/ui/menus.h` does not export it -- the same
-/// situation `tables_3_spec.cpp` records for `flashStatusMenu` and friends.
+/// The real `performance_session_view::EditingMode` singleton, which `menu_action_perform_mirror` still drives.
+/// Declared bare at global scope because `gui/ui/menus.h` does not export it.
 extern deluge::gui::menu_item::performance_session_view::EditingMode performEditorMenu;
 
 // `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
@@ -143,6 +142,10 @@ using deluge::ui::shell::ShellConfig;
 namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
+
+spec::OracleTable& table() {
+	return spec::OracleTable::named("menu_actions");
+}
 
 /// @brief Per-example reset, exactly `menu_scene_spec.cpp`'s: pick a language (nothing boots here,
 ///        so `l10n::chosenLanguage` would otherwise be null) and drain the process-global notice
@@ -1206,50 +1209,37 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 });
 
 describe menu_action_perform("scenes::menu PerformEditorItem", $ {
-	it("offers exactly the options the real legacy EditingMode offers", _ {
+	it("offers exactly EditingMode's options", _ {
 		select_language();
 		Rig r;
 		(void)r.open(nodes::root_performance);
 
-		// Both sides driven: legacy's own list, from the real singleton...
-		const auto legacy = performEditorMenu.getOptions(deluge::gui::menu_item::Selection::OptType::FULL);
-		std::vector<std::string> legacy_names;
-		for (const std::string_view v : legacy) {
-			legacy_names.emplace_back(v);
+		// Main's list, frozen, and the port's: the names the item itself lists, in its order.
+		const std::vector<std::string>* frozen = table().find("perform", "options");
+		expect(frozen != nullptr).to_be_true();
+		std::vector<std::string> port_names;
+		for (const std::string_view name : nodes::PerformEditorItem::option_names()) {
+			port_names.emplace_back(name);
 		}
-		// ... and the port's, resolved through the same l10n table the item uses.
-		const std::vector<std::string> port_names{
-		    std::string(text_lookup(static_cast<uint16_t>(String::STRING_FOR_DISABLED))),
-		    std::string(text_lookup(static_cast<uint16_t>(String::STRING_FOR_PERFORM_EDIT_VALUE))),
-		    std::string(text_lookup(static_cast<uint16_t>(String::STRING_FOR_PERFORM_EDIT_PARAM))),
-		};
-		expect(port_names).to_equal(legacy_names);
+		expect(port_names).to_equal(frozen != nullptr ? *frozen : std::vector<std::string>{});
 	});
 
-	it("maps the performance view's two bools onto a mode exactly as legacy's readCurrentValue does", _ {
+	it("maps the performance view's two bools onto a mode exactly as main's readCurrentValue does", _ {
 		select_language();
 		PerformViewGuard guard;
 
-		// All three reachable states of the pair. Legacy is *driven* for each -- `readCurrentValue`
-		// is what fills its value, and skipping the call would compare against whatever the previous
-		// example left behind (a stale value from the previous example would otherwise be compared).
-		const std::array<std::pair<bool, bool>, 3> states{{{false, false}, {true, false}, {true, true}}};
+		// All three reachable states of the pair, and the unreachable one: `{false, true}` is unreachable in main --
+		// `readCurrentValue` tests `defaultEditingMode` first -- and maps to DISABLED under the same rule, so it is
+		// asked rather than skipped.
+		const std::array<std::pair<bool, bool>, 4> states{{{false, false}, {true, false}, {true, true}, {false, true}}};
 		for (const auto& [default_mode, editing_param] : states) {
 			performanceView.defaultEditingMode = default_mode;
 			performanceView.editingParam = editing_param;
 
-			performEditorMenu.readCurrentValue();
-			const int32_t legacy_value = performEditorMenu.getValue();
-
-			expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(legacy_value));
+			const std::string path = "perform/" + std::to_string(int(default_mode)) + "," + std::to_string(int(editing_param));
+			expect(path + " " + std::to_string(static_cast<int>(mode_from_view())))
+			    .to_equal(path + " " + table().value(path, "mode"));
 		}
-		// `{false, true}` is unreachable in legacy -- `readCurrentValue` tests `defaultEditingMode`
-		// first -- and maps to DISABLED under the same rule, so it is asserted rather than skipped.
-		performanceView.defaultEditingMode = false;
-		performanceView.editingParam = true;
-		performEditorMenu.readCurrentValue();
-		expect(static_cast<int>(mode_from_view()))
-		    .to_equal(static_cast<int>(performEditorMenu.getValue()));
 	});
 
 	it("seeds its cursor from the mirrored mode, the way beginSession seeds from the view", _ {
@@ -3048,8 +3038,17 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		Buttons::clearShiftSticky();
 	});
 });
+
+describe menu_action_reference_rows("scenes::menu actions: the reference rows", $ {
+	it("parses menu_actions.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{4}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(menu_actions_spec, menu_action_settings, menu_action_seam, menu_action_items, menu_action_perform,
             menu_action_dispatch, menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform,
-            menu_action_stem_export, menu_action_three_verbs, menu_action_perform_mirror)
+            menu_action_stem_export, menu_action_three_verbs, menu_action_perform_mirror, menu_action_reference_rows)

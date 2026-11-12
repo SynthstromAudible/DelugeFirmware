@@ -1,0 +1,23 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+scales	count	16
+scales/0	name	MAJOR
+scales/1	name	MINOR
+scales/2	name	DORIAN
+scales/3	name	PHRYGIAN
+scales/4	name	LYDIAN
+scales/5	name	MIXOLYDIAN
+scales/6	name	LOCRIAN
+scales/7	name	MELODIC MINOR
+scales/8	name	HARMONIC MINOR
+scales/9	name	HUNGARIAN MINOR
+scales/10	name	MARVA
+scales/11	name	ARABIAN
+scales/12	name	WHOLE TONE
+scales/13	name	BLUES
+scales/14	name	PENTATONIC MINOR
+scales/15	name	HIRAJOSHI
+scales/toggle/0	bits	2493
+scales/toggle/1	bits	2490
+scales/toggle/4	bits	2482
+scales/toggle/15	bits	a492

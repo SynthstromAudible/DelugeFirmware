@@ -69,7 +69,9 @@
 #include "scenes/menu/action.h"
 #include "scenes/menu/node.h"
 
+#include <array>
 #include <cstdint>
+#include <string_view>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -125,6 +127,10 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
+
+	/// @brief The option names the page lists, in the order of the `PerformanceEditingMode` numbering: the cursor is
+	///        the mode.
+	static std::array<std::string_view, 3> option_names();
 };
 
 /// @name The five instances. `inline const`, like every other real `CustomItem` here.
