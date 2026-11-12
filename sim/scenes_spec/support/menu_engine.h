@@ -19,6 +19,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
+
 #include <optional>
 
 namespace deluge::scenes::spec {
@@ -124,6 +125,8 @@ inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx
 
 /// @brief What the fixtures tell the one reader that needs legacy state: the freezer, which asks legacy items about the
 ///        sound a fixture just made current. Null everywhere else, so a port-only spec never touches legacy state.
+///        Only the freezer's `OracleWriter` sets it, and every spec file runs in its own process
+///        (`SCENES_SPEC=<id>`), so no port spec sees it.
 inline void (*legacy_context_hook)(const deluge::scenes::menu::MenuContext& ctx, bool allows_note_tails) = nullptr;
 
 /// @brief A fixture made @p ctx current. @p allows_note_tails is `sound_allows_note_tails(ctx)` unless the fixture

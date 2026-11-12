@@ -42,7 +42,7 @@ using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 
 /// @brief Make the song, clip and UI mode those @p ctx is read over: both the menu's reads and a reference item's reach
-/// the same objects through one fixture.
+///        the same objects through one fixture.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	song->setCurrentClip(menu_engine(ctx).clip);

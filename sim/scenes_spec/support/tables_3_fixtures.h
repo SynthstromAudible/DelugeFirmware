@@ -50,7 +50,7 @@ using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 
 /// @brief Make the song, clip and UI mode those @p ctx is read over. A write leaves the model where it wrote, so every
-/// comparison installs the fixture it reads.
+///        comparison installs the fixture it reads.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	song->setCurrentClip(menu_engine(ctx).clip);
