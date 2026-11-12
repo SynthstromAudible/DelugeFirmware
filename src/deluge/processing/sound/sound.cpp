@@ -3622,8 +3622,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!range) {
 					return Error::INSUFFICIENT_RAM;
 				}
-				range->rrMode = (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
-				reader.exitTag("rrMode");
+				range->rrMode = (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 			}
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
@@ -3705,8 +3704,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 							}
 							else if (!strcmp(tagName, "rrMode")) {
 								((MultisampleRange*)tempRange)->rrMode =
-								    (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
-								reader.exitTag("rrMode");
+								    (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 							}
 							else {
 								goto justExitTag;
