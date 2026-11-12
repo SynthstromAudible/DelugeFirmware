@@ -724,8 +724,8 @@ private:
 	///         listing.
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
 	/// @brief Whether a legacy UI mode is up: Select held for a long press, X_ENC held, or a backspace pad held
-	/// (`UI_MODE_HOLDING_BACKSPACE`). The buttons that legacy
-	///        gates on `currentUIMode` (BACK, Select's press, RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
+	///        (`UI_MODE_HOLDING_BACKSPACE`). The buttons that legacy gates on `currentUIMode` (BACK, Select's press,
+	///        RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
 	bool mode_up() const {
 		return holding_ || xenc_held_ || backspace_due_ms_.has_value()
 		       || (ctx_.facts != nullptr && ctx_.facts->auditioning());

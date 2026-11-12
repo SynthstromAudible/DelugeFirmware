@@ -456,7 +456,7 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 			UiStackGuard ui_guard;
 			expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
 			expect(deluge::gui::ui::soundMenuOpen()).to_be_true();
-			expect(deluge::gui::ui::soundMenuCurrent()).to_be_true();
+			expect(deluge::gui::ui::soundMenuOpen()).to_be_true();
 		}
 		expect(deluge::gui::ui::soundMenuOpen()).to_be_false();
 	});

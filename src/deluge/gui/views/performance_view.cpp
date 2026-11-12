@@ -68,31 +68,30 @@ using namespace gui;
 
 namespace {
 
-/// @brief Push this view's `defaultEditingMode`/`editingParam` onto the ported menu's mirror of
-///        them, under `EditingMode::readCurrentValue`'s own rule.
+/// @brief Push this view's `defaultEditingMode`/`editingParam` onto the menu's mirror of them, under `main`'s
+///        `EditingMode::readCurrentValue` rule.
 ///
-/// **What the mirror is.** `performance_session_view::EditingMode` -- the legacy menu item -- has no
-/// state: `readCurrentValue` (`gui/menu_item/performance_session_view/editing_mode.h:35-46`) reads
-/// these two bools straight off `performanceView` every time it is asked. The port cannot: the two
+/// **What the mirror is.** `main`'s `performance_session_view::EditingMode` menu item has no state: its
+/// `readCurrentValue` (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) reads these
+/// two bools straight off `performanceView` every time it is asked. The menu cannot: the two
 /// are plain members of a `gui/views/` class, `src/scenes` may not include `gui/`
 /// (`scenes-includes-gui`, `scripts/check_layer_rules.py`), and there is no bare-`extern` escape
 /// from a class member. So `scenes/menu/action.h` keeps a mirror and `PerformEditorItem::on_focus`
 /// seeds its cursor from that (`scenes/menu/nodes/actions.cpp:121`). The mirror is authoritative for
 /// what the menu SHOWS; it is not authoritative for the view. Every place this file moves the two
-/// bools has to push, or the ported menu shows a mode the view left behind.
+/// bools has to push, or the menu shows a mode the view left behind.
 ///
 /// **Why the mapping is transcribed here rather than each caller passing a literal.** Three of the
 /// four call sites end at `DISABLED` and could spell it, but a literal at a call site goes stale
 /// silently the day the write above it changes. Deriving from the pair cannot: it is
-/// `readCurrentValue`'s three-way test (`editing_mode.h:36-45`), and if it and legacy ever disagree
-/// the spec that runs both on the real `performanceView`
-/// (`sim/scenes_spec/menu_actions_spec.cpp`, `menu_action_perform`) reddens.
+/// `readCurrentValue`'s three-way test, and if this mapping and the spec's transcription of it ever disagree on the
+/// real `performanceView`, `sim/scenes_spec/menu_actions_spec.cpp` (`menu_action_perform`) reddens.
 ///
 /// **Why this is unconditional.** It is safe because of what it writes: a single
 /// `static` inside `libdeluge_scenes` (`g_perform_mode`, `scenes/menu/nodes/actions.cpp:45`) whose
 /// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
-/// the ported menu (`openShellMenu`, `gui/ui/shell_menu_entry.cpp`). It writes that one byte, reads nothing, calls
-/// nothing else, touches no legacy state and cannot fail.
+/// the menu (`openShellMenu`, `gui/ui/shell_menu_entry.cpp`). It writes that one byte, reads nothing, calls
+/// nothing else, touches no view state and cannot fail.
 void syncEditingModeMirror(const PerformanceView& v) {
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {

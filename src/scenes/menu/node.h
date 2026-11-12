@@ -767,7 +767,8 @@ struct CustomItem {
 	virtual bool unlearn() const { return false; }
 
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
-	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
+	///        `MenuItem::shouldBlinkLearnLed`, which `SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`
+	///        read (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	virtual bool wants_learn_blink() const { return false; }
 
 	/// @brief The patched param whose shortcut pad blinks while this item is focused and has no pad of its own --

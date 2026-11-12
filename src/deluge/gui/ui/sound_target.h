@@ -49,8 +49,6 @@ struct SoundTarget {
 	int8_t sourceIndex = 0;
 	Source* source = nullptr;
 	SampleControls* sampleControls = nullptr;
-	/// The kit's own effects rather than a row's.
-	bool kitGlobalFx = false;
 };
 
 /// @brief Point @p target's range at the one its index names after @p retype, by `Source::setOscType`'s rule for the

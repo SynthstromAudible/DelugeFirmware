@@ -351,7 +351,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
 * **The tables are legacy's own**, in `nodes/dx_tables.h`, compared with legacy row by row in `dx_pages_spec`. The
-  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where both menus may include them and they keep
+  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where the menu may include them and they keep
   their SDRAM placement.
 * **Every write is the whole patch**, `WriteSink::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
   auto engine mode is not chosen again for a new algorithm, as `main` does not.
@@ -664,6 +664,10 @@ registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry s
   guest's `timerCallback` closes it. `closeGuest` clears the knob indicators, runs the note mode's
   exit, the settings save, the drum-creator and slicer releases, and hands a still-showing knob
   popup to legacy's display.
+* **Teardown.** `nullifyUIs` (a song load or a clear) reaches `ShellHostUI::uisTakenDown`, which resets the stack so
+  every scene's `on_exit` runs (the recorder's take ends through `RecorderScene::taken_down`, with no notice),
+  disarms the shell's working animation, releases the slicer and the drum creator, and forgets the menu's song. It
+  hands no pads back, saves no settings and runs no note-mode exit, as `main`'s `nullifyUIs` does none of them.
 * **Activity.** Every pad, button and encoder the guest sees, forwarded or not, is screensaver
   activity (`Shell::note_activity`).
 * **MIDI learn.** `PlaybackHandler` offers note-on, program change, CC and pitch bend to the current UI

@@ -35,9 +35,6 @@ namespace deluge::gui::ui {
 /// @brief The ported menu frontmost on a root other than the settings (`shellSoundMenuOpen`).
 bool soundMenuOpen();
 
-/// @brief The ported menu frontmost on a root other than the settings (`shellSoundMenuOpen`).
-bool soundMenuCurrent();
-
 /// @brief The kit-global-FX latch (`shellKitGlobalFx`), which the menu's shortcut presses read and write.
 bool soundMenuKitGlobalFx();
 

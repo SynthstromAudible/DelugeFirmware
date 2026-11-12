@@ -68,7 +68,7 @@ using deluge::scenes::browser::PreviewRequest;
 
 namespace {
 
-/// @brief The shipped claim dispatcher: the one `SampleBrowser::requestClaim` asks.
+/// @brief The shipped claim dispatcher: what a browser choice's claim asks unless a spec installs another.
 void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
 	deluge::gui::sampleClaim.request(request);
 }
@@ -154,8 +154,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 	                                  .rangeIndex = menuCtx.range_index,
 	                                  .sourceIndex = menuCtx.source_index,
 	                                  .source = nullptr,
-	                                  .sampleControls = nullptr,
-	                                  .kitGlobalFx = shellKitGlobalFx()};
+	                                  .sampleControls = nullptr};
 	if (currentSong == nullptr) {
 		return resolved;
 	}
@@ -290,9 +289,8 @@ SamplePreviewer& shellPreviewer() {
 
 namespace {
 
-/// @brief The sound a ported preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and
-///        for a kit its clip, whose output volume the preview folds in -- what the legacy browser reads from the sound
-///        editor.
+/// @brief The sound a preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and for a
+///        kit its clip, whose output volume the preview folds in -- what `main`'s browser reads from the sound editor.
 PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	const deluge::gui::SoundTarget resolved = resolvedFor(menuCtx);
 	::Clip* clip = currentSong != nullptr && menuCtx.addresses.clip

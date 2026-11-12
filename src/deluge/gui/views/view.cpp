@@ -1667,7 +1667,7 @@ int32_t View::getModKnobMode() {
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
 	if ((paramManager != nullptr && paramManager == knobParamManager_.load(std::memory_order_relaxed))
-	    || (deluge::gui::ui::soundMenuCurrent() && paramManager == deluge::gui::ui::soundMenuParamManager())) {
+	    || (deluge::gui::ui::soundMenuOpen() && paramManager == deluge::gui::ui::soundMenuParamManager())) {
 
 		// If timer wasn't set yet, set it now
 		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {

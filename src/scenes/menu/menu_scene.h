@@ -755,31 +755,30 @@ public:
 	///
 	/// They belong beside `read_value_again()` in spirit.
 	/// @{
-	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp`), for a
-	///        caller outside the scene.
+	/// @brief One level up the path -- `SoundEditor::goUpOneLevel`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), for a caller outside the scene.
 	///
 	/// For the note-mode handlers that call `soundEditor.goUpOneLevel()` themselves
 	/// (`gui/views/instrument_clip_view.cpp`'s `nudgeNotes`, and `SoundEditor::toggleNoteEditorParamMenu`'s
-	/// release arm). The step is `ascend()`, which is
-	/// already this scene's port of the loop at `:714-722` and of `beginScreen(oldItem)` at `:728`.
+	/// release arm). The step is `ascend()`, which is already this scene's port of `SoundEditor::goUpOneLevel`'s
+	/// permission loop and of its closing `beginScreen(oldItem)`.
 	///
 	/// @return **false where legacy exits completely instead**, having moved nothing in the first case:
-	///         the loop's `if (navigationDepth == 0) { exitCompletely(); return; }` (`:715-717`) fires
-	///         either on the first pass, at depth 0, or on a later pass, when the loop has stepped down to
-	///         depth 0 and `:720-722` refuses that level too. Closing the whole editor is the
+	///         the loop's `if (navigationDepth == 0) { exitCompletely(); return; }` fires either on the first
+	///         pass, at depth 0, or on a later pass, when the loop has stepped down to depth 0 and the permission
+	///         check refuses that level too. Closing the whole editor is the
 	///         application's act, not the scene's -- `gui::ui::closePortedMenu()` -- so the caller does it
 	///         on false. `ascend()` at depth 0 asks for the scene's own close instead, which these callers
 	///         do not want, so this takes that request back on false.
 	bool go_up_one_level();
 	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
-	///        (`gui/ui/sound_editor.cpp`), for a caller outside the scene.
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), for a caller outside the scene.
 	///
-	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm
-	/// (`:1967-1969`). Legacy's body is `endScreen()`, `navigationDepth++`, the record write and
-	/// `beginScreen(navigatedBackwardFrom)` (`:364-368`), and `beginScreen` begins the item's session
-	/// without asking `checkPermissionToBeginSession` (`:957-976`) -- so this is `descend_to`, which
-	/// asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike `open()`,
-	/// this never replaces `ctx_`.
+	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm. Legacy's body is `endScreen()`, `navigationDepth++`,
+	/// the record write and `beginScreen(navigatedBackwardFrom)` (`SoundEditor::enterSubmenu`), and `beginScreen`
+	/// begins the item's session without asking `checkPermissionToBeginSession` (`SoundEditor::beginScreen`) -- so this
+	/// is `descend_to`, which asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike
+	/// `open()`, this never replaces `ctx_`.
 	///
 	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
 	///       begins the entered item's session (`SoundEditor::beginScreen`), and the toggle names no

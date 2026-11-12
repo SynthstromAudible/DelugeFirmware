@@ -693,7 +693,7 @@ static void deluge_boot(const DelugeBoard* board) {
 	// ordering constraint of its own (see `shell_note_bridge.h`).
 	deluge::gui::ui::wireShellNoteBridge();
 
-	// Install the ported slicer's host: the same `SliceCore` the legacy slicer drives.
+	// Install the slicer's host: `SlicerScene`'s slices, performed with `SliceCore`.
 	deluge::gui::ui::wireShellSliceOps();
 
 	// Install the notification sink: the shell's `Notice::Kind::Notification` consumer, pointed at

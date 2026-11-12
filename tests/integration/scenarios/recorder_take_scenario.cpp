@@ -21,6 +21,7 @@
 
 #include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
+#include "scenarios/guest_drive.h"
 #include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
@@ -161,20 +162,10 @@ void fail(const char* marker, const char* what) {
 	g_failures++;
 }
 
+using deluge::harness::guestTick;
+using deluge::harness::guestTop;
+using deluge::scenes::recorder::kRecorderSceneKind;
 using deluge::scenes::recorder::recorder_scene;
-
-/// Whether the guest is open with the recorder screen taking input.
-bool recorderOnTop() {
-	return isUIOpen(&shellHostUI)
-	       && shellHostUI.shell().stack().input_top().kind() == deluge::scenes::recorder::kRecorderSceneKind;
-}
-
-/// One guest tick, as its UI timer gives it: the menu's push of the recorder screen runs from it.
-void tickGuest() {
-	if (isUIOpen(&shellHostUI)) {
-		(void)shellHostUI.timerCallback();
-	}
-}
 
 bool inputTake() {
 	const AudioInputChannel source = AudioEngine::foregroundRecordingSource();
@@ -226,8 +217,8 @@ void openRecorder() {
 	                                    /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0Recorder)) {
 		return;
 	}
-	for (int32_t t = 0; t < 8 && !recorderOnTop() && isUIOpen(&shellHostUI); t++) {
-		tickGuest();
+	for (int32_t t = 0; t < 8 && !guestTop(kRecorderSceneKind) && isUIOpen(&shellHostUI); t++) {
+		guestTick(0); // the menu's push of the recorder screen runs from the guest's tick
 	}
 	// Read once the menu is open: entering it gives a source with no range its first one.
 	g_range = !sound->sources[0].ranges.empty() ? sound->sources[0].ranges.getElement(0) : nullptr;
@@ -241,7 +232,7 @@ bool startTake(const char* marker) {
 	static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output))->sources[0].setOscType(OscType::SAW);
 	g_recordingPath.clear();
 	openRecorder();
-	const bool onTop = recorderOnTop();
+	const bool onTop = guestTop(kRecorderSceneKind);
 	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, onTop ? 1 : 0,
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()));
 	if (!onTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
@@ -349,7 +340,7 @@ void stepMidiOpen() {
 
 /// While the take runs, MIDI must be handled: every scripted byte read, the note sounding, the clock followed.
 void stepMidiTake() {
-	if (!recorderOnTop() || !inputTake()) {
+	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
 		fail("RT-TAKE", "the take ended before BACK was pressed");
 		g_stage = Stage::MidiEnding;
 		return;
@@ -438,7 +429,7 @@ void stepRefuseStart() {
 	}
 	Action* const loggedBefore = actionLogger.firstAction[BEFORE];
 	openRecorder();
-	const bool onTop = recorderOnTop();
+	const bool onTop = guestTop(kRecorderSceneKind);
 	const bool logKept = loggedBefore != nullptr && actionLogger.firstAction[BEFORE] == loggedBefore;
 	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0, onTop ? 1 : 0,
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), logKept ? 1 : 0);
@@ -571,7 +562,7 @@ void stepReplacedRun() {
 	acquired.name = "SYNT999";
 	(void)instrumentClipView.InstrumentClipMinder::createNewInstrument(static_cast<InstrumentClip*>(g_clip),
 	                                                                   OutputType::SYNTH, false, acquired);
-	if (recorderOnTop()) {
+	if (guestTop(kRecorderSceneKind)) {
 		pressBack();
 	}
 	g_steps = 0;
@@ -673,9 +664,9 @@ void stepNextListing() {
 void stepNextRun() {
 	notePath();
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
-	if (!recorderOnTop() || !inputTake()) {
+	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
 		printf("RT-NEXT-RUN read=%d loadSeen=%d recorderOnTop=%d steps=%d\n", g_nextRead ? 1 : 0, g_loadSeen ? 1 : 0,
-		       recorderOnTop() ? 1 : 0, g_steps);
+		       guestTop(kRecorderSceneKind) ? 1 : 0, g_steps);
 		fail("RT-NEXT", "the take ended under a MIDI NEXT_SONG, before BACK was pressed");
 		g_steps = 0;
 		g_stage = Stage::NextLoad;

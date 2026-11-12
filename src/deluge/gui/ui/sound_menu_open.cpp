@@ -34,10 +34,6 @@ bool soundMenuKitGlobalFx() {
 	return shellKitGlobalFx();
 }
 
-bool soundMenuCurrent() {
-	return shellSoundMenuOpen();
-}
-
 ModControllableAudio* soundMenuModControllable() {
 	return shellMenuModControllable();
 }

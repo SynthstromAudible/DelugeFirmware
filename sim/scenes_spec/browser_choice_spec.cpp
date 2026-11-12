@@ -1060,23 +1060,6 @@ describe browser_choice_claim(
 	        });
 
 	    it(
-	        "names the kit-global-FX latch in the menu's target", _ {
-		        CleanBrowser clean;
-		        ScratchCard card;
-		        ShellRig r;
-		        r.open_browser();
-		        bool& latch = deluge::gui::ui::shellKitGlobalFxLatch();
-		        const bool saved = latch;
-		        latch = true;
-		        const bool menuOn = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
-		        latch = false;
-		        const bool menuOff = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
-		        latch = saved;
-		        expect(menuOn).to_be_true();
-		        expect(menuOff).to_be_false();
-	        });
-
-	    it(
 	        "claims from the guest's own tick, with nothing in the example naming the dispatcher", _ {
 		        // The composition, as the drain examples above do it: the difference between the two
 		        // legs is one call, `ui.shell().tick` versus `ui.timerCallback()`. So a claim on the

@@ -95,7 +95,6 @@ struct IsomorphicKeyboard {
 /// @brief What a recording is taken for, each part by the identity that names that object alone: the take attaches
 /// there, or nowhere.
 struct TakeTarget {
-	uint64_t song{0};                         ///< the song's identity (`project::Song::identity`)
 	std::optional<project::ClipAddress> clip; ///< the clip the take was begun over
 	project::SlotAddress slot{};              ///< the sound: a synth track's output, or a kit row's drum
 	uint8_t source{0};                        ///< which of the sound's two sources
@@ -145,8 +144,8 @@ public:
 		return std::nullopt;
 	}
 	/// @brief Where the take @p target names may still land: the index its range now has among its source's ranges,
-	/// while the song is the one the take began in and the clip is still in it, still playing the sound. None
-	/// otherwise, and for a host that records nothing.
+	/// while the clip is still in the current song, still playing the sound. Range identities are run-unique and never
+	/// saved, so a range in another song never matches. None otherwise, and for a host that records nothing.
 	[[nodiscard]] virtual std::optional<uint16_t> take_range(const TakeTarget& target) const {
 		(void)target;
 		return std::nullopt;

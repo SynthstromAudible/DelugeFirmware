@@ -1,4 +1,4 @@
-// The DX7 cartridge both menus read: the `.syx` read through the file prefix channel, the bank's names as the ported
+// The DX7 cartridge the menu reads: the `.syx` read through the file prefix channel, the bank's names as the ported
 // cartridge page reads them, and a program loaded through the app's sink as main's cartridge page loads it. What main's
 // page answered is held in `tests/golden/ui/menu_oracle/dx_cartridge.tsv` and its panels.
 //
@@ -341,6 +341,20 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(read.poll() == DxCartridgeRead::Status::Failed).to_be_true();
 		expect(read.busy()).to_be_false();
 		expect(p.mine.popups == std::vector<std::string>{Popups::read_error()}).to_be_true();
+	});
+
+	it("refuses a bank whose sysex ID is not Yamaha's, with main's unknown-ID popup", _ {
+		DX7Cartridge* const saved = bank();
+		bank() = nullptr;
+		Popups p;
+		std::array<std::byte, kSysexSize> bytes = spec::make_bank();
+		bytes[1] = std::byte{0x44}; // the manufacturer byte: Yamaha's is 0x43
+		expect(deluge::gui::loadDxCartridgeBytes(bytes)).to_be_false();
+		expect(p.mine.popups
+		       == std::vector<std::string>{deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_SYSEX_ID)})
+		    .to_be_true();
+		delete bank();
+		bank() = saved;
 	});
 
 	it("gives up with the read-error popup once the channel has left the read unanswered for the bound", _ {

@@ -61,9 +61,8 @@ namespace deluge::gui::ui {
 
 class SamplePreviewer;
 
-/// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
-///        a time), recording each load's path as the last file loaded (`deluge::model::lastFilePathLoaded`), which
-///        both browsers open beside.
+/// @brief The sample browser's preview, recording each load's path as the last file loaded
+///        (`deluge::model::lastFilePathLoaded`), which the browser opens beside.
 /// @return The one previewer, made on first use.
 SamplePreviewer& shellPreviewer();
 

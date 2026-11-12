@@ -360,8 +360,8 @@ public:
 	///        SESSION). The same hand-back as the guest's own two close paths (`closeGuest`).
 	void closeNow() { closeGuest(); }
 
-	/// @brief Mark this visit as one legacy runs with no editor open: the drum creator's browser or take, opened
-	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as the legacy browser's and
+	/// @brief Mark this visit as one `main` runs with no editor open: the drum creator's browser or take, opened
+	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as `main`'s browser's and
 	///        recorder's own exits do; every other close ends the mode, as `SoundEditor::exitCompletely` does. Call it
 	///        after the open succeeded; the next `opened()` forgets it.
 	void markVisitWithoutEditor() { visitWithoutEditor_ = true; }
@@ -540,6 +540,8 @@ private:
 	bool visitWithoutEditor_ = false;
 	/// @brief `flushPendingInput`'s tick is running.
 	bool flushing_ = false;
+	/// @brief The shell's tick is running (`tickShell`, which `flushPendingInput` runs too): `uisTakenDown` must not.
+	bool ticking_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.

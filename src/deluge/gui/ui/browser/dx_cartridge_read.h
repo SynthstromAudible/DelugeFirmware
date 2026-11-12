@@ -95,7 +95,7 @@ private:
 	int32_t give_ups_ = 0;
 };
 
-/// @brief The one cartridge read both menus' `.syx` browsers share.
+/// @brief The one cartridge read the menu's `.syx` browser uses.
 DxCartridgeRead& dxCartridgeRead();
 
 } // namespace deluge::gui::ui

@@ -23,8 +23,7 @@
 #include <string_view>
 
 /// @file
-/// @brief The ported slicer's host: `SlicerScene`'s `SliceOps`, performed with the same `SliceCore` the legacy slicer
-///        drives.
+/// @brief The slicer's host: `SlicerScene`'s `SliceOps`, performed with `SliceCore`.
 ///
 /// This header names no `scenes/` type; `shell_slice_ops.cpp` is where the scene is reached.
 

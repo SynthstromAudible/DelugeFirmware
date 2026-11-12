@@ -40,7 +40,7 @@
 
 /// @file
 /// @brief An editor's change of a sound's or an effect owner's setting, as an Edit when the owner is bound in the
-///        current song. Shared by the legacy menus and the ported scenes, so both write the same way.
+///        current song.
 
 namespace deluge::edits {
 

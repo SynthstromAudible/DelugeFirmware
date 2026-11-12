@@ -26,6 +26,8 @@
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
+// The two inclusive searches have no production caller (an edge reload searches `CATALOG_SEARCH_BOTH`); only the
+// catalogue's spec reaches them.
 /// A one-sided search that keeps every entry equal to the search name.
 #define CATALOG_SEARCH_LEFT_INCLUSIVE 3
 #define CATALOG_SEARCH_RIGHT_INCLUSIVE 4

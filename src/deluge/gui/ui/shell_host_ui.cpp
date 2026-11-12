@@ -19,6 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 
+#include "foundation/panic.h" // FREEZE_WITH_ERROR
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_choice_dispatch.h"
@@ -181,7 +182,7 @@ bool ShellHostUI::opened() {
 	// to check where the boundary is.
 	wireShellGuestServices();
 
-	// `SoundEditor::opened` asks for the root's pads (`SoundEditor::opened`): while the guest
+	// `SoundEditor::opened` asks for the root's pads: while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
 	using deluge::ui::shell::PadRegions;
@@ -1179,10 +1180,17 @@ void ShellHostUI::tickShell(uint32_t now) {
 	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
 	shell_.set_owns_notices(getCurrentUI() == this);
+	const bool outer = std::exchange(ticking_, true);
 	shell_.tick(now);
+	ticking_ = outer;
 }
 
 void ShellHostUI::uisTakenDown() {
+	// Never from inside the guest's tick, which would have its stack reset under it.
+	if (ticking_) {
+		FREEZE_WITH_ERROR("SHT1");
+		return; // reached only on a host whose display does not freeze
+	}
 	// At once: both takers-down (`LoadSongUI`'s load job and `ClearSong`'s accept) run outside the guest's tick, and
 	// a guest no longer open is never ticked again to do it later.
 	//
@@ -1407,10 +1415,10 @@ void ShellHostUI::closeGuest() {
 	close();
 
 	// `exitCompletely`'s last statement, after its `close()`: the modes the menu was left under end with it (a held
-	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep legacy's value instead.
-	// A stem export a menu item started has engaged its own mode before this close, where legacy resets first and
-	// engages after, so that mode is what is left. A visit legacy runs with no editor open (`markVisitWithoutEditor`)
-	// ends as the legacy browser's and recorder's exits do, with the mode untouched.
+	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep `main`'s value instead.
+	// A stem export a menu item started has engaged its own mode before this close, where `main` resets first and
+	// engages after, so that mode is what is left. A visit `main` runs with no editor open (`markVisitWithoutEditor`)
+	// ends as `main`'s browser's and recorder's exits do, with the mode untouched.
 	if (!std::exchange(visitWithoutEditor_, false)) {
 		currentUIMode =
 		    (currentUIMode & EXCLUSIVE_UI_MODES_MASK) == UI_MODE_STEM_EXPORT ? UI_MODE_STEM_EXPORT : UI_MODE_NONE;

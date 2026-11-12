@@ -286,7 +286,6 @@ bind::TakeTarget RecorderScene::take_target() const {
 	// alone, so a sound or a range that later takes its place is not mistaken for it.
 	const auto source = static_cast<uint8_t>(ctx_.source_index);
 	return bind::TakeTarget{
-	    .song = ctx_.model != nullptr ? ctx_.model->identity() : 0,
 	    .clip = ctx_.addresses.clip,
 	    .slot = *ctx_.addresses.slot,
 	    .source = source,
