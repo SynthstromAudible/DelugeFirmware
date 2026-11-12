@@ -36,60 +36,6 @@
 #include <etl/vector.h>
 #include <memory>
 
-static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data);
-
-static bool openFile(std::string_view path, DX7Cartridge* data) {
-	using namespace deluge;
-	using enum deluge::l10n::String;
-	constexpr size_t minSize = kSmallSysexSize;
-
-	io::File file = D_TRY_CATCH_MOVE(io::File::open(path, DELUGE_FILE_READ), error, {
-		return false; // fail quickly if the file doesn't exist / can't open
-	});
-
-	uint32_t filesize = D_TRY_CATCH(file.size(), error, { return false; });
-	if (filesize < minSize) {
-		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
-	}
-
-	l10n::String error = EMPTY_STRING;
-	int readsize = std::min((int)filesize, 8192);
-
-	std::unique_ptr buffer = D_TRY_CATCH_MOVE((allocate_unique<std::byte, memory::sdram_allocator>(readsize)), error, {
-		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_READ_ERROR));
-		return false;
-	});
-
-	std::span<std::byte> readbuffer =
-	    D_TRY_CATCH(file.read(std::span<std::byte>(buffer.get(), static_cast<size_t>(readsize))), error, {
-		    return false; //
-	    });
-
-	return parseCartridge(readbuffer, data);
-}
-
-/// Everything from the size check onward: no file, no card, just bytes. Both arms end here, so the
-/// popups and the checksum-tolerance rule have exactly one home.
-static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data) {
-	using namespace deluge;
-	using enum deluge::l10n::String;
-	constexpr size_t minSize = kSmallSysexSize;
-
-	if (readbuffer.size() < minSize) {
-		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
-	}
-
-	l10n::String error = data->load(readbuffer);
-	if (error != EMPTY_STRING) {
-		// Allow loading to continue for checksum errors, but fail for other errors
-		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
-			display->displayPopup(l10n::get(error), 3);
-			return false;
-		}
-	}
-
-	return true;
-}
 namespace deluge::gui::menu_item {
 
 DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
@@ -97,28 +43,6 @@ DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
 void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 	loadPatch();
 	readValueAgain();
-}
-
-void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program) {
-	if (sound.sources[source].ensureDxPatch() == nullptr) {
-		return;
-	}
-	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[source]);
-	cartridge.unpackProgram(patch->params, program);
-	dxPatchFor(sound, source, *patch);
-	sound.killAllVoices();
-	// The synth a DX7 bank is loaded into takes the program's name until it is saved. A drum's kit keeps its own.
-	if (sound.isDrum()) {
-		return;
-	}
-	Instrument* instrument = static_cast<SoundInstrument*>(&sound);
-	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {
-		char name[11];
-		cartridge.getProgramName(program, name);
-		if (name[0] != 0) {
-			deluge::edits::trackSettingFor(*instrument, "name", deluge::serialization::Value::makeScalar(name));
-		}
-	}
 }
 
 // Unpacks the currently-selected program into the live DX patch and hard-cuts any sounding voices.
@@ -153,23 +77,15 @@ void DxCartridge::drawPixelsForOled() {
 }
 
 bool DxCartridge::tryLoad(std::string_view path) {
-	if (pd == nullptr) {
-		pd = new DX7Cartridge();
-	}
 	currentValue = 0;
 	scrollPos = 0;
-
-	return openFile(path, pd);
+	return deluge::gui::loadDxCartridgeFile(path);
 }
 
 bool DxCartridge::tryLoadFromBuffer(std::span<std::byte> bytes) {
-	if (pd == nullptr) {
-		pd = new DX7Cartridge();
-	}
 	currentValue = 0;
 	scrollPos = 0;
-
-	return parseCartridge(bytes, pd);
+	return deluge::gui::loadDxCartridgeBytes(bytes);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {

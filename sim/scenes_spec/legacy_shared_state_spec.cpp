@@ -4,6 +4,8 @@
 /// The legacy editor reaches the kit-global-FX latch, the shortcut blink, flash byte 60 and the DX7 bank through
 /// reference members, so the two menus can never hold different values. This file goes with the legacy editor.
 
+#include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -109,6 +111,13 @@ describe legacy_shared_shortcuts_byte("the legacy editor's shortcutsVersion is f
 		expect(&soundEditor.shortcutsVersion == &FlashStorage::shortcutsVersion).to_be_true();
 	});
 });
+
+describe legacy_shared_dx_bank("the legacy cartridge item's bank is the one the ported page reads", $ {
+	it("is the bank pointer itself", _ {
+		expect(&deluge::gui::menu_item::dxCartridge.pd == &deluge::gui::dxCartridgeBank()).to_be_true();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch, legacy_shared_blink, legacy_shared_shortcuts_byte)
+DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch, legacy_shared_blink, legacy_shared_shortcuts_byte,
+            legacy_shared_dx_bank)

@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
-#include "gui/menu_item/dx/cartridge.h"                   // dxCartridge, the bank the DX stage reads back
 #include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
+#include "gui/ui/browser/dx_cartridge_bank.h"             // dxCartridgeBank, the bank the DX stage reads back
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
@@ -3276,7 +3276,7 @@ void runByPathTick() {
 // ── Stage: the DX cartridge load ────────────────────────────────────────────
 //
 // The prefix channel's other consumer. A cartridge picked in the DX browser is read whole through the channel and
-// parsed into `dxCartridge`, and SP-DX requires what the fixture holds.
+// parsed into `dxCartridgeBank()`, and SP-DX requires what the fixture holds.
 //
 // The bank is a real 32-voice DX7 dump with a correct checksum, and a SysEx ID the parser refuses. The refusal is
 // deliberate. It comes after the checksum, so a bank that reaches it arrived whole and in order, and the patch count
@@ -3415,7 +3415,7 @@ void runDxTick() {
 		const std::string file = (selected >= 0 && selected < Browser::listing.size())
 		                             ? Browser::listing.items()[selected].filename
 		                             : std::string{"-"};
-		DX7Cartridge* pd = deluge::gui::menu_item::dxCartridge.pd;
+		DX7Cartridge* pd = deluge::gui::dxCartridgeBank();
 		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;
 		char first[11] = "-";
 		if (pd != nullptr) {

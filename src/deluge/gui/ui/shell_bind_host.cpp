@@ -9,7 +9,7 @@
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
-#include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -281,7 +281,7 @@ public:
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
 	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
-		DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+		DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
 		if (bank == nullptr) {
 			return std::nullopt;
 		}
@@ -632,12 +632,12 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 
 bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+	DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
 	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
 	    || program < 0 || program >= bank->numPatches()) {
 		return false;
 	}
-	deluge::gui::menu_item::loadDxProgram(*sound, source, *bank, program);
+	deluge::gui::loadDxProgram(*sound, source, *bank, program);
 	return true;
 }
 

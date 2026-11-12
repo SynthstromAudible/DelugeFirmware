@@ -13,7 +13,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "hid/display/display.h"
@@ -48,7 +48,6 @@ using namespace deluge::scenes::spec::dx_rig;
 using deluge::gui::ui::DxCartridgeRead;
 using deluge::scenes::browser::browser_scene;
 using deluge::scenes::browser::BrowserId;
-namespace legacy = deluge::gui::menu_item;
 namespace nodes = deluge::scenes::menu::nodes;
 
 namespace {
@@ -57,16 +56,15 @@ spec::OracleTable& table() {
 	return spec::OracleTable::named("dx_cartridge");
 }
 
-/// @brief The bank the cartridge page holds: the one place this spec reads or replaces it. The cartridge item owns it
-///        until it is re-homed.
+/// @brief The bank the cartridge page holds: the one place this spec reads or replaces it.
 DX7Cartridge*& bank() {
-	return legacy::dxCartridge.pd;
+	return deluge::gui::dxCartridgeBank();
 }
 
-/// @brief Parse a fresh bank into the cartridge item, as a finished read does.
+/// @brief Parse a fresh bank into the bank, as a finished read does.
 void load_bank() {
 	std::array<std::byte, kSysexSize> bytes = spec::make_bank();
-	(void)legacy::dxCartridge.tryLoadFromBuffer(bytes);
+	(void)deluge::gui::loadDxCartridgeBytes(bytes);
 }
 
 /// @brief The scripted channel: each collect answers the next status (the last one repeating), READY with the bank.

@@ -19,7 +19,7 @@
 #include "gui/ui/browser/dx_cartridge_read.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "hid/display/display.h"
 #include "storage/byte_channel.h" // noteIoTier, for the inline read
 #include "util/boot.h"
@@ -68,7 +68,7 @@ DxCartridgeRead::Status DxCartridgeRead::start(std::string path) {
 		// for the whole read, which is why it is noted as a tier violation, and why it is unreachable there.
 		// tryLoad() shows its own popups on failure.
 		storage::bytes::noteIoTier(storage::bytes::IoTier::Browser);
-		return menu_item::dxCartridge.tryLoad(path) ? Status::Loaded : Status::Failed;
+		return loadDxCartridgeFile(path) ? Status::Loaded : Status::Failed;
 	}
 	path_ = std::move(path);
 	in_flight_ = true;
@@ -118,7 +118,7 @@ DxCartridgeRead::Status DxCartridgeRead::poll() {
 	default: { // READY
 		in_flight_ = false;
 		const std::span bytes{reinterpret_cast<std::byte*>(g_buffer.data()), length};
-		return menu_item::dxCartridge.tryLoadFromBuffer(bytes) ? Status::Loaded : Status::Failed;
+		return loadDxCartridgeBytes(bytes) ? Status::Loaded : Status::Failed;
 	}
 	}
 }

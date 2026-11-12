@@ -19,6 +19,7 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include <span>
 #include <string_view>
 
@@ -30,7 +31,7 @@ namespace deluge::gui::menu_item {
 class DxCartridge final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
+	DxCartridge(l10n::String newName) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	/// @brief Read `path` and parse it as a cartridge. The synchronous arm.
 	/// @param path Full path of the `.SYX` file.
@@ -57,8 +58,8 @@ public:
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
 
-	// this thing is big. allocate external mem on demand
-	DX7Cartridge* pd;
+	/// The bank (`deluge::gui::dxCartridgeBank`), which the ported cartridge page reads too.
+	DX7Cartridge*& pd{deluge::gui::dxCartridgeBank()};
 
 	int32_t currentValue = 0;
 	int scrollPos = 0; // Each instance needs to store this separately
@@ -66,11 +67,5 @@ public:
 
 extern DxCartridge dxCartridge;
 
-/// @brief Load program @p program of @p cartridge into source @p source of @p sound: its patch unpacked over the
-/// source's, its voices cut, and an unsaved synth renamed to the program.
-/// @param sound     The sound; @p source must be a DX7 one.
-/// @param source    The source index.
-/// @param cartridge The bank.
-/// @param program   The program index, below `cartridge.numPatches()`.
-void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program);
+using deluge::gui::loadDxProgram;
 } // namespace deluge::gui::menu_item
