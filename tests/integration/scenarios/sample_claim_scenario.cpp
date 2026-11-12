@@ -1431,7 +1431,8 @@ void actShellSlice() {
 }
 
 /// A press on the slicer before the slice, which holds a load for the first drum, then every UI taken down as a song
-/// load takes them, and the root put back for the rest of the leg.
+/// load takes them, and the root and the menu's context (which the teardown forgets) put back for the rest of the leg,
+/// which goes on in the same song.
 void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
 	if (scene.ops() == nullptr) {
 		return;
@@ -1440,11 +1441,13 @@ void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
 	g_teardownHeld = deluge::gui::ui::shellSlicerBusy();
 	UI* const root = getRootUI();
 	g_teardownRootKept = getCurrentUI() == root;
+	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu_scene().menu_context();
 	nullifyUIs();
 	g_teardownDropped = !deluge::gui::ui::shellSlicerBusy();
 	if (g_teardownRootKept) {
 		setRootUILowLevel(root);
 	}
+	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
 }
 
 /// A slice auditioned and released before its load lands: the press names the slicer's file for the first drum, and
