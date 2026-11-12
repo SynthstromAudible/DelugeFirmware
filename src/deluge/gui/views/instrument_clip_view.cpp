@@ -5644,7 +5644,7 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 // sub-function of AuditionPadAction
 // pad is released, end previous audition pad press
 void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack,
-                                              NoteRow* noteRowOnActiveClip) {
+                                              NoteRow* noteRowOnActiveClip, bool changeRowSelection) {
 	if (auditionPadIsPressed[yDisplay]) {
 		bool auditionNoteWasSounding = lastAuditionedVelocityOnScreen[yDisplay] != 255;
 		auditionPadIsPressed[yDisplay] = 0;
@@ -5659,8 +5659,8 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 			sendAuditionNote(false, yDisplay, 64, 0);
 		}
 	}
-	display->cancelPopup();        // In case euclidean stuff was being edited etc
-	someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
+	display->cancelPopup(); // In case euclidean stuff was being edited etc
+	someAuditioningHasEnded(changeRowSelection);
 	actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 }
