@@ -203,7 +203,7 @@ struct Descriptor {
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
 	///
 	/// @note **Every file descriptor answers `DeferAndWait`, and that is a finding rather than a stub.** (The `.syx`
-	///       one's read goes through `dxCartridge`, for the same reason as the two below.)
+	///       one's read goes through `loadDxCartridgeFile` into the bank, for the same reason as the two below.)
 	///       `SampleBrowser`'s file arm requests a sample claim (`gui/ui/browser/sample_claim.h`),
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load

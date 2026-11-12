@@ -165,7 +165,8 @@ inline constexpr Node dx_global_params =
 
 /// @brief "load DX7 .syx file" -- `dxBrowseMenu`.
 inline constexpr Node dx_browse = custom(sid(deluge::l10n::String::STRING_FOR_DX_BROWSER), &kDxBrowse);
-/// @brief The cartridge page -- `dxCartridge`. No list names it: the `.syx` browser lands on it
+/// @brief The cartridge page, which lists the bank (`dxCartridgeBank`). No list names it: the `.syx` browser lands on
+/// it
 ///        (`MenuScene::land_dx_cartridge`), so it has a place in `kAllRoots`.
 inline constexpr Node dx_cartridge = custom(sid(deluge::l10n::String::STRING_FOR_DX_CARTRIDGE), &kDxCartridge);
 /// @brief "engine version" -- `dxEngineSelect`.

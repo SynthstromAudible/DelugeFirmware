@@ -313,8 +313,8 @@ void dx_syx_start_at(const menu::MenuContext& /*ctx*/, std::string& dir, std::st
 }
 
 AcceptOutcome dx_syx_accept(const menu::MenuContext& /*ctx*/, std::string_view /*path*/, Error& /*error*/) {
-	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `dxCartridge`, a `gui/` object this layer may
-	// not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
+	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `loadDxCartridgeFile`, a `gui/` function this
+	// layer may not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
 	return AcceptOutcome::DeferAndWait;
 }
 

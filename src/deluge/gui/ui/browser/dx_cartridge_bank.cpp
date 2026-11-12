@@ -33,9 +33,30 @@
 
 namespace {
 
-static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data);
+/// Everything from the size check onward: no file, no card, just bytes. Both arms end here, so the
+/// popups and the checksum-tolerance rule have exactly one home.
+bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data) {
+	using namespace deluge;
+	using enum deluge::l10n::String;
+	constexpr size_t minSize = kSmallSysexSize;
 
-static bool openFile(std::string_view path, DX7Cartridge* data) {
+	if (readbuffer.size() < minSize) {
+		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
+	}
+
+	l10n::String error = data->load(readbuffer);
+	if (error != EMPTY_STRING) {
+		// Allow loading to continue for checksum errors, but fail for other errors
+		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
+			display->displayPopup(l10n::get(error), 3);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool openFile(std::string_view path, DX7Cartridge* data) {
 	using namespace deluge;
 	using enum deluge::l10n::String;
 	constexpr size_t minSize = kSmallSysexSize;
@@ -63,29 +84,6 @@ static bool openFile(std::string_view path, DX7Cartridge* data) {
 	    });
 
 	return parseCartridge(readbuffer, data);
-}
-
-/// Everything from the size check onward: no file, no card, just bytes. Both arms end here, so the
-/// popups and the checksum-tolerance rule have exactly one home.
-static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data) {
-	using namespace deluge;
-	using enum deluge::l10n::String;
-	constexpr size_t minSize = kSmallSysexSize;
-
-	if (readbuffer.size() < minSize) {
-		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
-	}
-
-	l10n::String error = data->load(readbuffer);
-	if (error != EMPTY_STRING) {
-		// Allow loading to continue for checksum errors, but fail for other errors
-		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
-			display->displayPopup(l10n::get(error), 3);
-			return false;
-		}
-	}
-
-	return true;
 }
 
 } // namespace
