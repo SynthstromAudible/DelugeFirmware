@@ -135,6 +135,6 @@ extern gui::menu_item::HorizontalMenu audioClipSampleMenu;
 
 /// The slot picker an oscillator FILE, START, END or TRANSPOSE shortcut pad leads to on this sound, when that
 /// oscillator uses variants, or nullptr when the pad opens its own item as on main. Fills in which of the four
-/// pads it is when target isn't null.
+/// pads it is when target isn't null. Always nullptr in an audio clip, whose FILE pad is the same item.
 gui::menu_item::sample::SlotPicker* getSlotPickerForShortcut(MenuItem* item, ModControllableAudio* modControllable,
                                                              gui::menu_item::sample::SlotPickerTarget* target);
