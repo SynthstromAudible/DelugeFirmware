@@ -45,31 +45,6 @@ namespace params = deluge::modulation::params;
 
 namespace deluge::gui {
 
-namespace {
-
-/// The watch `Source::setOscType`'s report goes to, if one is alive.
-RangesRetypeWatch* activeWatch = nullptr;
-
-} // namespace
-
-RangesRetypeWatch::RangesRetypeWatch(const Source& source) : source_{&source} {
-	activeWatch = this;
-}
-
-RangesRetypeWatch::~RangesRetypeWatch() {
-	if (activeWatch == this) {
-		activeWatch = nullptr;
-	}
-}
-
-void RangesRetypeWatch::rangesRetyped(const Source& source, bool cleared) {
-	if (activeWatch == nullptr || activeWatch->source_ != &source) {
-		return;
-	}
-	activeWatch->result_.reallocated = true;
-	activeWatch->result_.cleared = activeWatch->result_.cleared || cleared;
-}
-
 void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype) {
 	if (!retype.reallocated) {
 		return;

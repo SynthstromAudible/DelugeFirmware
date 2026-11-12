@@ -105,7 +105,6 @@ src/deluge/processing/sound/sound.cpp	model-includes-ui	7
 src/deluge/processing/sound/sound_drum.cpp	model-calls-ui	1
 src/deluge/processing/sound/sound_drum.cpp	model-includes-ui	3
 src/deluge/processing/sound/sound_instrument.cpp	model-includes-ui	1
-src/deluge/processing/source.cpp	model-includes-ui	2
 src/deluge/processing/stem_export/stem_export.cpp	model-calls-display	1
 src/deluge/processing/stem_export/stem_export.cpp	model-calls-ui	12
 src/deluge/processing/stem_export/stem_export.cpp	model-includes-ui	6

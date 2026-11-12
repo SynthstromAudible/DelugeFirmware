@@ -1,6 +1,6 @@
 /// @file
 /// @brief The range a claim or an import carries across the oscillator-type change it makes
-///        (`deluge::gui::retargetRangeAfterRetype`, `deluge::gui::RangesRetypeWatch`), on a real synth's source, by the
+///        (`deluge::gui::retargetRangeAfterRetype`, `RangesRetypeWatch`), on a real synth's source, by the
 ///        rule `Source::setOscType` applies to the legacy editor's range: only a reallocation moves it, by its index,
 ///        and a reallocation that had to clear the ranges starts again from range 0.
 
@@ -24,8 +24,6 @@
 
 namespace {
 
-using deluge::gui::RangesRetype;
-using deluge::gui::RangesRetypeWatch;
 using deluge::gui::SoundTarget;
 
 /// A synth whose source 0 holds @p count sample ranges, and a target on it naming range @p index while it still points
