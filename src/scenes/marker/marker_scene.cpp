@@ -347,22 +347,17 @@ bool MarkerScene::allow_extra_scroll_right() const {
 	return source != nullptr && source->repeat_mode == SampleRepeatMode::STRETCH;
 }
 
-void MarkerScene::set_loop_locked(bool locked) {
-	// `loopLock`/`loopUnlock` (`:1225`, `:1231`) minus their popups.
-	//
-	// The two popups are NOT filed, and that is a limitation rather than a choice: legacy raises
-	// `display->displayPopup("FREE")` / `("LOCK")` with **raw literals**, and `Action::Kind::Popup`
-	// carries a `uint16_t` l10n id (`shell/scene.h`). Neither word is in `gui/l10n/strings.h`, so
-	// filing them would mean inventing two string ids and their translation entries -- a change to
-	// the l10n data rather than a port of the editor. The same argument `BrowserScene::Descriptor`
-	// makes for its two literal titles, with the opposite conclusion available there because a
-	// title is a `string_view` and a popup is not.
+void MarkerScene::set_loop_locked(bool locked, bool announce) {
+	// `loopLock` / `loopUnlock` (`displayPopup("LOCK")` / `("FREE")`).
 	if (ctx_.is_audio_clip) {
 		return;
 	}
 	services::SampleView v = view();
 	v.loop_locked = locked;
 	services::view_state().set_sample_view(where_, v);
+	if (announce) {
+		pending_popup_ = locked ? String::STRING_FOR_LOOP_LOCKED : String::STRING_FOR_LOOP_FREE;
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -771,9 +766,9 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		}
 
 		// temporarily unlock the loop so we can write the end without moving the start
-		set_loop_locked(false);
+		set_loop_locked(false, /*announce=*/false);
 		write_value(proposed_end, MarkerType::LOOP_END);
-		set_loop_locked(true);
+		set_loop_locked(true, /*announce=*/false);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		return r;
 	}
@@ -901,15 +896,19 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			r.handled = true;
 			return r;
 		}
-		// SHIFT + a main pad with no UI mode up is `soundEditor.potentialShortcutPadAction` (`:350-356`): a shortcut
-		// with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor, 1)`), and any other is
-		// swallowed, the editor staying.
-		if (event.on && ctx.shift && x < kDisplayWidth && !mode_up()) {
+		// `padAction` -> `potentialShortcutPadAction` with SHIFT held: under a marker hold, X_ENC or a slide the mode
+		// is not one `shortcutPadUIModes` lists, and the press is swallowed; auditioning alone goes on to the pad. With
+		// no mode up a shortcut with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor,
+		// 1)`), and any other is swallowed, the editor staying.
+		const bool only_auditioning = auditioning() && !holding_ && !xenc_held_ && !sliding();
+		if (event.on && ctx.shift && x < kDisplayWidth && !only_auditioning) {
 			r.handled = true;
-			if (const std::optional<SceneId> page =
-			        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
-				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
-				(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+			if (!mode_up()) {
+				if (const std::optional<SceneId> page =
+				        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
+					(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+					(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+				}
 			}
 			return r;
 		}
@@ -921,6 +920,10 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		pad_action(x, event.y, event.on);
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		if (pending_popup_.has_value()) {
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Popup, .popup_string = sid(*pending_popup_)});
+			pending_popup_.reset();
+		}
 		return r;
 	}
 

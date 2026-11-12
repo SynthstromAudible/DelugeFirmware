@@ -41,6 +41,7 @@
 /// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
 ///       `browser_scene_spec.cpp` runs under.
 
+#include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/sound_editor.h"
 #include "scenes/bind/write_sink.h"
@@ -102,6 +103,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -352,6 +354,48 @@ struct Rig {
 
 	Song* const saved_song = currentSong;
 };
+
+/// @brief Events handed to the marker scene itself, so the actions it files come back for the example to read.
+struct DirectEvents {
+	deluge::ui::shell::ButtonSet held{};
+	deluge::ui::PadMask pads{};
+
+	/// @brief One main-pad event.
+	/// @param shift Is shift held?
+	deluge::ui::shell::Result pad(int32_t x, int32_t y, bool on, bool shift = false) {
+		const deluge::ui::shell::UiContext ctx{held, pads, shift, false, 0, deluge_profile()};
+		return marker_scene().handle(deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Pad,
+		                                                        .x = static_cast<uint8_t>(x),
+		                                                        .y = static_cast<uint8_t>(y),
+		                                                        .velocity = static_cast<uint8_t>(on ? 127 : 0),
+		                                                        .on = on},
+		                             ctx);
+	}
+
+	/// @brief One turn of the horizontal encoder.
+	deluge::ui::shell::Result horizontal(int32_t delta, bool shift) {
+		const deluge::ui::shell::UiContext ctx{held, pads, shift, false, 0, deluge_profile()};
+		return marker_scene().handle(deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Encoder,
+		                                                        .encoder = deluge::ui::EncoderRole::Horizontal,
+		                                                        .delta = static_cast<int8_t>(delta)},
+		                             ctx);
+	}
+};
+
+/// @brief The string ids of the popups @p r files, in order.
+std::vector<uint16_t> popups_of(const deluge::ui::shell::Result& r) {
+	std::vector<uint16_t> out;
+	for (const auto& a : r.actions) {
+		if (a.kind == deluge::ui::shell::Action::Kind::Popup) {
+			out.push_back(a.popup_string);
+		}
+	}
+	return out;
+}
+
+constexpr uint16_t popup_id(deluge::l10n::String s) {
+	return static_cast<uint16_t>(s);
+}
 
 /// @brief Everything about the holder either side can move, so a legacy run can start from exactly
 ///        the model the port started from rather than from the model the port left behind.
@@ -1203,12 +1247,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.pad(2, 3, true, 50); // hold START
 		r.tick(50);
 		r.shift(true, 60);
-		r.pad(8, 7, true, 70); // with START held, LPF frequency is the marker's own press
+		r.pad(8, 7, true, 70); // with START held: swallowed, as `potentialShortcutPadAction`'s mode gate does
 		r.tick(70);
 		r.pad(8, 7, false, 75);
 		r.pad(2, 3, false, 75);
 		r.tick(80);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
 		const SampleHolderForVoice& h = r.range->sampleHolder;
 		const std::array<uint64_t, 4> before{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
 		r.pad(7, 6, true, 90); // an empty cell: the editor stays, and no marker moves
@@ -1414,6 +1459,133 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		q.tick(30);
 		expect(marker_scene().holding_marker()).to_be_false();
 		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("pops LOCK and then FREE as the loop lock toggles, and FREE as a loop marker is removed", _ {
+		// `loopLock` / `loopUnlock` (`displayPopup("LOCK")` / `("FREE")`) on the lock toggle and on every removal.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(4, 3, true); // hold LOOP_START
+		const std::vector<uint16_t> lock = popups_of(d.pad(7, 3, true)); // tap LOOP_END
+		expect(lock == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_LOCKED)}).to_be_true();
+		(void)d.pad(7, 3, false);
+		const std::vector<uint16_t> free = popups_of(d.pad(7, 3, true));
+		expect(free == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		(void)d.pad(7, 3, false);
+		(void)d.pad(4, 3, false);
+	});
+
+	it("pops FREE as held START removes the loop start", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(2, 3, true); // hold START
+		const std::vector<uint16_t> p = popups_of(d.pad(4, 3, true)); // tap LOOP_START
+		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+	});
+
+	it("pops FREE as held END removes the loop end", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		r.open(MarkerType::END);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(11, 3, true); // hold END
+		const std::vector<uint16_t> p = popups_of(d.pad(7, 3, true)); // tap LOOP_END
+		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
+	});
+
+	it("pops FREE as held LOOP_START removes itself by tapping START", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(4, 3, true); // hold LOOP_START
+		const std::vector<uint16_t> p = popups_of(d.pad(2, 3, true)); // tap START
+		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+	});
+
+	it("pops FREE as held LOOP_END removes itself by tapping END", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		r.open(MarkerType::LOOP_END);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(7, 3, true); // hold LOOP_END
+		const std::vector<uint16_t> p = popups_of(d.pad(11, 3, true)); // tap END
+		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
+	});
+
+	it("halves and doubles a locked loop with SHIFT and the horizontal encoder without a LOCK or FREE popup", _ {
+		// The shift arm writes `loopLocked` itself (`horizontalEncoderAction`), never through `loopLock`/`loopUnlock`.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		r.range->sampleHolder.loopLocked = true;
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		DirectEvents d;
+		const std::vector<uint16_t> halved = popups_of(d.horizontal(-1, /*shift=*/true));
+		expect(halved == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_HALVED)}).to_be_true();
+		const std::vector<uint16_t> doubled = popups_of(d.horizontal(1, /*shift=*/true));
+		expect(doubled == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_DOUBLED)}).to_be_true();
+		expect(r.view().has_value() && r.view()->loop_locked).to_be_true();
+		// ...and none is left queued for the next pad press to file.
+		expect(popups_of(d.pad(13, 3, true)).empty()).to_be_true();
+		(void)d.pad(13, 3, false);
+	});
+
+	it("swallows SHIFT + a main pad while a marker is held, as potentialShortcutPadAction does", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.open(MarkerType::START);
+		r.tick(0);
+		DirectEvents d;
+		(void)d.pad(2, 3, true); // hold START
+		const deluge::ui::shell::Result r1 = d.pad(8, 7, true, /*shift=*/true);
+		expect(r1.handled).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+		expect(marker_scene().holding_marker()).to_be_true();
+		const deluge::ui::shell::Result r2 = d.pad(6, 3, true, /*shift=*/true);
+		expect(r2.handled).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+	});
+
+	it("greys at once over the keyboard screen and fades in elsewhere", _ {
+		// `SampleMarkerEditor::opened`: `if (getRootUI() == &keyboardScreen) PadLEDs::skipGreyoutFade()`.
+		Rig r;
+		r.open(MarkerType::START);
+		expect(marker_scene().greyout_changes_instantly()).to_be_false();
+		MenuContext c = r.ctx();
+		c.root_is_keyboard = true;
+		marker_scene().open(c);
+		expect(marker_scene().greyout_changes_instantly()).to_be_true();
 	});
 
 	it("removes the loop start by holding it and tapping START", _ {

@@ -136,9 +136,8 @@ constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
 
 /// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2213`).
 ///
-/// `audio_clip_waveform` stands in for `audioClipSampleMarkerEditorMenuEnd`: the port has one
-/// waveform/marker-editor node where legacy has a start and an end item, and only the end one is in
-/// this table under `SHORTCUTS_VERSION_3`.
+/// `audio_clip_waveform` is `audioClipSampleMarkerEditorMenuEnd`, the only marker item this table holds under
+/// `SHORTCUTS_VERSION_3`; the START item is `audio_clip_waveform_start`, in the V1 table alone.
 constexpr const Node* kAudioClipColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=0
     {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=1
@@ -246,15 +245,16 @@ static_assert(kSoundCells[cell_index(1, 6)] == &n::sample1_interpolation);
 constexpr Cells kSoundV1Cells = with_cell(with_cell(kSoundCells, 0, 6, &n::sample0_end), 1, 6, &n::sample1_end);
 constexpr Cells kDrumV1Cells = with_drum_name(kSoundV1Cells);
 
-// `paramShortcutsForAudioClips[0..1][7]` is assigned the marker editor's *start* item and `[0..1][6]`
-// its *end* item (`sound_editor.cpp:157-162`). The port has one node for both, and `(0..1, 7)`
-// already holds it, so only the `y = 6` pair moves.
+// `setShortcutsVersion(V1)` assigns `paramShortcutsForAudioClips[0..1][7]` the marker editor's START item and
+// `[0..1][6]` its END item.
 static_assert(kAudioClipCells[cell_index(0, 7)] == &n::audio_clip_waveform);
 static_assert(kAudioClipCells[cell_index(1, 7)] == &n::audio_clip_waveform);
 static_assert(kAudioClipCells[cell_index(0, 6)] == &n::audio_clip_interpolation);
 static_assert(kAudioClipCells[cell_index(1, 6)] == &n::audio_clip_interpolation);
-constexpr Cells kAudioClipV1Cells =
-    with_cell(with_cell(kAudioClipCells, 0, 6, &n::audio_clip_waveform), 1, 6, &n::audio_clip_waveform);
+constexpr Cells kAudioClipV1Cells = with_cell(
+    with_cell(with_cell(with_cell(kAudioClipCells, 0, 6, &n::audio_clip_waveform), 1, 6, &n::audio_clip_waveform), 0, 7,
+              &n::audio_clip_waveform_start),
+    1, 7, &n::audio_clip_waveform_start);
 /// @}
 
 /// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy

@@ -160,9 +160,9 @@ ShortcutsVersion shortcuts_version();
 /// @note **Two of legacy's ten assignments are the layers' only real difference.** Four of them
 ///       (`paramShortcutsForSounds[2][6]`, `[3][6]`, `[2][7]`, `[3][7]`, `:128-132`) write the value
 ///       the V3 table already holds, so they change nothing. Four more are the audio-clip marker
-///       editor (`:119-124`), where legacy has a *start* and an *end* item and the port has one
-///       `audio_clip_waveform` node standing in for both -- so the V1 audio-clip layer differs from
-///       V3 only in that `(0..1, 6)` also resolves to it. The two that genuinely move are
+///       editor, where legacy has a *start* and an *end* item: `(0..1, 7)` is `audio_clip_waveform_start` and
+///       `(0..1, 6)` is `audio_clip_waveform`, so the V1 audio-clip layer differs from V3 in both pairs.
+///       The two that genuinely move are
 ///       `paramShortcutsForSounds[0][6]` / `[1][6]`, interpolation in V3 and the sample end point in
 ///       V1. `modSourceShortcuts` (`:134-135`) is not in this layer at all -- it is the patching
 ///       source column, which is not table data here (`shortcut_blink.h`).

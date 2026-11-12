@@ -77,13 +77,6 @@ inline constexpr size_t kShortcutPlaceholderNameCells = 6;
 ///        main resolves from the live filter mode.
 inline constexpr size_t kShortcutDynamicNameCells = 28;
 
-/// @brief Main's V1 audio-clip layout puts the marker editor's start item, a nameless item no root reaches, on
-///        `(0..1, 7)`; the port has one marker node, so those two cells are compared by hand.
-inline bool shortcut_marker_collapsed(std::string_view table, int32_t x, int32_t y) {
-	return table == "audio_clips" && y == 7 && x < 2;
-}
-inline constexpr size_t kShortcutCollapsedMarkerCells = 2;
-
 /// @brief Landing cells whose page the port shares with another root's tree (main has one page per root family), so the
 ///        landing rows name the page by its paths in the landing root's own tree.
 inline constexpr size_t kLandingSharedPageCells = 158;

@@ -4,9 +4,9 @@
 ///
 /// Two groups, and they are deliberately different kinds of claim:
 ///
-///   * **The mapping**, asserted by *identity* -- every one of the nine nodes carries the item its
+///   * **The mapping**, asserted by *identity* -- every one of the ten nodes carries the item its
 ///     legacy class became, with the source index and marker that class was constructed with, and
-///     no other node in `nodes::kAllRoots` carries one of these items. Nine near-identical items
+///     no other node in `nodes::kAllRoots` carries one of these items. Ten near-identical items
 ///     across two macro-generated oscillator pages is exactly the shape where a positional check
 ///     looks strong and pins nothing, so the observed table is compared whole and a deliberately
 ///     swapped copy is asserted **not** to match.
@@ -365,6 +365,7 @@ std::vector<Wiring> observed_wiring() {
 	    wiring_of("sample0_end", nodes::sample0_end),
 	    wiring_of("sample1_end", nodes::sample1_end),
 	    wiring_of("audio_clip_waveform", nodes::audio_clip_waveform),
+	    wiring_of("audio_clip_waveform_start", nodes::audio_clip_waveform_start),
 	    wiring_of("sample0_recorder", nodes::sample0_recorder),
 	    wiring_of("sample1_recorder", nodes::sample1_recorder),
 	};
@@ -391,6 +392,8 @@ std::vector<Wiring> expected_wiring() {
 	    // `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- `MarkerType::END`, and
 	    // **no** `setCurrentSource` (`audio_clip/sample_marker_editor.cpp:43-51`), which is the -1.
 	    {"audio_clip_waveform", 1, -1, 3},
+	    // `audioClipSampleMarkerEditorMenuStart`: the same, on `MarkerType::START`.
+	    {"audio_clip_waveform_start", 1, -1, 0},
 	    // `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:38,50`).
 	    {"sample0_recorder", 2, 0, -1},
 	    {"sample1_recorder", 2, 1, -1},
@@ -409,11 +412,11 @@ spec::OracleTable& table() {
 // clang-format off
 describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
-	it("carries the item its legacy class became, on every one of the nine nodes", _ {
+	it("carries the item its legacy class became, on every one of the ten nodes", _ {
 		// Compared as one whole table rather than node by node, so a failure prints which row moved.
 		expect(format_wiring(observed_wiring())).to_equal(format_wiring(expected_wiring()));
 
-		// ... and the comparison is not vacuous. Nine near-identical items over two macro-generated
+		// ... and the comparison is not vacuous. Ten near-identical items over two macro-generated
 		// oscillator pages is precisely the shape where a positional check passes with two of them
 		// crossed over, so a deliberately crossed copy is asserted NOT to match. (The real proof is
 		// the source mutation recorded in the task report; this is the guard that keeps the
@@ -431,7 +434,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		expect(format_wiring(crossed_markers) == format_wiring(expected_wiring())).to_be_false();
 	});
 
-	it("puts these items on those nine nodes and on nothing else in the tree", _ {
+	it("puts these items on those ten nodes and on nothing else in the tree", _ {
 		// By identity over the whole reachable tree, not by a count: an item accidentally attached to
 		// a tenth node somewhere else would leave every assertion above passing.
 		select_language();
@@ -440,7 +443,8 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		const Node* const kExpected[] = {
 		    &nodes::file0_selector,   &nodes::file1_selector,   &nodes::sample0_start,
 		    &nodes::sample1_start,    &nodes::sample0_end,      &nodes::sample1_end,
-		    &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder,
+		    &nodes::audio_clip_waveform, &nodes::audio_clip_waveform_start, &nodes::sample0_recorder,
+		    &nodes::sample1_recorder,
 		};
 		std::set<const Node*> want{std::begin(kExpected), std::end(kExpected)};
 

@@ -39,9 +39,9 @@ namespace {
 /// @param node The focused node.
 /// @return False for those nodes, true for every other.
 bool blinks_shortcut(const Node& node) {
-	constexpr const Node* kNoBlinkNodes[] = {&nodes::edit_name,          &nodes::drum_name_edit, &nodes::sample0_start,
-	                                         &nodes::sample0_end,        &nodes::sample1_start,  &nodes::sample1_end,
-	                                         &nodes::audio_clip_waveform};
+	constexpr const Node* kNoBlinkNodes[] = {
+	    &nodes::edit_name,     &nodes::drum_name_edit, &nodes::sample0_start,       &nodes::sample0_end,
+	    &nodes::sample1_start, &nodes::sample1_end,    &nodes::audio_clip_waveform, &nodes::audio_clip_waveform_start};
 	return std::ranges::find(kNoBlinkNodes, &node) == std::ranges::end(kNoBlinkNodes);
 }
 

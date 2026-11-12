@@ -1164,6 +1164,9 @@ enum class String : size_t {
 	// A menu's mark on a stored choice that no longer applies ("DX7 (n/a)"): listed so the user sees what is set,
 	// though the menu cannot choose it again.
 	STRING_FOR_CHOICE_UNAVAILABLE,
+	// The sample marker editor's loop lock popups, which show the loop lock as a state.
+	STRING_FOR_LOOP_LOCKED,
+	STRING_FOR_LOOP_FREE,
 
 	STRING_LAST
 };

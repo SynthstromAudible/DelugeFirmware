@@ -161,6 +161,9 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// The SAMPLE RECORDER page (`recorder`) follows the cartridge page: only the horizontal-menu chains list it, so
 /// without a place here the shortcut to an oscillator's recorder could not land on it, and `MenuPads::arm_landing`
 /// would re-root onto the item itself, which opens the recorder.
+///
+/// The audio clip's marker editor on START (`audio_clip_waveform_start`) is last: only the V1 shortcut cells name it,
+/// and a shortcut can land on a node only once it has an id.
 inline constexpr const Node* kAllRootArray[] = {
     &sound_root,
     &root_drum,
@@ -189,6 +192,7 @@ inline constexpr const Node* kAllRootArray[] = {
     &source_group,
     &dx_cartridge,
     &recorder,
+    &audio_clip_waveform_start,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 

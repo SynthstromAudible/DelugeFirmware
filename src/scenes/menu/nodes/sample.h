@@ -154,12 +154,13 @@ inline const MarkerItem kSample0Start{0, 0}; ///< `MarkerType::START`
 inline const MarkerItem kSample1Start{1, 0}; ///< `MarkerType::START`
 inline const MarkerItem kSample0End{0, 3};   ///< `MarkerType::END`
 inline const MarkerItem kSample1End{1, 3};   ///< `MarkerType::END`
-/// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- the **END** marker, and the
-/// only one of the pair the audio-clip root shows (`menus.cpp:1193`, `audioClipSampleMenu`). Its
-/// sibling `audioClipSampleMarkerEditorMenuStart` (`:1182`) is reachable only from the grid
-/// shortcut table (`gui/ui/sound_editor.cpp:157-158`), which is `menu/shortcuts.h`'s business and
-/// not a node in any submenu.
+/// `audioClipSampleMarkerEditorMenuEnd` -- the **END** marker, and the only one of the pair the audio-clip root shows
+/// (`audioClipSampleMenu` in `gui/ui/menus.cpp`). Its sibling `audioClipSampleMarkerEditorMenuStart` is reachable only
+/// from the V1 grid shortcut table (`setShortcutsVersion` in `gui/ui/sound_editor.cpp`), which is
+/// `menu/shortcuts.h`'s business and not a node in any submenu.
 inline const MarkerItem kAudioClipWaveform{-1, 3};
+/// `audioClipSampleMarkerEditorMenuStart`: the **START** marker of the audio clip's waveform.
+inline const MarkerItem kAudioClipWaveformStart{-1, 0};
 
 inline const AudioRecorderItem kSample0Recorder{0};
 inline const AudioRecorderItem kSample1Recorder{1};

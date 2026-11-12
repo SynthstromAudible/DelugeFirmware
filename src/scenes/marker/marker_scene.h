@@ -93,6 +93,7 @@
 #include "ui/grid/zoom_transition.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/strings.h"
 #include "model/sample/waveform_navigator.h"
 
 #include <array>
@@ -175,6 +176,9 @@ public:
 	}
 	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows` (`:106-109`): `*cols = 0b10`, rows 0.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
+	/// @brief `SampleMarkerEditor::opened`: over the keyboard screen the greyout is shown at once
+	///        (`PadLEDs::skipGreyoutFade`), elsewhere it fades in.
+	bool greyout_changes_instantly() const override { return ctx_.root_is_keyboard; }
 
 	/// @name Observable state
 	/// For specs, and for whoever wires the menu items up.
@@ -243,10 +247,11 @@ private:
 	MarkerType reverse_remap(MarkerType type) const;
 	/// @brief `isLoopLocked()` (`:79`).
 	bool loop_locked() const;
-	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock` (`:1225`, `:1231`), minus their popups
-	///        -- those are filed by the caller, which is the only place that can raise an `Action`.
-	/// @param locked The new state.
-	void set_loop_locked(bool locked);
+	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock`: set the lock and, when @p announce, queue their popup
+	///        ("FREE" / "LOCK") in `pending_popup_` for `handle` to file -- the only place that can raise an `Action`.
+	/// @param locked   The new state.
+	/// @param announce False where the lock is written without `loopLock`/`loopUnlock` (the SHIFT halve and double).
+	void set_loop_locked(bool locked, bool announce = true);
 
 	/// @brief The four marker positions, in samples; the loop markers 0 where unset.
 	struct Zone {
@@ -280,6 +285,8 @@ private:
 	void follow_waveform(const services::WaveformInfo& info);
 
 	menu::MenuContext ctx_{};
+	/// The popup `set_loop_locked` queued during the pad press being handled, filed when `handle` returns.
+	std::optional<l10n::String> pending_popup_{};
 	services::WaveformAddress where_{};
 	/// The identity of the waveform nav_'s cache holds.
 	uint64_t waveform_identity_ = 0;

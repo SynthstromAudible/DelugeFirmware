@@ -654,7 +654,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
 		// Every custom node has an item of its own and no two nodes share one, so there are as many
-		// distinct instances as custom nodes (61) and `nodes::kPending` is not among them -- nothing
+		// distinct instances as custom nodes (62) and `nodes::kPending` is not among them -- nothing
 		// points at it. `output_items_spec.cpp` asserts the placeholder-free claim directly.
 		//
 		// Items are per-node rather than shared or parameterised by the node, because the state an
@@ -682,7 +682,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// (`mpe_direction`/`mpe_zone`) that a `Binding::get`/`set` -- handed only a
 		// `const MenuContext&` -- cannot see, and the direction selector additionally computes its
 		// title from that value.
-		expect(distinct_items).to_equal(size_t(61));
+		expect(distinct_items).to_equal(size_t(62));
 		expect(distinct_items).to_equal(menu::kShippedCustomNodes); // one item per node, nothing shared
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
@@ -856,36 +856,40 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		expect(menu::shortcut_node(Root::Drum, false, 11, 5) == &nodes::drum_name_edit).to_be_true();
 	});
 
-	it("matches paramShortcutsForAudioClips apart from the marker cell the port collapses", _ {
+	it("matches paramShortcutsForAudioClips: the marker editor on START at (0..1, 7) and on END at (0..1, 6)", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
 		const PortVersion1 guard;
-		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`. The port has ONE
-		// node for the marker editor, `audio_clip_waveform`, so both pairs resolve to it -- which is right for the end
-		// pair and as close as this table can get for the start pair. The start item is a nameless one no root
-		// reaches, so those two cells are excluded from the sweep and asserted directly.
+		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`. The start item has
+		// no name and no root lists it, so its frozen rows read `name:`; the port's `audio_clip_waveform_start` is that
+		// nameless unlisted node, and every cell compares against its frozen row.
 		spec::OracleTable& t = table();
 		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false);
 		std::string diffs;
-		size_t collapsed = 0;
 		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-				if (spec::shortcut_marker_collapsed("audio_clips", x, y)) {
-					collapsed++;
-					continue; // the start-marker pair, asserted below
-				}
 				diffs += diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], "audio_clips", "v1", x, y);
 			}
 		}
 		expect(diffs).to_equal(std::string{});
-		expect(collapsed).to_equal(spec::kShortcutCollapsedMarkerCells);
 
 		for (uint8_t x = 0; x < 2; x++) {
 			expect(t.value(cell_key("audio_clips", "v1", x, 7), "item")).to_equal(std::string{"name:"});
 			expect(t.value(cell_key("audio_clips", "v1", x, 6), "item")).to_equal(node_paths(&nodes::audio_clip_waveform));
-			expect(menu::shortcut_node(Root::AudioClip, false, x, 7) == &nodes::audio_clip_waveform).to_be_true();
+			expect(menu::shortcut_node(Root::AudioClip, false, x, 7) == &nodes::audio_clip_waveform_start).to_be_true();
 			expect(menu::shortcut_node(Root::AudioClip, false, x, 6) == &nodes::audio_clip_waveform).to_be_true();
 		}
+	});
+
+	it("blinks no pad while the audio clip's marker editor is up on START or END, as updatePadLightsFor does", _ {
+		MenuContext ctx = install_sound_context();
+		ctx.root = Root::AudioClip;
+		const PortVersion1 guard;
+		const MenuState st{};
+		expect(menu::plan_blinks(ctx, st, nodes::audio_clip_waveform_start) == menu::BlinkPlan{}).to_be_true();
+		expect(menu::plan_blinks(ctx, st, nodes::audio_clip_waveform) == menu::BlinkPlan{}).to_be_true();
+		// An item with a pad of its own does blink there.
+		expect(menu::plan_blinks(ctx, st, nodes::audio_clip_reverse).param.valid).to_be_true();
 	});
 
 	it("leaves every other root's layer alone, and restores V3 when the version goes back", _ {

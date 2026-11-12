@@ -239,9 +239,9 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 
 `Kind::Custom` is the escape hatch for a bespoke item. **The cap counts nodes that point at a custom
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
-count of one. The shipped tree has **60** custom nodes behind 60 distinct, real items
+count of one. The shipped tree has **62** custom nodes behind 62 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **61**, one above: a ratchet,
+`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **63**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 

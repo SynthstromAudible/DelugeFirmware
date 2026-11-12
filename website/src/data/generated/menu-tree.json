@@ -13341,5 +13341,12 @@
     "name": "Sample recorder",
     "title": "Sample recorder",
     "type": "submenu"
+  },
+  {
+    "available_when": "audio_clip_has_sample",
+    "id": 562,
+    "name": "",
+    "title": "",
+    "type": "basic"
   }
 ]

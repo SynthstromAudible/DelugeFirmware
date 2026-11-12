@@ -446,6 +446,11 @@ inline constexpr Node audio_clip_waveform = with_value_text(
                      clip_end_draw),
     end_point_label);
 
+/// The audio clip's marker editor on START: `audioClipSampleMarkerEditorMenuStart`, which no submenu lists and whose
+/// name is empty; only the V1 shortcut cells `(0..1, 7)` reach it, so it has a place in `kAllRoots` and no menu row.
+inline constexpr Node audio_clip_waveform_start =
+    custom(sid(String::EMPTY_STRING), &kAudioClipWaveformStart, relevance::audio_clip_has_sample);
+
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =
     submenu(sid(String::STRING_FOR_DISTORTION), kAudioClipDistortionChildren, Layout::Horizontal);
