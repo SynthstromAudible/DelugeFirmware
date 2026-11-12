@@ -8528,6 +8528,10 @@
             "available_when": "is_midi_out",
             "id": 248,
             "name": "File Linked",
+            "options": [
+              "Disabled",
+              "Enabled"
+            ],
             "title": "File Linked",
             "type": "basic"
           },
@@ -10036,6 +10040,17 @@
       {
         "id": 268,
         "name": "Audio source",
+        "options": [
+          "Disabled",
+          "Left input",
+          "Right input",
+          "Stereo input",
+          "Balanced input",
+          "USB input",
+          "Deluge mix (no fx)",
+          "Deluge output (fx)",
+          "Specific Track"
+        ],
         "title": "Audio source",
         "type": "basic"
       },
@@ -10639,6 +10654,11 @@
       {
         "id": 301,
         "name": "Editing Mode",
+        "options": [
+          "Disabled",
+          "Value",
+          "Param"
+        ],
         "title": "Editing Mode",
         "type": "basic"
       },
@@ -11457,6 +11477,24 @@
       {
         "id": 306,
         "name": "Active Scales",
+        "options": [
+          "MAJOR",
+          "MINOR",
+          "DORIAN",
+          "PHRYGIAN",
+          "LYDIAN",
+          "MIXOLYDIAN",
+          "LOCRIAN",
+          "MELODIC MINOR",
+          "HARMONIC MINOR",
+          "HUNGARIAN MINOR",
+          "MARVA",
+          "ARABIAN",
+          "WHOLE TONE",
+          "BLUES",
+          "PENTATONIC MINOR",
+          "HIRAJOSHI"
+        ],
         "title": "Active Scales",
         "type": "basic"
       },
@@ -13541,6 +13579,24 @@
               {
                 "id": 450,
                 "name": "Active Scales",
+                "options": [
+                  "MAJOR",
+                  "MINOR",
+                  "DORIAN",
+                  "PHRYGIAN",
+                  "LYDIAN",
+                  "MIXOLYDIAN",
+                  "LOCRIAN",
+                  "MELODIC MINOR",
+                  "HARMONIC MINOR",
+                  "HUNGARIAN MINOR",
+                  "MARVA",
+                  "ARABIAN",
+                  "WHOLE TONE",
+                  "BLUES",
+                  "PENTATONIC MINOR",
+                  "HIRAJOSHI"
+                ],
                 "title": "Active Scales",
                 "type": "basic"
               }
@@ -14205,6 +14261,10 @@
             "available_when": "is_midi_out",
             "id": 248,
             "name": "File Linked",
+            "options": [
+              "Disabled",
+              "Enabled"
+            ],
             "title": "File Linked",
             "type": "basic"
           },
@@ -15047,6 +15107,11 @@
       {
         "id": 529,
         "name": "Fill",
+        "options": [
+          "OFF",
+          "NOT FILL",
+          "FILL"
+        ],
         "title": "Fill",
         "type": "basic"
       }
@@ -15188,6 +15253,11 @@
       {
         "id": 543,
         "name": "Fill",
+        "options": [
+          "OFF",
+          "NOT FILL",
+          "FILL"
+        ],
         "title": "Fill",
         "type": "basic"
       }

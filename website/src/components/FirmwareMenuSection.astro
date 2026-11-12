@@ -49,8 +49,8 @@ function renderTagBadges(node: MenuNode): string {
   return `<span class="menu-hierarchy-node-tag menu-hierarchy-node-tag--${normalizedTagClass}" data-tag="${escapeHtml(node.tag)}" aria-label="Menu tag ${escapeHtml(node.tag)}">${escapeHtml(node.tag)}</span>`
 }
 
-function renderNodeLabel(node: MenuNode, labelOverride?: string): string {
-  return labelOverride ?? `${node.oled} (${node.code})`
+function renderNodeLabel(node: MenuNode): string {
+  return `${node.oled} (${node.code})`
 }
 
 function renderRowContent(label: string, tags: string): string {
@@ -66,8 +66,8 @@ function renderBranch(
   return `<details class="menu-hierarchy-tree-item"${id}><summary>${renderRowContent(label, tags)}</summary><ul>${children}</ul></details>`
 }
 
-function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
-  const label = renderNodeLabel(node, labelOverride)
+function renderNestedBranch(node: MenuNode): string {
+  const label = renderNodeLabel(node)
   const tags = renderTagBadges(node)
   const children = node.children
     .map((child) => renderNestedList(child))
@@ -76,15 +76,15 @@ function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
   return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, children, anchorAttr(node))}</li>`
 }
 
-function renderNestedList(node: MenuNode, labelOverride?: string): string {
-  const label = renderNodeLabel(node, labelOverride)
+function renderNestedList(node: MenuNode): string {
+  const label = renderNodeLabel(node)
   const tags = renderTagBadges(node)
 
   if (!node.children.length) {
     return `<li class="menu-hierarchy-tree-leaf"${anchorAttr(node)}>${renderRowContent(label, tags)}</li>`
   }
 
-  return renderNestedBranch(node, labelOverride)
+  return renderNestedBranch(node)
 }
 
 function renderTopLevelSection(node: MenuNode): string {

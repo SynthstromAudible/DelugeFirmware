@@ -83,6 +83,15 @@ const Node* focused_of(const MenuState& state) {
 
 } // namespace
 
+size_t preset_scale_names(const MenuContext& /*ctx*/, std::span<std::string_view> out) {
+	const size_t count = std::min(kScaleRows, out.size());
+	for (size_t i = 0; i < count; i++) {
+		// `scalelikeNames` holds `char const*` with static storage, so the views outlive the call.
+		out[i] = std::string_view{scalelikeNames[i]};
+	}
+	return count;
+}
+
 bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 	// `ActiveScaleMenu::isDisabled` (`gui/menu_item/active_scales.cpp:114-124`). The `else` arm's
 	// `return false` is legacy's answer with no song loaded, and it is reproduced rather than

@@ -160,6 +160,8 @@
   "audioClipMenu/actions": "c1.2",
   "actions-edit-name": "c1.3",
   "actions-set-clip-length-equal-to-sample-length": "c1.2",
+  "audio-source-usb-input": "c1.4",
+  "audio-source-specific-track": "c1.2",
   "specific-track": "c1.2",
   "compressor": "c1.1",
   "compressor-threshold": "c1.1",

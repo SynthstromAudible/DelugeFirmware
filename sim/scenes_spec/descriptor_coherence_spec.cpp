@@ -208,6 +208,11 @@ std::vector<std::string> node_names(const Node& node, const deluge::scenes::menu
 }
 
 bool node_lists_names(const Node& node) {
+	// A custom page or a number spelled as words carries its page's words for the menu dump (`with_value_names`); the
+	// menu lists no names for either, so there is no list to compare.
+	if (node.kind == Kind::Custom || node.kind == Kind::Int) {
+		return false;
+	}
 	// A target node shown as a list takes its names from the name table: compare them like any other list's.
 	return node.bind.dynamic_names != nullptr || !node.bind.names.empty()
 	       || (node.bind.target.valid() && node.kind == Kind::Enum);

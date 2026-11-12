@@ -6447,7 +6447,24 @@
               "title": "File Linked",
               "code": "File Linked",
               "tag": "c1.3",
-              "children": []
+              "children": [
+                {
+                  "key": "device-definition-file-linked-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
+                  "option": true,
+                  "children": []
+                },
+                {
+                  "key": "device-definition-file-linked-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
+                  "option": true,
+                  "children": []
+                }
+              ]
             },
             {
               "key": "device-definition-hide-unlabeled-cc",
@@ -8972,7 +8989,82 @@
           "oled": "Audio source",
           "title": "Audio source",
           "code": "Audio source",
-          "children": []
+          "children": [
+            {
+              "key": "audio-source-disabled",
+              "oled": "Disabled",
+              "title": "Disabled",
+              "code": "Disabled",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-left-input",
+              "oled": "Left input",
+              "title": "Left input",
+              "code": "Left input",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-right-input",
+              "oled": "Right input",
+              "title": "Right input",
+              "code": "Right input",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-stereo-input",
+              "oled": "Stereo input",
+              "title": "Stereo input",
+              "code": "Stereo input",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-balanced-input",
+              "oled": "Balanced input",
+              "title": "Balanced input",
+              "code": "Balanced input",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-usb-input",
+              "oled": "USB input",
+              "title": "USB input",
+              "code": "USB input",
+              "option": true,
+              "tag": "c1.4",
+              "children": []
+            },
+            {
+              "key": "audio-source-deluge-mix-no-fx",
+              "oled": "Deluge mix (no fx)",
+              "title": "Deluge mix (no fx)",
+              "code": "Deluge mix (no fx)",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-deluge-output-fx",
+              "oled": "Deluge output (fx)",
+              "title": "Deluge output (fx)",
+              "code": "Deluge output (fx)",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "audio-source-specific-track",
+              "oled": "Specific Track",
+              "title": "Specific Track",
+              "code": "Specific Track",
+              "option": true,
+              "tag": "c1.2",
+              "children": []
+            }
+          ]
         },
         {
           "key": "specific-track",
@@ -9952,7 +10044,32 @@
           "title": "Editing Mode",
           "code": "Editing Mode",
           "tag": "c1.1",
-          "children": []
+          "children": [
+            {
+              "key": "editing-mode-disabled",
+              "oled": "Disabled",
+              "title": "Disabled",
+              "code": "Disabled",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "editing-mode-value",
+              "oled": "Value",
+              "title": "Value",
+              "code": "Value",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "editing-mode-param",
+              "oled": "Param",
+              "title": "Param",
+              "code": "Param",
+              "option": true,
+              "children": []
+            }
+          ]
         },
         {
           "key": "filters",
@@ -11371,7 +11488,136 @@
           "title": "Active Scales",
           "code": "Active Scales",
           "tag": "c1.2",
-          "children": []
+          "children": [
+            {
+              "key": "active-scales-major",
+              "oled": "MAJOR",
+              "title": "MAJOR",
+              "code": "MAJOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-minor",
+              "oled": "MINOR",
+              "title": "MINOR",
+              "code": "MINOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-dorian",
+              "oled": "DORIAN",
+              "title": "DORIAN",
+              "code": "DORIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-phrygian",
+              "oled": "PHRYGIAN",
+              "title": "PHRYGIAN",
+              "code": "PHRYGIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-lydian",
+              "oled": "LYDIAN",
+              "title": "LYDIAN",
+              "code": "LYDIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-mixolydian",
+              "oled": "MIXOLYDIAN",
+              "title": "MIXOLYDIAN",
+              "code": "MIXOLYDIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-locrian",
+              "oled": "LOCRIAN",
+              "title": "LOCRIAN",
+              "code": "LOCRIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-melodic-minor",
+              "oled": "MELODIC MINOR",
+              "title": "MELODIC MINOR",
+              "code": "MELODIC MINOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-harmonic-minor",
+              "oled": "HARMONIC MINOR",
+              "title": "HARMONIC MINOR",
+              "code": "HARMONIC MINOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-hungarian-minor",
+              "oled": "HUNGARIAN MINOR",
+              "title": "HUNGARIAN MINOR",
+              "code": "HUNGARIAN MINOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-marva",
+              "oled": "MARVA",
+              "title": "MARVA",
+              "code": "MARVA",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-arabian",
+              "oled": "ARABIAN",
+              "title": "ARABIAN",
+              "code": "ARABIAN",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-whole-tone",
+              "oled": "WHOLE TONE",
+              "title": "WHOLE TONE",
+              "code": "WHOLE TONE",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-blues",
+              "oled": "BLUES",
+              "title": "BLUES",
+              "code": "BLUES",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-pentatonic-minor",
+              "oled": "PENTATONIC MINOR",
+              "title": "PENTATONIC MINOR",
+              "code": "PENTATONIC MINOR",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "active-scales-hirajoshi",
+              "oled": "HIRAJOSHI",
+              "title": "HIRAJOSHI",
+              "code": "HIRAJOSHI",
+              "option": true,
+              "children": []
+            }
+          ]
         },
         {
           "key": "threshold-recording",
@@ -15163,7 +15409,136 @@
                   "title": "Active Scales",
                   "code": "Active Scales",
                   "tag": "c1.2",
-                  "children": []
+                  "children": [
+                    {
+                      "key": "defaults-scale-active-scales-major",
+                      "oled": "MAJOR",
+                      "title": "MAJOR",
+                      "code": "MAJOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-minor",
+                      "oled": "MINOR",
+                      "title": "MINOR",
+                      "code": "MINOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-dorian",
+                      "oled": "DORIAN",
+                      "title": "DORIAN",
+                      "code": "DORIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-phrygian",
+                      "oled": "PHRYGIAN",
+                      "title": "PHRYGIAN",
+                      "code": "PHRYGIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-lydian",
+                      "oled": "LYDIAN",
+                      "title": "LYDIAN",
+                      "code": "LYDIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-mixolydian",
+                      "oled": "MIXOLYDIAN",
+                      "title": "MIXOLYDIAN",
+                      "code": "MIXOLYDIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-locrian",
+                      "oled": "LOCRIAN",
+                      "title": "LOCRIAN",
+                      "code": "LOCRIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-melodic-minor",
+                      "oled": "MELODIC MINOR",
+                      "title": "MELODIC MINOR",
+                      "code": "MELODIC MINOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-harmonic-minor",
+                      "oled": "HARMONIC MINOR",
+                      "title": "HARMONIC MINOR",
+                      "code": "HARMONIC MINOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-hungarian-minor",
+                      "oled": "HUNGARIAN MINOR",
+                      "title": "HUNGARIAN MINOR",
+                      "code": "HUNGARIAN MINOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-marva",
+                      "oled": "MARVA",
+                      "title": "MARVA",
+                      "code": "MARVA",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-arabian",
+                      "oled": "ARABIAN",
+                      "title": "ARABIAN",
+                      "code": "ARABIAN",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-whole-tone",
+                      "oled": "WHOLE TONE",
+                      "title": "WHOLE TONE",
+                      "code": "WHOLE TONE",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-blues",
+                      "oled": "BLUES",
+                      "title": "BLUES",
+                      "code": "BLUES",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-pentatonic-minor",
+                      "oled": "PENTATONIC MINOR",
+                      "title": "PENTATONIC MINOR",
+                      "code": "PENTATONIC MINOR",
+                      "option": true,
+                      "children": []
+                    },
+                    {
+                      "key": "defaults-scale-active-scales-hirajoshi",
+                      "oled": "HIRAJOSHI",
+                      "title": "HIRAJOSHI",
+                      "code": "HIRAJOSHI",
+                      "option": true,
+                      "children": []
+                    }
+                  ]
                 }
               ]
             },
@@ -17944,7 +18319,32 @@
           "title": "Fill",
           "code": "Fill",
           "tag": "c1.3",
-          "children": []
+          "children": [
+            {
+              "key": "fill-off",
+              "oled": "OFF",
+              "title": "OFF",
+              "code": "OFF",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "fill-not-fill",
+              "oled": "NOT FILL",
+              "title": "NOT FILL",
+              "code": "NOT FILL",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "fill-fill",
+              "oled": "FILL",
+              "title": "FILL",
+              "code": "FILL",
+              "option": true,
+              "children": []
+            }
+          ]
         }
       ]
     },
@@ -18219,7 +18619,32 @@
           "title": "Fill",
           "code": "Fill",
           "tag": "c1.3",
-          "children": []
+          "children": [
+            {
+              "key": "fill-off",
+              "oled": "OFF",
+              "title": "OFF",
+              "code": "OFF",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "fill-not-fill",
+              "oled": "NOT FILL",
+              "title": "NOT FILL",
+              "code": "NOT FILL",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "fill-fill",
+              "oled": "FILL",
+              "title": "FILL",
+              "code": "FILL",
+              "option": true,
+              "children": []
+            }
+          ]
         }
       ]
     },

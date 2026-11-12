@@ -316,8 +316,13 @@ inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTION
 /// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
 /// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
 /// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
-inline constexpr Node midi_device_linked = with_relevant(
-    custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked), relevance::is_midi_out);
+/// `Toggle::getNameFor`: Disabled and Enabled, the words `main` names the linked toggle's states with.
+inline constexpr uint16_t kMidiDeviceLinkedNames[] = {sid(String::STRING_FOR_DISABLED),
+                                                      sid(String::STRING_FOR_ENABLED)};
+inline constexpr Node midi_device_linked =
+    with_value_names(with_relevant(custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked),
+                                   relevance::is_midi_out),
+                     kMidiDeviceLinkedNames);
 inline constexpr Node midi_hide_unlabeled =
     setting_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), Kind::Toggle,
                  {.kind = deluge::scenes::bind::Target::Kind::MODEL,
@@ -431,7 +436,8 @@ inline constexpr Node set_clip_length =
 inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_clip_length};
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
-inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
+inline constexpr Node audio_source_selector =
+    with_value_names(custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem), kAudioSourceOptions);
 /// `specificOutputSelectorMenu` (`gui/ui/menus.cpp`), an
 /// `audio_clip::SpecificSourceOutputSelector` -- the picker for which track this audio track
 /// records from, **not** a browser (`nodes/output_items.h`).
@@ -508,7 +514,8 @@ inline constexpr Node root_audio_clip = submenu(sid(String::STRING_FOR_AUDIO_CLI
 // ---------------------------------------------------------------------------------------------
 // The performance-view root (`soundEditorRootMenuPerformanceView`, `:2008`)
 
-inline constexpr Node perform_editor = custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem);
+inline constexpr Node perform_editor =
+    with_value_names(custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem), kPerformEditingModeNames);
 
 inline constexpr const Node* kPerformanceRootChildren[] = {&perform_editor, &global_filters, &global_fx};
 inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_FX), kPerformanceRootChildren);
@@ -561,7 +568,8 @@ inline constexpr Node swing_interval =
                               kSwingIntervalRange),
               swing_interval_turn);
 
-inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
+inline constexpr Node active_scales =
+    with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem), preset_scale_names);
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
 /// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
 /// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are

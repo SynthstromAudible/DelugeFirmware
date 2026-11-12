@@ -68,6 +68,7 @@
 
 #include "scenes/menu/action.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/detail.h"
 
 #include <array>
 #include <cstdint>
@@ -110,6 +111,14 @@ public:
 
 private:
 	MenuAction action_;
+};
+
+/// `EditingMode::getOptions`, in its own order -- the order IS the `PerformanceEditingMode` numbering, which is what
+/// makes the page's cursor the value.
+inline constexpr uint16_t kPerformEditingModeNames[] = {
+    sid(deluge::l10n::String::STRING_FOR_DISABLED),
+    sid(deluge::l10n::String::STRING_FOR_PERFORM_EDIT_VALUE),
+    sid(deluge::l10n::String::STRING_FOR_PERFORM_EDIT_PARAM),
 };
 
 /// @brief `performance_session_view::EditingMode` -- pick an editing mode, and enter the performance

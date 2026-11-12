@@ -25,6 +25,7 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/nodes/context_menu_items.h"
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
@@ -132,13 +133,9 @@ enum class AudioSourceOption : uint8_t {
 	Count,
 };
 
-/// `AudioInputSelector::getOptions()` (`:77-85`), in its own order. Nine fixed strings: there is
-/// no `isCurrentOptionAvailable()` override on this class, so nothing here is dynamic.
-constexpr uint16_t kAudioSourceOptions[] = {
-    sid(String::STRING_FOR_DISABLED),     sid(String::STRING_FOR_LEFT_INPUT),     sid(String::STRING_FOR_RIGHT_INPUT),
-    sid(String::STRING_FOR_STEREO_INPUT), sid(String::STRING_FOR_BALANCED_INPUT), sid(String::STRING_FOR_USB_INPUT),
-    sid(String::STRING_FOR_MIX_PRE_FX),   sid(String::STRING_FOR_MIX_POST_FX),    sid(String::STRING_FOR_TRACK),
-};
+/// `AudioInputSelector::getOptions()`, in its own order (`nodes::kAudioSourceOptions`, which the menu's node shares).
+/// Nine fixed strings: there is no `isCurrentOptionAvailable()` override on this class, so nothing here is dynamic.
+using deluge::scenes::menu::nodes::kAudioSourceOptions;
 static_assert(static_cast<size_t>(AudioSourceOption::Track) == project::kInputChannelSpecificTrack
                   && project::kInputChannelWords[static_cast<size_t>(AudioSourceOption::Usb)] == "usb",
               "each option is the channel word at its own index");

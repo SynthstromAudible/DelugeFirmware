@@ -924,7 +924,8 @@ inline constexpr Node default_swing_interval = with_sync_name_magnitude(
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
-inline constexpr Node default_active_scale = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem);
+inline constexpr Node default_active_scale =
+    with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem), preset_scale_names);
 inline constexpr const Node* kDefaultScalesChildren[] = {&default_scale, &default_active_scale};
 inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kDefaultScalesChildren);
 

@@ -72,7 +72,8 @@
 ///     `MenuContext` the dump makes is an empty one, for the names hooks `option_names` asks.
 ///   * a node that offers values -> `"options"`, its value names in list order (`option_names`):
 ///     a target row's name table, static `bind.names`, a `bind.dynamic_names` hook asked with an
-///     empty context, or a toggle's Off and On, as its own page lists them. A node with none gets no key.
+///     empty context, or a toggle's Off and On, as its own page lists them. A custom page or a number
+///     spelled as words names its values through the same two fields. A node with none gets no key.
 ///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
 ///     same shape as `"children"`: the pages a select press on that node opens instead of going up
 ///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
@@ -258,7 +259,8 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 /// A target's come from its row's name table, all of them (in a context the menu may leave some out); static `names`
 /// are the list itself; a `dynamic_names` hook is asked with an empty context, so it gives the values it offers every
 /// owner (not a note row's NONE direction, not the clock output's CLOCK mode). A toggle's two values are Off and On,
-/// the words its own page lists (`MenuView::render_leaf_toggle`).
+/// the words its own page lists (`MenuView::render_leaf_toggle`). A custom page or a number spelled as words names
+/// its values the same two ways (`with_value_names`); one that names none offers nothing here.
 std::vector<std::string> option_names(const menu::Node& node) {
 	using deluge::l10n::String;
 	switch (node.kind) {
@@ -266,7 +268,6 @@ std::vector<std::string> option_names(const menu::Node& node) {
 		return {text_of(static_cast<uint16_t>(String::STRING_FOR_OFF)),
 		        text_of(static_cast<uint16_t>(String::STRING_FOR_ON))};
 	case menu::Kind::Submenu:
-	case menu::Kind::Custom:
 		return {};
 	default:
 		break;

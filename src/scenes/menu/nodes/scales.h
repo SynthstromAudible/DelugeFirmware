@@ -59,6 +59,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
+#include <string_view>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -105,5 +107,8 @@ private:
 inline const ActiveScalesItem kSongActiveScalesItem{ScaleSet::Song};
 inline const ActiveScalesItem kDefaultActiveScalesItem{ScaleSet::Default};
 /// @}
+
+/// @brief The preset scales' names, the rows both pages draw, in their order (`with_value_names`).
+size_t preset_scale_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 } // namespace deluge::scenes::menu::nodes

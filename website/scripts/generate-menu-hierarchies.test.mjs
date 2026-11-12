@@ -264,3 +264,41 @@ test("every root of the committed dump is placed, the nameless start marker edit
   assert.equal(placeRoots(committedDump).length, MENU_TREES.length)
   assert.ok(committedDump.some((root) => root.name === ""))
 })
+
+test("the committed dump names the values a custom page or a worded number lists", () => {
+  // an Int whose page spells each value as a word
+  assert.deepEqual(at(["Note Editor", "Fill"]).options, [
+    "OFF",
+    "NOT FILL",
+    "FILL",
+  ])
+  assert.deepEqual(at(["Row Editor", "Fill"]).options, [
+    "OFF",
+    "NOT FILL",
+    "FILL",
+  ])
+  // custom pages
+  assert.deepEqual(
+    at(["MIDI instr", "Device Definition", "File Linked"]).options,
+    ["Disabled", "Enabled"],
+  )
+  assert.deepEqual(at(["Perform FX", "Editing Mode"]).options, [
+    "Disabled",
+    "Value",
+    "Param",
+  ])
+  const source = at(["Audio clip", "Audio source"]).options
+  assert.equal(source.length, 9)
+  assert.deepEqual(
+    [source[0], source[5], source[8]],
+    ["Disabled", "USB input", "Specific Track"],
+  )
+  for (const scales of [
+    at(["Song", "Active Scales"]),
+    at(["Settings", "Defaults", "Scale", "Active Scales"]),
+  ]) {
+    assert.equal(scales.options.length, 16)
+    assert.deepEqual(scales.options.slice(0, 2), ["MAJOR", "MINOR"])
+    assert.equal(scales.options[15], "HIRAJOSHI")
+  }
+})

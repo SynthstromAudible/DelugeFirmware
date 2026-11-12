@@ -129,15 +129,14 @@ void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) 
 }
 
 std::array<std::string_view, 3> PerformEditorItem::option_names() {
-	// `EditingMode::getOptions`, in its own order -- the order IS the `PerformanceEditingMode` numbering, which is
-	// what makes the cursor the value.
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::DISABLED) == 0);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::VALUE) == 1);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::PARAM) == 2);
+	static_assert(std::size(kPerformEditingModeNames) == 3);
 	return {
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_DISABLED)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_PERFORM_EDIT_VALUE)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_PERFORM_EDIT_PARAM)),
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[0]),
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[1]),
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[2]),
 	};
 }
 

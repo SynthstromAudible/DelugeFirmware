@@ -328,7 +328,9 @@ inline constexpr size_t kMaxNodes = 1024;
 ///
 /// Normally exactly one of `param` or `get`+`set` is set; `names`/`dynamic_names` only matter for
 /// `Kind::Enum`. `names` holds l10n string ids (`uint16_t`), not `l10n::String`, so this header
-/// stays free of `gui/l10n`.
+/// stays free of `gui/l10n`. On a `Kind::Custom` or `Kind::Int` node, which the menu never asks for
+/// names, they are the words its page draws for its values (`with_value_names`), for the menu dump
+/// that the website's menu reference is built from.
 ///
 /// @note **Precedence when both are set: `get`/`set` wins, and `param` is then a *learn* target
 ///       only.** Legacy has four items that are simultaneously a `Decimal` with their own
@@ -1316,6 +1318,20 @@ constexpr Node with_decimal_places(Node n, uint8_t places) {
 ///        set this.
 constexpr Node with_value_text(Node n, ValueTextFn fn) {
 	n.bind.value_text = fn;
+	return n;
+}
+
+/// @brief `n` with the words its page draws for its values: a custom page's list or a number spelled as words.
+///
+/// The menu reads neither on a `Kind::Custom` or `Kind::Int` node; the menu dump lists them as the node's values.
+constexpr Node with_value_names(Node n, std::span<const uint16_t> names) {
+	n.bind.names = names;
+	return n;
+}
+
+/// @brief `n` with a hook that gives the words its page draws for its values, where they are not l10n strings.
+constexpr Node with_value_names(Node n, DynamicNamesFn names) {
+	n.bind.dynamic_names = names;
 	return n;
 }
 
