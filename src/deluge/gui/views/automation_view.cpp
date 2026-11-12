@@ -1803,7 +1803,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 
 	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
 	// pressing PatchSource::Velocity shortcut
-	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
+	if (velocity && !onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
 	    && isNoteVelocityEditorShortcut(x, y)) {
 		// don't enter if we're in a kit with affect entire enabled
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
