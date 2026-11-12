@@ -20,19 +20,12 @@
 
 #include "util/sample_preview_open.h"
 
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/shell_guest_services.h" // shellSamplePreviewSounds
-#include "gui/ui/slicer.h"
-#include "gui/ui/ui.h"
 
 namespace deluge::gui::ui {
 
 bool samplePreviewUIOpen() {
-	return getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
-	       || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer
-	       || shellSamplePreviewSounds();
+	return shellSamplePreviewSounds();
 }
 
 } // namespace deluge::gui::ui

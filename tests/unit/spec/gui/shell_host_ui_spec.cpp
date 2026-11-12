@@ -40,8 +40,8 @@ constexpr SceneKind kOver = static_cast<SceneKind>(static_cast<uint8_t>(SceneKin
 ///
 /// A real `UI` rather than a cast pointer: `rearmTimer`'s guard only ever compares the address, but
 /// an example that lies about a type to make a comparison come out right is one nobody can later
-/// change safely. `UI` has exactly two pure virtuals (`gui/ui/ui.h:186`, `:193`), and neither is
-/// reached here -- nothing renders this and nothing asks its type.
+/// change safely. `UI` has exactly two pure virtuals (`UI::renderOLED` and `UI::getUIType`, `gui/ui/ui.h`), and neither
+/// is reached here -- nothing renders this and nothing asks its type.
 class OtherUI final : public UI {
 public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}

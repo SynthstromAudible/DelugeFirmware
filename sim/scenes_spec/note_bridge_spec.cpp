@@ -132,7 +132,7 @@ struct RealNoteSelectionGuard {
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->persistentView.xZoom[NAVIGATION_CLIP]`
-		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3692`); square 0 is where the
+		// (`InstrumentClipView::handleNoteEditorEditPadAction` in `instrument_clip_view.cpp`); square 0 is where the
 		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
 		                                 currentSong->persistentView.xZoom[NAVIGATION_CLIP]);

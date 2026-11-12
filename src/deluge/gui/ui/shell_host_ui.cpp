@@ -627,10 +627,10 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `closeGuest()` as an implementation for it (`gui/ui/shell_action_dispatch.cpp`). The path none
 	// of the three covers: **three of the `MenuAction` arms end in `openUI(...)`** --
 	// `openPerformanceView` and the two context menus (`OpenSongMidiLearn`, `OpenSongMacros`) --
-	// while `SetShortcutsVersion` and `ScreensaverSettingsChanged` open nothing. And legacy's own `NO_NAVIGATION`
-	// semantics mean the ported menu correctly stays on the shell stack when they do. So `timerCallback`'s
-	// no-input-scene close does not fire, control reaches the `rearmTimer` below, and the UI that has just been opened
-	// over the guest gets the timer.
+	// while the settings writes (`ScreensaverSettingsChanged` and its siblings) open nothing. And legacy's own
+	// `NO_NAVIGATION` semantics mean the ported menu correctly stays on the shell stack when they do. So
+	// `timerCallback`'s no-input-scene close does not fire, control reaches the `rearmTimer` below, and the UI that has
+	// just been opened over the guest gets the timer.
 	//
 	// **The guard is on `getCurrentUI()`, not on that list**, so it does not go stale when the list
 	// does -- which matters, because the `take_choice` dispatcher shares the same drain.

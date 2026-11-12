@@ -22,8 +22,6 @@
 ///       `nullifyUIs()` is the teardown for the UI hierarchy: it is legacy's own "no UI is open"
 ///       and, unlike `closeUI`, it is well defined when the guest is the only thing on the stack.
 
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/menu_view_of.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -55,7 +53,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/column_controls/dx.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
@@ -566,9 +563,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 			instrumentClipView.enterDrumCreator(row.stack, take);
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			expect(isUIOpen(&shellHostUI)).to_be_false();
-			expect(isUIOpen(&audioRecorder)).to_be_false();
-			expect(isUIOpen(&sampleBrowser)).to_be_false();
-			expect(isUIOpen(&soundEditor)).to_be_false();
 			expect(spy.last_error == Error::UNSPECIFIED).to_be_true();
 			nullifyUIs();
 		}
@@ -1114,7 +1108,6 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 
 		held.select();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::note_editor_root).to_be_true();
 		// `setup(clip)` with no item wipes before it picks `noteEditorRootMenu`, unlike `enterNoteEditor`'s named root.
@@ -1815,7 +1808,7 @@ struct HeldAudition {
 
 describe menu_entry_shortcut_whole("site 9: the port answers the press whole, and legacy never opens", $ {
 	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and the DX7 test reads the pad's own source", _ {
-		// A DX7 source an earlier menu left in legacy's mirror: legacy's fallback tests it and opens its `dxParam`.
+		// A DX7 source beside the pad's own: the fallback tests the pad's source, not this one.
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
@@ -1824,17 +1817,13 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::SAW);
 		sound->sources[1].setOscType(OscType::DX7);
-		Source* const saved_source = soundEditor.currentSource;
-		soundEditor.currentSource = &sound->sources[1];
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
 			expect(entry::menuShortcutPadAction(4, 0, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		soundEditor.currentSource = saved_source;
 		sound->sources[1].setOscType(OscType::SAW);
 		nullifyUIs();
 	});
@@ -1851,7 +1840,6 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 	});
@@ -1868,7 +1856,6 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(std::string{});
 	});
@@ -1883,7 +1870,6 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			(void)entry::menuShortcutPadAction(8, 7, true);
 		}
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Performance).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
@@ -1901,7 +1887,6 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			(void)shellHostUI.padAction(8, 7, 64);
 		}
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		closeGuest();
 	});
@@ -1921,7 +1906,6 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		    .to_be_true();
 
 		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteRowEditor)
 		    .to_be_true();
@@ -2045,34 +2029,13 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 });
 
-describe menu_entry_legacy_closed("the legacy editor cannot open", $ {
-	it("refuses SoundEditor's open and leaves the hierarchy as it was", _ {
-		RootUIGuard root_guard;
-		deluge::scenes::spec::UiModeGuard mode;
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		setRootUILowLevel(&instrumentClipView);
-		{
-			expect(soundEditor.setup(f.clip)).to_be_true();
-			const bool opened = openUI(&soundEditor);
-			if (opened) {
-				soundEditor.exitCompletely();
-			}
-			expect(opened).to_be_false();
-			expect(isUIOpen(&soundEditor)).to_be_false();
-			expect(getCurrentUI() == &instrumentClipView).to_be_true();
-		}
-		nullifyUIs();
-	});
-});
 describe menu_entry_published_target("the ported menu's owner and params, which the automation view and the kit's stacks read", $ {
-	it("names a kit row's drum and its note row's params, not what the legacy editor last held", _ {
+	it("names a kit row's drum and its note row's params", _ {
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
-		soundEditor.currentModControllable = nullptr;
-		soundEditor.currentParamManager = nullptr;
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		expect(entry::soundMenuModControllable() == static_cast<ModControllableAudio*>(drum)).to_be_true();
@@ -2086,8 +2049,6 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
-		soundEditor.currentModControllable = nullptr;
-		soundEditor.currentParamManager = nullptr;
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -2134,7 +2095,6 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
-		soundEditor.currentParamManager = nullptr;
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		// The knobs' own params are the other arm of the test; with them released only the menu's can match.
@@ -2275,5 +2235,4 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 DELUGE_SPEC(menu_entry_spec, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut, menu_entry_refusal,
             menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate, menu_entry_midi_learn,
             menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen, menu_entry_shortcut_whole,
-            menu_entry_legacy_closed, menu_entry_published_target, menu_entry_kit_affect_entire,
-            menu_entry_audition_end)
+            menu_entry_published_target, menu_entry_kit_affect_entire, menu_entry_audition_end)

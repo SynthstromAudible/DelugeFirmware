@@ -163,12 +163,4 @@ void orphanInputTake() {
 	inputTakeOrphaned = true;
 }
 
-bool beginInputRecording(AudioInputChannel channel, int32_t numChannels) {
-	return setupRecordingToFile(channel, numChannels, AudioRecordingFolder::RECORD);
-}
-
-void finishInputRecording() {
-	finishRecording();
-}
-
 } // namespace deluge::recording

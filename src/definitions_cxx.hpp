@@ -196,10 +196,8 @@ constexpr size_t kFilenameBufferSize = 256;
 enum class UIType : uint8_t {
 	ARRANGER,
 	AUDIO_CLIP,
-	AUDIO_RECORDER,
 	AUTOMATION,
 	CONTEXT_MENU,
-	DX_BROWSER,
 	INSTRUMENT_CLIP,
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
@@ -208,16 +206,12 @@ enum class UIType : uint8_t {
 	LOAD_SONG,
 	PERFORMANCE,
 	RENAME,
-	SAMPLE_BROWSER,
-	SAMPLE_MARKER_EDITOR,
 	SAVE_INSTRUMENT_PRESET,
 	SAVE_KIT_ROW,
 	SAVE_MIDI_DEVICE_DEFINITION,
 	SAVE_PATTERN,
 	SAVE_SONG,
 	SESSION,
-	SLICER,
-	SOUND_EDITOR,
 	// Out of alphabetical order on purpose: appending moves no other name's value, and
 	// `UI_TYPE_COUNT` sizes `uiTypeMap` (gui/ui/ui.cpp).
 	SHELL_HOST,

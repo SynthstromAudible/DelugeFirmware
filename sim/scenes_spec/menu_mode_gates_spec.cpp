@@ -9,11 +9,9 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/menus.h"
 #include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
@@ -274,16 +272,14 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(sound->sources[0].transpose).to_equal(before + 1);
 	});
 
-	it("a shortcuts VERSION turn fed just before a long-BACK close is applied whole, both halves", _ {
+	it("a shortcuts VERSION turn fed just before a long-BACK close is applied whole", _ {
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		const uint8_t saved_byte = FlashStorage::shortcutsVersion;
-		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
-		// Seeded on the current layout so the turn lands on V1, whose (0, 6) cell differs from V3's.
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_false();
+		// Seeded on the current layout so the turn lands on V1.
+		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion3;
 		expect(open_settings_node(fx, nodes::shortcuts_version)).to_be_true();
 		const uint8_t before = FlashStorage::shortcutsVersion;
 		expect(static_cast<int>(before)).to_equal(FlashStorage::kShortcutsVersion3);
@@ -293,11 +289,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		// The turn writes flash byte 60, which the ported tables select on and the close then saves.
 		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
 		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
-		// The legacy half: the close's dispatch brought legacy's in-place table into step.
-		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
-		soundEditor.setShortcutsVersion(saved_byte);
-		paramShortcutsForSounds[0][6] = saved_cells[0];
-		paramShortcutsForSounds[1][6] = saved_cells[1];
+		FlashStorage::shortcutsVersion = saved_byte;
 	});
 
 	it("a BACK fed just before a long-BACK close closes the menu once", _ {

@@ -1030,7 +1030,8 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		expect(static_cast<int>(rename_scene().target_id())).to_equal(static_cast<int>(TargetId::Drum));
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 
-		// `soundEditor.shouldGoUpOneLevelOnBegin = true` (`edit_name.cpp:50`): closing the editor
+		// `soundEditor.shouldGoUpOneLevelOnBegin = true` (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`
+		// `EditName::beginSession`): closing the editor
 		// lands one level ABOVE the item, not back on it -- otherwise `on_focus` would reopen it on
 		// the very next tick.
 		r.button(kBackX, kBackY, true, 100);

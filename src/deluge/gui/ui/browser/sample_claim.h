@@ -51,14 +51,10 @@ struct ClaimRequest {
 	int32_t mayDoSingleCycle = 1;
 	int32_t mayDoWaveTable = 1;
 	/// @}
-	bool loadWithoutExiting = false; ///< Keep the browser open once the file is claimed (auto-load).
 	ClaimOrigin origin = ClaimOrigin::Explicit;
 	void (*completion)(bool success) = nullptr; ///< Told how the claim ended. A cancelled claim tells it nothing.
 	/// The sound the claim loads into: the menu's resolved sound, source and range.
 	SoundTarget target{};
-	/// The legacy browser's own tail, run as the claim finishes: its range-menu step, its exit and the legacy editor's
-	/// re-root. Null for every other asker.
-	void (*legacyFinish)(const ClaimRequest& request) = nullptr;
 };
 
 /// @brief The sample browser's claim: loading the file the browser is on into the current synth, kit drum or audio

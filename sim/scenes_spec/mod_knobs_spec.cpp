@@ -2002,7 +2002,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
-		// `view.cpp:1688-1689` and `:1403-1406`. Legacy's condition is
+		// `View::setModLedStates` and `View::modButtonAction` in `view.cpp`. Legacy's condition is
 		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
 		// process can produce -- there is no root UI here at all -- so this arm is driven through
 		// the injected `ViewState` the port carries in its place, and it is the ONE row of the

@@ -66,7 +66,8 @@ namespace deluge::scenes::menu::nodes {
 
 // `patchCablesMenu` (`gui/ui/menus.cpp:1737`): the MOD MATRIX list of every existing cable on this
 // sound. A select press opens the selected cable's own strength page -- the range one when that
-// cable's destination is itself a cable (`patch_cables.cpp:168-190`).
+// cable's destination is itself a cable (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
+// `PatchCables::selectButtonPress`).
 inline constexpr Node patch_cables =
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_MOD_MATRIX), &kPatchCablesItem), &patch_cables_chain,
                       kPatchCablesChain);

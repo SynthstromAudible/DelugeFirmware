@@ -588,8 +588,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: declines PLAY and RECORD while MIDI learn is active, and claims them otherwise", _ {
-		// `view.cpp:201` and the RECORD arm after it -- both arms are `&& currentUIMode == UI_MODE_MIDI_LEARN`,
-		// so under learn `View` claims the button and `hid/buttons.cpp:139-141` skips the
+		// `View::buttonAction`'s PLAY arm (`view.cpp`) and the RECORD arm after it -- both arms are `&& currentUIMode
+		// == UI_MODE_MIDI_LEARN`, so under learn `View` claims the button and `hid/buttons.cpp:139-141` skips the
 		// transport tail entirely. `MidiLearn` owns those arms; this service
 		// declines rather than swallowing them, so a future routed `MidiLearn` still gets them.
 		static spec::SongFixture fixture = spec::make_synth_song();

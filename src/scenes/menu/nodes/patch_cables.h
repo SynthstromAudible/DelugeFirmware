@@ -27,7 +27,7 @@
 ///   patch_cable_strength_regular --(patch_cable_strength.cpp:302-309)--> source_selection_range
 ///   source_selection_range --(source_selection/range.cpp)--> patch_cable_strength_range
 ///   patch_cable_strength_range --(patch_cable_strength.cpp:302-309)--> source_selection_range   <-- a 2-cycle
-///   patch_cables --(patch_cables.cpp:164-190)--> patch_cable_strength_{regular,range}
+///   patch_cables --(origin/main:src/deluge/gui/menu_item/patch_cables.cpp)--> patch_cable_strength_{regular,range}
 ///   vibrato, sidechain_volume --(patch_cable_strength.cpp:302-309)--> source_selection_range
 /// ```
 ///
@@ -95,7 +95,8 @@ namespace deluge::scenes::menu::nodes {
 ///
 /// One row per existing patch cable, "src [src2] value dest", and a select press that opens that
 /// cable's strength page. With no cables at all a select press goes up a level, exactly as
-/// `selectButtonPress`'s own "there were no items" arm does (`patch_cables.cpp:168-172`).
+/// `selectButtonPress`'s own "there were no items" arm does
+/// (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp` `PatchCables::selectButtonPress`).
 class PatchCablesItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -332,8 +333,8 @@ const Node* source_selection_range_chain(const MenuContext& ctx, const MenuState
 ///        (`patch_cable_strength.cpp:302-309`) -- always the range source picker. Shared by all
 ///        three strength pages, `Fixed` included.
 const Node* patch_cable_strength_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief `PatchCables::selectButtonPress` (`patch_cables.cpp:164-190`): the selected cable's own
-///        strength page -- the range one when the cable's destination is itself a cable.
+/// @brief `PatchCables::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`): the
+///        selected cable's own strength page -- the range one when the cable's destination is itself a cable.
 const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state);
 
 /// @name Chain-target spans (`Node::chain_targets`).

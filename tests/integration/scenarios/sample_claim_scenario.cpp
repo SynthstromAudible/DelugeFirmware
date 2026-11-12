@@ -1599,7 +1599,6 @@ void actLeg() {
 		g_cancelLoadingTicks = 0;
 		// The ported browser's auto-load request (`dispatchShellChoices`): the sound its menu resolved, no completion.
 		deluge::gui::sampleClaim.request({.path = legFile(),
-		                                  .loadWithoutExiting = true,
 		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,
 		                                  .target = deluge::gui::ui::shellMenuTarget()});
 		return;

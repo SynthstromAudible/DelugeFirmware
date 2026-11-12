@@ -46,7 +46,6 @@ using deluge::scenes::menu::Node;
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	song->setCurrentClip(menu_engine(ctx).clip);
-	context_installed(ctx);
 	currentUIMode = ctx.affect_entire_held ? UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR : 0;
 }
 

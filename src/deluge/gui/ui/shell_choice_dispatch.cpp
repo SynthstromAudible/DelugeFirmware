@@ -215,7 +215,6 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	    .mayDoPitchDetection = args.mayDoPitchDetection,
 	    .mayDoSingleCycle = args.mayDoSingleCycle,
 	    .mayDoWaveTable = args.mayDoWaveTable,
-	    .loadWithoutExiting = args.loadWithoutExiting,
 	    .origin = origin,
 	    .completion = completion,
 	    .target = shellMenuTarget(),
@@ -239,7 +238,6 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	claimCancel();
 	deluge::gui::FolderImportRequest request{.kind = kind,
 	                                         .completion = &shellLongPressImportDone,
-	                                         .exitBrowser = false,
 	                                         .target = shellMenuTarget(),
 	                                         .rangeChosen = &shellImportRangeChosen};
 	if (choice.is_folder) {
@@ -543,8 +541,7 @@ void dispatchChoice(const BrowserChoice& choice) {
 				claimSampleFile(choice.path, *target,
 				                {.mayDoPitchDetection = choice.claim.pitch,
 				                 .mayDoSingleCycle = choice.claim.single_cycle,
-				                 .mayDoWaveTable = choice.claim.wavetable,
-				                 .loadWithoutExiting = true},
+				                 .mayDoWaveTable = choice.claim.wavetable},
 				                &shellLongPressClaimDone);
 			}
 			break;

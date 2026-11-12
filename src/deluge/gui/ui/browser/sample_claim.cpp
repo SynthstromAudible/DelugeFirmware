@@ -20,7 +20,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
@@ -553,9 +552,6 @@ bool SampleClaim::stepFinish() {
 	if (!claimingAudioClip()) {
 		resetSilentOscVolume(current_.target);
 		getCurrentInstrument()->beenEdited();
-	}
-	if (current_.legacyFinish != nullptr) {
-		current_.legacyFinish(current_);
 	}
 	display->removeWorkingAnimation();
 	animationShown_ = false;

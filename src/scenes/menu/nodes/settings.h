@@ -354,17 +354,15 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 ///
 /// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
 /// (`SoundEditor::setShortcutsVersion`). The port selects a whole layer of its own tables on flash byte 60
-/// (`FlashStorage::shortcutsVersion`) rather than editing one -- see `menu::set_shortcuts_version`.
-///
-/// **The write does two things**: it writes the byte, which persists it, and files a
-/// `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) so that the legacy editor's tables follow.
+/// (`FlashStorage::shortcutsVersion`) rather than editing one -- see `menu::set_shortcuts_version`. The write is the
+/// byte, which persists it.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// @brief `menu_item::Colour`'s read and write (`colour.h:43-47`), with the slot as a template
-///        argument rather than an object identity.
+/// @brief `menu_item::Colour`'s read and write (`origin/main:src/deluge/gui/menu_item/colour.h`
+///        `Colour::readCurrentValue`), with the slot as a template argument rather than an object identity.
 ///
 /// The six colour items differ in exactly one thing -- which of `FlashStorage::padColours` they
 /// edit -- so they are six distinct addresses of the two templates below, the shape

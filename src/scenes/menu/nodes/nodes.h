@@ -104,9 +104,9 @@ inline constexpr std::span<const Node* const> kBatch1Roots{kBatch1RootArray};
 /// oscillators' file selector, sample-transpose, audio recorder and start/end loop points -- which
 /// is **ten** nodes.
 ///
-/// **No other node is range dependent.** The fifth legacy class, `multi_range.h:32`, is the range
-/// picker itself, which is a custom item; nothing else in the sound-editor root overrides
-/// `isRangeDependent()`.
+/// **No other node is range dependent.** The fifth legacy class, `origin/main:src/deluge/gui/menu_item/multi_range.h`
+/// `MultiRange::isRangeDependent`, is the range picker itself, which is a custom item; nothing else in the sound-editor
+/// root overrides `isRangeDependent()`.
 inline constexpr const Node* kRangeDependentArray[] = {
     &sample0_recorder,  &sample1_recorder, &file0_selector, &file1_selector, &source0_transpose,
     &source1_transpose, &sample0_start,    &sample0_end,    &sample1_start,  &sample1_end,

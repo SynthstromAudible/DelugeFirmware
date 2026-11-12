@@ -136,7 +136,13 @@ menu, measured on `RelWithDebInfo`:
   legacy menu items' vtables (74 KB) and the scenes'. In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes'
   statics (13 KB). The UI tier alone reads any of them.
 - What stays in SRAM is code: the scenes' 98 KB and the shell and guest's 18 KB, beside the legacy menu items' 104 KB
-  and `SoundEditor`'s 10 KB. Retiring the legacy menu (step 3d) returns the last two.
+  and `SoundEditor`'s 10 KB.
+- Deleting the legacy menu, measured on `RelWithDebInfo` from `c5b0f7e0d`: the SRAM heap 556,784 B -> 584,592 B
+  (+27,808 B). By then the GUI's code ran from SDRAM, so most of what left was SDRAM content: `.sdram_init`
+  783,096 B -> 581,928 B (its pack 325,348 B -> 230,086 B, in a 273,034 B reserve), the SDRAM text 420,138 B ->
+  289,610 B, and the vtable region 68,172 B -> 1,412 B, the scenes' alone. In SRAM: `.text` -3,332 B, `.rodata`
+  -6,872 B, `.ARM.extab` + `.ARM.exidx` -15,684 B, `.bss` -1,248 B, `.data` -704 B. The pack's reserve is where the
+  heap starts once the content is inflated, so the smaller reserve returns nothing to the heap.
 - Without the compression the image did not link: the load copy of the moved tables alone overflowed SRAM by
   60,476 B.
 

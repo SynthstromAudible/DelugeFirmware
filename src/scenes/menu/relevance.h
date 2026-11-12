@@ -113,7 +113,8 @@ bool not_non_audio_drum_row(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h`), `sidechain::Attack` / `Release` / `Sync` in their
-///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`, `sync.h:56-58`).
+///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`,
+///        `origin/main:src/deluge/gui/menu_item/sidechain/sync.h` `Sync::isRelevant`).
 bool reverb_sidechain_on(const MenuContext& ctx);
 
 /// @brief May stutter quantization be edited? `stutter::QuantizedStutter::isRelevant`

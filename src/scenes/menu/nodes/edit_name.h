@@ -10,14 +10,15 @@
 /// stack itself, so instead of opening a UI it records the push in `MenuWalkState::pending_scene` and
 /// `MenuScene::after_render` turns it into an `Action`.
 ///
-/// Legacy's `soundEditor.shouldGoUpOneLevelOnBegin = true` (`edit_name.cpp:50`), which makes the
-/// menu step back out of the item when the rename UI closes (`SoundEditor::focusRegained`,
-/// `gui/ui/sound_editor.cpp:318-321`), is `MenuWalkState::go_up_on_resume` -- set by the same
-/// `after_render` arm, read by `MenuScene::on_resume`.
+/// Legacy's `soundEditor.shouldGoUpOneLevelOnBegin = true` (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`
+/// `EditName::beginSession`), which makes the menu step back out of the item when the rename UI closes
+/// (`SoundEditor::focusRegained`, `gui/ui/sound_editor.cpp:318-321`), is `MenuWalkState::go_up_on_resume` -- set by the
+/// same `after_render` arm, read by `MenuScene::on_resume`.
 ///
 /// @note Legacy also calls `instrumentClipView.cancelAllAuditioning()` on the way
-///       (`edit_name.cpp:51-53`) when the clip is an instrument clip. That is a `gui/` view's own
-///       state, which this layer may not reach; it belongs to whichever scene owns the clip view.
+///       (`origin/main:src/deluge/gui/menu_item/edit_name.cpp` `EditName::beginSession`) when the clip is an instrument
+///       clip. That is a `gui/` view's own state, which this layer may not reach; it belongs to whichever scene owns
+///       the clip view.
 
 #include "scenes/menu/node.h"
 

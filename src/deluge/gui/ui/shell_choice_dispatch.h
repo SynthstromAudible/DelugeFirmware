@@ -105,28 +105,19 @@ struct SampleClaimArgs {
 	int32_t mayDoSingleCycle;
 	/// As above.
 	int32_t mayDoWaveTable;
-	/// Keep the browser open once the file is claimed: the ported browser waits on the claim's
-	/// completion and closes itself. The legacy browser's exit (`SampleBrowser::finishLegacyClaim`)
-	/// runs only for a claim that browser asked for, so it never `closeUI`s a browser that is not there.
-	bool loadWithoutExiting;
 };
 
-/// @brief What `dispatchShellChoices` claims with: the browser's three defaults, and
-///        `loadWithoutExiting = true`.
+/// @brief What `dispatchShellChoices` claims with: the browser's three defaults.
 ///
-/// The same four values the Load button's auto-load claims with: load the file into the sound as if
-/// confirmed, without exiting a browser.
+/// The same values the Load button's auto-load claims with: load the file into the sound as if
+/// confirmed. The ported browser waits on the claim's completion and closes itself.
 inline constexpr SampleClaimArgs kShellSampleClaimArgs{
-    .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1, .loadWithoutExiting = true};
+    .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1};
 
 /// @brief The completion `dispatchShellChoices` gives the claim it requests for a `Sample` choice.
 ///
-/// The claim carries no `legacyFinish`, so the legacy browser's exit, the legacy menu re-rooting
-/// and its `uiNeedsRendering(&audioClipView)` (`SampleBrowser::finishLegacyClaim`) do not run. On success this pays
-/// back the two the guest still wants: the render request, and the re-rooting in the ported world's own terms,
-/// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`. The legacy
-/// `menuItemHeadingTo`/`parentMenuHeadingTo` pair is left alone: nothing on the ported path writes
-/// it, and a stale pair from a legacy session would re-root the legacy editor.
+/// On success it asks for the render and re-roots the menu over the claimed source,
+/// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`.
 ///
 /// It answers the waiting browser first (`BrowserScene::deferred_load_done`): a success closes it, a failure leaves it
 /// up for another file, as `claimCurrentFile`'s error arm leaves `main`'s up.

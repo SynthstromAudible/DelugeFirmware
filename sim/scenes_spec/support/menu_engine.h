@@ -104,38 +104,4 @@ inline bool learns_as(const std::optional<deluge::project::OwnerParamTarget>& po
 	       && port->param == deluge::bridge::controlTargetOf(legacy, unpatched);
 }
 
-/// @brief Can the sound @p ctx edits hold note tails: `Sound::allowNoteTails` over the stack `SoundEditor::setup`
-///        builds for it. No sound always can.
-inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx) {
-	const MenuEngine e = menu_engine(ctx);
-	if (e.sound == nullptr || e.clip == nullptr) {
-		return true;
-	}
-	NoteRow* note_row = nullptr;
-	int32_t note_row_index = 0;
-	if (ctx.is_drum && e.clip->type == ClipType::INSTRUMENT) {
-		note_row =
-		    static_cast<InstrumentClip*>(e.clip)->getNoteRowForDrum(static_cast<SoundDrum*>(e.sound), &note_row_index);
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    memory, ctx.song, e.clip, note_row_index, note_row, e.mod, e.params);
-	return e.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true);
-}
-
-/// @brief What the fixtures tell the one reader that needs legacy state: the freezer, which asks legacy items about the
-///        sound a fixture just made current. Null everywhere else, so a port-only spec never touches legacy state.
-///        Only the freezer's `OracleWriter` sets it, and every spec file runs in its own process
-///        (`SCENES_SPEC=<id>`), so no port spec sees it.
-inline void (*legacy_context_hook)(const deluge::scenes::menu::MenuContext& ctx, bool allows_note_tails) = nullptr;
-
-/// @brief A fixture made @p ctx current. @p allows_note_tails is `sound_allows_note_tails(ctx)` unless the fixture
-///        names the value.
-inline void context_installed(const deluge::scenes::menu::MenuContext& ctx,
-                              std::optional<bool> allows_note_tails = {}) {
-	if (legacy_context_hook != nullptr) {
-		legacy_context_hook(ctx, allows_note_tails.value_or(sound_allows_note_tails(ctx)));
-	}
-}
-
 } // namespace deluge::scenes::spec

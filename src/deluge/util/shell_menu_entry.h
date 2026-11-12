@@ -80,9 +80,8 @@
 ///     `syncEditingModeMirror(*this)`, and a fifth writer is covered too: legacy's own
 ///     `EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:84`).
 ///     With the writer set closed, the ported editing item and the view cannot disagree.
-///  4. **The ported settings items that write flash notify the legacy owner.** The shortcut-layout
-///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself and files
-///     `MenuAction::SetShortcutsVersion` so that the legacy editor's tables follow. The two screensaver setters make
+///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
+///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
 ///     their `FlashStorage` assignment in the ported hook, matching the first statement of each
 ///     legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), and file
 ///     `MenuAction::ScreensaverSettingsChanged` for the second, `Screensaver::settingsChanged()`;
@@ -217,8 +216,7 @@ bool shellKitGlobalFx();
 /// @brief Clear the latch, as the editor's `exitCompletely` and `enterDrumCreator` do.
 void clearShellKitGlobalFx();
 
-/// @brief The kit-global-FX latch itself. The legacy editor's `setupKitGlobalFXMenu` is a reference onto it, so the
-///        two menus read and write one latch.
+/// @brief The kit-global-FX latch itself, for a spec that sets it as a shortcut press would.
 bool& shellKitGlobalFxLatch();
 
 /// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's

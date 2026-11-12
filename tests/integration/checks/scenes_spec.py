@@ -1,13 +1,12 @@
 """The scenes' specs (sim/scenes_spec) on golden_vt_render, one file per process.
 
 The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under sim/scenes_spec,
-selftest/ and freeze/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
+selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
 on exit 0 and its own SCENES-SPEC-RESULT failures=0 line, so a crash or a file that never reaches its result line
 fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
 card checks pass and that a failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
 state (a stack song in currentSong, a guard it left open) can reach another.
-freeze/ holds the menu oracle freezer, which writes tests/golden/ui/menu_oracle/ when run by hand and is never a spec.
 """
 
 from pathlib import Path
@@ -17,9 +16,8 @@ FIXTURE_CARD = "tests/fixtures/card"
 # A spec runs synchronously inside the app's init, where golden_vt_render's own deadlines cannot fire, so a hung file
 # is ended here (exit 124) and reported by name. Every file takes well under a second.
 RUN_TIMEOUT_S = 120
-# The runner's own self-specs, run below with their expected verdicts, and the menu oracle freezer, which writes the
-# reference tables by hand and fails anywhere else (it needs MENU_ORACLE_OUT): built and listed, never run as specs.
-NOT_RUN = ("selftest/", "freeze/")
+# The runner's own self-specs, run below with their expected verdicts: built and listed, never run as specs.
+NOT_RUN = ("selftest/",)
 
 
 def _cards(root: Path) -> dict[str, str]:

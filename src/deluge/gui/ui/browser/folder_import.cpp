@@ -22,7 +22,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
@@ -884,9 +883,6 @@ skipOctaveCorrection:
 
 	chooseRange(request_, numSamples >> 1);
 
-	if (request_.exitBrowser) {
-		sampleBrowser.exitAndNeverDeleteDrum();
-	}
 	getCurrentInstrument()->beenEdited();
 
 	display->removeWorkingAnimation();
@@ -1049,9 +1045,6 @@ skipNameStuff:
 
 	getCurrentInstrument()->beenEdited();
 
-	if (request_.exitBrowser) {
-		sampleBrowser.exitAndNeverDeleteDrum();
-	}
 	uiNeedsRendering(&instrumentClipView);
 	display->removeWorkingAnimation();
 	return true;

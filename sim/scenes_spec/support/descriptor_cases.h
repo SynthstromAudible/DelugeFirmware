@@ -87,7 +87,6 @@ inline void install(const MenuContext& ctx, Song* song) {
 	if (engine.clip != nullptr) {
 		song->setCurrentClip(engine.clip);
 	}
-	spec::context_installed(ctx, true);
 	currentUIMode = 0;
 }
 

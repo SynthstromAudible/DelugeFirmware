@@ -27,7 +27,7 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "scenes/l10n_bridge.h"
-#include "scenes/menu/action.h" // MenuAction -- `set_shortcuts_version` files one
+#include "scenes/menu/action.h" // MenuAction -- the settings setters file one
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
@@ -664,7 +664,7 @@ namespace {
 /// screensaver until the next boot. The argument in full is on
 /// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
 ///
-/// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
+/// Filed through `menu_scene().request_action` because a
 /// `Binding::set` hook is handed no `MenuState` (`SetFn` in `node.h`), and the commit and the
 /// drain are the same `after_render` -- `commit_value` (`ValueSession::commit`), then the move into the
 /// outbox (`MenuScene::after_render`'s `pending_action` drain).
@@ -694,13 +694,15 @@ void set_screensaver_timeout(const MenuContext&, int32_t value) {
 // Pads
 
 int32_t get_pads_keyboard_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::keyboardLayout); // `keyboard/layout.h:27 readCurrentValue`
+	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::keyboardLayout);
 }
 void set_pads_keyboard_layout(const MenuContext&, int32_t value) {
 	FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(value); // `:12`
 }
 size_t pads_keyboard_layout_names(const MenuContext&, std::span<std::string_view> out) {
-	static constexpr std::string_view kNames[] = {"QWERTY", "AZERTY", "QWERTZ"}; // `keyboard/layout.h:13-20`
+	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::getOptions`
+	static constexpr std::string_view kNames[] = {"QWERTY", "AZERTY", "QWERTZ"};
 	size_t n = 0;
 	for (std::string_view name : kNames) {
 		if (n < out.size()) {
@@ -879,13 +881,10 @@ int32_t get_shortcuts_version(const MenuContext&) {
 	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue`. The first statement is the write that persists: flash byte 60
-	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores. The
-	// action lets the legacy editor's own tables follow.
+	// `shortcuts::Version::writeCurrentValue`: the write that persists, flash byte 60
+	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
-	menu_scene().request_action(
-	    MenuActionRequest{.action = MenuAction::SetShortcutsVersion, .arg = static_cast<uint16_t>(value)});
 }
 
 // The six `pad_colour_*` nodes are six instantiations of `settings.h`'s `get_pad_colour` /
@@ -902,7 +901,8 @@ static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ONCE) == 5);
 static_assert(static_cast<int>(FlashStorage::NUM_PAD_COLOUR_SLOTS) == 6);
 
 int32_t pad_colour_get(int32_t slot) {
-	return FlashStorage::padColours[slot]; // `menu_item::Colour::readCurrentValue`, `colour.h:43`
+	// `menu_item::Colour::readCurrentValue`, `origin/main:src/deluge/gui/menu_item/colour.h`
+	return FlashStorage::padColours[slot];
 }
 void pad_colour_set(int32_t slot, int32_t value) {
 	// `Colour::writeCurrentValue`; its `renderingNeededRegardlessOfUI()` is

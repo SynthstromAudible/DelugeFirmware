@@ -31,7 +31,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
-#include "util/sound_menu_open.h"
 #include <cstring>
 #include <iterator>
 
@@ -384,7 +383,6 @@ doChangeType:
 
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
-			deluge::gui::ui::legacyRangesRetyped(*this, cleared);
 			RangesRetypeWatch::rangesRetyped(*this, cleared);
 		}
 	}

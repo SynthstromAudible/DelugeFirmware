@@ -49,7 +49,6 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/actions.h"
 #include "scenes/menu/nodes/nodes.h"
-#include "scenes/menu/shortcuts.h" // menu::shortcuts_version -- the port half of the setting
 #include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -66,12 +65,10 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/menus.h"   // paramShortcutsForSounds and friends -- ShortcutsVersionGuard's cells
 #include "gui/ui/root_ui.h" // PerformExitStubUI's base, for the arms that close()
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion, SHORTCUTS_VERSION_1 / _3
-#include "gui/ui/ui.h"           // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
+#include "gui/ui/ui.h" // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -83,7 +80,7 @@
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
-#include "hid/display/screensaver.h" // the legacy screensaver, half of what the seventh verb moves
+#include "hid/display/screensaver.h" // the legacy screensaver, half of what `ScreensaverSettingsChanged` moves
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -116,11 +113,6 @@
 #include <vector>
 
 #include "spec/support/spec_main.h"
-
-// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
-// `ShortcutsVersionGuard` below has to restore the two cells the V1 arm writes. Declared exactly as
-// `shortcuts_spec.cpp` declares it, for the same reason.
-extern "C++" PatchSource modSourceShortcuts[2][8];
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -163,10 +155,9 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 /// @brief The real roots this spec navigates, so `assign_node_ids` numbers everything it touches.
 ///
-/// `root_settings` is here because `menu_action_shortcuts_version` opens `pads_settings` as a
-/// root, and `Rig::open` needs `menu::node_id` to have numbered it. Adding a root here is safe for
-/// every other group -- ids are looked up per node, never assumed -- and it is the whole settings
-/// subtree that gets numbered, which is what `nodes::shortcuts_version` needs.
+/// `root_settings` is here because the screensaver groups open its pages as a root, and `Rig::open`
+/// needs `menu::node_id` to have numbered them. Adding a root here is safe for every other group --
+/// ids are looked up per node, never assumed.
 constexpr const Node* kRoots[] = {&nodes::root_song, &nodes::root_audio_clip, &nodes::root_performance,
                                   &nodes::root_settings};
 
@@ -858,92 +849,6 @@ std::array<int, 2> both_at(PerformanceEditingMode mode) {
 	return {static_cast<int>(mode), static_cast<int>(mode)};
 }
 
-// --- the shortcuts-layout setting, in both directions -------------------------------
-
-/// @brief Put back everything `SoundEditor::setShortcutsVersion` moves: flash byte 60 and the legacy tables.
-///
-/// Unlike `shortcuts_spec.cpp`'s `LegacyVersion1` -- which this is otherwise a copy of, cells and
-/// all -- the constructor **selects nothing**. Each example drives the choice itself, because the
-/// choice is what is under test.
-///
-/// The twelve cells matter because `setShortcutsVersion`'s `SHORTCUTS_VERSION_1` arm assigns them in
-/// place (`SoundEditor::setShortcutsVersion`) and its `default` arm is a comment, not an undo
-/// -- so a V1 -> V3 round trip does **not** restore them and the other twenty specs in
-/// this process would see a corrupted legacy shortcut table. The byte is saved too, so one guard covers
-/// the whole setting.
-struct ShortcutsVersionGuard {
-	::MenuItem* sounds[6];
-	::MenuItem* clips[4];
-	PatchSource sources[2];
-	uint8_t byte;
-
-	ShortcutsVersionGuard(const ShortcutsVersionGuard&) = delete;
-	ShortcutsVersionGuard& operator=(const ShortcutsVersionGuard&) = delete;
-
-	ShortcutsVersionGuard() {
-		for (size_t i = 0; i < 6; i++) {
-			sounds[i] = paramShortcutsForSounds[kSoundCells[i].first][kSoundCells[i].second];
-		}
-		for (size_t i = 0; i < 4; i++) {
-			clips[i] = paramShortcutsForAudioClips[kClipCells[i].first][kClipCells[i].second];
-		}
-		sources[0] = modSourceShortcuts[0][7];
-		sources[1] = modSourceShortcuts[1][7];
-		byte = FlashStorage::shortcutsVersion;
-	}
-
-	~ShortcutsVersionGuard() {
-		for (size_t i = 0; i < 6; i++) {
-			paramShortcutsForSounds[kSoundCells[i].first][kSoundCells[i].second] = sounds[i];
-		}
-		for (size_t i = 0; i < 4; i++) {
-			paramShortcutsForAudioClips[kClipCells[i].first][kClipCells[i].second] = clips[i];
-		}
-		modSourceShortcuts[0][7] = sources[0];
-		modSourceShortcuts[1][7] = sources[1];
-		FlashStorage::shortcutsVersion = byte;
-	}
-
-private:
-	static constexpr std::pair<uint8_t, uint8_t> kSoundCells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
-	static constexpr std::pair<uint8_t, uint8_t> kClipCells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
-};
-
-/// The two values the ported item can hold, as its own enum indices -- which are legacy's numbers
-/// (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1, `gui/ui/sound_editor.h:26-27`; restated by
-/// `menu::ShortcutsVersion`, `scenes/menu/shortcuts.h`). Spelled here as the *item's* index
-/// rather than reached for through either enum, because what the examples drive is a cursor.
-constexpr int32_t kVersion1Index = 0;
-constexpr int32_t kVersion3Index = 1;
-
-/// @brief Open the ported Pads page, step into `shortcuts_version`, and turn the encoder until the
-///        item sits on @p index -- leaving whatever the write filed **in the outbox**.
-///
-/// The whole gesture is real input through the real widget: a row press to descend (legacy's own
-/// `shouldEnterSubmenu()`, which for a bare `Selection` is the base's `return true`,
-/// `MenuItem::shouldEnterSubmenu`) and then detents, one per tick, which is what the value widget's
-/// clamping walk expects. The write happens on the turn and not on a further press, because that is
-/// where legacy's happens: `SoundEditor::selectEncoderAction` is what reaches `writeCurrentValue`.
-///
-/// @return The enum cursor the item ended on, so an example can say the turn really landed rather
-///         than assuming it.
-int32_t choose_shortcuts_version(Rig& r, int32_t index) {
-	(void)r.open(nodes::pads_settings);
-	r.shell.tick(5);
-	(void)scene().take_action(); // opening the page files nothing; the group asserts that separately
-	r.enter(10);                 // row 0 is `shortcuts_version`
-	r.shell.tick(20);
-	(void)scene().take_action(); // nor does descending into the leaf
-
-	int32_t cursor = static_cast<int32_t>(scene().state().enum_index);
-	for (uint32_t step = 0; cursor != index && step < 8; step++) {
-		r.turn(index > cursor ? 1 : -1, 30 + step * 10);
-		r.shell.tick(35 + step * 10);
-		cursor = static_cast<int32_t>(scene().state().enum_index);
-	}
-	return cursor;
-}
-
 /// @brief The `ScreensaverMode` values the ported enum item can hold, as the item's own cursor
 ///        indices.
 ///
@@ -1009,7 +914,7 @@ void seed_screensaver(ScreensaverMode mode, uint8_t minutes) {
 /// @brief Open the ported Screensaver page, step into @p child, and turn the encoder until the item
 ///        reads @p target -- leaving whatever the write filed **in the outbox**.
 ///
-/// The same real gesture `choose_shortcuts_version` above drives, one level deeper: a detent walk
+/// A real gesture: a detent walk
 /// down the parent list to the wanted row, a row press to descend (neither `ScreensaverModeMenu` nor
 /// `ScreensaverTimeout` overrides `shouldEnterSubmenu()`, so legacy enters both --
 /// `MenuItem::shouldEnterSubmenu`), then one detent per tick. The write happens on the turn, where
@@ -1444,227 +1349,13 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	});
 });
 
-describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShortcutsVersion", $ {
-	// The sixth arm, and the only one whose request is filed by a **value write**
-	// rather than by a select press. `scenes/menu/action.h`'s "the sixth item" section says why:
-	// legacy's `menu_item::shortcuts::Version` is an ordinary `Selection` the user opens and turns,
-	// and what it cannot be ported is `writeCurrentValue`'s one statement,
-	// `soundEditor.setShortcutsVersion(this->getValue())` (`gui/menu_item/shortcuts/version.h:27`).
-	//
-	// **What the arm does now.** The ported item's write is flash byte 60 itself; the action brings the legacy editor's
-	// in-place tables into step, which each control leg shows has not happened without the dispatch.
-	//
-	// **Flash itself is not written here, and that is deliberate.** `FlashStorage::writeSettings`
-	// rewrites every setting this process shares with the other twenty specs in this binary -- the
-	// reason `boot_wiring_spec.cpp` gives for not driving `resetSettings` either. What these
-	// examples pin is flash byte 60 and the legacy tables.
-	//
-	// **The reverse direction has its own example**, and it is not a duplicate of
-	// `boot_wiring_spec.cpp`'s: it is this group's control for the mutation reported with the task.
-	// Deleting the dispatcher arm must redden the new direction and leave the old one green, and
-	// the two have to be in one file for that to be a comparison rather than a claim.
-	//
-	// `ShortcutsVersionGuard` is on every example: `setShortcutsVersion`'s V1 arm rewrites twelve
-	// cells of the legacy shortcut tables in place and its V3 arm is a comment, not an undo.
-
-	it("choosing V1 in the ported menu writes flash byte 60 at once; the dispatch brings legacy's tables into step", _ {
-		select_language();
-		ShortcutsVersionGuard guard;
-
-		{
-			// The control: the same gesture with no dispatch.
-			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-			Rig control;
-			expect(choose_shortcuts_version(control, kVersion1Index)).to_equal(kVersion1Index);
-
-			// The turn's own write is the persisting one; legacy's tables wait for the dispatch.
-			expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-			expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_false();
-			// ...and the write really did file, so the subject's effect is about the arm and not
-			// about a turn that never reached the hook.
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::SetShortcutsVersion).to_be_true();
-			expect(static_cast<int>(filed.arg)).to_equal(kVersion1Index);
-		}
-
-		// Seeded at the value the answer is NOT, on both sides, so neither assertion below can pass
-		// on a value that was already there.
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
-
-		Rig r;
-		expect(choose_shortcuts_version(r, kVersion1Index)).to_equal(kVersion1Index);
-		deluge::gui::ui::dispatchShellActions();
-
-		// The byte `FlashStorage::writeSettings` stores.
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-		// The layout the ported tables read is still right after the dispatch.
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
-		// And the legacy table really moved, which is the effect a user sees: `(0, 6)` of the sound
-		// shortcuts is `sample0EndMenu` under V1 (`paramShortcutsForSounds` in `gui/ui/sound_editor.cpp`).
-		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
-		expect(scene().take_action().engaged()).to_be_false();
-	});
-
-	it("and back again: choosing V3 restores it, so the arm is not a one-way write", _ {
-		// The other value byte 60 can hold. Without this an implementation that hard-coded V1 --
-		// or one that only ever fired on a decrease -- would pass the example above.
-		select_language();
-		ShortcutsVersionGuard guard;
-
-		{
-			Rig control;
-			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-			expect(choose_shortcuts_version(control, kVersion3Index)).to_equal(kVersion3Index);
-
-			expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
-			expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::SetShortcutsVersion).to_be_true();
-			expect(static_cast<int>(filed.arg)).to_equal(kVersion3Index);
-		}
-
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-
-		Rig r;
-		expect(choose_shortcuts_version(r, kVersion3Index)).to_equal(kVersion3Index);
-		deluge::gui::ui::dispatchShellActions();
-
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
-		expect(scene().take_action().engaged()).to_be_false();
-	});
-
-	it("does NOT ascend: the user is left standing on the item, as legacy leaves them", _ {
-		// The `switch` in `MenuScene::after_render` that decides whether an action ascends. The four
-		// verbs that file from `on_focus` do, because legacy never enters those items at all; this
-		// one must not, because legacy's `Selection` IS entered and `writeCurrentValue` runs on
-		// every detent while the user stands on it. An arm that ascended would close the page under
-		// the user on the first turn.
-		select_language();
-		ShortcutsVersionGuard guard;
-
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		Rig r;
-		expect(choose_shortcuts_version(r, kVersion1Index)).to_equal(kVersion1Index);
-		deluge::gui::ui::dispatchShellActions();
-
-		// The first detent really wrote, so the second one below is a second write and not the
-		// first one arriving late.
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-		// Still inside the item, one level down from the Pads page it was opened at.
-		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
-		expect(static_cast<int>(scene().state().depth)).to_equal(1);
-		// And a second detent still lands, which an ascend would have made impossible: the value
-		// goes back to V3 and the byte follows it.
-		r.turn(1, 200);
-		r.shell.tick(210);
-		deluge::gui::ui::dispatchShellActions();
-		expect(static_cast<int>(scene().state().enum_index)).to_equal(kVersion3Index);
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
-		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
-	});
-
-	it("files nothing at all until the value is turned -- opening and descending are quiet", _ {
-		// The other side of "a write, not a press". Walking onto the item and pressing into it is
-		// what a user does before choosing anything, and it must not write flash.
-		select_language();
-		ShortcutsVersionGuard guard;
-
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		Rig r;
-		(void)r.open(nodes::pads_settings);
-		r.shell.tick(5);
-		expect(scene().take_action().engaged()).to_be_false();
-		r.enter(10);
-		r.shell.tick(20);
-		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
-		expect(scene().take_action().engaged()).to_be_false();
-		// ...and it stays quiet across twenty ticks with the item open.
-		for (uint32_t t = 0; t < 20; t++) {
-			r.shell.tick(30 + t * 10);
-			deluge::gui::ui::dispatchShellActions();
-			expect(scene().take_action().engaged()).to_be_false();
-		}
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
-	});
-
-	it("brings legacy's tables into step on the guest's own tick, with nothing calling the dispatcher by name", _ {
-		// The composition, end to end: a real `ShellHostUI` over the real `scene_registry()`, a real
-		// press and a real select-encoder turn through the guest's own hooks, and the guest's own
-		// `timerCallback()` -- which is the only thing here that could write anything.
-		// `dispatchShellActions` is never named.
-		//
-		// The two legs vary ONE THING -- shell tick vs guest tick -- the arrangement
-		// `menu_action_open_perform`'s third example uses and for the same reason. It takes three
-		// statements: both tick points differ, and the subject alone drains after its settle tick to
-		// say that tick files nothing. That drain cannot affect what follows; the turn it would have
-		// to eat is two lines later.
-		select_language();
-		ShortcutsVersionGuard guard;
-
-		{
-			GuestRig control;
-			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-			expect(control.open(nodes::shortcuts_version)).to_be_true();
-			control.ui.shell().tick(5);
-			control.turn_select(-1);
-			control.ui.shell().tick(20);
-
-			expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-			expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_false();
-			expect(scene().take_action().action == MenuAction::SetShortcutsVersion).to_be_true();
-		}
-
-		GuestRig r;
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		// Opened AT the item rather than walked into, because `GuestRig` has no row-press helper for
-		// a submenu row -- the same substitution `menu_action_open_perform`'s guest example makes.
-		// A deep link onto an `Kind::Enum` leaf shows its page with the current value, which is what
-		// a restore does; the turn after it is the real gesture.
-		expect(r.open(nodes::shortcuts_version)).to_be_true();
-		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
-		expect(scene().take_action().engaged()).to_be_false();
-		r.turn_select(-1);
-		(void)r.ui.timerCallback();
-
-		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
-		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
-		expect(scene().take_action().engaged()).to_be_false();
-	});
-
-	it("the legacy -> port direction still works, with no menu and no dispatcher anywhere in it", _ {
-		// **This is the control for the mutation, not a second copy of `boot_wiring_spec.cpp`.**
-		// The two directions have to be in one file for "delete the dispatcher arm and the new
-		// example reddens while this one does not" to be something a reader can re-run.
-		//
-		// `SoundEditor::setShortcutsVersion` writes the byte this layer reads,
-		// which is what makes a layout chosen from the legacy menu, at boot, or by a factory reset show up in
-		// the ported tree. Nothing in this example touches a `Shell`, a `MenuScene` or the outbox.
-		ShortcutsVersionGuard guard;
-
-		// Both values, in both directions -- a mirror that only ever wrote V1 would pass a one-way
-		// check.
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
-		// And the outbox stayed empty throughout: this direction files nothing, so the mirror call
-		// inside `setShortcutsVersion` cannot be feeding the loop the enumerator's doc rules out.
-		expect(scene().take_action().engaged()).to_be_false();
-	});
-});
 describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSettingsChanged", $ {
-	// The seventh arm, and the second filed by a **value write** rather than by a select
-	// press. It is `SetShortcutsVersion`'s shape twice over: two hooks
+	// An arm filed by a **value write** rather than by a select
+	// press: two hooks
 	// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) file **one** enumerator,
 	// because legacy's own notify takes no argument.
 	//
-	// **The defect, in user terms, and it is narrower than the shortcuts version's.** The ported
+	// **The defect, in user terms.** The ported
 	// setters write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves, so
 	// nothing is ever lost at power-off. What they cannot do is the *other* statement of
 	// `ScreensaverModeMenu::writeCurrentValue` / `ScreensaverTimeout::writeCurrentValue`
@@ -1795,7 +1486,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 	});
 
 	it("does NOT ascend: the user is left standing on the item, as legacy leaves them", _ {
-		// `MenuScene::after_render`'s `switch`, for the seventh enumerator. Legacy enters both of
+		// `MenuScene::after_render`'s `switch`, for `ScreensaverSettingsChanged`. Legacy enters both of
 		// these items -- neither overrides `shouldEnterSubmenu()` -- and `writeCurrentValue` runs on
 		// every detent while the user stands there, so an ascend would close the page under them on
 		// the first turn.
@@ -1861,7 +1552,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		// named.
 		//
 		// The two legs vary ONE THING -- shell tick vs guest tick -- the arrangement
-		// `menu_action_shortcuts_version`'s guest example uses and for the same reason.
+		// `menu_action_open_perform`'s guest example uses and for the same reason.
 		//
 		// The rig's guest is a LOCAL `ShellHostUI` (see `GuestRig`), and the object
 		// `settingsChanged()` pushes into is the GLOBAL `shellHostUI` (`:225`). That is not a
@@ -2341,7 +2032,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
 	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
-	//      blinks (`gui/views/view.cpp:496`).
+	//      blinks (`View::startMIDILearn` in `gui/views/view.cpp`).
 	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
 	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.
@@ -2443,14 +2134,16 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(press_child_leaving_request(r, nodes::root_song, nodes::song_midi_learn)).to_be_true();
 		deluge::gui::ui::dispatchShellActions();
 
-		// `midi_learn.h:28` -- `MidiLearnMode::setupAndCheckAvailability`
+		// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h` `MidiLearn::selectButtonPress` --
+		// `MidiLearnMode::setupAndCheckAvailability`
 		// (`gui/context_menu/midi_learn_mode.cpp:50-53`) -> `SessionView::enterMidiLearnMode`
 		// -> `View::startMIDILearn`, whose one globally visible write is
 		// `currentUIMode = UI_MODE_MIDI_LEARN`. It is also exactly what
 		// `setupAndCheckAvailability` returns (`midi_learn_mode.cpp:52`), so this assertion says the
 		// discarded bool was `true` here as well.
 		expect(static_cast<int>(currentUIMode)).to_equal(static_cast<int>(UI_MODE_MIDI_LEARN));
-		// `midi_learn.h:29` -- the `openUI` that runs whatever the bool said.
+		// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h` `MidiLearn::selectButtonPress` -- the `openUI` that
+		// runs whatever the bool said.
 		expect(isUIOpen(&deluge::gui::context_menu::midiLearnMode)).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
 	});
@@ -2949,5 +2642,5 @@ describe menu_action_reference_rows("scenes::menu actions: the reference rows", 
 // clang-format on
 
 DELUGE_SPEC(menu_actions_spec, menu_action_settings, menu_action_seam, menu_action_items, menu_action_perform,
-            menu_action_dispatch, menu_action_shortcuts_version, menu_action_screensaver, menu_action_open_perform,
-            menu_action_stem_export, menu_action_three_verbs, menu_action_perform_mirror, menu_action_reference_rows)
+            menu_action_dispatch, menu_action_screensaver, menu_action_open_perform, menu_action_stem_export,
+            menu_action_three_verbs, menu_action_perform_mirror, menu_action_reference_rows)

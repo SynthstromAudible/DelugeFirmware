@@ -59,18 +59,18 @@ namespace deluge::gui::ui {
 /// overridden below and the other eleven are listed here with the reason.
 ///
 // clang-format off
-/// | not overridden | line | why |
+/// | not overridden | declared in | why |
 /// |---|---|---|
-/// | `~UI` | `ui.h:94` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
-/// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
-/// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
-/// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
+/// | `~UI` | `ui.h` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
+/// | `graphicsRoutine` | `ui.h` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
+/// | `toClipMinder` | `ui.h` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
+/// | `toTimelineView` | `ui.h` | Null, as `SoundEditor` leaves it, for the same reason. |
 /// | `getUI` | `ui.h` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
 /// | `getUIContextType` | `ui.h` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
 /// | `getUIModControllableContext` | `ui.h` | `NONE`, as `SoundEditor` leaves it. |
-/// | `canDisplayFavourites` | `ui.h:200` | False, as `SoundEditor` leaves it. |
-/// | `isFavouritesVisible` | `ui.h:201` | False, as `SoundEditor` leaves it. |
-/// | `isBanksVisible` | `ui.h:202` | False, as `SoundEditor` leaves it. |
+/// | `canDisplayFavourites` | `ui.h` | False, as `SoundEditor` leaves it. |
+/// | `isFavouritesVisible` | `ui.h` | False, as `SoundEditor` leaves it. |
+/// | `isBanksVisible` | `ui.h` | False, as `SoundEditor` leaves it. |
 // clang-format on
 ///
 /// One answer is a gap rather than settled: `displayOrLanguageChanged`, which **is** overridden below but only to

@@ -107,10 +107,9 @@ SECTIONS {
         __scenes_menu_tables_start = .;
         *(.rodata.*6deluge6scenes4menu*)
         __scenes_menu_tables_end = .;
-        /* The menus' vtables: the legacy menu items' and the scenes'. Virtual calls on a menu item
-         * or a scene come from the UI tier only. */
+        /* The scenes' vtables outside `deluge::scenes::menu`, which the pattern above already takes.
+         * Virtual calls on a scene come from the UI tier only. */
         __menu_vtables_start = .;
-        *(.rodata._ZTV*9menu_item*)
         *(.rodata._ZTV*6deluge6scenes*)
         __menu_vtables_end = .;
         PROVIDE(__sdram_init_end = .);
@@ -159,10 +158,10 @@ SECTIONS {
     ASSERT(__scenes_menu_tables_end - __scenes_menu_tables_start > 65536,
            "sdram_sections.x: the scenes' menu tables fell back to SRAM (no deluge::scenes::menu data in .sdram_init)")
 
-    /* The menus' vtables are about 75 KB and the scenes' statics about 13 KB; far less means a
+    /* The scenes' vtables are about 1.4 KB and their statics about 13 KB; far less means a
      * rename stopped the patterns matching them. */
-    ASSERT(__menu_vtables_end - __menu_vtables_start > 49152,
-           "sdram_sections.x: the menus' vtables fell back to SRAM (no menu_item or deluge::scenes vtables in .sdram_init)")
+    ASSERT(__menu_vtables_end - __menu_vtables_start > 1024,
+           "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::scenes vtables in .sdram_init)")
     ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
            "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")
 

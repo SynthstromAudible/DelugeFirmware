@@ -7,7 +7,7 @@
 /// can be checked at: the host suite (`tests/spec/gui/shell_host_ui_spec.cpp`) deliberately never
 /// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
 /// but not what the wiring installs; this executable links the real `deluge_scenes` **and** the real
-/// `deluge_app`, so `soundEditor`, `FlashStorage`, `view` and `shellHostUI` are all the shipped
+/// `deluge_app`, so `FlashStorage`, `view` and `shellHostUI` are all the shipped
 /// objects.
 ///
 /// @note **Every group restores what it changed.** These are process globals shared with every other
@@ -26,10 +26,8 @@
 #include "shell/service.h"
 #include "shell/shell.h"
 
-#include "gui/ui/menus.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 
 #include "gui/ui_timer_manager.h"
@@ -139,7 +137,7 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		const uint8_t saved = FlashStorage::shortcutsVersion;
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
-		// from the legacy reset menu and from the ported one) and the ported settings item
+		// from the ported reset menu) and the ported settings item
 		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
 		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
 		// binary.

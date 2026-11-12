@@ -26,35 +26,19 @@
 /// legacy `ContextMenu` subclasses the port does not have, so even `pending_scene` could not
 /// spell them.
 ///
-/// ## The sixth item, which is a different shape
+/// ## The settings writes, which are a different shape
 ///
-/// `shortcuts_version` is **not** one of those five and must not be read as one. Its select press
-/// does nothing special: it is an ordinary `Kind::Enum` leaf, and legacy's own
-/// `menu_item::shortcuts::Version` is an ordinary `Selection` the user opens and edits in place.
-/// What crosses the wall is its **write**. `shortcuts::Version::writeCurrentValue`
-/// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
-/// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
-/// byte 60. The ported hook writes that byte itself (`menu::set_shortcuts_version`). It files the action so that the
-/// legacy editor's in-place shortcut tables follow.
-///
-/// Two consequences follow from "a write, not a press", and both are load-bearing below:
-///
-///   * it is filed from a `Binding::set` hook, which is handed no `MenuState`
-///     (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing;
-///   * it must **not** ascend the menu, because legacy stays on the item while the user turns the
-///     encoder. See the `switch` in `MenuScene::after_render` that decides that question.
-///
-/// ## The seventh, which is the sixth's shape again, twice over
-///
-/// `screensaver_mode` and `screensaver_timeout` are two more writes, not presses, and they share
-/// **one** enumerator. Legacy's `ScreensaverModeMenu::writeCurrentValue` and
+/// `screensaver_mode` and `screensaver_timeout` are writes, not presses, and they share
+/// **one** enumerator. Each is filed from a `Binding::set` hook, which is handed no `MenuState`
+/// (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing -- and
+/// none ascends the menu, because the user stays on the item while turning the encoder (the `switch`
+/// in `MenuScene::after_render` decides that question). Legacy's `ScreensaverModeMenu::writeCurrentValue` and
 /// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:38-41`, `:60-63`)
 /// are each two statements: a `FlashStorage` assignment, and
 /// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
 /// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
-/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**, which is the one
-/// way this differs from `shortcuts_version`. What the hooks cannot do is the second statement:
-/// `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
+/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**. What the hooks cannot do is the
+/// second statement: `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
 /// screensavers would keep their old timings until the next boot or the next edit made from the
 /// legacy menu.
 ///
@@ -68,9 +52,9 @@
 /// The verb counterpart of the noun that already works:
 ///
 ///   1. `MenuAction` -- a closed enum of the actions a menu item may request.
-///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the two actions
-///      whose meaning is not fixed by their identity (`OpenPerformanceView` carries which editing
-///      mode; `SetShortcutsVersion` carries which layout).
+///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the action
+///      whose meaning is not fixed by its identity (`OpenPerformanceView` carries which editing
+///      mode).
 ///   3. `MenuWalkState::pending_action` -- the field an item writes, exactly as it writes
 ///      `pending_scene` (`menu_scene.h`); or, for a hook that is handed no state,
 ///      `MenuScene::request_action`, which writes that same field.
@@ -143,22 +127,13 @@ enum class MenuAction : uint8_t {
 	///        unused.
 	OpenSongMacros,
 
-	/// @brief Bring the legacy editor's shortcut tables into step with flash byte 60 -- the legacy half of the ported
-	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
-	///
-	/// The ported item has written the byte itself (`menu::set_shortcuts_version`). The dispatcher calls the legacy
-	/// editor's `SoundEditor::setShortcutsVersion`, which mutates its in-place tables to match. It
-	/// does not loop: the callee writes no byte and files no request.
-	SetShortcutsVersion,
-
 	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
 	///        screensaver setters' writes. `arg` is unused.
 	///
 	/// The dispatcher performs the second statement of `ScreensaverModeMenu::writeCurrentValue` and
 	/// of `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`, `:62`).
 	/// The first statement of each -- the `FlashStorage` assignment -- is already made by the ported
-	/// hook itself, so unlike `SetShortcutsVersion` **no value is lost at power-off**; all that is
-	/// needed is the immediate apply.
+	/// hook itself; all that is needed is the immediate apply.
 	///
 	/// **One call updates both screensavers, which is why one enumerator is enough.**
 	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`) does three things:
@@ -194,7 +169,8 @@ enum class MenuAction : uint8_t {
 	/// `flash::Status::writeCurrentValue`'s `PadLEDs::clearTickSquares()` when the old value was the slow flash
 	/// (`flash/status.h:27-31`).
 	FlashStatusLeftSlow,
-	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:44-47`).
+	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()`
+	/// (`origin/main:src/deluge/gui/menu_item/colour.h`).
 	PadColoursChanged,
 
 	/// @brief The file selector opened: `FileSelector::beginSession` leaves the keyboard's audition mode
@@ -204,10 +180,9 @@ enum class MenuAction : uint8_t {
 	/// @}
 };
 
-/// @brief One request: which action, and the one payload word `OpenPerformanceView` and
-///        `SetShortcutsVersion` need.
+/// @brief One request: which action, and the one payload word `OpenPerformanceView` needs.
 ///
-/// A `uint16_t` rather than a variant because the payload is one small number in both cases, and
+/// A `uint16_t` rather than a variant because the payload is one small number, and
 /// because it is the same width `ui::shell::SceneId::arg` uses for the same job on the noun side.
 struct MenuActionRequest {
 	MenuAction action = MenuAction::None;

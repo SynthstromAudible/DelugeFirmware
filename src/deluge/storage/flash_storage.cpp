@@ -36,7 +36,6 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include "util/notify.h"
-#include "util/sound_menu_open.h"
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
 
@@ -349,7 +348,6 @@ void resetSettings() {
 	defaultScale = 0;
 
 	shortcutsVersion = kShortcutsVersion3;
-	deluge::gui::ui::legacyShortcutsVersionChanged();
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInBars = 0;
@@ -612,7 +610,6 @@ void readSettings() {
 	}
 
 	shortcutsVersion = buffer[60];
-	deluge::gui::ui::legacyShortcutsVersionChanged();
 	audioClipRecordMargins = buffer[61];
 	playbackHandler.countInBars = buffer[62];
 	keyboardLayout =

@@ -51,7 +51,6 @@
 #include "scenes/registry.h"
 #include "shell/scene.h" // SceneKind
 #include "storage/flash_storage.h"
-#include "util/sound_menu_open.h"
 
 #include <optional>
 
@@ -306,7 +305,6 @@ bool opensOrMoves(MenuAction action) {
 	case MenuAction::OpenSongMacros:
 	case MenuAction::FileSelectorOpened:
 		return true;
-	case MenuAction::SetShortcutsVersion:
 	case MenuAction::ScreensaverSettingsChanged:
 	case MenuAction::PadBrightnessChanged:
 	case MenuAction::HighlightingChanged:
@@ -417,11 +415,6 @@ void performMenuAction(const MenuActionRequest& req) {
 		// discard costs nothing at this site -- see the header for the site where it does.
 		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
 		openUI(&gui::context_menu::configureSongMacros);
-		break;
-
-	case MenuAction::SetShortcutsVersion:
-		// The ported item has written flash byte 60 already; the legacy editor's tables follow it.
-		legacyShortcutsVersionChanged();
 		break;
 
 	case MenuAction::ScreensaverSettingsChanged:

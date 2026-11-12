@@ -73,7 +73,6 @@ private:
 #define UI_MODE_EXPLODE_ANIMATION 43
 #define UI_MODE_ANIMATION_FADE 44
 #define UI_MODE_RECORD_COUNT_IN 45
-#define UI_MODE_HOLDING_SAMPLE_MARKER 46
 #define UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS 47
 #define UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR 48
 #define UI_MODE_HOLDING_BACKSPACE 49
@@ -281,8 +280,8 @@ void renderUIsForOled();
 bool isUIModeActive(uint32_t uiMode);
 bool isUIModeActiveExclusively(uint32_t uiMode);
 bool isUIModeWithinRange(const uint32_t* modes);
-/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The ported menu's guest and the
-///        legacy editor both gate their select turns on it.
+/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The ported menu's guest gates its
+///        select turns on it.
 extern const uint32_t selectEncoderUIModes[];
 bool isNoUIModeActive();
 void exitUIMode(uint32_t uiMode);

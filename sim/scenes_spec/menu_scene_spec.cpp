@@ -1164,7 +1164,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a select turn on a bespoke Value page uses the held press up", _ {
 		// The CV output selection is a `Selection` (`cv/selection.h:27`): `Value::selectEncoderAction` uses the press
-		// up while Select is held (`value.h:64-67`), so the release neither opens the output nor ascends.
+		// up while Select is held (`origin/main:src/deluge/gui/menu_item/value.h` `Value<T>::selectEncoderAction`), so
+		// the release neither opens the output nor ascends.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1763,14 +1764,15 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
-		// `MultiRange::beginSession` (`multi_range.cpp:48-51`): a `defaultRangeI` of -1 is invalid, so
-		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
+		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a `defaultRangeI` of -1
+		// is invalid, so the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
 		// `Source::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp:334-336`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
+		// `MultiRange::selectButtonPress`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
@@ -1827,7 +1829,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
-		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp:212`); a voice start writes it too
+		// `selectEncoderAction`'s flick writes `defaultRangeI` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
+		// `MultiRange::selectEncoderAction`); a voice start writes it too
 		// (`Source::getRange`), and the open picker's cursor stays where it was.
 		select_language();
 		deluge::notify::dirty().drain();

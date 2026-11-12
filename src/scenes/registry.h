@@ -58,11 +58,10 @@ uint16_t assigned_node_ids();
 ///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
 ///     layout, flash byte 60 -- `FlashStorage::shortcutsVersion` itself, which this layer reads
 ///     where it needs it, so no push is wired. `FlashStorage::readSettings` fills it at boot,
-///     `FlashStorage::resetSettings` resets it (the ported reset menu reaches that as well as the
-///     legacy one) and `nodes::set_shortcuts_version` writes it from the ported settings item.
-///     Covered by `sim/scenes_spec/boot_wiring_spec.cpp`;
-///     the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and
-///     `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
+///     `FlashStorage::resetSettings` resets it (the ported reset menu reaches that) and `nodes::set_shortcuts_version`
+///     writes it from the ported settings item. Covered by `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own
+///     behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1
+///     layer` group.
 ///
 ///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its
 ///     off switch, `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`

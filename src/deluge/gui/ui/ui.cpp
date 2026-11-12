@@ -544,10 +544,8 @@ void enterUIMode(uint32_t uiMode) {
 EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
     {{{UIType::ARRANGER, "arranger"},
       {UIType::AUDIO_CLIP, "audio_clip"},
-      {UIType::AUDIO_RECORDER, "audio_recorder"},
       {UIType::AUTOMATION, "automation"},
       {UIType::CONTEXT_MENU, "context_menu"},
-      {UIType::DX_BROWSER, "dx_browser"},
       {UIType::INSTRUMENT_CLIP, "instrument_clip"},
       {UIType::KEYBOARD_SCREEN, "keyboard_screen"},
       {UIType::LOAD_INSTRUMENT_PRESET, "load_instrument_preset"},
@@ -556,16 +554,12 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::LOAD_SONG, "load_song"},
       {UIType::PERFORMANCE, "performance"},
       {UIType::RENAME, "rename"},
-      {UIType::SAMPLE_BROWSER, "sample_browser"},
-      {UIType::SAMPLE_MARKER_EDITOR, "sample_marker_editor"},
       {UIType::SAVE_INSTRUMENT_PRESET, "save_instrument_preset"},
       {UIType::SAVE_KIT_ROW, "save_kit_row"},
       {UIType::SAVE_MIDI_DEVICE_DEFINITION, "save_midi_device_definition"},
       {UIType::SAVE_PATTERN, "save_pattern"},
       {UIType::SAVE_SONG, "save_song"},
       {UIType::SESSION, "session"},
-      {UIType::SLICER, "slicer"},
-      {UIType::SOUND_EDITOR, "sound_editor"},
       {UIType::SHELL_HOST, "shell_host"}}}};
 
 const char* UI::getUIName() {

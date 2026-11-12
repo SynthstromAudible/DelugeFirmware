@@ -13,7 +13,7 @@
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
 /// | `note_editor_root` | `noteEditorRootMenu` (`:1880`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`note/velocity.h:31`) | Int |
+/// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`origin/main:src/deluge/gui/menu_item/note/velocity.h`) | Int |
 /// | `note_editor_probability` | `noteProbabilityMenu` | `note::Probability` (`note/probability.h:32`) | Int |
 /// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`note/iterance_preset.h`) | Int |
 /// | `note_fill` | `noteFillMenu` | `note::Fill` (`note/fill.h:32`) | Int |

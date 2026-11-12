@@ -62,7 +62,6 @@ inline const menu::MenuContext& install_sound_context() {
 	                      /*kit_global_fx=*/false);
 	currentSong = fixture.song;
 	fixture.song->setCurrentClip(menu_engine(ctx).clip);
-	context_installed(ctx);
 	return ctx;
 }
 

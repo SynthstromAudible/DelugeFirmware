@@ -299,10 +299,12 @@ ValueText leaf_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse
 // -------------------------------------------------------------------------------------------
 
 int32_t get_note_velocity(const MenuContext&) {
-	return note_bridge()->note_velocity(); // `note/velocity.h:44-52`
+	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::readCurrentValue`
+	return note_bridge()->note_velocity();
 }
 void adjust_note_velocity(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_note_velocity(offset); // `note/velocity.h:54-57`
+	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::selectEncoderAction`
+	note_bridge()->adjust_note_velocity(offset);
 }
 
 int32_t get_note_probability(const MenuContext&) {

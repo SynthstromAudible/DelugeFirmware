@@ -18,23 +18,15 @@
 #include "util/note_editor_open.h"
 
 #include "gui/ui/shell_note_mode.h" // activeNoteMode()
-#include "gui/ui/sound_editor.h"
-#include "gui/ui/ui.h"
 
 namespace deluge::gui::ui {
 
 bool noteEditorOpen() {
-	// Legacy's expression, then its port for the guest: `inNoteEditor()` reads
-	// `menuItemNavigationRecord[0]` (`SoundEditor::inNoteEditor`), which no guest path writes,
-	// and `activeNoteMode()` is that read's port. Off the guest's stack the second half is false.
-	return (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
-	       || activeNoteMode() == NoteModeKind::NoteEditor;
+	return activeNoteMode() == NoteModeKind::NoteEditor;
 }
 
 bool noteRowEditorOpen() {
-	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`SoundEditor::inNoteRowEditor`).
-	return (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())
-	       || activeNoteMode() == NoteModeKind::NoteRowEditor;
+	return activeNoteMode() == NoteModeKind::NoteRowEditor;
 }
 
 } // namespace deluge::gui::ui

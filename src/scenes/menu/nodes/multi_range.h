@@ -14,7 +14,7 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`multi_range.cpp:334-336`).
+/// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::selectButtonPress`).
 ///
 /// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
@@ -25,12 +25,11 @@
 ///
 /// ## `Node::range_dependent` is deliberately NOT set on this node
 ///
-/// Legacy's `MultiRange::isRangeDependent()` returns true (`multi_range.h:32`), but legacy never
-/// runs its own permission check against the picker -- the substitution at `:1802-1803` happens
-/// *after* the check, on the item being opened. Setting the flag here would make
-/// `permission_for(multi_range, ctx)` answer `MustSelectRange` and `enter_child` descend into the
-/// picker from the picker, forever. `nodes::kRangeDependentArray` accordingly still holds ten nodes,
-/// not eleven, and `nodes.h` says so.
+/// Legacy's `MultiRange::isRangeDependent()` returns true (`origin/main:src/deluge/gui/menu_item/multi_range.h`), but
+/// legacy never runs its own permission check against the picker -- the substitution at `:1802-1803` happens *after*
+/// the check, on the item being opened. Setting the flag here would make `permission_for(multi_range, ctx)` answer
+/// `MustSelectRange` and `enter_child` descend into the picker from the picker, forever. `nodes::kRangeDependentArray`
+/// accordingly still holds ten nodes, not eleven, and `nodes.h` says so.
 ///
 /// ## Editing a range edge
 ///
@@ -71,7 +70,7 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The note-range picker. One row per `MultiRange` on the addressed `Source`, labelled with
-///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:287-332`).
+///        the note span it covers (`MultiRange::getText`, `origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
 class MultiRangeItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -208,7 +207,8 @@ inline constexpr const Node* kMultiRangeChainArray[] = {
 };
 inline constexpr std::span<const Node* const> kMultiRangeChain{kMultiRangeChainArray};
 
-/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:43`).
+/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE`
+///        (`origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::getTitle`).
 inline constexpr Node multi_range = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_NOTE_RANGE), &kMultiRangeItem), &multi_range_chain, kMultiRangeChain);
 

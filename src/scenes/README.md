@@ -10,11 +10,8 @@ reaches them through `scenes/bind` and a `MenuContext` rather than through legac
 
 The library is linked into the firmware and the host app and is the menu.
 
-> **Read this before adding a menu item.** A menu item users must be able to open goes into
-> `gui/menu_item/` + `gui/ui/menus.cpp`, the legacy tree, *and* a node goes here. A node is a port
-> of a legacy item, kept in step with it and cross-checked against it by
-> `sim/scenes_spec/tables_*_spec.cpp`: a node with no legacy item fails the lockstep walk at once,
-> but a legacy item with no node fails nothing, so adding to one tree only silently diverges them.
+A menu item is a node here: add it to the node table of its root (`menu/nodes/*.h`), and `ui-menu-dump` shows it
+in `website/src/data/generated/menu-tree.json`.
 
 ## Layout
 
@@ -292,9 +289,8 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 `pending_scene` works because every scene a menu opens lives in `src/scenes`. Some ported items run
 legacy root-UI behaviour instead — `openUI(&performanceView)`,
 `audioClipView.setClipLengthEqualToSampleLength()`, the stem export, the song MIDI-learn and macros
-modes — or a settings write's side effect this layer cannot reach (`SoundEditor::setShortcutsVersion`,
-`Screensaver::settingsChanged()`, the pad brightness and colours, sticky shift, …). Those name the
-action for the host:
+modes — or a settings write's side effect this layer cannot reach (`Screensaver::settingsChanged()`,
+the pad brightness and colours, sticky shift, …). Those name the action for the host:
 
 1. `MenuAction` is a **closed** enum, so a dispatcher can `switch` over it with no `default:` and
    `-Werror=switch` breaks on a new enumerator.
@@ -340,8 +336,8 @@ reach past the page.
 * **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
   `gui/ui/shell_guest_services.cpp`) hands the press to `MenuScene::delete_range_press`.
 * **The root views ask the guest through `util/sound_menu_open.h`.** `rangePickerOpen`,
-  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for legacy's
-  `SoundEditor` or the ported menu, so a note played under the picker selects its range and the
+  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for the
+  ported menu, so a note played under the picker selects its range and the
   sidebar highlights the range's notes; `refreshShellRangeDisplay` repaints the root after each
   guest tick when the range, the source, the highlight or the range count changed.
 
@@ -652,11 +648,11 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
   or `Fast`, restarted with `LedFrame::restart` where legacy calls `blinkLed` mid-blink. A model fact
   a scene raises (a `notify::Dirty` fact) is drawn on the next tick, with no zero-millisecond timer.
 
-## Coexistence with legacy
+## The guest
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
 registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry site routes through it.
-`gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
+`gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -680,8 +676,7 @@ registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry s
 `registry.h`'s boot-wiring record is the authority; the short version:
 
 * **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
-  and `menu::set_shortcuts_version` writes. The ported settings item writes it and files
-  `MenuAction::SetShortcutsVersion` so that the legacy editor's tables follow.
+  and `menu::set_shortcuts_version` writes. The ported settings item writes it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
   `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`; the ported setters file
   `MenuAction::ScreensaverSettingsChanged`.

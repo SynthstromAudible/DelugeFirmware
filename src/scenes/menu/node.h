@@ -127,8 +127,9 @@ using IntRange = deluge::ui::oled::Range;
 ///     inputs" (`value_scaling.cpp`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
 ///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h`).
 ///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
-///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `pan.h:26-27`) and
-///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`, `pan.h:28-29`).
+///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `origin/main:src/deluge/gui/menu_item/patched_param/pan.h`
+///     `Pan::getMaxValue`) and `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`,
+///     `origin/main:src/deluge/gui/menu_item/unpatched_param/pan.h` `Pan::getMaxValue`).
 enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 
 /// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
@@ -611,9 +612,10 @@ struct CustomItem {
 	/// Do-nothing default, and that is the *right* answer for almost every item: an item whose
 	/// legacy backward arm restores a cursor gets it for free, because the cursor lives in
 	/// `MenuState::list[depth]` and `ascend` deliberately leaves that alone. `PatchCablesItem`
-	/// (legacy's `currentValue = savedVal`, `patch_cables.cpp:16-26`) and `SourceSelectionItem`
-	/// (legacy's "walk back to the source `s`", `source_selection.cpp:110-116`) are both exactly
-	/// that case and both stay on the default; each says so at its own `on_focus`.
+	/// (legacy's `currentValue = savedVal`, `origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
+	/// `PatchCables::beginSession`) and `SourceSelectionItem` (legacy's "walk back to the source `s`",
+	/// `source_selection.cpp:110-116`) are both exactly that case and both stay on the default; each says so at its own
+	/// `on_focus`.
 	///
 	/// **This hook exists because "leave `MenuState` alone" is not always the backward
 	/// arm.** Skipping `Kind::Custom` on the way back would be sound only while every chain-source
@@ -913,9 +915,9 @@ struct Node {
 	///
 	/// The legacy items that override `isRangeDependent()` to true, and so are the ones that set
 	/// this: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
-	/// `multi_range.h:32` (the picker itself). `file_selector` and `osc/audio_recorder` reach the
-	/// same rule through `checkPermissionToBeginSessionForRangeSpecificParam` without the override,
-	/// and set this too.
+	/// `origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent` (the picker itself).
+	/// `file_selector` and `osc/audio_recorder` reach the same rule through
+	/// `checkPermissionToBeginSessionForRangeSpecificParam` without the override, and set this too.
 	bool range_dependent = false;
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal

@@ -1049,19 +1049,9 @@ Result MenuScene::after_render_navigation() {
 		// this item" -- so the test is on the action's own identity rather than on a flag, and a
 		// sixth action added without deciding this question fails the `switch`'s coverage warning.
 		//
-		// **The sixth, `SetShortcutsVersion`, does NOT ascend**, and the rule above is what decides
-		// it rather than a preference. `SetShortcutsVersion` is filed from a `Binding::set` hook,
-		// which runs from `commit_value` a few lines above -- not from `on_focus`, and not from any
-		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
-		// plain `menu_item::Selection` (`gui/menu_item/shortcuts/version.h:23`) and overrides
-		// nothing, so `shouldEnterSubmenu()` is the base's `return true`
-		// (`MenuItem::shouldEnterSubmenu`) -- `SoundEditor` navigates into its page and
-		// `writeCurrentValue` (`shortcuts/version.h:27`) runs on every detent while the user stands
-		// on it. Ascending here would close that page under the user on the first turn, which is UI
-		// the port would be inventing.
-		//
-		// **The seventh, `ScreensaverSettingsChanged`, has the sixth's shape exactly, so it takes the sixth's answer.**
-		// `ScreensaverSettingsChanged` is filed from the same `Binding::set` route, by two hooks
+		// **`ScreensaverSettingsChanged` does NOT ascend**, and the rule above is what decides it rather than a
+		// preference. It is filed from a `Binding::set` hook, which runs from `commit_value` a few lines above -- not
+		// from `on_focus`, and not from any press -- by two hooks
 		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
 		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
 		// `Integer` (`gui/menu_item/defaults/screensaver.h:34`, `:54`), neither overrides
@@ -1076,7 +1066,6 @@ Result MenuScene::after_render_navigation() {
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:
-		case MenuAction::SetShortcutsVersion:
 		case MenuAction::ScreensaverSettingsChanged:
 		// The settings writes below are the screensaver's shape: filed by a `Binding::set` hook on every detent of an
 		// item legacy enters.

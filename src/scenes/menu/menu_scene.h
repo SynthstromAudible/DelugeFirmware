@@ -400,10 +400,10 @@ public:
 	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
-	/// @note **All seven of these actions are performed.** The consumer polls once per guest tick and
+	/// @note **Every one of these actions is performed.** The consumer polls once per guest tick and
 	///       has a body for each: `OpenPerformanceView`, `StartStemExport`, the three one-line verbs
-	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`), `SetShortcutsVersion`
-	///       and `ScreensaverSettingsChanged`. What each
+	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`) and the settings
+	///       writes from `ScreensaverSettingsChanged` on. What each
 	///       arm still owes is a named residue per arm, recorded at the arms themselves
 	///       (`gui/ui/shell_action_dispatch.h`) rather than here.
 	///
@@ -428,9 +428,9 @@ public:
 	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
 	///          rule it out.
 	///
-	///          What rules it out is which items exist. The only caller of `request_action` is
-	///          `nodes::set_shortcuts_version` (`menu/nodes/settings.cpp`), and its node is an
-	///          ordinary `Kind::Enum` leaf with no `select_chain` and no `CustomItem` under it --
+	///          What rules it out is which items exist. The callers of `request_action` are the
+	///          settings setters in `menu/nodes/settings.cpp`, and each one's node is an
+	///          ordinary leaf with no `select_chain` and no `CustomItem` under it --
 	///          so the `after_render` that commits its value has nothing to descend into, and
 	///          cannot also reach an `on_focus` that files. **That is a fact about today's tables,
 	///          not an invariant**: an item that filed from both routes in one tick would silently
@@ -474,9 +474,9 @@ public:
 	/// `CustomItem`, whose `on_focus`/`render` are handed `MenuState&` and write the field directly
 	/// (`nodes/actions.cpp`).
 	///
-	/// Its only caller today is `nodes::set_shortcuts_version` (`nodes/settings.cpp`), which files
-	/// `MenuAction::SetShortcutsVersion` after writing flash byte 60 -- see `scenes/menu/action.h`'s
-	/// "the sixth item" for why that item's write, rather than its press, is what crosses the wall.
+	/// Its callers are the settings setters in `nodes/settings.cpp` (`nodes::set_screensaver_mode` and its
+	/// siblings) -- see `scenes/menu/action.h`'s "settings writes" for why an item's write, rather than its press,
+	/// is what crosses the wall.
 	///
 	/// @par The timing, which is what makes this safe rather than merely convenient
 	///

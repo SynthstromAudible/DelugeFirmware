@@ -1114,7 +1114,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the LEARN LED blinks at kFastFlashTime while learn is on, and is declared off when it is not", _ {
-		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:496`) -- forever, at
+		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `view.cpp`) -- forever, at
 		// `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)` (`:499`).
 		LearnRig rig;
 		deluge::ui::LedFrame off_frame;

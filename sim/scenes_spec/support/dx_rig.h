@@ -59,8 +59,6 @@ struct DxRig {
 		currentSong = song.song;
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
-		context_installed(
-		    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false), false);
 	}
 	~DxRig() { currentSong = saved; }
 	DxRig(const DxRig&) = delete;

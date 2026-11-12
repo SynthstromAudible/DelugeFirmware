@@ -26,12 +26,6 @@
 #include <string_view>
 #include <vector>
 
-namespace deluge::gui::menu_item::runtime_feature {
-class Setting;
-class Settings;
-
-} // namespace deluge::gui::menu_item::runtime_feature
-
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
@@ -140,8 +134,6 @@ private:
 	deluge::vector<UnknownSetting> unknownSettings{};
 
 public:
-	friend class deluge::gui::menu_item::runtime_feature::Setting;
-	friend class deluge::gui::menu_item::runtime_feature::Settings;
 	/// The settings-channel gate's view into the unknown settings; see `settings_channel_scenario.cpp`.
 	friend struct SettingsChannelProbe;
 };

@@ -25,12 +25,12 @@
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
 /// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
 ///
-/// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
+/// **The verbs are not all one shape.** Five are root-UI behaviour filed by writing
 /// `MenuWalkState::pending_action` directly, and they are tabulated in `scenes/menu/action.h`.
-/// The other two are settings writes filed through `MenuScene::request_action` by a `Binding::set`
-/// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` and
-/// `ScreensaverSettingsChanged`, argued in `scenes/menu/action.h`. The difference matters to
-/// this file only in what each arm calls; the drain and the poll are identical for all seven.
+/// The others are settings writes filed through `MenuScene::request_action` by a `Binding::set`
+/// hook that is handed no `MenuState` at all -- `ScreensaverSettingsChanged` and its siblings,
+/// argued in `scenes/menu/action.h`. The difference matters to this file only in what each arm
+/// calls; the drain and the poll are identical for all of them.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -78,9 +78,9 @@ namespace deluge::gui::ui {
 ///
 /// @par What it does
 ///
-/// It drains, and it performs **all seven** verbs: `OpenPerformanceView`, `StartStemExport`,
-/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`, `SetShortcutsVersion` and
-/// `ScreensaverSettingsChanged`. The last two are a different shape from the five --
+/// It drains, and it performs **every** verb: `OpenPerformanceView`, `StartStemExport`,
+/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`, and the settings writes
+/// from `ScreensaverSettingsChanged` on. The settings writes are a different shape from the five --
 /// a **write** rather than a select press, filed from a `Binding::set` hook through
 /// `MenuScene::request_action` -- which `scenes/menu/action.h` argues at each enumerator. The
 /// `switch` has an arm for every `MenuAction` and no `default:` -- see below.

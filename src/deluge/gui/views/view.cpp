@@ -24,13 +24,11 @@
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -845,19 +843,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		    performanceView.possiblyRefreshPerformanceViewDisplay(kind, modelStackWithParam->paramId, newKnobPos);
 	}
 
-	// let's see if we're editing the same param in the menu, if so, don't show pop-up
-	bool editingParamInMenu = false;
-	if (getCurrentUI() == &soundEditor) {
-		if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
-		    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
-			editingParamInMenu = true;
-		}
-	}
-
 	// Browsing for a song, or a song load in flight (which has taken every UI down): its popup stays up.
 	bool inSongBrowser = loadSongUI.isLoadingSong();
 
-	if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
+	if (!editingParamInPerformanceView && !inSongBrowser) {
 		PatchSource source1 = PatchSource::NONE;
 		PatchSource source2 = PatchSource::NONE;
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -916,13 +905,6 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// indicate (blink) middle value
 	// then blink that middle value and make it harder to turn the knob past middle
 	potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
-
-	// if you're updating a param's value while in the sound editor menu
-	// and it's the same param displayed in the automation editor open underneath
-	// then refresh the automation editor grid
-	if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
-	}
 }
 
 int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobPos, int32_t offset) {
@@ -1352,9 +1334,6 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 		instrumentBeenEdited();
 	}
 	setKnobIndicatorLevels(); // These might have changed as a result
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
-	}
 }
 
 void View::setKnobIndicatorLevels() {

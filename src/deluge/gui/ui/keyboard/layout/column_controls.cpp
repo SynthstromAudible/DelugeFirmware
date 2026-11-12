@@ -17,8 +17,6 @@
 
 #include "definitions.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "hid/buttons.h"
 #include "model/instrument/melodic_instrument.h"

@@ -248,8 +248,8 @@ public:
 		MidiLearn,     ///< `UI_MODE_MIDI_LEARN`. Never set through `ViewState`; see `LearnMode`.
 		RecordCountIn, ///< `UI_MODE_RECORD_COUNT_IN` -- read by the `TAP_TEMPO` arm (`View::buttonAction`).
 		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm (`view.cpp:328`).
-		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`view.cpp:242`). Owned here.
-		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`). Owned here.
+		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
+		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
 		Other,         ///< Any other mode: active, and none of the above.
 	};
 
@@ -265,8 +265,8 @@ public:
 		/// here: `effective_ui_mode()` takes that from `LearnMode::active()` instead, so there is
 		/// one owner of the mode and not two.
 		UiMode ui_mode = UiMode::None;
-		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp:522`, `:375`). Decides whether
-		/// the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
+		/// `getCurrentUI()->toClipMinder() != nullptr` (`View::buttonAction` and `View::setTimeBaseScaleLedState` in
+		/// `view.cpp`). Decides whether the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
 		bool current_ui_is_clip_minder = false;
 		/// `getRootUI() == &performanceView` (`view.cpp:238`, `:283`) -- the fifth term of the
 		/// SAVE/LOAD guard, which lets KEYBOARD+SAVE through only in performance view.
@@ -383,8 +383,8 @@ public:
 	/// @brief Is the SAVE button being held down for the save gesture? `UI_MODE_HOLDING_SAVE_BUTTON`
 	///        (`View::buttonAction`).
 	bool holding_save() const { return holding_save_; }
-	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`,
-	///        cleared at `:310`).
+	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`,
+	///        which also clears it).
 	bool holding_load() const { return holding_load_; }
 	/// @brief The five call sites this port reaches but cannot make -- see the class doc's
 	///        "deliberately NOT ported".
@@ -521,7 +521,7 @@ private:
 	Song* song_ = nullptr;
 	ViewState view_{};
 
-	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:242`, `:299`).
+	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`).
 	bool holding_save_ = false;
 	bool holding_load_ = false;
 	/// `View::timeSaveButtonPressed` (`gui/views/view.h:128`) -- **one** member, shared by both

@@ -42,13 +42,4 @@ bool inputTakeInProgress();
 ///        and stays the foreground recording until its recorder has settled, when slowRoutine() frees it.
 void orphanInputTake();
 
-// Only the legacy `AudioRecorder` UI's input take calls these two, and they go with it.
-
-/// @brief Starts the recorder UI's audio-input take on @p channel, @p numChannels wide, into the RECORD folder, and
-///        publishes it.
-/// @return false, with nothing published, while a recording is already live or when no recorder could be made.
-bool beginInputRecording(AudioInputChannel channel, int32_t numChannels);
-/// @brief Unpublishes and frees the recorder UI's settled input take.
-void finishInputRecording();
-
 } // namespace deluge::recording

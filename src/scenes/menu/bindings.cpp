@@ -342,8 +342,8 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 	}
 
 	default:
-		// `param.h:34-35` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
-		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
+		// `origin/main:src/deluge/gui/menu_item/param.h` `Param::getMaxValue` (`kMaxMenuValue` / `kMinMenuValue`),
+		// forwarded by `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
 		// land. Each of them wants its own

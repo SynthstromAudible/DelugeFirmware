@@ -828,7 +828,8 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 	});
 
 	it("deletes through the sink, the cursor going to the range below, and not while a popup is up", _ {
-		// `deletePress` (`multi_range.cpp:236-241`): nothing while an edge is edited or a popup is up.
+		// `deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::deletePress`): nothing
+		// while an edge is edited or a popup is up.
 		RangeFixture f{3};
 		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
 		menu::MenuState state{};

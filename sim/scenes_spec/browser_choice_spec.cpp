@@ -60,13 +60,11 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
@@ -253,7 +251,6 @@ struct ClaimSpy {
 		const auto& args = deluge::gui::ui::kShellSampleClaimArgs;
 		return last.path == path && last.enteredText == entered && last.mayDoPitchDetection == args.mayDoPitchDetection
 		       && last.mayDoSingleCycle == args.mayDoSingleCycle && last.mayDoWaveTable == args.mayDoWaveTable
-		       && last.loadWithoutExiting == args.loadWithoutExiting
 		       && last.completion == &deluge::gui::ui::shellSampleClaimDone;
 	}
 
@@ -1034,11 +1031,7 @@ describe browser_choice_claim(
 		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SOMEWHERE/ELSE"});
 		        expect(std::string{QwertyUI::enteredText}).to_equal(std::string{"STALE"});
 
-		        // Exactly one request, and it is the guest's own: legacy's default arguments claim
-		        // with `loadWithoutExiting = false`, which ends in `exitAndNeverDeleteDrum()` ->
-		        // `closeUI(&sampleBrowser)` on a browser the guest never opened, i.e. an index `-1`
-		        // read of `uiNavigationHierarchy` and `numUIsOpen = 0` from inside the running
-		        // `timerCallback` (`gui/ui/ui.cpp:213-227`). See the example below.
+		        // Exactly one request, and it is the guest's own.
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
 		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
@@ -1047,7 +1040,7 @@ describe browser_choice_claim(
 	        });
 
 	    it(
-	        "names the menu's sound, source and range in the request, whatever the legacy editor last held", _ {
+	        "names the menu's sound, source and range in the request", _ {
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -1056,10 +1049,6 @@ describe browser_choice_claim(
 		        r.enter();
 		        Sound* const sound = static_cast<Sound*>(
 		            static_cast<ModControllableAudio*>(r.model.song.instrument->toModControllable()));
-		        soundEditor.currentSound = nullptr;
-		        soundEditor.currentSource = nullptr;
-		        soundEditor.currentMultiRange = nullptr;
-
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(spy.dispatches).to_equal(1);
@@ -1068,11 +1057,10 @@ describe browser_choice_claim(
 		        expect(ClaimSpy::last.target.range == static_cast<::MultiRange*>(r.model.range)).to_be_true();
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.rangeIndex)).to_equal(0);
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.sourceIndex)).to_equal(0);
-		        expect(ClaimSpy::last.legacyFinish == nullptr).to_be_true();
 	        });
 
 	    it(
-	        "names the kit-global-FX latch in the menu's target as the legacy editor's target does", _ {
+	        "names the kit-global-FX latch in the menu's target", _ {
 		        CleanBrowser clean;
 		        ScratchCard card;
 		        ShellRig r;
@@ -1081,15 +1069,11 @@ describe browser_choice_claim(
 		        const bool saved = latch;
 		        latch = true;
 		        const bool menuOn = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
-		        const bool legacyOn = soundEditor.soundTarget().kitGlobalFx;
 		        latch = false;
 		        const bool menuOff = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
-		        const bool legacyOff = soundEditor.soundTarget().kitGlobalFx;
 		        latch = saved;
 		        expect(menuOn).to_be_true();
-		        expect(legacyOn).to_be_true();
 		        expect(menuOff).to_be_false();
-		        expect(legacyOff).to_be_false();
 	        });
 
 	    it(
@@ -1179,30 +1163,12 @@ describe browser_choice_claim(
 	        });
 
 	    it(
-	        "claims without exiting, because there is no legacy browser open to close", _ {
-		        // **The device defect this pins.** The legacy claim's success tail is gated on
-		        // `!loadWithoutExiting` (`SampleBrowser::finishLegacyClaim`), and its first
-		        // statement is `exitAndNeverDeleteDrum()` -- which is `close()`,
-		        // `Browser::close()`, `UI::close()` and finally
-		        // `closeUI(this)` (`gui/ui/ui.cpp:87-89`). Under the guest `sampleBrowser` was never
-		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
-		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:213-223`), then sets `numUIsOpen = 0`
-		        // and unsets `TimerName::UI_SPECIFIC` (`:195-197`) -- from inside the very
-		        // `ShellHostUI::timerCallback` that is running the drain.
-		        //
-		        // **This is the strongest form the pin can take, and the limit is the seam's own.**
-		        // Reaching `closeUI` means running a real `claimCurrentFile`: a card read and an
-		        // `AudioFileManager` allocation inside the assertion. So what an example can say is
-		        // which op the drain dispatches -- above -- and what that op will claim with, which is
-		        // here. Flip `loadWithoutExiting` and this reddens.
-		        //
-		        // The values are legacy's own, from the one call site that already needed this: the
-		        // auto-load feature's claim in `SampleBrowser::tickPreview` (`sample_browser.cpp:654-659`),
-		        // "load it into the instrument as if you had confirmed, but keep the browser open".
+	        "claims with the browser's three detection defaults, as the auto-load does", _ {
+		        // The values the auto-load feature's claim uses (`SampleBrowser::tickPreview`): "load it into the
+		        // instrument as if you had confirmed".
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoWaveTable).to_equal(1);
-		        expect(deluge::gui::ui::kShellSampleClaimArgs.loadWithoutExiting).to_be_true();
 	        });
 
 	    it(
@@ -1511,8 +1477,8 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 	});
 
 	it("claims an auto-loaded preview keeping the browser open and the menu where it was", _ {
-		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, `loadWithoutExiting`, and no completion to
-		// close or re-root anything.
+		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, and no completion to close or re-root
+		// anything.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
@@ -1528,7 +1494,6 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(spy.dispatches).to_equal(1);
 		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
 		expect(ClaimSpy::last.origin == deluge::gui::ClaimOrigin::AutoLoad).to_be_true();
-		expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
 		expect(ClaimSpy::last.completion == nullptr).to_be_true();
 		r.step();
 		r.step();
@@ -1800,7 +1765,6 @@ describe browser_choice_long_press(
 			        expect(ClaimSpy::last.mayDoPitchDetection).to_equal(w.pitch);
 			        expect(ClaimSpy::last.mayDoSingleCycle).to_equal(w.single_cycle);
 			        expect(ClaimSpy::last.mayDoWaveTable).to_equal(w.wavetable);
-			        expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
 		        }
 	        });
 
@@ -1820,7 +1784,6 @@ describe browser_choice_long_press(
 		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Multisamples));
 		        expect(ImportSpy::last.folder).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(ImportSpy::last.previouslyViewedFilename).to_equal(std::string{"A1.WAV"});
-		        expect(ImportSpy::last.exitBrowser).to_be_false();
 	        });
 
 	    it(
@@ -1832,7 +1795,6 @@ describe browser_choice_long_press(
 		        r.open_browser();
 		        long_press(r.shell, r.clock);
 		        pick(r.shell, r.clock, 0);
-		        soundEditor.currentSource = nullptr;
 		        deluge::gui::ui::dispatchShellChoices();
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ImportSpy::last.target.source == r.model.source).to_be_true();

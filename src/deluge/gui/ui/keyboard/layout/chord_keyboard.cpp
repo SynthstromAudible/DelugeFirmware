@@ -18,8 +18,6 @@
 
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/chords.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
