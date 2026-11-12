@@ -51,9 +51,13 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/last_file_path_loaded.h"
@@ -3282,6 +3286,114 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		const Result opened = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
 		expect(find_action(opened, ShellAction::Kind::Push) != nullptr).to_be_true();
+	});
+
+	it("takes no BACK, SELECT, Select turn, key or mute-column press while an audition pad is held", _ {
+		// `Browser::buttonAction`, `Browser::selectEncoderAction`, `QwertyUI::padAction` and `SampleBrowser::padAction`
+		// each test `currentUIMode`, and a held audition pad is `UI_MODE_AUDITIONING`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const std::string dir{browser_scene().current_dir()};
+		const int32_t index = browser_scene().file_index();
+		facts.set({.auditioning = true});
+		DirectCtx d;
+		Result taken[4];
+		taken[0] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		taken[1] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
+		taken[2] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		taken[3] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
+		// BACK, SELECT, the Select turn and the mute column: each is claimed and does nothing.
+		expect(taken[0].handled && taken[0].actions.empty()).to_be_true();
+		expect(taken[1].handled && taken[1].actions.empty()).to_be_true();
+		expect(taken[2].handled && taken[2].actions.empty()).to_be_true();
+		expect(taken[3].handled && taken[3].actions.empty()).to_be_true();
+		expect(browser_scene().holding()).to_be_false();
+		const Result released = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
+		expect(released.actions.empty()).to_be_true();
+		// A key on the keyboard pads is not typed either.
+		r.click(kKeyboardX, kKeyboardY);
+		const std::string typed{browser_scene().entered_text()};
+		r.type('T');
+		expect(std::string{browser_scene().entered_text()}).to_equal(typed);
+		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
+		expect(browser_scene().file_index()).to_equal(index);
+		expect(r.browser_on_stack()).to_be_true();
+		facts.set({.auditioning = false});
+	});
+
+	it("walks nothing while X_ENC is held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const int32_t index = browser_scene().file_index();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().file_index()).to_equal(index);
+	});
+
+	it("leaves RECORD to the global RECORD while a foreground recording is live, and stays up", _ {
+		// `SampleBrowser::buttonAction`'s RECORD arm needs `audioRecorder.recordingSource == NONE`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		expect(pressed.handled).to_be_false();
+		expect(pressed.actions.empty()).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+	});
+
+	it("forgets the undo log as it opens, as SampleBrowser::opened does", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		// `getNewAction` refuses unless the current UI is the root, so a root is set for the seed and taken down again.
+		setRootUILowLevel(&instrumentClipView);
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		nullifyUIs();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+	});
+
+	it("leaves KEYBOARD's and LOAD's LEDs as the view left them until each is pressed", _ {
+		// `SampleBrowser::opened` sets neither: over the keyboard screen KEYBOARD stays lit until its first press.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Keyboard)]).to_be_false();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		r.click(kKeyboardX, kKeyboardY);
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Keyboard)]).to_be_true();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		r.click(kLoadX, kLoadY);
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_true();
 	});
 
 	it("takes no BACK, RECORD or Shift+SAVE while Select is held, nor a Select press while X_ENC is", _ {

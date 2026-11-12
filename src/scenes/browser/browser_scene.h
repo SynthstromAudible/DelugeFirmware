@@ -713,7 +713,7 @@ private:
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
 	/// @brief Whether a legacy UI mode is up: Select held for a long press, or X_ENC held. The buttons that legacy
 	///        gates on `currentUIMode` (BACK, Select's press, RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
-	bool mode_up() const { return holding_ || xenc_held_; }
+	bool mode_up() const { return holding_ || xenc_held_ || (ctx_.facts != nullptr && ctx_.facts->auditioning()); }
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
 	///        folder import is running, and every button and key is refused until it ends.
 	bool load_running() const {
@@ -771,6 +771,10 @@ private:
 	bool keys_drawn_ = false;
 	bool showing_preview_ = false;
 	bool keyboard_always_visible_ = false;
+	/// Whether KEYBOARD / LOAD has been pressed since the open: `SampleBrowser::opened` sets neither LED, so until then
+	/// the view's state stands.
+	bool keyboard_led_touched_ = false;
+	bool load_led_touched_ = false;
 	bool auto_load_ = false;
 	/// X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, entered only with no other mode.
 	bool xenc_held_ = false;

@@ -1385,6 +1385,10 @@ bool host_release_sample_file(std::string_view path) {
 	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
 }
 
+void host_forget_undo() {
+	actionLogger.deleteAllLogs();
+}
+
 void host_end_audition(AuditionEnd how) {
 	switch (how) {
 	case AuditionEnd::ClipViewWhenAuditioning:

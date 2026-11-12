@@ -36,6 +36,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/sound_state.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -408,6 +409,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	id_ = static_cast<BrowserId>(id.arg);
 	holding_ = false;
+	keyboard_led_touched_ = false;
+	load_led_touched_ = false;
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
 	awaiting_load_ = false;
@@ -422,6 +425,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	if (id_ == BrowserId::Sample) {
 		// `SampleBrowser::opened`: a held audition ends as the browser opens.
 		menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
+		// `SampleBrowser::opened`: undo history ends at the browser.
+		menu::host_forget_undo();
 	}
 
 	entered_len_ = 0;
@@ -1541,9 +1546,13 @@ void BrowserScene::leds(deluge::ui::LedFrame& f) {
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), state(false));
-	// `SampleBrowser::buttonAction`'s two toggles light their buttons.
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
+	// `SampleBrowser::buttonAction`'s two toggles light their buttons; before a press `opened` has set neither.
+	if (keyboard_led_touched_) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
+	}
+	if (load_led_touched_) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1668,7 +1677,7 @@ Result BrowserScene::after_render() {
 
 	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set. So is one
 	//    typed while a sample load runs (`SampleBrowser::padAction`'s gate).
-	if (holding_ || load_running()) {
+	if (mode_up() || load_running()) {
 		return r;
 	}
 
@@ -1847,7 +1856,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
 		if (id_ == BrowserId::Sample && event.x == kDisplayWidth) {
-			if (event.velocity != 0 && !holding_) {
+			if (event.velocity != 0 && !mode_up()) {
 				return close();
 			}
 			Result r;
@@ -1859,7 +1868,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
-		if (event.encoder == deluge::ui::EncoderRole::Select && holding_) {
+		if (event.encoder == deluge::ui::EncoderRole::Select && mode_up()) {
 			// `Browser::selectEncoderAction` turns only with no UI mode set, and a hold is one.
 			Result r;
 			r.handled = true;
@@ -1964,6 +1973,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (ctx_.is_audio_clip) {
 			return std::nullopt;
 		}
+		load_led_touched_ = true;
 		if (!on) {
 			auto_load_ = !auto_load_;
 		}
@@ -1972,11 +1982,10 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		// The recorder replaces the browser with no UI mode up -- a held audition pad is `main`'s
 		// `UI_MODE_AUDITIONING`, which legacy holds because the view beneath takes that pad -- and never for an audio
 		// clip, whose RECORD goes on to the base browser and then to the global RECORD.
-		if (ctx_.is_audio_clip) {
+		if (ctx_.is_audio_clip || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
 			return std::nullopt;
 		}
-		const bool auditioning = ctx_.facts != nullptr && ctx_.facts->auditioning();
-		if (on && !mode_up() && !auditioning) {
+		if (on && !mode_up()) {
 			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
 			// it is not what leaves) and the recorder takes its place.
 			recorder::recorder_scene().open(ctx_);
@@ -2015,6 +2024,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (!on) {
 			return std::nullopt;
 		}
+		keyboard_led_touched_ = true;
 		keyboard_always_visible_ = !keyboard_always_visible_;
 		keyboard_visible_ = keyboard_always_visible_;
 		if (keyboard_visible_) {
