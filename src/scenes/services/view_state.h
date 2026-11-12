@@ -14,8 +14,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -58,6 +56,10 @@ struct SampleView {
 };
 
 /// @brief The scenes' view state for one song: a lookup for another song finds nothing.
+///
+/// An entry keyed by a range that no longer exists (deleted, or replaced by a type change or a load) stays until the
+/// song changes (`forget_unless`): no live range has its identity, so nothing reads it. The store grows by at most the
+/// ranges and audio clips the user opens the editor on in one song.
 class ViewStateStore {
 public:
 	/// @brief Empty the store unless it holds the view state of the song whose identity is @p song.

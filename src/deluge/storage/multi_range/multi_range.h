@@ -31,7 +31,8 @@ public:
 
 	/// @brief This range's identity: no other range made in this run has it. The range keeps it while its source's
 	///        ranges are inserted and deleted around it and while another file is loaded into it; a range a type change
-	///        or a load makes has its own. Never saved: what is keyed by it (the marker editor's view) is not either.
+	///        or a load makes has its own. Never 0: identities count from 1. Never saved: what is keyed by it (the
+	///        marker editor's view) is not either.
 	[[nodiscard]] uint64_t identity() const { return identity_; }
 
 	int16_t topNote{};

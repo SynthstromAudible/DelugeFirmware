@@ -124,7 +124,8 @@ public:
 	}
 	/// @brief The identity of range @p range of source @p source of the sound at @p slot (`MultiRange::identity`). It
 	/// names the range itself: it moves with the range as ranges are inserted or deleted before it, and stays while
-	/// another file is loaded into it. None where the address names no range.
+	/// another file is loaded into it. Never 0: identities count from 1, so 0 names no range. None where the address
+	/// names no range.
 	[[nodiscard]] virtual std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
 	                                                             uint16_t range) const {
 		(void)slot;

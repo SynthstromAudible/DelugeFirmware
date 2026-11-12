@@ -977,6 +977,42 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(inserted->sampleHolder.loopEndPos)).to_equal(8 * kZoomMax);
 	});
 
+	it("keeps the lock and the view with their range as a range before it is deleted, which moves it down", _ {
+		Rig r;
+		r.sample->filePath = "SAMPLES/A.WAV";
+		r.range->sampleHolder.filePath = "SAMPLES/A.WAV";
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		// A range below the edited one, so the edited one is the source's second.
+		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		auto* below = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
+		below->sampleHolder.filePath = "SAMPLES/A.WAV";
+		below->sampleHolder.audioFile = r.sample;
+		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
+		// The edited range's remembered view and lock, in the store under its identity.
+		deluge::scenes::services::view_state().forget_unless(r.song.song->project.identity());
+		deluge::scenes::services::view_state().set_sample_view(
+		    r.key(), {.scroll = 0, .zoom = kZoomMax / 2, .loop_locked = true});
+		const uint64_t identity = r.range->identity();
+
+		// Deleting the range below moves the edited one down into its slot, by move-assignment.
+		expect(menu::host_write_sink().delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
+		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
+		expect(r.range->identity() == identity).to_be_true();
+
+		r.reopen(MarkerType::LOOP_START, 0);
+		r.tick(30);
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
+		r.turn_select(1, 40);
+		r.tick(40);
+		// Still locked, at the remembered zoom: one detent is one half-width column, and the loop end keeps its length
+		// from the start.
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(4 * kZoomMax + kZoomMax / 2);
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(8 * kZoomMax + kZoomMax / 2);
+	});
+
 	it("gives a cloned audio clip the original's scroll and zoom, as beenClonedFrom gives the clone's holder", _ {
 		using deluge::scenes::services::ViewKey;
 		AudioRig r;
