@@ -25,6 +25,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
+#include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -60,6 +61,7 @@
 #include "util/functions.h" // getInstrumentFolder
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <iterator>
 #include <span>
@@ -291,6 +293,23 @@ constexpr const char* kNavLoadedLands = "FAIL4";
 /// Each folder open of that act held this long, so the second turn's walk is still reading when the first's preset
 /// lands, and the third turn can be made behind it.
 constexpr uint32_t kNavReadHoldMs = 50;
+/// A pile carries the wraps its landing made, as main's `wrapped` survives its pending detents
+/// (`LoadInstrumentPresetUI::doPresetNavigation`): instruments already in the song are passed over until the second
+/// wrap. kNavWrapDir holds WRAP0..WRAP4, few enough for one window. The clip's kit is WRAP4, and another kit of the
+/// song, its clips not active in session, is WRAP0, so every read lists WRAP0 (in the song) and WRAP1..WRAP3. On from
+/// WRAP4 reads past the end, starts again from the folder's start, passes WRAP0 and lands on WRAP1. Three more, piled
+/// behind it, wrap once, pass WRAP0 and land on WRAP3. One more, piled behind that, wraps a second time and takes the
+/// in-song kit; a pile that forgot its landing's wrap would pass it again and land on WRAP1.
+///
+/// Run on the walk itself, not through a turn: a landing on an in-song instrument only happens where the walk passes
+/// them over, which is a turn from the session or arranger view (main's `Song::navigateThroughPresetsForInstrument`,
+/// where `Song::replaceInstrument` freezes with i009 on an instrument already in the song) or from the clip view on a
+/// clip with an arranger instance (where main's `View::navigateThroughPresetsForInstrumentClip` assumes there is none).
+constexpr const char* kNavWrapDir = "KITS/AQWRAP";
+constexpr int32_t kNavWrapCount = 5;
+constexpr const char* kNavWrapFrom = "WRAP4";
+constexpr const char* kNavWrapInSong = "WRAP0";
+constexpr int32_t kNavWrapPile = 3;
 /// AqChangeCases' remembered kit presets: one there, one absent (sorting just after NAV05), one in a folder that
 /// does not exist.
 constexpr const char* kChangeNamed = "NAV05";
@@ -1363,6 +1382,19 @@ int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
 /// AQ-NAV-PILE pile-from-instrument: whether its third turn was made while the second's walk was out.
 bool g_navThirdBehindWalk = false;
+/// AQ-NAV-PILE pile-wrapped-twice: the walk, which of its three moves is out, the ticks it has taken, what each move
+/// landed on and the wraps it carried, and the other kit made kNavWrapInSong for it with what it was called, where,
+/// and the clips of it the act stopped, all put back afterwards.
+deluge::gui::PresetNavigation g_navWrapWalk;
+int32_t g_navWrapMove = 0;
+int32_t g_navWrapTicks = 0;
+std::array<std::string, 3> g_navWrapLanded{};
+std::array<int32_t, 3> g_navWrapWraps{};
+Instrument* g_navWrapLandedInstrument = nullptr;
+Instrument* g_navWrapOther = nullptr;
+std::string g_navWrapOtherName{};
+std::string g_navWrapOtherDir{};
+std::vector<Clip*> g_navWrapStopped{};
 /// AQ-NAV-PILE pile-behind-failed and pile-behind-loaded: the document reads and sample loads before it, and whether
 /// its second turn was made during the load.
 int32_t g_navDocumentReadsBefore = 0;
@@ -1401,7 +1433,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 14
+	       : leg == Leg::AqNavWrap   ? 15
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1514,6 +1546,13 @@ void prepareAcquire() {
 			const char* drumName = "NAVD";
 			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
 		}
+		(void)deluge::io::mkdir(kNavWrapDir);
+		for (int32_t i = 0; ok && i < kNavWrapCount; i++) {
+			char path[48];
+			snprintf(path, sizeof(path), "%s/WRAP%d.XML", kNavWrapDir, static_cast<int>(i));
+			const char* drumName = "WRAPD";
+			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
+		}
 		(void)deluge::io::mkdir(kNavFailDir);
 		for (int32_t i = 0; ok && i < kNavFailCount; i++) {
 			char path[48];
@@ -1554,6 +1593,109 @@ void markSlotScan() {
 	g_slotRequestsBefore = Browser::directoryRequests();
 	Browser::currentDir = kSlotSentinelDir;
 	g_slotListingBefore = browserListingNames();
+}
+
+void aqFail(const char* marker, const char* what);
+
+/// The pile-wrapped-twice walk's moves: one on from the clip's kit, then each pile from the move before's landing.
+constexpr std::array<int32_t, 3> kNavWrapMoves{1, kNavWrapPile, 1};
+
+/// Arm pile-wrapped-twice's walk for its next move.
+void armNavWrapMove() {
+	auto* kit = static_cast<Instrument*>(g_aqClip->output);
+	deluge::storage::AcquireWalkSpec spec{.walk = deluge::storage::AcquireWalk::Navigate,
+	                                      .outputType = OutputType::KIT,
+	                                      .availability = Availability::INSTRUMENT_UNUSED,
+	                                      .dirPath = kNavWrapDir,
+	                                      .name = kNavWrapFrom,
+	                                      .offset = kNavWrapMoves[g_navWrapMove],
+	                                      .oldInstrument = kit};
+	if (g_navWrapMove > 0) {
+		spec.pile = g_navWrapWalk.landing();
+	}
+	g_navWrapWalk.arm(loadInstrumentPresetUI, spec);
+}
+
+/// Set pile-wrapped-twice up and start its first move. @return False when the song has no second kit to use.
+bool armNavWrapMachine() {
+	g_navWrapOther = nullptr;
+	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type == OutputType::KIT && output != g_aqClip->output) {
+			g_navWrapOther = static_cast<Instrument*>(output);
+			break;
+		}
+	}
+	if (g_navWrapOther == nullptr) {
+		return false;
+	}
+	g_navWrapOtherName = g_navWrapOther->name;
+	g_navWrapOtherDir = g_navWrapOther->dirPath;
+	g_navWrapOther->name = kNavWrapInSong;
+	g_navWrapOther->dirPath = kNavWrapDir;
+	g_navWrapStopped.clear();
+	for (Clip* clip : sessionClipList()) {
+		if (clip->output == g_navWrapOther && clip->activeIfNoSolo) {
+			clip->activeIfNoSolo = false;
+			g_navWrapStopped.push_back(clip);
+		}
+	}
+	auto* kit = static_cast<Instrument*>(g_aqClip->output);
+	kit->dirPath = kNavWrapDir;
+	kit->name = kNavWrapFrom;
+	g_aqNameBefore = kNavWrapFrom;
+	g_navWrapMove = 0;
+	g_navWrapTicks = 0;
+	g_navWrapLanded.fill("");
+	g_navWrapWraps.fill(-1);
+	g_navWrapLandedInstrument = nullptr;
+	armNavWrapMove();
+	return true;
+}
+
+/// Tick pile-wrapped-twice's walk, recording each move's landing and arming the next. @return Whether it is still out.
+bool runNavWrapMachine() {
+	if (g_navWrapMove >= static_cast<int32_t>(kNavWrapMoves.size())) {
+		return false;
+	}
+	if (g_navWrapWalk.tick() && ++g_navWrapTicks <= kMaxLegTicks) {
+		return true;
+	}
+	const auto landed = g_navWrapWalk.result();
+	if (!landed.has_value() || *landed == nullptr) {
+		g_navWrapMove = static_cast<int32_t>(kNavWrapMoves.size());
+		return false;
+	}
+	g_navWrapLanded[g_navWrapMove] = g_navWrapWalk.landing().landed;
+	g_navWrapWraps[g_navWrapMove] = g_navWrapWalk.landing().wraps;
+	g_navWrapLandedInstrument = (*landed)->instrument;
+	if (++g_navWrapMove < static_cast<int32_t>(kNavWrapMoves.size())) {
+		armNavWrapMove();
+		return true;
+	}
+	return false;
+}
+
+/// Check pile-wrapped-twice's landings, and put the song back as it was.
+void checkNavWrapMachine() {
+	printf("AQ-NAV-PILE turns=pile-wrapped-twice landed=%s,%s,%s wraps=%d,%d,%d in-song=%d\n",
+	       g_navWrapLanded[0].c_str(), g_navWrapLanded[1].c_str(), g_navWrapLanded[2].c_str(), g_navWrapWraps[0],
+	       g_navWrapWraps[1], g_navWrapWraps[2], g_navWrapLandedInstrument == g_navWrapOther ? 1 : 0);
+	// The landings are display names, which keep the file's extension.
+	if (g_navWrapLanded[0] != "WRAP1.XML" || g_navWrapLanded[1] != "WRAP3.XML" || g_navWrapWraps[1] != 1) {
+		aqFail("AQ-NAV-PILE", "on and three more did not pass the in-song kit, wrapping once, onto WRAP3");
+	}
+	if (g_navWrapLanded[2] != std::string{kNavWrapInSong} + ".XML" || g_navWrapLandedInstrument != g_navWrapOther) {
+		aqFail("AQ-NAV-PILE", "a pile past a second wrap, from a landing that had wrapped once, did not take the "
+		                      "in-song kit");
+	}
+	loadInstrumentPresetUI.emptyFileItems();
+	for (Clip* clip : g_navWrapStopped) {
+		clip->activeIfNoSolo = true;
+	}
+	if (g_navWrapOther != nullptr) {
+		g_navWrapOther->name = g_navWrapOtherName;
+		g_navWrapOther->dirPath = g_navWrapOtherDir;
+	}
 }
 
 /// Make the leg's gesture. False when it could not be made, recorded as a failure.
@@ -1765,6 +1907,9 @@ bool actAcquire() {
 			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
 			instrumentClipView.selectEncoderAction(1);
 			return true; // the second turn waits for the first's load to begin (runAcquireTick)
+		}
+		if (g_aqAct == 14) {
+			return armNavWrapMachine() || fail(leg, "the song has no second kit to put in the wrap folder");
 		}
 		if (g_aqAct == 11) {
 			static_cast<Instrument*>(g_aqClip->output)->name = kNavInstrumentFrom;
@@ -2120,6 +2265,10 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqNavWrap: {
+		if (g_aqAct == 14) {
+			checkNavWrapMachine();
+			break;
+		}
 		if (g_aqAct >= 5) {
 			static constexpr const char* kTurns[] = {
 			    "other-other-on", "two-behind-other",     "pile-past-end",      "pile-past-window",  "pile-back",
@@ -2274,6 +2423,9 @@ void runAcquireTick() {
 		g_aqStep = AqStep::Wait;
 		break;
 	case AqStep::Wait: {
+		if (g_leg == Leg::AqNavWrap && g_aqAct == 14 && runNavWrapMachine()) {
+			break;
+		}
 		if (g_leg == Leg::AqNavWrap && g_aqAct == 11 && !g_aqTurned
 		    && LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore == 2) {
 			// The first turn has landed and the pile behind it is walking: thirty more, behind that walk.
