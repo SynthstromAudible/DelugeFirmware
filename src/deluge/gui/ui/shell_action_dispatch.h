@@ -109,7 +109,7 @@ namespace deluge::gui::ui {
 /// declarations or definitions and one is a doc comment in `shell_host_ui.h`, leaving **26 call
 /// sites, of which 11 discard the result and 15 bind it to a `bool available` and branch**
 /// (`gui/context_menu/save_song_or_instrument.cpp` is one of the 15;
-/// `gui/menu_item/reset_settings/reset.h:31` and `gui/views/session_view.cpp:522` are two of the 11).
+/// `gui/menu_item/reset_settings/reset.h` and `gui/views/session_view.cpp` are two of the 11).
 /// It is a split convention, and these two sites are on the discarding side of it. Reproduced, not
 /// improved.
 ///

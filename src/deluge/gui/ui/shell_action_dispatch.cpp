@@ -377,7 +377,7 @@ void performMenuAction(const MenuActionRequest& req) {
 		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
 		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
 		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:771`) through it.
+		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` through it.
 		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
@@ -479,7 +479,7 @@ void performMenuAction(const MenuActionRequest& req) {
 		break;
 
 	case MenuAction::PadColoursChanged:
-		// `Colour::writeCurrentValue`'s second statement (`colour.h:46`).
+		// `Colour::writeCurrentValue`'s second statement.
 		renderingNeededRegardlessOfUI();
 		break;
 

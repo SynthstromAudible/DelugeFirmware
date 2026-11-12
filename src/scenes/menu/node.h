@@ -1546,7 +1546,7 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 /// @param spec  The upper edge and the two per-item rules. Required: a null one is a
 ///              `validate_tree` issue, not a defaulted-to-something.
 /// @param r     The bounds both ends live inside, and the select detent's step --
-///              `IntegerRange::minValue`/`maxValue` (`integer_range.h:45`), or `KeyRange`'s own
+///              `IntegerRange::minValue`/`maxValue`, or `KeyRange`'s own
 ///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:29-30`).
 constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
                           IntRange r, RelevantFn rel = nullptr) {

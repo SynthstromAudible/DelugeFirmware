@@ -37,7 +37,6 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
 	void selectEncoderAction(int32_t offset) override;
-	int32_t getRandomValueInRange();
 
 	int32_t& lower;
 	int32_t& upper;

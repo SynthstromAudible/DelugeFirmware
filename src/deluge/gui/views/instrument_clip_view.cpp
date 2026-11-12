@@ -19,9 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
@@ -6113,11 +6113,11 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], u
 			thisColour = colours::black;
 		}
 		else {
-			thisColour = menu_item::activeColourMenu.getRGB();
+			thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE);
 		}
 	}
 	else {
-		thisColour = menu_item::mutedColourMenu.getRGB();
+		thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED);
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness

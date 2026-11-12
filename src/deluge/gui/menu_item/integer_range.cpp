@@ -93,14 +93,4 @@ void IntegerRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRig
 		*getRightLength = strlen(bufferPos);
 	}
 }
-
-// Call seedRandom() before you call this
-int32_t IntegerRange::getRandomValueInRange() {
-	if (lower == upper) {
-		return lower;
-	}
-	else {
-		return lower + random(upper - lower);
-	}
-}
 } // namespace deluge::gui::menu_item

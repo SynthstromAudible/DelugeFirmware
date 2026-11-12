@@ -1467,13 +1467,13 @@ void emit_colours(OracleWriter& out, const TreeWalk& settings) {
 		}
 		// The item writes one byte of `FlashStorage::padColours`: find which, from a base the write moves off.
 		std::fill(std::begin(FlashStorage::padColours), std::end(FlashStorage::padColours),
-		          static_cast<uint8_t>(legacy::Colour::RED));
-		item->setValue(static_cast<int32_t>(legacy::Colour::PINK));
+		          static_cast<uint8_t>(deluge::gui::RED));
+		item->setValue(static_cast<int32_t>(deluge::gui::PINK));
 		item->writeCurrentValue();
 		int32_t moved = -1;
 		int32_t moved_count = 0;
 		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
-			if (FlashStorage::padColours[i] != legacy::Colour::RED) {
+			if (FlashStorage::padColours[i] != deluge::gui::RED) {
 				moved = static_cast<int32_t>(i);
 				moved_count++;
 			}

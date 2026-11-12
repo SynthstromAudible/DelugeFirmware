@@ -20,10 +20,10 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/colour.h"
 #include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -2865,7 +2865,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
-		thisColour = menu_item::soloColourMenu.getRGB();
+		thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_SOLOED);
 	}
 
 	// Or if not soloing...
@@ -2873,19 +2873,19 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 		if (!clip->activeIfNoSolo) {
 			switch (clip->launchStyle()) {
 			case LaunchStyle::FILL:
-				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_FILL); // colours::red_orange;
 				break;
 			case LaunchStyle::ONCE:
-				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ONCE); // colours::red_orange;
 				break;
 			default:
 				// If it's stopped, red.
-				thisColour = menu_item::stoppedColourMenu.getRGB();
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_STOPPED);
 			}
 		}
 		else {
 			// Active pads of any type go green (or the active colour from the menu).
-			thisColour = menu_item::activeColourMenu.getRGB();
+			thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE);
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {

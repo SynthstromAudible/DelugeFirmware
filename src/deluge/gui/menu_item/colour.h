@@ -16,25 +16,16 @@
  */
 
 #pragma once
+#include "gui/colour/pad_colour.h"
 #include "gui/menu_item/selection.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item {
 
-constexpr int32_t kNumPadColours = 9;
+using deluge::gui::kNumPadColours;
 class Colour final : public Selection {
 public:
-	enum Option : uint8_t {
-		RED,
-		GREEN,
-		BLUE,
-		YELLOW,
-		CYAN,
-		MAGENTA,
-		AMBER,
-		WHITE,
-		PINK,
-	};
+	using Option = deluge::gui::PadColour;
 
 	/// @param slot Which of `FlashStorage::padColours` this item edits -- see the note on `value`.
 	Colour(l10n::String newName, FlashStorage::PadColourSlot slot)
@@ -54,15 +45,13 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_PINK),
 		};
 	}
-	[[nodiscard]] RGB getRGB() const;
+	[[nodiscard]] RGB getRGB() const { return deluge::gui::padColourValueRGB(value); }
 
 	/// @brief This item's colour, as an `Option`.
 	///
 	/// A **reference onto `FlashStorage::padColours`**, not a member of its own: the byte is a
 	/// persisted setting that `flash_storage.cpp` and `src/scenes`'s port of this page both address,
-	/// and neither can reach a member of a `gui/` class. Every legacy spelling
-	/// (`activeColourMenu.value = Colour::GREEN`, `buffer[74] = activeColourMenu.value`) is
-	/// unchanged; it now reads and writes the shared byte.
+	/// and neither can reach a member of a `gui/` class.
 	uint8_t& value;
 };
 

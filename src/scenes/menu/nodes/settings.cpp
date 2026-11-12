@@ -905,7 +905,7 @@ int32_t pad_colour_get(int32_t slot) {
 	return FlashStorage::padColours[slot]; // `menu_item::Colour::readCurrentValue`, `colour.h:43`
 }
 void pad_colour_set(int32_t slot, int32_t value) {
-	// `Colour::writeCurrentValue` (`colour.h:44-47`); its `renderingNeededRegardlessOfUI()` is
+	// `Colour::writeCurrentValue`; its `renderingNeededRegardlessOfUI()` is
 	// `MenuAction::PadColoursChanged`.
 	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
 	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadColoursChanged});

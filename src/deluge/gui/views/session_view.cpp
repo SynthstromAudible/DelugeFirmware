@@ -26,7 +26,6 @@
 #include "gui/context_menu/context_menu.h"
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"

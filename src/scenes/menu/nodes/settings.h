@@ -22,7 +22,7 @@
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:26-32`),
 ///           `shortcuts_version` (`FlashStorage::shortcutsVersion`) and the
-///           six `pad_colour_*` (`menu_item::Colour::value`, `colour.h:66`) are ordinary `Kind::Enum`
+///           six `pad_colour_*` (`menu_item::Colour::value`) are ordinary `Kind::Enum`
 ///           nodes with get/set hooks, because none needed a bespoke item, only a reachable byte:
 ///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
 ///               a declaration reaches without including anything from `hid/`, exactly as
@@ -374,7 +374,7 @@ void set_shortcuts_version(const MenuContext& ctx, int32_t value);
 /// against `FlashStorage::PadColourSlot` with a `static_assert`, exactly as it pins `ResetItem`'s
 /// `DescriptorId` literals.
 ///
-/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:46`) does not come along --
+/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` does not come along --
 /// it is the same class of `hid/` immediate-apply the file note lists as a gap. The stored byte,
 /// which is all any renderer reads, is written identically.
 /// @{
@@ -1049,8 +1049,8 @@ inline constexpr Node pads_keyboard_layout =
                                    get_pads_keyboard_layout, set_pads_keyboard_layout),
                sid(String::STRING_FOR_KEY_LAYOUT));
 
-/// `menu_item::Colour::getOptions` (`colour.h:48-56`) -- nine names, shared by all six items, in
-/// `Colour::Option` order (`colour.h:27-37`).
+/// `menu_item::Colour::getOptions` -- nine names, shared by all six items, in `Colour::Option`
+/// order.
 inline constexpr uint16_t kPadColourNames[] = {
     sid(String::STRING_FOR_RED),    sid(String::STRING_FOR_GREEN), sid(String::STRING_FOR_BLUE),
     sid(String::STRING_FOR_YELLOW), sid(String::STRING_FOR_CYAN),  sid(String::STRING_FOR_MAGENTA),

@@ -346,16 +346,11 @@ Song::~Song() {
 	deleteHibernatingMIDIInstrument();
 }
 
-#include "gui/menu_item/integer_range.h"
-#include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "util/structural_edit_probe.h"
-extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
-extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace {
 // Relocate a ParamSet's read-populated own DOM store into the project tree `dest`, then re-bind the engine set to the
@@ -380,9 +375,9 @@ void Song::setupDefault() {
 
 	seedRandom();
 
-	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
-	project.groove.swing_amount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
-	project.scale.key.rootNote = defaultKeyMenu.getRandomValueInRange();
+	setBPM(FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_TEMPO), false);
+	project.groove.swing_amount = FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_SWING_AMOUNT) - 50;
+	project.scale.key.rootNote = FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_KEY);
 
 	// Do scale
 	project.scale.disabled_preset_scales = FlashStorage::defaultDisabledPresetScales;

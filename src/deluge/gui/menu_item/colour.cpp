@@ -28,37 +28,4 @@ Colour soloColourMenu{l10n::String::STRING_FOR_SOLOED, FlashStorage::PAD_COLOUR_
 Colour fillColourMenu{l10n::String::STRING_FOR_FILL, FlashStorage::PAD_COLOUR_FILL};
 Colour onceColourMenu{l10n::String::STRING_FOR_ONCE, FlashStorage::PAD_COLOUR_ONCE};
 
-RGB Colour::getRGB() const {
-	switch (value) {
-	case RED: // Red
-		return colours::red;
-
-	case GREEN: // Green
-		return colours::enabled;
-
-	case BLUE: // Blue
-		return colours::blue;
-
-	case YELLOW: // Yellow
-		return colours::yellow_orange;
-
-	case CYAN: // Cyan
-		return colours::cyan;
-
-	case MAGENTA: // Purple
-		return colours::magenta;
-
-	case AMBER: // Amber
-		return colours::amber;
-
-	case WHITE: // White
-		return colours::white;
-
-	case PINK: // Pink
-		return colours::pink;
-
-	default:
-		__builtin_unreachable(); // TODO: should be std::unreachable() with C++23
-	}
-}
 } // namespace deluge::gui::menu_item

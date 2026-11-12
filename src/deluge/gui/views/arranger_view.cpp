@@ -19,9 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
@@ -643,7 +643,7 @@ void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
 
 	// Soloing - blue
 	else if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
-		thisColour = menu_item::soloColourMenu.getRGB();
+		thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_SOLOED);
 	}
 
 	// Or if not soloing...
@@ -651,12 +651,12 @@ void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
 
 		// Muted - yellow
 		if (outputsOnScreen[yDisplay]->mutedInArrangementMode) {
-			thisColour = menu_item::mutedColourMenu.getRGB();
+			thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED);
 		}
 
 		// Otherwise, green
 		else {
-			thisColour = menu_item::activeColourMenu.getRGB();
+			thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE);
 		}
 
 		if (currentSong->getAnyOutputsSoloingInArrangement()) {

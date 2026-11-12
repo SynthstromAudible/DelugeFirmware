@@ -99,25 +99,6 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	}
 }
 
-// Call seedRandom() before you call this
-int32_t KeyRange::getRandomValueInRange() {
-	if (lower == upper) {
-		return lower;
-	}
-	else {
-		int32_t range = upper - lower;
-		if (range < 0) {
-			range += 12;
-		}
-
-		int32_t value = lower + random(range);
-		if (range >= 12) {
-			range -= 12;
-		}
-		return value;
-	}
-}
-
 bool KeyRange::isTotallyRandom() {
 	int32_t range = upper - lower;
 	if (range < 0) {
