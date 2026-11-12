@@ -209,6 +209,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -1405,8 +1406,17 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    static_cast<int>(AudioInputChannel::NONE));
 		expect(recorder::recorder_scene().recording()).to_be_false();
 
+		// The scene frees the recorder only once it has settled, and an abort settles through the card routine, which
+		// nothing runs here: this stands in for it.
+		uitest::RunOptions opts = opts_for(nodes::sound_root);
+		opts.before_tick = [](uint32_t) {
+			SampleRecorder* const rec = recorder::recorder_scene().recorder();
+			if (rec != nullptr && rec->status == RecorderStatus::ABORTED) {
+				(void)rec->cardRoutine();
+			}
+		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
 		expect(result.snapshots).to_equal(uint32_t{8});
 
 		// Armed for real TWICE -- once through SOUND -> ACTIONS -> RECORD TO SAMPLE, once through the

@@ -67,6 +67,7 @@
 #include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
+#include "playback/playback_handler.h"
 #include "playback/render_requests.h"
 #include "plugin-api/types/param_mapping.h"
 #include "processing/audio_output.h"
@@ -76,6 +77,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -1642,6 +1644,11 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) 
 		audioRecorder.recordingSource = source;
 		std::atomic_signal_fence(std::memory_order_release);
 		audioRecorder.recorder = recorder;
+		// A MIDI next song held back while an input take ran (`PlaybackHandler::tryGlobalMIDICommands`) goes now that
+		// the take is over: its job runs only on request.
+		if (playbackHandler.nextSongPending_) {
+			deluge::runtime::appLoop.request(playbackHandler.slowJob);
+		}
 	}
 }
 

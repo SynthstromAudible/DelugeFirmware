@@ -942,7 +942,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 
-		// `shouldInterpretNoteNamesForThisBrowser = true` (`sample_browser.cpp:93`); the base leaves
+		// `shouldInterpretNoteNamesForThisBrowser = true` (`SampleBrowser`'s constructor); the base leaves
 		// it false.
 		expect(sample.interpret_note_names).to_be_true();
 		expect(midi.interpret_note_names).to_be_false();
@@ -957,7 +957,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 	});
 
 	it("gives each browser its own row icon, and only the MIDI one a second piece", _ {
-		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`sample_browser.cpp:89`);
+		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`SampleBrowser`'s constructor);
 		// `LoadMidiDeviceDefinitionUI`'s `fileIcon = OLED::midiIcon` plus `fileIconPt2 =
 		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:87-90`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);

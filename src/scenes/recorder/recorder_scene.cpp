@@ -283,7 +283,12 @@ Result RecorderScene::after_render() {
 	}
 
 	// `process()`'s completion arm (`:207-223`).
-	if (recorder_->status >= RecorderStatus::COMPLETE || recorder_->hadCardError) {
+	// A card error ends the take: stop capturing, then wait, as for any take, until the recorder has closed its file
+	// and the driver holds nothing of it. Freeing it any earlier frees memory a write may still be reading.
+	if (recorder_->hadCardError) {
+		end_recording_soon();
+	}
+	if (recorder_->settled()) {
 		// **Not from inside the card routine.** `finish_recording()` below frees the recorder
 		// through `AudioEngine::discardRecorder`, and legacy states the hazard on its *other*
 		// caller, `AudioRecorder::slowRoutine` (`:168-176`): the recorder may be suspended part-way

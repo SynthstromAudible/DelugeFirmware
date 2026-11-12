@@ -66,10 +66,12 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
@@ -359,6 +361,30 @@ struct Take {
 	}
 	Take(const Take&) = delete;
 	Take& operator=(const Take&) = delete;
+};
+
+/// @brief `playbackHandler.slowJob`, registered if this binary never ran the app's setup, counting its runs.
+int32_t g_slow_runs = 0;
+void count_slow_run() {
+	++g_slow_runs;
+}
+struct SlowJob {
+	SlowJob() {
+		if (playbackHandler.slowJob == deluge::runtime::kNoJob) {
+			playbackHandler.slowJob =
+			    deluge::runtime::appLoop.add("spec slow", &count_slow_run, deluge::runtime::kNever, 0);
+		}
+		g_slow_runs = 0;
+	}
+	/// @brief Run the app loop's passes until none is in progress.
+	static void drain() {
+		const deluge::runtime::Micros now = deluge::runtime::nowUs();
+		(void)deluge::runtime::appLoop.service(now, 0);
+		while (deluge::runtime::appLoop.inPass()) {
+			(void)deluge::runtime::appLoop.service(deluge::runtime::nowUs(), 0);
+		}
+	}
+	~SlowJob() { playbackHandler.nextSongPending_ = false; }
 };
 
 /// @brief A kit with one sound row whose source 0 has a range, with a `Shell` for the recorder over it.
@@ -1029,6 +1055,11 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 		rec->status = RecorderStatus::ABORTED;
+		// Freed only once the abort has run through its phases, as the card routine runs it.
+		for (int32_t i = 0; i < 16 && !rec->settled(); i++) {
+			(void)rec->cardRoutine();
+		}
+		expect(rec->settled()).to_be_true();
 		r.tick(10);
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
@@ -1485,6 +1516,40 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		expect(recorder_scene().threshold_take()).to_be_false();
 		expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_false();
+	});
+
+	it("releases a next song held for the take as the take ends, as finishRecording does", _ {
+		Guards g;
+		SlowJob slow;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		expect(playbackHandler.slowJob != deluge::runtime::kNoJob).to_be_true();
+		const deluge::runtime::JobStats before = deluge::runtime::appLoop.stats(playbackHandler.slowJob);
+		playbackHandler.nextSongPending_ = true; // what a MIDI NEXT_SONG during the take leaves
+		const Take take{*rec, "SAMPLES/RECORD/REC010.WAV"};
+		rec->status = RecorderStatus::COMPLETE;
+
+		r.tick(10);
+		expect(r.on_stack()).to_be_false();
+		SlowJob::drain();
+		expect(deluge::runtime::appLoop.stats(playbackHandler.slowJob).runs > before.runs).to_be_true();
+	});
+
+	it("stops a take that hit a card error and frees it only once it has settled", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->numSamplesCaptured = 44100;
+		rec->hadCardError = true; // mid-capture: status still CAPTURING_DATA
+		rec->status = RecorderStatus::CAPTURING_DATA;
+
+		r.tick(10);
+		expect(r.on_stack()).to_be_true(); // not freed under the capture
+		expect(recorder_scene().stopping()).to_be_true();
 	});
 });
 // clang-format on
